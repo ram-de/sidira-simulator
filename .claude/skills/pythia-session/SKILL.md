@@ -1,9 +1,9 @@
 ---
-name: session
-description: Project-scoped session state management for Pythia. Tracks in-progress work to <repo>/sessions/<domain>/context.md, committed alongside code so both founders see each other's state via git pull. Project-local variant of the personal /session-pr skill. Only invoked when explicitly called as /session.
+name: pythia-session
+description: Project-scoped session state management for Pythia. Tracks in-progress work to <repo>/sessions/<domain>/context.md, committed alongside code so both founders see each other's state via git pull. Named pythia-session (not session) to avoid collision with employer-vault /session skills. Only invoked when explicitly called as /pythia-session.
 ---
 
-# /session — Pythia Project Session Skill
+# /pythia-session — Pythia Project Session Skill
 
 ## Overview
 
@@ -13,11 +13,15 @@ Every active chunk of Pythia work (sprint, feature, design spike) gets a session
 <repo>/sessions/<domain>/context.md
 ```
 
-This file is the source of truth for what is being worked on, what is done, and what is next. **It is committed to git** — both founders see each other's working state on `git pull`. When context resets or a teammate picks up the work, `/session resume` reads this file and continues from exactly where you left off.
+This file is the source of truth for what is being worked on, what is done, and what is next. **It is committed to git** — both founders see each other's working state on `git pull`. When context resets or a teammate picks up the work, `/pythia-session resume` reads this file and continues from exactly where you left off.
 
-**This skill writes to the repo's `sessions/` directory** (not to any personal Obsidian vault). Sessions are shared, not private. Personal scratch belongs in your own notes app.
+**This skill writes to the repo's `sessions/` directory** (not to any personal Obsidian vault). Sessions are shared, not private. Personal scratch belongs in your own notes app or in `/session-pr`.
 
-**Do NOT invoke this skill unless the user explicitly calls `/session`.** It does not auto-activate.
+**Do NOT invoke this skill unless the user explicitly calls `/pythia-session`.** It does not auto-activate.
+
+## Why "pythia-session" and not just "session"
+
+Other skills named `/session` may exist at user level (e.g., an employer's work-vault skill that writes to `~/vaults/work/sessions/`). Project-local skill resolution depends on cwd, and we never want Pythia work to accidentally land in an employer vault. The unambiguous name eliminates that risk.
 
 ## Cross-repo note
 
@@ -25,13 +29,13 @@ This skill lives in the `pythia-simulator` repo but applies to all Pythia work. 
 
 ## GitHub context
 
-The Pythia repos use `git@github.com-personal:ram-de/<repo>.git` remotes. When creating PRs from a session, use `mcp__github__create_pull_request` (which is configured against `ram-de/*`). All sessions assume this context — no need to re-confirm.
+The Pythia repos use `git@github.com-personal:ram-de/<repo>.git` remotes (in the founder's local dev environment) or `git@github.com:ram-de/<repo>.git` (default). When creating PRs from a session, use `mcp__github__create_pull_request` against `ram-de/*`. All sessions assume this context — no need to re-confirm.
 
 ---
 
 ## Subcommands
 
-### `/session new <domain> — <description>`
+### `/pythia-session new <domain> — <description>`
 
 Start a new session. `domain` is a short slug (e.g., `phase-2.5-sampler`, `agent-chat-ui`).
 
@@ -41,20 +45,20 @@ Start a new session. `domain` is a short slug (e.g., `phase-2.5-sampler`, `agent
 3. Tell the user: "Session started. I'll keep `sessions/<domain>/context.md` updated as we work."
 4. Begin the work
 
-### `/session resume [<domain>]`
+### `/pythia-session resume [<domain>]`
 
 Resume a session from a prior context.
 
 **Steps:**
 1. If `<domain>` given: read `<repo>/sessions/<domain>/context.md` directly
-2. If no domain given: run `python3 <repo>/.claude/skills/session/scripts/session_state.py active`
+2. If no domain given: run `python3 <repo>/.claude/skills/pythia-session/scripts/session_state.py active`
    - Exit 0 (one active) → auto-resume that session without asking
    - Exit 1 (none active) → ask user which session or if they want to start new
    - Exit 2 (multiple active) → print the list and ask which to resume
 3. Read the file, announce: "Resuming session `<domain>`. Last state: [In Progress items]. Next steps: [Next Steps items]."
 4. Continue the work from Next Steps
 
-### `/session save [<domain>]`
+### `/pythia-session save [<domain>]`
 
 Commit and push the current session state (and any other in-flight changes) so the other founder sees them.
 
@@ -68,13 +72,13 @@ Commit and push the current session state (and any other in-flight changes) so t
 4. If push fails due to diverged history: `git pull --rebase && git push`
 5. Tell the user: "Session pushed. Cofounder will see this on next `git pull`."
 
-### `/session list`
+### `/pythia-session list`
 
-Run: `python3 <repo>/.claude/skills/session/scripts/session_state.py list`
+Run: `python3 <repo>/.claude/skills/pythia-session/scripts/session_state.py list`
 
 Print the output. Offer to resume any active session.
 
-### `/session close [<domain>]`
+### `/pythia-session close [<domain>]`
 
 Mark the session as done. Roll lasting decisions / shipped artifacts into `CONTEXT.md` (team-shared sprint narrative).
 
@@ -151,20 +155,20 @@ owner: <github-username or name>
 
 ## Example: Starting a Phase 2.5 sub-session
 
-User: `/session new phase-2.5-sampler — implement population_sampler with largest-remainder`
+User: `/pythia-session new phase-2.5-sampler — implement population_sampler with largest-remainder`
 
 You:
 1. Write `<repo>/sessions/phase-2.5-sampler/context.md` with the template
 2. Set `owner` to whichever founder is starting the session
 3. Say: "Session started. I'll keep `sessions/phase-2.5-sampler/context.md` updated as we work."
 4. Begin the work
-5. After completing each task: move to Completed, add next to In Progress, then `/session save` so cofounder can see progress
+5. After completing each task: move to Completed, add next to In Progress, then `/pythia-session save` so cofounder can see progress
 
 ---
 
 ## Example: Cofounder picks up the session
 
-Cofounder: `/session resume phase-2.5-sampler`
+Cofounder: `/pythia-session resume phase-2.5-sampler`
 
 Claude (on cofounder's machine):
 1. Read `<repo>/sessions/phase-2.5-sampler/context.md`
@@ -187,17 +191,18 @@ The cofounder may want to update `owner:` if they're taking over.
 └── AGENTS.md             ← team conventions
 ```
 
-`sessions/` is intentionally COMMITTED to git. That's the whole point — both founders see the same state. If you have personal-scratch notes you don't want shared, those belong in your own notes app, NOT in `sessions/`.
+`sessions/` is intentionally COMMITTED to git. That's the whole point — both founders see the same state. If you have personal-scratch notes you don't want shared, those belong in your own notes app or in your user-level `/session-pr`, NOT in `<repo>/sessions/`.
 
 ---
 
-## Separation from /session-pr (personal vault)
+## Separation from other session skills
 
-If you also use the user-level `/session-pr` skill at `~/.claude/skills/session-pr/`, it writes to your personal Obsidian vault and is private. The two don't collide:
+If you also use the user-level `/session-pr` skill at `~/.claude/skills/session-pr/`, it writes to your personal Obsidian vault and is private. Likewise, an employer-vault `/session` at `~/.claude/skills/session/` writes to work scratch. None of these collide with `/pythia-session`:
 
 ```
-/session    (this one)  → <repo>/sessions/     project-scoped, shared via git
-/session-pr (your personal) → ~/vaults/personal/sessions/   personal, private
+/pythia-session  (this one)  → <repo>/sessions/                  Pythia, shared via git
+/session-pr      (personal)  → ~/vaults/personal/sessions/       personal, private
+/session         (employer)  → ~/vaults/work/sessions/           employer, private
 ```
 
-When working on Pythia, prefer `/session` so your cofounder can pick up.
+When working on Pythia, prefer `/pythia-session` so your cofounder can pick up.
