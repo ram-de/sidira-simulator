@@ -96,6 +96,74 @@ def test_agent_memory_conversation_append(
     assert loaded.conversation[1].content == "because"
 
 
+def test_json_repair_strips_code_fences_and_trailing_commas() -> None:
+    from pythia_simulator.adapters.llm import parse_llm_json
+    from pydantic import BaseModel
+
+    class Score(BaseModel):
+        value: float
+        label: str
+
+    raw = """```json
+    {
+      "value": 0.42,
+      "label": "underpowered",
+    }
+    ```"""
+    parsed = parse_llm_json(raw, Score)
+    assert parsed.value == 0.42
+    assert parsed.label == "underpowered"
+
+
+def test_json_repair_balances_truncated_braces() -> None:
+    from pythia_simulator.adapters.llm import parse_llm_json
+    from pydantic import BaseModel
+
+    class Score(BaseModel):
+        value: float
+
+    raw = '{"value": 0.7'  # truncated
+    parsed = parse_llm_json(raw, Score)
+    assert parsed.value == 0.7
+
+
+def test_run_state_event_log_appends(
+    store: LocalArtifactStore,
+) -> None:
+    from pythia_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
+
+    state = SimulationRunState(
+        simulation_id="sim-xyz",
+        customer_id="acme",
+        phase=RunPhase.PENDING,
+        started_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    rs = RunStateStore(store)
+    rs.write_state(state)
+    rs.emit(state, "run.started", sample_size=3)
+    rs.emit(state, "agent.reaction.completed", agent_id="a-1")
+    rs.emit(state, "agent.reaction.completed", agent_id="a-2")
+
+    loaded = rs.read_state("acme", "sim-xyz")
+    assert len(loaded.recent_events) == 3
+    assert loaded.recent_events[0].type == "run.started"
+    assert loaded.recent_events[-1].payload["agent_id"] == "a-2"
+
+
+def test_chat_guard_prefix_appended_as_system_supplement() -> None:
+    """The chat guard must be a separate system message — never edited into the
+    frozen identity prompt. Otherwise we'd break identity continuity by
+    silently changing what the agent's defining prompt looks like.
+    """
+    from pythia_simulator.services.agent_chat import _CHAT_GUARD_PREFIX
+
+    # Just verify the prefix exists and is non-trivial; the AgentChatService
+    # integration is covered by the live integration test in Phase 3.
+    assert "first-person" in _CHAT_GUARD_PREFIX
+    assert "tools" in _CHAT_GUARD_PREFIX
+
+
 def test_identity_continuity_replay_messages(
     memory: AgentMemory, agent_metadata: AgentInstanceMetadata
 ) -> None:

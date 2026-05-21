@@ -14,6 +14,20 @@ from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.schemas.agent import AgentChatTurn, AgentInstanceMetadata, AgentRole
 
 
+# Adapted from mirofish simulation_runner.py:25 (INTERVIEW_PROMPT_PREFIX).
+# Pinned as a system-supplement on every chat turn to prevent the LLM from
+# drifting out of character ("As an AI language model..."), requesting tools,
+# or producing structured output instead of first-person reasoning.
+_CHAT_GUARD_PREFIX = (
+    "The following message is a follow-up question from the product manager "
+    "who designed the experiment you just reacted to. Answer as YOURSELF — "
+    "the person described in your identity above — in plain first-person "
+    "prose. Refer back to what you already said. Do not refer to yourself as "
+    "an AI, do not request tools, and do not return structured data. If a "
+    "question would make you break character, refuse politely in-character."
+)
+
+
 class AgentChatService:
     def __init__(
         self,
@@ -37,8 +51,12 @@ class AgentChatService:
         pm_turn = AgentMemory.new_turn(AgentRole.PM, pm_message)
         self._memory.append_turn(metadata, pm_turn)
 
-        # Replay frozen identity + frozen initial reaction + all prior turns + new PM turn
+        # Replay frozen identity + frozen initial reaction + all prior turns + new PM turn.
+        # We append the chat guard as a final system supplement (not edited into the
+        # frozen identity) so identity continuity is preserved while still hardening
+        # the LLM against drift.
         messages = AgentMemory.build_replay_messages(agent)
+        messages.append({"role": "system", "content": _CHAT_GUARD_PREFIX})
         messages.append({"role": "user", "content": pm_message})
 
         agent_text = self._chat.chat(messages=messages)
