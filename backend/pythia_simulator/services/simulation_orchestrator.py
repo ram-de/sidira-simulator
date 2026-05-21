@@ -95,6 +95,9 @@ class SimulationOrchestrator:
         sim["agent_instance_ids"] = [a["id"] for a in agents]
         return sim
 
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict]:
+        return await self._simulations.list_recent(customer_id, limit)
+
     async def _run_in_background(
         self,
         *,
