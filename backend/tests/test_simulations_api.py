@@ -169,10 +169,15 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     assert len(chat.calls) >= 3
     # 3 agents × 2 classifications (weakness + sentiment) = 6, plus optional refinement = 7
     assert len(chat.json_calls) >= 6
-    # With stub returning positive sentiment + wrong_cohort weakness:
-    #   sentiment_score = 1.0; weakness_concentration = 1.0
-    #   confidence = 0.6 * 1.0 + 0.4 * (1 - 1.0) = 0.6 → 60.0
-    assert body["result"]["confidence_score"] == 60.0
+    # Codex-reviewed formula (Wave 4). Stub returns: positive sentiment at conf=0.8,
+    # one wrong_cohort weakness per agent. With ScoringConfig defaults
+    # (sent_w=0.6, weak_w=0.4, prior_k=1, min_sample=3):
+    #   sentiment numerator   = 3*0.8*1.0 + 1.0*0.5 = 2.9
+    #   sentiment denominator = 3*0.8 + 1.0 = 3.4
+    #   sentiment_score = 2.9 / 3.4 ≈ 0.853
+    #   any_flag_share  = 3/3 = 1.0 → weakness_signal = 0.0
+    #   score = 100 * (0.6 * 0.853 + 0.4 * 0.0) ≈ 51.2
+    assert body["result"]["confidence_score"] == pytest.approx(51.2, abs=0.1)
     assert any(w["category"] == "wrong_cohort" for w in body["result"]["weaknesses"])
     # confidence < 80 so refinement fired
     assert len(body["result"]["refinement_suggestions"]) >= 1

@@ -54,6 +54,44 @@ class AgentAnalysis(BaseModel):
     sentiment: SentimentClassification
 
 
+# ── Scoring configuration ─────────────────────────────────────────────
+
+
+class ScoringConfig(BaseModel):
+    """Tunable knobs for the aggregation formula.
+
+    Locked starting priors per Wave 0 + Wave 4 (`/codex` consult). All values
+    are intended targets for Layer-3 calibration once outcome data arrives.
+
+    Formula:
+        sentiment_score  = (Σ conf_i × value_i + prior_k × 0.5)
+                           / (Σ conf_i + prior_k)
+        any_flag_share   = (# agents flagging ≥1 weakness) / N    # deduped per agent
+        weakness_signal  = 1 − any_flag_share
+        confidence_score = (sentiment_weight × sentiment_score
+                            + weakness_weight × weakness_signal) × 100
+    """
+
+    sentiment_weight: float = Field(default=0.6, ge=0.0, le=1.0)
+    weakness_weight: float = Field(default=0.4, ge=0.0, le=1.0)
+    sentiment_prior_k: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Pseudo-observations of neutral sentiment. Shrinks small-N scores toward 50.",
+    )
+    use_sentiment_confidence: bool = Field(
+        default=True,
+        description="Weight each agent's sentiment by its classification confidence.",
+    )
+    min_sample_size: int = Field(
+        default=3,
+        ge=1,
+        description="Below this N, surface underpowered_design as the top weakness.",
+    )
+    top_k_weaknesses: int = Field(default=3, ge=1, le=10)
+    confidence_rounding: int = Field(default=1, ge=0, le=2)
+
+
 # ── Refinement ────────────────────────────────────────────────────────
 
 
