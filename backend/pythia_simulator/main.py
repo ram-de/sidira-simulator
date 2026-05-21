@@ -5,7 +5,14 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from pythia_simulator import __version__
-from pythia_simulator.api import agents, capabilities, simulations
+from pythia_simulator.api import (
+    agents,
+    capabilities,
+    feature_stores,
+    persona_builds,
+    persona_packs,
+    simulations,
+)
 
 
 def create_app() -> FastAPI:
@@ -25,6 +32,9 @@ def create_app() -> FastAPI:
     app.include_router(simulations.router)
     app.include_router(agents.router)
     app.include_router(capabilities.router)
+    app.include_router(feature_stores.router)
+    app.include_router(persona_builds.router)
+    app.include_router(persona_packs.router)
 
     return app
 

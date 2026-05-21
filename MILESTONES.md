@@ -11,6 +11,7 @@
 | **2. Persona + Feature Pack loaders + Postgres metadata** | 🔲 Pending | ~1 week |
 | **3. Simulation runner (real LLM fan-out) + scoring + refinement** | 🔲 Pending | ~2 weeks |
 | **4. Agent chat API wired + frontend chat UI** | 🔲 Pending | ~2 weeks |
+| **4.5. Persona Builder UI (Snowflake → pack)** | 🔲 Pending | ~2 weeks |
 | **5. Auth (Clerk) + multi-tenancy** | 🔲 Pending | ~1.5 weeks |
 | **6. Observability (Sentry + Langfuse)** | 🔲 Pending | ~1 week |
 | **7. First customer (Lumen MVP)** | 🔲 Pending | ~3 weeks |
@@ -192,7 +193,68 @@ Each phase has: **goal** (one sentence), **tasks**, **acceptance criteria** (wha
 
 ---
 
-### Phase 5 — Auth (Clerk) + multi-tenancy
+### Phase 4.5 — Persona Builder UI (Snowflake → pack)
+
+**Goal:** A customer connects their Snowflake, maps columns to Pythia's 7 feature groups (LLM-assisted), previews their population, configures the build, runs it, reviews the resulting personas, and promotes the pack to `latest` — all from a self-serve wizard. Equivalent for `pythia-crawler` and `pythia-simulator` UIs land in their own phases; this one is the proof of concept.
+
+**Tasks:**
+
+*Backend (`backend/`):*
+- `adapters/feature_stores/__init__.py` — `FeatureStore` Protocol (test_connection, list_schemas, list_tables, run_query, sample)
+- `adapters/feature_stores/snowflake.py` — Snowflake-specific implementation (snowflake-connector-python)
+- `adapters/credentials.py` — encrypt/decrypt customer creds with a KMS-managed per-customer key; envelope encryption pattern
+- `services/persona_builder.py` — orchestrator: load creds → query Snowflake → call `pythia_personas` library → emit pack to R2 + Postgres metadata
+- `services/column_mapper.py` — LLM call that reads column names + sample values, suggests group assignments for the 7 feature groups
+- `services/job_run.py` — generalize `SimulationRunState` to a `JobRun` abstraction shared by simulations + persona builds + (future) crawls
+- API routes:
+  - `POST /feature-stores` — create a saved connection
+  - `GET /feature-stores` — list connections for customer
+  - `POST /feature-stores/{id}/test` — round-trip connectivity check
+  - `POST /feature-stores/{id}/preview` — run a query, return row count + column profile (NULL coverage, distribution skews)
+  - `POST /feature-stores/{id}/suggest-mapping` — LLM column-to-group suggestions
+  - `POST /persona-builds` — kick off a build (returns build_id; status streams via `/jobs/{id}/state`)
+  - `GET /persona-builds/{id}` — fetch build status + result
+  - `GET /persona-packs` — list packs (all versions, drafts + promoted, with stability scores)
+  - `POST /persona-packs/{id}/promote` — atomically update `customers/<id>/personas/latest` pointer
+- Postgres tables (Alembic migration 002):
+  - `feature_store_connections` (id, customer_id, name, kind, encrypted_creds, created_at)
+  - `persona_build_runs` (id, customer_id, connection_id, status, config_json, result_pack_version, created_at, completed_at)
+  - `persona_pack_versions` (id, customer_id, version, status [DRAFT|PROMOTED|RETIRED], stability_score, created_at, promoted_at)
+
+*Frontend (`frontend/`):*
+- Top-level navigation: 3 tabs (Personas / Product / Simulations). Shared layout.
+- `/personas/` — pack list view (current `latest` highlighted, all past versions browsable)
+- `/personas/new/` — the 7-step wizard:
+  - Step 1 — Connect Snowflake
+  - Step 2 — Pick source (table picker OR SQL textarea)
+  - Step 3 — Map columns to 7 groups (LLM suggestions pre-filled)
+  - Step 4 — Population preview (row count, NULL coverage, distribution skews)
+  - Step 5 — Configure (k or auto, stability threshold, LLM provider, weight schemes)
+  - Step 6 — Live build progress (streams `JobRun` events)
+  - Step 7 — Review + promote
+- `/personas/[id]/` — pack detail (personas with names, descriptions, JTBD, behavioral snapshots, stability score, "Promote to latest" CTA)
+- `/product/` placeholder (Phase TBD)
+- `/simulations/` — existing pages move under this path
+
+**Acceptance:**
+- A customer connects their Snowflake from the UI, walks the 7-step wizard, and lands a draft pack in under 15 minutes
+- The pack appears in `/personas/` and can be promoted to `latest`
+- After promotion, a simulation submitted via `/simulations/new` uses the new pack
+- Snowflake credentials are never visible in API responses, never in logs, never in plaintext after the initial connect call
+- The wizard can be paused and resumed (in-progress builds persist; user can come back to Step 5 later)
+- LLM mapping suggestions correctly classify ≥70% of columns on a realistic schema (manual QA against the DoorDash 146-col table)
+
+**Dependencies:** Phases 2 + 4 (needs Postgres + multi-tenant scoping; needs the chat-UI shared navigation work; Phase 5 Clerk integration locks in security boundary).
+
+**Risks:**
+- **Snowflake connectivity from Fly.io** — customer firewalls may not allow our IPs. Document the egress IP allowlist requirement up front.
+- **Long-running builds blocking the API** — must run on a worker (not the API process). `InProcessJobRunner` MVP works for ≤30-min builds; bigger packs require Phase 2 of `JobRunner` (Cloud Tasks / SQS).
+- **LLM mapping wrong on edge schemas** — column-name heuristics fail on poorly-named tables. Mitigate with sample-value inspection and "I don't know — please assign manually" as an acceptable suggestion.
+- **Credential key rotation** — KMS key rotation can break decryption of historical creds. Re-encrypt-on-rotation policy documented.
+
+**Estimated effort:** ~2 weeks
+
+
 
 **Goal:** Multiple customers can use the same backend without seeing each other's data. SAML/SSO ready for enterprise sales.
 
