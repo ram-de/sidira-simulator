@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from pythia_simulator.adapters.base import ArtifactNotFound
+from pythia_simulator.adapters.feature_pack_loader import FeaturePackLoader
+from pythia_simulator.api.deps import current_customer_id, get_feature_pack_loader
 from pythia_simulator.schemas.feature_pack import FeaturePackManifest
 
 router = APIRouter(prefix="/capabilities", tags=["capabilities"])
 
 
 @router.get("", response_model=FeaturePackManifest)
-async def list_capabilities() -> FeaturePackManifest:
+async def list_capabilities(
+    customer_id: str = Depends(current_customer_id),
+    loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+) -> FeaturePackManifest:
     """Return the latest Feature Pack manifest for the authenticated customer."""
-    raise HTTPException(
-        status_code=501, detail="list_capabilities — wires FeaturePackLoader once tenancy is in"
-    )
+    try:
+        return loader.load_latest_manifest(customer_id)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
