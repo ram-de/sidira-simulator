@@ -32,3 +32,6 @@ next-env.d.ts
 
 # Local artifact mirror (dev only — prod writes to R2)
 local-artifacts/
+# Exception: the `demo` customer seed is checked in so a fresh clone has
+# working fixture data for the Magic Moment sprint and integration tests.
+!local-artifacts/customers/demo/
