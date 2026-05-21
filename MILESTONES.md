@@ -8,12 +8,15 @@
 |---|---|---|
 | **0. Design** | ✅ Done | 2026-05-20 |
 | **1. Scaffold** | ✅ Done | 2026-05-20 |
-| **2. Persona + Feature Pack loaders + Postgres metadata** | 🔲 Pending | — |
-| **3. Simulation runner (real LLM fan-out) + scoring** | 🔲 Pending | — |
-| **4. Agent chat API wired + frontend chat UI** | 🔲 Pending | — |
-| **5. Auth (Clerk) + multi-tenancy** | 🔲 Pending | — |
-| **6. Observability (Sentry + Langfuse)** | 🔲 Pending | — |
-| **7. First customer (Lumen MVP)** | 🔲 Pending | — |
+| **2. Persona + Feature Pack loaders + Postgres metadata** | 🔲 Pending | ~1 week |
+| **3. Simulation runner (real LLM fan-out) + scoring + refinement** | 🔲 Pending | ~2 weeks |
+| **4. Agent chat API wired + frontend chat UI** | 🔲 Pending | ~2 weeks |
+| **5. Auth (Clerk) + multi-tenancy** | 🔲 Pending | ~1.5 weeks |
+| **6. Observability (Sentry + Langfuse)** | 🔲 Pending | ~1 week |
+| **7. First customer (Lumen MVP)** | 🔲 Pending | ~3 weeks |
+| **8. Refinement loop UX (Karpathy AutoResearch)** | 🔲 Pending | ~2 weeks |
+| **9. Layer-3 calibration (the moat)** | 🔲 Pending | ongoing, 6+ months first signal |
+| **10. Specialized 8B model** | 🔲 Pending | 6–12 months after data threshold |
 
 ## Completed
 
@@ -64,23 +67,372 @@ Tests: 10 passing (4 new) — including JSON-repair round-trip, event-log append
 - `docs/system-architecture.md` — mirror of personal wiki spec
 - `docs/feature-pack-crawler-spec.md` — for cross-reference
 
-## Next up (Phase 2 — Persona + Feature Pack loaders + Postgres metadata)
+---
 
-1. `adapters/persona_loader.py` — read latest Persona Pack from R2 (`customers/<id>/personas/latest/persona_pack.json`)
-2. `adapters/feature_pack_loader.py` — same for latest Feature Pack manifest + per-capability artifacts
-3. `adapters/postgres.py` — async SQLAlchemy session; `AgentInstanceMetadata` and `Simulation` tables
-4. Alembic migrations bootstrapped
-5. API routes wired: `GET /capabilities`, `POST /simulations`, `GET /simulations/{id}`, `GET /agents/{id}`, `POST /agents/{id}/messages`
+## Future phases — detailed spec
 
-## Open questions
+Each phase has: **goal** (one sentence), **tasks**, **acceptance criteria** (what "done" looks like), **dependencies**, **risks**. Update statuses as work lands.
 
-| Item | Notes |
-|---|---|
-| Where to host Postgres in dev | Neon free tier; local Docker fallback for offline dev |
-| Streaming PM ↔ agent chat | MVP: simple POST → response. Phase 2: SSE for token-streaming UX |
-| LLM concurrency limits | Groq has tight per-key rate limits; need a token-bucket or queue at N >~ 10 |
-| Agent listing & search UX | Phase 4 — index by persona name, last_active_at, weakness category |
-| "Realistic / not realistic" flags | UI element on each agent turn; signal stored in Postgres for Layer-3 training data |
+---
+
+### Phase 2 — Persona + Feature Pack loaders + Postgres metadata
+
+**Goal:** Replace stub responses with real reads from R2 (artifacts) and Postgres (metadata) so the API can return live data, even if simulation scoring is still stubbed.
+
+**Tasks:**
+- `adapters/persona_loader.py` — read latest Persona Pack from `customers/<id>/personas/latest/persona_pack.json`; cache per-request
+- `adapters/feature_pack_loader.py` — read latest Feature Pack manifest + per-capability artifacts (reverse-PRD + reverse-Figma); resolve "latest" via a pointer file or list-and-sort
+- `adapters/postgres.py` — async SQLAlchemy + asyncpg session factory; connection pool
+- Postgres schema (Alembic migration 001):
+  - `customers` (id, clerk_org_id, name, created_at) — placeholder until Phase 5 wires Clerk
+  - `simulations` (id, customer_id, status, persona_pack_version, feature_pack_version, hypothesis_json, result_json, created_at, completed_at)
+  - `agent_instances` (id, customer_id, simulation_id, persona_id, persona_pack_version, persona_name, created_at, last_active_at, message_count)
+  - `agent_feedback` (agent_id, turn_index, realistic_flag, created_at) — Layer-3 calibration signal
+- Repository pattern: one repo class per table, all queries scoped by `customer_id` via SQLAlchemy session-level filter (foundation for Phase 5 multi-tenancy)
+- Wire `GET /capabilities` → reads latest Feature Pack manifest for customer
+- Wire `GET /simulations/{id}` → joins Postgres row + R2 result.json
+- Wire `GET /agents/{id}` → AgentMemory.load() via stored metadata row
+- Integration test rig: local Postgres via Docker Compose; seed scripts populate sample data from `samples/`
+
+**Acceptance:**
+- `POST /simulations` accepts a request, persists a row in `simulations` with status=PENDING, returns 202 + simulation_id
+- `GET /simulations/{id}` returns the full simulation including agent_instance_ids
+- `GET /agents/{id}` returns the agent's identity + initial reaction + (empty) conversation
+- All routes respect `customer_id` scoping (even if customer_id is hardcoded until Phase 5)
+- Integration tests pass against the local Postgres rig
+
+**Dependencies:** Phase 1 ✅
+
+**Risks:**
+- **R2 "latest" pointer ambiguity** — producers must write a `latest/` symlink or a manifest-of-manifests so the simulator doesn't list-and-sort on every request
+- **Schema drift** — every artifact will need a `schema_version` field; backend must tolerate one minor version back
+- **Local dev parity** — local Postgres + LocalArtifactStore needs to match prod R2 + Neon behavior closely enough that "works locally" predicts prod
+
+**Estimated effort:** ~1 week
+
+---
+
+### Phase 3 — Simulation runner (real LLM fan-out) + scoring + refinement
+
+**Goal:** A submitted hypothesis runs end-to-end against real LLM calls, returns a meaningful confidence score with diagnosed weaknesses, and proposes refinements when score is below threshold.
+
+**Tasks:**
+- Wire `SimulationRunner.run()` into the `POST /simulations` route (background task via `InProcessJobRunner`)
+- **Scoring algorithm v1:**
+  - Per-agent: second LLM call classifies the reaction against the 6 weakness categories (`wrong_metric`, `wrong_cohort`, `broken_mechanism`, `untestable_hypothesis`, `hidden_guardrail_risk`, `underpowered_design`) → returns JSON via `chat_json()` (uses the repair helper)
+  - Per-agent: sentiment classification (positive / neutral / negative reception toward the proposed change)
+  - Aggregate: confidence score = weighted blend of (% positive reactions) + (1 − weakness concentration) on a 0–100 scale
+  - Aggregate: top 3 weaknesses by frequency, with supporting agent_ids
+- **Refinement agent (Karpathy AutoResearch pattern):**
+  - Given hypothesis + top weaknesses + N agent reactions, suggest 1–3 hypothesis refinements
+  - Pure-text agent — no multi-agent debate; single specialized prompt
+  - Persisted as `result.refinement_suggestions`
+- **Iteration loop:**
+  - PM-driven: PM accepts a refinement → submits a new simulation linked to the previous one (`parent_simulation_id`)
+  - Track plateau detection: if 3 successive simulations move the score by <5 points, return EXIT 2 (Invalid)
+  - If a simulation hits ≥80, return EXIT 1 (Validated) + experiment spec export
+- **Live progress endpoint:**
+  - `GET /simulations/{id}/state` returns the latest `SimulationRunState` (cheap poll; SSE upgrade in Phase 4)
+- End-to-end integration test: real Groq call against `samples/example_acme_2026-W21/` Feature Pack and a fixture Persona Pack
+
+**Acceptance:**
+- PM submits a hypothesis via curl → receives a simulation_id → polls /state every 2s and sees agents progressing → final result has a meaningful 0–100 score, top weaknesses, and 1–3 refinements
+- Total simulation time (10 personas, parallel) under 30 seconds against Groq
+- Score reproducibility: same hypothesis + same packs + same seed → score within ±3 points across runs (LLM variance is real)
+- One end-to-end integration test runs in CI against a mock LLM that returns canned reactions
+
+**Dependencies:** Phase 2
+
+**Risks:**
+- **Scoring calibration** — initial weights between sentiment and weakness-concentration will be guesses; need real PM feedback to tune
+- **LLM rate limits** — Groq free tier may not handle parallel-10. Anthropic fallback adds latency. Token-bucket throttle at the chat client layer.
+- **Refinement quality** — refinement agent could hallucinate non-actionable suggestions. Add a critic-style validation pass before returning.
+- **Cost forecast** — 10 personas × 3 LLM calls (reaction + weakness + sentiment) per simulation = 30 calls/simulation. At Groq rates that's negligible; on Anthropic it's $0.10–$0.30 per simulation.
+
+**Estimated effort:** ~2 weeks
+
+---
+
+### Phase 4 — Agent chat wired + frontend chat UI
+
+**Goal:** PMs interrogate the agents that participated. The defining differentiator from every other experimentation tool.
+
+**Tasks:**
+- Wire `AgentChatService.send_message()` into `POST /agents/{id}/messages`
+- Update `agent_instances.last_active_at` + `message_count` in Postgres on each turn
+- `POST /agents/{id}/messages/{turn_index}/feedback` — PM submits realistic/not-realistic flag → writes to `agent_feedback` table
+- **Streaming responses:**
+  - SSE endpoint `POST /agents/{id}/messages/stream` returns token-by-token
+  - Backend uses LLM streaming APIs for both Groq and Anthropic
+  - Persist on completion (only after the full response is received)
+- **Frontend (Next.js + TypeScript):**
+  - Simulation detail page: confidence score card, weakness summary, agent list (table: persona name, sentiment, weakness category, last_active)
+  - Agent chat page: identity card pinned at top (persona name + behavioral snapshot), initial reaction pinned below identity, chat bubbles for follow-up turns, message input
+  - Realistic / not-realistic thumbs on every agent message
+  - Conversation persists across page reloads (loaded from `GET /agents/{id}`)
+  - "What changed since last time?" — surfaces new turns since last visit
+  - Soft empty states: "No reactions yet — try asking…" suggestions
+- Run OpenAPI codegen in CI to keep TS types fresh
+
+**Acceptance:**
+- PM completes a simulation, clicks an agent, sees that agent's identity + initial reaction
+- PM types a question, watches the response stream in token-by-token
+- Refresh the page → conversation history is intact
+- Click thumbs-down on a response → flag persists; visible on next load
+- Same agent maintains coherent voice across 20+ turn conversations (manual QA)
+
+**Dependencies:** Phase 3
+
+**Risks:**
+- **SSE reliability** — connection drops mid-stream. Backend must persist the partial response on disconnect; frontend must handle reconnect gracefully.
+- **Long-conversation token budget** — at 30+ turns, replay history approaches LLM context limits. Phase 4 adds soft warnings; Phase 8 adds summarization compression.
+- **Mobile UX** — enterprise PMs increasingly review from phones. Chat UI must work below 640px.
+
+**Estimated effort:** ~2 weeks
+
+---
+
+### Phase 5 — Auth (Clerk) + multi-tenancy
+
+**Goal:** Multiple customers can use the same backend without seeing each other's data. SAML/SSO ready for enterprise sales.
+
+**Tasks:**
+- Clerk integration in backend:
+  - JWT verification middleware on every protected route
+  - Extract `customer_id` (mapped from Clerk `org_id`) → attach to request context
+  - 401 on missing/invalid JWT; 403 on customer_id mismatch with resource owner
+- Clerk integration in frontend:
+  - Sign-in / sign-up / forgot-password flows
+  - Organization switcher (a PM may belong to multiple customers)
+  - Session refresh handled by Clerk SDK
+- Customer model wired:
+  - Postgres `customers.clerk_org_id` populated on first request from a new org
+  - First-user-of-org becomes the default admin
+- **Tenancy enforcement audit:**
+  - SQLAlchemy session-level filter rejects any query missing `customer_id`
+  - R2 paths always prefixed with `customers/<customer_id>/` — assertions in adapter layer
+  - Cross-tenant access test: customer A's PM cannot fetch customer B's simulation_id
+- Admin endpoints: `POST /admin/customers/{id}/refresh` to trigger persona + crawler runs (gated to platform admins)
+- SAML/SSO documentation for enterprise customers
+
+**Acceptance:**
+- Two customers register, each sees only their own simulations
+- A PM hitting another customer's simulation_id by URL gets 403
+- The R2 adapter's path-assertion middleware refuses writes to a path that doesn't match the request's customer_id
+- SAML/SSO sign-in tested with one mock IdP
+- Penetration test: a malicious JWT (forged customer_id) is rejected at the middleware
+
+**Dependencies:** Phase 4
+
+**Risks:**
+- **R2 path-scoping bugs** — any code path that constructs an R2 key by hand instead of through a helper is a tenancy leak. Add a lint rule.
+- **Clerk org model mismatch** — some enterprise customers want a single Clerk org with multiple "workspace" sub-units. Phase 5 supports flat orgs only; defer workspaces to Phase 7+ if requested.
+- **Admin endpoint surface** — must not be exposed to customer JWTs. Use a separate Clerk role (`platform_admin`) and a different middleware stack.
+
+**Estimated effort:** ~1.5 weeks
+
+---
+
+### Phase 6 — Observability
+
+**Goal:** When something breaks in prod, we know within minutes; when an LLM bill spikes, we know which customer drove it.
+
+**Tasks:**
+- **Sentry:**
+  - Backend Python SDK with FastAPI integration; attach customer_id + simulation_id to every event
+  - Frontend Next.js SDK with source maps
+  - Performance traces enabled (sample rate 10%)
+- **Langfuse:**
+  - Wrap Groq + Anthropic clients with `@observe()` decorators
+  - Capture: prompt, response, model, latency, token usage, cost-estimate
+  - Tag every trace with `customer_id`, `simulation_id`, `agent_id` (when applicable)
+  - Dashboard: cost-per-customer-per-day; latency p50/p95 per phase
+- **Structured logging:**
+  - `structlog` configured to emit JSON to stdout
+  - Request context middleware attaches customer_id + request_id to every log line
+  - Ship to Fly.io aggregation; defer Datadog/BetterStack until scale demands
+- **Healthchecks:**
+  - `GET /health` extended: DB connectivity, R2 connectivity, LLM key validity
+  - External uptime monitor (BetterUptime) probing /health every 1m
+- **Admin dashboard (in-app):**
+  - Cost per customer per day; flag any customer exceeding $X/day
+  - Failed simulations and agent reactions with error breakdown
+  - Crawl freshness per customer (when did the last Feature Pack land?)
+  - Persona pack freshness per customer
+
+**Acceptance:**
+- A live Sentry trace surfaces a real exception within 30 seconds of it firing
+- Langfuse dashboard shows top customers by LLM cost yesterday
+- Admin dashboard alerts when a customer hits >$50 LLM spend in a day
+- BetterUptime page exists; backend downtime triggers a page (off-hours) or email (business hours)
+
+**Dependencies:** Phase 5
+
+**Risks:**
+- **Logging cardinality** — too many tags per log line balloons storage. Cap context fields.
+- **Langfuse cost-estimate accuracy** — depends on per-model pricing being current; build a small price table updated quarterly.
+- **PII in logs** — agent reactions may reference real customer data. Redact `pm_message` content from logs (keep token counts, not text).
+
+**Estimated effort:** ~1 week
+
+---
+
+### Phase 7 — First customer (Lumen MVP)
+
+**Goal:** One enterprise design partner runs real simulations on their own data, end-to-end, in production.
+
+**Tasks:**
+- **Customer onboarding playbook:**
+  - Sales / discovery → contract → kickoff doc → sandbox creds exchange → first crawl → first persona pack → first simulation
+  - Time-to-first-simulation target: ≤14 calendar days from contract sign
+- **Production deployment:**
+  - Vercel frontend with custom domain (`app.pythia.<your-brand>.com`)
+  - Fly.io backend with autoscaling
+  - Neon production Postgres in customer-preferred region
+  - Cloudflare R2 bucket with per-customer prefix encryption
+  - Clerk production tenant + SAML config for the design partner
+- **SOC 2 prep:**
+  - Bucket-level encryption-at-rest enabled
+  - DB-level encryption-at-rest enabled
+  - Audit log table: every read/write to `simulations` and `agent_instances` rows
+  - Access controls: only platform admins can read any customer's data; PMs only their own
+- **Pricing model decision:**
+  - Per-simulation (~$X per run)
+  - Per-seat (~$X per PM per month)
+  - Annual contract (preferred for enterprise; locks revenue)
+  - Decide before kickoff; reflect in Clerk billing webhooks (Stripe later)
+- **Data Processing Addendum (DPA) signed**
+- **Internal runbook:**
+  - "Simulation stuck in RUNNING" → check Fly worker logs, check Groq rate limit, check R2 write
+  - "Agent chat returning gibberish" → check identity_prompt frozen artifact, replay messages, escalate
+  - "Crawler can't authenticate" → coordinate with customer's IT for fresh creds
+
+**Acceptance:**
+- Design partner has run ≥5 simulations on their real product
+- ≥3 weakness categories surfaced in those simulations were validated as "real" by the partner's PMs in retro
+- Partner's PMs are chatting with ≥10 agents per week
+- Crawler runs weekly on their schedule, no manual intervention
+- Quarterly persona refresh runs without incident
+- Partner publicly references using Pythia (case study or quote)
+
+**Dependencies:** Phases 2–6
+
+**Risks:**
+- **Sandbox parity** — partner's sandbox may lack feature flags or recent data; manage expectations up front
+- **First-customer dependency** — feature requests will be tempting to fulfill; maintain product discipline, road-map every ask
+- **Simulation accuracy not yet calibrated** — without Layer-3 calibration (Phase 9), accuracy will be ~70%; communicate this clearly so the partner doesn't expect 90%
+
+**Estimated effort:** ~3 weeks (after Phase 6 lands)
+
+---
+
+### Phase 8 — Refinement loop UX (Karpathy AutoResearch pattern)
+
+**Goal:** The full validation flow — submit → refine → re-simulate → exit at threshold or plateau — is one cohesive experience, not a series of disconnected runs.
+
+**Tasks:**
+- Frontend: simulation chain view (parent → child via `parent_simulation_id`)
+- Frontend: "Accept refinement" CTA on each suggestion → pre-fills new simulation form with the refined hypothesis
+- Backend: chain-aware scoring — if a simulation is part of a chain, surface the score trajectory in the chain view
+- Backend: plateau detection — surface EXIT 2 (Invalid, Rethink Recommended) when scores plateau below 80 across 3+ iterations
+- Backend: validated-hypothesis export — generate an experiment spec (primary metric, MDE estimate, recommended cohort, suggested duration) when a chain hits EXIT 1
+- Statsig / Eppo / LaunchDarkly export adapters (one-click → "send this validated hypothesis to your experiment platform")
+- Long-conversation memory compression for agents whose chat history exceeds context limits
+- Worked example onboarding flow (the Late Night Munchers case from the project page)
+
+**Acceptance:**
+- A PM walks the 5-iteration Late Night Munchers example from 52 → 83 in under 30 minutes
+- Validated hypothesis exports cleanly to a Statsig experiment template
+- Plateau detection fires on a fixture chain where the score never crosses 75
+
+**Dependencies:** Phase 7
+
+**Risks:**
+- **Iteration fatigue** — PMs may give up before plateau is reached; track abandonment per iteration count
+- **Statsig API churn** — third-party experimentation platforms change schemas; design exports to be extensible
+
+**Estimated effort:** ~2 weeks
+
+---
+
+### Phase 9 — Layer-3 calibration (the moat)
+
+**Goal:** Per-customer simulation accuracy compounds with experiment history. After 100 simulations, accuracy is verifiably higher than at simulation 1. This is what makes Pythia defensible.
+
+**Tasks:**
+- **Outcome capture pipeline:**
+  - Webhook from Statsig / Eppo / LaunchDarkly when an experiment completes → ingests actual lift
+  - Match outcome back to the validated hypothesis chain
+  - Compute accuracy metric: predicted lift sign vs actual lift sign; predicted MDE vs observed effect size
+- **Calibration table:**
+  - `customer_calibration` table per customer: weights on weakness categories, persona mix tuning, sentiment-to-score mapping
+  - Updated on every completed outcome
+- **Per-customer accuracy dashboard:**
+  - "Pythia predicted this customer's outcomes correctly N% of the time over the last 6 months"
+  - Trend line; per-PM accuracy
+- **Realistic / not-realistic flag aggregation:**
+  - All chat-time flags from Phase 4 feed a per-persona, per-customer "agent realism score"
+  - Low-realism agents get re-clustered out of the persona pack on the next quarterly refresh
+- **Model fine-tuning pipeline (prep for Phase 10):**
+  - Curate "realistic" agent reactions + flagged outcomes into a training set
+  - 10K+ examples per customer required before Phase 10 fine-tuning can fire
+
+**Acceptance:**
+- Layer-3 accuracy chart shows compounding improvement on at least one design partner after 50 simulations
+- Realism flags drive measurable change in agent selection over time (visible in retros)
+- Training set sized ≥5K examples for at least one customer
+
+**Dependencies:** Phase 8 + ≥6 months of customer use
+
+**Risks:**
+- **Outcome capture latency** — experiments take 2–6 weeks to complete; calibration loop is slow by physics
+- **Sparse signal** — most customers run <50 experiments per quarter; need multi-tenant pooling for early signal
+- **Privacy** — pooled calibration risks leaking patterns across customers. Strictly per-customer until SOC 2 + customer consent for pooled training data.
+
+**Estimated effort:** ~ ongoing; first measurable result in 6+ months
+
+---
+
+### Phase 10 — Specialized 8B model
+
+**Goal:** Replace Groq/Anthropic in the inference path with a Pythia-owned 8B model trained on consumer behavior + per-customer outcome data. Cost drops 8–10×; inference moves on-device; the model becomes the moat.
+
+**Tasks:**
+- Pretraining corpus (Qwen3-8B base) — coordinated with `pythia-de-spec` (the data engineering spec already drafted)
+- Supervised fine-tuning on persona reactions + curated Layer-3 examples
+- RL on outcome accuracy (RLHF → Augur outcomes → Lumen outcomes)
+- Deployment: vLLM serving on Fly.io GPU pods (or Modal / Replicate as bridge)
+- A/B Pythia 8B vs Groq Llama-3.3 on the same prompts; require ≥parity before cutover
+- Cutover plan: per-customer opt-in, monitor accuracy + cost for a quarter before defaulting
+
+**Acceptance:**
+- Pythia 8B beats Llama-3.3 70B in 80%+ of held-out evaluation cases (the M1 gate from the original Pythia roadmap)
+- Inference cost per simulation drops by 8×+ on customers using the Pythia model
+- One customer is running 100% on Pythia 8B in production for ≥30 days with no quality regression
+
+**Dependencies:** Phases 7 + 9 + sufficient training data (≥10K outcomes across the customer base)
+
+**Risks:**
+- **Time-to-collect** — outcomes accrue at experimentation cadence (quarters, not weeks); can't compress
+- **Model accuracy plateau** — 8B may not match frontier models on edge personas; keep frontier as fallback path indefinitely
+- **GPU cost** — vLLM serving is cheaper at scale but expensive at low utilization; only cut over when load justifies it
+
+**Estimated effort:** ~6–12 months once the data threshold is hit (per the original Pythia roadmap)
+
+---
+
+## Open questions (rolling)
+
+| Item | Phase | Notes |
+|---|---|---|
+| Where to host Postgres in dev | 2 | Neon free tier; local Docker fallback for offline dev |
+| Streaming PM ↔ agent chat | 4 | SSE upgrade path detailed in Phase 4 |
+| LLM concurrency limits | 3 | Groq has tight per-key rate limits; semaphore at chat client layer |
+| Agent listing & search UX | 4 | Index by persona name, last_active_at, weakness category |
+| Realistic-flag UI placement | 4 | Per-turn thumbs vs end-of-conversation roll-up — needs PM user testing |
+| Pricing model | 7 | Per-simulation vs per-seat vs annual — decision before first customer kickoff |
+| Outcome capture authority | 9 | Webhook from experiment platforms vs PM-self-reported — both, with PM as ground truth tiebreaker |
+| Pythia-8B inference host | 10 | Fly GPU vs Modal vs Replicate vs cloud-of-record AWS Bedrock
 
 ## Related artifacts
 
