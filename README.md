@@ -18,7 +18,7 @@ pythia-crawler/       → Feature Pack
                        Postgres (metadata + chat history)
 ```
 
-See `docs/pythia-system-architecture.md` for the full picture.
+See `docs/system-architecture.md` for the full architecture and **[`ROADMAP.md`](./ROADMAP.md)** for the cross-repo phase plan and what's next.
 
 ## Layout
 
