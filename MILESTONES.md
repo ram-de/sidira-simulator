@@ -27,6 +27,19 @@
 - **Agent memory** designed in: identity prompt + initial reaction (both frozen) + append-only conversation
 - **Identity-continuity guarantee** explicitly defined: chat-time agent is the SAME entity that simulated, not a re-instantiation from the persona template
 
+### Phase 1.5 — MiroFish prior-art adaptation (2026-05-20)
+
+After scaffolding, surveyed mirofish for transferable patterns and adapted four into the codebase. Full record at `docs/mirofish-prior-art.md`.
+
+- **`SimulationRunState` + JSONL event log** (`services/run_state.py`) — two-tier state model; live progress + audit trail + replay surface. Adapted from `simulation_runner.py:101-193` and `:482-554`.
+- **Parallel agent execution** — `SimulationRunner.run()` uses `asyncio.gather` with a semaphore-bounded concurrency limit instead of a serial loop. Adapted from `oasis_profile_generator.py:851-1014` (ThreadPoolExecutor → asyncio-native equivalent).
+- **`_CHAT_GUARD_PREFIX`** (`services/agent_chat.py`) — pinned as a system supplement on every chat call to prevent LLM drift while preserving identity continuity. Adapted from `simulation_runner.py:25` INTERVIEW_PROMPT_PREFIX.
+- **JSON repair helper** (`adapters/llm.py:repair_json` + `parse_llm_json` + new `chat_json` method) — forgiving parser for structured LLM outputs. Adapted from `oasis_profile_generator.py:606-670`.
+
+Explicitly rejected: inter-agent socialization, Zep graph memory, subprocess-based agent IPC, simulation config auto-gen, multi-platform abstractions, narrative report output, zh-CN localization. Rationale captured in `docs/mirofish-prior-art.md`.
+
+Tests: 10 passing (4 new) — including JSON-repair round-trip, event-log append, and chat-guard sanity.
+
 ### Phase 1 — Scaffold (2026-05-20)
 
 **Backend (`backend/`):**
