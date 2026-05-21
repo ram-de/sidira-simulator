@@ -278,6 +278,54 @@ Chat never re-runs the prompt-composer. It loads these frozen artifacts and appe
 
 ---
 
+## Feature store adapters & customer credential handling
+
+Customers' user data lives in their own warehouses (Snowflake first; BigQuery, Databricks, Redshift, CSV upload later). The simulator backend exposes a self-serve flow where a customer connects their warehouse, maps columns to Pythia's 7 feature groups, previews their population, and builds a versioned persona pack — without engineering involvement on the Pythia side.
+
+### Pluggable feature-store adapters
+
+`pythia_simulator/adapters/feature_stores/` defines a `FeatureStore` Protocol satisfied by every warehouse implementation:
+
+```python
+class FeatureStore(Protocol):
+    def test_connection(self) -> None: ...
+    def list_schemas(self) -> list[str]: ...
+    def list_tables(self, schema: str) -> list[str]: ...
+    def preview(self, table_fqn: str, sample_size: int = 100) -> TablePreview: ...
+    def run_query(self, sql: str) -> list[dict[str, Any]]: ...
+```
+
+MVP ships `SnowflakeStore`. New warehouse types are added by implementing the Protocol and registering the connection `kind`.
+
+### LLM-assisted column mapping
+
+`services/column_mapper.py` reads the customer's column list + sample values and proposes which Pythia feature group each column belongs in (one LLM call per schema). The user reviews suggestions in the UI before the mapping is persisted. Cheap (~one call per onboarding) but turns a 30-minute manual mapping task into a 30-second review.
+
+### Credential storage — envelope encryption
+
+Snowflake credentials enter via the Connect form and are immediately encrypted before persistence. They never appear in API responses, logs, or service-to-service calls beyond the brief in-memory decryption window during a build run.
+
+| Mode | Use | Key location |
+|---|---|---|
+| **`local`** | Dev only | Symmetric AESGCM key from `PYTHIA_LOCAL_CRED_KEY` env var |
+| **`kms`** | Production | Per-customer Data Encryption Key (DEK) wrapped by a Key Encryption Key (KEK) in KMS (AWS KMS / Cloudflare KMS). The wrapped DEK and ciphertext are persisted to Postgres; KMS access is audit-logged. |
+
+Key rotation: KMS key rotation triggers a re-encrypt-on-read policy; old wrapped DEKs are unwrapped, rewrapped under the new KEK, and persisted on next access.
+
+### Single UI surface across all three producers
+
+The frontend has three top-level tabs:
+
+| Tab | Producer | Wizard |
+|---|---|---|
+| **Personas** | `pythia-personas` (imported as library) | 7-step: Connect → Source → Map → Preview → Configure → Build → Review + Promote |
+| **Product** | `pythia-crawler` (imported as library) | Future-phase wizard: Connect sandbox → Declare capabilities → Per-role test creds → Schedule → Crawl + Diff view |
+| **Simulations** | The simulator itself | Hypothesis submit → live agent reactions → chat with each agent |
+
+All three are backed by the same simulator backend; each producer remains a separate repo + Python package but is invoked via the simulator's `services/*_builder.py` orchestrators. Customers never see the producer boundary.
+
+---
+
 ## Auth & tenancy
 
 - **Identity provider:** Clerk. SAML/SSO supported out of the box for enterprise.
