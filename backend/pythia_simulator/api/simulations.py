@@ -125,7 +125,7 @@ async def get_simulation_state(
     simulation_id: str,
     customer_id: str = Depends(current_customer_id),
 ) -> SimulationRunState:
-    """Live progress state. Frontend polls this every 5s until status=complete."""
+    """Live progress state. Frontend polls this every 5s until phase=complete."""
     store = get_store()
     rs = RunStateStore(store)
     try:

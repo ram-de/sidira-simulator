@@ -205,7 +205,7 @@ export default function NewSimulationPage() {
             min={1}
             max={50}
             value={sampleSize}
-            onChange={(e) => setSampleSize(parseInt(e.target.value, 10))}
+            onChange={(e) => setSampleSize(parseInt(e.target.value, 10) || 0)}
             disabled={formDisabled}
             style={{ ...inputStyle, width: 120 }}
           />

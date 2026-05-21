@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 
-from pythia_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
+from pythia_simulator.adapters.llm import ChatClient, get_chat_client
 from pythia_simulator.schemas.scoring import RefinementInput, RefinementOutput
 
 log = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class RefinementService:
                 ],
                 RefinementOutput,
             )
-        except (JSONRepairError, Exception) as exc:  # noqa: BLE001 — degrade gracefully
+        except Exception as exc:  # noqa: BLE001 — degrade gracefully on LLM/transport failure
             log.warning("refinement failed: %s", exc)
             return []
         # Cap at 3 even if the LLM returned more.
