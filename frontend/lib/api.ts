@@ -64,6 +64,19 @@ export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities"
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);
 
+export interface SimulationListItem {
+  id: string;
+  status: SimulationStatus;
+  created_at: string;
+  completed_at: string | null;
+  hypothesis_prose: string;
+  capability_name: string;
+  confidence_score: number | null;
+}
+
+export const listSimulations = (limit = 50) =>
+  apiGet<SimulationListItem[]>(`/simulations?limit=${limit}`);
+
 export const getSimulation = (id: string) =>
   apiGet<Simulation>(`/simulations/${id}`);
 

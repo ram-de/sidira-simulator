@@ -85,6 +85,10 @@ class SimulationRepo(Protocol):
 
     async def get(self, sim_id: str, customer_id: str) -> dict[str, Any] | None: ...
 
+    async def list_recent(
+        self, customer_id: str, limit: int = 50
+    ) -> list[dict[str, Any]]: ...
+
 
 class PostgresSimulationRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -139,6 +143,18 @@ class PostgresSimulationRepo:
         if row is None or row.customer_id != customer_id:
             return None
         return _simulation_to_dict(row)
+
+    async def list_recent(
+        self, customer_id: str, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        stmt = (
+            select(Simulation)
+            .where(Simulation.customer_id == customer_id)
+            .order_by(Simulation.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        return [_simulation_to_dict(r) for r in rows]
 
 
 class InMemorySimulationRepo:
@@ -195,6 +211,18 @@ class InMemorySimulationRepo:
         if sim is None or sim["customer_id"] != customer_id:
             return None
         return dict(sim)
+
+    async def list_recent(
+        self, customer_id: str, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        rows = [
+            dict(s) for s in self._sims.values() if s["customer_id"] == customer_id
+        ]
+        rows.sort(
+            key=lambda r: r.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        return rows[:limit]
 
 
 # ──────────────────────────────────────────────────────────────────────

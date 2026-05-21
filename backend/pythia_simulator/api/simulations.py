@@ -31,6 +31,42 @@ class CreateSimulationResponse(BaseModel):
     poll_url: str
 
 
+class SimulationListItem(BaseModel):
+    id: str
+    status: SimulationStatus
+    created_at: datetime
+    completed_at: datetime | None = None
+    hypothesis_prose: str
+    capability_name: str
+    confidence_score: float | None = None
+
+
+@router.get("", response_model=list[SimulationListItem])
+async def list_simulations(
+    customer_id: str = Depends(current_customer_id),
+    orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+    limit: int = 50,
+) -> list[SimulationListItem]:
+    """Recent simulations for the current customer, newest first."""
+    rows = await orchestrator.list_recent(customer_id, limit=limit)
+    items: list[SimulationListItem] = []
+    for row in rows:
+        hyp = row.get("hypothesis_json") or {}
+        result = row.get("result_json") or {}
+        items.append(
+            SimulationListItem(
+                id=row["id"],
+                status=SimulationStatus(row["status"]) if row.get("status") else SimulationStatus.PENDING,
+                created_at=row.get("created_at") or datetime.utcnow(),
+                completed_at=row.get("completed_at"),
+                hypothesis_prose=hyp.get("prose", ""),
+                capability_name=hyp.get("capability_name", ""),
+                confidence_score=result.get("confidence_score"),
+            )
+        )
+    return items
+
+
 @router.post(
     "",
     response_model=CreateSimulationResponse,
