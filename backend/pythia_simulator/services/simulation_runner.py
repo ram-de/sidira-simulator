@@ -50,12 +50,18 @@ log = structlog.get_logger()
 
 @dataclass
 class AgentRecord:
-    """Lightweight record returned from _materialize_agent for repo persistence."""
+    """Lightweight record returned from _materialize_agent for repo persistence.
+
+    `reaction_text` is the verbatim LLM output — needed by the scoring service.
+    The same text is also persisted to R2 as `initial_reaction.md` (the frozen
+    artifact that backs the identity-continuity guarantee).
+    """
 
     agent_id: str
     persona_id: str
     persona_name: str
     created_at: datetime
+    reaction_text: str = ""
 
 
 class SimulationRunner:
@@ -131,7 +137,7 @@ class SimulationRunner:
 
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
-        result = self._score(state, sim_id)
+        result = await self._score(state, sim_id, hypothesis, agent_records)
 
         state.mark_phase(RunPhase.COMPLETE)
         self._run_state.emit(state, "run.complete", score=result.confidence_score)
@@ -249,23 +255,73 @@ class SimulationRunner:
                 persona_id=persona.id,
                 persona_name=persona.name,
                 created_at=now,
+                reaction_text=initial_reaction,
             )
 
-    def _score(self, state: SimulationRunState, sim_id: str) -> SimulationResult:
-        """Stub. Phase 3 implements: load each agent's initial_reaction, run a
-        weakness-classification LLM call across all reactions, aggregate to a
-        confidence score, and surface 1–3 refinement suggestions."""
-        self._run_state.emit(state, "score.updated", score=0.0, note="scoring not yet implemented")
-        return SimulationResult(
-            confidence_score=0.0,
-            weaknesses=[
-                Weakness(
-                    category="untestable_hypothesis",
-                    summary="Scoring not yet implemented — see Phase 3 milestone.",
+    async def _score(
+        self,
+        state: SimulationRunState,
+        sim_id: str,
+        hypothesis: Hypothesis,
+        agent_records: list[AgentRecord],
+    ) -> SimulationResult:
+        """Call ScoringService + RefinementService over the agent reactions.
+
+        Degenerate fast-path: zero successful agents → return placeholder result
+        without firing LLM calls. This is what makes the "no LLM key set" demo
+        path complete cleanly instead of failing.
+        """
+        if not agent_records:
+            self._run_state.emit(
+                state, "score.updated", score=0.0, note="no successful agents"
+            )
+            return SimulationResult(
+                confidence_score=0.0,
+                weaknesses=[
+                    Weakness(
+                        category="underpowered_design",
+                        summary="No agent reactions completed successfully.",
+                    )
+                ],
+                refinement_suggestions=[],
+            )
+
+        # Lazy import to avoid pulling LLM modules at module load.
+        from pythia_simulator.schemas.scoring import RefinementInput
+        from pythia_simulator.services.refinement import RefinementService
+        from pythia_simulator.services.scoring import AgentReaction, ScoringService
+
+        scoring = ScoringService(chat_client=self._chat_explicit)
+        refinement = RefinementService(chat_client=self._chat_explicit)
+
+        reactions = [
+            AgentReaction(
+                agent_id=r.agent_id,
+                persona_id=r.persona_id,
+                persona_name=r.persona_name,
+                reaction_text=r.reaction_text,
+            )
+            for r in agent_records
+        ]
+
+        result, _analyses = await scoring.score(hypothesis, reactions)
+        self._run_state.emit(state, "score.updated", score=result.confidence_score)
+
+        # Refinement runs only when there's meaningful room to improve.
+        if result.confidence_score < 80.0:
+            sample_reactions = [r.reaction_text for r in agent_records[:3]]
+            suggestions = await refinement.suggest(
+                RefinementInput(
+                    hypothesis_prose=hypothesis.prose,
+                    capability_name=hypothesis.capability_name,
+                    confidence_score=result.confidence_score,
+                    top_weaknesses=result.weaknesses,
+                    sample_reactions=sample_reactions,
                 )
-            ],
-            refinement_suggestions=[],
-        )
+            )
+            result.refinement_suggestions = suggestions
+
+        return result
 
     @staticmethod
     def _sample_personas(pack: PersonaPack, n: int) -> list[Persona]:

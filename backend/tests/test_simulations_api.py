@@ -28,23 +28,54 @@ from pythia_simulator.services.simulation_runner import SimulationRunner  # noqa
 
 
 class _StubChat:
-    """LLM stub that returns canned reactions instantly. Avoids network calls."""
+    """LLM stub returning canned reactions + canned structured outputs.
+
+    chat_json dispatches on schema name so scoring + refinement get plausible
+    classifications without driving a real LLM.
+    """
 
     def __init__(self, reply: str = "I'd give it a shot.", *, raise_for_persona: str | None = None):
         self.reply = reply
         self.raise_for_persona = raise_for_persona
         self.calls: list[list[dict]] = []
+        self.json_calls: list[tuple[type, list[dict]]] = []
 
     def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):
         self.calls.append(messages)
-        # Detect which persona is asking from the identity prompt
         identity = next((m["content"] for m in messages if m["role"] == "system"), "")
         if self.raise_for_persona and self.raise_for_persona in identity:
             raise TimeoutError("simulated timeout")
         return self.reply
 
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
-        raise NotImplementedError("not used in these tests")
+        self.json_calls.append((schema, messages))
+        from pythia_simulator.schemas.scoring import (
+            RefinementOutput,
+            SentimentClassification,
+            WeaknessClassification,
+        )
+
+        if schema is WeaknessClassification:
+            return WeaknessClassification(
+                categories=["wrong_cohort"],
+                primary_reason="Stub: user seems mismatched to the proposed cohort.",
+            )
+        if schema is SentimentClassification:
+            from pythia_simulator.schemas.scoring import Sentiment
+
+            return SentimentClassification(
+                sentiment=Sentiment.POSITIVE,
+                confidence=0.8,
+                one_line_summary="Stub: positive reception.",
+            )
+        if schema is RefinementOutput:
+            return RefinementOutput(
+                suggestions=[
+                    "Narrow the cohort to users who placed an order in the last 7 days.",
+                    "Add a 'time to first reorder' guardrail metric.",
+                ]
+            )
+        raise NotImplementedError(f"stub has no canned response for {schema}")
 
 
 @pytest.fixture
@@ -134,4 +165,19 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     body = final.json()
     assert body["status"] == "complete", body
     assert len(body["agent_instance_ids"]) == 3
+    # 3 initial reactions
     assert len(chat.calls) >= 3
+    # 3 agents × 2 classifications (weakness + sentiment) = 6, plus optional refinement = 7
+    assert len(chat.json_calls) >= 6
+    # Codex-reviewed formula (Wave 4). Stub returns: positive sentiment at conf=0.8,
+    # one wrong_cohort weakness per agent. With ScoringConfig defaults
+    # (sent_w=0.6, weak_w=0.4, prior_k=1, min_sample=3):
+    #   sentiment numerator   = 3*0.8*1.0 + 1.0*0.5 = 2.9
+    #   sentiment denominator = 3*0.8 + 1.0 = 3.4
+    #   sentiment_score = 2.9 / 3.4 ≈ 0.853
+    #   any_flag_share  = 3/3 = 1.0 → weakness_signal = 0.0
+    #   score = 100 * (0.6 * 0.853 + 0.4 * 0.0) ≈ 51.2
+    assert body["result"]["confidence_score"] == pytest.approx(51.2, abs=0.1)
+    assert any(w["category"] == "wrong_cohort" for w in body["result"]["weaknesses"])
+    # confidence < 80 so refinement fired
+    assert len(body["result"]["refinement_suggestions"]) >= 1
