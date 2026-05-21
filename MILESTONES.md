@@ -193,7 +193,98 @@ Each phase has: **goal** (one sentence), **tasks**, **acceptance criteria** (wha
 
 ---
 
-### Phase 4.5 — Persona Builder UI (Snowflake → pack)
+### Phase 2+3 — Magic Moment Sprint (in flight)
+
+**Goal:** end-to-end simulation against fixture data — submit hypothesis → 10 agents react → confidence score + weaknesses + refinements rendered.
+
+**Locked-in decisions** (post-`/plan-eng-review`, 2026-05-21):
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Reproducibility | `temperature=0` + fixed `seed` + cache `(identity_prompt_hash, persona_id) → reaction` | Eliminates score swing across reruns. ~50 lines. |
+| Score formula | `0.6 × sentiment_score + 0.4 × (1 − weakness_concentration)` | Captures "will users like this?" first; weaknesses are the diagnostic. Tunable. |
+| Per-agent timeout | `asyncio.wait_for(60s)` + emit `agent.reaction.failed` events; render N-of-M on the frontend | Robust to a hung LLM call. No whole-run aborts. |
+| Postgres scope | Full migration 001: `simulations` + `agent_instances` + `agent_feedback` | Phase 5 unblocked, Layer-3 hook in place from day 1. |
+| Fixture pack path | `local-artifacts/customers/demo/personas/v_1/persona_pack.json` | Matches prod R2 layout; `persona_loader.load_latest("demo")` works unchanged. |
+| Request pattern | `POST /simulations` returns 202 + `simulation_id`; background task runs the work | 30s LLM-bound work would blow HTTP timeouts. |
+| Refinement | Separate LLM call after scoring | Independent service, independently swappable. |
+| Live progress | 5s poll on `/simulations/{id}/state` | Simple MVP; SSE in Phase 4. |
+
+**NOT in scope** (deferred, explicit):
+- Clerk auth / multi-tenancy (`customer_id="demo"` hardcoded) — Phase 5
+- Persona Builder UI completion (the 7-step wizard stays as stubs) — Phase 4.5 finishing
+- Chat UI for agent follow-up — Phase 4
+- Crawler runs (we use the existing Acme sample) — crawler Phase 2
+- SOC 2 prep / encryption / audit logs — Phase 6+
+- Real customer data ingestion — first customer phase
+
+**What already exists** (do not rebuild):
+- `SimulationRunner.run()` skeleton with identity-continuity + parallel `asyncio.gather` + semaphore
+- `SimulationRunState` + `RunStateStore` (JSONL event log, state.json)
+- `AgentMemory` with frozen identity + initial reaction
+- `chat_json()` + `repair_json()` for structured LLM output
+- `_CHAT_GUARD_PREFIX` (reusable in refinement agent if needed)
+- Sample Feature Pack at `pythia-crawler/samples/example_acme_2026-W21/`
+- API route shells for `/simulations`, `/agents`, `/capabilities`
+- Frontend route shells for `/simulations/new`, `/simulations/[id]`, `/agents/[id]`
+
+**Critical test gaps to land alongside code** (from the test review):
+- **TEST-1** Integration: `tests/integration/test_simulation_e2e.py` — mock LLM with canned reactions, assert result shape + score in range
+- **TEST-2** Unit: `tests/unit/test_scoring.py` — `aggregate()` over hand-built reactions covering each weakness category
+- **TEST-3** Eval: 10 (hypothesis, expected-score-band) pairs as regression guard
+- **TEST-4** Unit: `persona_loader` handles missing pointer + schema_version mismatch
+
+### Parallelization plan (lanes)
+
+```
+Wave 1  [Lane A — parallel, independent files]
+  ├── T1  Postgres schema + Alembic 001 (3 tables)
+  ├── T4  adapters/feature_pack_loader.py
+  └── T5  fixture persona_pack_demo.json  ← write last; validates against schema
+
+Wave 2  [Lane B — parallel, independent]
+  ├── T2  adapters/postgres.py + repositories
+  └── T3  adapters/persona_loader.py
+
+Wave 3  [Lane C — sequential, integration]
+  └── T6  Wire POST /simulations + 202+poll + background asyncio task
+          + timeout + N-of-M failure handling
+
+Wave 4  [Lane D — sequential, intelligence]
+  ├── T7a services/scoring.py: weakness classification (chat_json)
+  ├── T7b services/scoring.py: sentiment classification (chat_json)
+  ├── T7c services/scoring.py: aggregate() with 0.6/0.4 blend
+  ├── T7t TEST-1 + TEST-2 + TEST-3
+  ├── /codex consult on the aggregation formula  ← cross-model second opinion
+  └── T8  services/refinement.py (independent LLM call)
+
+Wave 5  [Lane E — PARALLEL via 2 sub-agents, different page files]
+  ├── Agent α: /simulations/new form (capability dropdown + hypothesis textarea)
+  └── Agent β: /simulations/[id] result view + 5s state polling
+
+Wave 6  [Lane F — sequential, validation]
+  ├── T12 End-to-end manual demo
+  ├── /qa against running :3000 / :8000
+  ├── /review the full diff
+  └── /retro
+```
+
+**Conflict flags:** Lane A's T1 (Postgres) and Lane B's T2 (postgres adapter) touch related code but different files; no merge conflict expected. Lane E sub-agents touch **different page files** — fully independent.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | not run (no significant product change in this sprint) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 6 architecture findings → 4 critical decisions locked; 4 test gaps → land alongside code |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | not run (Wave 5 frontend is stubs-to-real, no new visual design) |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | n/a (internal sprint) |
+| Outside Voice | `/codex` | Independent challenge | 0 | — | deferred to Wave 4 for the scoring formula specifically |
+
+- **UNRESOLVED:** 0
+- **VERDICT:** ENG CLEARED — ready to implement.
+
+
 
 **Goal:** A customer connects their Snowflake, maps columns to Pythia's 7 feature groups (LLM-assisted), previews their population, configures the build, runs it, reviews the resulting personas, and promotes the pack to `latest` — all from a self-serve wizard. Equivalent for `pythia-crawler` and `pythia-simulator` UIs land in their own phases; this one is the proof of concept.
 
