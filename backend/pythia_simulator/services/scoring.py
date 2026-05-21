@@ -18,6 +18,7 @@ from typing import Iterable
 from pythia_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
 from pythia_simulator.schemas.scoring import (
     AgentAnalysis,
+    ScoringConfig,
     Sentiment,
     SentimentClassification,
     WeaknessClassification,
@@ -208,16 +209,33 @@ class ScoringService:
 
     # — Aggregation (pure function, no LLM) ————————————————————————————
 
-    @staticmethod
-    def aggregate(analyses: Iterable[AgentAnalysis]) -> SimulationResult:
-        """Locked formula: 0.6 × sentiment + 0.4 × (1 − weakness_concentration).
+    _SENTIMENT_VALUE: dict[Sentiment, float] = {
+        Sentiment.POSITIVE: 1.0,
+        Sentiment.NEUTRAL: 0.5,
+        Sentiment.NEGATIVE: 0.0,
+    }
 
-        Result is on a 0–100 scale.
+    @classmethod
+    def aggregate(
+        cls,
+        analyses: Iterable[AgentAnalysis],
+        config: ScoringConfig | None = None,
+    ) -> SimulationResult:
+        """Aggregate per-agent analyses into a SimulationResult.
 
-        - sentiment_score ∈ [0,1]: positive=1, neutral=0.5, negative=0. Average across agents.
-        - weakness_concentration ∈ [0,1]: max over the 6 categories of
-          (fraction of agents who flagged that category). Zero if no agent flagged anything.
+        Codex-reviewed formula (Wave 4, 2026-05-21):
+        - sentiment_score: confidence-weighted mean with Bayesian shrinkage
+          toward neutral. Small-N runs don't reach extremes.
+        - weakness_signal: 1 − any_flag_share, where any_flag_share is the
+          fraction of agents flagging ≥1 weakness (deduped within each agent
+          to prevent a malformed LLM response from double-counting).
+        - confidence: 100 × (sentiment_weight × sentiment_score +
+                             weakness_weight × weakness_signal).
+
+        Underpowered gate: if N < config.min_sample_size, prepend an
+        `underpowered_design` weakness so the PM sees the limitation.
         """
+        cfg = config or ScoringConfig()
         analyses_list = list(analyses)
         n = len(analyses_list)
         if n == 0:
@@ -227,35 +245,66 @@ class ScoringService:
                 refinement_suggestions=[],
             )
 
-        sentiment_weight = {Sentiment.POSITIVE: 1.0, Sentiment.NEUTRAL: 0.5, Sentiment.NEGATIVE: 0.0}
-        sentiment_score = sum(sentiment_weight[a.sentiment.sentiment] for a in analyses_list) / n
+        # ── Sentiment: confidence-weighted mean with shrinkage toward 0.5 ──
+        if cfg.use_sentiment_confidence:
+            num = sum(
+                a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
+                for a in analyses_list
+            )
+            denom = sum(a.sentiment.confidence for a in analyses_list)
+        else:
+            num = sum(cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses_list)
+            denom = float(n)
+        # Bayesian shrinkage: add prior_k pseudo-observations of neutral (0.5).
+        num += cfg.sentiment_prior_k * 0.5
+        denom += cfg.sentiment_prior_k
+        sentiment_score = num / denom if denom > 0 else 0.5
 
-        # Concentration: max category share. Track agents per category for evidence.
+        # ── Weakness: dedupe categories per agent, then count any-flag share ──
         category_agents: dict[str, list[str]] = {}
+        agents_with_any_weakness = 0
         for a in analyses_list:
-            for cat in a.weakness.categories:
+            unique_cats = set(a.weakness.categories)  # dedupe within agent
+            if unique_cats:
+                agents_with_any_weakness += 1
+            for cat in unique_cats:
                 category_agents.setdefault(cat, []).append(a.agent_id)
 
-        if category_agents:
-            concentration = max(len(ids) / n for ids in category_agents.values())
-        else:
-            concentration = 0.0
+        any_flag_share = agents_with_any_weakness / n
+        weakness_signal = 1.0 - any_flag_share
 
-        confidence = (0.6 * sentiment_score + 0.4 * (1.0 - concentration)) * 100.0
+        confidence = (
+            cfg.sentiment_weight * sentiment_score
+            + cfg.weakness_weight * weakness_signal
+        ) * 100.0
 
-        # Surface top 3 weaknesses by frequency for the result.
+        # ── Weakness surface: top-K by frequency ──
         category_counts = Counter({c: len(ids) for c, ids in category_agents.items()})
-        weaknesses = [
+        top_weaknesses = [
             Weakness(
                 category=cat,
                 summary=_summarize_category(cat, len(category_agents[cat]), n),
                 supporting_agent_ids=category_agents[cat][:5],
             )
-            for cat, _ in category_counts.most_common(3)
+            for cat, _ in category_counts.most_common(cfg.top_k_weaknesses)
         ]
 
+        # ── Underpowered gate ──
+        weaknesses = list(top_weaknesses)
+        if n < cfg.min_sample_size:
+            weaknesses.insert(
+                0,
+                Weakness(
+                    category="underpowered_design",
+                    summary=(
+                        f"Only {n} agent{'s' if n != 1 else ''} reacted "
+                        f"(min recommended: {cfg.min_sample_size}). Treat the score as provisional."
+                    ),
+                ),
+            )
+
         return SimulationResult(
-            confidence_score=round(confidence, 1),
+            confidence_score=round(confidence, cfg.confidence_rounding),
             weaknesses=weaknesses,
             refinement_suggestions=[],  # filled in by RefinementService caller
         )
