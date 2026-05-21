@@ -1,6 +1,6 @@
 # pythia-simulator — Milestones
 
-**Last updated:** 2026-05-20
+**Last updated:** 2026-05-21
 
 ## Phase tracker
 
@@ -8,8 +8,8 @@
 |---|---|---|
 | **0. Design** | ✅ Done | 2026-05-20 |
 | **1. Scaffold** | ✅ Done | 2026-05-20 |
-| **2. Persona + Feature Pack loaders + Postgres metadata** | 🔲 Pending | ~1 week |
-| **3. Simulation runner (real LLM fan-out) + scoring + refinement** | 🔲 Pending | ~2 weeks |
+| **2. Persona + Feature Pack loaders + Postgres metadata** | ✅ Done | 2026-05-21 |
+| **3. Simulation runner (real LLM fan-out) + scoring + refinement** | 🚧 In progress | Wave 1-3 done, Wave 4 next |
 | **4. Agent chat API wired + frontend chat UI** | 🔲 Pending | ~2 weeks |
 | **4.5. Persona Builder UI (Snowflake → pack)** | 🔲 Pending | ~2 weeks |
 | **5. Auth (Clerk) + multi-tenancy** | 🔲 Pending | ~1.5 weeks |
@@ -193,7 +193,28 @@ Each phase has: **goal** (one sentence), **tasks**, **acceptance criteria** (wha
 
 ---
 
-### Phase 2+3 — Magic Moment Sprint (in flight)
+### Phase 2+3 — Magic Moment Sprint (Wave 1-3 complete; Wave 4 next)
+
+**Wave-by-wave progress** (updated 2026-05-21):
+
+| Wave | Tasks | Status | Commit |
+|---|---|---|---|
+| Wave 0 — Plan review | `/plan-eng-review`; 4 architecture decisions locked + 4 pre-recommended | ✅ Done | `6de33f8` |
+| Wave 1 — Foundation | T1 Postgres + Alembic 001; T4 feature_pack_loader; T5 fixture pack (6 personas) | ✅ Done | `69b34d8` |
+| Wave 2 — Loaders | T2 postgres adapter + repos (Postgres + InMemory); T3 persona_loader | ✅ Done | `69b34d8` + `cbabb2c` |
+| Wave 3 — End-to-end wiring | T6 POST /simulations 202+poll, BackgroundTasks, GET /simulations, GET /state, GET /capabilities, 60s timeout + N-of-M | ✅ Done | `cbabb2c` |
+| Wave 4 — Intelligence | T7 scoring (weakness + sentiment + 0.6/0.4 aggregator); `/codex` second opinion; T8 refinement agent | 🔲 Next | — |
+| Wave 5 — Frontend | T9 `/simulations/new` form; T10 result view; T11 `/state` polling — parallel via 2 sub-agents | 🔲 Pending | — |
+| Wave 6 — Validation | T12 e2e demo; `/qa`; `/review`; `/retro` | 🔲 Pending | — |
+
+**Tests:** 42 passing. **Live HTTP demo verified:** `/health`, `/capabilities`, `POST /simulations` (202), `GET /simulations/{id}`.
+
+**Net code shipped Waves 1-3:**
+- ~1400 lines backend (db_models, repos, loaders, orchestrator, deps, runner improvements)
+- ~120 lines fixture data (6-persona pack + Acme feature pack copy)
+- 18 new tests (db_models, feature_pack_loader, persona_loader, repositories, simulations_api e2e)
+
+
 
 **Goal:** end-to-end simulation against fixture data — submit hypothesis → 10 agents react → confidence score + weaknesses + refinements rendered.
 

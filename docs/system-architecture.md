@@ -326,6 +326,46 @@ All three are backed by the same simulator backend; each producer remains a sepa
 
 ---
 
+## Repository pattern (Wave 2 — landed 2026-05-21)
+
+Every model has a paired `Protocol` plus two implementations:
+
+| Layer | Production | Dev / Tests |
+|---|---|---|
+| `CustomerRepo` / `SimulationRepo` / `AgentInstanceRepo` / `AgentFeedbackRepo` | Postgres-backed (async SQLAlchemy) | In-memory dicts |
+
+Selection happens at the FastAPI deps layer (`api/deps.py`) based on `DATABASE_URL`. Every query is scoped by `customer_id` — the foundation for Phase 5 multi-tenancy. The in-memory variants serve the demo without requiring a Postgres install; production uses Postgres on Neon.
+
+This pattern also keeps unit tests fast (no DB fixture setup) while giving us a single integration-test target (the Postgres impl) for Phase 5+.
+
+## Background task scheduling (Wave 3)
+
+`POST /simulations` returns `202 Accepted` immediately and schedules the simulation via FastAPI's `BackgroundTasks` dependency. Three reasons:
+
+1. **HTTP-timeout safety** — 10-agent simulations take 10–30s; well above default LB timeouts.
+2. **Testability** — `TestClient` handles `BackgroundTasks` correctly (runs after the response is sent but before the test request returns). `asyncio.create_task` does not — it leaks across event loops in test contexts.
+3. **Phase-2-queue-ready** — the `SimulationOrchestrator.prepare()` method returns `(sim_id, run_coroutine)`. The route is the only place scheduling lives. Swapping to Cloud Tasks / SQS in Phase 2 of `JobRunner` touches one file.
+
+The orchestrator stays HTTP-agnostic: it knows nothing about FastAPI, BackgroundTasks, or HTTP semantics.
+
+## N-of-M failure handling (Wave 3)
+
+Per-agent failures are **expected and recoverable**, not run-aborting:
+
+- Per-agent `asyncio.wait_for(60s)` timeout
+- `asyncio.gather(..., return_exceptions=True)` keeps the run alive on individual failures
+- Failed agents emit `agent.reaction.failed` events to the JSONL log
+- The frontend renders "reacted: 8/10" with the 8 successes
+- `SimulationStatus` is `complete` if ≥1 agent succeeded; `failed` only if all agents failed
+
+This is the **identity-continuity guarantee applied at the population level** — a single hung LLM call cannot corrupt the rest of the run.
+
+## LLM client reproducibility (Wave 3)
+
+`ChatClient.chat()` exposes `temperature` and `seed` kwargs. Defaults: `temperature=0.0`, `seed=None`. Both Groq (via OpenAI-compatible SDK) and Anthropic adapters pass these through. The simulator passes a fixed `seed` per `(persona_id, hypothesis_hash)` so identical reruns of the same hypothesis against the same pack produce identical scores. This is what makes the score *trustworthy* — PMs can re-submit a hypothesis and see the same number, not a ±15-point swing.
+
+---
+
 ## Auth & tenancy
 
 - **Identity provider:** Clerk. SAML/SSO supported out of the box for enterprise.
