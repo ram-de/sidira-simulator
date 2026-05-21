@@ -26,6 +26,8 @@ import structlog
 from pythia_simulator.adapters.llm import ChatClient, get_chat_client
 from pythia_simulator.adapters.r2 import ArtifactStore, get_store
 from pythia_simulator.memory.agent_memory import AgentMemory
+from dataclasses import dataclass
+
 from pythia_simulator.schemas.agent import AgentInstanceMetadata
 from pythia_simulator.schemas.feature_pack import Capability
 from pythia_simulator.schemas.persona import Persona, PersonaPack
@@ -46,18 +48,38 @@ from pythia_simulator.services.run_state import (
 log = structlog.get_logger()
 
 
+@dataclass
+class AgentRecord:
+    """Lightweight record returned from _materialize_agent for repo persistence."""
+
+    agent_id: str
+    persona_id: str
+    persona_name: str
+    created_at: datetime
+
+
 class SimulationRunner:
     def __init__(
         self,
         store: ArtifactStore | None = None,
         chat_client: ChatClient | None = None,
         max_concurrent_agents: int = 5,
+        per_agent_timeout_s: float = 60.0,
     ) -> None:
         self._store = store or get_store()
-        self._chat = chat_client or get_chat_client()
+        # Lazy chat client — don't crash app startup when no LLM key is set.
+        # The first .chat() call will raise RuntimeError with a clear message.
+        self._chat_explicit = chat_client
         self._memory = AgentMemory(self._store, self._store)
         self._run_state = RunStateStore(self._store)
         self._semaphore = asyncio.Semaphore(max_concurrent_agents)
+        self._per_agent_timeout_s = per_agent_timeout_s
+
+    @property
+    def _chat(self) -> ChatClient:
+        if self._chat_explicit is None:
+            self._chat_explicit = get_chat_client()
+        return self._chat_explicit
 
     async def run(
         self,
@@ -67,8 +89,9 @@ class SimulationRunner:
         feature_pack_version: str,
         hypothesis: Hypothesis,
         sample_size: int = 10,
+        sim_id: str | None = None,
     ) -> Simulation:
-        sim_id = str(uuid.uuid4())
+        sim_id = sim_id or str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
         state = SimulationRunState(
@@ -90,12 +113,21 @@ class SimulationRunner:
         state.mark_phase(RunPhase.AGENTS_REACTING)
         self._run_state.write_state(state)
 
-        agent_ids = await asyncio.gather(
+        # N-of-M handling: a single agent failure / timeout MUST NOT crash the whole
+        # simulation. return_exceptions=True keeps the gather alive; failed agents
+        # surface via agent.reaction.failed events that the frontend already renders.
+        results = await asyncio.gather(
             *(
-                self._materialize_agent(state, customer_id, sim_id, persona, capability, hypothesis, persona_pack.version)
+                self._materialize_agent(
+                    state, customer_id, sim_id, persona, capability, hypothesis, persona_pack.version
+                )
                 for persona in sampled
-            )
+            ),
+            return_exceptions=True,
         )
+        agent_records: list[AgentRecord] = [r for r in results if isinstance(r, AgentRecord)]
+        agent_ids = [r.agent_id for r in agent_records]
+        self._last_run_agent_records = agent_records  # caller can read for repo persistence
 
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
@@ -125,7 +157,7 @@ class SimulationRunner:
         capability: Capability,
         hypothesis: Hypothesis,
         persona_pack_version: str,
-    ) -> str:
+    ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
             self._run_state.emit(
@@ -143,20 +175,33 @@ class SimulationRunner:
             )
 
             try:
-                initial_reaction = await asyncio.to_thread(
-                    self._chat.chat,
-                    [
-                        {"role": "system", "content": identity_prompt},
-                        {
-                            "role": "user",
-                            "content": (
-                                "React to the proposed change as yourself. Give your honest, "
-                                "specific reaction in first-person prose. Reference the current "
-                                "product flows and copy where relevant."
-                            ),
-                        },
-                    ],
+                initial_reaction = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._chat.chat,
+                        [
+                            {"role": "system", "content": identity_prompt},
+                            {
+                                "role": "user",
+                                "content": (
+                                    "React to the proposed change as yourself. Give your honest, "
+                                    "specific reaction in first-person prose. Reference the current "
+                                    "product flows and copy where relevant."
+                                ),
+                            },
+                        ],
+                    ),
+                    timeout=self._per_agent_timeout_s,
                 )
+            except asyncio.TimeoutError:
+                state.agents_failed += 1
+                self._run_state.emit(
+                    state,
+                    "agent.reaction.failed",
+                    agent_id=agent_id,
+                    persona=persona.name,
+                    error=f"timeout_after_{int(self._per_agent_timeout_s)}s",
+                )
+                raise
             except Exception as exc:
                 state.agents_failed += 1
                 self._run_state.emit(
@@ -199,7 +244,12 @@ class SimulationRunner:
                 agent_id=agent_id,
                 persona=persona.name,
             )
-            return agent_id
+            return AgentRecord(
+                agent_id=agent_id,
+                persona_id=persona.id,
+                persona_name=persona.name,
+                created_at=now,
+            )
 
     def _score(self, state: SimulationRunState, sim_id: str) -> SimulationResult:
         """Stub. Phase 3 implements: load each agent's initial_reaction, run a

@@ -25,13 +25,21 @@ class JSONRepairError(RuntimeError):
 
 
 class ChatClient(Protocol):
-    def chat(self, messages: list[dict[str, str]], max_tokens: int = 4096) -> str: ...
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> str: ...
 
     def chat_json(
         self,
         messages: list[dict[str, str]],
         schema: type[T],
         max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
     ) -> T: ...
 
 
@@ -45,12 +53,22 @@ class GroqChat:
         )
         self._model = model
 
-    def chat(self, messages: list[dict[str, str]], max_tokens: int = 4096) -> str:
-        resp = self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            max_tokens=max_tokens,
-        )
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> str:
+        kwargs: dict = {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        if seed is not None:
+            kwargs["seed"] = seed
+        resp = self._client.chat.completions.create(**kwargs)
         return resp.choices[0].message.content or ""
 
     def chat_json(
@@ -58,8 +76,10 @@ class GroqChat:
         messages: list[dict[str, str]],
         schema: type[T],
         max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
     ) -> T:
-        raw = self.chat(messages, max_tokens=max_tokens)
+        raw = self.chat(messages, max_tokens=max_tokens, temperature=temperature, seed=seed)
         return parse_llm_json(raw, schema)
 
 
@@ -70,13 +90,21 @@ class AnthropicChat:
         self._client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         self._model = model
 
-    def chat(self, messages: list[dict[str, str]], max_tokens: int = 4096) -> str:
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> str:
+        # Anthropic doesn't expose seed; temperature only.
         system_parts = [m["content"] for m in messages if m["role"] == "system"]
         non_system = [m for m in messages if m["role"] != "system"]
         resp = self._client.messages.create(
             model=self._model,
             system="\n\n".join(system_parts) if system_parts else None,
             max_tokens=max_tokens,
+            temperature=temperature,
             messages=[{"role": m["role"], "content": m["content"]} for m in non_system],
         )
         return resp.content[0].text
@@ -86,8 +114,10 @@ class AnthropicChat:
         messages: list[dict[str, str]],
         schema: type[T],
         max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
     ) -> T:
-        raw = self.chat(messages, max_tokens=max_tokens)
+        raw = self.chat(messages, max_tokens=max_tokens, temperature=temperature, seed=seed)
         return parse_llm_json(raw, schema)
 
 
