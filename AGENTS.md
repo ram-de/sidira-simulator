@@ -34,28 +34,29 @@ We use [gstack](https://github.com/ram-de/gstack-public) for the slash commands.
 | When | Skill | What it does |
 |---|---|---|
 | Starting any non-trivial chunk of work | `/plan-eng-review` | Locks architecture decisions before code. Single biggest leverage. |
-| Per-session working state (shared across founders) | `/session` | Project-local. Lives in this repo at `.claude/skills/session/`. Writes to `sessions/<domain>/context.md`, committed to git so the other founder sees state on `git pull`. See full docs in the skill file. |
+| Per-session working state (shared across founders) | `/pythia-session` | Project-local. Lives in this repo at `.claude/skills/pythia-session/`. Writes to `sessions/<domain>/context.md`, committed to git so the other founder sees state on `git pull`. Named with the `pythia-` prefix to never collide with employer-vault `/session` skills. See full docs in the skill file. |
 | At a PR boundary | `/codex` | Cross-model second opinion. Catches formula / type / boundary issues. |
 | Before merging a frontend change | `/qa` | Live browser test of the running app. Catches what curl + tests miss. |
 | Before declaring a feature done | `/review` | Independent diff review with adversarial pass. |
 | At the end of a sprint | `/retro` | Captures lessons. Updates `CONTEXT.md`. |
 | New phase or pipeline design | `/etl` (when it applies) | Lifecycle skill. Not Pythia-specific but useful when the work is data-pipeline-shaped. |
 
-### `/session` — how the shared session model works
+### `/pythia-session` — how the shared session model works
 
-`/session` is the **only** skill of these that's project-local (checked into this repo at `.claude/skills/session/`). The others are user-level via gstack. Why project-local for sessions:
+`/pythia-session` is the **only** skill of these that's project-local (checked into this repo at `.claude/skills/pythia-session/`). The others are user-level via gstack. Why project-local for sessions:
 
 - Both founders see the same session state via `git pull`
 - No dependency on either founder having an Obsidian vault
 - Session content lives at `sessions/<domain>/context.md` in this repo and is committed
+- The `pythia-` prefix ensures it never collides with employer-vault `/session` skills
 
 Common flow:
 ```
-/session new phase-2.5-sampler — implement population_sampler
+/pythia-session new phase-2.5-sampler — implement population_sampler
 (work, with continuous updates to sessions/phase-2.5-sampler/context.md)
-/session save                       # commits + pushes the session file
+/pythia-session save                       # commits + pushes the session file
 (cofounder picks up next day:)
-/session resume phase-2.5-sampler   # reads the file, continues from "Next Steps"
+/pythia-session resume phase-2.5-sampler   # reads the file, continues from "Next Steps"
 ```
 
 A live example session lives at `sessions/persona-classifier/context.md` — that's the full working state of the Pythia work from the Magic Moment Sprint forward. Read it for context before picking up Phase 2.5.
@@ -148,6 +149,6 @@ When you pick up a ticket:
 7. `frontend/`: `npm install`
 8. Run the magic moment locally: start backend (`uvicorn ...`) + frontend (`npm run dev`), open `http://127.0.0.1:3000`, submit a hypothesis. If you see a score and 6 agents reacted, you're in.
 9. Read `CONTEXT.md`. Then read `sessions/persona-classifier/context.md` for the deeper running state.
-10. Pick a ticket from the GitHub Project. Run `/session new <slug> — <desc>` so I see what you're working on. Ship.
+10. Pick a ticket from the GitHub Project. Run `/pythia-session new <slug> — <desc>` so I see what you're working on. Ship.
 
 If anything in this file is wrong, fix it in a PR. The file outlives any single conversation.
