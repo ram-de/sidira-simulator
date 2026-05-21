@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from pythia_simulator import __version__
 from pythia_simulator.api import (
@@ -15,6 +18,14 @@ from pythia_simulator.api import (
 )
 
 
+def _cors_origins() -> list[str]:
+    raw = os.environ.get(
+        "PYTHIA_CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    )
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="pythia-simulator",
@@ -23,6 +34,14 @@ def create_app() -> FastAPI:
             "Pythia simulation engine — pre-experiment hypothesis validation via "
             "behavioral simulation + post-simulation agent chat."
         ),
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/health")
