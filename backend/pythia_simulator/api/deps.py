@@ -1,8 +1,9 @@
 """FastAPI dependencies — customer scope + orchestrator wiring.
 
-MVP: hardcodes customer_id="demo" and uses in-memory repos. Phase 5 swaps the
-customer_id resolver to read from Clerk session JWT and the repo selection to
-Postgres-backed when DATABASE_URL is set.
+MVP: resolves customer_id from PYTHIA_CUSTOMER_ID env (default "demo") and uses
+in-memory repos. Phase 5 will swap the resolver to read from a Clerk session
+JWT; the JWT path will take precedence over the env, and the env will continue
+to act as the dev-time default.
 """
 
 from __future__ import annotations
@@ -22,13 +23,16 @@ from pythia_simulator.adapters.repositories import (
 )
 from pythia_simulator.services.simulation_orchestrator import SimulationOrchestrator
 
-# MVP — hardcoded until Phase 5 wires Clerk.
-DEMO_CUSTOMER_ID = "demo"
+DEFAULT_CUSTOMER_ID = "demo"
 
 
 def current_customer_id() -> str:
-    """Resolve the customer for the current request. MVP: hardcoded."""
-    return DEMO_CUSTOMER_ID
+    """Resolve the customer for the current request.
+
+    MVP: read from PYTHIA_CUSTOMER_ID env var, fall back to "demo". Phase 5 will
+    layer a Clerk JWT resolver on top.
+    """
+    return os.environ.get("PYTHIA_CUSTOMER_ID", DEFAULT_CUSTOMER_ID)
 
 
 def _repos() -> tuple[CustomerRepo, SimulationRepo, AgentInstanceRepo, AgentFeedbackRepo]:

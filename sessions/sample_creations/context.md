@@ -24,9 +24,12 @@ Create a second sample customer (`streamly_sample`, a video streaming product) w
 - [x] Verified loading via real `PersonaPackLoader` + `FeaturePackLoader`: 6 personas; weights sum to 1.000 across head_count / order_weighted / revenue_weighted; both capabilities parse with surfaces, roles, transitions, and reverse-PRD intact.
 
 ## Next Steps
-1. Wire one simulation through the orchestrator using the new persona pack + feature pack + hypothesis (`h_001_smart_resume.md`).
+1. Build out `/product` and `/personas` index pages so the selected customer's Feature Pack and Persona Pack are visible in the UI (today they're placeholders — only `/simulations/new` reflects `PYTHIA_CUSTOMER_ID`).
 2. Decide whether to fold a doc into `docs/` describing the figma transition schema (Transition.from_screen / to_screen / role_gated) — fixture authoring kept guessing this wrong.
-3. `/pythia-session save` to push for cofounder.
+3. Optional: layer the Phase-5 Clerk JWT resolver on top of `current_customer_id()` (env stays as the dev-time default).
+
+## Recent additions (post-sample, same session)
+- `backend/pythia_simulator/api/deps.py` — `current_customer_id()` now reads `PYTHIA_CUSTOMER_ID` env var with `"demo"` as default. Constant renamed `DEMO_CUSTOMER_ID` → `DEFAULT_CUSTOMER_ID`. Verified live against `streamly_sample`: `GET /capabilities` returns the streaming capabilities, `POST /simulations` accepted the Smart Resume hypothesis, orchestrator fanned out to all 6 streamly personas. Per-agent LLM calls failed only because no `GROQ_API_KEY` / `ANTHROPIC_API_KEY` was set — env, not wiring.
 
 ## Key Files
 - `local-artifacts/customers/streamly_sample/personas/v_1/persona_pack.json`
