@@ -92,7 +92,7 @@ export default function NewSimulationPage() {
           showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
         proposed_figma: null,
       },
-      persona_sample_size: sampleSize,
+      population_size: sampleSize,
     };
 
     setSubmitting(true);
