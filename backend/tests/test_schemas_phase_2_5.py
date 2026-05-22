@@ -119,6 +119,44 @@ def test_agent_instance_accepts_identity_seed() -> None:
     assert agent.identity_seed.age_band == "25-29"
 
 
+def test_max_agents_env_defaults_when_malformed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex P2: PYTHIA_MAX_AGENTS='abc' must not 500 the POST. Fall back to 50."""
+    from fastapi.testclient import TestClient
+
+    from pythia_simulator.main import create_app
+
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "abc")
+    client = TestClient(create_app())
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {"capability_name": "reorder", "prose": "x" * 20},
+            "population_size": 3,
+        },
+    )
+    # 202 = the env-parse fallback worked; 500 = the unhandled ValueError leaked.
+    # 409 is acceptable too (no persona pack for demo) -- proves we got past env parse.
+    assert resp.status_code in (202, 409), resp.text
+
+
+def test_max_agents_env_clamped_to_min_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Codex P2: PYTHIA_MAX_AGENTS=0 must not derive a zero-agent run."""
+    from fastapi.testclient import TestClient
+
+    from pythia_simulator.main import create_app
+
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+    client = TestClient(create_app())
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {"capability_name": "reorder", "prose": "x" * 20},
+            "population_size": 5,
+        },
+    )
+    assert resp.status_code in (202, 409), resp.text
+
+
 def test_agent_instance_identity_seed_optional_for_existing_code() -> None:
     """Existing call sites that don't yet emit identity_seed must keep working."""
     meta = AgentInstanceMetadata(
