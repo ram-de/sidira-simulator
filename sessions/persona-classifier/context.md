@@ -1,8 +1,9 @@
 ---
 type: session
 domain: persona-classifier
-status: active
+status: closed
 started: 2026-05-16
+closed: 2026-05-21
 owner: rmkmar
 ---
 
@@ -242,3 +243,86 @@ Adding these should push stability >0.75 and split the two big clusters (P03 Das
 - Persona model output = (cluster_id, persona_label, persona_description). Downstream supervised classifier (XGBoost/LogReg) trained on (features → cluster_id) handles new-user assignment + can be shipped as the production "classifier model" the user asked for.
 - Likely persona archetypes from the DD metrics: Power Restaurant Loyalist, Weekly Grocery Stockup, Promo-Triggered Bargain Hunter, DashPass Convenience Seeker, Late-Night Snacker, Dormant At-Risk, New-and-Exploring, Speed-First Premium, etc. — let clusters speak rather than presupposing.
 - Generic guarantee: any new company that fits its metrics into the same 7 groups can swap Layer A and reuse B + C unchanged.
+
+---
+
+## Closing summary (2026-05-21, part 2 — cofounder onboarding sprint)
+
+After Magic Moment Sprint closed at `b39db2b`, did a second pass focused on making the project pickup-able by a cofounder without my hand-holding. Net result: 54 GitHub tickets, 4 new top-level docs, project-local session skill, full GitHub Project board.
+
+### Magic Moment Wave 6 → main
+- `2713752` — fix(qa): CORS middleware (caught by /qa; wizard was entirely broken from the browser)
+- `6b458a9` — feat(qa): GET /simulations list view (backend + frontend; cofounder-driven UX gap)
+- `b39db2b` — chore(review): 3 small fixups from /review (docstring drift, parseInt NaN, redundant except)
+
+### Phase 2.5 design — locked, not coded
+- Replace `persona_sample_size` with `population_size` (PM specifies "imagine N users")
+- Stratified allocation via Hamilton largest-remainder against persona weight scheme
+- Cap: `min(population, 50)` agents actually run; configurable via env var
+- Variance: per-agent `identity_seed` blob (age band, locale, tenure, recent gripe) injected into persona prompt
+- Aggregation: Wilson CIs on weakness frequencies + bootstrap on aggregate score
+- Hard gates before any 50-agent run: Groq rate-limit backoff + scoring degradation guard (>50% classification failures)
+
+### Doc consolidation (2026-05-21 evening)
+- `026306b` — pythia-simulator: ROADMAP.md refreshed (Phases 2+3 done, Phase 2.5 added with full spec), MILESTONES.md → redirect stub, new CONTEXT.md (sprint narrative) + AGENTS.md (team conventions) + docs/SEED_ISSUES.md
+- `31db543` — pythia-personas: MILESTONES.md → redirect stub
+- `facfe4e` — pythia-crawler: MILESTONES.md → redirect stub
+- `f6d8471` — CONTEXT.md slim-down: dropped "What's not yet real" section as redundant with ROADMAP + GitHub Project (was three places to maintain)
+
+Planning hierarchy is now:
+| What | Where |
+|---|---|
+| Strategy, phases, what comes next | `pythia-simulator/ROADMAP.md` |
+| Open tickets | GitHub Project (multi-repo) |
+| Current sprint narrative | `pythia-simulator/CONTEXT.md` |
+| Team conventions | `pythia-simulator/AGENTS.md` |
+| New cofounder onboarding | `pythia-simulator/ONBOARDING.md` |
+
+### Cofounder onboarding infrastructure
+- `2c746b1` — `ONBOARDING.md` at repo root: 12-step walkthrough (access → install → clone → backend setup → frontend setup → Magic Moment local run → read docs → understand `/pythia-session` → pick first ticket → conventions → when-stuck → first-week expectations). Written so cofounder can paste it to Claude and have the AI walk them through.
+- `5dae0b8` — project-local `/pythia-session` skill at `.claude/skills/pythia-session/`. Writes sessions to `<repo>/sessions/<domain>/context.md`, COMMITTED to git so founders sync state via `git pull`/`git push` instead of Obsidian. No vault dependency. Auto-discovered when cofounder opens the repo in Claude Code.
+- `4fa3355` — Renamed from `/session` to `/pythia-session` to avoid colliding with employer-vault `/session` skill (DoorDash work scratch). Project-local resolution depends on cwd, so unambiguous naming eliminates a real footgun.
+
+### GitHub Project "Pythia" — fully set up
+- URL: https://github.com/users/ram-de/projects/1
+- Multi-repo: covers pythia-simulator + pythia-personas + pythia-crawler
+- Custom fields: **Phase** (single-select 2.5/4/4.5/5/6/7/8/9/10) + **Component** (backend/frontend/schema/infra/docs/eval)
+- **54 items total, 53 open, 1 closed** (#13 umbrella superseded by 6 split tickets)
+
+| Phase | Open tickets | Note |
+|---|---|---|
+| 2.5 | 11 | Weighted population sampling — next up |
+| 4 | 6 | Agent chat UI (the differentiator) |
+| 4.5 | 8 | Persona Builder UI |
+| 5 | 7 | Auth + multi-tenancy + Postgres handover |
+| 6 | 5 | Observability |
+| 7 | 7 | First customer (Lumen MVP) — spans all 3 repos |
+| 8 | 5 | Refinement loop UX |
+| 9 | 2 | Layer-3 calibration (1 RFC + 1 capture endpoint) |
+| 10 | 2 | Specialized 8B model (2 RFCs, no code) |
+
+By component: backend 24 / frontend 12 / infra 10 / docs 5 / schema 2.
+
+### Manual TODOs remaining for me (not blocking)
+1. Add 3 views to the GitHub Project (Project → + New view): "Now" (in-progress + next), "Phase 2.5" (board grouped by status), "By repo" (table grouped by repo). gh CLI doesn't expose view creation; ~3 min UI work.
+2. Invite cofounder as collaborator to all 3 repos + the Project.
+3. (Optional) Move #14 (`chore: rename _sample_personas`) to Status = Next as the cofounder's suggested starter ticket.
+
+### What the cofounder does to onboard
+1. Accept GitHub invites
+2. Read `pythia-simulator/ONBOARDING.md` (or paste into Claude: "help me onboard")
+3. Steps 1-12 of that doc → ~90 min → first PR shipped (#14 is the suggested starter)
+
+### Pickup loop for me + cofounder going forward
+```
+/pythia-session resume <slug>           # see prior state
+→ work, /pythia-session save             # commit + push the session file
+→ git pull                                # other founder sees state
+→ open ROADMAP for strategic context
+→ open GitHub Project for next ticket
+→ /pythia-session new <slug> — <desc>    # next chunk
+```
+
+### Session close
+Status flipped to `closed`. Next session picks up from CONTEXT.md → GitHub Project Phase 2.5. Phase 2.5 design is locked in ROADMAP; first ticket to ship is whichever of #3-#14 the cofounder claims (suggest #14 as the muscle-memory PR, then #7 Groq backoff which is a hard prereq for any 50-agent run).
+
