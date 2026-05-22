@@ -70,17 +70,35 @@ Resume a session from a prior context.
 
 ### `/pythia-session save [<domain>]`
 
-Commit and push the current session state (and any other in-flight changes) so the other founder sees them.
+Commit and push the current session state so the other founder sees it. **Session commits always land on `main`, never on a feature branch** — see "Session updates land on main" below for why.
 
 **Steps:**
 1. If `<domain>` given: use it as the commit message context
 2. If no domain given: resolve active session (same as resume) to get domain; if none found, use "context update"
-3. Run:
+3. Capture the current branch: `CURRENT=$(git branch --show-current)`
+4. If `CURRENT != main`: do the branch-hop dance:
    ```bash
-   git add sessions/ && git commit -m "session: <domain> — save" && git push
+   # Stash only the session file (leave code changes alone on the feature branch)
+   git stash push -m "pythia-session-save" sessions/
+   git checkout main
+   git pull --rebase origin main
+   git stash pop
+   # If pop produces a conflict on the session file, take ours (the just-edited state):
+   git checkout --theirs sessions/<domain>/context.md
+   git add sessions/<domain>/context.md
    ```
-4. If push fails due to diverged history: `git pull --rebase && git push`
-5. Tell the user: "Session pushed. Cofounder will see this on next `git pull`."
+5. On `main`, commit + push:
+   ```bash
+   git add sessions/ && git commit -m "session: <domain> — save" && git push origin main
+   ```
+6. If push fails due to diverged history: `git pull --rebase && git push origin main`
+7. If we hopped from a feature branch: `git checkout "$CURRENT"`. The session file on the feature branch is now a stale duplicate of what's on main — discard any leftover diff on that branch so the next merge doesn't conflict:
+   ```bash
+   git checkout origin/main -- sessions/<domain>/context.md
+   ```
+8. Tell the user: "Session pushed to main. Cofounder will see this on next `git pull`."
+
+**Why the dance:** if the session file lives on both `main` (via `/pythia-session save`) and a feature branch (via in-flight edits), merging the PR creates a conflict every time both sides have moved. Keeping session commits exclusively on `main` removes that whole class of conflict. We learned this the hard way during PR #64.
 
 ### `/pythia-session list`
 
@@ -102,6 +120,18 @@ Mark the session as done. Roll lasting decisions / shipped artifacts into `CONTE
    - **Significant** = session shipped to `main` AND has lasting impact on roadmap → update `CONTEXT.md`'s "What just shipped" and "Lessons" sections
    - **Pure exploration** with no shipped output → leave `CONTEXT.md` alone, just close the session
 7. Commit and push (`session: <domain> — close`)
+
+---
+
+## Session updates land on main
+
+**Session file commits always go on `main`, never on a feature branch.** The file itself is just a working-tree artifact — you can edit it on any branch during work — but every `/pythia-session save` (and the close commit) must hop to `main` first via the dance in `/pythia-session save` above.
+
+The reason: code goes through PRs (audit trail, codex review, conflict isolation) but the session file is conversation state — both founders need to see it land immediately, and gating it behind a PR defeats the point. Committing it on a feature branch AND on main creates a guaranteed merge conflict every time the PR merges (we hit this on PR #64). Single-source-of-truth on main avoids that whole class of friction.
+
+**If you're mid-edit on a feature branch and want to save:** the `save` subcommand handles the hop automatically. Don't `git add` the session file on the feature branch yourself.
+
+**If a stray session-file diff is sitting on a feature branch at PR-merge time:** discard it before merging. The version on main is authoritative.
 
 ---
 
