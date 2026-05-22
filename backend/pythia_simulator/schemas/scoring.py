@@ -90,6 +90,15 @@ class ScoringConfig(BaseModel):
     )
     top_k_weaknesses: int = Field(default=3, ge=1, le=10)
     confidence_rounding: int = Field(default=1, ge=0, le=2)
+    bootstrap_resamples: int = Field(
+        default=1000,
+        ge=0,
+        le=10_000,
+        description=(
+            "Percentile-bootstrap resample count for the confidence_score CI. "
+            "Set to 0 to skip the bootstrap entirely and leave confidence_score_ci=None."
+        ),
+    )
 
 
 # ── Refinement ────────────────────────────────────────────────────────

@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
+import secrets
 from collections import Counter
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from pythia_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
 from pythia_simulator.schemas.scoring import (
@@ -24,6 +26,13 @@ from pythia_simulator.schemas.scoring import (
     WeaknessClassification,
 )
 from pythia_simulator.schemas.simulation import Hypothesis, SimulationResult, Weakness
+from pythia_simulator.services.statistics import bootstrap_percentile_ci, wilson_interval
+
+# Arbitrary integer XOR mask used to derive a bootstrap-specific RNG seed
+# from the runner's run_seed, so the bootstrap resample stream cannot
+# collide with the identity-seed stream (which uses sha256 over a different
+# namespace tuple — distinct domain anyway, so this is defense in depth).
+_BOOTSTRAP_SEED_MIX = 0xB007_5747_5474
 
 log = logging.getLogger(__name__)
 
@@ -183,8 +192,16 @@ class ScoringService:
         self,
         hypothesis: Hypothesis,
         reactions: list[AgentReaction],
+        *,
+        run_seed: int | None = None,
+        config: ScoringConfig | None = None,
     ) -> tuple[SimulationResult, list[AgentAnalysis]]:
-        """Fan out per-agent analysis, then aggregate."""
+        """Fan out per-agent analysis, then aggregate.
+
+        `run_seed` makes the bootstrap CI on confidence_score deterministic
+        when the caller wants reproducibility. `config` lets the caller swap
+        in a `ScoringConfig(bootstrap_resamples=0)` to skip the CI.
+        """
         if not reactions:
             return (
                 SimulationResult(
@@ -204,7 +221,7 @@ class ScoringService:
             *(self.analyze(hypothesis, r) for r in reactions),
             return_exceptions=False,
         )
-        result = self.aggregate(analyses)
+        result = self.aggregate(analyses, config, run_seed=run_seed)
         return result, analyses
 
     # — Aggregation (pure function, no LLM) ————————————————————————————
@@ -216,10 +233,62 @@ class ScoringService:
     }
 
     @classmethod
+    def _compute_score(
+        cls,
+        analyses: Sequence[AgentAnalysis],
+        cfg: ScoringConfig,
+    ) -> tuple[float, float, float]:
+        """Pure formula: (confidence_0_100, sentiment_score, weakness_signal).
+
+        Extracted from `aggregate()` so that bootstrap resamples can recompute
+        the score cheaply without rebuilding the weakness surface or applying
+        the underpowered gate. No rounding — callers round at presentation time.
+
+        Behavior matches the pre-extraction inline formula exactly; pinned by
+        `test_aggregate_parity_snapshot`.
+        """
+        n = len(analyses)
+        if n == 0:
+            # Defensive: aggregate() short-circuits before calling us, but
+            # bootstrap resamples never produce empty lists either. If a
+            # caller ever sneaks an empty list through, fall back to neutral.
+            return 0.0, 0.5, 1.0
+
+        # ── Sentiment: confidence-weighted mean with shrinkage toward 0.5 ──
+        if cfg.use_sentiment_confidence:
+            num = sum(
+                a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
+                for a in analyses
+            )
+            denom = sum(a.sentiment.confidence for a in analyses)
+        else:
+            num = sum(cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses)
+            denom = float(n)
+        # Bayesian shrinkage: add prior_k pseudo-observations of neutral (0.5).
+        num += cfg.sentiment_prior_k * 0.5
+        denom += cfg.sentiment_prior_k
+        sentiment_score = num / denom if denom > 0 else 0.5
+
+        # ── Weakness: dedupe categories per agent, then any-flag share ──
+        agents_with_any_weakness = sum(
+            1 for a in analyses if set(a.weakness.categories)
+        )
+        any_flag_share = agents_with_any_weakness / n
+        weakness_signal = 1.0 - any_flag_share
+
+        confidence = (
+            cfg.sentiment_weight * sentiment_score
+            + cfg.weakness_weight * weakness_signal
+        ) * 100.0
+        return confidence, sentiment_score, weakness_signal
+
+    @classmethod
     def aggregate(
         cls,
         analyses: Iterable[AgentAnalysis],
         config: ScoringConfig | None = None,
+        *,
+        run_seed: int | None = None,
     ) -> SimulationResult:
         """Aggregate per-agent analyses into a SimulationResult.
 
@@ -245,49 +314,62 @@ class ScoringService:
                 refinement_suggestions=[],
             )
 
-        # ── Sentiment: confidence-weighted mean with shrinkage toward 0.5 ──
-        if cfg.use_sentiment_confidence:
-            num = sum(
-                a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
-                for a in analyses_list
-            )
-            denom = sum(a.sentiment.confidence for a in analyses_list)
-        else:
-            num = sum(cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses_list)
-            denom = float(n)
-        # Bayesian shrinkage: add prior_k pseudo-observations of neutral (0.5).
-        num += cfg.sentiment_prior_k * 0.5
-        denom += cfg.sentiment_prior_k
-        sentiment_score = num / denom if denom > 0 else 0.5
+        confidence, _sentiment, _weakness_signal = cls._compute_score(
+            analyses_list, cfg
+        )
 
-        # ── Weakness: dedupe categories per agent, then count any-flag share ──
+        # ── Bootstrap CI on the aggregate score ──
+        # bootstrap_resamples=0 is a sentinel that skips the bootstrap entirely
+        # (existing tests opt out so they don't pay B × O(n) per assertion).
+        confidence_score_ci: tuple[float, float] | None = None
+        rounded_score = round(confidence, cfg.confidence_rounding)
+        if cfg.bootstrap_resamples > 0:
+            effective_seed = (
+                run_seed if run_seed is not None else secrets.randbits(53)
+            ) ^ _BOOTSTRAP_SEED_MIX
+            rng = random.Random(effective_seed)
+            ci_low, ci_high = bootstrap_percentile_ci(
+                analyses_list,
+                lambda resample: cls._compute_score(resample, cfg)[0],
+                n_resamples=cfg.bootstrap_resamples,
+                rng=rng,
+            )
+            ci_low_r = round(ci_low, cfg.confidence_rounding)
+            ci_high_r = round(ci_high, cfg.confidence_rounding)
+            # Codex P2 fix: independent rounding (and, more rarely, the
+            # discrete percentile result itself) can violate the invariant
+            # ci_low <= confidence_score <= ci_high at the edges. Clamp so
+            # callers that inspect both fields always see a CI that brackets
+            # the reported point estimate. Widening is at most one rounding
+            # step when caused by rounding; can be larger if the raw
+            # bootstrap interval itself failed to bracket (small B, small N).
+            confidence_score_ci = (
+                min(ci_low_r, rounded_score),
+                max(ci_high_r, rounded_score),
+            )
+
+        # Rebuild the category → supporting-agents map for the top-K surface.
+        # Kept out of _compute_score() so bootstrap resamples don't pay for it.
         category_agents: dict[str, list[str]] = {}
-        agents_with_any_weakness = 0
         for a in analyses_list:
-            unique_cats = set(a.weakness.categories)  # dedupe within agent
-            if unique_cats:
-                agents_with_any_weakness += 1
-            for cat in unique_cats:
+            for cat in set(a.weakness.categories):
                 category_agents.setdefault(cat, []).append(a.agent_id)
 
-        any_flag_share = agents_with_any_weakness / n
-        weakness_signal = 1.0 - any_flag_share
-
-        confidence = (
-            cfg.sentiment_weight * sentiment_score
-            + cfg.weakness_weight * weakness_signal
-        ) * 100.0
-
-        # ── Weakness surface: top-K by frequency ──
+        # ── Weakness surface: top-K by frequency, each with a Wilson 95% CI ──
         category_counts = Counter({c: len(ids) for c, ids in category_agents.items()})
-        top_weaknesses = [
-            Weakness(
-                category=cat,
-                summary=_summarize_category(cat, len(category_agents[cat]), n),
-                supporting_agent_ids=category_agents[cat][:5],
+        top_weaknesses = []
+        for cat, count in category_counts.most_common(cfg.top_k_weaknesses):
+            ci_low, ci_high = wilson_interval(count, n)
+            top_weaknesses.append(
+                Weakness(
+                    category=cat,
+                    summary=_summarize_category(cat, count, n),
+                    supporting_agent_ids=category_agents[cat][:5],
+                    frequency=count / n,
+                    ci_low=ci_low,
+                    ci_high=ci_high,
+                )
             )
-            for cat, _ in category_counts.most_common(cfg.top_k_weaknesses)
-        ]
 
         # ── Underpowered gate ──
         weaknesses = list(top_weaknesses)
@@ -304,7 +386,8 @@ class ScoringService:
             )
 
         return SimulationResult(
-            confidence_score=round(confidence, cfg.confidence_rounding),
+            confidence_score=rounded_score,
+            confidence_score_ci=confidence_score_ci,
             weaknesses=weaknesses,
             refinement_suggestions=[],  # filled in by RefinementService caller
         )

@@ -182,6 +182,19 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     #   score = 100 * (0.6 * 0.853 + 0.4 * 0.0) ≈ 51.2
     assert body["result"]["confidence_score"] == pytest.approx(51.2, abs=0.1)
     assert any(w["category"] == "wrong_cohort" for w in body["result"]["weaknesses"])
+    # Phase 2.5 #6: the API contract surfaces the bootstrap CI on the score
+    # and a Wilson CI on every observed-frequency weakness row.
+    ci = body["result"]["confidence_score_ci"]
+    assert ci is not None
+    lo, hi = ci
+    assert 0.0 <= lo <= body["result"]["confidence_score"] <= hi <= 100.0
+    # Every weakness with a populated frequency must also carry both CI bounds.
+    # The injected `underpowered_design` (structural flag, no frequency) is
+    # exempt — see ScoringService.aggregate's underpowered gate.
+    for w in body["result"]["weaknesses"]:
+        if w.get("frequency") is not None:
+            assert w["ci_low"] is not None and w["ci_high"] is not None
+            assert 0.0 <= w["ci_low"] <= w["frequency"] <= w["ci_high"] <= 1.0
 
 
 def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:

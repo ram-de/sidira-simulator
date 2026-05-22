@@ -172,7 +172,9 @@ class SimulationRunner:
 
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
-        result = await self._score(state, sim_id, hypothesis, agent_records)
+        result = await self._score(
+            state, sim_id, hypothesis, agent_records, resolved_run_seed
+        )
 
         state.mark_phase(RunPhase.COMPLETE)
         self._run_state.emit(state, "run.complete", score=result.confidence_score)
@@ -304,6 +306,7 @@ class SimulationRunner:
         sim_id: str,
         hypothesis: Hypothesis,
         agent_records: list[AgentRecord],
+        run_seed: int,
     ) -> SimulationResult:
         """Call ScoringService + RefinementService over the agent reactions.
 
@@ -344,7 +347,9 @@ class SimulationRunner:
             for r in agent_records
         ]
 
-        result, _analyses = await scoring.score(hypothesis, reactions)
+        result, _analyses = await scoring.score(
+            hypothesis, reactions, run_seed=run_seed
+        )
         self._run_state.emit(state, "score.updated", score=result.confidence_score)
 
         # Refinement runs only when there's meaningful room to improve.
