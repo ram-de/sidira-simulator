@@ -12,6 +12,7 @@ Why this exists:
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -78,6 +79,11 @@ class SimulationOrchestrator:
         effective_population_size = (
             population_size if population_size is not None else sample_size
         )
+        # Resolve run_seed BEFORE persisting so the DB row matches the seed the
+        # runner will actually use. If we let the runner mint its own default, the
+        # row stores NULL while the simulation uses a time-derived seed -- and the
+        # caller can never replay it. (codex review P1)
+        resolved_run_seed = run_seed if run_seed is not None else time.time_ns()
 
         sim_id = str(uuid.uuid4())
         await self._simulations.create(
@@ -88,7 +94,7 @@ class SimulationOrchestrator:
             hypothesis_json=hypothesis.model_dump(mode="json"),
             population_size=population_size,
             sampled_agent_count=sampled_agent_count,
-            run_seed=run_seed,
+            run_seed=resolved_run_seed,
         )
 
         async def run() -> None:
@@ -97,7 +103,7 @@ class SimulationOrchestrator:
                 customer_id=customer_id,
                 hypothesis=hypothesis,
                 population_size=effective_population_size,
-                run_seed=run_seed,
+                run_seed=resolved_run_seed,
             )
 
         return sim_id, run
