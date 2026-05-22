@@ -1,0 +1,123 @@
+{
+  "screens": [
+    {
+      "id": "home",
+      "name": "Home",
+      "role": null,
+      "components": [
+        {
+          "id": "home.hero",
+          "role": "hero",
+          "text": "Rotating personalized hero with trailer preview",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "trailer_preview", "text": "Trailer plays after 1.2s hover/focus"},
+            {"name": "editorial_fallback", "text": "Editorial hero (cold-start)"}
+          ]
+        },
+        {
+          "id": "home.editorial_hero",
+          "role": "hero",
+          "text": "Editorial landing hero",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "home.because_you_watched_row",
+          "role": "carousel",
+          "text": "Because you watched {last_completed_title}",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "suppressed", "text": "(no completion in last 14d)"}
+          ]
+        },
+        {
+          "id": "home.top_picks_row",
+          "role": "carousel",
+          "text": "Top picks for you",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "popularity_fallback", "text": "Top picks for you (popular)"}
+          ]
+        },
+        {
+          "id": "home.premium_picks_row",
+          "role": "carousel",
+          "text": "Premium picks (4K)",
+          "visible_to_roles": ["premium"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "home.trending_row",
+          "role": "carousel",
+          "text": "Trending now",
+          "visible_to_roles": ["guest", "trial", "standard", "premium"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "home.new_releases_row",
+          "role": "carousel",
+          "text": "New releases",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "home.top_genre_row",
+          "role": "carousel",
+          "text": "More {top_genre}",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "suppressed", "text": "(insufficient genre signal)"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "title_detail",
+      "name": "Title detail",
+      "role": null,
+      "components": [
+        {
+          "id": "detail.play_button",
+          "role": "button",
+          "text": "Play",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Play"},
+            {"name": "resume_label", "text": "Resume"},
+            {"name": "signin_required", "text": "Sign in to play"}
+          ]
+        },
+        {
+          "id": "detail.add_to_list",
+          "role": "button",
+          "text": "+ My List",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "+ My List"},
+            {"name": "added", "text": "✓ My List"}
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {"trigger": "tap home.because_you_watched_row tile", "from_screen": "home", "to_screen": "title_detail", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.top_picks_row tile", "from_screen": "home", "to_screen": "title_detail", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.premium_picks_row tile", "from_screen": "home", "to_screen": "title_detail", "role_gated": ["premium"]},
+    {"trigger": "tap home.trending_row tile", "from_screen": "home", "to_screen": "title_detail", "role_gated": ["guest", "trial", "standard", "premium"]},
+    {"trigger": "tap detail.play_button", "from_screen": "title_detail", "to_screen": "player", "role_gated": ["trial", "standard", "premium"]}
+  ]
+}
