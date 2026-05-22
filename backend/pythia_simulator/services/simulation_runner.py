@@ -18,6 +18,7 @@ async and FastAPI already runs an event loop.
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -38,6 +39,8 @@ from pythia_simulator.schemas.simulation import (
     SimulationStatus,
     Weakness,
 )
+from pythia_simulator.services.identity_seed import draw_identity_seed
+from pythia_simulator.services.population_sampler import allocate
 from pythia_simulator.services.prompt_composer import compose_identity_prompt
 from pythia_simulator.services.run_state import (
     RunPhase,
@@ -94,10 +97,16 @@ class SimulationRunner:
         capability: Capability,
         feature_pack_version: str,
         hypothesis: Hypothesis,
-        sample_size: int = 10,
+        population_size: int = 10,
+        run_seed: int | None = None,
         sim_id: str | None = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
+        # run_seed pinned per simulation. Unset means caller didn't fix it -- mint a
+        # fresh time-based seed so every default run gets distinct identities. The
+        # resolved seed flows out via SimulationRunState (observable) and is used
+        # for every draw_identity_seed call below.
+        resolved_run_seed = run_seed if run_seed is not None else time.time_ns()
         now = datetime.now(timezone.utc)
 
         state = SimulationRunState(
@@ -108,14 +117,29 @@ class SimulationRunner:
             updated_at=now,
         )
         self._run_state.write_state(state)
-        self._run_state.emit(state, "run.started", sample_size=sample_size)
+        self._run_state.emit(
+            state,
+            "run.started",
+            population_size=population_size,
+            run_seed=resolved_run_seed,
+        )
 
-        sampled = self._sample_personas(persona_pack, sample_size)
-        state.agents_total = len(sampled)
+        # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
+        # PYTHIA_MAX_AGENTS. sample_index is per-persona (0..count-1) and feeds
+        # into the RNG seed for draw_identity_seed.
+        allocation = allocate(persona_pack, population_size)
+        pack_by_id = {p.id: p for p in persona_pack.personas}
+        agent_specs: list[tuple[Persona, int]] = []
+        for persona_id, count in allocation:
+            persona = pack_by_id[persona_id]
+            for sample_index in range(count):
+                agent_specs.append((persona, sample_index))
+
+        state.agents_total = len(agent_specs)
         state.mark_phase(RunPhase.MATERIALIZING_AGENTS)
         self._run_state.write_state(state)
 
-        # Fan out: each persona gets its own AgentInstance with frozen identity + reaction.
+        # Fan out: each spec gets its own AgentInstance with frozen identity + reaction.
         state.mark_phase(RunPhase.AGENTS_REACTING)
         self._run_state.write_state(state)
 
@@ -125,9 +149,17 @@ class SimulationRunner:
         results = await asyncio.gather(
             *(
                 self._materialize_agent(
-                    state, customer_id, sim_id, persona, capability, hypothesis, persona_pack.version
+                    state,
+                    customer_id,
+                    sim_id,
+                    persona,
+                    capability,
+                    hypothesis,
+                    persona_pack.version,
+                    sample_index,
+                    resolved_run_seed,
                 )
-                for persona in sampled
+                for persona, sample_index in agent_specs
             ),
             return_exceptions=True,
         )
@@ -163,6 +195,8 @@ class SimulationRunner:
         capability: Capability,
         hypothesis: Hypothesis,
         persona_pack_version: str,
+        sample_index: int,
+        run_seed: int,
     ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
@@ -173,11 +207,13 @@ class SimulationRunner:
                 persona=persona.name,
             )
 
+            identity_seed = draw_identity_seed(persona, sample_index, run_seed)
             identity_prompt = compose_identity_prompt(
                 customer_id=customer_id,
                 persona=persona,
                 capability=capability,
                 hypothesis=hypothesis,
+                identity_seed=identity_seed,
             )
 
             try:
@@ -235,6 +271,7 @@ class SimulationRunner:
             # FROZEN — the identity-continuity guarantee starts here.
             self._memory.write_identity(metadata, identity_prompt)
             self._memory.write_initial_reaction(metadata, initial_reaction)
+            self._memory.write_identity_seed(metadata, identity_seed)
 
             state.agents_complete += 1
             self._run_state.emit(
@@ -323,8 +360,3 @@ class SimulationRunner:
 
         return result
 
-    @staticmethod
-    def _sample_personas(pack: PersonaPack, n: int) -> list[Persona]:
-        weights = pack.weights.head_count
-        ranked = sorted(pack.personas, key=lambda p: weights.get(p.id, 0.0), reverse=True)
-        return ranked[:n]

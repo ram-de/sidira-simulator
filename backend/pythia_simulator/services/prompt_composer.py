@@ -8,6 +8,7 @@ guarantee in pythia_simulator/memory/agent_memory.py.
 from __future__ import annotations
 
 from pythia_simulator.schemas.feature_pack import Capability
+from pythia_simulator.schemas.identity import IdentitySeed
 from pythia_simulator.schemas.persona import Persona
 from pythia_simulator.schemas.simulation import Hypothesis
 
@@ -22,6 +23,7 @@ _TEMPLATE = """You are roleplaying a real user of {customer_id}'s product.
 
 {jtbd_section}
 
+{about_you_section}
 ## Behavioral snapshot
 
 {behavioral_snapshot}
@@ -66,6 +68,7 @@ def compose_identity_prompt(
     persona: Persona,
     capability: Capability,
     hypothesis: Hypothesis,
+    identity_seed: IdentitySeed | None = None,
 ) -> str:
     """Build the frozen system prompt that defines this AgentInstance forever."""
     jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
@@ -86,12 +89,31 @@ def compose_identity_prompt(
         persona_name=persona.name,
         persona_description=persona.description,
         jtbd_section=jtbd_section,
+        about_you_section=_about_you_section(identity_seed),
         behavioral_snapshot=snapshot_lines,
         capability_name=capability.name,
         reverse_prd=capability.reverse_prd,
         reverse_figma_summary=_summarize_figma(capability),
         hypothesis_prose=hypothesis.prose,
         proposed_prd_section=proposed_prd_section,
+    )
+
+
+def _about_you_section(seed: IdentitySeed | None) -> str:
+    if seed is None:
+        return ""
+
+    def _field(value: str) -> str:
+        return value if value else "_(unknown)_"
+
+    return (
+        "## About you specifically\n"
+        "\n"
+        f"- **Age:** {_field(seed.age_band)}\n"
+        f"- **Location:** {_field(seed.locale_band)}\n"
+        f"- **Time on product:** {_field(seed.tenure_band)}\n"
+        f"- **Right now:** {_field(seed.current_state)}\n"
+        f"- **Recent friction:** {_field(seed.recent_gripe)}\n"
     )
 
 

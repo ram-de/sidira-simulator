@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -54,6 +54,8 @@ class Simulation(Base):
     # rows pre-dating the migration round-trip cleanly.
     population_size: Mapped[int | None] = mapped_column(nullable=True)
     sampled_agent_count: Mapped[int | None] = mapped_column(nullable=True)
+    # Phase 2.5 (#5): identity_seed RNG seed pinned per run for reproducibility.
+    run_seed: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     agents: Mapped[list["AgentInstance"]] = relationship(
         back_populates="simulation", cascade="all, delete-orphan"
