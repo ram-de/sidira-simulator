@@ -17,7 +17,8 @@ from pythia_simulator.schemas.feature_pack import (
     FeaturePackManifest,
     ReverseFigma,
 )
-from pythia_simulator.schemas.persona import Persona, PersonaPack
+from pythia_simulator.schemas.identity import IdentitySeed
+from pythia_simulator.schemas.persona import BehavioralSeedSchema, Persona, PersonaPack
 from pythia_simulator.schemas.simulation import (
     Hypothesis,
     Simulation,
@@ -30,9 +31,11 @@ __all__ = [
     "AgentChatTurn",
     "AgentInstance",
     "AgentInstanceMetadata",
+    "BehavioralSeedSchema",
     "Capability",
     "FeaturePackManifest",
     "Hypothesis",
+    "IdentitySeed",
     "Persona",
     "PersonaPack",
     "ReverseFigma",

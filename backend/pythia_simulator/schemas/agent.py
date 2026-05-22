@@ -13,6 +13,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from pythia_simulator.schemas.identity import IdentitySeed
+
 
 class AgentRole(str, Enum):
     AGENT = "agent"
@@ -53,6 +55,7 @@ class AgentInstance(BaseModel):
     identity_prompt: str
     initial_reaction: str
     conversation: list[AgentChatTurn] = Field(default_factory=list)
+    identity_seed: IdentitySeed | None = None
 
 
 class AgentChatRequest(BaseModel):

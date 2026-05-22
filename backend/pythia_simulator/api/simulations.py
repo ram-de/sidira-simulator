@@ -79,11 +79,19 @@ async def create_simulation(
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
 ) -> CreateSimulationResponse:
     """Accepts a hypothesis. Returns 202 + simulation_id; runs after the response is sent."""
+    # Phase 2.5: population_size is the modeled userbase. Until the
+    # population_sampler ticket (#58) lands, derive the internal sample_size
+    # as min(population, MAX_AGENTS_DEFAULT). The sampler PR will replace this.
+    import os
+
+    max_agents = int(os.environ.get("PYTHIA_MAX_AGENTS", "50"))
+    derived_sample_size = min(payload.population_size, max_agents)
+
     try:
         sim_id, run = await orchestrator.prepare(
             customer_id=customer_id,
             hypothesis=payload.hypothesis,
-            sample_size=payload.persona_sample_size,
+            sample_size=derived_sample_size,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.

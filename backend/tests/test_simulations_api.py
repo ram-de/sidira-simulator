@@ -131,7 +131,7 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
             },
-            "persona_sample_size": 3,
+            "population_size": 3,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -152,7 +152,7 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
                 "capability_name": "reorder",
                 "prose": "Show a 'reorder usual' banner for premium subscribers.",
             },
-            "persona_sample_size": 3,
+            "population_size": 3,
         },
     )
     assert resp.status_code == 202, resp.text

@@ -28,7 +28,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Simulations
+         * @description Recent simulations for the current customer, newest first.
+         */
+        get: operations["list_simulations_simulations_get"];
         put?: never;
         /**
          * Create Simulation
@@ -67,7 +71,7 @@ export interface paths {
         };
         /**
          * Get Simulation State
-         * @description Live progress state. Frontend polls this every 5s until status=complete.
+         * @description Live progress state. Frontend polls this every 5s until phase=complete.
          */
         get: operations["get_simulation_state_simulations__simulation_id__state_get"];
         put?: never;
@@ -355,6 +359,7 @@ export interface components {
             initial_reaction: string;
             /** Conversation */
             conversation?: components["schemas"]["AgentChatTurn"][];
+            identity_seed?: components["schemas"]["IdentitySeed"] | null;
         };
         /**
          * AgentInstanceMetadata
@@ -394,6 +399,26 @@ export interface components {
          * @enum {string}
          */
         AgentRole: "agent" | "pm" | "system";
+        /**
+         * BehavioralSeedSchema
+         * @description Per-persona pools that identity_seed draws from (pythia-personas v1.1).
+         *
+         *     Ordered most-common-first so a uniform draw yields a realistic-ish
+         *     distribution. Optional on Persona — v1.0 packs lack this field and the
+         *     simulator's identity_seed service falls back to a generic default schema.
+         */
+        BehavioralSeedSchema: {
+            /** Age Bands */
+            age_bands?: string[];
+            /** Locale Bands */
+            locale_bands?: string[];
+            /** Tenure Bands */
+            tenure_bands?: string[];
+            /** Current State Pool */
+            current_state_pool?: string[];
+            /** Recent Gripe Pool */
+            recent_gripe_pool?: string[];
+        };
         /**
          * BuildConfig
          * @description User-supplied config from the wizard.
@@ -604,6 +629,24 @@ export interface components {
             proposed_prd?: string | null;
             proposed_figma?: components["schemas"]["ReverseFigma"] | null;
         };
+        /**
+         * IdentitySeed
+         * @description One agent's personal context within its persona.
+         */
+        IdentitySeed: {
+            /** Age Band */
+            age_band: string;
+            /** Locale Band */
+            locale_band: string;
+            /** Tenure Band */
+            tenure_band: string;
+            /** Current State */
+            current_state: string;
+            /** Recent Gripe */
+            recent_gripe: string;
+            /** Prose */
+            prose?: string | null;
+        };
         /** MappingSuggestion */
         MappingSuggestion: {
             /** Suggestions */
@@ -665,6 +708,7 @@ export interface components {
             centroid_features?: {
                 [key: string]: number;
             };
+            behavioral_seeds?: components["schemas"]["BehavioralSeedSchema"] | null;
         };
         /** PersonaPack */
         PersonaPack: {
@@ -680,9 +724,9 @@ export interface components {
             /**
              * Schema Version
              * @default 1.0
-             * @constant
+             * @enum {string}
              */
-            schema_version: "1.0";
+            schema_version: "1.0" | "1.1";
             /** Personas */
             personas: components["schemas"]["Persona"][];
             weights: components["schemas"]["WeightSchemes"];
@@ -765,23 +809,57 @@ export interface components {
             /** Feature Pack Version */
             feature_pack_version: string;
             hypothesis: components["schemas"]["Hypothesis"];
+            /** Population Size */
+            population_size?: number | null;
+            /** Sampled Agent Count */
+            sampled_agent_count?: number | null;
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
         };
-        /** SimulationRequest */
+        /** SimulationListItem */
+        SimulationListItem: {
+            /** Id */
+            id: string;
+            status: components["schemas"]["SimulationStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Hypothesis Prose */
+            hypothesis_prose: string;
+            /** Capability Name */
+            capability_name: string;
+            /** Confidence Score */
+            confidence_score?: number | null;
+        };
+        /**
+         * SimulationRequest
+         * @description PM-submitted simulation request (Phase 2.5).
+         *
+         *     `population_size` is the modeled userbase size — the simulator stratifies
+         *     down to at most MAX_AGENTS actual agents using largest-remainder allocation.
+         */
         SimulationRequest: {
             hypothesis: components["schemas"]["Hypothesis"];
             /**
-             * Persona Sample Size
-             * @default 10
+             * Population Size
+             * @default 1000
              */
-            persona_sample_size: number;
+            population_size: number;
         };
         /** SimulationResult */
         SimulationResult: {
             /** Confidence Score */
             confidence_score: number;
+            /** Confidence Score Ci */
+            confidence_score_ci?: [
+                number,
+                number
+            ] | null;
             /** Weaknesses */
             weaknesses?: components["schemas"]["Weakness"][];
             /** Refinement Suggestions */
@@ -898,6 +976,9 @@ export interface components {
         /**
          * Weakness
          * @description One diagnosed weakness in the hypothesis.
+         *
+         *     `frequency`/`ci_low`/`ci_high` are optional today; populated by the
+         *     Wilson-CI scoring path (Phase 2.5 issue #6).
          */
         Weakness: {
             /**
@@ -909,6 +990,12 @@ export interface components {
             summary: string;
             /** Supporting Agent Ids */
             supporting_agent_ids?: string[];
+            /** Frequency */
+            frequency?: number | null;
+            /** Ci Low */
+            ci_low?: number | null;
+            /** Ci High */
+            ci_high?: number | null;
         };
         /** WeightSchemes */
         WeightSchemes: {
@@ -952,6 +1039,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    list_simulations_simulations_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationListItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
