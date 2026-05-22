@@ -267,3 +267,38 @@ def test_max_agents_env_default(monkeypatch: pytest.MonkeyPatch) -> None:
     # explicit None means "use the default", which reads env.
     alloc = population_sampler.allocate(pack, population_size=1000)
     assert sum(n for _, n in alloc) == 10
+
+
+# ── codex P2 hardening ──────────────────────────────────────────────────────
+
+
+def test_duplicate_persona_ids_raise() -> None:
+    """A PersonaPack with duplicate ids would otherwise inflate the returned count.
+
+    `persona_ids` was constructed from `pack.personas` without dedup, so a pack
+    like [a, a, b] with weights {a: .5, b: .5} and n=10 returned three entries
+    summing to 15. Reject loudly instead.
+    """
+    pack = PersonaPack(
+        version="v_test",
+        customer_id="test",
+        generated_at=datetime.now(),
+        personas=[_persona("a"), _persona("a"), _persona("b")],
+        weights=WeightSchemes(head_count={"a": 0.5, "b": 0.5}),
+        stability_score=1.0,
+    )
+    with pytest.raises(ValueError, match="duplicate persona ids"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_near_one_weights_at_large_n_still_sum_exactly() -> None:
+    """Tolerated drift must not leak into the allocation.
+
+    Two weights of 0.49955 sum to 0.9991 — inside the 1e-3 tolerance. Without
+    post-validation normalization, n=10_000 produced floor sums of 9990 with a
+    remainder of 10 distributed across only 2 personas, ending at 9992. After
+    normalization the math sums to exactly n.
+    """
+    pack = _pack({"a": 0.49955, "b": 0.49955})
+    alloc = allocate(pack, population_size=10_000, max_agents=10_000)
+    assert sum(n for _, n in alloc) == 10_000
