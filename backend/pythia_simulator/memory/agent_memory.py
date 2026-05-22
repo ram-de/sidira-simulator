@@ -43,6 +43,7 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from pythia_simulator.schemas.agent import AgentChatTurn, AgentInstance, AgentInstanceMetadata, AgentRole
+from pythia_simulator.schemas.identity import IdentitySeed
 
 
 class ArtifactReader(Protocol):
@@ -78,6 +79,14 @@ class AgentMemory:
     ) -> None:
         self._writer.write_text(f"{self._base_key(metadata)}/initial_reaction.md", reaction)
 
+    def write_identity_seed(
+        self, metadata: AgentInstanceMetadata, identity_seed: IdentitySeed
+    ) -> None:
+        self._writer.write_text(
+            f"{self._base_key(metadata)}/identity_seed.json",
+            identity_seed.model_dump_json(),
+        )
+
     def append_turn(self, metadata: AgentInstanceMetadata, turn: AgentChatTurn) -> None:
         line = turn.model_dump_json()
         self._writer.append_line(f"{self._base_key(metadata)}/conversation.jsonl", line)
@@ -91,11 +100,17 @@ class AgentMemory:
         except FileNotFoundError:
             lines = []
         conversation = [AgentChatTurn.model_validate_json(ln) for ln in lines if ln.strip()]
+        try:
+            seed_json = self._reader.read_text(f"{base}/identity_seed.json")
+            identity_seed: IdentitySeed | None = IdentitySeed.model_validate_json(seed_json)
+        except FileNotFoundError:
+            identity_seed = None
         return AgentInstance(
             metadata=metadata,
             identity_prompt=identity,
             initial_reaction=reaction,
             conversation=conversation,
+            identity_seed=identity_seed,
         )
 
     @staticmethod
