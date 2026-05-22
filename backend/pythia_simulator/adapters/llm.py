@@ -12,12 +12,61 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
-from typing import Protocol, TypeVar
+import time
+from typing import Callable, Protocol, TypeVar
 
+import structlog
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)
+
+log = structlog.get_logger()
+
+# Backoff config -- Phase 2.5 hard constraint (issue #7). Keep small + bounded;
+# upstream callers fan out concurrently, so total wall-clock budget per
+# request is bounded by base * (2^MAX_RETRIES) ~ 4s.
+_BACKOFF_BASE_SECONDS = 0.5
+_BACKOFF_MAX_RETRIES = 3
+_BACKOFF_JITTER_SECONDS = 0.25
+
+
+def _retry_on_rate_limit(provider: str, fn: Callable[[], "_R"]) -> "_R":
+    """Run fn, retrying on provider rate-limit errors with exponential backoff + jitter.
+
+    Retries up to _BACKOFF_MAX_RETRIES times. Re-raises the final error if every
+    attempt fails. Non-rate-limit errors propagate immediately.
+    """
+    from anthropic import RateLimitError as AnthropicRateLimit
+    from openai import RateLimitError as OpenAIRateLimit
+
+    rate_limit_types: tuple[type[Exception], ...] = (OpenAIRateLimit, AnthropicRateLimit)
+
+    last_exc: Exception | None = None
+    for attempt in range(_BACKOFF_MAX_RETRIES + 1):
+        try:
+            return fn()
+        except rate_limit_types as exc:
+            last_exc = exc
+            if attempt == _BACKOFF_MAX_RETRIES:
+                break
+            delay = _BACKOFF_BASE_SECONDS * (2**attempt) + random.uniform(
+                0, _BACKOFF_JITTER_SECONDS
+            )
+            log.warning(
+                "llm.rate_limited",
+                provider=provider,
+                attempt=attempt + 1,
+                max_retries=_BACKOFF_MAX_RETRIES,
+                sleep_seconds=round(delay, 3),
+            )
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
+_R = TypeVar("_R")
 
 
 class JSONRepairError(RuntimeError):
@@ -68,7 +117,7 @@ class GroqChat:
         }
         if seed is not None:
             kwargs["seed"] = seed
-        resp = self._client.chat.completions.create(**kwargs)
+        resp = _retry_on_rate_limit("groq", lambda: self._client.chat.completions.create(**kwargs))
         return resp.choices[0].message.content or ""
 
     def chat_json(
@@ -100,12 +149,15 @@ class AnthropicChat:
         # Anthropic doesn't expose seed; temperature only.
         system_parts = [m["content"] for m in messages if m["role"] == "system"]
         non_system = [m for m in messages if m["role"] != "system"]
-        resp = self._client.messages.create(
-            model=self._model,
-            system="\n\n".join(system_parts) if system_parts else None,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[{"role": m["role"], "content": m["content"]} for m in non_system],
+        resp = _retry_on_rate_limit(
+            "anthropic",
+            lambda: self._client.messages.create(
+                model=self._model,
+                system="\n\n".join(system_parts) if system_parts else None,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[{"role": m["role"], "content": m["content"]} for m in non_system],
+            ),
         )
         return resp.content[0].text
 
