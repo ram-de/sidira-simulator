@@ -12,7 +12,7 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] **#6 (Wilson CIs + bootstrap)** — plan at `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md`; **`/plan-eng-review` CLEAR (2026-05-22)**. 13 review findings locked in. Branch `feat/2.5-scoring-cis`. **T1 complete** — `services/statistics.py` with `wilson_interval()` (hand-computed values to 4dp) and `bootstrap_percentile_ci()` (generic over T, owns RNG). 9 unit tests green. **T2 complete** — `_compute_score()` extracted as classmethod returning `(confidence_0_100, sentiment_score, weakness_signal)`; `aggregate()` calls it once then builds weakness surface independently so bootstrap won't pay for top-K rebuild B times. Parity snapshot test pins raw 71.8238... + rounded 71.8 + both sub-stats for fixed 6-agent input. All 14 prior scoring tests still green. Full suite: 137 passed. **T3 complete** — `aggregate()` now calls `wilson_interval(count, n)` per top-K weakness and populates `frequency`/`ci_low`/`ci_high`. Injected `underpowered_design` leaves all three None (structural flag, not observed frequency). 3 new tests: freq+Wilson populated, underpowered has no CI, summary string format unchanged. Full suite: 140 passed. **T4 complete** — `ScoringConfig.bootstrap_resamples` (default 1000, `0` = skip sentinel). `aggregate(analyses, cfg, *, run_seed=None)` and `score(..., *, run_seed=None, config=None)` wire it through. RNG seeded from `run_seed ^ 0xB007_5747_5474` (defense-in-depth domain separation from `draw_identity_seed`). `confidence_score_ci` populated, rounded to match point estimate. `_FORMULA_CFG` switched to `bootstrap_resamples=0` so prior 14 tests stay fast. Caught a test bug en route: uniform-input bootstrap collapses to a point regardless of seed; fixed both deterministic/non-deterministic tests to use varied input. 5 new T4 tests. Full suite: 145 passed. **T5 complete** — `SimulationRunner._score()` takes `run_seed: int` and passes it into `scoring.score(..., run_seed=run_seed)`. Runner's resolved `run_seed` (from param or `time.time_ns()` fallback) now reaches the bootstrap RNG, so persisted `Simulation.run_seed` reproduces the CI on replay. Monkeypatched test captures the passed seed. Fixed a flakiness in `test_confidence_ci_changes_without_seed`: schema caps `confidence_rounding` at 2 so rounded percentiles on binary inputs can coincide across unseeded calls — switched to batch-of-10 distinct-CI assertion, 10/10 stable. Full suite: 146 passed. Next: T6 extend `test_e2e_simulation_completes_and_persists_agents` with CI assertions.
+- [ ] **#8 (degradation guard)** — small ticket, not yet planned. Alert on v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback firing in prod so the structlog WARN doesn't go silent.
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -42,13 +42,13 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - [x] **T2 complete.** `SimulationRunner.run()` signature switched from `sample_size: int` to `population_size: int + run_seed: int | None`. Defaults `run_seed = time.time_ns()` if None. Dropped `_sample_personas`; now uses `allocate(persona_pack, population_size)` and enumerates `sample_index` 0..count-1 per persona. `_materialize_agent` gained `sample_index` + `run_seed` args, calls `draw_identity_seed()`, splices into `compose_identity_prompt(..., identity_seed=)`, and writes the R2 sidecar via `write_identity_seed`. Orchestrator `_run_in_background` + `_run_with_id` updated to thread `population_size` + `run_seed`. `run.started` event now emits `population_size` + `run_seed` for observability. 2 tests green (`test_materialize_agent_attaches_identity_seed`, `test_run_seed_propagates_into_agent_seeds` — re-derives expected seeds via draw_identity_seed and compares against R2-persisted seeds). Existing `test_e2e_simulation_completes_and_persists_agents` still green — runner refactor is hot-path-tested. Full suite: 124 passed.
 - [x] **Codex review iterations (4 rounds).** Round 1 (`f18d40e`): [P1] orchestrator now resolves `run_seed` BEFORE persisting (was storing NULL while runner used time.time_ns internally — broke replay). [P2] `SimulationRequest.run_seed` bounded to signed BIGINT range. [P2] `frontend/lib/api-types.ts` adds run_seed to SimulationRequest + Simulation. Round 2 (`adae34d`): [P2] threaded API-derived cap (`sampled_agent_count`) through orchestrator → runner → allocate() so PYTHIA_MAX_AGENTS=0 doesn't desync (row=1, runtime=50). Round 3 (`347842e`): [P2] switched default run_seed from `time.time_ns()` (~1.7e18) to `secrets.randbits(53)` so JS clients round-trip losslessly through Number.MAX_SAFE_INTEGER. Round 4: codex clean. +3 codex-verification tests. Final suite: 127 passed.
 - [x] **#5 merged via [PR #64](https://github.com/ram-de/pythia-simulator/pull/64)** as `d3f078e`. main now has full identity_seed wiring. Merge required taking main's session-file version (newer narrative) — conflict resolved on `ac39b9e`. `feat/2.5-identity-seed` deleted locally + remote.
+- [x] **#6 (Wilson CIs + bootstrap) merged via [PR #65](https://github.com/ram-de/pythia-simulator/pull/65)** as `c31a73a`. Plan at `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md` (`/plan-eng-review` CLEAR, 13 findings). T1-T6 implementation: pure-Python `services/statistics.py` (Wilson + percentile bootstrap, no scipy in deps); `ScoringService._compute_score()` extracted for bootstrap reuse; Wilson CI on every `Weakness.frequency`; `ScoringConfig.bootstrap_resamples` with `0` skip sentinel; `aggregate(..., run_seed=...)` + `score(..., run_seed=..., config=...)` plumbed through `SimulationRunner._score()`; e2e API test asserts CIs surface end-to-end. Codex review 2 rounds: round 1 raised 3 P2s (lo_idx off-by-one → symmetric nearest-rank, rounded-CI/score clamp invariant + 12-composition sweep test, comment fix on `_BOOTSTRAP_SEED_MIX`); round 2 raised 2 comment-only P2s (48-bit vs 64-bit, clamp-widening claim) — all addressed. Suite: 127 → **147 passed**. `feat/2.5-scoring-cis` deleted locally + remote.
 
 ## Next Steps
-1. **Draft plan for #6 (Wilson CIs + bootstrap).** Body fields: `Weakness.frequency/ci_low/ci_high` already on the model (plumbed in #57); `SimulationResult.confidence_score_ci: tuple[float, float] | None` already on the schema. Need: Wilson interval helper, bootstrap (1000 resamples by default) over per-agent contributions, `ScoringService` wiring, plumbing into `_score()` in `simulation_runner.py`. Unit tests: known-input vs `scipy.stats.binom` for Wilson; 50-agent run produces visibly narrower CI than a 6-agent run.
-2. `/plan-eng-review` on the #6 plan, then implement on `feat/2.5-scoring-cis`.
-3. `/codex review` at PR boundary. Open PR via `mcp__github_ramde__create_pull_request`.
-4. **After #6 merges:** #8 (degradation guard — alert on v1.0 pack fallback so the structlog WARN doesn't go silent in prod), then frontend (#9 + re-scoped #51) to render CIs + persona-grouped table.
-5. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
+1. **Plan + implement #8 (degradation guard).** Small ticket — surface a metric/alert when `services/identity_seed.py` falls back to `_DEFAULT_BEHAVIORAL_SEEDS` (v1.0 pack without `behavioral_seeds`). The structlog WARN already fires per-persona; need a counter or once-per-run aggregated signal so it's visible in observability instead of buried in logs. Likely touches `identity_seed.py` + a small observability hook + 1-2 tests.
+2. **Frontend phase (#9 + re-scoped #51).** This is where the calibration thesis becomes visible to the PM. Wizard: rename "Sample size" → "Population" with helper text (we'll stratify down to ≤50 agents); bump range to 1–10000. Detail view: render CI bars on score + per-weakness CIs, "Population: N (sampled: M)" banner, persona-grouped agent table ("DashPass Power × 15") with optional "About this agent" panel reading `identity_seed.json` from R2. Currently the PM sees zero visible change despite all backend work.
+3. **Then Phase 2.5 is done.** Acceptance per ROADMAP: 1000-population sim runs in <60s, score with 95% CI, weaknesses with CIs, 50 agents in correct persona proportions — visibly, in the UI.
+4. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; BCa bootstrap (Layer-3 calibration, follow-up to #6); block-bootstrap by persona (Layer-3); **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
 
 ## Key Files
 **#5 shipped — for reference if revisiting:**
@@ -60,12 +60,17 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - `backend/alembic/versions/003_phase_2_5_run_seed.py` + `tests/test_alembic_003.py`
 - `~/.claude/plans/2026-05-22-pythia-issue-5-identity-seed.md` (the plan with all review fixes)
 
-**#6 (next) — likely touchpoints:**
-- `backend/pythia_simulator/services/scoring.py` (REFERENCE — current point-estimate formula; needs CI helpers + bootstrap)
-- `backend/pythia_simulator/schemas/scoring.py` (REFERENCE — `AgentReaction`, classification schemas)
-- `backend/pythia_simulator/schemas/simulation.py` (`Weakness.frequency/ci_low/ci_high` + `SimulationResult.confidence_score_ci` already plumbed)
-- `backend/pythia_simulator/services/simulation_runner.py` (`_score()` is where CIs would be threaded in)
-- `backend/tests/test_scoring.py` (existing 14 tests; will need Wilson + bootstrap additions)
+**#6 shipped — for reference if revisiting:**
+- `backend/pythia_simulator/services/statistics.py` + `tests/test_statistics.py` (NEW)
+- `backend/pythia_simulator/services/scoring.py` (`_compute_score()` + bootstrap + clamp + Wilson on weaknesses)
+- `backend/pythia_simulator/schemas/scoring.py` (`ScoringConfig.bootstrap_resamples`, ge=0)
+- `backend/pythia_simulator/services/simulation_runner.py` (`_score()` threads `run_seed` to scoring)
+- `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md` (plan with /plan-eng-review fixes)
+
+**#8 (next) — likely touchpoints:**
+- `backend/pythia_simulator/services/identity_seed.py` (where `_DEFAULT_BEHAVIORAL_SEEDS` fallback fires + WARN log)
+- `backend/pythia_simulator/services/run_state.py` (where the SimulationRunState event log lives — natural place for an aggregated counter event)
+- Observability surface TBD (per-run event vs. structlog metric vs. response field)
 
 ## Key Context
 - ROADMAP locked: single input `population_size`, hard cap `min(population, MAX_AGENTS=50)`, per-agent identity_seed variance, Wilson CI + bootstrap on aggregate.
@@ -76,11 +81,10 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - Process lesson from #62/#63: stacked PRs do NOT auto-retarget to main unless the base branch is deleted. Open second PR directly against main after the first merges.
 
 ## For my cofounder
-Phase 2.5 backend is 4-of-6 done on main: #7 (Groq backoff), #57 (schema swap), #58/#61/#63 (population_sampler), and now **#5 (identity_seed) via #64**. Score-side stats are next:
-- **#6** Wilson CIs + bootstrap aggregate — not yet planned. Schema fields already on the model from #57; just needs the scoring service + simulation_runner wiring.
+Phase 2.5 backend is **5-of-6 done** on main: #7 (Groq backoff), #57 (schema swap), #58/#61/#63 (population_sampler), #5 (identity_seed via #64), **#6 (Wilson CIs + bootstrap via #65)**. Two things left to close the phase:
 - **#8** degradation guard — small, prevents the v1.0-pack fallback WARN from going silent in prod.
-- **#9 / #51** frontend — close the phase visually once CIs land.
+- **#9 + re-scoped #51** frontend — the calibration thesis is now true in code but invisible in the UI. Wizard rename + CI bars + persona-grouped table.
 
-To pick this up: `/pythia-session resume weighted_population` then start drafting the #6 plan (Wilson interval + bootstrap pattern; tests should compare against `scipy.stats.binom`).
+To pick this up: `/pythia-session resume weighted_population` then start drafting the #8 plan (small enough it may not need `/plan-eng-review`).
 
 **Terminal rendering note:** during this session, Claude Code's terminal showed garbled glyphs whenever markdown bold or other unicode-styled text was emitted (font-coverage issue on the U+1D400 Mathematical Alphanumeric block). If it happens again, plain ASCII works fine.
