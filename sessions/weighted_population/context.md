@@ -12,7 +12,7 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] #58 PR — branch `feat/2.5-population-sampler` pushed (commits `fed1154` impl, `c86a7b4` codex hardening, `f947e1d` MCP routing rule). Waiting on Claude Code restart so the new `github_ramde` MCP server is available, then open the PR via `mcp__github_ramde__create_pull_request`.
+- [ ] #58 PR open as [#61](https://github.com/ram-de/pythia-simulator/pull/61) — awaiting CI + `/codex review` pass, then merge.
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -23,10 +23,11 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - [x] Established: **MCP PR creation was blocked** for these repos — `mcp__github__create_pull_request` returned `422 "must be a collaborator"` because the rmkmar identity behind the default MCP server has issue-create rights on `ram-de/*` but not branch-PR rights.
 - [x] **Fix landed:** added a second MCP server `github_ramde` to `~/.claude.json` (mirrors the existing `github` shape, swaps the PAT for a fine-grained `ram-de`-scoped token covering all 3 Pythia repos). Routing rule baked into `.claude/skills/pythia-session/SKILL.md` § MCP identity routing — inside this skill, `mcp__github_ramde__*` is used for `ram-de/*` writes; outside it, default `github` (rmkmar) is used. Also captured in project memory at `~/.claude/projects/.../memory/feedback_github_mcp_routing.md`. Pending Claude Code restart for the new server to load.
 - [x] Implemented **#58 (population_sampler)** on branch `feat/2.5-population-sampler`. Hamilton largest-remainder allocation in `services/population_sampler.py`. Pure function, deterministic ties broken by persona_id sort. Codex review: 1 P1 + 3 P2. P1 fixed (strict weight validation — rejects NaN/inf, negative, sum-not-~1, missing/extra personas) + 2 P2 fixed (explicit max_agents ≤0 raises; negative population_size raises; bad env still falls back to default). 1 P2 kept as-is (missing optional scheme raises) and documented. 27 new tests, suite 102/102.
+- [x] **Opened #58 PR as [#61](https://github.com/ram-de/pythia-simulator/pull/61)** via `mcp__github_ramde__create_pull_request` after Claude Code restart loaded the new server. PR authored as `ram-de` — MCP identity routing rule (skill § MCP identity routing) is proven end-to-end.
 
 ## Next Steps
-1. **Founder restarts Claude Code** so the new `github_ramde` MCP server loads. Then `/pythia-session resume weighted_population` and we pick up here.
-2. Verify `mcp__github_ramde__*` tools are in the tool list; open the **#58 PR** via `mcp__github_ramde__create_pull_request` as the first proof the routing works end-to-end.
+1. Wait for CI on [PR #61](https://github.com/ram-de/pythia-simulator/pull/61); run `/codex review` once it's green.
+2. Address any codex findings, then merge #61.
 3. **Founder rotates the PAT** that was pasted in chat during MCP setup (one-time security hygiene; transcript-retention risk). New token replaces the existing one in `~/.claude.json` env, restart, done.
 4. After #58 merges: **#5 (identity_seed)** — the design-heavy one. Run `/plan-eng-review` before writing code (RNG seeding, fallback semantics, prompt-splicing each have real failure modes).
 5. Then #6 (scoring CIs), #8 (degradation guard), then frontend (#9 + re-scoped #51).
