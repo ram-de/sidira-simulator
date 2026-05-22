@@ -402,38 +402,38 @@ class ScoringService:
                 )
             )
 
-        # ── Underpowered gate (low N) ──
+        # ── Structural gates: low N and/or high classification failure rate ──
+        # Both gates write to the same `underpowered_design` category. Codex
+        # P2 flagged the noise risk for consumers that dedupe by category, so
+        # we collapse into a single row when both fire, joined with a clear
+        # AND so the user sees both root causes in one place.
+        #
+        # Counting note (codex P2): the degradation gate counts CLASSIFICATIONS
+        # not agents — total=2N. "All sentiment fails / all weakness succeeds"
+        # is exactly 50% and therefore doesn't trigger by ticket-strict `>`.
+        # If we ever want "agent degradation rate" semantics, count by agent
+        # instead.
         weaknesses = list(top_weaknesses)
-        if n < cfg.min_sample_size:
+        low_n = n < cfg.min_sample_size
+        if low_n or degraded:
+            parts: list[str] = []
+            if low_n:
+                parts.append(
+                    f"Only {n} agent{'s' if n != 1 else ''} reacted "
+                    f"(min recommended: {cfg.min_sample_size})"
+                )
+            if degraded:
+                failed_pct = int(round(failure_rate * 100))
+                discount_pct = int(round(cfg.degradation_discount * 100))
+                parts.append(
+                    f"{failed_pct}% of LLM classifications failed "
+                    f"({failed_classifications}/{total_classifications}); "
+                    f"score discounted by {discount_pct}%"
+                )
+            summary = " AND ".join(parts) + ". Treat the score as provisional."
             weaknesses.insert(
                 0,
-                Weakness(
-                    category="underpowered_design",
-                    summary=(
-                        f"Only {n} agent{'s' if n != 1 else ''} reacted "
-                        f"(min recommended: {cfg.min_sample_size}). Treat the score as provisional."
-                    ),
-                ),
-            )
-
-        # ── Degradation gate (high LLM classification failure rate) ──
-        # Inserted last so it lands at index 0 even when the low-N gate also
-        # prepended. Two distinct degraded states deserve two distinct rows,
-        # both flagged underpowered_design — the structural category.
-        if degraded:
-            failed_pct = int(round(failure_rate * 100))
-            discount_pct = int(round(cfg.degradation_discount * 100))
-            weaknesses.insert(
-                0,
-                Weakness(
-                    category="underpowered_design",
-                    summary=(
-                        f"{failed_pct}% of LLM classifications failed "
-                        f"({failed_classifications}/{total_classifications}). "
-                        f"Score discounted by {discount_pct}% — rerun when "
-                        f"the model provider is healthy."
-                    ),
-                ),
+                Weakness(category="underpowered_design", summary=summary),
             )
 
         return SimulationResult(

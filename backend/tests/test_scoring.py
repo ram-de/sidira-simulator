@@ -536,6 +536,28 @@ def test_aggregate_just_above_50_percent_does_degrade() -> None:
     assert "11/20" in result.weaknesses[0].summary
 
 
+def test_aggregate_both_gates_collapse_to_single_underpowered_row() -> None:
+    """Codex P2: when both the low-N gate and the degradation gate fire,
+    they share the `underpowered_design` category — API consumers that
+    dedupe by category would see two duplicate-looking rows. Collapse
+    into one row with both root causes joined by AND."""
+    cfg = ScoringConfig(min_sample_size=5, bootstrap_resamples=0)
+    # 2 agents (< min_sample_size=5) AND both fully failed (100% > 50%)
+    analyses = [_failed_analysis("a1"), _failed_analysis("a2")]
+    result = ScoringService.aggregate(analyses, cfg)
+    underpowered_rows = [
+        w for w in result.weaknesses if w.category == "underpowered_design"
+    ]
+    assert len(underpowered_rows) == 1, (
+        f"expected one merged row when both gates fire, got "
+        f"{len(underpowered_rows)}: {[w.summary for w in underpowered_rows]}"
+    )
+    summary = underpowered_rows[0].summary
+    assert "Only 2 agents" in summary
+    assert "100% of LLM classifications failed" in summary
+    assert " AND " in summary
+
+
 def test_aggregate_degradation_discounts_bootstrap_ci_too() -> None:
     """When the guard fires, the bootstrap CI must shift down with the
     point estimate — otherwise the CI would bracket the raw score, not the
