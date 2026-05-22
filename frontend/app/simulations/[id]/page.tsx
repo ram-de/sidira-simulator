@@ -5,9 +5,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
+  getAgent,
   getSimulation,
   getSimulationState,
   isTerminalStatus,
+  type AgentInstance,
   type RunEvent,
   type Simulation,
   type SimulationRunState,
@@ -80,6 +82,13 @@ export default function SimulationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Agent metadata for the persona-grouped table. Lazy: only fetched once
+  // the simulation lands in a terminal state and we know which agents ran.
+  // Stored as the minimum we need so a future N=50 sim still renders cheap.
+  const [agentMeta, setAgentMeta] = useState<
+    { agent_id: string; persona_id: string; persona_name: string }[] | null
+  >(null);
+  const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
 
   // Initial fetch of the simulation.
   useEffect(() => {
@@ -171,6 +180,43 @@ export default function SimulationDetailPage() {
       }
     };
   }, []);
+
+  // Fan out agent metadata once we know which agents ran. Terminal-only so
+  // we don't waste round-trips during the polling loop. Promise.all over up
+  // to MAX_AGENTS=50 requests is fast enough on the demo backend; if this
+  // ever bottlenecks, the right fix is a /simulations/{id}/agents summary
+  // endpoint, not pagination here.
+  useEffect(() => {
+    if (!sim || !isTerminalStatus(sim.status)) return;
+    const ids = sim.agent_instance_ids ?? [];
+    if (ids.length === 0) {
+      setAgentMeta([]);
+      return;
+    }
+    if (agentMeta != null) return; // already fetched
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched: AgentInstance[] = await Promise.all(
+          ids.map((aid) => getAgent(aid)),
+        );
+        if (cancelled) return;
+        setAgentMeta(
+          fetched.map((a) => ({
+            agent_id: a.metadata.id,
+            persona_id: a.metadata.persona_id,
+            persona_name: a.metadata.persona_name,
+          })),
+        );
+      } catch (e) {
+        if (cancelled) return;
+        setAgentMetaError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sim, agentMeta]);
 
   if (!loaded) {
     return (
@@ -617,7 +663,7 @@ export default function SimulationDetailPage() {
         </section>
       )}
 
-      {/* Agents that participated */}
+      {/* Agents that participated — grouped by persona */}
       {agentIds.length > 0 && (
         <section style={cardStyle}>
           <h2
@@ -630,30 +676,52 @@ export default function SimulationDetailPage() {
           >
             Agents that participated
           </h2>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {agentIds.map((aid, i) => (
-              <li
-                key={aid}
-                style={{
-                  padding: "8px 0",
-                  borderTop: i === 0 ? "none" : "1px solid #eee",
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-                  fontSize: 14,
-                }}
-              >
-                <Link
-                  href={`/agents/${aid}`}
-                  style={{ color: "#1d4ed8", textDecoration: "none" }}
+          {agentMetaError && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "#a30000",
+                marginBottom: 12,
+              }}
+            >
+              Couldn&rsquo;t load persona breakdown ({agentMetaError}).
+              Showing raw IDs below.
+            </div>
+          )}
+          {agentMeta == null && !agentMetaError && (
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>
+              Loading persona breakdown for {agentIds.length} agent
+              {agentIds.length === 1 ? "" : "s"}…
+            </div>
+          )}
+          {agentMeta != null ? (
+            <PersonaGroupedAgents agents={agentMeta} />
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {agentIds.map((aid, i) => (
+                <li
+                  key={aid}
+                  style={{
+                    padding: "8px 0",
+                    borderTop: i === 0 ? "none" : "1px solid #eee",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                    fontSize: 14,
+                  }}
                 >
-                  {aid.slice(0, 8)}
-                </Link>
-                <span style={{ color: "#888", marginLeft: 8, fontSize: 12 }}>
-                  {aid}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <Link
+                    href={`/agents/${aid}`}
+                    style={{ color: "#1d4ed8", textDecoration: "none" }}
+                  >
+                    {aid.slice(0, 8)}
+                  </Link>
+                  <span style={{ color: "#888", marginLeft: 8, fontSize: 12 }}>
+                    {aid}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </main>
@@ -779,6 +847,144 @@ function WeaknessFrequencyBar({
         }}
       />
     </div>
+  );
+}
+
+function PersonaGroupedAgents({
+  agents,
+}: {
+  agents: { agent_id: string; persona_id: string; persona_name: string }[];
+}) {
+  // Group by persona_id (stable key); persona_name is the human label.
+  // Preserve first-seen order so the visual order matches the simulator's
+  // allocation order (largest persona first under largest-remainder).
+  const order: string[] = [];
+  const byPersona = new Map<
+    string,
+    { persona_name: string; agent_ids: string[] }
+  >();
+  for (const a of agents) {
+    if (!byPersona.has(a.persona_id)) {
+      byPersona.set(a.persona_id, {
+        persona_name: a.persona_name,
+        agent_ids: [],
+      });
+      order.push(a.persona_id);
+    }
+    byPersona.get(a.persona_id)!.agent_ids.push(a.agent_id);
+  }
+
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {order.map((pid, i) => {
+        const group = byPersona.get(pid)!;
+        return (
+          <PersonaGroupRow
+            key={pid}
+            personaId={pid}
+            personaName={group.persona_name}
+            agentIds={group.agent_ids}
+            isFirst={i === 0}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+function PersonaGroupRow({
+  personaId,
+  personaName,
+  agentIds,
+  isFirst,
+}: {
+  personaId: string;
+  personaName: string;
+  agentIds: string[];
+  isFirst: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li
+      style={{
+        padding: "12px 0",
+        borderTop: isFirst ? "none" : "1px solid #eee",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          width: "100%",
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            color: "#888",
+            width: 12,
+            display: "inline-block",
+          }}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>
+          {personaName}
+        </span>
+        <span style={{ fontSize: 14, color: "#444" }}>
+          &times; {agentIds.length} agent{agentIds.length === 1 ? "" : "s"}
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            color: "#aaa",
+            marginLeft: "auto",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+          }}
+        >
+          {personaId}
+        </span>
+      </button>
+      {open && (
+        <ul
+          style={{
+            listStyle: "none",
+            padding: "8px 0 0 24px",
+            margin: 0,
+          }}
+        >
+          {agentIds.map((aid) => (
+            <li
+              key={aid}
+              style={{
+                padding: "4px 0",
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                fontSize: 13,
+              }}
+            >
+              <Link
+                href={`/agents/${aid}`}
+                style={{ color: "#1d4ed8", textDecoration: "none" }}
+              >
+                {aid.slice(0, 8)}
+              </Link>
+              <span style={{ color: "#aaa", marginLeft: 8 }}>{aid}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
