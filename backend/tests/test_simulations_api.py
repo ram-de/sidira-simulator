@@ -209,3 +209,31 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
     # And the API response surfaces the same seed.
     final = client.get(f"/simulations/{sim_id}").json()
     assert final["run_seed"] == row["run_seed"]
+
+
+def test_runner_agent_count_matches_persisted_cap_under_bad_env(
+    client_with_stub_llm, monkeypatch
+) -> None:
+    """Codex P2: when PYTHIA_MAX_AGENTS is misconfigured (e.g. '0'), the runner
+    must produce exactly sampled_agent_count agents -- not silently fall back
+    to the population_sampler default of 50."""
+    client, _, sim_repo, agent_repo = client_with_stub_llm
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+            },
+            "population_size": 1000,  # would yield 50 agents under default cap
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    body = client.get(f"/simulations/{sim_id}").json()
+    # API clamps PYTHIA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
+    assert body["sampled_agent_count"] == 1
+    assert len(body["agent_instance_ids"]) == 1

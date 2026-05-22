@@ -104,6 +104,10 @@ class SimulationOrchestrator:
                 hypothesis=hypothesis,
                 population_size=effective_population_size,
                 run_seed=resolved_run_seed,
+                # Pass the API-derived cap so allocate() uses the same number
+                # the row recorded. Otherwise PYTHIA_MAX_AGENTS=0 makes the API
+                # clamp to 1 while allocate() falls back to default 50. (codex P2)
+                max_agents=sampled_agent_count,
             )
 
         return sim_id, run
@@ -128,6 +132,7 @@ class SimulationOrchestrator:
         hypothesis: Hypothesis,
         population_size: int,
         run_seed: int | None,
+        max_agents: int | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -149,6 +154,7 @@ class SimulationOrchestrator:
                 hypothesis=hypothesis,
                 population_size=population_size,
                 run_seed=run_seed,
+                max_agents=max_agents,
             )
 
         except Exception as exc:
@@ -172,6 +178,7 @@ class SimulationOrchestrator:
         hypothesis: Hypothesis,
         population_size: int,
         run_seed: int | None,
+        max_agents: int | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -182,6 +189,7 @@ class SimulationOrchestrator:
             hypothesis=hypothesis,
             population_size=population_size,
             run_seed=run_seed,
+            max_agents=max_agents,
             sim_id=sim_id,
         )
 

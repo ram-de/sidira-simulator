@@ -99,6 +99,7 @@ class SimulationRunner:
         hypothesis: Hypothesis,
         population_size: int = 10,
         run_seed: int | None = None,
+        max_agents: int | None = None,
         sim_id: str | None = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
@@ -125,9 +126,11 @@ class SimulationRunner:
         )
 
         # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
-        # PYTHIA_MAX_AGENTS. sample_index is per-persona (0..count-1) and feeds
-        # into the RNG seed for draw_identity_seed.
-        allocation = allocate(persona_pack, population_size)
+        # max_agents (caller-supplied, derived by the API from PYTHIA_MAX_AGENTS
+        # so the runner and the persisted sampled_agent_count never disagree).
+        # When None, allocate() falls back to env/default. sample_index is
+        # per-persona (0..count-1) and feeds into draw_identity_seed's RNG seed.
+        allocation = allocate(persona_pack, population_size, max_agents=max_agents)
         pack_by_id = {p.id: p for p in persona_pack.personas}
         agent_specs: list[tuple[Persona, int]] = []
         for persona_id, count in allocation:
