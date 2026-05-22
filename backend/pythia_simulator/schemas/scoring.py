@@ -45,13 +45,23 @@ class SentimentClassification(BaseModel):
 
 
 class AgentAnalysis(BaseModel):
-    """Per-agent analysis bundle returned by the scoring service."""
+    """Per-agent analysis bundle returned by the scoring service.
+
+    `weakness_failed` / `sentiment_failed` mark which classifications fell
+    back to the neutral default because the underlying LLM call raised
+    (timeout, JSON parse error, etc.). `aggregate()` uses these to drive
+    the Phase 2.5 #8 degradation guard: if >50% of classifications across
+    the run failed, the aggregate score is discounted and an
+    `underpowered_design` weakness is prepended.
+    """
 
     agent_id: str
     persona_id: str
     persona_name: str
     weakness: WeaknessClassification
     sentiment: SentimentClassification
+    weakness_failed: bool = False
+    sentiment_failed: bool = False
 
 
 # ── Scoring configuration ─────────────────────────────────────────────
@@ -97,6 +107,28 @@ class ScoringConfig(BaseModel):
         description=(
             "Percentile-bootstrap resample count for the confidence_score CI. "
             "Set to 0 to skip the bootstrap entirely and leave confidence_score_ci=None."
+        ),
+    )
+    degradation_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Phase 2.5 #8 degradation guard: if more than this fraction of "
+            "LLM classifications (weakness + sentiment, counted independently) "
+            "failed during the run, aggregate() discounts the confidence_score "
+            "by `degradation_discount` and prepends an underpowered_design "
+            "weakness so PMs see the silent-failure state."
+        ),
+    )
+    degradation_discount: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Multiplicative discount applied to the confidence_score (and its "
+            "bootstrap CI) when the degradation threshold is exceeded. 0.3 "
+            "means the reported score is 70% of the raw score."
         ),
     )
 

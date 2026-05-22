@@ -30,6 +30,8 @@ def _analysis(
     confidence: float = 0.8,
     persona_id: str = "p",
     persona_name: str = "P",
+    weakness_failed: bool = False,
+    sentiment_failed: bool = False,
 ) -> AgentAnalysis:
     return AgentAnalysis(
         agent_id=agent_id,
@@ -39,6 +41,8 @@ def _analysis(
         sentiment=SentimentClassification(
             sentiment=sentiment, confidence=confidence, one_line_summary=""
         ),
+        weakness_failed=weakness_failed,
+        sentiment_failed=sentiment_failed,
     )
 
 
@@ -426,6 +430,141 @@ def test_confidence_ci_always_brackets_rounded_point_estimate() -> None:
             f"CI {(lo, hi)} fails to bracket score {result.confidence_score} for "
             f"composition n_pos={n_pos} n_neg={n_neg} n_neutral={n_neutral}"
         )
+
+
+# ── Degradation guard (#8) ────────────────────────────────────────────
+
+
+# Bootstrap-off config so we can read aggregate scores deterministically
+# without paying B × O(n) per assertion.
+_DEGRADE_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+
+
+def _failed_analysis(agent_id: str) -> AgentAnalysis:
+    """An agent whose BOTH classifications fell back — what `analyze()` returns
+    when both LLM calls raise."""
+    return _analysis(
+        agent_id,
+        Sentiment.NEUTRAL,
+        confidence=0.0,
+        weakness_failed=True,
+        sentiment_failed=True,
+    )
+
+
+def test_aggregate_all_failed_degrades_score_and_prepends_warning() -> None:
+    """All-failed run: every classification fell back to neutral. Without the
+    guard, score would be ~70 (neutral × shrinkage, no flags). With the
+    guard, score must be <50 and an underpowered_design weakness must appear
+    flagging the classification failure rate."""
+    analyses = [_failed_analysis(f"a{i}") for i in range(10)]
+    result = ScoringService.aggregate(analyses, _DEGRADE_CFG)
+    assert result.confidence_score < 50.0
+    # First weakness explains the degradation (not the low-N gate — N=10>1)
+    assert result.weaknesses[0].category == "underpowered_design"
+    assert "100% of LLM classifications failed" in result.weaknesses[0].summary
+    assert "20/20" in result.weaknesses[0].summary
+
+
+def test_aggregate_30_percent_failures_does_not_degrade() -> None:
+    """30% failure rate is below the 50% threshold — score must be untouched.
+
+    10 agents × 2 classifications = 20 total. 6 failed = 30%. Mix of pos/neg
+    among the successful ones to keep the score recognizable."""
+    successful = (
+        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(5)]
+        + [
+            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+            for i in range(2)
+        ]
+    )
+    # 3 fully-failed agents = 6 failed classifications out of 20 = 30%
+    failed = [_failed_analysis(f"f{i}") for i in range(3)]
+    baseline = ScoringService.aggregate(successful + failed, _DEGRADE_CFG)
+    # Same input but with the failure flags cleared — confirms degradation
+    # gate is the ONLY difference, not some side-effect of the neutral fallbacks.
+    no_flags = successful + [
+        _analysis(f"f{i}", Sentiment.NEUTRAL, confidence=0.0) for i in range(3)
+    ]
+    control = ScoringService.aggregate(no_flags, _DEGRADE_CFG)
+    assert baseline.confidence_score == control.confidence_score
+    # And no degradation row prepended
+    assert not any(
+        "LLM classifications failed" in w.summary for w in baseline.weaknesses
+    )
+
+
+def test_aggregate_at_exactly_50_percent_does_not_degrade() -> None:
+    """Boundary: ticket says `> 0.5` not `>= 0.5`. Exactly 50% must NOT trigger.
+
+    10 agents × 2 classifications = 20. 10 failed = exactly 50%."""
+    successful = [_analysis(f"s{i}", Sentiment.POSITIVE) for i in range(5)]
+    failed = [_failed_analysis(f"f{i}") for i in range(5)]
+    result = ScoringService.aggregate(successful + failed, _DEGRADE_CFG)
+    assert not any(
+        "LLM classifications failed" in w.summary for w in result.weaknesses
+    )
+
+
+def test_aggregate_just_above_50_percent_does_degrade() -> None:
+    """Boundary: 11/20 = 55% > 50% must trigger.
+
+    Composition: 10 agents (20 classifications total). 5 fully-failed
+    (10 failed) + 1 sentiment-only-failed (1 failed) + 4 healthy
+    = 11 failed of 20 = 55%."""
+    healthy = [_analysis(f"h{i}", Sentiment.POSITIVE) for i in range(4)]
+    sentiment_only_failed = [
+        _analysis(
+            "half",
+            Sentiment.NEUTRAL,
+            confidence=0.0,
+            sentiment_failed=True,
+        )
+    ]
+    fully_failed = [_failed_analysis(f"f{i}") for i in range(5)]
+    analyses = healthy + sentiment_only_failed + fully_failed
+    assert len(analyses) == 10  # sanity: agent count
+    total_failed = sum(
+        int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses
+    )
+    assert total_failed == 11
+    assert 2 * len(analyses) == 20
+    assert total_failed / 20 > 0.5  # sanity: we crossed the threshold
+    result = ScoringService.aggregate(analyses, _DEGRADE_CFG)
+    assert result.weaknesses[0].category == "underpowered_design"
+    assert "LLM classifications failed" in result.weaknesses[0].summary
+    assert "11/20" in result.weaknesses[0].summary
+
+
+def test_aggregate_degradation_discounts_bootstrap_ci_too() -> None:
+    """When the guard fires, the bootstrap CI must shift down with the
+    point estimate — otherwise the CI would bracket the raw score, not the
+    displayed (discounted) one. Pin the invariant against the no-degradation
+    path."""
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=200)
+    # 10 failed agents → 100% failure → discount = 0.3 → score * 0.7
+    failed = [_failed_analysis(f"a{i}") for i in range(10)]
+    degraded = ScoringService.aggregate(failed, cfg, run_seed=42)
+    # Same shape but flags cleared → no degradation, CI unaffected
+    flags_off = [
+        _analysis(f"a{i}", Sentiment.NEUTRAL, confidence=0.0) for i in range(10)
+    ]
+    healthy = ScoringService.aggregate(flags_off, cfg, run_seed=42)
+    # Score discounted by 30%
+    assert degraded.confidence_score == pytest.approx(
+        healthy.confidence_score * 0.7, abs=0.5
+    )
+    # CI bounds shifted in the same direction
+    assert degraded.confidence_score_ci is not None
+    assert healthy.confidence_score_ci is not None
+    assert degraded.confidence_score_ci[0] <= healthy.confidence_score_ci[0]
+    assert degraded.confidence_score_ci[1] <= healthy.confidence_score_ci[1]
+    # And the bracket invariant still holds after the discount
+    assert (
+        degraded.confidence_score_ci[0]
+        <= degraded.confidence_score
+        <= degraded.confidence_score_ci[1]
+    )
 
 
 def test_aggregate_with_bootstrap_resamples_0_leaves_ci_none() -> None:
