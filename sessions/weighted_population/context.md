@@ -12,7 +12,10 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] **#8 (degradation guard for >50% classification failures)** — small backend ticket, not yet planned. **Scope per the actual ticket body (NOT the v1.0-pack fallback alert I previously conflated):** `aggregate()` currently substitutes neutral values when `chat_json` raises during weakness/sentiment classification. If every classification fails, score lands ~70 (neutral × shrinkage with no flags) — misleadingly high for a totally degraded run. Acceptance: if `failed_classifications / total > 0.5`, prepend `underpowered_design` + discount score by 30%. Tests: all-failed → score<50 + underpowered surfaced; 30%-failed → normal score; boundary at exactly 50%. The v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback alerting is a separate concern (not currently ticketed; capture as a follow-up TODO if we want it).
+- [ ] **Phase 2.5 backend is DONE.** Frontend phase next: 3 tickets to make the calibration thesis visible to PMs.
+  - **#9** wizard: rename "Sample size" → "Population"
+  - **#10** detail view: score CI band + weakness CI bars + Population banner
+  - **#51** detail view: persona-grouped agent table
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -44,16 +47,16 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - [x] **#5 merged via [PR #64](https://github.com/ram-de/pythia-simulator/pull/64)** as `d3f078e`. main now has full identity_seed wiring. Merge required taking main's session-file version (newer narrative) — conflict resolved on `ac39b9e`. `feat/2.5-identity-seed` deleted locally + remote.
 - [x] **#6 (Wilson CIs + bootstrap) merged via [PR #65](https://github.com/ram-de/pythia-simulator/pull/65)** as `c31a73a`. Plan at `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md` (`/plan-eng-review` CLEAR, 13 findings). T1-T6 implementation: pure-Python `services/statistics.py` (Wilson + percentile bootstrap, no scipy in deps); `ScoringService._compute_score()` extracted for bootstrap reuse; Wilson CI on every `Weakness.frequency`; `ScoringConfig.bootstrap_resamples` with `0` skip sentinel; `aggregate(..., run_seed=...)` + `score(..., run_seed=..., config=...)` plumbed through `SimulationRunner._score()`; e2e API test asserts CIs surface end-to-end. Codex review 2 rounds: round 1 raised 3 P2s (lo_idx off-by-one → symmetric nearest-rank, rounded-CI/score clamp invariant + 12-composition sweep test, comment fix on `_BOOTSTRAP_SEED_MIX`); round 2 raised 2 comment-only P2s (48-bit vs 64-bit, clamp-widening claim) — all addressed. Suite: 127 → **147 passed**. `feat/2.5-scoring-cis` deleted locally + remote.
 - [x] **Issue-tracker hygiene 2026-05-22.** Closed #3 (stale duplicate of #57, schema swap shipped via PR #60 `f10cbe9`) and #4 (stale duplicate of #58, sampler shipped via PR #61 `041041e` + PR #63 cherry-pick `2f0979c`). #10 was missed in earlier summaries — it's the detail-view CI rendering ticket (score band + weakness CI bars + Population banner) and is distinct from #51 (persona-grouped agent table). Both belong to the Phase 2.5 frontend rebuild.
+- [x] **#8 (degradation guard) merged via [PR #66](https://github.com/ram-de/pythia-simulator/pull/66)** as `1a7a0d4`. `AgentAnalysis` gains `weakness_failed`/`sentiment_failed` flags; `ScoringConfig` gains `degradation_threshold=0.5` + `degradation_discount=0.3`. `aggregate()` counts failed classifications independently (total=2N) and when failure rate exceeds threshold: discounts confidence_score AND bootstrap CI bounds by 30%, prepends `underpowered_design` weakness. Codex P2 surfaced double-row issue when both low-N and degradation gates fire — collapsed into a single row joined by " AND ". 6 new tests including all-failed, 30%, boundary at exactly 50% (no fire) + just above 50% (fires), CI-shift invariant, and the two-gate collapse. Codex CLEAR after 2 rounds. Suite: 147 → **153 passed**. `feat/2.5-degradation-guard` deleted locally + remote.
 
 ## Next Steps
-1. **Plan + implement #8 (degradation guard for >50% classification failures).** Small backend ticket. Touchpoints: `services/scoring.py` — `analyze()` already swallows BaseException and substitutes neutral classifications; need a counter that flows into `aggregate()` so it can apply the 30% discount + prepend `underpowered_design` when failure rate > 0.5. Tests in `tests/test_scoring.py` for the three acceptance cases (all-failed, 30%, boundary 50%).
-2. **Frontend phase (3 tickets):**
+1. **Frontend phase (3 tickets) — Phase 2.5 closes when these land:**
    - **#9** wizard: rename "Sample size" → "Population" with helper text (we'll stratify down to ≤50 agents); bump range to 1–10000.
-   - **#10** detail view: score CI band (`30 ± 4 (95% CI)`), weakness bars with CI whiskers (`67% [63–71%]`), "Population: 1000 (sampled: 50)" banner. Depends on the backend CIs shipped in #6.
-   - **#51** detail view, separate concern: persona-grouped agent table ("DashPass Power × 15"); optional "About this agent" panel reading `identity_seed.json` from R2.
-   These three close the phase visually — the calibration thesis is true in code but invisible to PMs today.
-3. **Then Phase 2.5 is done.** Acceptance per ROADMAP: 1000-population sim runs in <60s, score with 95% CI, weaknesses with CIs, 50 agents in correct persona proportions — visibly, in the UI.
-4. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; BCa bootstrap (Layer-3 calibration, follow-up to #6); block-bootstrap by persona (Layer-3); v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback alerting (separate from #8, not currently ticketed); **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
+   - **#10** detail view: score CI band (`30 ± 4 (95% CI)`), weakness bars with CI whiskers (`67% [63–71%]`), "Population: 1000 (sampled: 50)" banner. Backend CIs shipped in #6; just needs UI binding.
+   - **#51** detail view: persona-grouped agent table ("DashPass Power × 15"); optional "About this agent" panel reading `identity_seed.json` from R2.
+   The backend is fully calibrated but the PM sees zero of this today.
+2. **Then Phase 2.5 is done.** Acceptance per ROADMAP: 1000-population sim runs in <60s, score with 95% CI, weaknesses with CIs, 50 agents in correct persona proportions — visibly, in the UI.
+3. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; BCa bootstrap (Layer-3 calibration, follow-up to #6); block-bootstrap by persona (Layer-3); v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback alerting (separate from #8, not currently ticketed); **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
 
 ## Key Files
 **#5 shipped — for reference if revisiting:**
@@ -72,10 +75,15 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - `backend/pythia_simulator/services/simulation_runner.py` (`_score()` threads `run_seed` to scoring)
 - `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md` (plan with /plan-eng-review fixes)
 
-**#8 (next) — likely touchpoints:**
-- `backend/pythia_simulator/services/scoring.py` — `analyze()` already returns neutral fallback on `BaseException`; need to count and propagate. `aggregate()` applies the 30% discount + prepended `underpowered_design` when `failed/total > 0.5`.
-- `backend/pythia_simulator/schemas/scoring.py` — `AgentAnalysis` may need a `classification_failed: bool` flag (or two separate flags for weakness/sentiment).
-- `backend/tests/test_scoring.py` — 3 acceptance tests (all-failed, 30%, boundary 50%).
+**#8 shipped — for reference if revisiting:**
+- `backend/pythia_simulator/services/scoring.py` (`analyze()` records failure flags; `aggregate()` applies discount + prepends merged underpowered_design row)
+- `backend/pythia_simulator/schemas/scoring.py` (`AgentAnalysis.weakness_failed/sentiment_failed`; `ScoringConfig.degradation_threshold/discount`)
+- `backend/tests/test_scoring.py` (6 new acceptance + invariant tests)
+
+**Frontend tickets (next) — touchpoints:**
+- `frontend/app/simulations/new/page.tsx` (#9 wizard rename)
+- `frontend/app/simulations/[id]/page.tsx` (#10 CI bars + Population banner; #51 persona-grouped table)
+- `frontend/lib/api-types.ts` already has the CI fields from #57 regeneration; no manual edit expected.
 
 ## Key Context
 - ROADMAP locked: single input `population_size`, hard cap `min(population, MAX_AGENTS=50)`, per-agent identity_seed variance, Wilson CI + bootstrap on aggregate.
@@ -88,13 +96,13 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 ## For my cofounder
 Phase 2.5 ticket map (corrected on 2026-05-22 after issue-tracker audit):
 
-**Backend, 5-of-6 done on main:**
+**Backend, 6-of-6 DONE on main:**
 - ✅ #7 Groq backoff (PR #59)
 - ✅ #57 schema swap — population_size + CI fields + identity_seed (PR #60)
 - ✅ #58 population_sampler Hamilton allocation (PR #61 + PR #63 cherry-pick)
 - ✅ #5 identity_seed service (PR #64)
 - ✅ #6 Wilson CIs + bootstrap (PR #65)
-- 🔲 #8 degradation guard for >50% LLM classification failures
+- ✅ #8 degradation guard (PR #66)
 
 **Frontend, 0-of-3 done (this is where the calibration thesis becomes visible):**
 - 🔲 #9 wizard rename Sample size → Population
