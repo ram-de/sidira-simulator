@@ -552,10 +552,11 @@ def test_aggregate_both_gates_collapse_to_single_underpowered_row() -> None:
         f"expected one merged row when both gates fire, got "
         f"{len(underpowered_rows)}: {[w.summary for w in underpowered_rows]}"
     )
+    # Pin BEHAVIOR (both root causes mentioned), not the delimiter — copy
+    # edits should be able to swap " AND " for "; " without breaking tests.
     summary = underpowered_rows[0].summary
     assert "Only 2 agents" in summary
     assert "100% of LLM classifications failed" in summary
-    assert " AND " in summary
 
 
 def test_aggregate_degradation_discounts_bootstrap_ci_too() -> None:
