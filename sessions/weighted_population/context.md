@@ -12,7 +12,8 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] #58 PR open as [#61](https://github.com/ram-de/pythia-simulator/pull/61) — awaiting CI + `/codex review` pass, then merge.
+- [ ] #58 PR open as [#61](https://github.com/ram-de/pythia-simulator/pull/61) — awaiting CI + merge.
+- [ ] Codex P2 fixes stacked as [#62](https://github.com/ram-de/pythia-simulator/pull/62) (base `feat/2.5-population-sampler`) — duplicate-id rejection + post-validation weight normalization. 2 new tests, suite 104/104. Merge after #61 (GitHub will auto-retarget to main).
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -24,6 +25,7 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - [x] **Fix landed:** added a second MCP server `github_ramde` to `~/.claude.json` (mirrors the existing `github` shape, swaps the PAT for a fine-grained `ram-de`-scoped token covering all 3 Pythia repos). Routing rule baked into `.claude/skills/pythia-session/SKILL.md` § MCP identity routing — inside this skill, `mcp__github_ramde__*` is used for `ram-de/*` writes; outside it, default `github` (rmkmar) is used. Also captured in project memory at `~/.claude/projects/.../memory/feedback_github_mcp_routing.md`. Pending Claude Code restart for the new server to load.
 - [x] Implemented **#58 (population_sampler)** on branch `feat/2.5-population-sampler`. Hamilton largest-remainder allocation in `services/population_sampler.py`. Pure function, deterministic ties broken by persona_id sort. Codex review: 1 P1 + 3 P2. P1 fixed (strict weight validation — rejects NaN/inf, negative, sum-not-~1, missing/extra personas) + 2 P2 fixed (explicit max_agents ≤0 raises; negative population_size raises; bad env still falls back to default). 1 P2 kept as-is (missing optional scheme raises) and documented. 27 new tests, suite 102/102.
 - [x] **Opened #58 PR as [#61](https://github.com/ram-de/pythia-simulator/pull/61)** via `mcp__github_ramde__create_pull_request` after Claude Code restart loaded the new server. PR authored as `ram-de` — MCP identity routing rule (skill § MCP identity routing) is proven end-to-end.
+- [x] **Codex review on #61:** 0 P1, 2 P2. Both fixed on a stacked branch `fix/2.5-sampler-codex-p2` and opened as [#62](https://github.com/ram-de/pythia-simulator/pull/62) (base = `feat/2.5-population-sampler` since #61 is in flight). Fix 1: dedup persona ids before allocation (set-vs-list bug at sampler.py:130 that inflated counts e.g. `[a,a,b]` n=10 → sum 15). Fix 2: normalize weights to sum-to-1 after validation passes (tolerated 1e-3 drift was leaking into the allocation — two 0.49955s at n=10_000 returned 9992). 2 new tests, suite 104/104.
 
 ## Next Steps
 1. Wait for CI on [PR #61](https://github.com/ram-de/pythia-simulator/pull/61); run `/codex review` once it's green.
