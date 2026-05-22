@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 import os
+from collections import Counter
 from typing import Literal
 
 from pythia_simulator.schemas.persona import PersonaPack
@@ -127,8 +128,20 @@ def allocate(
 
     weights = _resolve_weights(pack, weight_scheme)
     # Walk in persona_id order for deterministic tie-breaking.
-    persona_ids = sorted(p.id for p in pack.personas)
+    raw_ids = [p.id for p in pack.personas]
+    if len(raw_ids) != len(set(raw_ids)):
+        dupes = sorted(pid for pid, count in Counter(raw_ids).items() if count > 1)
+        raise ValueError(f"PersonaPack contains duplicate persona ids: {dupes}")
+    persona_ids = sorted(raw_ids)
     _validate_weights(weights, persona_ids, weight_scheme)
+
+    # Normalize away the tolerated drift from _WEIGHT_SUM_TOLERANCE. Without this,
+    # weights that pass validation (e.g. two 0.49955s, sum 0.9991) can produce a
+    # remainder larger than the number of personas at large n, leaving the final
+    # count short of the effective sample size.
+    total = sum(weights.values())
+    if total > 0 and total != 1.0:
+        weights = {pid: w / total for pid, w in weights.items()}
 
     # Step 1+2: exact share and integer floor.
     exact = {pid: weights.get(pid, 0.0) * n for pid in persona_ids}
