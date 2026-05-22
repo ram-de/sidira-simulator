@@ -28,10 +28,10 @@ from pythia_simulator.schemas.scoring import (
 from pythia_simulator.schemas.simulation import Hypothesis, SimulationResult, Weakness
 from pythia_simulator.services.statistics import bootstrap_percentile_ci, wilson_interval
 
-# Domain-separation constant: XOR-mix run_seed before seeding the bootstrap
-# RNG so the bootstrap resample stream cannot collide with the identity-seed
-# stream (which sha256s a different namespace tuple). Harmless defense in
-# depth; the hex spells "BOOT" prefix.
+# Arbitrary integer XOR mask used to derive a bootstrap-specific RNG seed
+# from the runner's run_seed, so the bootstrap resample stream cannot
+# collide with the identity-seed stream (which uses sha256 over a different
+# namespace tuple — distinct domain anyway, so this is defense in depth).
 _BOOTSTRAP_SEED_MIX = 0xB007_5747_5474
 
 log = logging.getLogger(__name__)
@@ -322,6 +322,7 @@ class ScoringService:
         # bootstrap_resamples=0 is a sentinel that skips the bootstrap entirely
         # (existing tests opt out so they don't pay B × O(n) per assertion).
         confidence_score_ci: tuple[float, float] | None = None
+        rounded_score = round(confidence, cfg.confidence_rounding)
         if cfg.bootstrap_resamples > 0:
             effective_seed = (
                 run_seed if run_seed is not None else secrets.randbits(53)
@@ -333,9 +334,18 @@ class ScoringService:
                 n_resamples=cfg.bootstrap_resamples,
                 rng=rng,
             )
+            ci_low_r = round(ci_low, cfg.confidence_rounding)
+            ci_high_r = round(ci_high, cfg.confidence_rounding)
+            # Codex P2 fix: independent rounding (and, more rarely, the
+            # discrete percentile result itself) can violate the invariant
+            # ci_low <= confidence_score <= ci_high at the edges. Clamp so
+            # callers that inspect both fields always see a CI that brackets
+            # the reported point estimate. Widening is at most one rounding
+            # step when caused by rounding; can be larger if the raw
+            # bootstrap interval itself failed to bracket (small B, small N).
             confidence_score_ci = (
-                round(ci_low, cfg.confidence_rounding),
-                round(ci_high, cfg.confidence_rounding),
+                min(ci_low_r, rounded_score),
+                max(ci_high_r, rounded_score),
             )
 
         # Rebuild the category → supporting-agents map for the top-K surface.
@@ -376,7 +386,7 @@ class ScoringService:
             )
 
         return SimulationResult(
-            confidence_score=round(confidence, cfg.confidence_rounding),
+            confidence_score=rounded_score,
             confidence_score_ci=confidence_score_ci,
             weaknesses=weaknesses,
             refinement_suggestions=[],  # filled in by RefinementService caller
