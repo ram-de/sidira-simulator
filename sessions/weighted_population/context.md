@@ -12,40 +12,47 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] #58 PR — branch `feat/2.5-population-sampler` pushed (commits `fed1154` impl, `c86a7b4` codex hardening, `f947e1d` MCP routing rule). Waiting on Claude Code restart so the new `github_ramde` MCP server is available, then open the PR via `mcp__github_ramde__create_pull_request`.
+- [ ] [#63](https://github.com/ram-de/pythia-simulator/pull/63) open — re-lands #62's P2 fix commit (`2da6502`) onto `main`. **Why a third PR:** #62 was based on `feat/2.5-population-sampler` and merged into that stale branch instead of auto-retargeting to `main` (GitHub only auto-retargets when the base branch is *deleted*). #63 cherry-picks the fix onto a fresh branch off main. 29/29 sampler tests green locally. Awaiting CI + `/codex review` + merge.
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
 - [x] Resolved the three open ROADMAP questions in chat: hybrid deterministic+optional-prose identity_seed; emit `behavioral_seeds` from pythia-personas v1.1 with simulator-side fallback; use Phase 4's persona-grouped table (#51) for the detail view (merge #10 into #51).
 - [x] Created three new tickets: simulator [#57](https://github.com/ram-de/pythia-simulator/issues/57) (schema swap), simulator [#58](https://github.com/ram-de/pythia-simulator/issues/58) (population_sampler), pythia-personas [#4](https://github.com/ram-de/pythia-personas/issues/4) (behavioral_seeds in v1.1).
-- [x] **#7 (Groq backoff) merged** as `54c2e61`. `_retry_on_rate_limit` wraps both GroqChat + AnthropicChat; exp backoff + jitter; cap 3 retries; structlog WARN. 4 new tests. Codex was *not* run on this one (preceded the standing /codex rule).
-- [x] **#57 (schema swap) merged** as `f10cbe9`. SimulationRequest.population_size (1..10_000_000, `extra="forbid"` rejects retired field), Simulation.population_size/sampled_agent_count (plumbed end-to-end through repo Protocol + Postgres model + alembic 002 + InMemory + orchestrator + API response), Weakness/SimulationResult CI fields (optional), Persona.behavioral_seeds + AgentInstance.identity_seed (both optional). PersonaPack.schema_version accepts "1.0" or "1.1". 11 new tests, suite 75/75. Codex review: 0 P1, 4 P2; 2 fix-now committed (env-parse hardening + repo plumbing), 2 deferred (`extra="forbid"` is intended; UI label/range is #9's scope).
-- [x] Established: **MCP PR creation was blocked** for these repos — `mcp__github__create_pull_request` returned `422 "must be a collaborator"` because the rmkmar identity behind the default MCP server has issue-create rights on `ram-de/*` but not branch-PR rights.
-- [x] **Fix landed:** added a second MCP server `github_ramde` to `~/.claude.json` (mirrors the existing `github` shape, swaps the PAT for a fine-grained `ram-de`-scoped token covering all 3 Pythia repos). Routing rule baked into `.claude/skills/pythia-session/SKILL.md` § MCP identity routing — inside this skill, `mcp__github_ramde__*` is used for `ram-de/*` writes; outside it, default `github` (rmkmar) is used. Also captured in project memory at `~/.claude/projects/.../memory/feedback_github_mcp_routing.md`. Pending Claude Code restart for the new server to load.
-- [x] Implemented **#58 (population_sampler)** on branch `feat/2.5-population-sampler`. Hamilton largest-remainder allocation in `services/population_sampler.py`. Pure function, deterministic ties broken by persona_id sort. Codex review: 1 P1 + 3 P2. P1 fixed (strict weight validation — rejects NaN/inf, negative, sum-not-~1, missing/extra personas) + 2 P2 fixed (explicit max_agents ≤0 raises; negative population_size raises; bad env still falls back to default). 1 P2 kept as-is (missing optional scheme raises) and documented. 27 new tests, suite 102/102.
+- [x] **#7 (Groq backoff) merged** as `54c2e61`. `_retry_on_rate_limit` wraps both GroqChat + AnthropicChat; exp backoff + jitter; cap 3 retries; structlog WARN. 4 new tests.
+- [x] **#57 (schema swap) merged** as `f10cbe9`. SimulationRequest.population_size (1..10_000_000, `extra="forbid"`), Simulation.population_size/sampled_agent_count plumbed end-to-end. 11 new tests. Codex: 0 P1, 4 P2 (2 fixed, 2 deferred).
+- [x] **MCP identity routing fixed:** added second MCP server `github_ramde` to `~/.claude.json` for `ram-de/*` writes. Routing rule documented in `.claude/skills/pythia-session/SKILL.md` § MCP identity routing.
+- [x] Implemented **#58 (population_sampler)**. Hamilton largest-remainder allocation in `services/population_sampler.py`. Codex review: 1 P1 + 3 P2 (P1 + 2 P2 fixed; 1 P2 documented). 27 new tests.
+- [x] **#58 merged via [#61](https://github.com/ram-de/pythia-simulator/pull/61)** as `041041e`. PR authored as `ram-de` via `mcp__github_ramde__create_pull_request` — MCP identity routing proven end-to-end.
+- [x] **Codex P2 fixes on #61:** dedup persona ids + normalize-near-1 weights. Opened as **[#62](https://github.com/ram-de/pythia-simulator/pull/62)** stacked on `feat/2.5-population-sampler`. 2 new tests, `/codex review` clean (0 P1, 0 P2).
+- [x] **#62 merged into `feat/2.5-population-sampler`** as `0fb3bbb` at 20:16 UTC — but that branch was already orphaned (#61 had merged to main at 19:17). **GitHub did NOT auto-retarget #62 to main** because auto-retarget only triggers when the base branch is deleted. Net result: commit `2da6502` (the actual fix) never reached main.
+- [x] **Caught the gap on resume** by diffing `origin/feat/2.5-population-sampler ^main` — fix commit was missing from main. Cherry-picked `2da6502` to fresh branch `fix/2.5-sampler-codex-p2-to-main` off main, ran 29/29 sampler tests, opened **[#63](https://github.com/ram-de/pythia-simulator/pull/63)** with base=main.
 
 ## Next Steps
-1. **Founder restarts Claude Code** so the new `github_ramde` MCP server loads. Then `/pythia-session resume weighted_population` and we pick up here.
-2. Verify `mcp__github_ramde__*` tools are in the tool list; open the **#58 PR** via `mcp__github_ramde__create_pull_request` as the first proof the routing works end-to-end.
-3. **Founder rotates the PAT** that was pasted in chat during MCP setup (one-time security hygiene; transcript-retention risk). New token replaces the existing one in `~/.claude.json` env, restart, done.
-4. After #58 merges: **#5 (identity_seed)** — the design-heavy one. Run `/plan-eng-review` before writing code (RNG seeding, fallback semantics, prompt-splicing each have real failure modes).
+1. Wait for CI on [#63](https://github.com/ram-de/pythia-simulator/pull/63), run `/codex review`, merge.
+2. After #63 merges: delete the orphaned `feat/2.5-population-sampler` and `fix/2.5-sampler-codex-p2` remote branches (close the confusion source).
+3. **Founder rotates the PAT** that was pasted in chat during MCP setup (one-time security hygiene).
+4. Start **#5 (identity_seed)** — design-heavy. Run `/plan-eng-review` before code (RNG seeding, fallback semantics, prompt-splicing each have real failure modes).
 5. Then #6 (scoring CIs), #8 (degradation guard), then frontend (#9 + re-scoped #51).
 
 ## Key Files
-- `backend/pythia_simulator/services/simulation_runner.py` (where `_sample_personas` lives)
-- `backend/pythia_simulator/services/scoring.py` (today's point-estimate scoring)
-- `backend/pythia_simulator/schemas/simulation.py` (`SimulationRequest.persona_sample_size` to retire)
-- `backend/pythia_simulator/adapters/llm.py` (Groq backoff lives here)
-- `frontend/app/simulations/new/page.tsx` (sample-size input → population-size input)
-- `ROADMAP.md` § "Phase 2.5" (locked decisions + open questions + constraints)
+- `backend/pythia_simulator/services/population_sampler.py` (Hamilton allocator — on main as of #61)
+- `backend/pythia_simulator/services/simulation_runner.py` (orchestrator wiring — TODO, separate PR)
+- `backend/pythia_simulator/services/scoring.py` (point-estimate scoring — #6 will add CIs)
+- `backend/pythia_simulator/schemas/simulation.py` (population_size + identity_seed + behavioral_seeds fields landed in #57)
+- `backend/pythia_simulator/adapters/llm.py` (Groq backoff — landed in #7)
+- `frontend/app/simulations/new/page.tsx` (sample-size input → population-size input — #9 scope)
+- `ROADMAP.md` § "Phase 2.5"
 
 ## Key Context
-- ROADMAP locked these already: single input `population_size`, hard cap `min(population, MAX_AGENTS)` with `MAX_AGENTS` env-configurable default 50, identity_seed per-agent variance, Wilson CI on weakness frequencies + bootstrap on aggregate score.
-- Open questions (block code): identity_seed rule-based vs hybrid, per-persona attribute schema source (pythia-personas v1.1 vs hand-roll), 50-agent detail-view UX (virtualized list vs grouped — and now the persona-grouped table from `docs/agent-chat-ui-spec.md` is a strong candidate for the answer).
-- Hard constraints from ROADMAP: Groq rate-limit backoff must land before the 50-agent run (3 LLM calls per agent × 50 = 150 bursts will 429 the free tier). Scoring degradation guard for >50% classification failures (today silently produces ~70 when everything fails).
-- The Phase 4 result table (issue #51, just opened) is the natural detail-view answer — persona-grouped rows expand to per-agent rows, scales cleanly to 50.
+- ROADMAP locked: single input `population_size`, hard cap `min(population, MAX_AGENTS)` with `MAX_AGENTS` env default 50, per-agent identity_seed variance, Wilson CI on weakness frequencies + bootstrap on aggregate score.
+- Open questions for #5: identity_seed rule-based vs hybrid; per-persona attribute schema source (pythia-personas v1.1 vs hand-roll); 50-agent detail-view UX (now leaning toward persona-grouped table from `docs/agent-chat-ui-spec.md`).
+- Hard constraints: Groq backoff must precede 50-agent run (3 LLM calls × 50 = 150 bursts → 429 on free tier). Scoring degradation guard for >50% classification failures (today silently produces ~70).
+- **Process lesson:** stacked PRs do NOT auto-retarget to main unless the base branch is *deleted*. For future stacks, either (a) delete the base branch before merging the upstream PR, or (b) plan to manually retarget post-merge, or (c) just open the second PR directly against main after the first merges. Documented in this session for future reference.
 
 ## For my cofounder
-Multi-PR sprint, two done. #7 and #57 are on main. Next branch is `feat/2.5-population-sampler` for #58 — pure-function TDD against the demo + streamly_sample packs.
+Three PRs landed on this sub-sprint:
+- **#61 (population_sampler core)** — merged to main.
+- **#62 (codex P2 fixes)** — accidentally merged into the now-stale feat branch, NOT main.
+- **#63 (re-land of #62 fix on main)** — open, awaiting CI/codex/merge.
 
-**One fix needed from you:** PR creation via the GitHub MCP server is blocked because the `rmkmar` identity it uses isn't a collaborator on `ram-de/*`. Add `rmkmar` as a Write collaborator on `ram-de/pythia-simulator`, `ram-de/pythia-personas`, `ram-de/pythia-crawler` (GitHub → repo Settings → Collaborators → Add people). After that I can `mcp__github__create_pull_request` directly instead of pushing the branch and asking you to click the create-PR link.
+After #63 lands, main will have the complete, codex-clean sampler. Next major issue is **#5 (identity_seed)** which deserves a `/plan-eng-review` before any code.
