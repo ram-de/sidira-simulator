@@ -99,6 +99,7 @@ async def create_simulation(
             hypothesis=payload.hypothesis,
             population_size=payload.population_size,
             sampled_agent_count=derived_sample_size,
+            run_seed=payload.run_seed,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.
@@ -132,6 +133,7 @@ async def get_simulation(
         hypothesis=row["hypothesis_json"],
         population_size=row.get("population_size"),
         sampled_agent_count=row.get("sampled_agent_count"),
+        run_seed=row.get("run_seed"),
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )

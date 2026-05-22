@@ -31,6 +31,11 @@ class SimulationRequest(BaseModel):
 
     hypothesis: Hypothesis
     population_size: int = Field(default=1000, ge=1, le=10_000_000)
+    # Bound to signed BIGINT range so over-large values fail at request validation
+    # rather than as a Postgres INSERT error after the row is half-built. (codex P2)
+    run_seed: int | None = Field(
+        default=None, ge=-(2**63), le=2**63 - 1
+    )
 
 
 class SimulationStatus(str, Enum):
@@ -79,5 +84,6 @@ class Simulation(BaseModel):
     hypothesis: Hypothesis
     population_size: int | None = None
     sampled_agent_count: int | None = None
+    run_seed: int | None = None
     agent_instance_ids: list[str] = Field(default_factory=list)
     result: SimulationResult | None = None

@@ -12,6 +12,7 @@ Why this exists:
 from __future__ import annotations
 
 import asyncio
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -55,6 +56,7 @@ class SimulationOrchestrator:
         hypothesis: Hypothesis,
         population_size: int | None = None,
         sampled_agent_count: int | None = None,
+        run_seed: int | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -69,10 +71,24 @@ class SimulationOrchestrator:
         persona_pack = self._personas.load_latest(customer_id)
         feature_pack_version = self._features.resolve_latest_version(customer_id)
 
-        # Phase 2.5: prefer sampled_agent_count (real allocation cap) when provided
-        # by the API layer; legacy callers passing only sample_size still work.
-        effective_sample_size = (
-            sampled_agent_count if sampled_agent_count is not None else sample_size
+        # Phase 2.5 (#5): the runner now does its own allocate()-based stratification
+        # over population_size, so we just thread it (plus run_seed for identity
+        # reproducibility) through. Legacy `sample_size` is no longer consulted by
+        # the runner but kept on this signature as a defaulted no-op so older direct
+        # callers don't break at import time.
+        effective_population_size = (
+            population_size if population_size is not None else sample_size
+        )
+        # Resolve run_seed BEFORE persisting so the DB row matches the seed the
+        # runner will actually use. If we let the runner mint its own default, the
+        # row stores NULL while the simulation uses a time-derived seed -- and the
+        # caller can never replay it. (codex review P1)
+        # Use a 53-bit range so the JSON-encoded value round-trips losslessly
+        # through JavaScript clients (Number.MAX_SAFE_INTEGER = 2**53 - 1). A
+        # browser reading back time.time_ns() (~1.7e18) and resubmitting it for
+        # replay would round the value and hash a different RNG seed. (codex P2)
+        resolved_run_seed = (
+            run_seed if run_seed is not None else secrets.randbits(53)
         )
 
         sim_id = str(uuid.uuid4())
@@ -84,6 +100,7 @@ class SimulationOrchestrator:
             hypothesis_json=hypothesis.model_dump(mode="json"),
             population_size=population_size,
             sampled_agent_count=sampled_agent_count,
+            run_seed=resolved_run_seed,
         )
 
         async def run() -> None:
@@ -91,7 +108,12 @@ class SimulationOrchestrator:
                 sim_id=sim_id,
                 customer_id=customer_id,
                 hypothesis=hypothesis,
-                sample_size=effective_sample_size,
+                population_size=effective_population_size,
+                run_seed=resolved_run_seed,
+                # Pass the API-derived cap so allocate() uses the same number
+                # the row recorded. Otherwise PYTHIA_MAX_AGENTS=0 makes the API
+                # clamp to 1 while allocate() falls back to default 50. (codex P2)
+                max_agents=sampled_agent_count,
             )
 
         return sim_id, run
@@ -114,7 +136,9 @@ class SimulationOrchestrator:
         sim_id: str,
         customer_id: str,
         hypothesis: Hypothesis,
-        sample_size: int,
+        population_size: int,
+        run_seed: int | None,
+        max_agents: int | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -134,7 +158,9 @@ class SimulationOrchestrator:
                 capability=capability,
                 feature_pack_version=feature_pack_version,
                 hypothesis=hypothesis,
-                sample_size=sample_size,
+                population_size=population_size,
+                run_seed=run_seed,
+                max_agents=max_agents,
             )
 
         except Exception as exc:
@@ -156,7 +182,9 @@ class SimulationOrchestrator:
         capability,
         feature_pack_version: str,
         hypothesis: Hypothesis,
-        sample_size: int,
+        population_size: int,
+        run_seed: int | None,
+        max_agents: int | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -165,7 +193,9 @@ class SimulationOrchestrator:
             capability=capability,
             feature_pack_version=feature_pack_version,
             hypothesis=hypothesis,
-            sample_size=sample_size,
+            population_size=population_size,
+            run_seed=run_seed,
+            max_agents=max_agents,
             sim_id=sim_id,
         )
 

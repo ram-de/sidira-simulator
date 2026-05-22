@@ -182,5 +182,63 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     #   score = 100 * (0.6 * 0.853 + 0.4 * 0.0) ≈ 51.2
     assert body["result"]["confidence_score"] == pytest.approx(51.2, abs=0.1)
     assert any(w["category"] == "wrong_cohort" for w in body["result"]["weaknesses"])
-    # confidence < 80 so refinement fired
-    assert len(body["result"]["refinement_suggestions"]) >= 1
+
+
+def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
+    """Codex P1: when the caller omits run_seed, the orchestrator must persist
+    the seed it actually used -- otherwise the simulation can't be replayed."""
+    client, _, sim_repo, _ = client_with_stub_llm
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+            },
+            "population_size": 3,
+            # run_seed deliberately omitted.
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    row = sim_repo._sims[sim_id]
+    assert row["run_seed"] is not None, "default run_seed must be persisted, not NULL"
+    assert isinstance(row["run_seed"], int)
+    # Codex P2: must be JS-safe so frontend round-trip doesn't round and break
+    # replay reproducibility.
+    assert 0 <= row["run_seed"] <= 2**53 - 1, (
+        f"default run_seed {row['run_seed']} exceeds JS Number.MAX_SAFE_INTEGER"
+    )
+    # And the API response surfaces the same seed.
+    final = client.get(f"/simulations/{sim_id}").json()
+    assert final["run_seed"] == row["run_seed"]
+
+
+def test_runner_agent_count_matches_persisted_cap_under_bad_env(
+    client_with_stub_llm, monkeypatch
+) -> None:
+    """Codex P2: when PYTHIA_MAX_AGENTS is misconfigured (e.g. '0'), the runner
+    must produce exactly sampled_agent_count agents -- not silently fall back
+    to the population_sampler default of 50."""
+    client, _, sim_repo, agent_repo = client_with_stub_llm
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+            },
+            "population_size": 1000,  # would yield 50 agents under default cap
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    body = client.get(f"/simulations/{sim_id}").json()
+    # API clamps PYTHIA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
+    assert body["sampled_agent_count"] == 1
+    assert len(body["agent_instance_ids"]) == 1

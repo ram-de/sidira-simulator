@@ -157,6 +157,57 @@ def test_max_agents_env_clamped_to_min_one(monkeypatch: pytest.MonkeyPatch) -> N
     assert resp.status_code in (202, 409), resp.text
 
 
+def test_simulation_request_accepts_run_seed() -> None:
+    """#5 T5: run_seed is int | None and defaults to None (auto-derive at run time)."""
+    # Missing field -> None.
+    req_default = SimulationRequest(hypothesis=_hypothesis(), population_size=10)
+    assert req_default.run_seed is None
+
+    # Explicit None.
+    req_none = SimulationRequest(hypothesis=_hypothesis(), population_size=10, run_seed=None)
+    assert req_none.run_seed is None
+
+    # Explicit int -- including large values (sha256-derived ints can exceed int32).
+    req_int = SimulationRequest(
+        hypothesis=_hypothesis(), population_size=10, run_seed=9_223_372_036_854_775_807
+    )
+    assert req_int.run_seed == 9_223_372_036_854_775_807
+
+
+def test_simulation_request_rejects_non_int_run_seed() -> None:
+    with pytest.raises(ValidationError):
+        SimulationRequest.model_validate(
+            {
+                "hypothesis": _hypothesis().model_dump(),
+                "population_size": 10,
+                "run_seed": "not-an-int",
+            }
+        )
+    with pytest.raises(ValidationError):
+        SimulationRequest.model_validate(
+            {
+                "hypothesis": _hypothesis().model_dump(),
+                "population_size": 10,
+                "run_seed": 3.14,
+            }
+        )
+
+
+def test_simulation_request_rejects_out_of_bigint_range_run_seed() -> None:
+    """Codex P2: values outside signed BIGINT must fail at request validation,
+    not as a database INSERT error."""
+    # Just past signed BIGINT max.
+    with pytest.raises(ValidationError):
+        SimulationRequest(
+            hypothesis=_hypothesis(), population_size=10, run_seed=2**63
+        )
+    # Just past signed BIGINT min.
+    with pytest.raises(ValidationError):
+        SimulationRequest(
+            hypothesis=_hypothesis(), population_size=10, run_seed=-(2**63) - 1
+        )
+
+
 def test_agent_instance_identity_seed_optional_for_existing_code() -> None:
     """Existing call sites that don't yet emit identity_seed must keep working."""
     meta = AgentInstanceMetadata(
