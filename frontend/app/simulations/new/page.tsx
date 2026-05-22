@@ -297,6 +297,10 @@ export default function NewSimulationPage() {
 function parsePositiveInt(raw: string): number | null {
   const trimmed = raw.trim();
   if (trimmed === "") return null;
+  // Strict: reject "12abc", "1.5", "1e3", and anything else that isn't
+  // purely digits. `Number.parseInt` would otherwise silently truncate.
+  // (codex P2 round 2)
+  if (!/^\d+$/.test(trimmed)) return null;
   const n = Number.parseInt(trimmed, 10);
   if (!Number.isFinite(n) || n < 0) return null;
   return n;
