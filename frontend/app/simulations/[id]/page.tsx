@@ -394,6 +394,25 @@ export default function SimulationDetailPage() {
       {/* Result (complete) */}
       {status === "complete" && result && (
         <>
+          {(sim?.population_size != null ||
+            sim?.sampled_agent_count != null) && (
+            <section
+              style={{
+                ...cardStyle,
+                padding: "12px 16px",
+                background: "#f7f8fb",
+                color: "#444",
+                fontSize: 14,
+              }}
+            >
+              <strong style={{ color: "#111" }}>Population:</strong>{" "}
+              {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
+              {sim.sampled_agent_count ?? "—"} agent
+              {sim.sampled_agent_count === 1 ? "" : "s"} in proportion to
+              persona weights)
+            </section>
+          )}
+
           <section style={cardStyle}>
             <div
               style={{
@@ -417,10 +436,31 @@ export default function SimulationDetailPage() {
               >
                 {Math.round(result.confidence_score)}
               </div>
-              <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
-                ≥80 = validated; below = needs refinement.
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {result.confidence_score_ci && (
+                  <div
+                    style={{
+                      fontSize: 14,
+                      color: "#444",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    95% CI: [{result.confidence_score_ci[0].toFixed(1)} &ndash;{" "}
+                    {result.confidence_score_ci[1].toFixed(1)}]
+                  </div>
+                )}
+                <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
+                  &ge;80 = validated; below = needs refinement.
+                </div>
               </div>
             </div>
+            {result.confidence_score_ci && (
+              <ScoreCiBar
+                score={result.confidence_score}
+                ciLow={result.confidence_score_ci[0]}
+                ciHigh={result.confidence_score_ci[1]}
+              />
+            )}
           </section>
 
           {result.weaknesses && result.weaknesses.length > 0 && (
@@ -438,6 +478,10 @@ export default function SimulationDetailPage() {
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {result.weaknesses.map((w, idx) => {
                   const supporters = w.supporting_agent_ids ?? [];
+                  const hasFreq =
+                    w.frequency != null &&
+                    w.ci_low != null &&
+                    w.ci_high != null;
                   return (
                     <li
                       key={idx}
@@ -448,18 +492,48 @@ export default function SimulationDetailPage() {
                     >
                       <div
                         style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: "#111",
+                          display: "flex",
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                          gap: 16,
                           marginBottom: 4,
                         }}
                       >
-                        {formatCategory(w.category)}
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#111",
+                          }}
+                        >
+                          {formatCategory(w.category)}
+                        </div>
+                        {hasFreq && (
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "#444",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {(w.frequency! * 100).toFixed(0)}% [
+                            {(w.ci_low! * 100).toFixed(0)}&ndash;
+                            {(w.ci_high! * 100).toFixed(0)}%]
+                          </div>
+                        )}
                       </div>
+                      {hasFreq && (
+                        <WeaknessFrequencyBar
+                          frequency={w.frequency!}
+                          ciLow={w.ci_low!}
+                          ciHigh={w.ci_high!}
+                        />
+                      )}
                       <div
                         style={{
                           fontSize: 14,
                           color: "#333",
+                          marginTop: hasFreq ? 8 : 0,
                           marginBottom: 6,
                           lineHeight: 1.5,
                         }}
@@ -583,6 +657,128 @@ export default function SimulationDetailPage() {
         </section>
       )}
     </main>
+  );
+}
+
+function ScoreCiBar({
+  score,
+  ciLow,
+  ciHigh,
+}: {
+  score: number;
+  ciLow: number;
+  ciHigh: number;
+}) {
+  // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
+  const clampedLow = Math.max(0, Math.min(100, ciLow));
+  const clampedHigh = Math.max(0, Math.min(100, ciHigh));
+  const clampedScore = Math.max(0, Math.min(100, score));
+  const bandLeft = `${clampedLow}%`;
+  const bandWidth = `${Math.max(0, clampedHigh - clampedLow)}%`;
+  const markerLeft = `${clampedScore}%`;
+  return (
+    <div style={{ marginTop: 16, paddingTop: 4 }}>
+      <div
+        style={{
+          position: "relative",
+          height: 12,
+          background: "#eee",
+          borderRadius: 6,
+          overflow: "visible",
+        }}
+        aria-label={`Confidence score ${clampedScore.toFixed(
+          1,
+        )} with 95% CI from ${clampedLow.toFixed(1)} to ${clampedHigh.toFixed(1)}`}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: bandLeft,
+            width: bandWidth,
+            top: 0,
+            bottom: 0,
+            background: "rgba(29, 78, 216, 0.25)",
+            borderRadius: 6,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: markerLeft,
+            top: -2,
+            width: 2,
+            height: 16,
+            background: scoreColor(score),
+            transform: "translateX(-1px)",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 11,
+          color: "#888",
+          marginTop: 4,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        <span>0</span>
+        <span>50</span>
+        <span>100</span>
+      </div>
+    </div>
+  );
+}
+
+function WeaknessFrequencyBar({
+  frequency,
+  ciLow,
+  ciHigh,
+}: {
+  frequency: number;
+  ciLow: number;
+  ciHigh: number;
+}) {
+  // 0..1 frequencies onto a 0-100% bar. Whiskers = CI bounds.
+  const f = Math.max(0, Math.min(1, frequency)) * 100;
+  const lo = Math.max(0, Math.min(1, ciLow)) * 100;
+  const hi = Math.max(0, Math.min(1, ciHigh)) * 100;
+  return (
+    <div
+      style={{
+        position: "relative",
+        height: 10,
+        background: "#f1f1f1",
+        borderRadius: 5,
+      }}
+      aria-label={`Frequency ${f.toFixed(0)}% with 95% CI from ${lo.toFixed(
+        0,
+      )}% to ${hi.toFixed(0)}%`}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: `${lo}%`,
+          width: `${Math.max(0, hi - lo)}%`,
+          top: 0,
+          bottom: 0,
+          background: "rgba(168, 107, 0, 0.35)",
+          borderRadius: 5,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: `${f}%`,
+          top: -2,
+          width: 2,
+          height: 14,
+          background: "#a86b00",
+          transform: "translateX(-1px)",
+        }}
+      />
+    </div>
   );
 }
 
