@@ -177,15 +177,19 @@ Naming: `/pythia-session` (not `/session`) because some of us have a different `
 
 **Open the GitHub Project:** https://github.com/users/ram-de/projects/
 
-Filter by `Phase = 2.5`, status `Next` or `Backlog`. Phase 2.5 is "weighted population sampling" — the next big chunk. Twelve tickets seeded across the three repos; the simulator ones are #3 through #14.
+Read `CONTEXT.md` ("What's next") and `ROADMAP.md` ("Where we are today") to learn which phase is currently active — that's the phase your first ticket should come from. Then on the Project board:
 
-Suggested starter tickets for a new contributor (in order, each ~half-day to a day):
+1. **Filter by `Phase = <current phase>` AND `Status = Next` or `Backlog`.** Phase = Next means the founder has staged this as do-next-work; Backlog means it's locked but lower priority.
+2. **Sort or scan by smallest scope first.** Good starter tickets share three traits:
+   - Acceptance criteria are concrete and testable (the ticket says exactly what "done" looks like)
+   - Surface area is one file or one route (low blast radius for a first PR)
+   - No `Depends on:` block in the body, or the dependency is already merged
+3. **Match your background.** Component field tells you `backend` / `frontend` / `schema` / `docs`. A frontend ticket in your first week is fine — Pythia's frontend is small and intentionally low-magic.
+4. **Read the body in full.** Especially the "Out of scope" section. The fastest way to derail a first PR is to expand scope past what the ticket asked for.
 
-1. **#14 — `chore: rename _sample_personas to _top_personas_by_weight`** — trivial, gets your first PR through the workflow
-2. **#7 — `fix(adapters): Groq rate-limit backoff with jitter`** — small surface area (`backend/pythia_simulator/adapters/llm.py`), real value, has unit-test acceptance criteria
-3. **#3 — `feat(schema): replace persona_sample_size with population_size`** — the foundational schema change for the rest of Phase 2.5. Other tickets depend on it.
+If nothing in `Status = Next` looks right, ask the founder in the daily check-in which Backlog ticket they'd like pulled forward — that's the cheapest unblock.
 
-Or pick whatever looks interesting — read the ticket's acceptance criteria first, then claim it (assign yourself + move to `In progress` in the Project).
+To claim it: assign yourself on the issue and move it to `In progress` in the Project board. That's the signal to the founder that you've started.
 
 ### Doing the work
 
@@ -210,7 +214,7 @@ npx tsc --noEmit                          # frontend, if you touched it
 /review                                   # always, before opening a PR
 ```
 
-Then push the branch and open a PR (linked to the issue: `Closes #14`).
+Then push the branch and open a PR (linked to the issue: `Closes #NNN` where `NNN` is the issue you claimed).
 
 ---
 
@@ -249,7 +253,7 @@ The full version is in `AGENTS.md`. The 90% version:
 Don't try to be productive in the first 48 hours. Spend the first day on:
 - Running the Magic Moment loop end-to-end and submitting at least three different hypotheses to see how the scoring behaves
 - Reading the full `sessions/persona-classifier/context.md` (it's the project's brain)
-- Picking the smallest Phase 2.5 ticket and shipping it (#14 is the suggested starter)
+- Picking the smallest Status = Next ticket on the Project board and shipping it (see Step 9 for how to pick)
 
 By end of week one you should have:
 - One PR merged
