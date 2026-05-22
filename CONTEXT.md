@@ -22,15 +22,7 @@ Waves 0–6 landed:
 
 Retrospective: `git show b39db2b` in conversation history, plus the lessons captured in the next section.
 
----
-
-## What's not yet real
-
-- **Calibrated mix.** `_sample_personas` returns top-N personas by head_count weight, not stratified. The thesis claim ("simulation is a calibrated reflection of the real company") is currently false in code. Phase 2.5 fixes this — design locked, tickets seeded.
-- **Agent chat surface.** `/agents/{id}` route exists but the chat UI is unbuilt. Phase 4. This is the defining feature — the wedge that makes Pythia not-just-another-experimentation-tool.
-- **Postgres persistence.** Backend uses `InMemorySimulationRepo` in dev; restart wipes everything. Phase 5 swaps in `PostgresSimulationRepo` for prod.
-- **Multi-tenancy.** `customer_id = "demo"` hardcoded everywhere. Phase 5 (Clerk auth).
-- **Real persona generation.** Simulator runs against a 6-persona fixture pack. `pythia-personas` can already generate packs from real data — we just haven't wired the simulator to consume one yet. Persona Builder UI (Phase 4.5) is the bridge.
+Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projects/) under their respective Phase tags (2.5 / 4 / 4.5 / 5). `ROADMAP.md` has the strategic "where we are today" view.
 
 ---
 
@@ -70,6 +62,6 @@ From the Magic Moment retro:
 
 ## How to use this file
 
-- **Updating this file is the last step of every sprint.** "What just shipped" advances, "What's not yet real" gets pruned, "What's next" gets refreshed from ROADMAP, "Lessons" gets at most 1–2 new entries.
+- **Updating this file is the last step of every sprint.** "What just shipped" advances, "What's next" gets refreshed from ROADMAP, "Lessons" gets at most 1–2 new entries.
 - **Don't dump scratch notes here.** Personal scratch lives in your own notes app or Obsidian vault. CONTEXT.md is the shared, durable thread.
 - **Co-founder + AI agents read this first** when picking up work. Make sure the next person walking in cold can orient in 2 minutes.
