@@ -86,11 +86,132 @@ def test_population_below_cap_returns_population() -> None:
 
 
 def test_zero_weight_persona_gets_zero_agents() -> None:
+    """A weight-0 persona inside an otherwise-summing-to-1 vector gets 0 agents."""
     pack = _pack({"a": 0.6, "b": 0.4, "c": 0.0})
     alloc = allocate(pack, population_size=10, max_agents=50)
     by_id = dict(alloc)
     assert by_id["c"] == 0
     assert by_id["a"] + by_id["b"] == 10
+
+
+# ── codex P1+P2: input validation ────────────────────────────────────────────
+
+
+def test_all_zero_weights_raises() -> None:
+    """Sum=0 violates the must-sum-to-~1 invariant -- silent under-allocation prevented."""
+    pack = _pack({"a": 0.0, "b": 0.0, "c": 0.0})
+    with pytest.raises(ValueError, match="sum"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_weights_summing_below_one_raises() -> None:
+    pack = _pack({"a": 0.4, "b": 0.4})  # sum = 0.8
+    with pytest.raises(ValueError, match="sum"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_weights_summing_above_one_raises() -> None:
+    pack = _pack({"a": 0.7, "b": 0.7})  # sum = 1.4
+    with pytest.raises(ValueError, match="sum"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_negative_weight_raises() -> None:
+    pack = _pack({"a": 1.2, "b": -0.2})  # sums to 1 but b is negative
+    with pytest.raises(ValueError, match="negative"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_nan_weight_raises() -> None:
+    pack = _pack({"a": float("nan"), "b": 0.5})
+    with pytest.raises(ValueError, match="finite"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_inf_weight_raises() -> None:
+    pack = _pack({"a": float("inf"), "b": 0.5})
+    with pytest.raises(ValueError, match="finite"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_persona_missing_from_weights_raises() -> None:
+    """Pack lists 3 personas but the weight scheme only covers 2 -- producer bug."""
+    pack = PersonaPack(
+        version="v_test",
+        customer_id="test",
+        generated_at=datetime.now(),
+        personas=[_persona("a"), _persona("b"), _persona("c")],
+        weights=WeightSchemes(head_count={"a": 0.6, "b": 0.4}),  # missing c
+        stability_score=1.0,
+    )
+    with pytest.raises(ValueError, match="missing personas"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_weight_for_unknown_persona_raises() -> None:
+    """Weight scheme references a persona not in the pack -- producer bug."""
+    pack = PersonaPack(
+        version="v_test",
+        customer_id="test",
+        generated_at=datetime.now(),
+        personas=[_persona("a"), _persona("b")],
+        weights=WeightSchemes(head_count={"a": 0.5, "b": 0.3, "ghost": 0.2}),
+        stability_score=1.0,
+    )
+    with pytest.raises(ValueError, match="absent from the pack"):
+        allocate(pack, population_size=10, max_agents=50)
+
+
+def test_negative_population_raises() -> None:
+    pack = _pack(_DEMO_WEIGHTS)
+    with pytest.raises(ValueError, match="population_size"):
+        allocate(pack, population_size=-5, max_agents=50)
+
+
+def test_max_agents_zero_arg_raises() -> None:
+    pack = _pack(_DEMO_WEIGHTS)
+    with pytest.raises(ValueError, match="max_agents"):
+        allocate(pack, population_size=10, max_agents=0)
+
+
+def test_max_agents_negative_arg_raises() -> None:
+    pack = _pack(_DEMO_WEIGHTS)
+    with pytest.raises(ValueError, match="max_agents"):
+        allocate(pack, population_size=10, max_agents=-3)
+
+
+def test_max_agents_env_zero_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bad env value (0) → fall back to default 50, matching api/simulations.py."""
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+    pack = _pack(_DEMO_WEIGHTS)
+    alloc = allocate(pack, population_size=200)  # max_agents omitted → env path
+    assert sum(n for _, n in alloc) == 50
+
+
+def test_max_agents_env_negative_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "-7")
+    pack = _pack(_DEMO_WEIGHTS)
+    alloc = allocate(pack, population_size=200)
+    assert sum(n for _, n in alloc) == 50
+
+
+def test_max_agents_env_garbage_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "abc")
+    pack = _pack(_DEMO_WEIGHTS)
+    alloc = allocate(pack, population_size=200)
+    assert sum(n for _, n in alloc) == 50
+
+
+def test_single_persona_below_cap_gets_full_population() -> None:
+    pack = _pack({"only_one": 1.0})
+    alloc = allocate(pack, population_size=7, max_agents=50)
+    assert alloc == [("only_one", 7)]
+
+
+def test_single_persona_above_cap_gets_max_agents() -> None:
+    pack = _pack({"only_one": 1.0})
+    alloc = allocate(pack, population_size=1000, max_agents=50)
+    assert alloc == [("only_one", 50)]
 
 
 def test_ties_broken_deterministically_by_persona_id() -> None:
