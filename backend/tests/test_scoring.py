@@ -387,6 +387,47 @@ def test_n50_ci_narrower_than_n6() -> None:
     assert width_big < width_small
 
 
+def test_confidence_ci_always_brackets_rounded_point_estimate() -> None:
+    """Codex P2 (round-2): independent rounding of point estimate vs CI bounds
+    can violate ci_low <= confidence_score <= ci_high at the edges. The clamp
+    in aggregate() must guarantee the invariant for every input.
+
+    Sweep 12 varied compositions to surface the edge case where a raw
+    percentile bound sits within one rounding step of the raw point estimate."""
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=500)
+    compositions = [
+        # (n_pos, n_neg_with_flag, n_neutral, run_seed)
+        (10, 0, 0, 1),
+        (0, 10, 0, 2),
+        (5, 5, 0, 3),
+        (3, 3, 4, 4),
+        (1, 9, 0, 5),
+        (9, 1, 0, 6),
+        (2, 2, 6, 7),
+        (8, 1, 1, 8),
+        (1, 8, 1, 9),
+        (4, 4, 2, 10),
+        (6, 3, 1, 11),
+        (3, 6, 1, 12),
+    ]
+    for n_pos, n_neg, n_neutral, seed in compositions:
+        analyses = (
+            [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(n_pos)]
+            + [
+                _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+                for i in range(n_neg)
+            ]
+            + [_analysis(f"x{i}", Sentiment.NEUTRAL) for i in range(n_neutral)]
+        )
+        result = ScoringService.aggregate(analyses, cfg, run_seed=seed)
+        assert result.confidence_score_ci is not None
+        lo, hi = result.confidence_score_ci
+        assert lo <= result.confidence_score <= hi, (
+            f"CI {(lo, hi)} fails to bracket score {result.confidence_score} for "
+            f"composition n_pos={n_pos} n_neg={n_neg} n_neutral={n_neutral}"
+        )
+
+
 def test_aggregate_with_bootstrap_resamples_0_leaves_ci_none() -> None:
     """C3 (locked from /plan-eng-review): bootstrap_resamples=0 is a sentinel
     that skips the bootstrap entirely and leaves confidence_score_ci=None."""

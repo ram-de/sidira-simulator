@@ -83,7 +83,10 @@ def bootstrap_percentile_ci(
     samples = [statistic(rng.choices(data, k=n)) for _ in range(n_resamples)]
     samples.sort()
 
+    # Nearest-rank percentile (symmetric): index k_p = ceil(p * B) - 1.
+    # Earlier draft used floor on the lower side and ceil on the upper, which
+    # biased the CI slightly inward on the lower end (codex P2 fix).
     alpha = (1.0 - confidence) / 2.0
-    lo_idx = int(math.floor(alpha * n_resamples))
+    lo_idx = max(0, int(math.ceil(alpha * n_resamples)) - 1)
     hi_idx = min(n_resamples - 1, int(math.ceil((1.0 - alpha) * n_resamples)) - 1)
     return samples[lo_idx], samples[hi_idx]
