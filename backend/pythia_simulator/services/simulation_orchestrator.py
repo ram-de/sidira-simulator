@@ -55,6 +55,7 @@ class SimulationOrchestrator:
         hypothesis: Hypothesis,
         population_size: int | None = None,
         sampled_agent_count: int | None = None,
+        run_seed: int | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -69,10 +70,13 @@ class SimulationOrchestrator:
         persona_pack = self._personas.load_latest(customer_id)
         feature_pack_version = self._features.resolve_latest_version(customer_id)
 
-        # Phase 2.5: prefer sampled_agent_count (real allocation cap) when provided
-        # by the API layer; legacy callers passing only sample_size still work.
-        effective_sample_size = (
-            sampled_agent_count if sampled_agent_count is not None else sample_size
+        # Phase 2.5 (#5): the runner now does its own allocate()-based stratification
+        # over population_size, so we just thread it (plus run_seed for identity
+        # reproducibility) through. Legacy `sample_size` is no longer consulted by
+        # the runner but kept on this signature as a defaulted no-op so older direct
+        # callers don't break at import time.
+        effective_population_size = (
+            population_size if population_size is not None else sample_size
         )
 
         sim_id = str(uuid.uuid4())
@@ -84,6 +88,7 @@ class SimulationOrchestrator:
             hypothesis_json=hypothesis.model_dump(mode="json"),
             population_size=population_size,
             sampled_agent_count=sampled_agent_count,
+            run_seed=run_seed,
         )
 
         async def run() -> None:
@@ -91,7 +96,8 @@ class SimulationOrchestrator:
                 sim_id=sim_id,
                 customer_id=customer_id,
                 hypothesis=hypothesis,
-                sample_size=effective_sample_size,
+                population_size=effective_population_size,
+                run_seed=run_seed,
             )
 
         return sim_id, run
@@ -114,7 +120,8 @@ class SimulationOrchestrator:
         sim_id: str,
         customer_id: str,
         hypothesis: Hypothesis,
-        sample_size: int,
+        population_size: int,
+        run_seed: int | None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -134,7 +141,8 @@ class SimulationOrchestrator:
                 capability=capability,
                 feature_pack_version=feature_pack_version,
                 hypothesis=hypothesis,
-                sample_size=sample_size,
+                population_size=population_size,
+                run_seed=run_seed,
             )
 
         except Exception as exc:
@@ -156,7 +164,8 @@ class SimulationOrchestrator:
         capability,
         feature_pack_version: str,
         hypothesis: Hypothesis,
-        sample_size: int,
+        population_size: int,
+        run_seed: int | None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -165,7 +174,8 @@ class SimulationOrchestrator:
             capability=capability,
             feature_pack_version=feature_pack_version,
             hypothesis=hypothesis,
-            sample_size=sample_size,
+            population_size=population_size,
+            run_seed=run_seed,
             sim_id=sim_id,
         )
 
