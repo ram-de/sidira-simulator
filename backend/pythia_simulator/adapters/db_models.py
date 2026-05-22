@@ -50,6 +50,10 @@ class Simulation(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Phase 2.5: modeled userbase + cap-derived sample count. Nullable so legacy
+    # rows pre-dating the migration round-trip cleanly.
+    population_size: Mapped[int | None] = mapped_column(nullable=True)
+    sampled_agent_count: Mapped[int | None] = mapped_column(nullable=True)
 
     agents: Mapped[list["AgentInstance"]] = relationship(
         back_populates="simulation", cascade="all, delete-orphan"

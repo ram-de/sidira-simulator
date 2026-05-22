@@ -79,11 +79,26 @@ async def create_simulation(
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
 ) -> CreateSimulationResponse:
     """Accepts a hypothesis. Returns 202 + simulation_id; runs after the response is sent."""
+    # Phase 2.5: population_size is the modeled userbase. Until the
+    # population_sampler ticket (#58) lands, derive the internal sample_size
+    # as min(population, MAX_AGENTS_DEFAULT). The sampler PR will replace this.
+    import os
+
+    raw_max = os.environ.get("PYTHIA_MAX_AGENTS", "50")
+    try:
+        max_agents = int(raw_max)
+    except ValueError:
+        max_agents = 50  # fail-open on malformed env; default already proven safe
+    if max_agents < 1:
+        max_agents = 1
+    derived_sample_size = max(1, min(payload.population_size, max_agents))
+
     try:
         sim_id, run = await orchestrator.prepare(
             customer_id=customer_id,
             hypothesis=payload.hypothesis,
-            sample_size=payload.persona_sample_size,
+            population_size=payload.population_size,
+            sampled_agent_count=derived_sample_size,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.
@@ -115,6 +130,8 @@ async def get_simulation(
         persona_pack_version=row["persona_pack_version"],
         feature_pack_version=row["feature_pack_version"],
         hypothesis=row["hypothesis_json"],
+        population_size=row.get("population_size"),
+        sampled_agent_count=row.get("sampled_agent_count"),
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )
