@@ -70,6 +70,8 @@ class SimulationRepo(Protocol):
         feature_pack_version: str,
         hypothesis_json: dict[str, Any],
         parent_simulation_id: str | None = None,
+        population_size: int | None = None,
+        sampled_agent_count: int | None = None,
     ) -> None: ...
 
     async def update_status(
@@ -103,6 +105,8 @@ class PostgresSimulationRepo:
         feature_pack_version: str,
         hypothesis_json: dict[str, Any],
         parent_simulation_id: str | None = None,
+        population_size: int | None = None,
+        sampled_agent_count: int | None = None,
     ) -> None:
         row = Simulation(
             id=sim_id,
@@ -112,6 +116,8 @@ class PostgresSimulationRepo:
             feature_pack_version=feature_pack_version,
             hypothesis_json=hypothesis_json,
             parent_simulation_id=parent_simulation_id,
+            population_size=population_size,
+            sampled_agent_count=sampled_agent_count,
         )
         self._session.add(row)
         await self._session.commit()
@@ -170,6 +176,8 @@ class InMemorySimulationRepo:
         feature_pack_version: str,
         hypothesis_json: dict[str, Any],
         parent_simulation_id: str | None = None,
+        population_size: int | None = None,
+        sampled_agent_count: int | None = None,
     ) -> None:
         self._sims[sim_id] = {
             "id": sim_id,
@@ -183,6 +191,8 @@ class InMemorySimulationRepo:
             "error": None,
             "created_at": datetime.now(timezone.utc),
             "completed_at": None,
+            "population_size": population_size,
+            "sampled_agent_count": sampled_agent_count,
         }
 
     async def update_status(
@@ -385,6 +395,8 @@ def _simulation_to_dict(row: Simulation) -> dict[str, Any]:
         "error": row.error,
         "created_at": row.created_at,
         "completed_at": row.completed_at,
+        "population_size": row.population_size,
+        "sampled_agent_count": row.sampled_agent_count,
     }
 
 

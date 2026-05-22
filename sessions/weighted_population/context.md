@@ -12,14 +12,16 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] PR for #7 (Groq backoff) — branch `feat/2.5-groq-backoff` ready to push
-- [ ] Sequence next ticket: #57 (schema swap) or #58 (population_sampler) once #7 lands
+- [ ] PR for #57 (schema swap) — branch `feat/2.5-schema-population-size`, codex review pending
+
+## Completed (this session, continued)
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
 - [x] Resolved the three open ROADMAP questions in chat: hybrid deterministic+optional-prose identity_seed; emit `behavioral_seeds` from pythia-personas v1.1 with simulator-side fallback; use Phase 4's persona-grouped table (#51) for the detail view (merge #10 into #51).
 - [x] Created three new tickets: simulator [#57](https://github.com/ram-de/pythia-simulator/issues/57) (schema swap), simulator [#58](https://github.com/ram-de/pythia-simulator/issues/58) (population_sampler), pythia-personas [#4](https://github.com/ram-de/pythia-personas/issues/4) (behavioral_seeds in v1.1).
-- [x] Implemented #7 (Groq backoff) on branch `feat/2.5-groq-backoff`: `_retry_on_rate_limit` helper wraps both GroqChat and AnthropicChat; exponential backoff with jitter; cap 3 retries; structlog WARN on each retry. 4 new tests, full suite 64/64 green.
+- [x] Implemented #7 (Groq backoff) on branch `feat/2.5-groq-backoff`: `_retry_on_rate_limit` helper wraps both GroqChat and AnthropicChat; exponential backoff with jitter; cap 3 retries; structlog WARN on each retry. 4 new tests, full suite 64/64 green. PR merged as `54c2e61`.
+- [x] Implemented #57 (schema swap) on branch `feat/2.5-schema-population-size`: SimulationRequest.population_size (1..10_000_000, `extra="forbid"` rejects the old field), Simulation.population_size/sampled_agent_count, Weakness CI fields (all optional), SimulationResult.confidence_score_ci, Persona.behavioral_seeds, AgentInstance.identity_seed, new schemas/identity.py + BehavioralSeedSchema. PersonaPack.schema_version accepts "1.0" or "1.1". API route derives sample_size = min(population_size, PYTHIA_MAX_AGENTS|50) until #58 lands. 9 new tests, full suite 73/73 green. Frontend gen-types clean; one call site renamed.
 
 ## Next Steps
 1. Read current `_sample_personas` and surrounding scoring code to anchor the rewrite.

@@ -131,7 +131,7 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
             },
-            "persona_sample_size": 3,
+            "population_size": 3,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -152,7 +152,7 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
                 "capability_name": "reorder",
                 "prose": "Show a 'reorder usual' banner for premium subscribers.",
             },
-            "persona_sample_size": 3,
+            "population_size": 3,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -165,6 +165,9 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     body = final.json()
     assert body["status"] == "complete", body
     assert len(body["agent_instance_ids"]) == 3
+    # Phase 2.5: population_size + sampled_agent_count round-trip through the API.
+    assert body["population_size"] == 3
+    assert body["sampled_agent_count"] == 3
     # 3 initial reactions
     assert len(chat.calls) >= 3
     # 3 agents × 2 classifications (weakness + sentiment) = 6, plus optional refinement = 7
