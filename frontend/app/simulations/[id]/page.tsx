@@ -190,16 +190,21 @@ export default function SimulationDetailPage() {
   // Codex P2 (round 1): depend on the agent_instance_ids key, not the whole
   // `sim` object. A terminal-state polling refresh that re-creates `sim`
   // without changing the ID list must NOT trigger a second fan-out.
-  const agentIdsKey = (sim?.agent_instance_ids ?? []).join(",");
+  // Codex P2 (round 2): sort the key so reorderings of the same set don't
+  // trigger a refetch either (display order is preserved separately by the
+  // first-seen `order` array in PersonaGroupedAgents).
+  const agentIdsKey = [...(sim?.agent_instance_ids ?? [])].sort().join(",");
   useEffect(() => {
     if (!sim || !isTerminalStatus(sim.status)) return;
+    // Clear any stale error from a prior fetch before deciding what to do —
+    // including the no-agents branch below (codex P2 round 2).
+    setAgentMetaError(null);
     const ids = sim.agent_instance_ids ?? [];
     if (ids.length === 0) {
       setAgentMeta([]);
       return;
     }
     let cancelled = false;
-    setAgentMetaError(null);
     (async () => {
       try {
         const fetched: AgentInstance[] = await Promise.all(
@@ -736,8 +741,9 @@ export default function SimulationDetailPage() {
 // Shared sanitizer for CI bar inputs (codex P2 round 1).
 // - Coerces non-finite values to a safe default.
 // - Clamps to [min, max].
-// - Inverts low/high when ci_low > ci_high (shouldn't happen from backend
-//   today, but defensive: render the widest interval rather than collapse).
+// - Swaps low/high when ci_low > ci_high (shouldn't happen from backend
+//   today, but defensive: keep the interval visible rather than collapse
+//   to width 0).
 function _safeRange(
   value: number,
   low: number,
