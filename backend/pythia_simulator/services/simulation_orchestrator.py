@@ -53,6 +53,8 @@ class SimulationOrchestrator:
         *,
         customer_id: str,
         hypothesis: Hypothesis,
+        population_size: int | None = None,
+        sampled_agent_count: int | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -67,6 +69,12 @@ class SimulationOrchestrator:
         persona_pack = self._personas.load_latest(customer_id)
         feature_pack_version = self._features.resolve_latest_version(customer_id)
 
+        # Phase 2.5: prefer sampled_agent_count (real allocation cap) when provided
+        # by the API layer; legacy callers passing only sample_size still work.
+        effective_sample_size = (
+            sampled_agent_count if sampled_agent_count is not None else sample_size
+        )
+
         sim_id = str(uuid.uuid4())
         await self._simulations.create(
             sim_id=sim_id,
@@ -74,6 +82,8 @@ class SimulationOrchestrator:
             persona_pack_version=persona_pack.version,
             feature_pack_version=feature_pack_version,
             hypothesis_json=hypothesis.model_dump(mode="json"),
+            population_size=population_size,
+            sampled_agent_count=sampled_agent_count,
         )
 
         async def run() -> None:
@@ -81,7 +91,7 @@ class SimulationOrchestrator:
                 sim_id=sim_id,
                 customer_id=customer_id,
                 hypothesis=hypothesis,
-                sample_size=sample_size,
+                sample_size=effective_sample_size,
             )
 
         return sim_id, run

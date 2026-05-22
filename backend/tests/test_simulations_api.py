@@ -165,6 +165,9 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     body = final.json()
     assert body["status"] == "complete", body
     assert len(body["agent_instance_ids"]) == 3
+    # Phase 2.5: population_size + sampled_agent_count round-trip through the API.
+    assert body["population_size"] == 3
+    assert body["sampled_agent_count"] == 3
     # 3 initial reactions
     assert len(chat.calls) >= 3
     # 3 agents × 2 classifications (weakness + sentiment) = 6, plus optional refinement = 7
