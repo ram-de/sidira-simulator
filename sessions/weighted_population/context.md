@@ -12,22 +12,19 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] PR for #57 (schema swap) — branch `feat/2.5-schema-population-size`, codex review pending
-
-## Completed (this session, continued)
+- [ ] #58 (population_sampler) — branch + TDD next
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
 - [x] Resolved the three open ROADMAP questions in chat: hybrid deterministic+optional-prose identity_seed; emit `behavioral_seeds` from pythia-personas v1.1 with simulator-side fallback; use Phase 4's persona-grouped table (#51) for the detail view (merge #10 into #51).
 - [x] Created three new tickets: simulator [#57](https://github.com/ram-de/pythia-simulator/issues/57) (schema swap), simulator [#58](https://github.com/ram-de/pythia-simulator/issues/58) (population_sampler), pythia-personas [#4](https://github.com/ram-de/pythia-personas/issues/4) (behavioral_seeds in v1.1).
-- [x] Implemented #7 (Groq backoff) on branch `feat/2.5-groq-backoff`: `_retry_on_rate_limit` helper wraps both GroqChat and AnthropicChat; exponential backoff with jitter; cap 3 retries; structlog WARN on each retry. 4 new tests, full suite 64/64 green. PR merged as `54c2e61`.
-- [x] Implemented #57 (schema swap) on branch `feat/2.5-schema-population-size`: SimulationRequest.population_size (1..10_000_000, `extra="forbid"` rejects the old field), Simulation.population_size/sampled_agent_count, Weakness CI fields (all optional), SimulationResult.confidence_score_ci, Persona.behavioral_seeds, AgentInstance.identity_seed, new schemas/identity.py + BehavioralSeedSchema. PersonaPack.schema_version accepts "1.0" or "1.1". API route derives sample_size = min(population_size, PYTHIA_MAX_AGENTS|50) until #58 lands. 9 new tests, full suite 73/73 green. Frontend gen-types clean; one call site renamed.
+- [x] **#7 (Groq backoff) merged** as `54c2e61`. `_retry_on_rate_limit` wraps both GroqChat + AnthropicChat; exp backoff + jitter; cap 3 retries; structlog WARN. 4 new tests. Codex was *not* run on this one (preceded the standing /codex rule).
+- [x] **#57 (schema swap) merged** as `f10cbe9`. SimulationRequest.population_size (1..10_000_000, `extra="forbid"` rejects retired field), Simulation.population_size/sampled_agent_count (plumbed end-to-end through repo Protocol + Postgres model + alembic 002 + InMemory + orchestrator + API response), Weakness/SimulationResult CI fields (optional), Persona.behavioral_seeds + AgentInstance.identity_seed (both optional). PersonaPack.schema_version accepts "1.0" or "1.1". 11 new tests, suite 75/75. Codex review: 0 P1, 4 P2; 2 fix-now committed (env-parse hardening + repo plumbing), 2 deferred (`extra="forbid"` is intended; UI label/range is #9's scope).
+- [x] Established: **MCP PR creation is blocked** for these repos — `mcp__github__create_pull_request` returns `422 "must be a collaborator"` because the rmkmar identity behind the MCP server has issue-create rights on `ram-de/*` but not branch-PR rights. Workaround: push branch, cofounder clicks the create-PR URL GitHub prints. See "For my cofounder" below for the fix.
 
 ## Next Steps
-1. Read current `_sample_personas` and surrounding scoring code to anchor the rewrite.
-2. Walk through ROADMAP's three open questions with cofounder; document the decisions in this file under Key Context.
-3. Sequence the work into landable PRs (rough order from ROADMAP "Phase 2.5 decisions locked"): schema swap → sampler → identity_seed injection → CI aggregation → frontend wizard → Groq backoff → degradation guard.
-4. Open / claim the existing Phase 2.5 issues on the GitHub Project (#3-#14 area per ONBOARDING reference, but verify real numbers).
+1. Branch `feat/2.5-population-sampler` for #58, TDD largest-remainder allocation, run /codex before push.
+2. After #58: identity_seed service (#5), scoring CIs (#6), degradation guard (#8), then frontend (#9 + re-scoped #51).
 
 ## Key Files
 - `backend/pythia_simulator/services/simulation_runner.py` (where `_sample_personas` lives)
@@ -44,4 +41,6 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - The Phase 4 result table (issue #51, just opened) is the natural detail-view answer — persona-grouped rows expand to per-agent rows, scales cleanly to 50.
 
 ## For my cofounder
-This is a multi-PR sprint, not a one-shot. Plan-eng-review is on the table before I write any code (AGENTS.md says we do that for non-trivial chunks). The three open questions in ROADMAP need answers before sampler design lands — none of them are blockers for the schema swap or the Groq backoff, so we can ship those in parallel while we decide.
+Multi-PR sprint, two done. #7 and #57 are on main. Next branch is `feat/2.5-population-sampler` for #58 — pure-function TDD against the demo + streamly_sample packs.
+
+**One fix needed from you:** PR creation via the GitHub MCP server is blocked because the `rmkmar` identity it uses isn't a collaborator on `ram-de/*`. Add `rmkmar` as a Write collaborator on `ram-de/pythia-simulator`, `ram-de/pythia-personas`, `ram-de/pythia-crawler` (GitHub → repo Settings → Collaborators → Add people). After that I can `mcp__github__create_pull_request` directly instead of pushing the branch and asking you to click the create-PR link.
