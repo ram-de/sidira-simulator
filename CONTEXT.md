@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-22
 
 ---
 
@@ -21,6 +21,9 @@ Waves 0–6 landed:
 60/60 backend tests passing. Frontend typecheck clean. All on `main`.
 
 Retrospective: `git show b39db2b` in conversation history, plus the lessons captured in the next section.
+
+✅ **Second-vertical sample + customer resolver loosened (2026-05-22, session `sample_creations`).**
+Shipped a `streamly_sample` customer fixture (video streaming, 6 personas, 2 capabilities, pre-registered "Smart Resume" hypothesis) and an env-var override on `current_customer_id()` so the same running backend can be pointed at any local-artifacts fixture without code edits. Verified live: sim `89d01a19-…` returned 6/6 real Groq persona reactions in ~13s. The `demo` flow is unchanged. Useful for pressure-testing that the simulator isn't accidentally food-delivery-shaped, and as a non-DoorDash demo surface.
 
 Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projects/) under their respective Phase tags (2.5 / 4 / 4.5 / 5). `ROADMAP.md` has the strategic "where we are today" view.
 
@@ -57,6 +60,7 @@ From the Magic Moment retro:
 3. **Parallel sub-agents work when the contract is locked.** Wave 5's 2,468 lines of frontend shipped in ~1h05m because the API contract was decided in Wave 0.
 4. **`/qa` before the demo, not after.** Curl-based smoke tests miss browser-origin bugs (CORS).
 5. **Name placeholders honestly in code.** A function called `_sample_personas` that doesn't sample is a lie. Future-you blames past-you.
+6. **Hand-authored fixtures need the schema next to them.** Writing `streamly_sample` reverse-figma JSON, we guessed the transition shape wrong twice — `from`/`to`/`roles` instead of `from_screen`/`to_screen`/`role_gated`. Pydantic caught it on load, but the round-trip cost ten minutes. If we keep adding fixtures, fold a one-page schema crib into `docs/`.
 
 ---
 

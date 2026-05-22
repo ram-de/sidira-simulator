@@ -1,8 +1,9 @@
 ---
 type: session
 domain: sample_creations
-status: active
+status: closed
 started: 2026-05-21
+closed: 2026-05-22
 owner: rmkmar
 ---
 
@@ -12,24 +13,32 @@ owner: rmkmar
 Create a second sample customer (`streamly_sample`, a video streaming product) with a full Persona Pack, Feature Pack, and a sample PR + hypothesis — so we can demo the simulator on a domain that isn't food delivery and exercise the "different vertical" code path.
 
 ## In Progress
-(none — sample verified end-to-end through real loaders)
+— session complete
 
 ## Completed
-- [x] Pick a second vertical distinct from `demo` (DoorDash-style). Chose video streaming → `streamly_sample`.
-- [x] Authored 6 personas covering heavy / weekend / lapsing / trialer / niche / background usage modes.
-- [x] Authored Feature Pack snapshot `2026-W21` with two capabilities: `continue_watching`, `browse_recommendations`.
-- [x] Authored sample PR + testable hypothesis: "Smart Resume hero tile replaces Continue Watching rail."
-- [x] Added `featurepacks/latest` (= `2026-W21`) and `personas/latest` (= `v_1`) pointer files.
-- [x] Fixed `reverse-figma.json` transitions schema — must be `from_screen` / `to_screen` / `role_gated` with screen IDs (not component IDs); trigger names the component.
-- [x] Verified loading via real `PersonaPackLoader` + `FeaturePackLoader`: 6 personas; weights sum to 1.000 across head_count / order_weighted / revenue_weighted; both capabilities parse with surfaces, roles, transitions, and reverse-PRD intact.
+- [x] Picked a second vertical distinct from `demo` (DoorDash-style): video streaming → `streamly_sample`.
+- [x] Authored 6 personas covering heavy / weekend / lapsing / trialer / niche / background usage modes; weights sum to 1.000 across head_count / order_weighted / revenue_weighted.
+- [x] Authored Feature Pack snapshot `2026-W21` with two capabilities (`continue_watching`, `browse_recommendations`), reverse-PRDs + reverse-Figma JSON for each, four roles (`guest / trial / standard / premium`).
+- [x] Authored sample PR + pre-registered hypothesis `h_001_smart_resume.md` — "Smart Resume hero replaces Continue Watching rail" — with explicit per-persona predictions and yes/no/not-yet gates.
+- [x] Added `featurepacks/latest` (= `2026-W21`) and `personas/latest` (= `v_1`) pointer files; force-added under `local-artifacts/` (gitignored by default) and added a sibling `!streamly_sample/` exception alongside the existing demo one.
+- [x] Fixed `reverse-figma.json` transitions schema — must be `from_screen` / `to_screen` / `role_gated` with screen IDs (not component IDs); the trigger string names the component.
+- [x] Verified loading via real `PersonaPackLoader` + `FeaturePackLoader` from the backend.
+- [x] Loosened `current_customer_id()` to read `PYTHIA_CUSTOMER_ID` env var (default `"demo"`). Renamed `DEMO_CUSTOMER_ID` → `DEFAULT_CUSTOMER_ID`. Phase-5 Clerk JWT path stays forward-compatible.
+- [x] End-to-end live verification: backend on `:8000` (env-file driven), frontend on `:3000`, real Groq calls — sim `89d01a19-…` returned 6/6 persona reactions in ~13s, reaction texts 1700-2200 chars. Run viewable at `/simulations/89d01a19-f594-4bb6-b921-f8252d7286f0`.
 
 ## Next Steps
-1. Build out `/product` and `/personas` index pages so the selected customer's Feature Pack and Persona Pack are visible in the UI (today they're placeholders — only `/simulations/new` reflects `PYTHIA_CUSTOMER_ID`).
-2. Decide whether to fold a doc into `docs/` describing the figma transition schema (Transition.from_screen / to_screen / role_gated) — fixture authoring kept guessing this wrong.
-3. Optional: layer the Phase-5 Clerk JWT resolver on top of `current_customer_id()` (env stays as the dev-time default).
+— session complete
 
-## Recent additions (post-sample, same session)
-- `backend/pythia_simulator/api/deps.py` — `current_customer_id()` now reads `PYTHIA_CUSTOMER_ID` env var with `"demo"` as default. Constant renamed `DEMO_CUSTOMER_ID` → `DEFAULT_CUSTOMER_ID`. Verified live against `streamly_sample`: `GET /capabilities` returns the streaming capabilities, `POST /simulations` accepted the Smart Resume hypothesis, orchestrator fanned out to all 6 streamly personas. Per-agent LLM calls failed only because no `GROQ_API_KEY` / `ANTHROPIC_API_KEY` was set — env, not wiring.
+## Key Files
+- `local-artifacts/customers/streamly_sample/personas/v_1/{persona_pack.json, manifest.json}`
+- `local-artifacts/customers/streamly_sample/personas/latest`
+- `local-artifacts/customers/streamly_sample/featurepacks/2026-W21/manifest.json`
+- `local-artifacts/customers/streamly_sample/featurepacks/2026-W21/capabilities/continue_watching/{reverse-prd.md, reverse-figma.json}`
+- `local-artifacts/customers/streamly_sample/featurepacks/2026-W21/capabilities/browse_recommendations/{reverse-prd.md, reverse-figma.json}`
+- `local-artifacts/customers/streamly_sample/featurepacks/latest`
+- `local-artifacts/customers/streamly_sample/hypotheses/h_001_smart_resume.md`
+- `backend/pythia_simulator/api/deps.py` (env-var customer resolver)
+- `.gitignore` (added `!local-artifacts/customers/streamly_sample/` exception)
 
 ## Key Files
 - `local-artifacts/customers/streamly_sample/personas/v_1/persona_pack.json`
