@@ -43,12 +43,17 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - [x] **Codex review iterations (4 rounds).** Round 1 (`f18d40e`): [P1] orchestrator now resolves `run_seed` BEFORE persisting (was storing NULL while runner used time.time_ns internally — broke replay). [P2] `SimulationRequest.run_seed` bounded to signed BIGINT range. [P2] `frontend/lib/api-types.ts` adds run_seed to SimulationRequest + Simulation. Round 2 (`adae34d`): [P2] threaded API-derived cap (`sampled_agent_count`) through orchestrator → runner → allocate() so PYTHIA_MAX_AGENTS=0 doesn't desync (row=1, runtime=50). Round 3 (`347842e`): [P2] switched default run_seed from `time.time_ns()` (~1.7e18) to `secrets.randbits(53)` so JS clients round-trip losslessly through Number.MAX_SAFE_INTEGER. Round 4: codex clean. +3 codex-verification tests. Final suite: 127 passed.
 - [x] **#5 merged via [PR #64](https://github.com/ram-de/pythia-simulator/pull/64)** as `d3f078e`. main now has full identity_seed wiring. Merge required taking main's session-file version (newer narrative) — conflict resolved on `ac39b9e`. `feat/2.5-identity-seed` deleted locally + remote.
 - [x] **#6 (Wilson CIs + bootstrap) merged via [PR #65](https://github.com/ram-de/pythia-simulator/pull/65)** as `c31a73a`. Plan at `~/.claude/plans/2026-05-22-pythia-issue-6-wilson-bootstrap.md` (`/plan-eng-review` CLEAR, 13 findings). T1-T6 implementation: pure-Python `services/statistics.py` (Wilson + percentile bootstrap, no scipy in deps); `ScoringService._compute_score()` extracted for bootstrap reuse; Wilson CI on every `Weakness.frequency`; `ScoringConfig.bootstrap_resamples` with `0` skip sentinel; `aggregate(..., run_seed=...)` + `score(..., run_seed=..., config=...)` plumbed through `SimulationRunner._score()`; e2e API test asserts CIs surface end-to-end. Codex review 2 rounds: round 1 raised 3 P2s (lo_idx off-by-one → symmetric nearest-rank, rounded-CI/score clamp invariant + 12-composition sweep test, comment fix on `_BOOTSTRAP_SEED_MIX`); round 2 raised 2 comment-only P2s (48-bit vs 64-bit, clamp-widening claim) — all addressed. Suite: 127 → **147 passed**. `feat/2.5-scoring-cis` deleted locally + remote.
+- [x] **Issue-tracker hygiene 2026-05-22.** Closed #3 (stale duplicate of #57, schema swap shipped via PR #60 `f10cbe9`) and #4 (stale duplicate of #58, sampler shipped via PR #61 `041041e` + PR #63 cherry-pick `2f0979c`). #10 was missed in earlier summaries — it's the detail-view CI rendering ticket (score band + weakness CI bars + Population banner) and is distinct from #51 (persona-grouped agent table). Both belong to the Phase 2.5 frontend rebuild.
 
 ## Next Steps
 1. **Plan + implement #8 (degradation guard for >50% classification failures).** Small backend ticket. Touchpoints: `services/scoring.py` — `analyze()` already swallows BaseException and substitutes neutral classifications; need a counter that flows into `aggregate()` so it can apply the 30% discount + prepend `underpowered_design` when failure rate > 0.5. Tests in `tests/test_scoring.py` for the three acceptance cases (all-failed, 30%, boundary 50%).
-2. **Frontend phase (#9 + re-scoped #51).** This is where the calibration thesis becomes visible to the PM. Wizard: rename "Sample size" → "Population" with helper text (we'll stratify down to ≤50 agents); bump range to 1–10000. Detail view: render CI bars on score + per-weakness CIs, "Population: N (sampled: M)" banner, persona-grouped agent table ("DashPass Power × 15") with optional "About this agent" panel reading `identity_seed.json` from R2. Currently the PM sees zero visible change despite all backend work.
+2. **Frontend phase (3 tickets):**
+   - **#9** wizard: rename "Sample size" → "Population" with helper text (we'll stratify down to ≤50 agents); bump range to 1–10000.
+   - **#10** detail view: score CI band (`30 ± 4 (95% CI)`), weakness bars with CI whiskers (`67% [63–71%]`), "Population: 1000 (sampled: 50)" banner. Depends on the backend CIs shipped in #6.
+   - **#51** detail view, separate concern: persona-grouped agent table ("DashPass Power × 15"); optional "About this agent" panel reading `identity_seed.json` from R2.
+   These three close the phase visually — the calibration thesis is true in code but invisible to PMs today.
 3. **Then Phase 2.5 is done.** Acceptance per ROADMAP: 1000-population sim runs in <60s, score with 95% CI, weaknesses with CIs, 50 agents in correct persona proportions — visibly, in the UI.
-4. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; BCa bootstrap (Layer-3 calibration, follow-up to #6); block-bootstrap by persona (Layer-3); **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
+4. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish, follow-up to #5); v1.1 pack rollout for cross-persona variance; BCa bootstrap (Layer-3 calibration, follow-up to #6); block-bootstrap by persona (Layer-3); v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback alerting (separate from #8, not currently ticketed); **founder rotates the PAT** that was pasted in chat during MCP setup (security hygiene).
 
 ## Key Files
 **#5 shipped — for reference if revisiting:**
@@ -81,9 +86,22 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 - Process lesson from #62/#63: stacked PRs do NOT auto-retarget to main unless the base branch is deleted. Open second PR directly against main after the first merges.
 
 ## For my cofounder
-Phase 2.5 backend is **5-of-6 done** on main: #7 (Groq backoff), #57 (schema swap), #58/#61/#63 (population_sampler), #5 (identity_seed via #64), **#6 (Wilson CIs + bootstrap via #65)**. Two things left to close the phase:
-- **#8** degradation guard — small, prevents the v1.0-pack fallback WARN from going silent in prod.
-- **#9 + re-scoped #51** frontend — the calibration thesis is now true in code but invisible in the UI. Wizard rename + CI bars + persona-grouped table.
+Phase 2.5 ticket map (corrected on 2026-05-22 after issue-tracker audit):
+
+**Backend, 5-of-6 done on main:**
+- ✅ #7 Groq backoff (PR #59)
+- ✅ #57 schema swap — population_size + CI fields + identity_seed (PR #60)
+- ✅ #58 population_sampler Hamilton allocation (PR #61 + PR #63 cherry-pick)
+- ✅ #5 identity_seed service (PR #64)
+- ✅ #6 Wilson CIs + bootstrap (PR #65)
+- 🔲 #8 degradation guard for >50% LLM classification failures
+
+**Frontend, 0-of-3 done (this is where the calibration thesis becomes visible):**
+- 🔲 #9 wizard rename Sample size → Population
+- 🔲 #10 detail view: score CI band + weakness CI bars + Population banner
+- 🔲 #51 detail view: persona-grouped agent table + optional "About this agent" panel
+
+Stale duplicates closed on 2026-05-22: #3 (dup of #57), #4 (dup of #58).
 
 To pick this up: `/pythia-session resume weighted_population` then start drafting the #8 plan (small enough it may not need `/plan-eng-review`).
 
