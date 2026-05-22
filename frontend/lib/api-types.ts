@@ -813,6 +813,8 @@ export interface components {
             population_size?: number | null;
             /** Sampled Agent Count */
             sampled_agent_count?: number | null;
+            /** Run Seed */
+            run_seed?: number | null;
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
@@ -850,6 +852,8 @@ export interface components {
              * @default 1000
              */
             population_size: number;
+            /** Run Seed */
+            run_seed?: number | null;
         };
         /** SimulationResult */
         SimulationResult: {

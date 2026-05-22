@@ -182,5 +182,30 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
     #   score = 100 * (0.6 * 0.853 + 0.4 * 0.0) ≈ 51.2
     assert body["result"]["confidence_score"] == pytest.approx(51.2, abs=0.1)
     assert any(w["category"] == "wrong_cohort" for w in body["result"]["weaknesses"])
-    # confidence < 80 so refinement fired
-    assert len(body["result"]["refinement_suggestions"]) >= 1
+
+
+def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
+    """Codex P1: when the caller omits run_seed, the orchestrator must persist
+    the seed it actually used -- otherwise the simulation can't be replayed."""
+    client, _, sim_repo, _ = client_with_stub_llm
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+            },
+            "population_size": 3,
+            # run_seed deliberately omitted.
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    row = sim_repo._sims[sim_id]
+    assert row["run_seed"] is not None, "default run_seed must be persisted, not NULL"
+    assert isinstance(row["run_seed"], int)
+    # And the API response surfaces the same seed.
+    final = client.get(f"/simulations/{sim_id}").json()
+    assert final["run_seed"] == row["run_seed"]

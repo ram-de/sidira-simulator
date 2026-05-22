@@ -193,6 +193,21 @@ def test_simulation_request_rejects_non_int_run_seed() -> None:
         )
 
 
+def test_simulation_request_rejects_out_of_bigint_range_run_seed() -> None:
+    """Codex P2: values outside signed BIGINT must fail at request validation,
+    not as a database INSERT error."""
+    # Just past signed BIGINT max.
+    with pytest.raises(ValidationError):
+        SimulationRequest(
+            hypothesis=_hypothesis(), population_size=10, run_seed=2**63
+        )
+    # Just past signed BIGINT min.
+    with pytest.raises(ValidationError):
+        SimulationRequest(
+            hypothesis=_hypothesis(), population_size=10, run_seed=-(2**63) - 1
+        )
+
+
 def test_agent_instance_identity_seed_optional_for_existing_code() -> None:
     """Existing call sites that don't yet emit identity_seed must keep working."""
     meta = AgentInstanceMetadata(
