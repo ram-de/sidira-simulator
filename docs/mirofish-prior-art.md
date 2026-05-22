@@ -73,6 +73,13 @@ MiroFish ends simulations with a multi-page text report. **Rejected** — Pythia
 
 ---
 
+## Net-new (NOT lifted from MiroFish)
+
+### Persona-group chat surface
+`docs/agent-chat-ui-spec.md` defines a `/simulations/[id]/personas/[persona_id]` chat surface — PM types one message, the system fans out to every agent in the persona group, and answers are returned side-by-side with a synthesis line summarizing the real replies. **This is a Pythia-original design, not a MiroFish borrow.** MiroFish has agent-to-agent socialization (rejected above); the Pythia surface is PM-to-group fan-out with no inter-agent influence. Flagged here so future contributors don't grep MiroFish looking for a pattern that doesn't exist there.
+
+---
+
 ## Pattern map
 
 | MiroFish file:line | Pythia adaptation |
