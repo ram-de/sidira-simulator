@@ -1,0 +1,83 @@
+{
+  "screens": [
+    {
+      "id": "home",
+      "name": "Home",
+      "role": null,
+      "components": [
+        {
+          "id": "home.continue_watching_rail",
+          "role": "carousel",
+          "text": "Continue Watching",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Continue Watching"},
+            {"name": "empty", "text": "Start something new"}
+          ]
+        },
+        {
+          "id": "home.continue_watching_tile",
+          "role": "card",
+          "text": "Title art, progress bar, episode/movie label, time remaining",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "next_episode_queued", "text": "Next: S{season} E{episode} — {title}"},
+            {"name": "unavailable", "text": "No longer available"},
+            {"name": "loading", "text": "Loading…"}
+          ]
+        },
+        {
+          "id": "home.continue_watching_actions_sheet",
+          "role": "sheet",
+          "text": "Tile actions",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Remove from row / Mark as watched / Start from beginning"}
+          ]
+        },
+        {
+          "id": "home.trial_upsell_chip",
+          "role": "chip",
+          "text": "Upgrade to keep watching after your trial",
+          "visible_to_roles": ["trial"],
+          "states": [
+            {"name": "default"},
+            {"name": "dismissed"}
+          ]
+        },
+        {
+          "id": "home.signin_placeholder",
+          "role": "card",
+          "text": "Sign in to pick up where you left off.",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "player",
+      "name": "Player",
+      "role": null,
+      "components": [
+        {
+          "id": "player.resume_toast",
+          "role": "toast",
+          "text": "Resuming at {resume_timestamp}",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "fallback_to_start", "text": "Starting from the beginning."}
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {"trigger": "tap home.continue_watching_tile", "from_screen": "home", "to_screen": "player", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.signin_placeholder", "from_screen": "home", "to_screen": "auth_login", "role_gated": ["guest"]},
+    {"trigger": "long_press_or_overflow home.continue_watching_tile", "from_screen": "home", "to_screen": "home", "role_gated": ["trial", "standard", "premium"]}
+  ]
+}

@@ -35,3 +35,6 @@ local-artifacts/
 # Exception: the `demo` customer seed is checked in so a fresh clone has
 # working fixture data for the Magic Moment sprint and integration tests.
 !local-artifacts/customers/demo/
+# Exception: the `streamly_sample` customer — second-vertical sample fixture
+# (streaming) used to pressure-test that the simulator isn't food-delivery-shaped.
+!local-artifacts/customers/streamly_sample/

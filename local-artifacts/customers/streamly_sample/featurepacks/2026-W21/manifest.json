@@ -1,0 +1,20 @@
+{
+  "customer_id": "streamly_sample",
+  "snapshot_version": "2026-W21",
+  "generated_at": "2026-05-20T18:00:00Z",
+  "schema_version": "1.0",
+  "capabilities": [
+    "continue_watching",
+    "browse_recommendations"
+  ],
+  "crawl_metadata": {
+    "crawler_version": "0.1.0",
+    "sandbox_base_url": "https://sandbox.streamly-sample.example.com",
+    "roles_walked": "guest,trial,standard,premium",
+    "duration_seconds": "388",
+    "screens_observed": "22",
+    "transitions_observed": "51",
+    "llm_provider": "groq",
+    "llm_model": "llama-3.3-70b-versatile"
+  }
+}

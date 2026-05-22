@@ -1,0 +1,26 @@
+{
+  "version": "v_1",
+  "customer_id": "streamly_sample",
+  "generated_at": "2026-05-21T18:00:00Z",
+  "schema_version": "1.0",
+  "stability_score": 0.78,
+  "persona_count": 6,
+  "persona_ids": [
+    "alex_binge_marathoner",
+    "rivka_weekend_movie_night",
+    "ken_price_sensitive_lapser",
+    "tess_new_trialer",
+    "noor_niche_genre_loyalist",
+    "marco_background_player"
+  ],
+  "build_metadata": {
+    "source": "hand-built fixture for sample_creations session (streaming vertical)",
+    "llm_provider": "n/a — hand-authored",
+    "calibration_status": "uncalibrated",
+    "weight_dimensions": {
+      "head_count": "fraction of subscriber base",
+      "order_weighted": "fraction of weekly viewing sessions",
+      "revenue_weighted": "fraction of subscription + ad revenue"
+    }
+  }
+}

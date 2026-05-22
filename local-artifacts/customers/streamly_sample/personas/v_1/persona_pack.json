@@ -1,0 +1,161 @@
+{
+  "version": "v_1",
+  "customer_id": "streamly_sample",
+  "generated_at": "2026-05-21T18:00:00Z",
+  "schema_version": "1.0",
+  "stability_score": 0.78,
+  "personas": [
+    {
+      "id": "alex_binge_marathoner",
+      "name": "Daily binge marathoner",
+      "description": "A 27-year-old subscriber who watches 14+ hours per week, almost always serial TV, almost always picking up mid-season on a show they're already committed to. Auto-play next episode is on; they almost never see the home screen between episodes. They abandon a show if the next-episode handoff stalls (buffering, mid-roll ad, awkward 'are you still watching?' interstitial). They rarely browse — when they finish a show they expect the app to know what's next. Heavy mobile + TV use; rarely web.",
+      "jtbd": "Keep me inside the story I'm already in — don't make me decide what to watch next.",
+      "behavioral_snapshot": {
+        "weekly_hours": 14.2,
+        "subscription_tier": "standard",
+        "serial_share": 0.91,
+        "auto_play_enabled": "true",
+        "browse_session_share": 0.06,
+        "completion_rate_per_episode": 0.94,
+        "lifestage": "Engaged Heavy"
+      },
+      "centroid_features": {
+        "viewing_intensity_z": 1.78,
+        "serial_loyalty_z": 1.62,
+        "browse_dependency_z": -1.41,
+        "interruption_sensitivity_z": 1.33
+      }
+    },
+    {
+      "id": "rivka_weekend_movie_night",
+      "name": "Weekend family movie night",
+      "description": "A 38-year-old household profile (shared by two parents and two kids). Watches 4-6 hours per week, almost all on Friday and Saturday evenings, almost all on the living-room TV. The session is a deliberate ritual — they browse for 5-10 minutes, often together, before committing. They strongly prefer movies over series; they don't want a multi-episode commitment. They use the kids-profile separately on weekday mornings, but the adult profile this persona models is weekend-only. Decision fatigue is the real enemy: if they can't pick something in 10 minutes someone gives up and they watch something they've already seen.",
+      "jtbd": "Help us decide on one movie tonight that all four of us will actually finish.",
+      "behavioral_snapshot": {
+        "weekly_hours": 4.8,
+        "subscription_tier": "premium",
+        "movie_share": 0.82,
+        "weekend_evening_share": 0.86,
+        "avg_browse_seconds_before_play": 372,
+        "rewatch_share": 0.34,
+        "lifestage": "Engaged Light"
+      },
+      "centroid_features": {
+        "movie_preference_z": 1.71,
+        "browse_intensity_z": 1.44,
+        "co_viewing_z": 1.58,
+        "viewing_intensity_z": -0.62
+      }
+    },
+    {
+      "id": "ken_price_sensitive_lapser",
+      "name": "Price-sensitive lapser",
+      "description": "A 44-year-old subscriber who has watched fewer than 90 minutes in the last 30 days. Got the email last week that the subscription is renewing at a higher price next month and has visited the cancel-account page once already. Still subscribed, but the decision is essentially made — only a strong pull (a show they care about returning, a meaningful price concession) flips it. They don't open marketing emails. They aren't reachable through in-app messaging because they don't open the app.",
+      "jtbd": "Honestly, I'm trying to decide if I should still be paying for this.",
+      "behavioral_snapshot": {
+        "weekly_hours": 0.4,
+        "subscription_tier": "standard",
+        "days_since_last_session": 22,
+        "cancel_page_views_30d": 1,
+        "email_open_rate_30d": 0.04,
+        "renewal_within_days": 11,
+        "lifestage": "Lapsing At Risk"
+      },
+      "centroid_features": {
+        "viewing_intensity_z": -1.87,
+        "cancel_intent_z": 1.94,
+        "reachability_z": -1.62,
+        "price_sensitivity_z": 1.41
+      }
+    },
+    {
+      "id": "tess_new_trialer",
+      "name": "New trialer (first 14 days)",
+      "description": "A 24-year-old who signed up nine days ago on the free trial. Has started five different titles and finished two — one movie, one episode of a series. Still in browse-heavy mode; their continue-watching list looks more like 'titles I sampled' than 'shows I'm committed to.' Highly sensitive to first impressions: a stalled play, a missing subtitle track, or an inscrutable home rail will tip them out before the trial converts. The next two sessions decide whether they stay.",
+      "jtbd": "Figure out whether this service has enough I actually want to watch.",
+      "behavioral_snapshot": {
+        "weekly_hours": 3.1,
+        "subscription_tier": "trial",
+        "days_since_signup": 9,
+        "unique_titles_started": 5,
+        "completion_rate_per_title": 0.40,
+        "trial_days_remaining": 5,
+        "lifestage": "New / Trial"
+      },
+      "centroid_features": {
+        "tenure_z": -1.94,
+        "exploration_intensity_z": 1.66,
+        "completion_z": -0.71,
+        "conversion_pressure_z": 1.52
+      }
+    },
+    {
+      "id": "noor_niche_genre_loyalist",
+      "name": "Niche genre loyalist (subtitled drama)",
+      "description": "A 33-year-old subscriber whose viewing is dominated by a single, narrow genre — subtitled international drama, mostly Korean and Spanish-language. Watches 6-8 hours per week, almost entirely on the TV with subtitles on. Has a sophisticated taste profile that the generic recommendation row routinely fails to serve — they often complain (via support tickets, app store reviews) that the home screen feels generic. They are loyal: they will not cancel as long as new titles in their genre keep arriving roughly monthly. Acquires the new title through external news / word of mouth, not through the in-app browse experience.",
+      "jtbd": "Show me the next subtitled drama worth my evening — not another superhero movie.",
+      "behavioral_snapshot": {
+        "weekly_hours": 7.0,
+        "subscription_tier": "premium",
+        "subtitle_use_rate": 0.97,
+        "top_genre_share": 0.78,
+        "top_genre": "international_drama",
+        "external_referral_share_30d": 0.61,
+        "lifestage": "Engaged Niche"
+      },
+      "centroid_features": {
+        "genre_concentration_z": 2.11,
+        "subtitle_dependency_z": 1.88,
+        "recommendation_satisfaction_z": -1.34,
+        "external_acquisition_z": 1.42
+      }
+    },
+    {
+      "id": "marco_background_player",
+      "name": "Background / second-screen player",
+      "description": "A 29-year-old subscriber who streams 9-11 hours per week but is rarely watching attentively. Comfort rewatches of long-running sitcoms play behind work or chores. They almost never start something new in this mode. The 'are you still watching?' prompt fires constantly and is the main interaction they have with the UI — every dismissal is a tiny friction tax. Auto-play is on; recommendations are mostly noise; what they want is for the same show to keep playing without asking them to confirm.",
+      "jtbd": "Keep my comfort show playing in the background without making me touch the remote.",
+      "behavioral_snapshot": {
+        "weekly_hours": 10.1,
+        "subscription_tier": "standard",
+        "rewatch_share": 0.88,
+        "are_you_still_watching_dismissals_per_week": 5.2,
+        "completion_rate_per_episode": 0.71,
+        "browse_session_share": 0.04,
+        "lifestage": "Engaged Background"
+      },
+      "centroid_features": {
+        "viewing_intensity_z": 1.34,
+        "rewatch_z": 2.06,
+        "interruption_sensitivity_z": 1.51,
+        "browse_dependency_z": -1.62
+      }
+    }
+  ],
+  "weights": {
+    "head_count": {
+      "alex_binge_marathoner": 0.18,
+      "rivka_weekend_movie_night": 0.22,
+      "ken_price_sensitive_lapser": 0.17,
+      "tess_new_trialer": 0.08,
+      "noor_niche_genre_loyalist": 0.13,
+      "marco_background_player": 0.22
+    },
+    "order_weighted": {
+      "alex_binge_marathoner": 0.30,
+      "rivka_weekend_movie_night": 0.12,
+      "ken_price_sensitive_lapser": 0.02,
+      "tess_new_trialer": 0.06,
+      "noor_niche_genre_loyalist": 0.18,
+      "marco_background_player": 0.32
+    },
+    "revenue_weighted": {
+      "alex_binge_marathoner": 0.18,
+      "rivka_weekend_movie_night": 0.25,
+      "ken_price_sensitive_lapser": 0.14,
+      "tess_new_trialer": 0.04,
+      "noor_niche_genre_loyalist": 0.20,
+      "marco_background_player": 0.19
+    }
+  }
+}
