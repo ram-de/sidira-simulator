@@ -12,7 +12,7 @@ Why this exists:
 from __future__ import annotations
 
 import asyncio
-import time
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -83,7 +83,13 @@ class SimulationOrchestrator:
         # runner will actually use. If we let the runner mint its own default, the
         # row stores NULL while the simulation uses a time-derived seed -- and the
         # caller can never replay it. (codex review P1)
-        resolved_run_seed = run_seed if run_seed is not None else time.time_ns()
+        # Use a 53-bit range so the JSON-encoded value round-trips losslessly
+        # through JavaScript clients (Number.MAX_SAFE_INTEGER = 2**53 - 1). A
+        # browser reading back time.time_ns() (~1.7e18) and resubmitting it for
+        # replay would round the value and hash a different RNG seed. (codex P2)
+        resolved_run_seed = (
+            run_seed if run_seed is not None else secrets.randbits(53)
+        )
 
         sim_id = str(uuid.uuid4())
         await self._simulations.create(
