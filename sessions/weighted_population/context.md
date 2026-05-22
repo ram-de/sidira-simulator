@@ -12,7 +12,7 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] **#5 (identity_seed)** — implementing on `feat/2.5-identity-seed`. T1 done (services/identity_seed.py + 7 tests green, full suite 111 passed). Next: T3 (prompt_composer).
+- [ ] **#5 (identity_seed)** — **PR [#64](https://github.com/ram-de/pythia-simulator/pull/64) open against main**. 5 commits, 127 tests green, head `347842e`. Codex GATE: PASS after 4 rounds (1 P1 + 4 P2 found and fixed, final round clean). Next: await cofounder review / merge.
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -35,13 +35,17 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
   - **Q2:** explicit `test_prose_is_none_in_v1` assertion.
   - **T1–T4:** added alembic up+down tests, API contract test for `run_seed`, R2 sidecar round-trip test, concrete `≥45/50 distinct` threshold (replaced fuzzy 80%).
   - 16 total tests, 0 critical gaps, sequential implementation (no worktree parallelization needed).
-- [x] **T1 complete.** `services/identity_seed.py` written with `draw_identity_seed()`, `_DEFAULT_BEHAVIORAL_SEEDS`, sha256->int64 RNG seeding, once-per-persona fallback WARN. All 7 unit tests green (determinism, sample-index variance, persona-pool usage, v1.0 fallback with capsys-captured WARN, 50-distinct threshold met, cross-process determinism via subprocess, prose=None). Full backend suite: 111 passed (was 104).
+- [x] **T1 complete.** `services/identity_seed.py` with `draw_identity_seed()`, `_DEFAULT_BEHAVIORAL_SEEDS`, sha256->int64 RNG seeding, once-per-persona fallback WARN. 7 unit tests green (determinism, sample-index variance, persona-pool usage, v1.0 fallback with capsys WARN, 50-distinct threshold, cross-process determinism, prose=None). Full suite: 111 passed.
+- [x] **T3 complete.** `services/prompt_composer.py` accepts optional `identity_seed: IdentitySeed | None`. Splices "## About you specifically" section between `## Who you are` and `## Behavioral snapshot` with the 5 deterministic fields. Empty-field fallback renders `_(unknown)_` (FM-3 mitigation). 3 tests green (present, absent, unknown). Full suite: 114 passed.
+- [x] **T4 complete.** `memory/agent_memory.py` adds `write_identity_seed()` writing `identity_seed.json` sidecar to R2 base key. `load()` reads sidecar with FileNotFoundError → None back-compat for pre-#5 simulations. 2 tests green (round-trip + missing-sidecar). Full suite: 116 passed.
+- [x] **T5 complete.** `SimulationRequest.run_seed: int | None` + `Simulation.run_seed: int | None` schema fields. ORM `Simulation.run_seed` BIGINT NULL. Alembic 003 (`003_phase_2_5_run_seed.py`) adds/drops column. SimulationRepo Protocol + Postgres + InMemory `create()` accept `run_seed`; `_simulation_to_dict` and InMemory dict round-trip it. Orchestrator.prepare threads `run_seed` through to repo create. API `create_simulation` passes `payload.run_seed`; `get_simulation` returns it on the response. 6 tests green (2 schema accept/reject + 3 migration up/down/chain + 1 ORM column shape). Full suite: 122 passed.
+- [x] **T2 complete.** `SimulationRunner.run()` signature switched from `sample_size: int` to `population_size: int + run_seed: int | None`. Defaults `run_seed = time.time_ns()` if None. Dropped `_sample_personas`; now uses `allocate(persona_pack, population_size)` and enumerates `sample_index` 0..count-1 per persona. `_materialize_agent` gained `sample_index` + `run_seed` args, calls `draw_identity_seed()`, splices into `compose_identity_prompt(..., identity_seed=)`, and writes the R2 sidecar via `write_identity_seed`. Orchestrator `_run_in_background` + `_run_with_id` updated to thread `population_size` + `run_seed`. `run.started` event now emits `population_size` + `run_seed` for observability. 2 tests green (`test_materialize_agent_attaches_identity_seed`, `test_run_seed_propagates_into_agent_seeds` — re-derives expected seeds via draw_identity_seed and compares against R2-persisted seeds). Existing `test_e2e_simulation_completes_and_persists_agents` still green — runner refactor is hot-path-tested. Full suite: 124 passed.
+- [x] **Codex review iterations (4 rounds).** Round 1 (`f18d40e`): [P1] orchestrator now resolves `run_seed` BEFORE persisting (was storing NULL while runner used time.time_ns internally — broke replay). [P2] `SimulationRequest.run_seed` bounded to signed BIGINT range. [P2] `frontend/lib/api-types.ts` adds run_seed to SimulationRequest + Simulation. Round 2 (`adae34d`): [P2] threaded API-derived cap (`sampled_agent_count`) through orchestrator → runner → allocate() so PYTHIA_MAX_AGENTS=0 doesn't desync (row=1, runtime=50). Round 3 (`347842e`): [P2] switched default run_seed from `time.time_ns()` (~1.7e18) to `secrets.randbits(53)` so JS clients round-trip losslessly through Number.MAX_SAFE_INTEGER. Round 4: codex clean. +3 codex-verification tests. Final suite: 127 passed.
 
 ## Next Steps
-1. **T3: `services/prompt_composer.py`** — add optional `identity_seed: IdentitySeed | None = None` param; inject "About you specifically" section between `## Who you are` and `## Behavioral snapshot`. Tests 9-10.
-2. **T4: `memory/agent_memory.py`** — `write_identity_seed` + load-with-sidecar; FileNotFoundError -> None for back-compat. Tests 11-12.
-3. **T5: schema + alembic 003 + API plumbing** — `SimulationRequest.run_seed`, `Simulation.run_seed` BIGINT NULL, repo Protocol + Postgres + InMemory + API response. Tests 13-16.
-4. **T2: orchestrator** (LAST, depends on T1+T3+T5) — `SimulationRunner.run()` switch from `sample_size` to `population_size` + `run_seed`; wire `allocate()`; thread `sample_index` + `run_seed` into `_materialize_agent`. Tests 7-8.
+1. **T6: TODOS** — append "LLM prose synthesis (Phase-2.5 polish)" and "v1.1 pack rollout for cross-persona variance" to TODOS file (or ROADMAP).
+2. `/codex review` at PR boundary (project rule). Address findings.
+3. Open PR via `mcp__github_ramde__create_pull_request` against main.
 2. `/codex review` at PR boundary (project rule). Address findings.
 3. Open PR via `mcp__github_ramde__create_pull_request`.
 4. **Founder rotates the PAT** that was pasted in chat during MCP setup (one-time security hygiene).
@@ -51,8 +55,21 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 ## Key Files
 - `backend/pythia_simulator/services/identity_seed.py` (DONE — T1)
 - `backend/tests/test_identity_seed.py` (DONE — T1, 7 tests)
-- `backend/pythia_simulator/services/simulation_runner.py` (T2 — switch `_sample_personas` to `allocate()`, thread `run_seed` + `sample_index`)
-- `backend/pythia_simulator/services/prompt_composer.py` (T3 — accept optional `IdentitySeed`, splice "About you specifically" section)
+- `backend/pythia_simulator/services/prompt_composer.py` (DONE — T3, optional `IdentitySeed` param + section splice)
+- `backend/tests/test_prompt_composer.py` (DONE — T3, 3 tests)
+- `backend/pythia_simulator/memory/agent_memory.py` (DONE — T4, `write_identity_seed` + load sidecar)
+- `backend/tests/test_agent_memory.py` (DONE — T4, 2 tests)
+- `backend/pythia_simulator/schemas/simulation.py` (DONE — T5, `SimulationRequest.run_seed` + `Simulation.run_seed`)
+- `backend/pythia_simulator/adapters/db_models.py` (DONE — T5, `Simulation.run_seed: BigInteger NULL`)
+- `backend/pythia_simulator/adapters/repositories.py` (DONE — T5, `run_seed` plumbed through Protocol + Postgres + InMemory)
+- `backend/pythia_simulator/services/simulation_orchestrator.py` (DONE — T5, threads `run_seed` to repo create)
+- `backend/pythia_simulator/api/simulations.py` (DONE — T5, accepts payload.run_seed, returns row.run_seed)
+- `backend/alembic/versions/003_phase_2_5_run_seed.py` (DONE — T5, BIGINT NULL add/drop)
+- `backend/tests/test_alembic_003.py` (DONE — T5, 4 tests)
+- `backend/tests/test_schemas_phase_2_5.py` (UPDATED — T5, +2 tests for run_seed accept/reject)
+- `backend/pythia_simulator/services/simulation_runner.py` (DONE — T2, allocate() + draw_identity_seed + compose splice + write_identity_seed)
+- `backend/pythia_simulator/services/simulation_orchestrator.py` (DONE — T2 + T5, threads population_size + run_seed through to runner)
+- `backend/tests/test_simulation_runner.py` (DONE — T2, 2 tests)
 - `backend/pythia_simulator/memory/agent_memory.py` (T4 — `write_identity_seed` + load round-trip)
 - `backend/pythia_simulator/schemas/simulation.py` (T5 — add `SimulationRequest.run_seed: int | None`)
 - `backend/alembic/versions/003_*.py` (T5 — `Simulation.run_seed` BIGINT NULL)
