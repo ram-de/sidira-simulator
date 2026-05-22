@@ -12,7 +12,7 @@ owner: rmkmar
 Replace `persona_sample_size` (a literal agent count) with `population_size` (modeled userbase size that gets stratified down to N actual agents), add per-agent `identity_seed` variance, and aggregate with proper confidence intervals — so simulation scores stop being a single point estimate against the top-6 personas.
 
 ## In Progress
-- [ ] **#5 (identity_seed)** — plan drafted at `~/.claude/plans/2026-05-22-pythia-issue-5-identity-seed.md`. `/plan-eng-review` complete: 10 findings (A1–A4, Q1–Q2, T1–T4), all resolved into the plan. 0 critical gaps. Verdict: **ENG CLEARED**. Ready to implement on `feat/2.5-identity-seed`.
+- [ ] **#5 (identity_seed)** — implementing on `feat/2.5-identity-seed`. T1 done (services/identity_seed.py + 7 tests green, full suite 111 passed). Next: T3 (prompt_composer).
 
 ## Completed
 - [x] Surveyed current state: `_top_personas_by_weight` truncates by head_count weight (not real stratification); 60 backend tests baseline.
@@ -35,14 +35,13 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
   - **Q2:** explicit `test_prose_is_none_in_v1` assertion.
   - **T1–T4:** added alembic up+down tests, API contract test for `run_seed`, R2 sidecar round-trip test, concrete `≥45/50 distinct` threshold (replaced fuzzy 80%).
   - 16 total tests, 0 critical gaps, sequential implementation (no worktree parallelization needed).
+- [x] **T1 complete.** `services/identity_seed.py` written with `draw_identity_seed()`, `_DEFAULT_BEHAVIORAL_SEEDS`, sha256->int64 RNG seeding, once-per-persona fallback WARN. All 7 unit tests green (determinism, sample-index variance, persona-pool usage, v1.0 fallback with capsys-captured WARN, 50-distinct threshold met, cross-process determinism via subprocess, prose=None). Full backend suite: 111 passed (was 104).
 
 ## Next Steps
-1. **Implement #5 on `feat/2.5-identity-seed`.** Follow the plan at `~/.claude/plans/2026-05-22-pythia-issue-5-identity-seed.md`. Order:
-   - T1: `services/identity_seed.py` + tests 1–7
-   - T3: `services/prompt_composer.py` extension + tests 9–10
-   - T4: `memory/agent_memory.py` sidecar + tests 11–12
-   - T5: schema + alembic 003 + API plumbing + tests 13–16
-   - T2: orchestrator wiring (last, depends on T1+T3) + tests 7–8
+1. **T3: `services/prompt_composer.py`** — add optional `identity_seed: IdentitySeed | None = None` param; inject "About you specifically" section between `## Who you are` and `## Behavioral snapshot`. Tests 9-10.
+2. **T4: `memory/agent_memory.py`** — `write_identity_seed` + load-with-sidecar; FileNotFoundError -> None for back-compat. Tests 11-12.
+3. **T5: schema + alembic 003 + API plumbing** — `SimulationRequest.run_seed`, `Simulation.run_seed` BIGINT NULL, repo Protocol + Postgres + InMemory + API response. Tests 13-16.
+4. **T2: orchestrator** (LAST, depends on T1+T3+T5) — `SimulationRunner.run()` switch from `sample_size` to `population_size` + `run_seed`; wire `allocate()`; thread `sample_index` + `run_seed` into `_materialize_agent`. Tests 7-8.
 2. `/codex review` at PR boundary (project rule). Address findings.
 3. Open PR via `mcp__github_ramde__create_pull_request`.
 4. **Founder rotates the PAT** that was pasted in chat during MCP setup (one-time security hygiene).
@@ -50,7 +49,8 @@ Replace `persona_sample_size` (a literal agent count) with `population_size` (mo
 6. **TODOS to track:** LLM prose synthesis (Phase-2.5 polish); v1.1 pack rollout for cross-persona variance.
 
 ## Key Files
-- `backend/pythia_simulator/services/identity_seed.py` (NEW — T1)
+- `backend/pythia_simulator/services/identity_seed.py` (DONE — T1)
+- `backend/tests/test_identity_seed.py` (DONE — T1, 7 tests)
 - `backend/pythia_simulator/services/simulation_runner.py` (T2 — switch `_sample_personas` to `allocate()`, thread `run_seed` + `sample_index`)
 - `backend/pythia_simulator/services/prompt_composer.py` (T3 — accept optional `IdentitySeed`, splice "About you specifically" section)
 - `backend/pythia_simulator/memory/agent_memory.py` (T4 — `write_identity_seed` + load round-trip)
