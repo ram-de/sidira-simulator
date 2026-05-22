@@ -29,7 +29,17 @@ This skill lives in the `pythia-simulator` repo but applies to all Pythia work. 
 
 ## GitHub context
 
-The Pythia repos use `git@github.com-personal:ram-de/<repo>.git` remotes (in the founder's local dev environment) or `git@github.com:ram-de/<repo>.git` (default). When creating PRs from a session, use `mcp__github__create_pull_request` against `ram-de/*`. All sessions assume this context — no need to re-confirm.
+The Pythia repos use `git@github.com-personal:ram-de/<repo>.git` remotes (in the founder's local dev environment) or `git@github.com:ram-de/<repo>.git` (default). All sessions assume this context — no need to re-confirm.
+
+### MCP identity routing (HARD RULE)
+
+When this skill is active, every GitHub MCP call against `ram-de/*` repos MUST go through the `github_ramde` MCP server (i.e. tools named `mcp__github_ramde__*`), NOT the default `github` server. The default `github` server is authenticated as the founder's personal `rmkmar` identity, which is NOT a collaborator on `ram-de/*` and cannot create PRs there — `mcp__github__create_pull_request` against `ram-de/*` returns `422 "must be a collaborator"`. The `github_ramde` server is authenticated as `ram-de` directly (the repo owner) and has full PR/issue/branch permissions.
+
+Apply this rule to: `create_pull_request`, `create_issue`, `update_issue`, `add_issue_comment`, `merge_pull_request`, `create_branch`, `push_files`, and any other write operation. Read operations (`get_pull_request`, `list_issues`, etc.) work on either server, but prefer `github_ramde` while inside a `/pythia-session` for consistency.
+
+**Outside of `/pythia-session` (e.g. operating on the founder's personal projects):** default back to the `github` server (rmkmar identity). The `github_ramde` server is scoped exclusively to the three Pythia repos by its PAT and should not be used elsewhere.
+
+If `mcp__github_ramde__*` tools are NOT in the tool list, fall back to the default `github` server and tell the user: "The `github_ramde` MCP server isn't configured yet — PR creation will fail with 422. Add it per the instructions in `.claude/skills/pythia-session/SKILL.md` § MCP identity routing, then restart Claude Code."
 
 ---
 
