@@ -19,7 +19,7 @@ export default function NewSimulationPage() {
 
   const [capability, setCapability] = useState<string>("");
   const [hypothesis, setHypothesis] = useState<string>("");
-  const [sampleSize, setSampleSize] = useState<number>(6);
+  const [populationSize, setPopulationSize] = useState<number>(1000);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [proposedPrd, setProposedPrd] = useState<string>("");
 
@@ -79,8 +79,12 @@ export default function NewSimulationPage() {
       );
       return;
     }
-    if (sampleSize < 1 || sampleSize > 50 || Number.isNaN(sampleSize)) {
-      setValidationError("Sample size must be between 1 and 50.");
+    if (
+      populationSize < 1 ||
+      populationSize > 10_000 ||
+      Number.isNaN(populationSize)
+    ) {
+      setValidationError("Population must be between 1 and 10,000.");
       return;
     }
 
@@ -92,7 +96,7 @@ export default function NewSimulationPage() {
           showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
         proposed_figma: null,
       },
-      population_size: sampleSize,
+      population_size: populationSize,
     };
 
     setSubmitting(true);
@@ -196,21 +200,28 @@ export default function NewSimulationPage() {
         </div>
 
         <div style={fieldGroup}>
-          <label htmlFor="sample-size" style={labelStyle}>
-            Sample size
+          <label htmlFor="population-size" style={labelStyle}>
+            Population
           </label>
           <input
-            id="sample-size"
+            id="population-size"
             type="number"
             min={1}
-            max={50}
-            value={sampleSize}
-            onChange={(e) => setSampleSize(parseInt(e.target.value, 10) || 0)}
+            max={10_000}
+            value={populationSize}
+            onChange={(e) =>
+              setPopulationSize(parseInt(e.target.value, 10) || 0)
+            }
             disabled={formDisabled}
-            style={{ ...inputStyle, width: 120 }}
+            style={{ ...inputStyle, width: 160 }}
           />
           <div style={helperStyle}>
-            How many personas should react (6-10 is a good starting point).
+            How many users this hypothesis affects. We&rsquo;ll stratify down to{" "}
+            <strong>
+              {Math.min(Math.max(populationSize, 0), 50)} sampled agent
+              {Math.min(Math.max(populationSize, 0), 50) === 1 ? "" : "s"}
+            </strong>{" "}
+            in proportion to your persona weights. 1&ndash;10,000.
           </div>
         </div>
 
