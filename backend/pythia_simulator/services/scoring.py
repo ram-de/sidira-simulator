@@ -166,10 +166,12 @@ class ScoringService:
             weakness_task, sentiment_task, return_exceptions=True
         )
 
-        if isinstance(weakness, BaseException):
+        weakness_failed = isinstance(weakness, BaseException)
+        sentiment_failed = isinstance(sentiment, BaseException)
+        if weakness_failed:
             log.warning("weakness classification failed: %s", weakness)
             weakness = WeaknessClassification(categories=[], primary_reason="(classification failed)")
-        if isinstance(sentiment, BaseException):
+        if sentiment_failed:
             log.warning("sentiment classification failed: %s", sentiment)
             sentiment = SentimentClassification(
                 sentiment=Sentiment.NEUTRAL, confidence=0.0, one_line_summary="(classification failed)"
@@ -184,6 +186,8 @@ class ScoringService:
             persona_name=reaction.persona_name,
             weakness=weakness,
             sentiment=sentiment,
+            weakness_failed=weakness_failed,
+            sentiment_failed=sentiment_failed,
         )
 
     # — Pack-level scoring ——————————————————————————————————————————
@@ -318,6 +322,27 @@ class ScoringService:
             analyses_list, cfg
         )
 
+        # ── Phase 2.5 #8 degradation guard ──
+        # Count weakness + sentiment classification failures independently
+        # (total = 2N). If the failure rate exceeds the configured threshold,
+        # apply a multiplicative discount to the score (and CI) and prepend an
+        # underpowered_design weakness so the PM sees the degraded state.
+        # Without this, a totally-failed run silently returns ~70 (neutral
+        # sentiment with shrinkage, zero weakness flags) — misleadingly fine.
+        failed_classifications = sum(
+            int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses_list
+        )
+        total_classifications = 2 * n
+        failure_rate = (
+            failed_classifications / total_classifications
+            if total_classifications > 0
+            else 0.0
+        )
+        degraded = failure_rate > cfg.degradation_threshold
+        if degraded:
+            discount_factor = 1.0 - cfg.degradation_discount
+            confidence *= discount_factor
+
         # ── Bootstrap CI on the aggregate score ──
         # bootstrap_resamples=0 is a sentinel that skips the bootstrap entirely
         # (existing tests opt out so they don't pay B × O(n) per assertion).
@@ -334,6 +359,12 @@ class ScoringService:
                 n_resamples=cfg.bootstrap_resamples,
                 rng=rng,
             )
+            # Apply the degradation discount to the CI bounds too so the
+            # interval shifts down with the point estimate — otherwise the
+            # CI would bracket the raw score, not the displayed one.
+            if degraded:
+                ci_low *= discount_factor
+                ci_high *= discount_factor
             ci_low_r = round(ci_low, cfg.confidence_rounding)
             ci_high_r = round(ci_high, cfg.confidence_rounding)
             # Codex P2 fix: independent rounding (and, more rarely, the
@@ -371,7 +402,7 @@ class ScoringService:
                 )
             )
 
-        # ── Underpowered gate ──
+        # ── Underpowered gate (low N) ──
         weaknesses = list(top_weaknesses)
         if n < cfg.min_sample_size:
             weaknesses.insert(
@@ -381,6 +412,26 @@ class ScoringService:
                     summary=(
                         f"Only {n} agent{'s' if n != 1 else ''} reacted "
                         f"(min recommended: {cfg.min_sample_size}). Treat the score as provisional."
+                    ),
+                ),
+            )
+
+        # ── Degradation gate (high LLM classification failure rate) ──
+        # Inserted last so it lands at index 0 even when the low-N gate also
+        # prepended. Two distinct degraded states deserve two distinct rows,
+        # both flagged underpowered_design — the structural category.
+        if degraded:
+            failed_pct = int(round(failure_rate * 100))
+            discount_pct = int(round(cfg.degradation_discount * 100))
+            weaknesses.insert(
+                0,
+                Weakness(
+                    category="underpowered_design",
+                    summary=(
+                        f"{failed_pct}% of LLM classifications failed "
+                        f"({failed_classifications}/{total_classifications}). "
+                        f"Score discounted by {discount_pct}% — rerun when "
+                        f"the model provider is healthy."
                     ),
                 ),
             )
