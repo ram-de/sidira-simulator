@@ -169,3 +169,35 @@ async def test_run_seed_propagates_into_agent_seeds() -> None:
                 f"runner-persisted seed != re-derived for "
                 f"persona={persona_id} sample_index={sample_index}"
             )
+
+
+@pytest.mark.asyncio
+async def test_score_passes_run_seed_to_scoring_service(monkeypatch) -> None:
+    """T5: SimulationRunner._score() must pass the runner's resolved run_seed
+    into ScoringService.score so the bootstrap CI on confidence_score is
+    reproducible run-to-run for the same input."""
+    from pythia_simulator.services import scoring as scoring_mod
+
+    captured: dict[str, object] = {}
+    original_score = scoring_mod.ScoringService.score
+
+    async def spy(self, hypothesis, reactions, *, run_seed=None, config=None):
+        captured["run_seed"] = run_seed
+        return await original_score(
+            self, hypothesis, reactions, run_seed=run_seed, config=config
+        )
+
+    monkeypatch.setattr(scoring_mod.ScoringService, "score", spy)
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=2,
+        run_seed=424242,
+    )
+    assert captured["run_seed"] == 424242

@@ -42,9 +42,12 @@ def _analysis(
     )
 
 
-# Disable the underpowered gate for formula-focused tests so we read the raw
-# behavior. min_sample_size=1 means the gate never fires for N≥1.
-_FORMULA_CFG = ScoringConfig(min_sample_size=1)
+# Disable the underpowered gate AND the bootstrap CI for formula-focused
+# tests so we read the raw behavior fast.
+# - min_sample_size=1 → gate never fires for N≥1.
+# - bootstrap_resamples=0 → confidence_score_ci stays None; CI-aware tests
+#   below opt in explicitly with their own config.
+_FORMULA_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
 
 
 # ── Aggregation formula ───────────────────────────────────────────────
@@ -204,6 +207,86 @@ def test_aggregate_supporting_agent_ids_capped_at_five() -> None:
     assert len(result.weaknesses[0].supporting_agent_ids) == 5
 
 
+def test_aggregate_parity_snapshot() -> None:
+    """Pins the `_compute_score()` extraction (T2 + /plan-eng-review C1).
+
+    Fixed 6-agent input (3 positive @ conf 0.8, 2 neutral @ 0.5, 1 negative
+    @ 0.9 with one `wrong_metric` flag). If the extraction silently shifts a
+    constant or a shrinkage term, this snapshot fails before the rest of
+    the suite can rationalize it.
+
+    Snapshot value (71.8 rounded, 71.8238... raw) was captured against the
+    pre-extraction implementation on `main` at 2026-05-22.
+    """
+    analyses = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.8),
+        _analysis("a2", Sentiment.POSITIVE, confidence=0.8),
+        _analysis("a3", Sentiment.POSITIVE, confidence=0.8),
+        _analysis("a4", Sentiment.NEUTRAL, confidence=0.5),
+        _analysis("a5", Sentiment.NEUTRAL, confidence=0.5),
+        _analysis(
+            "a6", Sentiment.NEGATIVE, categories=["wrong_metric"], confidence=0.9
+        ),
+    ]
+    result = ScoringService.aggregate(analyses, _FORMULA_CFG)
+    # Rounded score (display-facing)
+    assert result.confidence_score == 71.8
+    # Raw _compute_score values (pre-rounding) — pins both sub-statistics
+    confidence_raw, sentiment_score, weakness_signal = ScoringService._compute_score(
+        analyses, _FORMULA_CFG
+    )
+    assert confidence_raw == pytest.approx(71.82389937106919, abs=1e-9)
+    assert sentiment_score == pytest.approx(0.6415094339622641, abs=1e-9)
+    assert weakness_signal == pytest.approx(0.8333333333333334, abs=1e-9)
+    # Weakness surface preserved
+    assert [(w.category, len(w.supporting_agent_ids)) for w in result.weaknesses] == [
+        ("wrong_metric", 1)
+    ]
+
+
+# ── Wilson CIs on weakness rows (T3) ──────────────────────────────────
+
+
+def test_weakness_frequency_and_wilson_populated() -> None:
+    """N=20 with 5 agents flagging `wrong_metric` → frequency=0.25 with a
+    Wilson CI that brackets the point estimate inside [0, 1]."""
+    flagged = [
+        _analysis(f"f{i}", Sentiment.NEUTRAL, categories=["wrong_metric"])
+        for i in range(5)
+    ]
+    clean = [_analysis(f"c{i}", Sentiment.NEUTRAL) for i in range(15)]
+    result = ScoringService.aggregate(flagged + clean, _FORMULA_CFG)
+    w = next(x for x in result.weaknesses if x.category == "wrong_metric")
+    assert w.frequency == pytest.approx(0.25, abs=1e-9)
+    assert w.ci_low is not None and w.ci_high is not None
+    assert 0.0 <= w.ci_low < 0.25 < w.ci_high <= 1.0
+
+
+def test_underpowered_gate_weakness_has_no_ci() -> None:
+    """The prepended `underpowered_design` is a structural flag, not an
+    observed frequency — frequency/ci_low/ci_high stay None."""
+    cfg = ScoringConfig(min_sample_size=5)
+    analyses = [_analysis(f"a{i}", Sentiment.NEUTRAL) for i in range(2)]
+    result = ScoringService.aggregate(analyses, cfg)
+    underpowered = result.weaknesses[0]
+    assert underpowered.category == "underpowered_design"
+    assert underpowered.frequency is None
+    assert underpowered.ci_low is None
+    assert underpowered.ci_high is None
+
+
+def test_weakness_summary_shape_unchanged() -> None:
+    """Existing summary text format ("X/N agents flagged this — …") must not
+    drift — anything reading it as a string would break silently otherwise."""
+    analyses = [
+        _analysis(f"a{i}", Sentiment.NEUTRAL, categories=["wrong_cohort"])
+        for i in range(3)
+    ] + [_analysis(f"b{i}", Sentiment.NEUTRAL) for i in range(7)]
+    result = ScoringService.aggregate(analyses, _FORMULA_CFG)
+    w = next(x for x in result.weaknesses if x.category == "wrong_cohort")
+    assert w.summary == "3/10 agents flagged this — wrong cohort."
+
+
 def test_scoring_config_is_tunable_without_code_changes() -> None:
     """Sanity: changing weights changes the score predictably."""
     analyses = [_analysis(f"a{i}", Sentiment.POSITIVE) for i in range(5)]
@@ -215,6 +298,143 @@ def test_scoring_config_is_tunable_without_code_changes() -> None:
     assert r_sent.confidence_score == 90.0
     # heavy-weakness: 100 * weakness_signal = 100 * 1.0 = 100
     assert r_weak.confidence_score == 100.0
+
+
+# ── Bootstrap CI on confidence_score (T4) ─────────────────────────────
+
+
+# Bootstrap-enabled config: small B keeps tests fast while still exercising
+# the percentile path.
+_BOOT_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=200)
+
+
+def test_confidence_ci_is_set_and_brackets_point_estimate() -> None:
+    """N=20 with a mix of sentiments + flags → CI populated, brackets the
+    point estimate."""
+    analyses = (
+        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
+        + [_analysis(f"n{i}", Sentiment.NEUTRAL) for i in range(5)]
+        + [
+            _analysis(f"x{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+            for i in range(5)
+        ]
+    )
+    result = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=42)
+    assert result.confidence_score_ci is not None
+    ci_low, ci_high = result.confidence_score_ci
+    assert ci_low <= result.confidence_score <= ci_high
+    assert 0.0 <= ci_low <= ci_high <= 100.0
+
+
+def test_confidence_ci_deterministic_with_run_seed() -> None:
+    """Same analyses + same run_seed → byte-identical CI. Uses varied input
+    so the CI has actual width to compare."""
+    analyses = (
+        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
+        + [
+            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+            for i in range(10)
+        ]
+    )
+    r1 = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=12345)
+    r2 = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=12345)
+    assert r1.confidence_score_ci == r2.confidence_score_ci
+    # Also confirm it's a real interval, not a degenerate point
+    assert r1.confidence_score_ci[1] > r1.confidence_score_ci[0]
+
+
+def test_confidence_ci_changes_without_seed() -> None:
+    """No run_seed → fresh entropy each call. Test 10 unseeded calls and
+    assert at least 2 distinct CIs across the batch — robust to occasional
+    rounded-tuple coincidence that the schema's `confidence_rounding<=2`
+    cap makes possible on small binary inputs."""
+    cfg = ScoringConfig(
+        min_sample_size=1, bootstrap_resamples=1000, confidence_rounding=2
+    )
+    analyses = (
+        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
+        + [
+            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+            for i in range(10)
+        ]
+    )
+    cis = {
+        ScoringService.aggregate(analyses, cfg).confidence_score_ci
+        for _ in range(10)
+    }
+    assert len(cis) >= 2, f"unseeded bootstrap should vary, got only {cis!r}"
+
+
+def test_n50_ci_narrower_than_n6() -> None:
+    """The calibration promise as an aggregate-level test: 50 agents with the
+    same sentiment/weakness mix produces a strictly narrower CI than 6."""
+    # 50% positive, 50% negative-with-weakness — same mix at both sizes
+    def make(n: int) -> list:
+        half = n // 2
+        return [
+            _analysis(f"p{i}", Sentiment.POSITIVE) for i in range(half)
+        ] + [
+            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+            for i in range(n - half)
+        ]
+
+    big = ScoringService.aggregate(make(50), _BOOT_CFG, run_seed=7)
+    small = ScoringService.aggregate(make(6), _BOOT_CFG, run_seed=7)
+    assert big.confidence_score_ci is not None
+    assert small.confidence_score_ci is not None
+    width_big = big.confidence_score_ci[1] - big.confidence_score_ci[0]
+    width_small = small.confidence_score_ci[1] - small.confidence_score_ci[0]
+    assert width_big < width_small
+
+
+def test_confidence_ci_always_brackets_rounded_point_estimate() -> None:
+    """Codex P2 (round-2): independent rounding of point estimate vs CI bounds
+    can violate ci_low <= confidence_score <= ci_high at the edges. The clamp
+    in aggregate() must guarantee the invariant for every input.
+
+    Sweep 12 varied compositions to surface the edge case where a raw
+    percentile bound sits within one rounding step of the raw point estimate."""
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=500)
+    compositions = [
+        # (n_pos, n_neg_with_flag, n_neutral, run_seed)
+        (10, 0, 0, 1),
+        (0, 10, 0, 2),
+        (5, 5, 0, 3),
+        (3, 3, 4, 4),
+        (1, 9, 0, 5),
+        (9, 1, 0, 6),
+        (2, 2, 6, 7),
+        (8, 1, 1, 8),
+        (1, 8, 1, 9),
+        (4, 4, 2, 10),
+        (6, 3, 1, 11),
+        (3, 6, 1, 12),
+    ]
+    for n_pos, n_neg, n_neutral, seed in compositions:
+        analyses = (
+            [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(n_pos)]
+            + [
+                _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
+                for i in range(n_neg)
+            ]
+            + [_analysis(f"x{i}", Sentiment.NEUTRAL) for i in range(n_neutral)]
+        )
+        result = ScoringService.aggregate(analyses, cfg, run_seed=seed)
+        assert result.confidence_score_ci is not None
+        lo, hi = result.confidence_score_ci
+        assert lo <= result.confidence_score <= hi, (
+            f"CI {(lo, hi)} fails to bracket score {result.confidence_score} for "
+            f"composition n_pos={n_pos} n_neg={n_neg} n_neutral={n_neutral}"
+        )
+
+
+def test_aggregate_with_bootstrap_resamples_0_leaves_ci_none() -> None:
+    """C3 (locked from /plan-eng-review): bootstrap_resamples=0 is a sentinel
+    that skips the bootstrap entirely and leaves confidence_score_ci=None."""
+    analyses = [_analysis(f"a{i}", Sentiment.POSITIVE) for i in range(10)]
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+    result = ScoringService.aggregate(analyses, cfg, run_seed=42)
+    assert result.confidence_score_ci is None
 
 
 # ── Hallucinated category guard ───────────────────────────────────────
