@@ -206,6 +206,11 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
     row = sim_repo._sims[sim_id]
     assert row["run_seed"] is not None, "default run_seed must be persisted, not NULL"
     assert isinstance(row["run_seed"], int)
+    # Codex P2: must be JS-safe so frontend round-trip doesn't round and break
+    # replay reproducibility.
+    assert 0 <= row["run_seed"] <= 2**53 - 1, (
+        f"default run_seed {row['run_seed']} exceeds JS Number.MAX_SAFE_INTEGER"
+    )
     # And the API response surfaces the same seed.
     final = client.get(f"/simulations/{sim_id}").json()
     assert final["run_seed"] == row["run_seed"]
