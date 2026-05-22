@@ -19,7 +19,11 @@ export default function NewSimulationPage() {
 
   const [capability, setCapability] = useState<string>("");
   const [hypothesis, setHypothesis] = useState<string>("");
-  const [populationSize, setPopulationSize] = useState<number>(1000);
+  // Population state is kept as a string so an empty field stays empty
+  // (rather than briefly collapsing to "0" and rendering "0 sampled agents").
+  // Parsed to a number only at submit time. Codex P2 (round 1).
+  const [populationInput, setPopulationInput] = useState<string>("1000");
+  const populationSize = parsePositiveInt(populationInput);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [proposedPrd, setProposedPrd] = useState<string>("");
 
@@ -80,9 +84,9 @@ export default function NewSimulationPage() {
       return;
     }
     if (
+      populationSize == null ||
       populationSize < 1 ||
-      populationSize > 10_000 ||
-      Number.isNaN(populationSize)
+      populationSize > 10_000
     ) {
       setValidationError("Population must be between 1 and 10,000.");
       return;
@@ -208,20 +212,25 @@ export default function NewSimulationPage() {
             type="number"
             min={1}
             max={10_000}
-            value={populationSize}
-            onChange={(e) =>
-              setPopulationSize(parseInt(e.target.value, 10) || 0)
-            }
+            value={populationInput}
+            onChange={(e) => setPopulationInput(e.target.value)}
             disabled={formDisabled}
             style={{ ...inputStyle, width: 160 }}
           />
           <div style={helperStyle}>
-            How many users this hypothesis affects. We&rsquo;ll stratify down to{" "}
-            <strong>
-              {Math.min(Math.max(populationSize, 0), 50)} sampled agent
-              {Math.min(Math.max(populationSize, 0), 50) === 1 ? "" : "s"}
-            </strong>{" "}
-            in proportion to your persona weights. 1&ndash;10,000.
+            How many users this hypothesis affects.{" "}
+            {populationSize != null && populationSize > 0 ? (
+              <>
+                We&rsquo;ll stratify down to{" "}
+                <strong>
+                  {Math.min(populationSize, 50)} sampled agent
+                  {Math.min(populationSize, 50) === 1 ? "" : "s"}
+                </strong>{" "}
+                in proportion to your persona weights.
+              </>
+            ) : (
+              <>Enter a number between 1 and 10,000.</>
+            )}
           </div>
         </div>
 
@@ -283,6 +292,14 @@ export default function NewSimulationPage() {
       </form>
     </main>
   );
+}
+
+function parsePositiveInt(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
 }
 
 const inputStyle: React.CSSProperties = {

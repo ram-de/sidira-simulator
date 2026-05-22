@@ -186,6 +186,11 @@ export default function SimulationDetailPage() {
   // to MAX_AGENTS=50 requests is fast enough on the demo backend; if this
   // ever bottlenecks, the right fix is a /simulations/{id}/agents summary
   // endpoint, not pagination here.
+  //
+  // Codex P2 (round 1): depend on the agent_instance_ids key, not the whole
+  // `sim` object. A terminal-state polling refresh that re-creates `sim`
+  // without changing the ID list must NOT trigger a second fan-out.
+  const agentIdsKey = (sim?.agent_instance_ids ?? []).join(",");
   useEffect(() => {
     if (!sim || !isTerminalStatus(sim.status)) return;
     const ids = sim.agent_instance_ids ?? [];
@@ -193,8 +198,8 @@ export default function SimulationDetailPage() {
       setAgentMeta([]);
       return;
     }
-    if (agentMeta != null) return; // already fetched
     let cancelled = false;
+    setAgentMetaError(null);
     (async () => {
       try {
         const fetched: AgentInstance[] = await Promise.all(
@@ -216,7 +221,7 @@ export default function SimulationDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [sim, agentMeta]);
+  }, [agentIdsKey, sim?.status]);
 
   if (!loaded) {
     return (
@@ -728,6 +733,29 @@ export default function SimulationDetailPage() {
   );
 }
 
+// Shared sanitizer for CI bar inputs (codex P2 round 1).
+// - Coerces non-finite values to a safe default.
+// - Clamps to [min, max].
+// - Inverts low/high when ci_low > ci_high (shouldn't happen from backend
+//   today, but defensive: render the widest interval rather than collapse).
+function _safeRange(
+  value: number,
+  low: number,
+  high: number,
+  min: number,
+  max: number,
+): { v: number; lo: number; hi: number } {
+  const clamp = (n: number, fallback: number) =>
+    Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+  const v = clamp(value, min);
+  let lo = clamp(low, min);
+  let hi = clamp(high, max);
+  if (lo > hi) {
+    [lo, hi] = [hi, lo];
+  }
+  return { v, lo, hi };
+}
+
 function ScoreCiBar({
   score,
   ciLow,
@@ -738,45 +766,43 @@ function ScoreCiBar({
   ciHigh: number;
 }) {
   // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
-  const clampedLow = Math.max(0, Math.min(100, ciLow));
-  const clampedHigh = Math.max(0, Math.min(100, ciHigh));
-  const clampedScore = Math.max(0, Math.min(100, score));
-  const bandLeft = `${clampedLow}%`;
-  const bandWidth = `${Math.max(0, clampedHigh - clampedLow)}%`;
-  const markerLeft = `${clampedScore}%`;
+  const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
   return (
     <div style={{ marginTop: 16, paddingTop: 4 }}>
       <div
+        role="img"
+        aria-label={`Confidence score ${v.toFixed(
+          1,
+        )} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`}
         style={{
           position: "relative",
           height: 12,
           background: "#eee",
           borderRadius: 6,
-          overflow: "visible",
+          // overflow:hidden so the marker can't escape the track at edges
+          // (codex P2 round 1: 2px marker centered on left:0% or left:100%
+          // protruded 1px outside the rounded background).
+          overflow: "hidden",
         }}
-        aria-label={`Confidence score ${clampedScore.toFixed(
-          1,
-        )} with 95% CI from ${clampedLow.toFixed(1)} to ${clampedHigh.toFixed(1)}`}
       >
         <div
           style={{
             position: "absolute",
-            left: bandLeft,
-            width: bandWidth,
+            left: `${lo}%`,
+            width: `${Math.max(0, hi - lo)}%`,
             top: 0,
             bottom: 0,
             background: "rgba(29, 78, 216, 0.25)",
-            borderRadius: 6,
           }}
         />
         <div
           style={{
             position: "absolute",
-            left: markerLeft,
-            top: -2,
+            left: `${v}%`,
+            top: 0,
+            bottom: 0,
             width: 2,
-            height: 16,
-            background: scoreColor(score),
+            background: scoreColor(v),
             transform: "translateX(-1px)",
           }}
         />
@@ -790,6 +816,7 @@ function ScoreCiBar({
           marginTop: 4,
           fontVariantNumeric: "tabular-nums",
         }}
+        aria-hidden
       >
         <span>0</span>
         <span>50</span>
@@ -808,40 +835,42 @@ function WeaknessFrequencyBar({
   ciLow: number;
   ciHigh: number;
 }) {
-  // 0..1 frequencies onto a 0-100% bar. Whiskers = CI bounds.
-  const f = Math.max(0, Math.min(1, frequency)) * 100;
-  const lo = Math.max(0, Math.min(1, ciLow)) * 100;
-  const hi = Math.max(0, Math.min(1, ciHigh)) * 100;
+  // 0..1 frequencies onto a 0-100% bar; same sanitizer as the score bar.
+  const { v, lo, hi } = _safeRange(frequency, ciLow, ciHigh, 0, 1);
+  const f = v * 100;
+  const loPct = lo * 100;
+  const hiPct = hi * 100;
   return (
     <div
+      role="img"
+      aria-label={`Frequency ${f.toFixed(0)}% with 95% CI from ${loPct.toFixed(
+        0,
+      )}% to ${hiPct.toFixed(0)}%`}
       style={{
         position: "relative",
         height: 10,
         background: "#f1f1f1",
         borderRadius: 5,
+        overflow: "hidden",
       }}
-      aria-label={`Frequency ${f.toFixed(0)}% with 95% CI from ${lo.toFixed(
-        0,
-      )}% to ${hi.toFixed(0)}%`}
     >
       <div
         style={{
           position: "absolute",
-          left: `${lo}%`,
-          width: `${Math.max(0, hi - lo)}%`,
+          left: `${loPct}%`,
+          width: `${Math.max(0, hiPct - loPct)}%`,
           top: 0,
           bottom: 0,
           background: "rgba(168, 107, 0, 0.35)",
-          borderRadius: 5,
         }}
       />
       <div
         style={{
           position: "absolute",
           left: `${f}%`,
-          top: -2,
+          top: 0,
+          bottom: 0,
           width: 2,
-          height: 14,
           background: "#a86b00",
           transform: "translateX(-1px)",
         }}
@@ -904,6 +933,7 @@ function PersonaGroupRow({
   isFirst: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const listId = `persona-agents-${personaId}`;
   return (
     <li
       style={{
@@ -915,6 +945,7 @@ function PersonaGroupRow({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls={listId}
         style={{
           background: "transparent",
           border: "none",
@@ -925,22 +956,38 @@ function PersonaGroupRow({
           gap: 12,
           width: "100%",
           textAlign: "left",
+          // minWidth:0 + the truncating persona-id below = no horizontal
+          // scroll on narrow viewports (codex P2 round 1).
+          minWidth: 0,
         }}
       >
         <span
+          aria-hidden
           style={{
             fontSize: 12,
             color: "#888",
             width: 12,
             display: "inline-block",
+            flex: "0 0 auto",
           }}
         >
           {open ? "▾" : "▸"}
         </span>
-        <span style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: "#111",
+            flex: "0 1 auto",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {personaName}
         </span>
-        <span style={{ fontSize: 14, color: "#444" }}>
+        <span style={{ fontSize: 14, color: "#444", flex: "0 0 auto" }}>
           &times; {agentIds.length} agent{agentIds.length === 1 ? "" : "s"}
         </span>
         <span
@@ -950,6 +997,12 @@ function PersonaGroupRow({
             marginLeft: "auto",
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+            // Truncate long ids on narrow widths so the row never exceeds
+            // its container.
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {personaId}
@@ -957,6 +1010,7 @@ function PersonaGroupRow({
       </button>
       {open && (
         <ul
+          id={listId}
           style={{
             listStyle: "none",
             padding: "8px 0 0 24px",
