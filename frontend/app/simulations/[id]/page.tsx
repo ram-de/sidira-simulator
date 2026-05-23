@@ -5,11 +5,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
-  getAgent,
   getSimulation,
   getSimulationState,
   isTerminalStatus,
-  type AgentInstance,
+  listSimulationAgents,
   type RunEvent,
   type Simulation,
   type SimulationRunState,
@@ -181,41 +180,32 @@ export default function SimulationDetailPage() {
     };
   }, []);
 
-  // Fan out agent metadata once we know which agents ran. Terminal-only so
-  // we don't waste round-trips during the polling loop. Promise.all over up
-  // to MAX_AGENTS=50 requests is fast enough on the demo backend; if this
-  // ever bottlenecks, the right fix is a /simulations/{id}/agents summary
-  // endpoint, not pagination here.
+  // Load the per-agent metadata once the simulation hits a terminal state.
+  // Uses the lightweight /simulations/{id}/agents endpoint (one call returning
+  // the persona-grouped summary) rather than fanning out N parallel /agents/{id}
+  // requests, since the full /agents/{id} route is intentionally stubbed
+  // until Phase 4 chat lands.
   //
-  // Codex P2 (round 1): depend on the agent_instance_ids key, not the whole
-  // `sim` object. A terminal-state polling refresh that re-creates `sim`
-  // without changing the ID list must NOT trigger a second fan-out.
-  // Codex P2 (round 2): sort the key so reorderings of the same set don't
-  // trigger a refetch either (display order is preserved separately by the
-  // first-seen `order` array in PersonaGroupedAgents).
-  const agentIdsKey = [...(sim?.agent_instance_ids ?? [])].sort().join(",");
+  // Key on simulation id + terminal status so a polling refresh of `sim`
+  // doesn't re-trigger this fetch.
   useEffect(() => {
     if (!sim || !isTerminalStatus(sim.status)) return;
-    // Clear any stale error from a prior fetch before deciding what to do —
-    // including the no-agents branch below (codex P2 round 2).
+    // Clear any stale error from a prior fetch before deciding what to do.
     setAgentMetaError(null);
-    const ids = sim.agent_instance_ids ?? [];
-    if (ids.length === 0) {
+    if ((sim.agent_instance_ids ?? []).length === 0) {
       setAgentMeta([]);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const fetched: AgentInstance[] = await Promise.all(
-          ids.map((aid) => getAgent(aid)),
-        );
+        const fetched = await listSimulationAgents(sim.id);
         if (cancelled) return;
         setAgentMeta(
           fetched.map((a) => ({
-            agent_id: a.metadata.id,
-            persona_id: a.metadata.persona_id,
-            persona_name: a.metadata.persona_name,
+            agent_id: a.agent_id,
+            persona_id: a.persona_id,
+            persona_name: a.persona_name,
           })),
         );
       } catch (e) {
@@ -226,7 +216,7 @@ export default function SimulationDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [agentIdsKey, sim?.status]);
+  }, [sim?.id, sim?.status]);
 
   if (!loaded) {
     return (

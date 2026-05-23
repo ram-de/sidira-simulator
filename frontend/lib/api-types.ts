@@ -62,6 +62,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/simulations/{simulation_id}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Simulation Agents
+         * @description Persona-grouped table feed (Phase 2.5 #51).
+         *
+         *     Order matches the runner's materialization order (largest-remainder
+         *     allocator → largest persona first), since `list_for_simulation`
+         *     returns rows in insertion order in both the InMemory and Postgres
+         *     implementations.
+         */
+        get: operations["list_simulation_agents_simulations__simulation_id__agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/simulations/{simulation_id}/state": {
         parameters: {
             query?: never;
@@ -399,6 +424,23 @@ export interface components {
          * @enum {string}
          */
         AgentRole: "agent" | "pm" | "system";
+        /**
+         * AgentSummary
+         * @description Lightweight per-agent row for the simulation detail page.
+         *
+         *     Just enough for the persona-grouped table (#51). Full agent state +
+         *     conversation history lives behind GET /agents/{id}, which lands with
+         *     Phase 4 chat. Pulling the summary directly off the metadata repo means
+         *     the frontend makes one call instead of N=50.
+         */
+        AgentSummary: {
+            /** Agent Id */
+            agent_id: string;
+            /** Persona Id */
+            persona_id: string;
+            /** Persona Name */
+            persona_name: string;
+        };
         /**
          * BehavioralSeedSchema
          * @description Per-persona pools that identity_seed draws from (pythia-personas v1.1).
@@ -1129,6 +1171,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Simulation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_simulation_agents_simulations__simulation_id__agents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                simulation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSummary"][];
                 };
             };
             /** @description Validation Error */
