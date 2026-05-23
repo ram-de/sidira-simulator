@@ -1,8 +1,9 @@
 ---
 type: session
 domain: commit_author
-status: active
+status: closed
 started: 2026-05-22
+closed: 2026-05-22
 owner: ram-de
 ---
 
@@ -12,8 +13,7 @@ owner: ram-de
 Move all Pythia repo commits to a clean `ram-de` identity using GitHub's privacy-preserving noreply email, so a future public repo flip (or external collaborator) doesn't expose the founder's work email in commit metadata. Cover both future commits (per-repo git config) and past commits (history rewrite).
 
 ## In Progress
-- [ ] Force-push rewritten main on `pythia-simulator` to origin (authorized; about to execute).
-- [ ] Repeat the rewrite on `pythia-personas` and `pythia-crawler` if their history also contains `@doordash.com` author entries.
+— session complete. All 3 Pythia repos now have ram-de/noreply identity across full history. Cofounder still needs a `git fetch && git reset --hard origin/main` on their next pull (see "For my cofounder" below).
 
 ## Completed
 - [x] **Surveyed the identity split.** GitHub PR author = ram-de (the `github_ramde` MCP server's PAT). Local git commit author = rmkmar (from `git config user.name/email`). The split caused PR #67's commit list to show "rmkmar committed" under a ram-de-merged PR, with `ramkumar.karunanidhi@doordash.com` baked into every commit object on github.com.
@@ -22,13 +22,25 @@ Move all Pythia repo commits to a clean `ram-de` identity using GitHub's privacy
   - `rmkmar <ramkumar.karunanidhi@doordash.com>` → `ram-de <208066893+ram-de@users.noreply.github.com>`
   - `ram-de <karunanidhi.ramkumar@gmail.com>` (GitHub UI merge commits) → same noreply target
   Filter-repo parsed all 78 commits in 0.19s. Local main HEAD moved from `fa14329` → `77186df`. Origin remote was stripped by filter-repo's safety default; re-added pointing at `git@github.com-personal:ram-de/pythia-simulator.git`.
-- [x] **Backup tag created.** `pre-history-rewrite-backup` points at the pre-rewrite HEAD (`fa14329`). Recovery is `git reset --hard pre-history-rewrite-backup` IF the force-push hasn't happened yet; once force-push lands, recovery is `git fetch && git reset --hard origin/main`.
+- [x] **Backup tag created.** `pre-history-rewrite-backup` points at the pre-rewrite HEAD on each repo. Recovery is `git reset --hard pre-history-rewrite-backup` IF the force-push hasn't happened yet; once force-push lands, recovery is `git fetch && git reset --hard origin/main`.
+- [x] **Force-push to origin succeeded on all 3 Pythia repos.**
+  - `pythia-simulator`: `fa14329` → `4319d60` (78 commits + session commit)
+  - `pythia-personas`: `31db543` → `befdcf1` (13 commits)
+  - `pythia-crawler`: `facfe4e` → `7fff2f9` (4 commits)
+  All three used `--force-with-lease` (refuses if origin moved during the rewrite — none had moved). `filter-repo` strips origin by default; re-added pointing at the `git@github.com-personal:ram-de/<repo>.git` SSH URL on each.
+- [x] **Session lessons captured for future history rewrites:**
+  1. `filter-repo` strips the origin remote by default — re-add it before pushing.
+  2. `--force-with-lease` fails immediately after a fresh `filter-repo` because the lease check has no fetched view of the new-remote-vs-old-remote. `git fetch origin main` first, THEN `git push --force-with-lease`.
+  3. Claude Code's auto-mode classifier blocks force-push to main without explicit in-chat authorization, even when the broader operation was authorized earlier. Get explicit "execute the push" before running.
+  4. `--global` git config vs `--local` matters here — per-repo scope is the difference between leaking your new identity into work commits or not. Always verify with `git config --global user.email` after a per-repo identity setup.
 
 ## Next Steps
-1. **Force-push to origin/main on pythia-simulator.** `git push --force-with-lease origin main`. `--force-with-lease` refuses the push if anyone else (cofounder) pushed to main while we were rewriting — that's the right safety for this workflow.
-2. **Tell cofounder before they next pull.** `git fetch && git reset --hard origin/main`. If they have unpushed local commits on main, stash first or cherry-pick onto the new history.
-3. **Run the same rewrite on pythia-personas and pythia-crawler** if `git log --format="%ae" | sort -u` on those repos shows @doordash.com entries. Same mailmap, same procedure, same force-push.
-4. **After verification (a few days), delete the local backup tag:** `git tag -d pre-history-rewrite-backup`. No rush.
+— session complete.
+
+**Carryover housekeeping (not blocking, do whenever):**
+1. **Tell cofounder before their next pull on any Pythia repo.** Recovery is `git fetch && git reset --hard origin/main` per repo. If they have unpushed local commits on main, stash first.
+2. **After a few days of verifying GitHub is happy with the rewritten history, delete the local backup tags** on each of the 3 repos: `git tag -d pre-history-rewrite-backup`. Doesn't block anything; just cleanup.
+3. **Delete the mailmap + origin-backup scratch files** when convenient: `rm /tmp/pythia-mailmap.txt /tmp/pythia-origin-backup.txt`.
 
 ## Key Files
 - `/tmp/pythia-mailmap.txt` — the rewrite mapping. Safe to delete after all 3 repos are processed.
