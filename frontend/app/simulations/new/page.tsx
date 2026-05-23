@@ -19,7 +19,11 @@ export default function NewSimulationPage() {
 
   const [capability, setCapability] = useState<string>("");
   const [hypothesis, setHypothesis] = useState<string>("");
-  const [sampleSize, setSampleSize] = useState<number>(6);
+  // Population state is kept as a string so an empty field stays empty
+  // (rather than briefly collapsing to "0" and rendering "0 sampled agents").
+  // Parsed to a number only at submit time. Codex P2 (round 1).
+  const [populationInput, setPopulationInput] = useState<string>("1000");
+  const populationSize = parsePositiveInt(populationInput);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [proposedPrd, setProposedPrd] = useState<string>("");
 
@@ -79,8 +83,12 @@ export default function NewSimulationPage() {
       );
       return;
     }
-    if (sampleSize < 1 || sampleSize > 50 || Number.isNaN(sampleSize)) {
-      setValidationError("Sample size must be between 1 and 50.");
+    if (
+      populationSize == null ||
+      populationSize < 1 ||
+      populationSize > 10_000
+    ) {
+      setValidationError("Population must be between 1 and 10,000.");
       return;
     }
 
@@ -92,7 +100,7 @@ export default function NewSimulationPage() {
           showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
         proposed_figma: null,
       },
-      population_size: sampleSize,
+      population_size: populationSize,
     };
 
     setSubmitting(true);
@@ -196,21 +204,33 @@ export default function NewSimulationPage() {
         </div>
 
         <div style={fieldGroup}>
-          <label htmlFor="sample-size" style={labelStyle}>
-            Sample size
+          <label htmlFor="population-size" style={labelStyle}>
+            Population
           </label>
           <input
-            id="sample-size"
+            id="population-size"
             type="number"
             min={1}
-            max={50}
-            value={sampleSize}
-            onChange={(e) => setSampleSize(parseInt(e.target.value, 10) || 0)}
+            max={10_000}
+            value={populationInput}
+            onChange={(e) => setPopulationInput(e.target.value)}
             disabled={formDisabled}
-            style={{ ...inputStyle, width: 120 }}
+            style={{ ...inputStyle, width: 160 }}
           />
           <div style={helperStyle}>
-            How many personas should react (6-10 is a good starting point).
+            How many users this hypothesis affects.{" "}
+            {populationSize != null && populationSize > 0 ? (
+              <>
+                We&rsquo;ll stratify down to{" "}
+                <strong>
+                  {Math.min(populationSize, 50)} sampled agent
+                  {Math.min(populationSize, 50) === 1 ? "" : "s"}
+                </strong>{" "}
+                in proportion to your persona weights.
+              </>
+            ) : (
+              <>Enter a number between 1 and 10,000.</>
+            )}
           </div>
         </div>
 
@@ -272,6 +292,18 @@ export default function NewSimulationPage() {
       </form>
     </main>
   );
+}
+
+function parsePositiveInt(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  // Strict: reject "12abc", "1.5", "1e3", and anything else that isn't
+  // purely digits. `Number.parseInt` would otherwise silently truncate.
+  // (codex P2 round 2)
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
 }
 
 const inputStyle: React.CSSProperties = {

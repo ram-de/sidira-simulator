@@ -8,6 +8,7 @@ import {
   getSimulation,
   getSimulationState,
   isTerminalStatus,
+  listSimulationAgents,
   type RunEvent,
   type Simulation,
   type SimulationRunState,
@@ -80,6 +81,13 @@ export default function SimulationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Agent metadata for the persona-grouped table. Lazy: only fetched once
+  // the simulation lands in a terminal state and we know which agents ran.
+  // Stored as the minimum we need so a future N=50 sim still renders cheap.
+  const [agentMeta, setAgentMeta] = useState<
+    { agent_id: string; persona_id: string; persona_name: string }[] | null
+  >(null);
+  const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
 
   // Initial fetch of the simulation.
   useEffect(() => {
@@ -171,6 +179,44 @@ export default function SimulationDetailPage() {
       }
     };
   }, []);
+
+  // Load the per-agent metadata once the simulation hits a terminal state.
+  // Uses the lightweight /simulations/{id}/agents endpoint (one call returning
+  // the persona-grouped summary) rather than fanning out N parallel /agents/{id}
+  // requests, since the full /agents/{id} route is intentionally stubbed
+  // until Phase 4 chat lands.
+  //
+  // Key on simulation id + terminal status so a polling refresh of `sim`
+  // doesn't re-trigger this fetch.
+  useEffect(() => {
+    if (!sim || !isTerminalStatus(sim.status)) return;
+    // Clear any stale error from a prior fetch before deciding what to do.
+    setAgentMetaError(null);
+    if ((sim.agent_instance_ids ?? []).length === 0) {
+      setAgentMeta([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched = await listSimulationAgents(sim.id);
+        if (cancelled) return;
+        setAgentMeta(
+          fetched.map((a) => ({
+            agent_id: a.agent_id,
+            persona_id: a.persona_id,
+            persona_name: a.persona_name,
+          })),
+        );
+      } catch (e) {
+        if (cancelled) return;
+        setAgentMetaError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sim?.id, sim?.status]);
 
   if (!loaded) {
     return (
@@ -394,6 +440,25 @@ export default function SimulationDetailPage() {
       {/* Result (complete) */}
       {status === "complete" && result && (
         <>
+          {(sim?.population_size != null ||
+            sim?.sampled_agent_count != null) && (
+            <section
+              style={{
+                ...cardStyle,
+                padding: "12px 16px",
+                background: "#f7f8fb",
+                color: "#444",
+                fontSize: 14,
+              }}
+            >
+              <strong style={{ color: "#111" }}>Population:</strong>{" "}
+              {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
+              {sim.sampled_agent_count ?? "—"} agent
+              {sim.sampled_agent_count === 1 ? "" : "s"} in proportion to
+              persona weights)
+            </section>
+          )}
+
           <section style={cardStyle}>
             <div
               style={{
@@ -417,10 +482,31 @@ export default function SimulationDetailPage() {
               >
                 {Math.round(result.confidence_score)}
               </div>
-              <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
-                ≥80 = validated; below = needs refinement.
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {result.confidence_score_ci && (
+                  <div
+                    style={{
+                      fontSize: 14,
+                      color: "#444",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    95% CI: [{result.confidence_score_ci[0].toFixed(1)} &ndash;{" "}
+                    {result.confidence_score_ci[1].toFixed(1)}]
+                  </div>
+                )}
+                <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
+                  &ge;80 = validated; below = needs refinement.
+                </div>
               </div>
             </div>
+            {result.confidence_score_ci && (
+              <ScoreCiBar
+                score={result.confidence_score}
+                ciLow={result.confidence_score_ci[0]}
+                ciHigh={result.confidence_score_ci[1]}
+              />
+            )}
           </section>
 
           {result.weaknesses && result.weaknesses.length > 0 && (
@@ -438,6 +524,10 @@ export default function SimulationDetailPage() {
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {result.weaknesses.map((w, idx) => {
                   const supporters = w.supporting_agent_ids ?? [];
+                  const hasFreq =
+                    w.frequency != null &&
+                    w.ci_low != null &&
+                    w.ci_high != null;
                   return (
                     <li
                       key={idx}
@@ -448,18 +538,48 @@ export default function SimulationDetailPage() {
                     >
                       <div
                         style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: "#111",
+                          display: "flex",
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                          gap: 16,
                           marginBottom: 4,
                         }}
                       >
-                        {formatCategory(w.category)}
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: "#111",
+                          }}
+                        >
+                          {formatCategory(w.category)}
+                        </div>
+                        {hasFreq && (
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: "#444",
+                              fontVariantNumeric: "tabular-nums",
+                            }}
+                          >
+                            {(w.frequency! * 100).toFixed(0)}% [
+                            {(w.ci_low! * 100).toFixed(0)}&ndash;
+                            {(w.ci_high! * 100).toFixed(0)}%]
+                          </div>
+                        )}
                       </div>
+                      {hasFreq && (
+                        <WeaknessFrequencyBar
+                          frequency={w.frequency!}
+                          ciLow={w.ci_low!}
+                          ciHigh={w.ci_high!}
+                        />
+                      )}
                       <div
                         style={{
                           fontSize: 14,
                           color: "#333",
+                          marginTop: hasFreq ? 8 : 0,
                           marginBottom: 6,
                           lineHeight: 1.5,
                         }}
@@ -543,7 +663,7 @@ export default function SimulationDetailPage() {
         </section>
       )}
 
-      {/* Agents that participated */}
+      {/* Agents that participated — grouped by persona */}
       {agentIds.length > 0 && (
         <section style={cardStyle}>
           <h2
@@ -556,33 +676,365 @@ export default function SimulationDetailPage() {
           >
             Agents that participated
           </h2>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {agentIds.map((aid, i) => (
-              <li
-                key={aid}
-                style={{
-                  padding: "8px 0",
-                  borderTop: i === 0 ? "none" : "1px solid #eee",
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-                  fontSize: 14,
-                }}
-              >
-                <Link
-                  href={`/agents/${aid}`}
-                  style={{ color: "#1d4ed8", textDecoration: "none" }}
+          {agentMetaError && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "#a30000",
+                marginBottom: 12,
+              }}
+            >
+              Couldn&rsquo;t load persona breakdown ({agentMetaError}).
+              Showing raw IDs below.
+            </div>
+          )}
+          {agentMeta == null && !agentMetaError && (
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>
+              Loading persona breakdown for {agentIds.length} agent
+              {agentIds.length === 1 ? "" : "s"}…
+            </div>
+          )}
+          {agentMeta != null ? (
+            <PersonaGroupedAgents agents={agentMeta} />
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {agentIds.map((aid, i) => (
+                <li
+                  key={aid}
+                  style={{
+                    padding: "8px 0",
+                    borderTop: i === 0 ? "none" : "1px solid #eee",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                    fontSize: 14,
+                  }}
                 >
-                  {aid.slice(0, 8)}
-                </Link>
-                <span style={{ color: "#888", marginLeft: 8, fontSize: 12 }}>
-                  {aid}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <Link
+                    href={`/agents/${aid}`}
+                    style={{ color: "#1d4ed8", textDecoration: "none" }}
+                  >
+                    {aid.slice(0, 8)}
+                  </Link>
+                  <span style={{ color: "#888", marginLeft: 8, fontSize: 12 }}>
+                    {aid}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </main>
+  );
+}
+
+// Shared sanitizer for CI bar inputs (codex P2 round 1).
+// - Coerces non-finite values to a safe default.
+// - Clamps to [min, max].
+// - Swaps low/high when ci_low > ci_high (shouldn't happen from backend
+//   today, but defensive: keep the interval visible rather than collapse
+//   to width 0).
+function _safeRange(
+  value: number,
+  low: number,
+  high: number,
+  min: number,
+  max: number,
+): { v: number; lo: number; hi: number } {
+  const clamp = (n: number, fallback: number) =>
+    Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+  const v = clamp(value, min);
+  let lo = clamp(low, min);
+  let hi = clamp(high, max);
+  if (lo > hi) {
+    [lo, hi] = [hi, lo];
+  }
+  return { v, lo, hi };
+}
+
+function ScoreCiBar({
+  score,
+  ciLow,
+  ciHigh,
+}: {
+  score: number;
+  ciLow: number;
+  ciHigh: number;
+}) {
+  // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
+  const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
+  return (
+    <div style={{ marginTop: 16, paddingTop: 4 }}>
+      <div
+        role="img"
+        aria-label={`Confidence score ${v.toFixed(
+          1,
+        )} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`}
+        style={{
+          position: "relative",
+          height: 12,
+          background: "#eee",
+          borderRadius: 6,
+          // overflow:hidden so the marker can't escape the track at edges
+          // (codex P2 round 1: 2px marker centered on left:0% or left:100%
+          // protruded 1px outside the rounded background).
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: `${lo}%`,
+            width: `${Math.max(0, hi - lo)}%`,
+            top: 0,
+            bottom: 0,
+            background: "rgba(29, 78, 216, 0.25)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: `${v}%`,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: scoreColor(v),
+            transform: "translateX(-1px)",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 11,
+          color: "#888",
+          marginTop: 4,
+          fontVariantNumeric: "tabular-nums",
+        }}
+        aria-hidden
+      >
+        <span>0</span>
+        <span>50</span>
+        <span>100</span>
+      </div>
+    </div>
+  );
+}
+
+function WeaknessFrequencyBar({
+  frequency,
+  ciLow,
+  ciHigh,
+}: {
+  frequency: number;
+  ciLow: number;
+  ciHigh: number;
+}) {
+  // 0..1 frequencies onto a 0-100% bar; same sanitizer as the score bar.
+  const { v, lo, hi } = _safeRange(frequency, ciLow, ciHigh, 0, 1);
+  const f = v * 100;
+  const loPct = lo * 100;
+  const hiPct = hi * 100;
+  return (
+    <div
+      role="img"
+      aria-label={`Frequency ${f.toFixed(0)}% with 95% CI from ${loPct.toFixed(
+        0,
+      )}% to ${hiPct.toFixed(0)}%`}
+      style={{
+        position: "relative",
+        height: 10,
+        background: "#f1f1f1",
+        borderRadius: 5,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: `${loPct}%`,
+          width: `${Math.max(0, hiPct - loPct)}%`,
+          top: 0,
+          bottom: 0,
+          background: "rgba(168, 107, 0, 0.35)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: `${f}%`,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          background: "#a86b00",
+          transform: "translateX(-1px)",
+        }}
+      />
+    </div>
+  );
+}
+
+function PersonaGroupedAgents({
+  agents,
+}: {
+  agents: { agent_id: string; persona_id: string; persona_name: string }[];
+}) {
+  // Group by persona_id (stable key); persona_name is the human label.
+  // Preserve first-seen order so the visual order matches the simulator's
+  // allocation order (largest persona first under largest-remainder).
+  const order: string[] = [];
+  const byPersona = new Map<
+    string,
+    { persona_name: string; agent_ids: string[] }
+  >();
+  for (const a of agents) {
+    if (!byPersona.has(a.persona_id)) {
+      byPersona.set(a.persona_id, {
+        persona_name: a.persona_name,
+        agent_ids: [],
+      });
+      order.push(a.persona_id);
+    }
+    byPersona.get(a.persona_id)!.agent_ids.push(a.agent_id);
+  }
+
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {order.map((pid, i) => {
+        const group = byPersona.get(pid)!;
+        return (
+          <PersonaGroupRow
+            key={pid}
+            personaId={pid}
+            personaName={group.persona_name}
+            agentIds={group.agent_ids}
+            isFirst={i === 0}
+          />
+        );
+      })}
+    </ul>
+  );
+}
+
+function PersonaGroupRow({
+  personaId,
+  personaName,
+  agentIds,
+  isFirst,
+}: {
+  personaId: string;
+  personaName: string;
+  agentIds: string[];
+  isFirst: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const listId = `persona-agents-${personaId}`;
+  return (
+    <li
+      style={{
+        padding: "12px 0",
+        borderTop: isFirst ? "none" : "1px solid #eee",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={listId}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          width: "100%",
+          textAlign: "left",
+          // minWidth:0 + the truncating persona-id below = no horizontal
+          // scroll on narrow viewports (codex P2 round 1).
+          minWidth: 0,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            fontSize: 12,
+            color: "#888",
+            width: 12,
+            display: "inline-block",
+            flex: "0 0 auto",
+          }}
+        >
+          {open ? "▾" : "▸"}
+        </span>
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: "#111",
+            flex: "0 1 auto",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {personaName}
+        </span>
+        <span style={{ fontSize: 14, color: "#444", flex: "0 0 auto" }}>
+          &times; {agentIds.length} agent{agentIds.length === 1 ? "" : "s"}
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            color: "#aaa",
+            marginLeft: "auto",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+            // Truncate long ids on narrow widths so the row never exceeds
+            // its container.
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {personaId}
+        </span>
+      </button>
+      {open && (
+        <ul
+          id={listId}
+          style={{
+            listStyle: "none",
+            padding: "8px 0 0 24px",
+            margin: 0,
+          }}
+        >
+          {agentIds.map((aid) => (
+            <li
+              key={aid}
+              style={{
+                padding: "4px 0",
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                fontSize: 13,
+              }}
+            >
+              <Link
+                href={`/agents/${aid}`}
+                style={{ color: "#1d4ed8", textDecoration: "none" }}
+              >
+                {aid.slice(0, 8)}
+              </Link>
+              <span style={{ color: "#aaa", marginLeft: 8 }}>{aid}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 

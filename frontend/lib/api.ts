@@ -19,6 +19,7 @@ export type SimulationResult = components["schemas"]["SimulationResult"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type Weakness = components["schemas"]["Weakness"];
 export type AgentInstance = components["schemas"]["AgentInstance"];
+export type AgentSummary = components["schemas"]["AgentSummary"];
 export type SimulationRunState = components["schemas"]["SimulationRunState"];
 export type RunPhase = components["schemas"]["RunPhase"];
 export type RunEvent = components["schemas"]["RunEvent"];
@@ -82,6 +83,9 @@ export const getSimulation = (id: string) =>
 
 export const getSimulationState = (id: string) =>
   apiGet<SimulationRunState>(`/simulations/${id}/state`);
+
+export const listSimulationAgents = (id: string) =>
+  apiGet<AgentSummary[]>(`/simulations/${id}/agents`);
 
 export const getAgent = (id: string) =>
   apiGet<AgentInstance>(`/agents/${id}`);

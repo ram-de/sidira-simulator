@@ -9,8 +9,10 @@ from pydantic import BaseModel
 
 from pythia_simulator.adapters.base import ArtifactNotFound
 from pythia_simulator.adapters.r2 import get_store
+from pythia_simulator.adapters.repositories import AgentInstanceRepo
 from pythia_simulator.api.deps import (
     current_customer_id,
+    get_agent_repo,
     get_orchestrator,
 )
 from pythia_simulator.schemas.simulation import (
@@ -137,6 +139,50 @@ async def get_simulation(
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )
+
+
+class AgentSummary(BaseModel):
+    """Lightweight per-agent row for the simulation detail page.
+
+    Just enough for the persona-grouped table (#51). Full agent state +
+    conversation history lives behind GET /agents/{id}, which lands with
+    Phase 4 chat. Pulling the summary directly off the metadata repo means
+    the frontend makes one call instead of N=50.
+    """
+
+    agent_id: str
+    persona_id: str
+    persona_name: str
+
+
+@router.get("/{simulation_id}/agents", response_model=list[AgentSummary])
+async def list_simulation_agents(
+    simulation_id: str,
+    customer_id: str = Depends(current_customer_id),
+    orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+    agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
+) -> list[AgentSummary]:
+    """Persona-grouped table feed (Phase 2.5 #51).
+
+    Order matches the runner's materialization order (largest-remainder
+    allocator → largest persona first), since `list_for_simulation`
+    returns rows in insertion order in both the InMemory and Postgres
+    implementations.
+    """
+    sim_row = await orchestrator.get(simulation_id, customer_id)
+    if sim_row is None:
+        raise HTTPException(
+            status_code=404, detail=f"Simulation {simulation_id} not found"
+        )
+    rows = await agent_repo.list_for_simulation(simulation_id, customer_id)
+    return [
+        AgentSummary(
+            agent_id=r["id"],
+            persona_id=r["persona_id"],
+            persona_name=r["persona_name"],
+        )
+        for r in rows
+    ]
 
 
 @router.get("/{simulation_id}/state", response_model=SimulationRunState)
