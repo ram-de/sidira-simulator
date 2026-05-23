@@ -44,6 +44,14 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
+Two reasonable paths from here; pick based on appetite:
+
+**Path A — Phase 4 (Agent chat, the differentiator).** Bigger product win, more design surface to nail. See ticket list below.
+
+**Path B — Phase 5a (Postgres wiring, #68).** ~1 day standalone. Right now every uvicorn restart wipes the simulation list because `InMemorySimulationRepo` is the wired-up repo (the Postgres adapter + schema both exist, just the FastAPI `AsyncSession` dep is stubbed). Worth landing before showing the simulator to anyone external, and a hard prereq for Phase 7 (Lumen MVP). Carved out of Phase 5 so the small persistence win doesn't wait for the Clerk + multi-tenancy work.
+
+---
+
 **Phase 4 — Agent chat (the differentiator).** PMs can talk to each agent that participated in a simulation. Infrastructure is already in place (`AgentMemory`, frozen `identity_seed`, R2 sidecars, `_CHAT_GUARD_PREFIX`); what's missing is the API + the chat surface.
 
 Five open tickets:

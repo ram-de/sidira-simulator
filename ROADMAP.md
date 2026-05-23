@@ -40,7 +40,7 @@ What's **not yet real**:
 - **Calibrated mix.** Today's `_sample_personas` returns top-N personas by head_count weight — not stratified sampling. Phase 2.5 fixes this.
 - **Agent chat surface.** `/agents/{id}` page exists but the chat UI that justifies "agents you can talk to" is unbuilt. Phase 4.
 - **Real persona generation.** Demo uses a hand-built 6-persona fixture. pythia-personas can already generate packs; the simulator just hasn't consumed a real one yet.
-- **Persistence across restarts.** `InMemorySimulationRepo` resets on backend restart. Phase 2 of post-MVP work (Postgres handover) restores durability.
+- **Persistence across restarts.** `InMemorySimulationRepo` resets on backend restart. Phase 5a (#68) un-stubs the Postgres wiring (schema + adapters already exist) — small standalone ticket, carved out of Phase 5 so it can ship before auth.
 - **Multi-tenancy.** Everything is hardcoded to `customer_id = "demo"`. Phase 5.
 - **Crawler runs.** Feature Pack is still the hand-built Acme sample. crawler Phase 2 builds the Playwright walker.
 
@@ -55,10 +55,11 @@ What's **not yet real**:
 | 1.5 | MiroFish adaptation | — | — | ✅ Done |
 | 2 | Persona + Feature Pack loaders + Postgres metadata | (Round 1 ✅; Round 2 pending) | Walker (Playwright) | ✅ Simulator done; crawler 🔲 |
 | 3 | Simulation runner + scoring + refinement | — | Synthesis (PRD + Figma) | ✅ Simulator done; crawler 🔲 |
-| **2.5** | **Weighted population sampling (NEW)** | (per-cluster stats for v1.1 — optional) | — | 🔲 Next |
-| 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | 🔲 Pending |
+| **2.5** | Weighted population sampling | (per-cluster stats for v1.1 — optional) | — | ✅ Done |
+| 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | 🔲 Next |
 | 4.5 | Persona Builder UI (scaffolded) | — | — | 🚧 Scaffolded |
-| 5 | Auth (Clerk) + multi-tenancy + Postgres handover | R2 artifact integration | — | 🔲 Pending |
+| **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | 🔲 Pending |
+| 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
 | 7 | First customer (Lumen MVP) | First customer | First customer | 🔲 Pending |
 | 8 | Refinement loop UX (Karpathy AutoResearch) | Layer-3 calibration prep | — | 🔲 Pending |
@@ -70,7 +71,7 @@ What's **not yet real**:
 ## Critical path
 
 ```
-✅ Magic Moment (Phase 2+3) ──> Phase 2.5 (calibrated mix) ──> Phase 4 (chat UI) ──> Phase 5 (auth+Postgres) ──> Phase 7 (first customer)
+✅ Magic Moment (Phase 2+3) ──> ✅ Phase 2.5 (calibrated mix) ──> Phase 4 (chat UI) ──> Phase 5a (Postgres wiring, #68) ──> Phase 5 (auth+multi-tenancy) ──> Phase 7 (first customer)
                                                                                                                        │
                                                                                                                        ▼
                                                                                                               Phase 8 → 9 → 10
@@ -180,12 +181,24 @@ The infrastructure is largely in place (`AgentMemory`, frozen identity + initial
 
 7-step wizard scaffolded with stub bodies (`/personas/new`). Goal: PM connects Snowflake → maps columns to 7 feature groups → triggers a pythia-personas build → resulting pack appears in the simulator. Snowflake-only MVP; single-source builds; LLM-assisted column mapping.
 
-### Phase 5 — Auth + multi-tenancy + Postgres handover 🔲
+### Phase 5a — Postgres repo wiring 🔲 (carve-out — #68)
+
+Small standalone ticket carved out of Phase 5 so persistence can ship before auth lands. The schema (Alembic 001+002+003) and adapter classes (`PostgresSimulationRepo`, `PostgresAgentInstanceRepo`, `PostgresCustomerRepo`) already exist; only the FastAPI `AsyncSession` dependency wiring in `api/deps.py` is stubbed.
+
+- Un-stubs `_repos()` to return Postgres-backed repos when `DATABASE_URL` is set.
+- `InMemorySimulationRepo` stays as the local-dev fallback when `DATABASE_URL` is unset.
+- Background-task session lifecycle (orchestrator runs outside request scope).
+- Optional `PYTHIA_AUTO_MIGRATE=1` flag for app-startup migration.
+- ~1 day. Blocks Phase 7 (first customer requires a backend that survives restarts).
+
+### Phase 5 — Auth + multi-tenancy 🔲
 
 - Clerk auth on every API route
-- Customer scoping enforced at the repo layer (`InMemorySimulationRepo` → `PostgresSimulationRepo` in prod)
+- Customer scoping enforced at the repo layer (the Postgres repos already accept `customer_id` — this phase ENFORCES it on every route)
 - CORS allowlist per-customer subdomain
-- The `InMemorySimulationRepo` (currently the demo backend) is retired
+- Per-customer R2 prefix isolation (#33)
+- Customer signup flow + initial customer record (#31)
+- The Phase 5a InMemory fallback is retired; production runs Postgres only
 
 ### Phase 6 — Observability 🔲
 
