@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-22
+**Last updated:** 2026-05-22 (Phase 2.5 closed)
 
 ---
 
@@ -22,6 +22,19 @@ Waves 0–6 landed:
 
 Retrospective: `git show b39db2b` in conversation history, plus the lessons captured in the next section.
 
+✅ **Phase 2.5 — Weighted Population Sampling, fully shipped (2026-05-22, session `weighted_population`).**
+Six backend tickets + three frontend tickets + one follow-on backend endpoint. Suite 60 → 153 passed.
+
+- **#7** Groq backoff with jitter (PR #59).
+- **#57** schema swap: `population_size` replaces `persona_sample_size`; new `Weakness.frequency/ci_low/ci_high`, `SimulationResult.confidence_score_ci`, `AgentInstance.identity_seed`, `Persona.behavioral_seeds` fields (PR #60).
+- **#58** `services/population_sampler.py` with Hamilton largest-remainder allocation (PRs #61 + #63).
+- **#5** `services/identity_seed.py` — deterministic per-agent context (`age_band, locale_band, tenure_band, current_state, recent_gripe`) seeded from `(persona_id, sample_index, run_seed)` via sha256→int64. Splices into prompt; persisted to R2 as a sidecar (PR #64).
+- **#6** Wilson CIs on weakness frequencies + percentile bootstrap (B=1000) on aggregate score. Pure-Python in `services/statistics.py`, no scipy dep. `ScoringConfig.bootstrap_resamples=0` is the test-fast skip sentinel. Determinism via `run_seed` mixed with a domain-separation XOR mask (PR #65).
+- **#8** degradation guard: if >50% of LLM classifications fail, discount confidence_score by 30% and prepend an `underpowered_design` weakness explaining the rate. Two-gate collapse when low-N + degradation both fire (PR #66).
+- **#9 + #10 + #51** frontend bundle: wizard rename `Sample size`→`Population` with stratification helper, Population banner, `ScoreCiBar` + `WeaknessFrequencyBar` visualizations, persona-grouped collapsible agent table. Live-test surfaced `GET /agents/{id}` is 501-stubbed for Phase 4 chat → added lightweight `GET /simulations/{id}/agents` summary endpoint to unblock #51 (PR #67).
+
+End-to-end verified locally against a 12-population demo sim: Hamilton allocated 6 personas in correct weighted proportions; score 33 with bootstrap CI [30.0–39.1]; 3 weaknesses each with Wilson CIs; persona-grouped table renders and expands. **The calibration thesis is true in code AND visible in the UI.**
+
 ✅ **Second-vertical sample + customer resolver loosened (2026-05-22, session `sample_creations`).**
 Shipped a `streamly_sample` customer fixture (video streaming, 6 personas, 2 capabilities, pre-registered "Smart Resume" hypothesis) and an env-var override on `current_customer_id()` so the same running backend can be pointed at any local-artifacts fixture without code edits. Verified live: sim `89d01a19-…` returned 6/6 real Groq persona reactions in ~13s. The `demo` flow is unchanged. Useful for pressure-testing that the simulator isn't accidentally food-delivery-shaped, and as a non-DoorDash demo surface.
 
@@ -31,24 +44,26 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Phase 2.5 — Weighted Population Sampling.** Replace `sample_size` with `population_size`. Stratified allocation via largest-remainder. Per-agent identity_seed for variance. Confidence intervals on score + weakness frequencies.
+**Phase 4 — Agent chat (the differentiator).** PMs can talk to each agent that participated in a simulation. Infrastructure is already in place (`AgentMemory`, frozen `identity_seed`, R2 sidecars, `_CHAT_GUARD_PREFIX`); what's missing is the API + the chat surface.
 
-Decisions locked:
-- Single input: `population_size` (PM specifies "imagine N users facing this hypothesis")
-- Cap: `min(population, 50)` agents actually run; configurable via env var
-- Variance: per-agent `identity_seed` blob (age band, locale band, tenure, recent gripe) injected into persona prompt
-- Aggregation: Wilson CI on weakness frequencies, bootstrap on aggregate score
+Five open tickets:
+- **#52** backend: un-stub `GET /agents/{id}` + `POST /agents/{id}/messages` against `AgentMemory`. (Currently 501.)
+- **#53** frontend: individual-agent chat with pinned persona + identity_seed + initial reaction at top.
+- **#54** api: persona-group chat with per-agent fan-out + one-line LLM synthesis. ("Ask the whole `DashPass Power × 15` group why they pushed back.")
+- **#55** frontend: persona-group chat page with side-by-side per-agent replies + synthesis.
+- **#56** per-turn calibration thumbs (👍/👎 on each reply) — feeds Phase 9 Layer-3.
 
-Open questions to brainstorm before code:
-1. `identity_seed` — rule-based draws or hybrid (deterministic fields + LLM-generated prose)?
-2. Per-persona attribute schema — emit from pythia-personas v1.1 or hand-roll in simulator?
-3. Detail-view UX for 50 agents — virtualized list or grouped by persona?
+Open question to brainstorm before code: **synthesis quality bar.** A bad one-line synthesis ("the group had mixed feelings") is worse than no synthesis. Worth a `/plan-ceo-review` before #54 lands to decide on prompt strategy + a quality eval.
 
-Hard constraints:
-- Groq rate-limit backoff lands BEFORE the 50-agent run (3 LLM calls per agent × 50 = 150 bursts will 429 the free tier)
-- Scoring degradation guard for >50% classification failures (today's code silently produces a misleading ~70 when everything fails)
+**Carryover TODOS from Phase 2.5** (not blocking, capture for later):
+- LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
+- v1.1 personas pack rollout for true cross-persona variance (currently `_DEFAULT_BEHAVIORAL_SEEDS` shared across personas)
+- BCa bootstrap on aggregate score (Layer-3 calibration, follow-up to #6)
+- Block-bootstrap by persona (Layer-3, follow-up to #6)
+- v1.0-pack `_DEFAULT_BEHAVIORAL_SEEDS` fallback alerting (separate from #8, not currently ticketed)
+- Founder rotates the PAT that was pasted in chat during MCP setup (security hygiene)
 
-Tickets to start with live in the [GitHub Project](https://github.com/users/ram-de/projects/) under Phase 2.5.
+Tickets live in the [GitHub Project](https://github.com/users/ram-de/projects/) under Phase 4.
 
 ---
 
@@ -61,6 +76,12 @@ From the Magic Moment retro:
 4. **`/qa` before the demo, not after.** Curl-based smoke tests miss browser-origin bugs (CORS).
 5. **Name placeholders honestly in code.** A function called `_sample_personas` that doesn't sample is a lie. Future-you blames past-you.
 6. **Hand-authored fixtures need the schema next to them.** Writing `streamly_sample` reverse-figma JSON, we guessed the transition shape wrong twice — `from`/`to`/`roles` instead of `from_screen`/`to_screen`/`role_gated`. Pydantic caught it on load, but the round-trip cost ten minutes. If we keep adding fixtures, fold a one-page schema crib into `docs/`.
+
+From Phase 2.5:
+
+7. **The browser test catches what `tsc --noEmit` + `next build` can't.** Phase 2.5 frontend compiled clean, codex passed three rounds, but the first live click revealed that `/agents/{id}` is 501-stubbed (Phase 4 work) so the persona-grouped table was just hitting its fallback path. CI gates verify shape; only the click verifies the wired-up flow. Bake "open the browser and click the thing" into the PR boundary, not after merge.
+8. **Recommend the lightweight summary endpoint over N+1 fan-out, *before* you ship N+1.** Codex round 1 explicitly flagged the `Promise.all(getAgent)` pattern as "the right fix if this ever bottlenecks is a `/simulations/{id}/agents` summary endpoint." It bottlenecked on round zero (a 501) — the endpoint should have shipped with #51 from the start. Trust codex's "right fix" framing, don't defer "if this ever."
+9. **Stale duplicate tickets accumulate fast under solo velocity.** #3 and #4 were re-scoped into #57 and #58 mid-phase and silently left open. Re-audit the GitHub Project at every phase boundary; closing stale tickets is part of "closing the phase."
 
 ---
 
