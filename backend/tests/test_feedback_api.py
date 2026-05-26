@@ -166,6 +166,68 @@ def test_agent_feedback_404_for_out_of_range_turn_index(client) -> None:
     assert "out of range" in resp.json()["detail"]
 
 
+def test_agent_feedback_rejects_pm_turn(client) -> None:
+    """Codex #85 round-1 P2: same contract as the persona-group route —
+    PM turns aren't valid feedback targets (no LLM-generated content to
+    calibrate). The route must 400 if turn_index points at a PM turn."""
+    c, chat = client
+    _sim_id, agent_id = _run_sim_and_send_one_agent_turn(c, chat)
+    # Conversation is [pm (0), agent (1)]. Thumb the PM turn → 400.
+    resp = c.post(
+        f"/agents/{agent_id}/turns/0/feedback",
+        json={"realistic_flag": True},
+    )
+    assert resp.status_code == 400
+    assert "PM turn" in resp.json()["detail"]
+
+
+def test_agent_feedback_concurrent_thumbs_all_persisted(client) -> None:
+    """Codex #85 round-1 P2: R2 read-modify-write append on a hot
+    feedback log can lose events under concurrent POSTs. Per-sim lock
+    in the route serializes them. Fire several concurrent thumb-flip
+    POSTs and verify EVERY event is in the audit history (Phase 9 reads
+    the full sequence, not just latest)."""
+    import asyncio
+    import httpx
+
+    c, chat = client
+    _sim_id, agent_id = _run_sim_and_send_one_agent_turn(c, chat)
+    # Send many concurrent POSTs flipping the thumb. With the per-sim
+    # lock they serialize cleanly; without it the R2 race would drop
+    # entries.
+    n = 12
+
+    async def _hit(flag: bool):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            r = await ac.post(
+                f"/agents/{agent_id}/turns/1/feedback",
+                json={"realistic_flag": flag},
+            )
+            assert r.status_code == 200
+
+    async def _run() -> None:
+        await asyncio.gather(*[_hit(i % 2 == 0) for i in range(n)])
+
+    asyncio.get_event_loop().run_until_complete(_run())
+
+    # Read raw events from the feedback log to verify all were persisted.
+    from pythia_simulator.adapters.r2 import LocalArtifactStore
+    from pythia_simulator.memory.feedback_log import FeedbackLog
+
+    store = LocalArtifactStore(_FIXTURE_ROOT)
+    flog = FeedbackLog(store)
+    events = flog.read_all(customer_id="demo", simulation_id=_sim_id)
+    agent_events = [
+        e for e in events if e.target_kind.value == "agent" and e.target_id == agent_id
+    ]
+    assert len(agent_events) == n, (
+        f"expected {n} feedback events under per-sim lock, got "
+        f"{len(agent_events)} — concurrent appends were lost"
+    )
+
+
 def test_agent_feedback_400_for_negative_turn_index(client) -> None:
     c, chat = client
     _sim_id, agent_id = _run_sim_and_send_one_agent_turn(c, chat)

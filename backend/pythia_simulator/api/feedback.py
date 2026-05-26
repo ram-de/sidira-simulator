@@ -45,6 +45,28 @@ agent_router = APIRouter(prefix="/agents", tags=["feedback"])
 group_router = APIRouter(prefix="/simulations", tags=["feedback"])
 
 
+# Per-simulation asyncio.Lock to serialize feedback appends. Codex #85
+# round-1 P2: R2ArtifactStore.append_line is a read-modify-write, so two
+# concurrent feedback POSTs against the same simulation can both read the
+# same feedback.jsonl and the later put overwrites the earlier event —
+# losing audit history (which Phase 9 wants) AND potentially leaving
+# latest_flags() with the wrong final thumb when a PM rapid-fires 👍/👎.
+#
+# Single-process scope: this lock only protects against in-process races.
+# Multi-replica deployments would need an external lock (Redis, a per-sim
+# row in a coordinator table) — not needed today. Documented here so a
+# future move to multiple uvicorn workers re-opens the question.
+_feedback_locks: dict[str, asyncio.Lock] = {}
+
+
+def _lock_for(simulation_id: str) -> asyncio.Lock:
+    lock = _feedback_locks.get(simulation_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _feedback_locks[simulation_id] = lock
+    return lock
+
+
 @agent_router.post(
     "/{agent_id}/turns/{turn_index}/feedback",
     response_model=FeedbackResponse,
@@ -98,6 +120,17 @@ async def record_agent_turn_feedback(
                 f"(agent has {len(conversation)} turns)"
             ),
         )
+    # Codex #85 round-1 P2: same reply-only contract as the persona-group
+    # route. PM turns aren't valid feedback targets — no LLM-generated
+    # content to calibrate, and a buggy/direct client could otherwise
+    # render thumbs on the PM's own messages.
+    from pythia_simulator.schemas.agent import AgentRole
+
+    if conversation[turn_index].role == AgentRole.PM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot feedback on a PM turn (only agent replies).",
+        )
 
     now = datetime.now(timezone.utc)
     event = FeedbackEvent(
@@ -108,12 +141,15 @@ async def record_agent_turn_feedback(
         created_at=now,
     )
     feedback_log = FeedbackLog(store)
-    await asyncio.to_thread(
-        feedback_log.append,
-        customer_id=customer_id,
-        simulation_id=metadata.simulation_id,
-        event=event,
-    )
+    # Codex #85 round-1 P2: serialize per-sim so concurrent thumbs on the
+    # same simulation can't race the R2 read-modify-write append.
+    async with _lock_for(metadata.simulation_id):
+        await asyncio.to_thread(
+            feedback_log.append,
+            customer_id=customer_id,
+            simulation_id=metadata.simulation_id,
+            event=event,
+        )
 
     return FeedbackResponse(
         target_kind=event.target_kind,
@@ -203,12 +239,13 @@ async def record_persona_group_turn_feedback(
         created_at=now,
     )
     feedback_log = FeedbackLog(store)
-    await asyncio.to_thread(
-        feedback_log.append,
-        customer_id=customer_id,
-        simulation_id=sim_id,
-        event=event,
-    )
+    async with _lock_for(sim_id):
+        await asyncio.to_thread(
+            feedback_log.append,
+            customer_id=customer_id,
+            simulation_id=sim_id,
+            event=event,
+        )
 
     return FeedbackResponse(
         target_kind=event.target_kind,
