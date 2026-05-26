@@ -1211,9 +1211,30 @@ function SentimentChip({
   // along with the background hurt WCAG contrast on low-confidence
   // states.
   const palette = {
-    positive: { bgR: 231, bgG: 246, bgB: 236, fg: "#0a7d3a", glyph: "+" },
-    neutral: { bgR: 241, bgG: 241, bgB: 241, fg: "#555", glyph: "~" },
-    negative: { bgR: 253, bgG: 236, bgB: 236, fg: "#a30000", glyph: "−" },
+    positive: {
+      bgR: 231,
+      bgG: 246,
+      bgB: 236,
+      fg: "#0a7d3a",
+      border: "#b4d9bf",
+      glyph: "+",
+    },
+    neutral: {
+      bgR: 241,
+      bgG: 241,
+      bgB: 241,
+      fg: "#555",
+      border: "#d4d4d4",
+      glyph: "~",
+    },
+    negative: {
+      bgR: 253,
+      bgG: 236,
+      bgB: 236,
+      fg: "#a30000",
+      border: "#d9a3a3",
+      glyph: "−",
+    },
   } as const;
   const p = palette[sentiment];
   // Confidence in [0.6, 1.0] drives the background alpha so low-confidence
@@ -1230,7 +1251,11 @@ function SentimentChip({
         padding: "2px 8px",
         borderRadius: 999,
         background: `rgba(${p.bgR}, ${p.bgG}, ${p.bgB}, ${bgAlpha})`,
-        border: `1px solid ${p.fg}22`,
+        // Codex #84 round-2 P2: opaque border (was an 8-digit hex alpha
+        // `${p.fg}22` which kept the border ~13% opacity even after the
+        // round-1 opacity fix). Mid-tone opaque hex stays visually light
+        // without dropping legibility.
+        border: `1px solid ${p.border}`,
         // No `opacity` on the chip itself — text + glyph stay fully opaque
         // for accessibility (codex #84 round-1 P2).
         textTransform: "lowercase",
