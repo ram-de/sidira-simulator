@@ -86,66 +86,91 @@ export default function AgentChatPage() {
     setSending(true);
 
     // Optimistic PM turn so the UI doesn't feel dead while the LLM responds.
-    // A refetch after success replaces optimistic with canonical.
+    // The exact object reference is captured here so the rollback path can
+    // filter precisely this turn out without disturbing any concurrent
+    // updates that may have appended other turns in the meantime.
+    // (codex #53 round-2 P2)
     const optimisticPm: AgentChatTurn = {
       role: "pm",
       content: trimmed,
       created_at: new Date().toISOString(),
       realistic_flag: null,
     };
-    const baselineConversation = agent.conversation ?? [];
     setAgent((current) =>
       current
-        ? { ...current, conversation: [...baselineConversation, optimisticPm] }
+        ? {
+            ...current,
+            // Read from current.conversation, NOT a closure-captured baseline,
+            // so concurrent appends aren't clobbered.
+            conversation: [...(current.conversation ?? []), optimisticPm],
+          }
         : current,
     );
     setDraft("");
 
-    // Phase 1: send. Failure here means the server persisted nothing
-    // (server-side #52 ordering); safe to roll back the optimistic turn.
-    let sendOk = false;
+    // setSending(false) in finally so a future edit can't strand the
+    // composer in the sending state (codex #53 round-2 nit).
     try {
-      await sendAgentMessage(agentId, trimmed);
-      sendOk = true;
-    } catch (e) {
-      setAgent((current) =>
-        current ? { ...current, conversation: baselineConversation } : current,
-      );
-      setDraft(trimmed); // restore so the user can retry without re-typing
-      // Refocus the composer so retry is one keystroke away.
-      composerRef.current?.focus();
-      if (e instanceof ApiError) {
-        setSendError(
-          e.status === 502
-            ? "The agent took too long to respond. Try again."
-            : `Send failed (HTTP ${e.status}): ${e.body || e.message}`,
-        );
-      } else {
-        setSendError(e instanceof Error ? e.message : "Send failed.");
-      }
-    }
-
-    // Phase 2: refetch to get canonical timestamps + the agent's reply.
-    // Codex #53 P1: this is a SEPARATE failure class. A refetch error here
-    // does NOT mean the send failed — both turns are already persisted
-    // server-side. Rolling back would tell the user "your message didn't
-    // go through" and prompt a retry that duplicates the persisted PM turn.
-    // Instead: keep the optimistic PM turn visible, show a refresh-only
-    // error, and let the user reload manually.
-    if (sendOk) {
+      // Phase 1: send. Failure here means the server persisted nothing
+      // (server-side #52 ordering); safe to remove the optimistic turn.
+      let sendOk = false;
       try {
-        const fresh = await getAgent(agentId);
-        setAgent(fresh);
+        await sendAgentMessage(agentId, trimmed);
+        sendOk = true;
       } catch (e) {
-        setSendError(
-          e instanceof Error
-            ? `Sent, but couldn't refresh the conversation: ${e.message}. Reload the page to see the latest.`
-            : "Sent, but couldn't refresh the conversation. Reload the page to see the latest.",
+        // Remove ONLY the optimistic turn by reference, not the whole
+        // conversation, so any concurrent updates survive.
+        setAgent((current) =>
+          current
+            ? {
+                ...current,
+                conversation: (current.conversation ?? []).filter(
+                  (t) => t !== optimisticPm,
+                ),
+              }
+            : current,
         );
+        setDraft(trimmed); // restore so the user can retry without re-typing
+        if (e instanceof ApiError) {
+          setSendError(
+            e.status === 502
+              ? "The agent took too long to respond. Try again."
+              : `Send failed (HTTP ${e.status}): ${e.body || e.message}`,
+          );
+        } else {
+          setSendError(e instanceof Error ? e.message : "Send failed.");
+        }
       }
+
+      // Phase 2: refetch to get canonical timestamps + the agent's reply.
+      // Codex #53 round-1 P1: SEPARATE failure class. A refetch error
+      // here does NOT mean the send failed — both turns are already
+      // persisted server-side. Rolling back would prompt a retry that
+      // duplicates the persisted PM turn. Instead keep the optimistic
+      // PM turn visible and show a refresh-only error.
+      if (sendOk) {
+        try {
+          const fresh = await getAgent(agentId);
+          setAgent(fresh);
+        } catch (e) {
+          setSendError(
+            e instanceof Error
+              ? `Sent, but couldn't refresh the conversation: ${e.message}. Reload the page to see the latest.`
+              : "Sent, but couldn't refresh the conversation. Reload the page to see the latest.",
+          );
+        }
+      }
+    } finally {
+      setSending(false);
     }
 
-    setSending(false);
+    // Refocus the composer for retry / next message. Deferred via
+    // requestAnimationFrame so the textarea is no longer `disabled`
+    // (sending=false) by the time we call focus() — some browsers ignore
+    // focus on a still-disabled element. (codex #53 round-2 nit)
+    if (sendError != null || draft) {
+      requestAnimationFrame(() => composerRef.current?.focus());
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -328,7 +353,11 @@ export default function AgentChatPage() {
       <section style={cardStyle} aria-label="Send a message">
         {sendError && (
           <div
-            role="alert"
+            // Use aria-live="polite" alone, not role="alert" + aria-live —
+            // role="alert" already implies assertive live-region behavior;
+            // pairing them is contradictory. Polite is correct here: a
+            // failed send isn't urgent enough to interrupt the user's
+            // current narration (codex #53 round-2 nit).
             aria-live="polite"
             style={{
               fontSize: 13,
