@@ -984,6 +984,8 @@ function PersonaGroupRow({
   agentIds: string[];
   isFirst: boolean;
 }) {
+  const params = useParams<{ id: string }>();
+  const simId = params?.id ?? "";
   const [open, setOpen] = useState(false);
   const listId = `persona-agents-${personaId}`;
   return (
@@ -993,6 +995,15 @@ function PersonaGroupRow({
         borderTop: isFirst ? "none" : "1px solid #eee",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          width: "100%",
+          minWidth: 0,
+        }}
+      >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -1006,7 +1017,7 @@ function PersonaGroupRow({
           display: "flex",
           alignItems: "baseline",
           gap: 12,
-          width: "100%",
+          flex: 1,
           textAlign: "left",
           // minWidth:0 + the truncating persona-id below = no horizontal
           // scroll on narrow viewports (codex P2 round 1).
@@ -1060,6 +1071,20 @@ function PersonaGroupRow({
           {personaId}
         </span>
       </button>
+      <Link
+        href={`/simulations/${simId}/personas/${personaId}`}
+        aria-label={`Open persona-group chat with ${personaName}`}
+        style={{
+          fontSize: 13,
+          color: "#1d4ed8",
+          textDecoration: "none",
+          flex: "0 0 auto",
+          whiteSpace: "nowrap",
+        }}
+      >
+        💬 chat
+      </Link>
+      </div>
       {open && (
         <ul
           id={listId}
