@@ -87,10 +87,23 @@ class PersonaGroupChatRequest(BaseModel):
     mode: PersonaGroupMode = "collective"
 
 
+class UnavailableAgent(BaseModel):
+    """An agent that should have participated in a collective reply but
+    couldn't be loaded (artifact read failure, transient storage error)."""
+
+    agent_id: str
+    agent_label: str
+    persona_name: str
+    error: str
+
+
 class PersonaGroupChatResponse(BaseModel):
     """Discriminated response shape.
 
-    `role="collective"` populates `content` + `references`.
+    `role="collective"` populates `content` + `references`. May also
+    populate `unavailable_agents` when one or more agent loads failed
+    so the frontend can surface "answer reflects N-1 of N agents" to the PM
+    (codex #82 round-1 P2: don't silently shrink the collective).
     `role="synthesis"` populates `synthesis` + `per_agent`.
     The frontend branches on `role`.
     """
@@ -100,6 +113,7 @@ class PersonaGroupChatResponse(BaseModel):
     # Collective-mode fields
     content: str | None = None
     references: list[AgentReference] | None = None
+    unavailable_agents: list[UnavailableAgent] | None = None
     # Individual-fanout-mode fields
     synthesis: str | None = None
     per_agent: list[PerAgentReply] | None = None

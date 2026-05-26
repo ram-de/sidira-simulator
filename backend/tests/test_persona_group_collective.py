@@ -13,8 +13,6 @@ layer so future refactors don't drift.
 
 from __future__ import annotations
 
-import pytest
-
 from pythia_simulator.services.persona_group_collective import (
     CollectiveAgentContext,
     PersonaGroupCollectiveService,

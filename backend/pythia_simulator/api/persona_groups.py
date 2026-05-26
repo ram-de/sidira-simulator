@@ -42,12 +42,12 @@ from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.memory.persona_group_log import PersonaGroupLog
 from pythia_simulator.schemas.agent import AgentInstanceMetadata
 from pythia_simulator.schemas.persona_group import (
-    AgentReference,
     PerAgentReply,
     PersonaGroupChatRequest,
     PersonaGroupChatResponse,
     PersonaGroupRole,
     PersonaGroupTurn,
+    UnavailableAgent,
 )
 from pythia_simulator.services.agent_chat import AgentChatService
 from pythia_simulator.services.persona_group_collective import (
@@ -191,7 +191,9 @@ async def _handle_collective(
     # concurrency cap as fan-out — large groups shouldn't burst the store.
     load_sem = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
 
-    async def _load_one(meta: AgentInstanceMetadata, label: str):
+    async def _load_one(
+        meta: AgentInstanceMetadata, label: str
+    ) -> tuple[CollectiveAgentContext | None, UnavailableAgent | None]:
         async with load_sem:
             try:
                 agent = await asyncio.to_thread(memory.load, meta)
@@ -204,26 +206,38 @@ async def _handle_collective(
                     exc_type=type(exc).__name__,
                     error=str(exc),
                 )
-                return None
+                return (
+                    None,
+                    UnavailableAgent(
+                        agent_id=meta.id,
+                        agent_label=label,
+                        persona_name=meta.persona_name,
+                        error=f"{type(exc).__name__}: {exc}",
+                    ),
+                )
             seed = agent.identity_seed
-            return CollectiveAgentContext(
-                agent_id=meta.id,
-                agent_label=label,
-                persona_name=meta.persona_name,
-                identity_seed_summary=build_identity_seed_summary(
-                    age_band=seed.age_band if seed else None,
-                    locale_band=seed.locale_band if seed else None,
-                    tenure_band=seed.tenure_band if seed else None,
-                    current_state=seed.current_state if seed else None,
-                    recent_gripe=seed.recent_gripe if seed else None,
+            return (
+                CollectiveAgentContext(
+                    agent_id=meta.id,
+                    agent_label=label,
+                    persona_name=meta.persona_name,
+                    identity_seed_summary=build_identity_seed_summary(
+                        age_band=seed.age_band if seed else None,
+                        locale_band=seed.locale_band if seed else None,
+                        tenure_band=seed.tenure_band if seed else None,
+                        current_state=seed.current_state if seed else None,
+                        recent_gripe=seed.recent_gripe if seed else None,
+                    ),
+                    initial_reaction=agent.initial_reaction,
                 ),
-                initial_reaction=agent.initial_reaction,
+                None,
             )
 
-    contexts_with_none = await asyncio.gather(
+    load_results = await asyncio.gather(
         *[_load_one(m, lbl) for m, lbl in zip(metadatas, labels, strict=True)]
     )
-    contexts: list[CollectiveAgentContext] = [c for c in contexts_with_none if c is not None]
+    contexts: list[CollectiveAgentContext] = [ctx for ctx, _ in load_results if ctx is not None]
+    unavailable: list[UnavailableAgent] = [u for _, u in load_results if u is not None]
 
     if not contexts:
         # Every load failed — same shape as fan-out's all-failed branch.
@@ -235,10 +249,15 @@ async def _handle_collective(
             ),
         )
 
-    # Read prior collective conversation so multi-turn collective chats stay
-    # coherent. Skip `synthesis` turns (they belong to the fan-out audit
-    # trail; including them would confuse the collective voice with prose
-    # framed differently).
+    # Read prior conversation so multi-turn collective chats stay coherent.
+    # Codex #82 round-1 P2: include BOTH collective AND synthesis reply
+    # turns paired with their PMs — if the user mixed modes (e.g. asked
+    # individual fan-out, then asked collective), filtering out synthesis
+    # turns would leave the collective LLM seeing an unanswered PM question
+    # from the individual turn and produce confused multi-turn replies.
+    # We label fan-out replies as `synthesis` in the prior block so the
+    # model knows that turn was answered by a different surface — not by
+    # a missing collective reply.
     try:
         prior_turns = await asyncio.to_thread(
             group_log.read,
@@ -256,11 +275,7 @@ async def _handle_collective(
         )
         prior_turns = []
 
-    prior_conversation: list[tuple[str, str]] = [
-        (t.role.value, t.content)
-        for t in prior_turns
-        if t.role in (PersonaGroupRole.PM, PersonaGroupRole.COLLECTIVE)
-    ]
+    prior_conversation = _pair_prior_turns(prior_turns)
 
     persona_name = metadatas[0].persona_name
     collective_service = PersonaGroupCollectiveService()
@@ -297,6 +312,10 @@ async def _handle_collective(
         created_at=now,
         content=content,
         references=references,
+        # Codex #82 round-1 P2: surface load failures so the frontend can
+        # warn "answer reflects X of N agents". None when every load
+        # succeeded; otherwise a list of the agents we couldn't load.
+        unavailable_agents=unavailable if unavailable else None,
     )
 
 
@@ -407,6 +426,48 @@ async def _handle_individual_fanout(
 # ──────────────────────────────────────────────────────────────────────
 # Shared helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _pair_prior_turns(
+    prior_turns: list[PersonaGroupTurn],
+) -> list[tuple[str, str]]:
+    """Build coherent (role, content) tuples for the collective LLM context.
+
+    Codex #82 round-1 P2: a naive filter that keeps PM + COLLECTIVE turns
+    leaves the LLM seeing a dangling unanswered PM whenever the user
+    previously switched into individual-fanout mode (the PM is in the log
+    but the synthesis reply is filtered out). Worse, a best-effort
+    log-append failure that persisted the PM but not the reply produces
+    the same orphan.
+
+    Strategy: only emit a PM turn if the NEXT turn in the log is a reply
+    (collective or synthesis). Emit the reply paired with it, labelled
+    `collective` or `synthesis` so the LLM knows which surface answered.
+    Orphan PMs (no following reply) are dropped — they confuse the model
+    more than they help.
+    """
+    out: list[tuple[str, str]] = []
+    i = 0
+    while i < len(prior_turns):
+        turn = prior_turns[i]
+        if turn.role != PersonaGroupRole.PM:
+            # A stray reply with no PM before it: shouldn't happen in well-
+            # formed logs, but defensively skip rather than emit context-free.
+            i += 1
+            continue
+        next_turn = prior_turns[i + 1] if i + 1 < len(prior_turns) else None
+        if next_turn is None or next_turn.role == PersonaGroupRole.PM:
+            # Orphan PM — drop it. Either the run was interrupted mid-turn or
+            # an audit-trail append silently failed (see _append_group_log_best_effort).
+            i += 1
+            continue
+        if next_turn.role in (PersonaGroupRole.COLLECTIVE, PersonaGroupRole.SYNTHESIS):
+            out.append((turn.role.value, turn.content))
+            out.append((next_turn.role.value, next_turn.content))
+            i += 2
+            continue
+        i += 1
+    return out
 
 
 async def _append_group_log_best_effort(
