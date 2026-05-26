@@ -202,20 +202,32 @@ async def send_persona_group_message(
         created_at=now,
         per_agent=per_agent,
     )
-    await asyncio.to_thread(
-        group_log.append,
-        customer_id=customer_id,
-        simulation_id=sim_id,
-        persona_id=persona_id,
-        turn=pm_turn,
-    )
-    await asyncio.to_thread(
-        group_log.append,
-        customer_id=customer_id,
-        simulation_id=sim_id,
-        persona_id=persona_id,
-        turn=synth_turn,
-    )
+    # Persona-group log writes are best-effort by the same logic as the
+    # synthesis fallback above (codex #80 [P2]): the per-agent fan-out has
+    # already persisted the source-of-truth PM/agent pairs to individual
+    # logs. If the group-log append fails (R2 hiccup, transient storage
+    # error), 500ing would invite a client retry that re-fans-out the same
+    # PM message to every agent, duplicating their individual conversations.
+    # The audit trail is downstream of the data we care about — degrade it
+    # rather than corrupt the per-agent logs.
+    for turn in (pm_turn, synth_turn):
+        try:
+            await asyncio.to_thread(
+                group_log.append,
+                customer_id=customer_id,
+                simulation_id=sim_id,
+                persona_id=persona_id,
+                turn=turn,
+            )
+        except Exception as exc:  # noqa: BLE001 - audit trail is best-effort
+            log.warning(
+                "persona_group.log_append_failed",
+                simulation_id=sim_id,
+                persona_id=persona_id,
+                turn_role=turn.role.value,
+                exc_type=type(exc).__name__,
+                error=str(exc),
+            )
 
     return PersonaGroupChatResponse(
         synthesis=synthesis_text,

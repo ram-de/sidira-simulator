@@ -486,6 +486,47 @@ def test_persona_group_synthesis_failure_returns_200_with_fallback(
         assert turns[1]["role"] == "agent"
 
 
+def test_persona_group_log_persistence_failure_returns_200(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """Codex #80 [P2]: when the persona-group log append raises after the
+    per-agent fan-out has already persisted PM/agent turns, the route must
+    still return 200. A 500 here would invite the same client-retry
+    duplication that the synthesis-failure fix prevents. The audit trail
+    degrades; the per-agent logs (source of truth) stay intact."""
+    from pythia_simulator.api import persona_groups as route_mod
+
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    chat.synthesis_n = len(agent_ids)
+
+    # Make the group_log.append always raise. The route MUST swallow these.
+    class _BoomLog:
+        def append(self, **kwargs):
+            raise IOError("simulated R2 hiccup on group-log append")
+
+    monkeypatch.setattr(route_mod, "PersonaGroupLog", lambda store: _BoomLog())
+
+    pm_msg = "Question that triggers a group-log failure."
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"message": pm_msg},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # Synthesis still present (came from successful fan-out)
+    assert "of" in body["synthesis"] or "agents" in body["synthesis"]
+    # Each agent's individual log has exactly the one PM/agent turn pair
+    # — no duplication via client recovery.
+    for aid in agent_ids:
+        detail = client.get(f"/agents/{aid}").json()
+        turns = detail["conversation"]
+        assert len(turns) == 2, f"agent {aid} has {len(turns)} turns; expected 2"
+        assert turns[0]["content"] == pm_msg
+
+
 def test_persona_group_individual_chat_log_grew_too(
     client_with_persona_group_stub,
 ) -> None:
