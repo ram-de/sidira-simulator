@@ -56,6 +56,11 @@ class Simulation(Base):
     sampled_agent_count: Mapped[int | None] = mapped_column(nullable=True)
     # Phase 2.5 (#5): identity_seed RNG seed pinned per run for reproducibility.
     run_seed: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # Phase 4.6 (#88): A/B mode treatment fraction. NULL = single-arm sim
+    # (today's default). Float in (0, 1) when A/B mode is on; v1 wizard
+    # always sends 0.5 (paired sampling makes other values statistically
+    # wasteful, but the field stays flexible for future indep-sampling).
+    treatment_fraction: Mapped[float | None] = mapped_column(nullable=True)
 
     agents: Mapped[list["AgentInstance"]] = relationship(
         back_populates="simulation", cascade="all, delete-orphan"

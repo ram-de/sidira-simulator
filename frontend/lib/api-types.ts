@@ -602,6 +602,32 @@ export interface components {
             top_quote?: string | null;
         };
         /**
+         * ArmSplit
+         * @description A/B experiment-mode configuration (Phase 4.6 #88).
+         *
+         *     When set on a SimulationRequest, the simulator runs BOTH a treatment
+         *     arm (agents see the proposed change) and a control arm (agents see
+         *     the current product, no change). The lift between arms is computed
+         *     via paired bootstrap on per-agent sentiment delta (#90).
+         *
+         *     `treatment_fraction` defines what share of population_size goes to
+         *     treatment vs control. Paired sampling (Phase 4.6 Q3, locked
+         *     2026-05-26) requires identical `(persona_id, sample_index)` across
+         *     arms, so the statistically-optimal fraction is 0.5 — anything else
+         *     leaves unmatched agents in the larger arm with no pair to compare
+         *     against. The field exists for future flexibility (if independent
+         *     sampling ever returns) but the wizard hides the slider and submits
+         *     0.5 in v1.
+         */
+        ArmSplit: {
+            /**
+             * Treatment Fraction
+             * @description Fraction of population_size allocated to the treatment arm. Strictly between 0 and 1 (neither bound inclusive — an empty arm has no meaning). Defaults to 0.5 for paired sampling.
+             * @default 0.5
+             */
+            treatment_fraction: number;
+        };
+        /**
          * BehavioralSeedSchema
          * @description Per-persona pools that identity_seed draws from (pythia-personas v1.1).
          *
@@ -1172,6 +1198,7 @@ export interface components {
             sampled_agent_count?: number | null;
             /** Run Seed */
             run_seed?: number | null;
+            arm_split?: components["schemas"]["ArmSplit"] | null;
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
@@ -1201,6 +1228,9 @@ export interface components {
          *
          *     `population_size` is the modeled userbase size — the simulator stratifies
          *     down to at most MAX_AGENTS actual agents using largest-remainder allocation.
+         *
+         *     `arm_split` (Phase 4.6 #88) enables A/B mode when present. Single-arm
+         *     sims omit it; backwards-compatible with all pre-#88 requests.
          */
         SimulationRequest: {
             hypothesis: components["schemas"]["Hypothesis"];
@@ -1211,6 +1241,8 @@ export interface components {
             population_size: number;
             /** Run Seed */
             run_seed?: number | null;
+            /** @description When present, runs A/B mode (treatment + control arms with paired sampling). When None, runs single-arm (today's behavior). See docs/4.6-ab-experiment-mode.md. */
+            arm_split?: components["schemas"]["ArmSplit"] | null;
         };
         /** SimulationResult */
         SimulationResult: {

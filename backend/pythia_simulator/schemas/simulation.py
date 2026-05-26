@@ -20,11 +20,46 @@ class Hypothesis(BaseModel):
     proposed_figma: ReverseFigma | None = None
 
 
+class ArmSplit(BaseModel):
+    """A/B experiment-mode configuration (Phase 4.6 #88).
+
+    When set on a SimulationRequest, the simulator runs BOTH a treatment
+    arm (agents see the proposed change) and a control arm (agents see
+    the current product, no change). The lift between arms is computed
+    via paired bootstrap on per-agent sentiment delta (#90).
+
+    `treatment_fraction` defines what share of population_size goes to
+    treatment vs control. Paired sampling (Phase 4.6 Q3, locked
+    2026-05-26) requires identical `(persona_id, sample_index)` across
+    arms, so the statistically-optimal fraction is 0.5 — anything else
+    leaves unmatched agents in the larger arm with no pair to compare
+    against. The field exists for future flexibility (if independent
+    sampling ever returns) but the wizard hides the slider and submits
+    0.5 in v1.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    treatment_fraction: float = Field(
+        default=0.5,
+        gt=0.0,
+        lt=1.0,
+        description=(
+            "Fraction of population_size allocated to the treatment arm. "
+            "Strictly between 0 and 1 (neither bound inclusive — an empty "
+            "arm has no meaning). Defaults to 0.5 for paired sampling."
+        ),
+    )
+
+
 class SimulationRequest(BaseModel):
     """PM-submitted simulation request (Phase 2.5).
 
     `population_size` is the modeled userbase size — the simulator stratifies
     down to at most MAX_AGENTS actual agents using largest-remainder allocation.
+
+    `arm_split` (Phase 4.6 #88) enables A/B mode when present. Single-arm
+    sims omit it; backwards-compatible with all pre-#88 requests.
     """
 
     model_config = ConfigDict(extra="forbid")  # reject the retired persona_sample_size
@@ -35,6 +70,14 @@ class SimulationRequest(BaseModel):
     # rather than as a Postgres INSERT error after the row is half-built. (codex P2)
     run_seed: int | None = Field(
         default=None, ge=-(2**63), le=2**63 - 1
+    )
+    arm_split: ArmSplit | None = Field(
+        default=None,
+        description=(
+            "When present, runs A/B mode (treatment + control arms with "
+            "paired sampling). When None, runs single-arm (today's behavior). "
+            "See docs/4.6-ab-experiment-mode.md."
+        ),
     )
 
 
@@ -113,5 +156,6 @@ class Simulation(BaseModel):
     population_size: int | None = None
     sampled_agent_count: int | None = None
     run_seed: int | None = None
+    arm_split: ArmSplit | None = None
     agent_instance_ids: list[str] = Field(default_factory=list)
     result: SimulationResult | None = None

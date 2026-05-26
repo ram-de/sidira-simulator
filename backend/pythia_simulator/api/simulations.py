@@ -17,6 +17,7 @@ from pythia_simulator.api.deps import (
     get_orchestrator,
 )
 from pythia_simulator.schemas.simulation import (
+    ArmSplit,
     Simulation,
     SimulationRequest,
     SimulationResult,
@@ -96,6 +97,14 @@ async def create_simulation(
         max_agents = 1
     derived_sample_size = max(1, min(payload.population_size, max_agents))
 
+    # Phase 4.6 #88: A/B mode persistence. The arm_split is only RECORDED in
+    # this PR (#88) — the dual-arm execution path lives in #89. Persisting
+    # without using lets the row tell the truth from day one and avoids a
+    # subsequent migration when #89 lands.
+    treatment_fraction = (
+        payload.arm_split.treatment_fraction if payload.arm_split else None
+    )
+
     try:
         sim_id, run = await orchestrator.prepare(
             customer_id=customer_id,
@@ -103,6 +112,7 @@ async def create_simulation(
             population_size=payload.population_size,
             sampled_agent_count=derived_sample_size,
             run_seed=payload.run_seed,
+            treatment_fraction=treatment_fraction,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.
@@ -126,6 +136,14 @@ async def get_simulation(
     if row is None:
         raise HTTPException(status_code=404, detail=f"Simulation {simulation_id} not found")
 
+    # Phase 4.6 #88: surface arm_split on GET so the frontend can branch
+    # on "was this an A/B run" without inspecting result_json.
+    arm_split = (
+        ArmSplit(treatment_fraction=row["treatment_fraction"])
+        if row.get("treatment_fraction") is not None
+        else None
+    )
+
     return Simulation(
         id=row["id"],
         customer_id=row["customer_id"],
@@ -137,6 +155,7 @@ async def get_simulation(
         population_size=row.get("population_size"),
         sampled_agent_count=row.get("sampled_agent_count"),
         run_seed=row.get("run_seed"),
+        arm_split=arm_split,
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )
