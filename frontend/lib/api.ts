@@ -17,6 +17,7 @@ export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
 export type SimulationResult = components["schemas"]["SimulationResult"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
+export type ArmSplit = components["schemas"]["ArmSplit"];
 export type Weakness = components["schemas"]["Weakness"];
 export type AgentInstance = components["schemas"]["AgentInstance"];
 export type AgentSummary = components["schemas"]["AgentSummary"];

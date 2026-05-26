@@ -57,6 +57,7 @@ class SimulationOrchestrator:
         population_size: int | None = None,
         sampled_agent_count: int | None = None,
         run_seed: int | None = None,
+        treatment_fraction: float | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -101,6 +102,7 @@ class SimulationOrchestrator:
             population_size=population_size,
             sampled_agent_count=sampled_agent_count,
             run_seed=resolved_run_seed,
+            treatment_fraction=treatment_fraction,
         )
 
         async def run() -> None:
