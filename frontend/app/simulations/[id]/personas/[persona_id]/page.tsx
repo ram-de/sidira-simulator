@@ -9,24 +9,30 @@ import {
   getSimulation,
   listSimulationAgents,
   sendPersonaGroupMessage,
+  type AgentReference,
   type AgentSummary,
   type PerAgentReply,
+  type PersonaGroupMode,
   type PersonaGroupTurn,
   type Simulation,
+  type UnavailableAgent,
 } from "@/lib/api";
 
-// Phase 4 #55: persona-group chat surface.
-// Spec layout (docs/agent-chat-ui-spec.md "Surface 2"):
-//   1. Persona-group header — name, N, hypothesis prose, link back to sim.
-//   2. Chat log — pm turns alternating with synthesis turns; each synthesis
-//      turn shows its one-line synthesis on top and the per-agent replies
-//      below (each with a 💬 link to drill into /agents/[id]).
-//   3. Composer at bottom — Enter to send, Shift+Enter for newline, IME guard.
+// Phase 4 #55 + collective mode (PR #82): persona-group chat surface.
+// Spec: docs/agent-chat-ui-spec.md Surface 2 — two modes share one composer.
 //
-// Identity-continuity guarantee: every fan-out reply is appended to each
-// agent's individual conversation log server-side (pinned by
-// test_persona_group_individual_chat_log_grew_too). Clicking 💬 on a
-// per-agent answer lands on /agents/[id] showing the same PM/agent turn pair.
+// Default mode = collective: one LLM reply speaks for the persona group;
+// inline [label] tokens become drill-down links to /agents/[id]. Use for
+// meta questions ("what's the consensus?", "who reacted negatively?").
+//
+// Individual fan-out (toggle): N replies side-by-side + counted synthesis
+// line. Use when the PM wants disagreement-as-signal ("what would YOU
+// change about checkout?").
+
+// sessionStorage key — round-trip continuity: a mid-typed question
+// survives navigating to /agents/[id] and back.
+const draftKey = (simId: string, personaId: string) =>
+  `pythia.personaGroupDraft.${simId}.${personaId}`;
 
 export default function PersonaGroupChatPage() {
   const params = useParams<{ id: string; persona_id: string }>();
@@ -40,14 +46,46 @@ export default function PersonaGroupChatPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
+  // Mode is reactive — flipping it doesn't reset the chat log; both modes
+  // write to the same turn log on the backend and the renderer branches
+  // on each turn's role.
+  const [mode, setMode] = useState<PersonaGroupMode>("collective");
+
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+
+  // Most-recent per-turn unavailable_agents banner. Cleared on the next
+  // successful send. Backend surfaces this when a collective load partially
+  // fails (codex #82 P2) so the PM knows "answer reflects X of N agents".
+  const [unavailable, setUnavailable] = useState<UnavailableAgent[]>([]);
+
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Initial load: sim (for hypothesis) + agents-in-sim (filter to persona) +
-  // turn log. We run these in parallel — none of them depend on each other.
+  // Restore draft from sessionStorage on mount.
+  useEffect(() => {
+    if (!simId || !personaId) return;
+    try {
+      const cached = sessionStorage.getItem(draftKey(simId, personaId));
+      if (cached) setDraft(cached);
+    } catch {
+      // sessionStorage can throw in SSR or sandboxed contexts — non-fatal.
+    }
+  }, [simId, personaId]);
+
+  // Persist draft on every change.
+  useEffect(() => {
+    if (!simId || !personaId) return;
+    try {
+      if (draft) sessionStorage.setItem(draftKey(simId, personaId), draft);
+      else sessionStorage.removeItem(draftKey(simId, personaId));
+    } catch {
+      // ignore
+    }
+  }, [simId, personaId, draft]);
+
+  // Initial load: sim (hypothesis) + agents (filter to persona) + turn log.
   useEffect(() => {
     if (!simId || !personaId) return;
     let cancelled = false;
@@ -56,8 +94,6 @@ export default function PersonaGroupChatPage() {
         const [simData, agents, turnLog] = await Promise.all([
           getSimulation(simId),
           listSimulationAgents(simId),
-          // turns endpoint also enforces "persona exists in sim" — 404 if
-          // the persona had no agents in this sim. We treat that as notFound.
           getPersonaGroupTurns(simId, personaId).catch((e) => {
             if (e instanceof ApiError && e.status === 404) {
               throw new _PersonaNotFound();
@@ -68,8 +104,6 @@ export default function PersonaGroupChatPage() {
         if (cancelled) return;
         const filtered = agents.filter((a) => a.persona_id === personaId);
         if (filtered.length === 0) {
-          // Defensive: sim exists but no agents in the persona. Same UX as
-          // the route's 404.
           setNotFound(true);
           return;
         }
@@ -95,8 +129,7 @@ export default function PersonaGroupChatPage() {
     };
   }, [simId, personaId]);
 
-  // Auto-scroll within the bounded conversation container (same pattern as
-  // #53 — sticky header above must not get covered by new turns).
+  // Auto-scroll within the bounded conversation container.
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -108,44 +141,35 @@ export default function PersonaGroupChatPage() {
     const trimmed = draft.trim();
     if (!trimmed || sending) return;
     setSendError(null);
+    setUnavailable([]);
     setSending(true);
 
-    // Optimistic PM turn so the UI doesn't feel dead during fan-out + synth.
-    // Capture exact reference for filter-by-reference rollback (codex #53
-    // round-2 P2 pattern; same applies here for the persona-group log).
+    // Optimistic PM turn (matches #53 / prior #55 pattern). Capture exact
+    // ref for filter-by-reference rollback.
     const optimisticPm: PersonaGroupTurn = {
       role: "pm",
       content: trimmed,
       created_at: new Date().toISOString(),
       per_agent: null,
+      references: null,
     };
     setTurns((current) => [...current, optimisticPm]);
     setDraft("");
 
     try {
-      // Phase 1: send. POST is the source of truth — backend persists PM
-      // turn + synthesis turn before returning. If POST raises, server has
-      // NOT persisted the group-log entry (codex #80 round-2 fix actually
-      // allows partial — group-log append failures degrade silently and
-      // the route still 200s — but the synthesis response carries the data
-      // either way). So a POST failure here means "nothing happened
-      // server-side that the next retry would duplicate at the group-log
-      // layer". Per-agent logs may already have the PM turn though, so the
-      // PM should retry the SAME message (matching individual chat semantics).
-      let sendOk = false;
+      // Phase 1: POST. Failure → rollback optimistic; restore draft.
+      let resp: Awaited<ReturnType<typeof sendPersonaGroupMessage>> | null = null;
       try {
-        await sendPersonaGroupMessage(simId, personaId, trimmed);
-        sendOk = true;
+        resp = await sendPersonaGroupMessage(simId, personaId, trimmed, mode);
       } catch (e) {
-        // Remove ONLY the optimistic turn by reference; preserve any other
-        // updates (e.g. a concurrent send from another tab — improbable but
-        // we don't pay much to be correct).
         setTurns((current) => current.filter((t) => t !== optimisticPm));
         setDraft(trimmed);
         if (e instanceof ApiError) {
           if (e.status === 502) {
             setSendError(
-              "All agents failed to respond. Try again.",
+              mode === "collective"
+                ? "Could not reach the agents. Try again."
+                : "All agents failed to respond. Try again.",
             );
           } else {
             setSendError(
@@ -157,18 +181,20 @@ export default function PersonaGroupChatPage() {
         }
       }
 
-      // Phase 2: refetch the canonical turn log. Codex #53 round-1 P1
-      // pattern: SEPARATE failure class — a refetch error here doesn't
-      // mean the send failed. Keep the optimistic PM visible and warn.
-      if (sendOk) {
+      // Phase 2: refetch canonical turn log. Codex #53 round-1 P1 pattern —
+      // refetch failure ≠ send failure; keep optimistic, surface warn.
+      if (resp) {
+        if (resp.unavailable_agents && resp.unavailable_agents.length > 0) {
+          setUnavailable(resp.unavailable_agents);
+        }
         try {
           const fresh = await getPersonaGroupTurns(simId, personaId);
           setTurns(fresh);
         } catch (e) {
           setSendError(
             e instanceof Error
-              ? `Sent, but couldn't refresh the conversation: ${e.message}. Reload to see the synthesis.`
-              : "Sent, but couldn't refresh the conversation. Reload to see the synthesis.",
+              ? `Sent, but couldn't refresh: ${e.message}. Reload to see the reply.`
+              : "Sent, but couldn't refresh. Reload to see the reply.",
           );
         }
       }
@@ -176,9 +202,6 @@ export default function PersonaGroupChatPage() {
       setSending(false);
     }
 
-    // Unconditional refocus (codex #53 round-3 P2 — guards read stale
-    // closure values; just always refocus, deferred so disabled→enabled
-    // transition completes first).
     requestAnimationFrame(() => composerRef.current?.focus());
   }
 
@@ -241,7 +264,6 @@ export default function PersonaGroupChatPage() {
         </Link>
       </div>
 
-      {/* Persona-group header (sticky — analogous to #53 identity card) */}
       <section
         style={{ ...cardStyle, position: "sticky", top: 12, zIndex: 2 }}
         aria-label="Persona group identity"
@@ -268,7 +290,6 @@ export default function PersonaGroupChatPage() {
         )}
       </section>
 
-      {/* Chat — bounded scroll so the sticky header doesn't cover new turns */}
       <section style={cardStyle} aria-label="Conversation">
         <div style={labelStyle}>Conversation</div>
         <div
@@ -280,9 +301,11 @@ export default function PersonaGroupChatPage() {
         >
           {turns.length === 0 ? (
             <div style={{ fontSize: 14, color: "#888", padding: "8px 0" }}>
-              No questions yet. Ask the group something below — your question
-              fans out to all {n} agent{n === 1 ? "" : "s"}; you get one
-              synthesis line + each agent&apos;s reply.
+              No questions yet. Ask the group something below — the default
+              answer is the collective voice of the persona (with inline
+              links to drill into any agent). Switch to <em>individual
+              fan-out</em> to hear each of the {n} agent
+              {n === 1 ? "" : "s"} reply separately.
             </div>
           ) : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -296,6 +319,12 @@ export default function PersonaGroupChatPage() {
                 >
                   {turn.role === "pm" ? (
                     <PmTurn content={turn.content} />
+                  ) : turn.role === "collective" ? (
+                    <CollectiveTurn
+                      content={turn.content}
+                      references={turn.references ?? []}
+                      personaName={personaName}
+                    />
                   ) : (
                     <SynthesisTurn
                       synthesis={turn.content}
@@ -311,7 +340,6 @@ export default function PersonaGroupChatPage() {
         </div>
       </section>
 
-      {/* Composer */}
       <section style={cardStyle} aria-label="Send a message to the group">
         {sendError && (
           <div
@@ -328,6 +356,30 @@ export default function PersonaGroupChatPage() {
             {sendError}
           </div>
         )}
+        {unavailable.length > 0 && (
+          <div
+            aria-live="polite"
+            style={{
+              fontSize: 13,
+              color: "#a86b00",
+              background: "#fff7e6",
+              padding: "8px 12px",
+              borderRadius: 4,
+              marginBottom: 8,
+            }}
+          >
+            <strong>Heads up:</strong> the last reply reflects{" "}
+            {n - unavailable.length} of {n} agents.{" "}
+            {unavailable.length === 1
+              ? "One agent"
+              : `${unavailable.length} agents`}{" "}
+            could not be loaded:{" "}
+            {unavailable.map((u) => u.agent_label).join(", ")}.
+          </div>
+        )}
+
+        <ModeToggle mode={mode} setMode={setMode} disabled={sending} n={n} />
+
         <textarea
           ref={composerRef}
           value={draft}
@@ -335,12 +387,8 @@ export default function PersonaGroupChatPage() {
           onKeyDown={handleKeyDown}
           disabled={sending}
           rows={3}
-          placeholder={
-            sending
-              ? `Fanning out to ${n} agent${n === 1 ? "" : "s"}…`
-              : `Ask all ${n} agent${n === 1 ? "" : "s"}… (Enter to send, Shift+Enter for newline)`
-          }
-          aria-label="Message to the persona group"
+          placeholder={composerPlaceholder(mode, n, sending)}
+          aria-label={`Message to the persona group (${mode} mode)`}
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -384,6 +432,105 @@ export default function PersonaGroupChatPage() {
 }
 
 // ───────────────────────────────────────────────────────────────────────
+// Mode toggle
+// ───────────────────────────────────────────────────────────────────────
+
+function ModeToggle({
+  mode,
+  setMode,
+  disabled,
+  n,
+}: {
+  mode: PersonaGroupMode;
+  setMode: (m: PersonaGroupMode) => void;
+  disabled: boolean;
+  n: number;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Persona-group chat mode"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 8,
+        fontSize: 12,
+        color: "#555",
+      }}
+    >
+      <span style={{ color: "#888" }}>Ask the group as</span>
+      <ModeRadio
+        checked={mode === "collective"}
+        onSelect={() => setMode("collective")}
+        disabled={disabled}
+        label="collective"
+        title={`One voice speaking for all ${n} agent${n === 1 ? "" : "s"}; cites individuals inline.`}
+      />
+      <ModeRadio
+        checked={mode === "individual"}
+        onSelect={() => setMode("individual")}
+        disabled={disabled}
+        label="individual fan-out"
+        title={`Send to all ${n} agent${n === 1 ? "" : "s"} separately; see every reply.`}
+      />
+    </div>
+  );
+}
+
+function ModeRadio({
+  checked,
+  onSelect,
+  disabled,
+  label,
+  title,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  disabled: boolean;
+  label: string;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      title={title}
+      onClick={onSelect}
+      disabled={disabled}
+      style={{
+        background: checked ? "#111" : "transparent",
+        color: checked ? "#fff" : "#444",
+        border: "1px solid #ddd",
+        borderRadius: 14,
+        padding: "2px 10px",
+        fontSize: 12,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function composerPlaceholder(
+  mode: PersonaGroupMode,
+  n: number,
+  sending: boolean,
+): string {
+  if (sending) {
+    return mode === "collective"
+      ? "Composing the group's reply…"
+      : `Fanning out to ${n} agent${n === 1 ? "" : "s"}…`;
+  }
+  return mode === "collective"
+    ? `Ask the group… (Enter to send, Shift+Enter for newline)`
+    : `Ask each of the ${n} agent${n === 1 ? "" : "s"}… (Enter to send, Shift+Enter for newline)`;
+}
+
+// ───────────────────────────────────────────────────────────────────────
 // Turn renderers
 // ───────────────────────────────────────────────────────────────────────
 
@@ -392,6 +539,35 @@ function PmTurn({ content }: { content: string }) {
     <>
       <div style={pmLabelStyle}>You</div>
       <div style={turnBodyStyle}>{content}</div>
+    </>
+  );
+}
+
+function CollectiveTurn({
+  content,
+  references,
+  personaName,
+}: {
+  content: string;
+  references: AgentReference[];
+  personaName: string;
+}) {
+  return (
+    <>
+      <div style={collectiveLabelStyle}>
+        {personaName} <span style={{ color: "#888" }}>(collective)</span>
+      </div>
+      <div
+        style={{
+          ...turnBodyStyle,
+          background: "#f4f8ff",
+          padding: "10px 14px",
+          borderLeft: "3px solid #1d4ed8",
+          borderRadius: "0 4px 4px 0",
+        }}
+      >
+        <RenderWithCitations content={content} references={references} />
+      </div>
     </>
   );
 }
@@ -407,7 +583,7 @@ function SynthesisTurn({
 }) {
   return (
     <>
-      <div style={synthesisLabelStyle}>Synthesis</div>
+      <div style={synthesisLabelStyle}>Synthesis (fan-out)</div>
       <div
         style={{
           ...turnBodyStyle,
@@ -496,10 +672,65 @@ function SynthesisTurn({
   );
 }
 
-// Internal sentinel for the load-effect "persona not found" branch — lets
-// us distinguish a 404 on the turns endpoint (persona doesn't exist in
-// this sim) from other failures, without resorting to error.message
-// substring matching.
+// ───────────────────────────────────────────────────────────────────────
+// [label] linkification
+// ───────────────────────────────────────────────────────────────────────
+
+// Mirrors the backend's _CITATION_RE — word chars + dash, no whitespace,
+// no punctuation. Tokens that don't match the strict shape stay as plain
+// prose. Tokens that match but don't resolve to a known reference also
+// stay plain (the backend already dropped hallucinated labels from
+// references; we just don't auto-link them).
+const CITATION_RE = /\[([\w-]+)\]/g;
+
+function RenderWithCitations({
+  content,
+  references,
+}: {
+  content: string;
+  references: AgentReference[];
+}) {
+  const labelToId = new Map(references.map((r) => [r.agent_label, r.agent_id]));
+  const out: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+  // Reset stateful regex between renders.
+  CITATION_RE.lastIndex = 0;
+  let n = 0;
+  while ((match = CITATION_RE.exec(content)) !== null) {
+    const [token, label] = match;
+    if (match.index > lastIdx) {
+      out.push(content.slice(lastIdx, match.index));
+    }
+    const agentId = labelToId.get(label);
+    if (agentId) {
+      out.push(
+        <Link
+          key={`cite-${n}-${label}`}
+          href={`/agents/${agentId}`}
+          style={{
+            color: "#1d4ed8",
+            textDecoration: "underline",
+            fontWeight: 500,
+          }}
+        >
+          {label}
+        </Link>,
+      );
+    } else {
+      // Hallucinated or stripped token — render the raw `[label]` so the
+      // PM sees what the model wrote without a broken link.
+      out.push(token);
+    }
+    lastIdx = match.index + token.length;
+    n += 1;
+  }
+  if (lastIdx < content.length) {
+    out.push(content.slice(lastIdx));
+  }
+  return <>{out}</>;
+}
+
 class _PersonaNotFound extends Error {}
 
 // ───────────────────────────────────────────────────────────────────────
@@ -530,6 +761,15 @@ const labelStyle: React.CSSProperties = {
 };
 
 const pmLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#1d4ed8",
+  textTransform: "uppercase",
+  letterSpacing: 0.5,
+  fontWeight: 600,
+  marginBottom: 4,
+};
+
+const collectiveLabelStyle: React.CSSProperties = {
   fontSize: 11,
   color: "#1d4ed8",
   textTransform: "uppercase",

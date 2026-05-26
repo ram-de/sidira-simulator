@@ -13,6 +13,11 @@ import {
   type Simulation,
 } from "@/lib/api";
 
+// sessionStorage key — drafts survive nav round-trips
+// (e.g. clicking through to /agents/[id] from a persona-group [label]
+// citation and back).
+const draftKey = (agentId: string) => `pythia.agentDraft.${agentId}`;
+
 // Phase 4 #53: individual-agent chat surface.
 // Spec layout (docs/agent-chat-ui-spec.md "Surface 3"):
 //   1. Identity card — pinned, top. Persona name + identity_seed key fields.
@@ -35,6 +40,29 @@ export default function AgentChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Restore draft from sessionStorage on mount; persist on every change.
+  // Round-trip continuity for users navigating between collective surface
+  // and individual chat via [label] citation links.
+  useEffect(() => {
+    if (!agentId) return;
+    try {
+      const cached = sessionStorage.getItem(draftKey(agentId));
+      if (cached) setDraft(cached);
+    } catch {
+      // ignore — SSR / sandboxed contexts can throw
+    }
+  }, [agentId]);
+
+  useEffect(() => {
+    if (!agentId) return;
+    try {
+      if (draft) sessionStorage.setItem(draftKey(agentId), draft);
+      else sessionStorage.removeItem(draftKey(agentId));
+    } catch {
+      // ignore
+    }
+  }, [agentId, draft]);
 
   // Initial fetch — agent + its parent simulation (for the hypothesis prose).
   useEffect(() => {
@@ -223,12 +251,25 @@ export default function AgentChatPage() {
 
   return (
     <main style={pageStyle}>
-      <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <Link
           href={`/simulations/${agent.metadata.simulation_id}`}
           style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
         >
           ← back to simulation
+        </Link>
+        <Link
+          href={`/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}`}
+          style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
+        >
+          ← back to {persona} (group chat)
         </Link>
       </div>
 

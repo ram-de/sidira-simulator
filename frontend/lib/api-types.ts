@@ -171,7 +171,9 @@ export interface paths {
         put?: never;
         /**
          * Send Persona Group Message
-         * @description Fan out one PM message to every agent in the persona; return synthesis + per-agent replies.
+         * @description Send one PM message to the persona group. `mode` selects collective
+         *     voice (default) or individual fan-out. See docs/agent-chat-ui-spec.md
+         *     Surface 2.
          */
         post: operations["send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post"];
         delete?: never;
@@ -471,6 +473,25 @@ export interface components {
              * @default 0
              */
             message_count: number;
+        };
+        /**
+         * AgentReference
+         * @description One agent cited inline by a collective reply.
+         *
+         *     The collective LLM emits `[agent_label]` tokens in its prose; the route
+         *     resolves each label to the canonical `agent_id` so the frontend can
+         *     linkify the citation to `/agents/{agent_id}`. Unresolved labels (LLM
+         *     hallucinated a name that doesn't exist in the persona group) are dropped
+         *     rather than producing a broken link.
+         */
+        AgentReference: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Agent Label
+             * @description The exact token the LLM used inline (e.g. 'rivka_001'). The frontend matches this against `[token]` occurrences in `content`.
+             */
+            agent_label: string;
         };
         /**
          * AgentRole
@@ -830,35 +851,68 @@ export interface components {
         };
         /**
          * PersonaGroupChatRequest
-         * @description PM sends one message; the system fans it out to every agent in the persona.
+         * @description PM sends one message; routed to collective synthesis or individual fan-out.
+         *
+         *     `mode="collective"` (default): single LLM call answering in the voice of
+         *     the persona group; cites individuals via inline `[label]` tokens.
+         *     `mode="individual"`: fans out to every agent and returns N replies + a
+         *     one-line synthesis (the original #54 behaviour).
          */
         PersonaGroupChatRequest: {
             /** Message */
             message: string;
+            /**
+             * Mode
+             * @default collective
+             * @enum {string}
+             */
+            mode: "collective" | "individual";
         };
         /**
          * PersonaGroupChatResponse
-         * @description Synthesis + per-agent replies returned to the chat UI.
+         * @description Discriminated response shape.
+         *
+         *     `role="collective"` populates `content` + `references`. May also
+         *     populate `unavailable_agents` when one or more agent loads failed
+         *     so the frontend can surface "answer reflects N-1 of N agents" to the PM
+         *     (codex #82 round-1 P2: don't silently shrink the collective).
+         *     `role="synthesis"` populates `synthesis` + `per_agent`.
+         *     The frontend branches on `role`.
          */
         PersonaGroupChatResponse: {
-            /** Synthesis */
-            synthesis: string;
-            /** Per Agent */
-            per_agent: components["schemas"]["PerAgentReply"][];
+            role: components["schemas"]["PersonaGroupRole"];
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Content */
+            content?: string | null;
+            /** References */
+            references?: components["schemas"]["AgentReference"][] | null;
+            /** Unavailable Agents */
+            unavailable_agents?: components["schemas"]["UnavailableAgent"][] | null;
+            /** Synthesis */
+            synthesis?: string | null;
+            /** Per Agent */
+            per_agent?: components["schemas"]["PerAgentReply"][] | null;
         };
         /**
          * PersonaGroupRole
          * @enum {string}
          */
-        PersonaGroupRole: "pm" | "synthesis";
+        PersonaGroupRole: "pm" | "synthesis" | "collective";
         /**
          * PersonaGroupTurn
          * @description One row in the persona-group turn log (turns.jsonl).
+         *
+         *     Roles:
+         *       - `pm`: the PM's question. `content` only.
+         *       - `synthesis`: individual-fan-out result. `content` is the one-line
+         *         synthesis; `per_agent` carries the full payload.
+         *       - `collective`: collective-mode result. `content` is the collective
+         *         voice's reply with `[label]` tokens inline; `references` carries
+         *         the resolved `[label]` → `agent_id` mapping.
          */
         PersonaGroupTurn: {
             role: components["schemas"]["PersonaGroupRole"];
@@ -871,9 +925,14 @@ export interface components {
             created_at: string;
             /**
              * Per Agent
-             * @description Populated only on synthesis turns. Mirrors what the route returned so the audit trail is self-contained.
+             * @description Populated only on synthesis turns (individual fan-out). Mirrors what the route returned so the audit trail is self-contained.
              */
             per_agent?: components["schemas"]["PerAgentReply"][] | null;
+            /**
+             * References
+             * @description Populated only on collective turns. Resolved [label] → agent_id citations from the collective reply prose.
+             */
+            references?: components["schemas"]["AgentReference"][] | null;
         };
         /** PersonaPack */
         PersonaPack: {
@@ -1128,6 +1187,21 @@ export interface components {
             to_screen: string;
             /** Role Gated */
             role_gated?: string[] | null;
+        };
+        /**
+         * UnavailableAgent
+         * @description An agent that should have participated in a collective reply but
+         *     couldn't be loaded (artifact read failure, transient storage error).
+         */
+        UnavailableAgent: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Label */
+            agent_label: string;
+            /** Persona Name */
+            persona_name: string;
+            /** Error */
+            error: string;
         };
         /** ValidationError */
         ValidationError: {
