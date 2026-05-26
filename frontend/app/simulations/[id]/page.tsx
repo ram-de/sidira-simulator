@@ -559,12 +559,17 @@ export default function SimulationDetailPage() {
                       >
                         <div
                           style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
                             fontSize: 15,
                             fontWeight: 600,
                             color: "#111",
+                            minWidth: 0,
                           }}
                         >
                           {formatCategory(w.category)}
+                          <WeaknessCategoryInfo category={w.category} />
                         </div>
                         {hasFreq && (
                           <div
@@ -1351,6 +1356,158 @@ function pickGroupQuote(agents: AgentRow[]): string | null {
     }
   }
   return best;
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Weakness category info — PM-readable definitions for each weakness type
+// surfaced in the result. Click the ⓘ button next to a category to read
+// what that category means in plain English (not statistician-speak).
+// ───────────────────────────────────────────────────────────────────────
+
+type WeaknessCategory =
+  | "wrong_metric"
+  | "wrong_cohort"
+  | "broken_mechanism"
+  | "untestable_hypothesis"
+  | "hidden_guardrail_risk"
+  | "underpowered_design";
+
+const WEAKNESS_INFO: Record<
+  WeaknessCategory,
+  { title: string; description: string }
+> = {
+  wrong_metric: {
+    title: "Wrong Metric",
+    description:
+      "The change is being measured against the wrong signal. The metric the team is watching doesn't actually capture the behavior the change is trying to affect — so even if the change works, the metric won't move.",
+  },
+  wrong_cohort: {
+    title: "Wrong Cohort",
+    description:
+      "The change is being tested on users who don't have a reason to respond to it. Even if the feature works as designed, this audience isn't the one it would meaningfully affect — so the experiment can't tell you whether the change matters to the users it SHOULD matter to. Fix: re-target the experiment at users whose behavior the change is actually trying to move.",
+  },
+  broken_mechanism: {
+    title: "Broken Mechanism",
+    description:
+      "The cause-and-effect logic the hypothesis assumes doesn't hold. Users don't actually behave the way the team is betting they will — the change can't produce the predicted result by the route described, even if every other part of the experiment is sound.",
+  },
+  untestable_hypothesis: {
+    title: "Untestable Hypothesis",
+    description:
+      "The hypothesis can't be falsified by the experiment as designed. Either the success criteria are vague, or no observable signal would distinguish a working change from a broken one — so any result is consistent with both.",
+  },
+  hidden_guardrail_risk: {
+    title: "Hidden Guardrail Risk",
+    description:
+      "The change might move the headline metric while quietly harming an adjacent metric the team isn't watching — retention, fees, support load, etc. Worth instrumenting BEFORE the experiment runs, not discovering after.",
+  },
+  underpowered_design: {
+    title: "Underpowered Design",
+    description:
+      "The experiment can't reliably detect the effect the team is looking for. Common causes: the targeted segment is too narrow, the expected effect size (MDE) is set too optimistically, the experiment duration is too short, or too many agent classifications failed to complete (a data-quality degradation gate fires when more than half fail). Fix depends on the cause: widen the segment, calibrate the MDE more conservatively, run longer, or rerun the simulation to recover failed classifications.",
+  },
+};
+
+function WeaknessCategoryInfo({ category }: { category: string }) {
+  const [open, setOpen] = useState(false);
+  // Unknown categories (forward-compat: a new category lands server-side
+  // before the frontend ships its definition) render nothing rather than
+  // a broken popover. The PM still sees the category name + summary.
+  const info =
+    category in WEAKNESS_INFO
+      ? WEAKNESS_INFO[category as WeaknessCategory]
+      : null;
+  if (!info) return null;
+
+  return (
+    <span style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`What is ${info.title}?`}
+        aria-expanded={open}
+        title={open ? "Hide definition" : "Show definition"}
+        style={{
+          background: open ? "#1d4ed8" : "transparent",
+          color: open ? "#fff" : "#1d4ed8",
+          border: open ? "1px solid #1d4ed8" : "1px solid #c7d8ff",
+          borderRadius: 999,
+          width: 18,
+          height: 18,
+          padding: 0,
+          fontSize: 11,
+          lineHeight: 1,
+          fontWeight: 700,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: "0 0 auto",
+        }}
+      >
+        i
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label={info.title}
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            zIndex: 20,
+            width: 320,
+            maxWidth: "85vw",
+            background: "#fff",
+            border: "1px solid #d6e0ff",
+            borderRadius: 8,
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#111",
+              marginBottom: 6,
+            }}
+          >
+            {info.title}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: "#444",
+              lineHeight: 1.55,
+              fontWeight: 400,
+            }}
+          >
+            {info.description}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close definition"
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              background: "transparent",
+              border: "none",
+              color: "#888",
+              fontSize: 16,
+              lineHeight: 1,
+              cursor: "pointer",
+              padding: "4px 6px",
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </span>
+  );
 }
 
 function Pill({ label, value }: { label: string; value: string }) {
