@@ -172,6 +172,90 @@ def test_cross_process_determinism(tmp_path) -> None:
     assert subproc_seed == in_proc
 
 
+def test_demo_persona_overrides_constrain_lex_to_new_tenure() -> None:
+    """#78: identity_seed for `lex_new_explorer` (persona description says
+    "signed up six weeks ago") must NEVER draw tenure_band="veteran (3y+)".
+    Sweep 20 sample indices to make the assertion robust against draw luck."""
+    p = _persona(pid="lex_new_explorer", seeds=None)
+    drawn = [
+        draw_identity_seed(p, sample_index=i, run_seed=12345).tenure_band
+        for i in range(20)
+    ]
+    # Every draw lands in the per-persona override pool ({new (<3mo)} only)
+    assert set(drawn) == {"new (<3mo)"}, f"got unexpected tenure bands: {set(drawn)}"
+
+
+def test_demo_persona_overrides_constrain_maya_to_long_tenure() -> None:
+    """#78 mirror: `maya_late_night_premium` (32yo DashPass subscriber) must
+    NEVER draw tenure_band="new (<3mo)" or "early (3-12mo)" — the persona
+    description doesn't support those."""
+    p = _persona(pid="maya_late_night_premium", seeds=None)
+    drawn = [
+        draw_identity_seed(p, sample_index=i, run_seed=98765).tenure_band
+        for i in range(20)
+    ]
+    allowed = {"established (1-3y)", "veteran (3y+)"}
+    assert set(drawn).issubset(allowed), (
+        f"maya should never draw new/early tenure; got {set(drawn) - allowed}"
+    )
+
+
+def test_schema_with_overrides_passes_through_unknown_persona_id() -> None:
+    """#79 codex round-1 P2: deterministic helper-level assertion that an
+    unknown persona_id returns the default schema unchanged. Stronger than
+    the probabilistic draw test below — directly compares schemas, not
+    draws."""
+    from pythia_simulator.services.identity_seed import (
+        _DEFAULT_BEHAVIORAL_SEEDS,
+        _schema_with_overrides,
+    )
+
+    result = _schema_with_overrides("not_a_real_persona_id", _DEFAULT_BEHAVIORAL_SEEDS)
+    assert result.age_bands == _DEFAULT_BEHAVIORAL_SEEDS.age_bands
+    assert result.locale_bands == _DEFAULT_BEHAVIORAL_SEEDS.locale_bands
+    assert result.tenure_bands == _DEFAULT_BEHAVIORAL_SEEDS.tenure_bands
+    assert result.current_state_pool == _DEFAULT_BEHAVIORAL_SEEDS.current_state_pool
+    assert result.recent_gripe_pool == _DEFAULT_BEHAVIORAL_SEEDS.recent_gripe_pool
+
+
+def test_persona_without_override_uses_default_pools_unchanged() -> None:
+    """A persona not in the demo override table (e.g. a customer-supplied
+    persona with no behavioral_seeds) falls through to _DEFAULT_BEHAVIORAL_SEEDS
+    untouched. Sanity: the override table is opt-in per persona_id, not a
+    global narrowing of the defaults."""
+    p = _persona(pid="some_unknown_persona_id", seeds=None)
+    drawn = [
+        draw_identity_seed(p, sample_index=i, run_seed=42).tenure_band
+        for i in range(40)
+    ]
+    # 40 draws from a 4-element pool — should hit at least 3 of the 4
+    # default tenure bands.
+    assert len(set(drawn)) >= 3, (
+        f"override leaked: unknown persona drew only {set(drawn)}, "
+        f"expected diversity from _DEFAULT_BEHAVIORAL_SEEDS.tenure_bands"
+    )
+
+
+def test_persona_with_pack_supplied_seeds_skips_override() -> None:
+    """#78 invariant: when a persona ships its own behavioral_seeds (v1.1
+    packs, eventually), the simulator-side override table is NOT consulted.
+    Overrides are a stopgap for v1.0; pack-supplied schemas are authoritative."""
+    # Use lex_new_explorer's persona_id (which IS in the override table) but
+    # supply EXPLICIT behavioral_seeds with veteran-only tenure. The override
+    # would constrain to "new" — but the pack-supplied schema must win.
+    seeds = BehavioralSeedSchema(
+        age_bands=["55-64"],
+        locale_bands=["urban_us"],
+        tenure_bands=["veteran (3y+)"],
+        current_state_pool=["weekend, no rush, browsing options"],
+        recent_gripe_pool=["last order arrived cold"],
+    )
+    p = _persona(pid="lex_new_explorer", seeds=seeds)
+    s = draw_identity_seed(p, sample_index=0, run_seed=1)
+    assert s.tenure_band == "veteran (3y+)"  # pack wins, override skipped
+    assert s.age_band == "55-64"
+
+
 def test_prose_is_none_in_v1() -> None:
     """Explicit assertion: prose synthesis is a follow-up PR.
 
