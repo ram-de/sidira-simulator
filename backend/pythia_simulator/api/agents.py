@@ -1,31 +1,134 @@
-"""Agent routes — list agents from a simulation, view one, chat with one."""
+"""Agent routes — view one agent's full state, send a follow-up message.
+
+The PM chats with the same AgentInstance that participated in the simulation.
+Identity is frozen (persona prompt + initial reaction are immutable). The
+conversation log is append-only — every PM message and every agent reply
+gets persisted via `AgentMemory.append_turn` before the next turn renders.
+
+The two routes here un-stub what was previously 501 placeholders pending
+Phase 4. They consume the `AgentChatService` + `AgentMemory` infrastructure
+that's been in place since the Magic Moment sprint.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+import asyncio
 
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from pythia_simulator.adapters.repositories import AgentInstanceRepo
+from pythia_simulator.api.deps import current_customer_id, get_agent_repo
+from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.schemas.agent import (
     AgentChatRequest,
     AgentChatResponse,
     AgentInstance,
+    AgentInstanceMetadata,
 )
+from pythia_simulator.services.agent_chat import AgentChatService
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
+def _metadata_from_row(row: dict) -> AgentInstanceMetadata:
+    """Build AgentInstanceMetadata from a repo dict, ignoring any extras
+    the repo decides to surface (e.g. denormalized timestamps from joins)."""
+    return AgentInstanceMetadata(
+        id=row["id"],
+        customer_id=row["customer_id"],
+        simulation_id=row["simulation_id"],
+        persona_id=row["persona_id"],
+        persona_pack_version=row["persona_pack_version"],
+        persona_name=row["persona_name"],
+        created_at=row["created_at"],
+        last_active_at=row["last_active_at"],
+        message_count=row.get("message_count", 0) or 0,
+    )
+
+
 @router.get("/{agent_id}", response_model=AgentInstance)
-async def get_agent(agent_id: str) -> AgentInstance:
+async def get_agent(
+    agent_id: str,
+    customer_id: str = Depends(current_customer_id),
+    agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
+) -> AgentInstance:
     """Load an agent's full state: identity, initial reaction, conversation history.
 
-    The same agent that participated in the simulation — identity is frozen,
-    conversation grows.
+    Identity is frozen at simulation time — calling this twice with no
+    intervening chat returns identical `identity_prompt` and `initial_reaction`.
+    Only the `conversation` array grows.
     """
-    raise HTTPException(status_code=501, detail="get_agent — implement once Postgres layer lands")
+    row = await agent_repo.get(agent_id, customer_id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+    metadata = _metadata_from_row(row)
+    # AgentMemory.load is sync (reads from R2 / local store). Wrap to keep
+    # the event loop responsive on slow object-store reads.
+    from pythia_simulator.adapters.r2 import get_store
+
+    store = get_store()
+    memory = AgentMemory(store, store)
+    return await asyncio.to_thread(memory.load, metadata)
 
 
 @router.post("/{agent_id}/messages", response_model=AgentChatResponse)
-async def send_message(agent_id: str, payload: AgentChatRequest) -> AgentChatResponse:
-    """Send a follow-up message to a specific agent."""
-    raise HTTPException(
-        status_code=501, detail="send_message — wires AgentChatService once Postgres lookup is in"
-    )
+async def send_message(
+    agent_id: str,
+    payload: AgentChatRequest,
+    customer_id: str = Depends(current_customer_id),
+    agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
+) -> AgentChatResponse:
+    """Send a follow-up message to a specific agent.
+
+    The PM's message is appended to the agent's conversation log before the
+    LLM call so the new turn persists even if the LLM call fails. The
+    agent's reply is then generated from the frozen identity + frozen
+    initial reaction + the full conversation log (including the new PM
+    message), with `_CHAT_GUARD_PREFIX` keeping the model in character.
+
+    Returns the single new agent turn. The PM turn is already persisted on
+    the server; clients render it optimistically from the request payload.
+    """
+    message = payload.message.strip()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message body must be non-empty.",
+        )
+
+    row = await agent_repo.get(agent_id, customer_id)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+    metadata = _metadata_from_row(row)
+
+    # AgentChatService.send_message is sync (network LLM call). Wrap to keep
+    # the FastAPI worker available for other requests during the round-trip.
+    service = AgentChatService()
+    try:
+        agent_turn = await asyncio.to_thread(service.send_message, metadata, message)
+    except Exception as exc:
+        # Surface a structured error rather than a generic 500. The PM-side
+        # turn is already persisted; a retry will skip re-appending it
+        # (AgentChatService.send_message appends BEFORE the LLM call, so on
+        # retry the user will see two PM turns. Out of scope for #52 — the
+        # idempotency story lands with a request_id in #56's calibration work).
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Agent reply failed: {exc}",
+        ) from exc
+
+    # Touch the metadata row so list views can sort by activity. Failure here
+    # is non-fatal — the turn is already persisted to R2; the touch is a
+    # convenience for UI sorting.
+    try:
+        await agent_repo.touch(agent_id, customer_id)
+    except Exception:
+        pass
+
+    return AgentChatResponse(turn=agent_turn)
