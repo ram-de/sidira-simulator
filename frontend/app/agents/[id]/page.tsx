@@ -8,10 +8,12 @@ import {
   getAgent,
   getSimulation,
   sendAgentMessage,
+  sendAgentTurnFeedback,
   type AgentChatTurn,
   type AgentInstance,
   type Simulation,
 } from "@/lib/api";
+import { ThumbsControl } from "@/components/ThumbsControl";
 
 // sessionStorage key — drafts survive nav round-trips
 // (e.g. clicking through to /agents/[id] from a persona-group [label]
@@ -370,15 +372,51 @@ export default function AgentChatPage() {
               >
                 <div
                   style={{
-                    fontSize: 11,
-                    color: turn.role === "pm" ? "#1d4ed8" : "#0a7d3a",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                     marginBottom: 4,
                   }}
                 >
-                  {turn.role === "pm" ? "You" : persona}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: turn.role === "pm" ? "#1d4ed8" : "#0a7d3a",
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {turn.role === "pm" ? "You" : persona}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  {/* #56: calibration thumbs only on agent replies. PM
+                      turns are the PM's own writing — no calibration
+                      target. */}
+                  {turn.role === "agent" && (
+                    <ThumbsControl
+                      ariaLabel="Was this reply realistic?"
+                      flag={turn.realistic_flag ?? null}
+                      onSet={async (next) => {
+                        await sendAgentTurnFeedback(agentId, i, next);
+                        // Update the local turn so a subsequent toggle
+                        // reads the new server-confirmed state.
+                        setAgent((current) =>
+                          current
+                            ? {
+                                ...current,
+                                conversation: (current.conversation ?? []).map(
+                                  (t, idx) =>
+                                    idx === i
+                                      ? { ...t, realistic_flag: next }
+                                      : t,
+                                ),
+                              }
+                            : current,
+                        );
+                      }}
+                    />
+                  )}
                 </div>
                 <div
                   style={{

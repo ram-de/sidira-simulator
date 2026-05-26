@@ -539,10 +539,30 @@ async def list_persona_group_turns(
             ),
         )
 
-    group_log = PersonaGroupLog(get_store())
-    return await asyncio.to_thread(
+    store = get_store()
+    group_log = PersonaGroupLog(store)
+    turns = await asyncio.to_thread(
         group_log.read,
         customer_id=customer_id,
         simulation_id=sim_id,
         persona_id=persona_id,
     )
+
+    # #56: paint calibration thumbs onto each turn from the feedback log.
+    # Latest event per (sim/persona, turn_index) wins; cleared thumbs
+    # overwrite prior 👍/👎. Same join pattern as the per-agent route.
+    from pythia_simulator.memory.feedback_log import FeedbackLog
+    from pythia_simulator.schemas.feedback import FeedbackTargetKind
+
+    flags = await asyncio.to_thread(
+        FeedbackLog(store).latest_flags,
+        customer_id=customer_id,
+        simulation_id=sim_id,
+        target_kind=FeedbackTargetKind.PERSONA_GROUP,
+        target_id=f"{sim_id}/{persona_id}",
+    )
+    if flags:
+        for idx, turn in enumerate(turns):
+            if idx in flags:
+                turn.realistic_flag = flags[idx]
+    return turns

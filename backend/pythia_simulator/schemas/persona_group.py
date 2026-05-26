@@ -148,3 +148,11 @@ class PersonaGroupTurn(BaseModel):
             "citations from the collective reply prose."
         ),
     )
+    realistic_flag: bool | None = Field(
+        default=None,
+        description=(
+            "#56: PM calibration thumb. True = 👍, False = 👎, None = "
+            "no thumb / cleared. Joined from the feedback log at read "
+            "time; the turn JSONL itself stays append-only."
+        ),
+    )
