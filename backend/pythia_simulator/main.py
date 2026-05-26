@@ -13,6 +13,7 @@ from pythia_simulator.api import (
     capabilities,
     feature_stores,
     persona_builds,
+    persona_groups,
     persona_packs,
     simulations,
 )
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
 
     app.include_router(simulations.router)
     app.include_router(agents.router)
+    app.include_router(persona_groups.router)
     app.include_router(capabilities.router)
     app.include_router(feature_stores.router)
     app.include_router(persona_builds.router)
