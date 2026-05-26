@@ -63,27 +63,37 @@ export default function PersonaGroupChatPage() {
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Restore draft from sessionStorage on mount or when the route key
-  // changes (client-side navigation to a different persona group).
-  // Codex #83 round-1 P2: ALWAYS reset to cached-or-empty so the prior
-  // route's draft doesn't leak into a new route that has no cached draft.
+  // Single effect that does BOTH restore (on route change) and persist
+  // (on draft change within the same route). Codex #83 round-2 P2:
+  // the prior two-effect split + StrictMode double-mount could race —
+  // the persist effect fired on first mount with the initial `draft=""`
+  // BEFORE the restore effect's setDraft committed, removing the cached
+  // value from sessionStorage. The single-effect form distinguishes
+  // route-change-firstrun (restore, never persist) from same-route
+  // (persist), so the first mount never writes draft="" over a cached
+  // value.
+  const lastDraftKey = useRef<string | null>(null);
   useEffect(() => {
     if (!simId || !personaId) return;
-    try {
-      const cached = sessionStorage.getItem(draftKey(simId, personaId));
-      setDraft(cached ?? "");
-    } catch {
-      // sessionStorage can throw in SSR or sandboxed contexts — non-fatal.
-      setDraft("");
+    const key = draftKey(simId, personaId);
+    if (lastDraftKey.current !== key) {
+      // First mount for this route key (or client-side navigation to a
+      // different persona group). Restore from storage and DO NOT persist
+      // on this run.
+      lastDraftKey.current = key;
+      try {
+        const cached = sessionStorage.getItem(key);
+        setDraft(cached ?? "");
+      } catch {
+        // sessionStorage can throw in SSR / sandboxed contexts.
+        setDraft("");
+      }
+      return;
     }
-  }, [simId, personaId]);
-
-  // Persist draft on every change.
-  useEffect(() => {
-    if (!simId || !personaId) return;
+    // Same route, draft changed → persist.
     try {
-      if (draft) sessionStorage.setItem(draftKey(simId, personaId), draft);
-      else sessionStorage.removeItem(draftKey(simId, personaId));
+      if (draft) sessionStorage.setItem(key, draft);
+      else sessionStorage.removeItem(key);
     } catch {
       // ignore
     }

@@ -41,26 +41,30 @@ export default function AgentChatPage() {
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Restore draft from sessionStorage on mount or on route change. Codex
-  // #83 round-1 P2: ALWAYS reset to cached-or-empty so the prior agent's
-  // draft doesn't leak into a new /agents/[id] route that has no cached
-  // draft.
+  // Single effect that does BOTH restore (on route change) and persist
+  // (on draft change within the same route). Codex #83 round-2 P2: the
+  // two-effect split raced under StrictMode double-mount — persist could
+  // fire with the initial `draft=""` before restore's setDraft committed,
+  // deleting the cached value. Distinguishing route-change-firstrun from
+  // same-route fixes the race; see the mirror comment on the persona-group
+  // page for the full trace.
+  const lastDraftKey = useRef<string | null>(null);
   useEffect(() => {
     if (!agentId) return;
-    try {
-      const cached = sessionStorage.getItem(draftKey(agentId));
-      setDraft(cached ?? "");
-    } catch {
-      // ignore — SSR / sandboxed contexts can throw
-      setDraft("");
+    const key = draftKey(agentId);
+    if (lastDraftKey.current !== key) {
+      lastDraftKey.current = key;
+      try {
+        const cached = sessionStorage.getItem(key);
+        setDraft(cached ?? "");
+      } catch {
+        setDraft("");
+      }
+      return;
     }
-  }, [agentId]);
-
-  useEffect(() => {
-    if (!agentId) return;
     try {
-      if (draft) sessionStorage.setItem(draftKey(agentId), draft);
-      else sessionStorage.removeItem(draftKey(agentId));
+      if (draft) sessionStorage.setItem(key, draft);
+      else sessionStorage.removeItem(key);
     } catch {
       // ignore
     }
