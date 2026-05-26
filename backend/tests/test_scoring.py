@@ -701,6 +701,7 @@ async def test_analyze_warns_on_sentiment_classification_failure() -> None:
             ),
         )
     assert analysis.sentiment_failed is True
+    assert analysis.sentiment.sentiment is Sentiment.NEUTRAL
     assert analysis.sentiment.confidence == 0.0
     assert analysis.weakness_failed is False
     # Same tightening as the weakness test: exact event-name + all four kwargs.
