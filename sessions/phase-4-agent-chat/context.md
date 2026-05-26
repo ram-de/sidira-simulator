@@ -38,6 +38,9 @@ Ship the three agent-chat surfaces per `docs/agent-chat-ui-spec.md`: individual-
 - `frontend/app/agents/[id]/page.tsx` — stub today; #53 builds this out.
 - `frontend/app/simulations/[id]/page.tsx` — current result table from PR #67; later folds in 💬 buttons.
 
+## Operational lessons (don't re-trip)
+- **`npx next build` poisons the running `npm run dev` chunk cache.** Hit this on 2026-05-22 (PR #67) AND again on 2026-05-26 (PR #76). When verifying a frontend PR locally, EITHER kill the dev server before running `next build`, OR skip the build verification (`tsc --noEmit` alone catches almost everything) and rely on the codex round to surface anything else. The symptom is 404s on `main-app.js` / `layout.js` / `app-pages-internals.js` in the Network tab and pages stuck on their SSR'd loading state. Fix: kill :3000 process, `rm -rf frontend/.next`, restart `npm run dev`.
+
 ## Key Context
 - **Spec is locked** (per `docs/agent-chat-ui-spec.md` "Design locked"). Don't re-litigate the persona-group fan-out vs. synthesis-only decision, the no-cross-persona-chat decision, or the identity-continuity append-only rule.
 - **Identity-continuity invariant:** chat-time agent IS simulation-time agent. The Phase 2.5 identity_seed work (#5) baked this in — every chat turn is generated from the frozen `identity_prompt` + frozen `initial_reaction` + the full conversation log. Re-instantiating an agent for chat is forbidden.
