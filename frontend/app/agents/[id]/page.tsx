@@ -34,6 +34,7 @@ export default function AgentChatPage() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Initial fetch — agent + its parent simulation (for the hypothesis prose).
   useEffect(() => {
@@ -66,9 +67,16 @@ export default function AgentChatPage() {
   }, [agentId]);
 
   // Auto-scroll to the newest turn whenever the conversation grows.
+  // Codex #53 P2: scroll WITHIN the bounded conversation container, not the
+  // document, so the sticky identity card above stays in place and the new
+  // turn doesn't get covered by it. `block: "nearest"` is the safety belt
+  // for browsers that fall back to document-level scrolling.
   const conversationLen = agent?.conversation?.length ?? 0;
   useEffect(() => {
-    conversationEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    conversationEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
   }, [conversationLen]);
 
   async function handleSend() {
@@ -86,26 +94,26 @@ export default function AgentChatPage() {
       realistic_flag: null,
     };
     const baselineConversation = agent.conversation ?? [];
-    setAgent({
-      ...agent,
-      conversation: [...baselineConversation, optimisticPm],
-    });
+    setAgent((current) =>
+      current
+        ? { ...current, conversation: [...baselineConversation, optimisticPm] }
+        : current,
+    );
     setDraft("");
 
+    // Phase 1: send. Failure here means the server persisted nothing
+    // (server-side #52 ordering); safe to roll back the optimistic turn.
+    let sendOk = false;
     try {
       await sendAgentMessage(agentId, trimmed);
-      // Server persisted both turns. Refetch to get canonical timestamps +
-      // the agent reply with the same shape the server stored.
-      const fresh = await getAgent(agentId);
-      setAgent(fresh);
+      sendOk = true;
     } catch (e) {
-      // Roll back the optimistic PM turn — the server's #52 ordering means
-      // a failed call persists neither turn, so local state should mirror.
-      setAgent({
-        ...agent,
-        conversation: baselineConversation,
-      });
+      setAgent((current) =>
+        current ? { ...current, conversation: baselineConversation } : current,
+      );
       setDraft(trimmed); // restore so the user can retry without re-typing
+      // Refocus the composer so retry is one keystroke away.
+      composerRef.current?.focus();
       if (e instanceof ApiError) {
         setSendError(
           e.status === 502
@@ -115,14 +123,40 @@ export default function AgentChatPage() {
       } else {
         setSendError(e instanceof Error ? e.message : "Send failed.");
       }
-    } finally {
-      setSending(false);
     }
+
+    // Phase 2: refetch to get canonical timestamps + the agent's reply.
+    // Codex #53 P1: this is a SEPARATE failure class. A refetch error here
+    // does NOT mean the send failed — both turns are already persisted
+    // server-side. Rolling back would tell the user "your message didn't
+    // go through" and prompt a retry that duplicates the persisted PM turn.
+    // Instead: keep the optimistic PM turn visible, show a refresh-only
+    // error, and let the user reload manually.
+    if (sendOk) {
+      try {
+        const fresh = await getAgent(agentId);
+        setAgent(fresh);
+      } catch (e) {
+        setSendError(
+          e instanceof Error
+            ? `Sent, but couldn't refresh the conversation: ${e.message}. Reload the page to see the latest.`
+            : "Sent, but couldn't refresh the conversation. Reload the page to see the latest.",
+        );
+      }
+    }
+
+    setSending(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Enter to send; Shift+Enter for newline.
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Enter to send; Shift+Enter for newline. Ignore Enter during IME
+    // composition (Japanese/Chinese/Korean input methods commit a candidate
+    // with Enter — submitting then would lose the user's in-progress text).
+    if (
+      e.key === "Enter" &&
+      !e.shiftKey &&
+      !(e.nativeEvent as KeyboardEvent).isComposing
+    ) {
       e.preventDefault();
       void handleSend();
     }
@@ -234,9 +268,18 @@ export default function AgentChatPage() {
         </div>
       </section>
 
-      {/* Conversation */}
+      {/* Conversation — bounded scroll so the sticky identity card above
+          doesn't cover newly-appended turns (codex #53 P2). */}
       <section style={cardStyle} aria-label="Conversation">
         <div style={labelStyle}>Conversation</div>
+        <div
+          style={{
+            maxHeight: "50vh",
+            overflowY: "auto",
+            // Light inset so the scroll edge isn't flush with the section border.
+            padding: "0 4px",
+          }}
+        >
         {(agent.conversation ?? []).length === 0 ? (
           <div style={{ fontSize: 14, color: "#888", padding: "8px 0" }}>
             No follow-ups yet. Ask a question below to start.
@@ -278,12 +321,15 @@ export default function AgentChatPage() {
           </ul>
         )}
         <div ref={conversationEndRef} />
+        </div>
       </section>
 
       {/* Composer */}
       <section style={cardStyle} aria-label="Send a message">
         {sendError && (
           <div
+            role="alert"
+            aria-live="polite"
             style={{
               fontSize: 13,
               color: "#a30000",
@@ -297,6 +343,7 @@ export default function AgentChatPage() {
           </div>
         )}
         <textarea
+          ref={composerRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
