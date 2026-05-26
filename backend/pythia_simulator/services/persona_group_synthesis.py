@@ -79,52 +79,93 @@ class PersonaGroupSynthesisService:
     def synthesize(self, pm_question: str, replies: list[AgentReply]) -> str:
         """Generate the synthesis line for `replies` to `pm_question`.
 
-        Behaviour contract:
-          - Always returns a non-empty string.
-          - Performs ONE retry if the model's claimed count disagrees with
-            len(replies). If retry still wrong, logs `synthesis.count_mismatch`
-            and falls back to a deterministic count-correct template.
-          - Never raises on degenerate inputs (empty, all-evasive). Use the
-            deterministic fallback in that case too.
+        Behaviour contract — this method NEVER raises:
+          - Empty/zero replies → safe default ("No agent replies…").
+          - LLM raises on first call → log `synthesis.llm_call_failed` and
+            return deterministic fallback. Critical: codex #80 [P1] —
+            an unhandled exception here would 500 the route AFTER the
+            per-agent fan-out has already persisted PM/agent turns to
+            individual logs, and a client retry would fan out the same PM
+            message a second time, duplicating every successful agent's
+            conversation. The synthesis is downstream of the data we care
+            about; degrading it gracefully is always the right call.
+          - First call returns wrong count → retry once with explicit
+            corrective hint.
+          - Retry raises → same swallow-and-fallback behavior.
+          - Retry returns wrong count → log `synthesis.count_mismatch` and
+            return deterministic fallback.
         """
         if not replies:
             # Defensive: a fan-out with zero replies shouldn't happen, but if
             # it does we don't want to ship "0 of 0 said …" to the PM.
             return "No agent replies were collected — re-run the fan-out."
 
-        first = self._call_llm(pm_question, replies, retry_hint=None)
-        if self._count_matches(first, len(replies)):
+        first = self._call_llm_safely(
+            pm_question, replies, retry_hint=None, attempt="first"
+        )
+        if first is not None and self._count_matches(first, len(replies)):
             return first.strip()
 
         # One retry with an explicit corrective hint. The original prompt
         # already requires N-of-M accuracy; the retry message names the actual
         # number to make the constraint impossible to miss.
-        retry = self._call_llm(
-            pm_question,
-            replies,
-            retry_hint=(
-                f"Your previous synthesis was: {first!r}. The count it claimed "
-                f"does not match the actual number of replies ({len(replies)}). "
-                f"Try again. There were EXACTLY {len(replies)} replies. "
-                f"Your synthesis must lead with a count that uses {len(replies)} "
-                f"as the denominator (e.g. 'N of {len(replies)}') or be the "
-                f"split / non-substantive form using exactly {len(replies)}."
-            ),
+        retry_hint = (
+            f"Your previous synthesis was: {first!r}. The count it claimed "
+            f"does not match the actual number of replies ({len(replies)}). "
+            f"Try again. There were EXACTLY {len(replies)} replies. "
+            f"Your synthesis must lead with a count that uses {len(replies)} "
+            f"as the denominator (e.g. 'N of {len(replies)}') or be the "
+            f"split / non-substantive form using exactly {len(replies)}."
+        ) if first is not None else (
+            f"There were EXACTLY {len(replies)} replies. Lead with a count "
+            f"that uses {len(replies)} as the denominator."
         )
-        if self._count_matches(retry, len(replies)):
+        retry = self._call_llm_safely(
+            pm_question, replies, retry_hint=retry_hint, attempt="retry"
+        )
+        if retry is not None and self._count_matches(retry, len(replies)):
             return retry.strip()
 
         log.warning(
             "synthesis.count_mismatch",
             n_replies=len(replies),
-            first_output=first[:200],
-            retry_output=retry[:200],
+            first_output=(first[:200] if first is not None else None),
+            retry_output=(retry[:200] if retry is not None else None),
         )
         return self._deterministic_fallback(len(replies))
 
     # ------------------------------------------------------------------
     # internals
     # ------------------------------------------------------------------
+
+    def _call_llm_safely(
+        self,
+        pm_question: str,
+        replies: list[AgentReply],
+        retry_hint: str | None,
+        attempt: str,
+    ) -> str | None:
+        """Wrap _call_llm in exception handling — never raise out of the
+        service. Codex #80 [P1]: an exception escaping into the route would
+        500 AFTER per-agent fan-out has persisted PM/agent turns, and a
+        client retry would duplicate those individual conversations. The
+        synthesis can degrade to deterministic fallback safely; the per-agent
+        replies are the source of truth and they're already persisted.
+
+        Returns the LLM text on success, None on any exception (so the
+        caller can branch between count-mismatch and llm-failure paths).
+        """
+        try:
+            return self._call_llm(pm_question, replies, retry_hint)
+        except Exception as exc:  # noqa: BLE001 — degrade to deterministic fallback
+            log.warning(
+                "synthesis.llm_call_failed",
+                attempt=attempt,
+                n_replies=len(replies),
+                exc_type=type(exc).__name__,
+                error=str(exc),
+            )
+            return None
 
     def _call_llm(
         self,

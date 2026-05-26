@@ -429,6 +429,63 @@ def test_persona_group_all_failures_returns_502(
     assert "All agent replies failed" in resp.json()["detail"]
 
 
+def test_persona_group_synthesis_failure_returns_200_with_fallback(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """Codex #80 [P1]: when the synthesis LLM call fails AFTER the per-agent
+    fan-out has already persisted PM/agent turns, the route must still
+    return 200 with a deterministic-fallback synthesis. A 500 here would
+    invite a client retry that re-fans-out the same PM message to every
+    agent, duplicating their individual conversation logs.
+
+    This test makes synthesis-only LLM calls raise (fan-out calls succeed),
+    verifies the route returns 200, verifies the synthesis is the
+    deterministic fallback (count-correct), and verifies the per-agent
+    individual logs each contain exactly one PM/agent turn pair (no
+    duplication from the recovery path)."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    original_chat = chat.chat
+
+    def _fail_synthesis_only(messages, max_tokens=4096, temperature=0.0, seed=None):
+        system_blob = "\n".join(
+            m["content"] for m in messages if m["role"] == "system"
+        )
+        is_synthesis = "N of M" in system_blob and "Lead with" in system_blob
+        if is_synthesis:
+            raise TimeoutError("simulated synthesis LLM timeout")
+        return original_chat(messages, max_tokens, temperature, seed)
+
+    monkeypatch.setattr(chat, "chat", _fail_synthesis_only)
+
+    pm_msg = "Question that triggers a synthesis failure."
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"message": pm_msg},
+    )
+    # Route returns 200 — synthesis degraded to deterministic fallback
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    n = len(agent_ids)
+    assert body["synthesis"] == f"{n} agents replied — see individual answers below."
+    # Per-agent fan-out succeeded
+    assert len(body["per_agent"]) == n
+    assert all(slot["error"] is None for slot in body["per_agent"])
+
+    # Each individual agent's conversation log has EXACTLY one PM/agent
+    # turn pair — no duplication from a client recovery path.
+    for aid in agent_ids:
+        detail = client.get(f"/agents/{aid}").json()
+        turns = detail["conversation"]
+        assert len(turns) == 2, f"agent {aid} has {len(turns)} turns; expected 2"
+        assert turns[0]["role"] == "pm"
+        assert turns[0]["content"] == pm_msg
+        assert turns[1]["role"] == "agent"
+
+
 def test_persona_group_individual_chat_log_grew_too(
     client_with_persona_group_stub,
 ) -> None:

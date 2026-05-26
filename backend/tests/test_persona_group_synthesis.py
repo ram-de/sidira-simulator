@@ -55,9 +55,10 @@ _BANNED_PHRASES = [
 
 
 class _ScriptedChat:
-    """Returns canned replies in order. Records each call's messages."""
+    """Returns canned replies in order; an entry typed as Exception is raised
+    instead of returned. Records each call's messages."""
 
-    def __init__(self, replies: list[str]) -> None:
+    def __init__(self, replies: list[str | Exception]) -> None:
         self._replies = list(replies)
         self.calls: list[list[dict[str, str]]] = []
 
@@ -65,7 +66,10 @@ class _ScriptedChat:
         self.calls.append(messages)
         if not self._replies:
             raise AssertionError("_ScriptedChat ran out of replies")
-        return self._replies.pop(0)
+        nxt = self._replies.pop(0)
+        if isinstance(nxt, Exception):
+            raise nxt
+        return nxt
 
     def chat_json(self, *a, **kw):  # pragma: no cover - unused
         raise NotImplementedError
@@ -195,6 +199,64 @@ def test_outputless_first_response_triggers_retry() -> None:
         [_reply("a", "x"), _reply("b", "y"), _reply("c", "z")],
     )
     assert out == "3 of 3 said X."
+    assert len(chat.calls) == 2
+
+
+def test_llm_exception_on_first_call_falls_back_without_raising(caplog) -> None:
+    """Codex #80 [P1]: an exception from _call_llm MUST NOT propagate. If it
+    did, the route would 500 AFTER per-agent fan-out has persisted PM/agent
+    turns, and a client retry would duplicate every successful agent's
+    conversation. The synthesis is downstream; degrade it to the
+    deterministic fallback rather than corrupt the per-agent logs."""
+    chat = _ScriptedChat(
+        [
+            TimeoutError("synthesis LLM timed out"),
+            TimeoutError("retry also timed out"),
+        ]
+    )
+    svc = PersonaGroupSynthesisService(chat_client=chat)
+    out = svc.synthesize(
+        "?",
+        [_reply("a", "x"), _reply("b", "y"), _reply("c", "z")],
+    )
+    assert out == "3 agents replied — see individual answers below."
+    assert len(chat.calls) == 2  # first + retry both attempted
+
+
+def test_llm_exception_on_first_call_retry_succeeds() -> None:
+    """First call raises, retry returns a count-correct answer → ship the retry.
+    No reason to fall back further than necessary."""
+    chat = _ScriptedChat(
+        [
+            TimeoutError("transient timeout"),
+            "3 of 3 said the change matters.",
+        ]
+    )
+    svc = PersonaGroupSynthesisService(chat_client=chat)
+    out = svc.synthesize(
+        "?",
+        [_reply("a", "x"), _reply("b", "y"), _reply("c", "z")],
+    )
+    assert out == "3 of 3 said the change matters."
+    assert len(chat.calls) == 2
+
+
+def test_llm_exception_only_on_retry_falls_back() -> None:
+    """First call returns a wrong-count answer, retry raises → fall back to
+    deterministic. The first wrong-count answer is still wrong; we don't want
+    to ship it because we ran out of retries."""
+    chat = _ScriptedChat(
+        [
+            "2 of 7 said X.",  # wrong denom
+            RuntimeError("retry blew up"),
+        ]
+    )
+    svc = PersonaGroupSynthesisService(chat_client=chat)
+    out = svc.synthesize(
+        "?",
+        [_reply("a", "x"), _reply("b", "y"), _reply("c", "z")],
+    )
+    assert out == "3 agents replied — see individual answers below."
     assert len(chat.calls) == 2
 
 
