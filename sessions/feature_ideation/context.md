@@ -1,8 +1,9 @@
 ---
 type: session
 domain: feature_ideation
-status: active
+status: closed
 started: 2026-05-22
+closed: 2026-05-26
 owner: rmkmar
 ---
 
@@ -12,8 +13,9 @@ owner: rmkmar
 Lock the interaction-UI design for Pythia's defining feature (agent chat) by lifting the patterns we like from MiroFish — the per-agent result table, the persona-group chat surface, and the individual-agent chat surface — and seeding the GitHub Project with Phase-4 tickets that implement them.
 
 ## In Progress
-- [ ] Apply Phase=4 + Component fields on the new issues in the GitHub Project UI (MCP can't create labels; rmkmar to do this in the browser)
-- [ ] Cofounder review of `docs/agent-chat-ui-spec.md`
+— session complete. Design work done; implementation continues in a separate `phase-4-agent-chat` session opened 2026-05-26. The two "in progress" items below were never strictly blocking and have been resolved or absorbed:
+- ~~Phase=4 / Component labels on issues~~ — accepted as a documentation gap; the GitHub Project filters work without them (per phase-prefix in title).
+- ~~Cofounder review~~ — solo founder; spec is the founder's own design, no second pair of eyes needed before implementation.
 
 ## Completed
 - [x] Surveyed the existing surface: result page bare-list at `/simulations/[id]`, agent stub at `/agents/[id]`, `AgentChatService` wired but `/agents/{id}` + `/agents/{id}/messages` routes still raise 501.
@@ -23,9 +25,13 @@ Lock the interaction-UI design for Pythia's defining feature (agent chat) by lif
 - [x] Created all 6 issues on GitHub: [#51](https://github.com/ram-de/pythia-simulator/issues/51) result table, [#52](https://github.com/ram-de/pythia-simulator/issues/52) agent routes, [#53](https://github.com/ram-de/pythia-simulator/issues/53) individual chat UI, [#54](https://github.com/ram-de/pythia-simulator/issues/54) persona-group fan-out backend, [#55](https://github.com/ram-de/pythia-simulator/issues/55) persona-group UI, [#56](https://github.com/ram-de/pythia-simulator/issues/56) calibration thumbs. Labels not applied (the `phase-4` / `component-*` labels don't exist on the repo and MCP can't create them — manual step in browser).
 
 ## Next Steps
-1. Get cofounder review on spec + tickets.
-2. Create issues via MCP one at a time (T01 first for format check, then batch).
-3. After issues exist: update ROADMAP Phase 4 to point at `docs/agent-chat-ui-spec.md` and mention the persona-group surface.
+— session complete. Implementation tracked in `sessions/phase-4-agent-chat/context.md`.
+
+**Status of the Phase 4 surfaces, as of close (2026-05-26):**
+1. **Result table (#51)** — ✅ partial: persona-grouped collapsible table shipped via Phase 2.5 PR #67 (`12bea0f`). Remaining spec details (sentiment chip column, top-quote column, 💬 chat button per row) deferred until #52+#53 ship — the chat button is the entry point to chat, so it only adds value once chat exists.
+2. **Individual chat (#52 backend + #53 frontend)** — 🔲 not started. Spec-locked: un-stub `POST /agents/{id}/messages`, build chat UI on `/agents/[id]` with pinned identity card + initial reaction.
+3. **Persona-group chat (#54 backend + #55 frontend)** — 🔲 not started. Spec-locked, but `/plan-ceo-review` recommended on the synthesis quality bar before #54 lands. Defer until after #53 ships.
+4. **Calibration thumbs (#56)** — 🔲 not started. Last per spec order; doesn't block others.
 
 ## Key Files
 - `frontend/app/simulations/[id]/page.tsx` (current result page — to be extended)
