@@ -118,8 +118,9 @@ export interface paths {
          * Get Agent
          * @description Load an agent's full state: identity, initial reaction, conversation history.
          *
-         *     The same agent that participated in the simulation — identity is frozen,
-         *     conversation grows.
+         *     Identity is frozen at simulation time — calling this twice with no
+         *     intervening chat returns identical `identity_prompt` and `initial_reaction`.
+         *     Only the `conversation` array grows.
          */
         get: operations["get_agent_agents__agent_id__get"];
         put?: never;
@@ -142,8 +143,62 @@ export interface paths {
         /**
          * Send Message
          * @description Send a follow-up message to a specific agent.
+         *
+         *     The PM's message is appended to the agent's conversation log before the
+         *     LLM call so the new turn persists even if the LLM call fails. The
+         *     agent's reply is then generated from the frozen identity + frozen
+         *     initial reaction + the full conversation log (including the new PM
+         *     message), with `_CHAT_GUARD_PREFIX` keeping the model in character.
+         *
+         *     Returns the single new agent turn. The PM turn is already persisted on
+         *     the server; clients render it optimistically from the request payload.
          */
         post: operations["send_message_agents__agent_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulations/{sim_id}/personas/{persona_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Persona Group Message
+         * @description Send one PM message to the persona group. `mode` selects collective
+         *     voice (default) or individual fan-out. See docs/agent-chat-ui-spec.md
+         *     Surface 2.
+         */
+        post: operations["send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulations/{sim_id}/personas/{persona_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Persona Group Turns
+         * @description Replay the persona-group conversation log.
+         *
+         *     Used by the frontend `/simulations/[id]/personas/[persona_id]` route to
+         *     render prior turns on page load.
+         */
+        get: operations["list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -418,6 +473,25 @@ export interface components {
              * @default 0
              */
             message_count: number;
+        };
+        /**
+         * AgentReference
+         * @description One agent cited inline by a collective reply.
+         *
+         *     The collective LLM emits `[agent_label]` tokens in its prose; the route
+         *     resolves each label to the canonical `agent_id` so the frontend can
+         *     linkify the citation to `/agents/{agent_id}`. Unresolved labels (LLM
+         *     hallucinated a name that doesn't exist in the persona group) are dropped
+         *     rather than producing a broken link.
+         */
+        AgentReference: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Agent Label
+             * @description The exact token the LLM used inline (e.g. 'rivka_001'). The frontend matches this against `[token]` occurrences in `content`.
+             */
+            agent_label: string;
         };
         /**
          * AgentRole
@@ -727,6 +801,29 @@ export interface components {
             is_latest: boolean;
         };
         /**
+         * PerAgentReply
+         * @description One agent's response within a persona-group fan-out.
+         *
+         *     `content` is None when `error` is set — the agent's LLM call failed and
+         *     nothing was persisted to that agent's individual conversation log
+         *     (`AgentChatService.send_message`'s LLM-failure contract).
+         */
+        PerAgentReply: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Agent Label
+             * @description Short, human-readable label used in the synthesis sentence. Derived from persona_id (+ a/b/c suffix when N>1 per persona).
+             */
+            agent_label: string;
+            /** Persona Name */
+            persona_name: string;
+            /** Content */
+            content?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
          * Persona
          * @description One persona — the template an AgentInstance is created from.
          */
@@ -751,6 +848,91 @@ export interface components {
                 [key: string]: number;
             };
             behavioral_seeds?: components["schemas"]["BehavioralSeedSchema"] | null;
+        };
+        /**
+         * PersonaGroupChatRequest
+         * @description PM sends one message; routed to collective synthesis or individual fan-out.
+         *
+         *     `mode="collective"` (default): single LLM call answering in the voice of
+         *     the persona group; cites individuals via inline `[label]` tokens.
+         *     `mode="individual"`: fans out to every agent and returns N replies + a
+         *     one-line synthesis (the original #54 behaviour).
+         */
+        PersonaGroupChatRequest: {
+            /** Message */
+            message: string;
+            /**
+             * Mode
+             * @default collective
+             * @enum {string}
+             */
+            mode: "collective" | "individual";
+        };
+        /**
+         * PersonaGroupChatResponse
+         * @description Discriminated response shape.
+         *
+         *     `role="collective"` populates `content` + `references`. May also
+         *     populate `unavailable_agents` when one or more agent loads failed
+         *     so the frontend can surface "answer reflects N-1 of N agents" to the PM
+         *     (codex #82 round-1 P2: don't silently shrink the collective).
+         *     `role="synthesis"` populates `synthesis` + `per_agent`.
+         *     The frontend branches on `role`.
+         */
+        PersonaGroupChatResponse: {
+            role: components["schemas"]["PersonaGroupRole"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Content */
+            content?: string | null;
+            /** References */
+            references?: components["schemas"]["AgentReference"][] | null;
+            /** Unavailable Agents */
+            unavailable_agents?: components["schemas"]["UnavailableAgent"][] | null;
+            /** Synthesis */
+            synthesis?: string | null;
+            /** Per Agent */
+            per_agent?: components["schemas"]["PerAgentReply"][] | null;
+        };
+        /**
+         * PersonaGroupRole
+         * @enum {string}
+         */
+        PersonaGroupRole: "pm" | "synthesis" | "collective";
+        /**
+         * PersonaGroupTurn
+         * @description One row in the persona-group turn log (turns.jsonl).
+         *
+         *     Roles:
+         *       - `pm`: the PM's question. `content` only.
+         *       - `synthesis`: individual-fan-out result. `content` is the one-line
+         *         synthesis; `per_agent` carries the full payload.
+         *       - `collective`: collective-mode result. `content` is the collective
+         *         voice's reply with `[label]` tokens inline; `references` carries
+         *         the resolved `[label]` → `agent_id` mapping.
+         */
+        PersonaGroupTurn: {
+            role: components["schemas"]["PersonaGroupRole"];
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Per Agent
+             * @description Populated only on synthesis turns (individual fan-out). Mirrors what the route returned so the audit trail is self-contained.
+             */
+            per_agent?: components["schemas"]["PerAgentReply"][] | null;
+            /**
+             * References
+             * @description Populated only on collective turns. Resolved [label] → agent_id citations from the collective reply prose.
+             */
+            references?: components["schemas"]["AgentReference"][] | null;
         };
         /** PersonaPack */
         PersonaPack: {
@@ -1005,6 +1187,21 @@ export interface components {
             to_screen: string;
             /** Role Gated */
             role_gated?: string[] | null;
+        };
+        /**
+         * UnavailableAgent
+         * @description An agent that should have participated in a collective reply but
+         *     couldn't be loaded (artifact read failure, transient storage error).
+         */
+        UnavailableAgent: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Label */
+            agent_label: string;
+            /** Persona Name */
+            persona_name: string;
+            /** Error */
+            error: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1299,6 +1496,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                persona_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonaGroupChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaGroupChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                persona_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaGroupTurn"][];
                 };
             };
             /** @description Validation Error */

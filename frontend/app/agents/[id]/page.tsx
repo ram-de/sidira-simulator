@@ -13,6 +13,11 @@ import {
   type Simulation,
 } from "@/lib/api";
 
+// sessionStorage key — drafts survive nav round-trips
+// (e.g. clicking through to /agents/[id] from a persona-group [label]
+// citation and back).
+const draftKey = (agentId: string) => `pythia.agentDraft.${agentId}`;
+
 // Phase 4 #53: individual-agent chat surface.
 // Spec layout (docs/agent-chat-ui-spec.md "Surface 3"):
 //   1. Identity card — pinned, top. Persona name + identity_seed key fields.
@@ -35,6 +40,35 @@ export default function AgentChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Single effect that does BOTH restore (on route change) and persist
+  // (on draft change within the same route). Codex #83 round-2 P2: the
+  // two-effect split raced under StrictMode double-mount — persist could
+  // fire with the initial `draft=""` before restore's setDraft committed,
+  // deleting the cached value. Distinguishing route-change-firstrun from
+  // same-route fixes the race; see the mirror comment on the persona-group
+  // page for the full trace.
+  const lastDraftKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!agentId) return;
+    const key = draftKey(agentId);
+    if (lastDraftKey.current !== key) {
+      lastDraftKey.current = key;
+      try {
+        const cached = sessionStorage.getItem(key);
+        setDraft(cached ?? "");
+      } catch {
+        setDraft("");
+      }
+      return;
+    }
+    try {
+      if (draft) sessionStorage.setItem(key, draft);
+      else sessionStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }, [agentId, draft]);
 
   // Initial fetch — agent + its parent simulation (for the hypothesis prose).
   useEffect(() => {
@@ -223,12 +257,25 @@ export default function AgentChatPage() {
 
   return (
     <main style={pageStyle}>
-      <div style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <Link
           href={`/simulations/${agent.metadata.simulation_id}`}
           style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
         >
           ← back to simulation
+        </Link>
+        <Link
+          href={`/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}`}
+          style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
+        >
+          ← back to {persona} (group chat)
         </Link>
       </div>
 
