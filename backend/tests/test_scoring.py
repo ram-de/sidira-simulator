@@ -663,15 +663,19 @@ async def test_analyze_warns_on_weakness_classification_failure() -> None:
     assert analysis.weakness_failed is True
     assert analysis.weakness.categories == []
     assert analysis.sentiment_failed is False
-    # WARN was emitted with structured context
+    # WARN was emitted with the full structured context. Exact event-name
+    # equality + all four kwargs pinned (codex P2: substring + partial-kwargs
+    # let a future regression drop fields silently).
     warn_events = [
         e for e in captured if e.get("log_level") == "warning"
-        and "weakness_classification_failed" in e.get("event", "")
+        and e.get("event") == "scoring.weakness_classification_failed"
     ]
     assert len(warn_events) == 1, f"expected 1 weakness-failure WARN, got {warn_events!r}"
-    assert warn_events[0]["agent_id"] == "agent-123"
-    assert "simulated upstream LLM failure" in warn_events[0]["error"]
-    assert warn_events[0]["exc_type"] == "RuntimeError"
+    ev = warn_events[0]
+    assert ev["agent_id"] == "agent-123"
+    assert ev["persona_id"] == "p"
+    assert "simulated upstream LLM failure" in ev["error"]
+    assert ev["exc_type"] == "RuntimeError"
 
 
 @pytest.mark.asyncio
@@ -699,12 +703,17 @@ async def test_analyze_warns_on_sentiment_classification_failure() -> None:
     assert analysis.sentiment_failed is True
     assert analysis.sentiment.confidence == 0.0
     assert analysis.weakness_failed is False
+    # Same tightening as the weakness test: exact event-name + all four kwargs.
     warn_events = [
         e for e in captured if e.get("log_level") == "warning"
-        and "sentiment_classification_failed" in e.get("event", "")
+        and e.get("event") == "scoring.sentiment_classification_failed"
     ]
     assert len(warn_events) == 1, f"expected 1 sentiment-failure WARN, got {warn_events!r}"
-    assert warn_events[0]["agent_id"] == "agent-xyz"
+    ev = warn_events[0]
+    assert ev["agent_id"] == "agent-xyz"
+    assert ev["persona_id"] == "p"
+    assert "simulated sentiment failure" in ev["error"]
+    assert ev["exc_type"] == "RuntimeError"
 
 
 # ── Score + degenerate cases ──────────────────────────────────────────
