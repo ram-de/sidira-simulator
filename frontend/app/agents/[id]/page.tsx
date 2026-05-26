@@ -164,13 +164,15 @@ export default function AgentChatPage() {
       setSending(false);
     }
 
-    // Refocus the composer for retry / next message. Deferred via
-    // requestAnimationFrame so the textarea is no longer `disabled`
-    // (sending=false) by the time we call focus() — some browsers ignore
-    // focus on a still-disabled element. (codex #53 round-2 nit)
-    if (sendError != null || draft) {
-      requestAnimationFrame(() => composerRef.current?.focus());
-    }
+    // Refocus the composer after every send — chat UX is a type → send →
+    // read reply → type next loop, so keeping focus in the composer is
+    // what the user wants. (Codex #53 round-3 P2: the prior conditional
+    // `if (sendError != null || draft)` read stale closure values and
+    // fired on success too; the right move is to just not guard.)
+    // Deferred via requestAnimationFrame so the textarea is no longer
+    // `disabled` (sending=false) by the time we call .focus() — some
+    // browsers ignore focus on a still-disabled element.
+    requestAnimationFrame(() => composerRef.current?.focus());
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
