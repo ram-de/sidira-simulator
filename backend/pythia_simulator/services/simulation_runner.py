@@ -414,7 +414,14 @@ def _derive_top_quote(reaction_text: str) -> str:
         return first_sentence
     truncated = first_sentence[: _TOP_QUOTE_MAX - 1]
     cut = truncated.rfind(" ")
-    if cut > _TOP_QUOTE_MAX // 2:
+    # Codex #84 round-1 P2: prefer ANY positive word boundary over a
+    # mid-token slice. The earlier `cut > _TOP_QUOTE_MAX // 2` gate
+    # silently fell back to mid-token truncation when the only available
+    # space was near the start of a very long single token ("Short " +
+    # huge_word would slice the huge_word mid-character). The spec calls
+    # for word-boundary truncation; only fall back to a hard cut when
+    # the truncated prefix contains literally no spaces.
+    if cut > 0:
         truncated = truncated[:cut]
     return truncated.rstrip() + "…"
 

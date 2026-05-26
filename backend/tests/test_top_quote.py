@@ -75,3 +75,27 @@ def test_very_long_first_sentence_is_truncated_with_ellipsis() -> None:
 def test_short_reaction_returns_first_sentence_unchanged() -> None:
     out = _derive_top_quote("OK.")
     assert out == "OK."
+
+
+def test_early_word_boundary_preferred_over_mid_token_slice() -> None:
+    """Codex #84 round-1 P2: when the only word boundary in the truncated
+    prefix is early (before the half-way mark), we MUST still use it
+    rather than slice mid-word. The earlier `cut > MAX//2` gate produced
+    a broken-token suffix for `Short <very-long-token>` style reactions."""
+    long_token = "supercalifragilisticexpialidocious" * 5  # >120 chars
+    out = _derive_top_quote("Short " + long_token + ".")
+    assert out.endswith("…")
+    # Must NOT contain any portion of the long token (only the early
+    # word-boundary chunk plus ellipsis).
+    assert long_token[:30] not in out
+    assert out.startswith("Short")
+
+
+def test_truncation_falls_back_to_hard_cut_when_no_spaces() -> None:
+    """If the first sentence contains literally no whitespace, we have
+    no boundary — hard-cut at MAX with ellipsis is the right answer."""
+    no_spaces = "x" * 300
+    out = _derive_top_quote(no_spaces + ".")
+    assert out.endswith("…")
+    assert len(out) <= 120
+    assert out.rstrip("…").strip() == "x" * (len(out) - 1)

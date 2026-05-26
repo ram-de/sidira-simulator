@@ -1206,14 +1206,19 @@ function SentimentChip({
   }
   // Three-step palette (spec leaves five-step as open Q; three reads
   // cleaner on a table cell). Intensity is encoded via the glyph + the
-  // confidence-driven background opacity.
+  // confidence-driven background tint. Codex #84 round-1 P2: alpha is
+  // applied to the BACKGROUND only, not to the whole chip — fading text
+  // along with the background hurt WCAG contrast on low-confidence
+  // states.
   const palette = {
-    positive: { bg: "#e7f6ec", fg: "#0a7d3a", glyph: "+" },
-    neutral: { bg: "#f1f1f1", fg: "#555", glyph: "~" },
-    negative: { bg: "#fdecec", fg: "#a30000", glyph: "−" },
+    positive: { bgR: 231, bgG: 246, bgB: 236, fg: "#0a7d3a", glyph: "+" },
+    neutral: { bgR: 241, bgG: 241, bgB: 241, fg: "#555", glyph: "~" },
+    negative: { bgR: 253, bgG: 236, bgB: 236, fg: "#a30000", glyph: "−" },
   } as const;
   const p = palette[sentiment];
-  const alpha = Math.max(0.6, Math.min(1, intensity ?? 0.8));
+  // Confidence in [0.6, 1.0] drives the background alpha so low-confidence
+  // chips read as muted without affecting label legibility.
+  const bgAlpha = Math.max(0.6, Math.min(1, intensity ?? 0.8));
   return (
     <span
       title={`${sentiment} (confidence ${intensity != null ? intensity.toFixed(2) : "—"})`}
@@ -1224,9 +1229,10 @@ function SentimentChip({
         flex: "0 0 auto",
         padding: "2px 8px",
         borderRadius: 999,
-        background: p.bg,
+        background: `rgba(${p.bgR}, ${p.bgG}, ${p.bgB}, ${bgAlpha})`,
         border: `1px solid ${p.fg}22`,
-        opacity: alpha,
+        // No `opacity` on the chip itself — text + glyph stay fully opaque
+        // for accessibility (codex #84 round-1 P2).
         textTransform: "lowercase",
         display: "inline-flex",
         alignItems: "center",
