@@ -484,16 +484,11 @@ export default function SimulationDetailPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {result.confidence_score_ci && (
-                  <div
-                    style={{
-                      fontSize: 14,
-                      color: "#444",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    95% CI: [{result.confidence_score_ci[0].toFixed(1)} &ndash;{" "}
-                    {result.confidence_score_ci[1].toFixed(1)}]
-                  </div>
+                  <ConfidenceIntervalLabel
+                    ciLow={result.confidence_score_ci[0]}
+                    ciHigh={result.confidence_score_ci[1]}
+                    sampledAgentCount={sim?.sampled_agent_count ?? null}
+                  />
                 )}
                 <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
                   &ge;80 = validated; below = needs refinement.
@@ -752,6 +747,59 @@ function _safeRange(
   return { v, lo, hi };
 }
 
+// #71: when the bootstrap CI width is below this threshold on the 0-100
+// scale, the rendering treats it as "collapsed" — we hide the band and
+// switch the label from "95% CI: [X – Y]" to "Narrow interval". This is
+// a PRESENTATION threshold; the backend doesn't surface an explicit
+// unanimity flag, so the copy describes the OBSERVATION (a narrow
+// interval) rather than CLAIMING the cause (every agent agreed). 0.2
+// catches both truly-zero CIs and rounded-to-zero CIs without grabbing
+// genuinely-tight-but-real intervals. Shared between the label and
+// ScoreCiBar so a future tweak lands in one place.
+const _CI_COLLAPSE_THRESHOLD = 0.2;
+
+function ConfidenceIntervalLabel({
+  ciLow,
+  ciHigh,
+  sampledAgentCount,
+}: {
+  ciLow: number;
+  ciHigh: number;
+  sampledAgentCount: number | null;
+}) {
+  const isCollapsed = ciHigh - ciLow < _CI_COLLAPSE_THRESHOLD;
+  if (isCollapsed) {
+    // No info icon: the phrase is self-explanatory and avoids the focusable-
+    // span / outline-none / tooltip-discoverability rabbit hole codex flagged
+    // in round 2. The ScoreCiBar's aria-label carries a fuller explanation
+    // for screen-reader users; sighted users can read the docs if they want
+    // the math behind why the CI collapsed.
+    return (
+      <div
+        style={{
+          fontSize: 14,
+          color: "#444",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        Narrow interval
+        {sampledAgentCount != null ? ` (n=${sampledAgentCount})` : ""}
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        fontSize: 14,
+        color: "#444",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      95% CI: [{ciLow.toFixed(1)} &ndash; {ciHigh.toFixed(1)}]
+    </div>
+  );
+}
+
 function ScoreCiBar({
   score,
   ciLow,
@@ -763,13 +811,19 @@ function ScoreCiBar({
 }) {
   // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
   const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
+  // Same threshold as ConfidenceIntervalLabel — see #71. Hairline-width
+  // band looks like a render bug; hide it and show just the marker. The
+  // label above already explains the "Strong agreement" framing.
+  const isCollapsed = hi - lo < _CI_COLLAPSE_THRESHOLD;
   return (
     <div style={{ marginTop: 16, paddingTop: 4 }}>
       <div
         role="img"
-        aria-label={`Confidence score ${v.toFixed(
-          1,
-        )} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`}
+        aria-label={
+          isCollapsed
+            ? `Confidence score ${v.toFixed(1)} with a narrow confidence interval that collapsed to a single point at this display resolution.`
+            : `Confidence score ${v.toFixed(1)} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`
+        }
         style={{
           position: "relative",
           height: 12,
@@ -781,16 +835,18 @@ function ScoreCiBar({
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            left: `${lo}%`,
-            width: `${Math.max(0, hi - lo)}%`,
-            top: 0,
-            bottom: 0,
-            background: "rgba(29, 78, 216, 0.25)",
-          }}
-        />
+        {!isCollapsed && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${lo}%`,
+              width: `${Math.max(0, hi - lo)}%`,
+              top: 0,
+              bottom: 0,
+              background: "rgba(29, 78, 216, 0.25)",
+            }}
+          />
+        )}
         <div
           style={{
             position: "absolute",
