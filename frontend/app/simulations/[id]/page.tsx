@@ -483,18 +483,48 @@ export default function SimulationDetailPage() {
                 {Math.round(result.confidence_score)}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {result.confidence_score_ci && (
-                  <div
-                    style={{
-                      fontSize: 14,
-                      color: "#444",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    95% CI: [{result.confidence_score_ci[0].toFixed(1)} &ndash;{" "}
-                    {result.confidence_score_ci[1].toFixed(1)}]
-                  </div>
-                )}
+                {result.confidence_score_ci &&
+                  (() => {
+                    const [ciLo, ciHi] = result.confidence_score_ci;
+                    // Threshold on the 0-100 scale. Below this, the bootstrap
+                    // CI has collapsed (typically because every agent landed
+                    // on the same sentiment — see #71). Showing "95% CI: [30.0
+                    // – 30.0]" looks like a math bug; the truthful framing is
+                    // "the population agreed" — signal, not noise.
+                    const isUnanimous = ciHi - ciLo < 0.2;
+                    if (isUnanimous) {
+                      const n = sim?.sampled_agent_count ?? null;
+                      return (
+                        <div
+                          style={{
+                            fontSize: 14,
+                            color: "#444",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                          title="Every agent shared the same sentiment direction; re-runs of this simulation produce the same score. This is a confident reading, not a measurement error."
+                        >
+                          Unanimous{n != null ? ` (n=${n})` : ""}{" "}
+                          <span
+                            aria-label="Every agent shared the same sentiment direction; re-runs of this simulation produce the same score."
+                            style={{ color: "#888", cursor: "help" }}
+                          >
+                            &#9432;
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        style={{
+                          fontSize: 14,
+                          color: "#444",
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        95% CI: [{ciLo.toFixed(1)} &ndash; {ciHi.toFixed(1)}]
+                      </div>
+                    );
+                  })()}
                 <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
                   &ge;80 = validated; below = needs refinement.
                 </div>
@@ -763,13 +793,20 @@ function ScoreCiBar({
 }) {
   // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
   const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
+  // #71: when the bootstrap CI collapses (every agent agreed → zero
+  // variance), a hairline-width gold band looks like a render bug. Hide the
+  // band in that case and show just the marker; the score-card text above
+  // already explains the "Unanimous" framing.
+  const isUnanimous = hi - lo < 0.2;
   return (
     <div style={{ marginTop: 16, paddingTop: 4 }}>
       <div
         role="img"
-        aria-label={`Confidence score ${v.toFixed(
-          1,
-        )} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`}
+        aria-label={
+          isUnanimous
+            ? `Confidence score ${v.toFixed(1)}; every agent agreed (CI collapsed to a single point).`
+            : `Confidence score ${v.toFixed(1)} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`
+        }
         style={{
           position: "relative",
           height: 12,
@@ -781,16 +818,18 @@ function ScoreCiBar({
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            left: `${lo}%`,
-            width: `${Math.max(0, hi - lo)}%`,
-            top: 0,
-            bottom: 0,
-            background: "rgba(29, 78, 216, 0.25)",
-          }}
-        />
+        {!isUnanimous && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${lo}%`,
+              width: `${Math.max(0, hi - lo)}%`,
+              top: 0,
+              bottom: 0,
+              background: "rgba(29, 78, 216, 0.25)",
+            }}
+          />
+        )}
         <div
           style={{
             position: "absolute",
