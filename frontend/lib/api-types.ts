@@ -394,6 +394,34 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AgentAnalysisSummary
+         * @description Per-agent post-run summary (#51 result table).
+         *
+         *     Compact projection of `services.scoring.AgentAnalysis` shaped for the
+         *     result-table cell render. Persisted on `SimulationResult.per_agent_analyses`
+         *     so the table can render sentiment chips + top quotes without N R2 reads.
+         *
+         *     `top_quote` is a short prefix of the agent's frozen `initial_reaction`,
+         *     trimmed to a clean word boundary. Computed once at score time so a
+         *     20-row table doesn't fan out 20 R2 GETs every page load.
+         */
+        AgentAnalysisSummary: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Sentiment
+             * @enum {string}
+             */
+            sentiment: "positive" | "neutral" | "negative";
+            /** Sentiment Confidence */
+            sentiment_confidence: number;
+            /**
+             * Top Quote
+             * @description Short prefix of the agent's initial reaction.
+             */
+            top_quote: string;
+        };
+        /**
          * AgentChatRequest
          * @description PM sends a follow-up question to a specific agent.
          */
@@ -506,6 +534,13 @@ export interface components {
          *     conversation history lives behind GET /agents/{id}, which lands with
          *     Phase 4 chat. Pulling the summary directly off the metadata repo means
          *     the frontend makes one call instead of N=50.
+         *
+         *     `sentiment` + `top_quote` join the metadata row against
+         *     `simulation.result_json.per_agent_analyses`, which the runner populates
+         *     at score time. Both are None for agents whose simulation hasn't
+         *     completed yet, OR for sims that ran before #51 landed (the field is
+         *     backwards-compatible — empty `per_agent_analyses` means "data not
+         *     available", not "agent didn't react").
          */
         AgentSummary: {
             /** Agent Id */
@@ -514,6 +549,12 @@ export interface components {
             persona_id: string;
             /** Persona Name */
             persona_name: string;
+            /** Sentiment */
+            sentiment?: ("positive" | "neutral" | "negative") | null;
+            /** Sentiment Confidence */
+            sentiment_confidence?: number | null;
+            /** Top Quote */
+            top_quote?: string | null;
         };
         /**
          * BehavioralSeedSchema
@@ -1092,6 +1133,11 @@ export interface components {
             weaknesses?: components["schemas"]["Weakness"][];
             /** Refinement Suggestions */
             refinement_suggestions?: string[];
+            /**
+             * Per Agent Analyses
+             * @description Per-agent sentiment + top quote for the result-table render. Populated by the runner when scoring completes. Empty for sims that ran before #51 landed (backwards-compatible).
+             */
+            per_agent_analyses?: components["schemas"]["AgentAnalysisSummary"][];
         };
         /**
          * SimulationRunState

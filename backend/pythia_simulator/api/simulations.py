@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -148,11 +149,21 @@ class AgentSummary(BaseModel):
     conversation history lives behind GET /agents/{id}, which lands with
     Phase 4 chat. Pulling the summary directly off the metadata repo means
     the frontend makes one call instead of N=50.
+
+    `sentiment` + `top_quote` join the metadata row against
+    `simulation.result_json.per_agent_analyses`, which the runner populates
+    at score time. Both are None for agents whose simulation hasn't
+    completed yet, OR for sims that ran before #51 landed (the field is
+    backwards-compatible — empty `per_agent_analyses` means "data not
+    available", not "agent didn't react").
     """
 
     agent_id: str
     persona_id: str
     persona_name: str
+    sentiment: Literal["positive", "neutral", "negative"] | None = None
+    sentiment_confidence: float | None = None
+    top_quote: str | None = None
 
 
 @router.get("/{simulation_id}/agents", response_model=list[AgentSummary])
@@ -175,14 +186,31 @@ async def list_simulation_agents(
             status_code=404, detail=f"Simulation {simulation_id} not found"
         )
     rows = await agent_repo.list_for_simulation(simulation_id, customer_id)
-    return [
-        AgentSummary(
-            agent_id=r["id"],
-            persona_id=r["persona_id"],
-            persona_name=r["persona_name"],
+
+    # Build a {agent_id -> AgentAnalysisSummary} map from the persisted
+    # result so we can join in one pass without N R2 reads.
+    analyses_by_id: dict[str, dict] = {}
+    result_json = sim_row.get("result_json") or {}
+    for entry in result_json.get("per_agent_analyses") or []:
+        if isinstance(entry, dict) and "agent_id" in entry:
+            analyses_by_id[entry["agent_id"]] = entry
+
+    out: list[AgentSummary] = []
+    for r in rows:
+        analysis = analyses_by_id.get(r["id"])
+        out.append(
+            AgentSummary(
+                agent_id=r["id"],
+                persona_id=r["persona_id"],
+                persona_name=r["persona_name"],
+                sentiment=analysis.get("sentiment") if analysis else None,
+                sentiment_confidence=(
+                    analysis.get("sentiment_confidence") if analysis else None
+                ),
+                top_quote=analysis.get("top_quote") if analysis else None,
+            )
         )
-        for r in rows
-    ]
+    return out
 
 
 @router.get("/{simulation_id}/state", response_model=SimulationRunState)
