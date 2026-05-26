@@ -48,6 +48,13 @@ from pythia_simulator.services.persona_group_synthesis import (
 log = structlog.get_logger()
 router = APIRouter(prefix="/simulations", tags=["persona-groups"])
 
+# Match SimulationRunner's per-sim concurrency cap (services/simulation_runner.py:75).
+# A persona group with N=8-10 agents (Phase 2.5 weighted_population) would
+# otherwise burst Groq with every call at once and trip rate-limits faster
+# than the per-call exponential backoff in adapters/llm.py can absorb.
+# Codex #80 round-3 [P2].
+_FANOUT_MAX_CONCURRENCY = 5
+
 
 def _metadata_from_row(row: dict) -> AgentInstanceMetadata:
     return AgentInstanceMetadata(
@@ -118,26 +125,30 @@ async def send_persona_group_message(
     metadatas = [_metadata_from_row(r) for r in persona_rows]
     labels = _build_labels(persona_id, len(metadatas))
 
-    # Fan-out: run each agent's send_message concurrently. The service is
-    # sync (network LLM call) so each call gets its own thread. A per-agent
-    # failure is captured into PerAgentReply.error and DOES NOT cancel the
-    # rest of the fan-out.
+    # Fan-out: run each agent's send_message concurrently, capped at
+    # _FANOUT_MAX_CONCURRENCY (matching SimulationRunner's per-sim cap) so
+    # large persona groups don't burst the LLM provider with N parallel
+    # requests. The service is sync (network LLM call) so each call gets
+    # its own thread. A per-agent failure is captured into
+    # PerAgentReply.error and DOES NOT cancel the rest of the fan-out.
     chat_service = AgentChatService()
+    semaphore = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
 
     async def _one_agent(meta: AgentInstanceMetadata) -> tuple[str, Exception | None]:
-        try:
-            turn = await asyncio.to_thread(chat_service.send_message, meta, message)
-            return turn.content, None
-        except Exception as exc:  # noqa: BLE001 — surfaced into per_agent.error
-            log.warning(
-                "persona_group.fanout_failed",
-                agent_id=meta.id,
-                persona_id=persona_id,
-                simulation_id=sim_id,
-                exc_type=type(exc).__name__,
-                error=str(exc),
-            )
-            return "", exc
+        async with semaphore:
+            try:
+                turn = await asyncio.to_thread(chat_service.send_message, meta, message)
+                return turn.content, None
+            except Exception as exc:  # noqa: BLE001 — surfaced into per_agent.error
+                log.warning(
+                    "persona_group.fanout_failed",
+                    agent_id=meta.id,
+                    persona_id=persona_id,
+                    simulation_id=sim_id,
+                    exc_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                return "", exc
 
     fan_results = await asyncio.gather(*[_one_agent(m) for m in metadatas])
 
