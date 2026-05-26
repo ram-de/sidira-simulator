@@ -523,7 +523,12 @@ export default function SimulationDetailPage() {
               </h2>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {result.weaknesses.map((w, idx) => {
-                  const supporters = w.supporting_agent_ids ?? [];
+                  // `w.supporting_agent_ids` is intentionally NOT surfaced as a
+                  // count here — the backend caps it at 5 (it's a sample for a
+                  // future click-to-expand interaction, not an accurate count).
+                  // The `N/M agents flagged this` line in `w.summary` is the
+                  // truthful count. See #69 for the prior "5 agents flagged
+                  // this" footer that was always literally 5 and misled PMs.
                   const hasFreq =
                     w.frequency != null &&
                     w.ci_low != null &&
@@ -580,15 +585,10 @@ export default function SimulationDetailPage() {
                           fontSize: 14,
                           color: "#333",
                           marginTop: hasFreq ? 8 : 0,
-                          marginBottom: 6,
                           lineHeight: 1.5,
                         }}
                       >
                         {w.summary}
-                      </div>
-                      <div style={{ fontSize: 13, color: "#888" }}>
-                        {supporters.length} agent
-                        {supporters.length === 1 ? "" : "s"} flagged this
                       </div>
                     </li>
                   );
