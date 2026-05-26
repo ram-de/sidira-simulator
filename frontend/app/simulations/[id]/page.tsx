@@ -771,8 +771,9 @@ function ConfidenceIntervalLabel({
   if (isCollapsed) {
     // No info icon: the phrase is self-explanatory and avoids the focusable-
     // span / outline-none / tooltip-discoverability rabbit hole codex flagged
-    // in round 2. Anyone digging deeper can hover the bar (which carries the
-    // collapsed-CI explanation in its aria-label) or read the docs.
+    // in round 2. The ScoreCiBar's aria-label carries a fuller explanation
+    // for screen-reader users; sighted users can read the docs if they want
+    // the math behind why the CI collapsed.
     return (
       <div
         style={{
