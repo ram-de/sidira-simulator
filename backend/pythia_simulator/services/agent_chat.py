@@ -47,16 +47,30 @@ class AgentChatService:
 
         Ordering note (codex #52 P1): the PM turn is persisted ONLY after the
         LLM call succeeds, alongside the agent turn. The earlier "persist PM
-        first, then call LLM" pattern meant that a transient LLM failure
-        (timeout, JSON parse error, rate limit) left a half-written turn pair:
-        the PM message persisted, no reply. The natural client retry then
-        appended the SAME PM message a second time, permanently corrupting
-        the conversation history. The fix is to make the two appends an
-        atomic-feeling pair: either both turns persist together, or neither
-        does — retries become naturally idempotent at the user level.
-        Tradeoff acknowledged: on LLM failure the PM's typed message isn't
-        recoverable from the server; the client still has it in the input
-        box and can simply retry. That's the better failure mode.
+        first, then call LLM" pattern meant a transient LLM failure (timeout,
+        JSON parse error, rate limit) left a half-written turn pair: PM
+        persisted, no reply. The natural client retry then appended the SAME
+        PM message a second time, permanently corrupting the conversation log.
+
+        With the fix, retries are safe for the LLM-failure class (the common
+        case): nothing is persisted on failure, so retry produces exactly
+        one pair. They are NOT safe for:
+          - Partial persistence failure (PM append succeeds, agent append
+            raises) — leaves an orphan PM turn. Documented as codex #52 P2
+            round-2; mitigation would be an atomic append_turns([pm, agent])
+            batch on AgentMemory. Deferred — rare in practice with local /
+            R2 stores, and the orphan PM is visually unambiguous (no reply
+            below it) so a thoughtful user can decide what to do.
+          - Concurrent double-submits from the UI for the same agent —
+            both LLM calls fire, both persist. Mitigation would be a
+            per-agent send lock or a client-supplied idempotency key
+            (#56 territory).
+          - Client timeouts AFTER both turns persist — server has the data,
+            client doesn't know, retry duplicates. Same idempotency-key fix.
+
+        Tradeoff for the LLM-failure path: the PM's typed message isn't
+        recoverable from the server. Client still has it in the input box
+        and can retry. Better failure mode than the pre-fix footgun.
         """
         agent = self._memory.load(metadata)
 
