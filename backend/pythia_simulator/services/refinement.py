@@ -9,12 +9,12 @@ one job (rewrite the hypothesis based on diagnosed weakness), one output.
 
 from __future__ import annotations
 
-import logging
+import structlog
 
 from pythia_simulator.adapters.llm import ChatClient, get_chat_client
 from pythia_simulator.schemas.scoring import RefinementInput, RefinementOutput
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 _REFINEMENT_SYSTEM = """You are an experimentation expert proposing concrete refinements to a product
@@ -61,7 +61,11 @@ class RefinementService:
                 RefinementOutput,
             )
         except Exception as exc:  # noqa: BLE001 — degrade gracefully on LLM/transport failure
-            log.warning("refinement failed: %s", exc)
+            log.warning(
+                "refinement.failed",
+                error=str(exc),
+                exc_type=type(exc).__name__,
+            )
             return []
         # Cap at 3 even if the LLM returned more.
         return output.suggestions[:3]

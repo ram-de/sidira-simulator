@@ -76,3 +76,30 @@ async def test_suggest_returns_empty_on_llm_failure() -> None:
     svc = RefinementService(chat_client=_Broken())
     suggestions = await svc.suggest(_payload())
     assert suggestions == []
+
+
+@pytest.mark.asyncio
+async def test_suggest_warns_via_structlog_on_failure() -> None:
+    """#70: refinement.py previously used stdlib logging.getLogger with no
+    handler attached, so failure WARNs were silently swallowed. Switched to
+    structlog; pin the visibility here."""
+    import structlog
+
+    class _Broken:
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            raise JSONRepairError("LLM returned garbage")
+
+        def chat(self, *a, **k):  # pragma: no cover
+            raise NotImplementedError
+
+    svc = RefinementService(chat_client=_Broken())
+    with structlog.testing.capture_logs() as captured:
+        suggestions = await svc.suggest(_payload())
+    assert suggestions == []
+    warn_events = [
+        e for e in captured if e.get("log_level") == "warning"
+        and e.get("event") == "refinement.failed"
+    ]
+    assert len(warn_events) == 1, f"expected 1 refinement.failed WARN, got {warn_events!r}"
+    assert "LLM returned garbage" in warn_events[0]["error"]
+    assert warn_events[0]["exc_type"] == "JSONRepairError"
