@@ -63,48 +63,97 @@ A flat list of N reactions doesn't scale past 6 agents. Grouping by persona coll
 
 **Lives at:** `/simulations/[id]/personas/[persona_id]` (new route).
 
-**What it is:** a chat surface against the *group* of agents that share a persona. The PM types one question; the system fans out to every agent in the group, collects responses, and presents them side-by-side with a one-line synthesis at the top.
+**What it is:** a chat surface against the *group* of agents that share a persona. The PM types one question; depending on the selected **mode**, the system either produces ONE collective answer in the voice of the persona-as-a-whole (default), or fans out to every individual agent.
 
-This is **fan-out, not synthesis-only.** Each agent answers individually; we surface all answers so the PM sees disagreement within the persona (which would otherwise hide behind a mean). A short synthesis line ("3 of 3 said the rail removal would make Friday harder; one suggested keeping a small ⋯ menu") is generated *after* the fan-out from the answers themselves — it's a summary of real responses, not a replacement for them.
+### Two modes — one composer
+
+The composer carries an inline toggle:
+
+```
+Ask the group as  [● collective | ○ individual fan-out]   [textarea]
+```
+
+- **Collective (default).** Single LLM call. The model is given the persona description + every agent's `identity_seed` + every agent's `initial_reaction` + the prior collective turn log, and answers in one voice that speaks for the persona group. The model is required to cite specific agents using `[agent_label]` tokens when it makes claims attributable to individuals ("[maya] said X; [dom] disagreed"). The frontend rewrites every `[label]` token into a `Link href="/agents/{agent_id}"` so the PM can drill into any cited individual without losing the collective conversation.
+- **Individual fan-out.** Behavior from #54: one PM message is appended to every agent's individual conversation; each agent replies in their own voice; a one-line counted synthesis is generated from the replies. PM sees every reply side-by-side. Use this when the PM wants disagreement-as-signal ("what would YOU change about checkout?").
+
+**Why two modes:** the original spec locked fan-out because disagreement-within-persona is signal. In practice, meta questions ("what's the consensus?", "who reacted positively?") sent through fan-out produce garbage — each individual agent tries to characterize a group they don't have visibility into, and the answers are guesses. Collective mode is the right tool for meta questions; fan-out is the right tool for in-character ones. Default is collective because that's what PMs reach for first.
+
+### Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ ← Result table                                                                │
 │                                                                               │
-│ Weekend family movie night (n=1)                                              │
+│ Weekend family movie night (n=3)                                              │
 │ Hypothesis: Replace Continue Watching rail with a Smart Resume hero…         │
-│ Initial sentiment: negative                                                   │
 │                                                                               │
 │ ┌─[ chat ]──────────────────────────────────────────────────────────────────┐│
-│ │  PM: "If the rail is gone from the top of home, how do you decide what    ││
-│ │       to watch tonight? Walk me through Friday."                          ││
+│ │  PM: "Which of you reacted negatively, and why?"                          ││
 │ │                                                                            ││
-│ │  Synthesis (3 of 3 agents): All three said the ritual of browsing as a   ││
-│ │  family is the point — collapsing it to one hero card breaks that.       ││
-│ │                                                                            ││
-│ │  [rivka_001]  We always scroll the row together. If it's gone we'll just ││
-│ │               watch The Office reruns again.                              ││
-│ │  [rivka_002]  …                                                            ││
-│ │  [rivka_003]  …                                                            ││
+│ │  Collective (n=3): Two of us pushed back — [rivka_001] said the family   ││
+│ │  browsing ritual is the point and a hero card kills it, and [rivka_002]  ││
+│ │  said the kid-profile shortcut sits in that rail. [rivka_003] was OK     ││
+│ │  with the change since they use voice search anyway.                      ││
 │ │                                                                            ││
 │ │  PM: …                                                                     ││
+│ │                                                                            ││
+│ │  Ask the group as  [● collective | ○ individual fan-out]                  ││
+│ │  [composer textarea]                                                       ││
 │ └────────────────────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Identity-continuity guarantee (preserved):** each agent in the group is still the same frozen agent that ran in the simulation. Persona-group chat does NOT create a new aggregate entity. Each PM message is appended to *every* participating agent's individual conversation log, and the agent's reply is what the individual would have said. Drilling from a group answer into the individual chat surface shows the same turn already present.
+Each `[rivka_NNN]` token in the collective reply renders as a link to `/agents/{agent_id}`. Clicking jumps to Surface 3 for that agent. Coming back to the persona-group page re-fetches the collective turn log from the server — nothing is lost. Composer drafts persist via `sessionStorage` so a mid-typed question survives the round trip.
 
-**Why this matters:** if we synthesized at the LLM layer instead of fanning out, we'd lose the audit trail and we'd lose drill-down. The PM should always be able to click on any group answer and land on the specific agent who said it.
+### Identity-continuity guarantee (preserved with a caveat)
 
-**Cost note:** fan-out scales with `N` agents per persona. At today's `N=1` it's identical to single-agent chat. At Phase 2.5's `N=8-10` per persona we'll need (a) Groq rate-limit backoff and (b) a "compose then send" UX (the PM writes once; the fan-out is one request from their perspective).
+**Fan-out mode** is unchanged from the locked #54 implementation: each PM message is appended to every participating agent's individual conversation log; drilling from a fan-out reply into Surface 3 shows the same turn pair already present.
 
-**Backend contract:** `POST /simulations/{sim_id}/personas/{persona_id}/messages` →
-- fans out to each agent in the group, awaits all,
-- writes each agent's turn via `AgentMemory.append_turn`,
-- computes the one-line synthesis as a separate LLM call against the just-completed answers,
-- returns `{synthesis: str, per_agent: [{agent_id, content}]}`.
+**Collective mode** does NOT touch individual agent logs — the collective LLM call is a meta layer that reads the agents' frozen identities + initial reactions, but does not append turns to any individual agent's log. The agents whose names appear in a collective reply have NOT had a turn added to their conversation. This is intentional: the collective voice is the persona group speaking; the individuals haven't been independently re-prompted. Drill-down to an individual lands on Surface 3 with that agent's existing conversation log (which carries only the turns from prior `individual` fan-outs, if any).
 
-The synthesis is **not** persisted on any individual agent — it lives in a per-persona-group conversation log at `customers/<id>/simulations/<sim_id>/persona_groups/<persona_id>/turns.jsonl`.
+The collective turn itself, including its `references` (cited agents with IDs), is persisted to the persona-group log so replay is self-contained.
+
+### Backend contract
+
+`POST /simulations/{sim_id}/personas/{persona_id}/messages` accepts a `mode` field:
+
+```json
+{ "message": "...", "mode": "collective" | "individual" }
+```
+
+Default `mode` is `"collective"` if omitted.
+
+**Collective mode response:**
+```json
+{
+  "role": "collective",
+  "content": "Two of us pushed back — [rivka_001] said ...",
+  "references": [
+    {"agent_id": "uuid-1", "agent_label": "rivka_001"},
+    {"agent_id": "uuid-2", "agent_label": "rivka_002"}
+  ],
+  "created_at": "2026-05-26T19:30:00Z"
+}
+```
+
+**Individual-fanout mode response** (unchanged from #54):
+```json
+{
+  "synthesis": "3 of 3 said ...",
+  "per_agent": [{"agent_id": "...", "agent_label": "...", "content": "...", "error": null}],
+  "created_at": "..."
+}
+```
+
+Both responses are persisted to `customers/<id>/simulations/<sim_id>/persona_groups/<persona_id>/turns.jsonl` with `role` in `{ pm, synthesis, collective }`. A turn of role `collective` carries `content` + `references`; a turn of role `synthesis` carries `content` + `per_agent` (existing).
+
+### Service contract — never raises
+
+Same contract as the #54 synthesis service: `PersonaGroupCollectiveService.collective_reply(...)` NEVER raises into the route. LLM exceptions degrade to a deterministic fallback line; references parse failures degrade to content-only. The collective surface is downstream of any per-agent state — failures here must not invite a client retry that re-runs upstream work.
+
+### Cost note
+
+Collective mode is ONE LLM call per turn regardless of N. Fan-out scales with N (capped at 5 concurrent per #54 codex round-3). For large persona groups (Phase 2.5 N=8-10) collective is the obvious default; fan-out is the explicit override.
 
 ---
 

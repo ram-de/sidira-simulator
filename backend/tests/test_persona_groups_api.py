@@ -27,6 +27,7 @@ from pythia_simulator.api.deps import get_orchestrator  # noqa: E402
 from pythia_simulator.main import app  # noqa: E402
 from pythia_simulator.services import agent_chat as agent_chat_mod  # noqa: E402
 from pythia_simulator.services import (  # noqa: E402
+    persona_group_collective as collective_mod,
     persona_group_synthesis as synthesis_mod,
 )
 from pythia_simulator.services.simulation_orchestrator import (  # noqa: E402
@@ -36,24 +37,33 @@ from pythia_simulator.services.simulation_runner import SimulationRunner  # noqa
 
 
 class _PhaseAwareChat:
-    """Stub LLM that returns different canned replies for sim, chat, and
-    synthesis phases. The synthesis call is detected by the system prompt
-    (which uniquely contains 'N of M' framing language from
-    persona_group_synthesis._SYSTEM_PROMPT).
+    """Stub LLM that returns different canned replies for sim, fan-out reply,
+    synthesis, and collective-voice phases. Phase detected by the system
+    prompt — each service has a uniquely-identifiable system blob.
 
     Reply contracts:
       - Sim phase: the runner's per-agent initial reaction.
-      - Chat phase: each persona-group fan-out reply.
-      - Synthesis phase: a counted-shape line ("N of N said …") that passes
-        the count-accuracy post-process for whatever N the route surfaces.
+      - Fan-out reply phase: each persona-group fan-out reply.
+      - Synthesis phase: a counted-shape line for fan-out mode.
+      - Collective phase: a multi-sentence reply that cites every agent's
+        label inline so reference-resolution has something to chew on.
     """
 
     def __init__(self) -> None:
         self.reply_for_sim = "I'd give it a shot."
-        self.reply_for_chat = "Personal-group reply variant."
-        self.synthesis_n: int = 0  # set by the test before posting
+        self.reply_for_chat = "Persona-group reply variant."
+        self.synthesis_n: int = 0  # set by the test before posting fan-out
+        # Labels the collective stub will cite inline. Set by the test
+        # before posting collective; the stub will produce
+        # `[label_a] said X. [label_b] said Y.` etc.
+        self.collective_labels: list[str] = []
         self._phase = "sim"
-        self.calls_by_phase: dict[str, int] = {"sim": 0, "chat": 0, "synthesis": 0}
+        self.calls_by_phase: dict[str, int] = {
+            "sim": 0,
+            "chat": 0,
+            "synthesis": 0,
+            "collective": 0,
+        }
         self.chat_messages: list[list[dict]] = []
 
     def _enter_chat_phase(self) -> None:
@@ -61,13 +71,18 @@ class _PhaseAwareChat:
 
     def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):
         self.chat_messages.append(messages)
-        # Synthesis detection: the synthesis system prompt is the only one
-        # that contains the literal "N of M" framing. (We could also detect
-        # via temperature=0.1; system-prompt match is sturdier.)
         system_blob = "\n".join(
             m["content"] for m in messages if m["role"] == "system"
         )
+        # Phase detection — each service has a distinctive system-prompt
+        # fingerprint. Sturdier than temperature or message-count heuristics.
         is_synthesis = "N of M" in system_blob and "Lead with" in system_blob
+        is_collective = (
+            "speak in the voice of a PERSONA GROUP" in system_blob
+        )
+        if is_collective:
+            self.calls_by_phase["collective"] += 1
+            return _format_collective_reply(self.collective_labels)
         if is_synthesis:
             self.calls_by_phase["synthesis"] += 1
             n = self.synthesis_n
@@ -97,6 +112,18 @@ class _PhaseAwareChat:
         raise NotImplementedError(schema)
 
 
+def _format_collective_reply(labels: list[str]) -> str:
+    """Build a deterministic collective-voice reply that cites every
+    `labels` token inline. Tests use this to verify reference resolution."""
+    if not labels:
+        return (
+            "We don't have enough signal in our reactions to answer that — "
+            "try asking about the hypothesis itself."
+        )
+    parts = [f"[{lbl}] would say their take." for lbl in labels]
+    return "As a group, here is what each of us thinks: " + " ".join(parts)
+
+
 @pytest.fixture
 def client_with_persona_group_stub(monkeypatch):
     chat = _PhaseAwareChat()
@@ -104,6 +131,7 @@ def client_with_persona_group_stub(monkeypatch):
     monkeypatch.setattr(llm_mod, "get_chat_client", lambda: chat)
     monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda: chat)
     monkeypatch.setattr(synthesis_mod, "get_chat_client", lambda: chat)
+    monkeypatch.setattr(collective_mod, "get_chat_client", lambda: chat)
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     customer_repo._customers.clear()
@@ -186,7 +214,7 @@ def test_persona_group_fanout_returns_synthesis_and_per_agent(
 
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "If we shipped this, what would change for you on Friday?"},
+        json={"mode": "individual", "message": "If we shipped this, what would change for you on Friday?"},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -222,7 +250,7 @@ def test_persona_group_persists_turns_to_log(
 
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "Hi everyone."},
+        json={"mode": "individual", "message": "Hi everyone."},
     )
     assert resp.status_code == 200
 
@@ -267,12 +295,12 @@ def test_persona_group_get_turns_returns_persisted_log(
     # One exchange
     client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "Question one."},
+        json={"mode": "individual", "message": "Question one."},
     )
     # Two exchanges
     client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "Question two."},
+        json={"mode": "individual", "message": "Question two."},
     )
 
     after = client.get(f"/simulations/{sim_id}/personas/{persona_id}/turns")
@@ -290,7 +318,7 @@ def test_persona_group_404_for_unknown_simulation(
     client, _chat, _agent_repo, _sim_repo = client_with_persona_group_stub
     resp = client.post(
         "/simulations/00000000-0000-0000-0000-000000000000/personas/p_anything/messages",
-        json={"message": "hi"},
+        json={"mode": "individual", "message": "hi"},
     )
     assert resp.status_code == 404
     assert "simulation" in resp.json()["detail"].lower()
@@ -303,7 +331,7 @@ def test_persona_group_404_for_unknown_persona(
     sim_id = _run_sim(client)
     resp = client.post(
         f"/simulations/{sim_id}/personas/p_does_not_exist/messages",
-        json={"message": "hi"},
+        json={"mode": "individual", "message": "hi"},
     )
     assert resp.status_code == 404
 
@@ -316,7 +344,7 @@ def test_persona_group_rejects_empty_message(client_with_persona_group_stub) -> 
 
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "    "},
+        json={"mode": "individual", "message": "    "},
     )
     assert resp.status_code == 400
     # No fan-out, no synthesis
@@ -380,7 +408,7 @@ def test_persona_group_partial_failure_records_per_agent_error(
 
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "Try this."},
+        json={"mode": "individual", "message": "Try this."},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -423,7 +451,7 @@ def test_persona_group_all_failures_returns_502(
 
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": "Try this."},
+        json={"mode": "individual", "message": "Try this."},
     )
     assert resp.status_code == 502
     assert "All agent replies failed" in resp.json()["detail"]
@@ -464,7 +492,7 @@ def test_persona_group_synthesis_failure_returns_200_with_fallback(
     pm_msg = "Question that triggers a synthesis failure."
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": pm_msg},
+        json={"mode": "individual", "message": pm_msg},
     )
     # Route returns 200 — synthesis degraded to deterministic fallback
     assert resp.status_code == 200, resp.text
@@ -512,7 +540,7 @@ def test_persona_group_log_persistence_failure_returns_200(
     pm_msg = "Question that triggers a group-log failure."
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": pm_msg},
+        json={"mode": "individual", "message": pm_msg},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -543,7 +571,7 @@ def test_persona_group_individual_chat_log_grew_too(
     pm_msg = "Did this remind you of anything?"
     resp = client.post(
         f"/simulations/{sim_id}/personas/{persona_id}/messages",
-        json={"message": pm_msg},
+        json={"mode": "individual", "message": pm_msg},
     )
     assert resp.status_code == 200
 
@@ -559,3 +587,453 @@ def test_persona_group_individual_chat_log_grew_too(
         assert turns[0]["content"] == pm_msg
         assert turns[1]["role"] == "agent"
         assert turns[1]["content"] == chat.reply_for_chat
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Collective mode (#54 collective)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_collective_default_when_mode_omitted(client_with_persona_group_stub) -> None:
+    """Per spec Surface 2: when the request omits `mode`, default is collective."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    # Set the collective stub to cite every agent in the group
+    chat.collective_labels = [persona_id] if len(agent_ids) == 1 else [
+        f"{persona_id}_{chr(ord('a') + i)}" for i in range(len(agent_ids))
+    ]
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"message": "What's the consensus here?"},  # NO mode field
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["role"] == "collective"
+    assert body["content"] is not None
+    assert body["references"] is not None
+    # Synthesis/per_agent fields are absent for collective mode
+    assert body.get("synthesis") is None
+    assert body.get("per_agent") is None
+    # Exactly ONE LLM call for collective mode (one synthesis-ish call,
+    # not N fan-out + 1 synthesis)
+    assert chat.calls_by_phase["collective"] == 1
+    assert chat.calls_by_phase["chat"] == 0
+    assert chat.calls_by_phase["synthesis"] == 0
+
+
+def test_collective_resolves_inline_labels_to_agent_ids(
+    client_with_persona_group_stub,
+) -> None:
+    """The `[label]` tokens in the collective prose must resolve to real
+    agent_ids in the `references` array so the frontend can linkify them."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    # When N=1, _build_labels uses persona_id directly. Otherwise it appends
+    # _a / _b / _c suffixes.
+    if len(agent_ids) == 1:
+        expected_labels = [persona_id]
+    else:
+        expected_labels = [
+            f"{persona_id}_{chr(ord('a') + i)}" for i in range(len(agent_ids))
+        ]
+    chat.collective_labels = expected_labels
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "Who reacted negatively?"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    # Every cited label is in references mapped to a real agent_id
+    refs = body["references"]
+    assert len(refs) == len(expected_labels)
+    ref_labels = {r["agent_label"] for r in refs}
+    assert ref_labels == set(expected_labels)
+    for r in refs:
+        assert r["agent_id"] in agent_ids
+    # Every [label] token in content matches a reference
+    for lbl in expected_labels:
+        assert f"[{lbl}]" in body["content"]
+
+
+def test_collective_hallucinated_label_is_dropped_from_references(
+    client_with_persona_group_stub,
+) -> None:
+    """If the LLM hallucinates a label not in the input (e.g. 'rivka_005'
+    when there are only 3 agents), the prose carries the token verbatim but
+    `references` does NOT include it. The frontend renders unresolved
+    tokens as plain text — no broken links."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    # Cite one real label + one hallucinated label
+    real_label = persona_id if len(agent_ids) == 1 else f"{persona_id}_a"
+    chat.collective_labels = [real_label, "made_up_agent_xyz"]
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "Anyone surprised you?"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # Both labels appear inline in the prose...
+    assert f"[{real_label}]" in body["content"]
+    assert "[made_up_agent_xyz]" in body["content"]
+    # ...but only the real one is in references
+    assert len(body["references"]) == 1
+    assert body["references"][0]["agent_label"] == real_label
+
+
+def test_collective_persists_pm_and_collective_turn_to_log(
+    client_with_persona_group_stub,
+) -> None:
+    """The collective turn (with full `references` payload) must land in
+    turns.jsonl so the audit trail is self-contained."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    real_label = persona_id if len(agent_ids) == 1 else f"{persona_id}_a"
+    chat.collective_labels = [real_label]
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "Quick question."},
+    )
+    assert resp.status_code == 200
+
+    log_path = (
+        _FIXTURE_ROOT
+        / "customers"
+        / "demo"
+        / "simulations"
+        / sim_id
+        / "persona_groups"
+        / persona_id
+        / "turns.jsonl"
+    )
+    assert log_path.exists()
+    lines = [json.loads(ln) for ln in log_path.read_text().splitlines() if ln.strip()]
+    assert len(lines) == 2
+    assert lines[0]["role"] == "pm"
+    assert lines[0]["content"] == "Quick question."
+    assert lines[1]["role"] == "collective"
+    assert lines[1]["references"] is not None
+    assert lines[1]["references"][0]["agent_label"] == real_label
+
+
+def test_collective_does_not_touch_individual_agent_logs(
+    client_with_persona_group_stub,
+) -> None:
+    """Identity-continuity caveat (spec § collective mode): a collective
+    turn does NOT append to any individual agent's conversation log. The
+    collective voice is a meta layer; the individuals have not been
+    independently re-prompted. Drill-down lands on Surface 3 with whatever
+    turns the agent ACTUALLY has — none here."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    chat.collective_labels = (
+        [persona_id]
+        if len(agent_ids) == 1
+        else [f"{persona_id}_a"]
+    )
+
+    # Baseline: every agent has zero conversation turns post-sim
+    for aid in agent_ids:
+        assert client.get(f"/agents/{aid}").json()["conversation"] == []
+
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "Collective question."},
+    )
+
+    # Still zero — collective mode is meta-only
+    for aid in agent_ids:
+        assert client.get(f"/agents/{aid}").json()["conversation"] == [], (
+            f"collective should not touch agent {aid}'s individual log"
+        )
+
+
+def test_collective_multi_turn_passes_prior_conversation_to_llm(
+    client_with_persona_group_stub,
+) -> None:
+    """The collective LLM call must see prior PM + collective turns so
+    multi-turn collective chats stay coherent. We assert this by checking
+    that the 2nd POST's user-message blob includes content from the 1st turn."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    chat.collective_labels = (
+        [persona_id] if len(agent_ids) == 1 else [f"{persona_id}_a"]
+    )
+
+    # Turn 1
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "TURN_ONE_QUESTION"},
+    )
+    # Turn 2 — should include turn-1 context in the LLM input
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "TURN_TWO_QUESTION"},
+    )
+
+    # The collective LLM was called twice. The 2nd call's messages must
+    # include the 1st PM turn's content (carried via prior_conversation).
+    collective_calls = [
+        msgs for msgs in chat.chat_messages
+        if any("speak in the voice of a PERSONA GROUP" in m.get("content", "")
+               for m in msgs if m["role"] == "system")
+    ]
+    assert len(collective_calls) == 2
+    second_user_msg = next(
+        m["content"] for m in collective_calls[1] if m["role"] == "user"
+    )
+    assert "TURN_ONE_QUESTION" in second_user_msg, (
+        "2nd call must carry prior PM turn into the LLM input"
+    )
+
+
+def test_collective_after_individual_pairs_prior_turns(
+    client_with_persona_group_stub,
+) -> None:
+    """Codex #82 round-1 P2: when the user mixes modes (individual fan-out
+    first, then collective), the collective LLM must see the PAIRED prior
+    turns — the PM question AND its synthesis reply — not a dangling
+    unanswered PM. Otherwise multi-turn collective drift becomes confused
+    multi-turn collective garbage."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    chat.synthesis_n = len(agent_ids)
+    chat.collective_labels = (
+        [persona_id] if len(agent_ids) == 1 else [f"{persona_id}_a"]
+    )
+
+    # Turn 1: individual fan-out
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "individual", "message": "INDIVIDUAL_TURN_QUESTION"},
+    )
+    # Turn 2: collective — must see the synthesis reply, not just the PM
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "COLLECTIVE_TURN_QUESTION"},
+    )
+
+    # The collective LLM call's user message must include BOTH the prior
+    # PM question AND the synthesis reply that answered it.
+    collective_calls = [
+        msgs
+        for msgs in chat.chat_messages
+        if any(
+            "speak in the voice of a PERSONA GROUP" in m.get("content", "")
+            for m in msgs
+            if m["role"] == "system"
+        )
+    ]
+    assert len(collective_calls) == 1
+    user_msg = next(m["content"] for m in collective_calls[0] if m["role"] == "user")
+    assert "INDIVIDUAL_TURN_QUESTION" in user_msg, "prior PM must appear"
+    # Synthesis reply must appear (paired with the PM); the stub's
+    # synthesis reply contains "said the proposed change matters for their flow".
+    assert "said the proposed change matters" in user_msg, (
+        "prior synthesis reply must be paired with its PM, not filtered out"
+    )
+
+
+def test_collective_drops_orphan_pm_with_no_reply(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """If a PM turn lives in the log without a following reply (audit-trail
+    append failed mid-turn — rare but possible), it must be DROPPED from
+    the collective LLM input rather than passed in as an unanswered question."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    # Manually inject an orphan PM into the group log (bypassing the route)
+    # to simulate the partial-append failure mode.
+    from pythia_simulator.adapters.r2 import LocalArtifactStore
+    from pythia_simulator.memory.persona_group_log import PersonaGroupLog
+    from pythia_simulator.schemas.persona_group import (
+        PersonaGroupRole,
+        PersonaGroupTurn,
+    )
+    from datetime import datetime, timezone
+
+    store = LocalArtifactStore(_FIXTURE_ROOT)
+    log = PersonaGroupLog(store)
+    log.append(
+        customer_id="demo",
+        simulation_id=sim_id,
+        persona_id=persona_id,
+        turn=PersonaGroupTurn(
+            role=PersonaGroupRole.PM,
+            content="ORPHAN_PM_NO_REPLY",
+            created_at=datetime.now(timezone.utc),
+        ),
+    )
+
+    chat.collective_labels = (
+        [persona_id] if len(agent_ids) == 1 else [f"{persona_id}_a"]
+    )
+
+    client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "live question"},
+    )
+
+    collective_calls = [
+        msgs
+        for msgs in chat.chat_messages
+        if any(
+            "speak in the voice of a PERSONA GROUP" in m.get("content", "")
+            for m in msgs
+            if m["role"] == "system"
+        )
+    ]
+    assert len(collective_calls) == 1
+    user_msg = next(m["content"] for m in collective_calls[0] if m["role"] == "user")
+    assert "ORPHAN_PM_NO_REPLY" not in user_msg, (
+        "an orphan PM with no reply must be dropped, not passed in as "
+        "an unanswered prior question"
+    )
+
+
+def test_collective_surfaces_unavailable_agents_on_load_failure(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """Codex #82 round-1 P2: a partial agent-load failure must surface in
+    `unavailable_agents` so the frontend can warn 'answer reflects N-1 of N
+    agents'. Silently shrinking the collective would let the LLM confidently
+    speak FOR a group that's smaller than the user thinks."""
+    # Run a sim with multiple agents in one persona
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Surface a one-tap reorder banner for premium subscribers.",
+            },
+            "population_size": 15,
+        },
+    )
+    sim_id = resp.json()["id"]
+    persona_id, agent_ids = _pick_persona(client, sim_id, prefer_multi=True)
+    if len(agent_ids) < 2:
+        pytest.skip("need a persona with N>=2 to exercise partial load failure")
+
+    chat._enter_chat_phase()
+    chat.collective_labels = [
+        persona_id
+        if len(agent_ids) == 1
+        else f"{persona_id}_{chr(ord('a') + i)}"
+        for i in range(len(agent_ids))
+    ]
+
+    # Monkeypatch AgentMemory.load to fail for ONE specific agent.
+    from pythia_simulator.memory.agent_memory import AgentMemory
+
+    target_failed_id = agent_ids[0]
+    original_load = AgentMemory.load
+
+    def _selective_load(self, metadata):
+        if metadata.id == target_failed_id:
+            raise IOError(f"simulated R2 read failure on {target_failed_id}")
+        return original_load(self, metadata)
+
+    monkeypatch.setattr(AgentMemory, "load", _selective_load)
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "What do you all think?"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # Collective ran against the survivors
+    assert body["role"] == "collective"
+    # But unavailable_agents surfaces the one we lost
+    assert body["unavailable_agents"] is not None
+    assert len(body["unavailable_agents"]) == 1
+    unavail = body["unavailable_agents"][0]
+    assert unavail["agent_id"] == target_failed_id
+    assert "IOError" in unavail["error"] or "OSError" in unavail["error"]
+
+
+def test_collective_all_loads_fail_returns_502(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """If EVERY agent load fails, route returns 502 — don't synthesize over
+    a phantom group."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, _ = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    from pythia_simulator.memory.agent_memory import AgentMemory
+
+    def _always_fail(self, metadata):
+        raise IOError("simulated total store failure")
+
+    monkeypatch.setattr(AgentMemory, "load", _always_fail)
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "anything"},
+    )
+    assert resp.status_code == 502
+    assert "Could not load any agent identities" in resp.json()["detail"]
+
+
+def test_collective_llm_failure_returns_200_with_fallback(
+    client_with_persona_group_stub, monkeypatch
+) -> None:
+    """Service contract: collective LLM exception must not 500 the route.
+    Degrades to deterministic fallback + empty references. Same lesson
+    as #80 round-1 P1 — never invite a client retry on irreversible
+    upstream work (the PM turn is already implied; let the user see a
+    safe-default reply and ask again)."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    sim_id = _run_sim(client)
+    persona_id, _ = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+
+    original_chat = chat.chat
+
+    def _fail_collective_only(messages, max_tokens=4096, temperature=0.0, seed=None):
+        system_blob = "\n".join(
+            m["content"] for m in messages if m["role"] == "system"
+        )
+        if "speak in the voice of a PERSONA GROUP" in system_blob:
+            raise TimeoutError("simulated collective LLM timeout")
+        return original_chat(messages, max_tokens, temperature, seed)
+
+    monkeypatch.setattr(chat, "chat", _fail_collective_only)
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "anything"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["role"] == "collective"
+    # Deterministic-fallback prose
+    assert "collective voice is unavailable" in body["content"]
+    # No references — the fallback doesn't cite anyone
+    assert body["references"] == []

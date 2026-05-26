@@ -1,22 +1,30 @@
-"""Persona-group chat route (#54).
+"""Persona-group chat route (#54 + collective mode).
 
-`POST /simulations/{sim_id}/personas/{persona_id}/messages` fans out one PM
-message to every agent that participated in `sim_id` with persona `persona_id`,
-collects the per-agent replies, computes a one-sentence synthesis from those
-replies (via `PersonaGroupSynthesisService`), and persists both the PM turn
-and the synthesis to a per-persona-group log.
+`POST /simulations/{sim_id}/personas/{persona_id}/messages` accepts a `mode`
+field (`"collective"` default, `"individual"` for fan-out).
 
-Identity-continuity invariant: every fan-out reply goes through the same
-`AgentChatService.send_message` path the individual chat surface uses. So
-drilling from a group answer into `/agents/[id]` shows the exact PM/agent
-turn pair already in that agent's conversation log. Re-instantiation is
-forbidden — see `memory/agent_memory.py` IDENTITY-CONTINUITY GUARANTEE.
+**Collective mode (default):** single LLM call answers in the voice of the
+persona group; cites individual agents via `[label]` tokens which the route
+resolves to canonical agent_ids so the frontend can render drill-down links.
+Does NOT touch individual agent conversation logs — the collective voice is
+a meta layer over the agents' frozen identities + initial reactions.
 
-Failure handling: best-effort fan-out. If one agent's LLM call fails, its
-slot in the response carries `error` (and `content` is None); the synthesis
-is still computed against the agents that DID reply. The PM sees which
-agents failed and can decide what to do. Per-agent retry is not yet
-supported — that's #56 territory (idempotency keys per message).
+**Individual mode:** original #54 fan-out — one PM message goes to every
+agent via `AgentChatService.send_message`, each replies in their own voice,
+a one-line counted synthesis runs against the survivors. Each fan-out reply
+lands in the agent's individual conversation log.
+
+Identity-continuity invariant (fan-out): every fan-out reply goes through
+the same `AgentChatService.send_message` path the individual chat surface
+uses. Drilling from a fan-out reply into `/agents/[id]` shows the exact
+PM/agent turn pair already in that agent's conversation log. Re-instantiation
+is forbidden — see `memory/agent_memory.py` IDENTITY-CONTINUITY GUARANTEE.
+
+Failure handling — both modes: services downstream of any per-agent work
+NEVER raise into the route. LLM exceptions degrade to deterministic
+fallbacks; log appends degrade silently. This prevents the codex #80 class
+of bug where a 500 after fan-out invites a client retry that duplicates
+upstream per-agent state.
 """
 
 from __future__ import annotations
@@ -30,6 +38,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pythia_simulator.adapters.r2 import get_store
 from pythia_simulator.adapters.repositories import AgentInstanceRepo, SimulationRepo
 from pythia_simulator.api.deps import current_customer_id, get_agent_repo, get_simulation_repo
+from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.memory.persona_group_log import PersonaGroupLog
 from pythia_simulator.schemas.agent import AgentInstanceMetadata
 from pythia_simulator.schemas.persona_group import (
@@ -38,8 +47,14 @@ from pythia_simulator.schemas.persona_group import (
     PersonaGroupChatResponse,
     PersonaGroupRole,
     PersonaGroupTurn,
+    UnavailableAgent,
 )
 from pythia_simulator.services.agent_chat import AgentChatService
+from pythia_simulator.services.persona_group_collective import (
+    CollectiveAgentContext,
+    PersonaGroupCollectiveService,
+    build_identity_seed_summary,
+)
 from pythia_simulator.services.persona_group_synthesis import (
     AgentReply,
     PersonaGroupSynthesisService,
@@ -94,7 +109,9 @@ async def send_persona_group_message(
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
     sim_repo: SimulationRepo = Depends(get_simulation_repo),
 ) -> PersonaGroupChatResponse:
-    """Fan out one PM message to every agent in the persona; return synthesis + per-agent replies."""
+    """Send one PM message to the persona group. `mode` selects collective
+    voice (default) or individual fan-out. See docs/agent-chat-ui-spec.md
+    Surface 2."""
     message = payload.message.strip()
     if not message:
         raise HTTPException(
@@ -119,18 +136,204 @@ async def send_persona_group_message(
             ),
         )
 
-    # Deterministic ordering so labels (rivka_a, rivka_b, ...) are stable
-    # across calls. Sort by created_at, then id as a tiebreaker.
+    # Deterministic ordering so labels are stable across calls and across
+    # collective/individual modes within the same persona group.
     persona_rows.sort(key=lambda r: (r["created_at"], r["id"]))
     metadatas = [_metadata_from_row(r) for r in persona_rows]
     labels = _build_labels(persona_id, len(metadatas))
 
-    # Fan-out: run each agent's send_message concurrently, capped at
-    # _FANOUT_MAX_CONCURRENCY (matching SimulationRunner's per-sim cap) so
-    # large persona groups don't burst the LLM provider with N parallel
-    # requests. The service is sync (network LLM call) so each call gets
-    # its own thread. A per-agent failure is captured into
-    # PerAgentReply.error and DOES NOT cancel the rest of the fan-out.
+    if payload.mode == "collective":
+        return await _handle_collective(
+            customer_id=customer_id,
+            sim_id=sim_id,
+            persona_id=persona_id,
+            message=message,
+            metadatas=metadatas,
+            labels=labels,
+        )
+    return await _handle_individual_fanout(
+        customer_id=customer_id,
+        sim_id=sim_id,
+        persona_id=persona_id,
+        message=message,
+        metadatas=metadatas,
+        labels=labels,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Collective mode
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def _handle_collective(
+    *,
+    customer_id: str,
+    sim_id: str,
+    persona_id: str,
+    message: str,
+    metadatas: list[AgentInstanceMetadata],
+    labels: list[str],
+) -> PersonaGroupChatResponse:
+    """One LLM call answering in the voice of the persona group.
+
+    Loads each agent's frozen identity_seed + initial_reaction (via
+    AgentMemory) to give the collective LLM enough signal to speak honestly
+    AS the group. Does NOT call AgentChatService.send_message — collective
+    mode does not touch individual agent conversation logs.
+    """
+    store = get_store()
+    memory = AgentMemory(store, store)
+    group_log = PersonaGroupLog(store)
+
+    # Load every agent's frozen state concurrently. Each load is a sync
+    # R2/local-store read; wrap to keep the event loop responsive. Same
+    # concurrency cap as fan-out — large groups shouldn't burst the store.
+    load_sem = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
+
+    async def _load_one(
+        meta: AgentInstanceMetadata, label: str
+    ) -> tuple[CollectiveAgentContext | None, UnavailableAgent | None]:
+        async with load_sem:
+            try:
+                agent = await asyncio.to_thread(memory.load, meta)
+            except Exception as exc:  # noqa: BLE001
+                log.warning(
+                    "collective.agent_load_failed",
+                    agent_id=meta.id,
+                    persona_id=persona_id,
+                    simulation_id=sim_id,
+                    exc_type=type(exc).__name__,
+                    error=str(exc),
+                )
+                return (
+                    None,
+                    UnavailableAgent(
+                        agent_id=meta.id,
+                        agent_label=label,
+                        persona_name=meta.persona_name,
+                        error=f"{type(exc).__name__}: {exc}",
+                    ),
+                )
+            seed = agent.identity_seed
+            return (
+                CollectiveAgentContext(
+                    agent_id=meta.id,
+                    agent_label=label,
+                    persona_name=meta.persona_name,
+                    identity_seed_summary=build_identity_seed_summary(
+                        age_band=seed.age_band if seed else None,
+                        locale_band=seed.locale_band if seed else None,
+                        tenure_band=seed.tenure_band if seed else None,
+                        current_state=seed.current_state if seed else None,
+                        recent_gripe=seed.recent_gripe if seed else None,
+                    ),
+                    initial_reaction=agent.initial_reaction,
+                ),
+                None,
+            )
+
+    load_results = await asyncio.gather(
+        *[_load_one(m, lbl) for m, lbl in zip(metadatas, labels, strict=True)]
+    )
+    contexts: list[CollectiveAgentContext] = [ctx for ctx, _ in load_results if ctx is not None]
+    unavailable: list[UnavailableAgent] = [u for _, u in load_results if u is not None]
+
+    if not contexts:
+        # Every load failed — same shape as fan-out's all-failed branch.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "Could not load any agent identities for this persona group. "
+                "Try again, or switch to individual fan-out."
+            ),
+        )
+
+    # Read prior conversation so multi-turn collective chats stay coherent.
+    # Codex #82 round-1 P2: include BOTH collective AND synthesis reply
+    # turns paired with their PMs — if the user mixed modes (e.g. asked
+    # individual fan-out, then asked collective), filtering out synthesis
+    # turns would leave the collective LLM seeing an unanswered PM question
+    # from the individual turn and produce confused multi-turn replies.
+    # We label fan-out replies as `synthesis` in the prior block so the
+    # model knows that turn was answered by a different surface — not by
+    # a missing collective reply.
+    try:
+        prior_turns = await asyncio.to_thread(
+            group_log.read,
+            customer_id=customer_id,
+            simulation_id=sim_id,
+            persona_id=persona_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — read failure is recoverable
+        log.warning(
+            "collective.prior_log_read_failed",
+            simulation_id=sim_id,
+            persona_id=persona_id,
+            exc_type=type(exc).__name__,
+            error=str(exc),
+        )
+        prior_turns = []
+
+    prior_conversation = _pair_prior_turns(prior_turns)
+
+    persona_name = metadatas[0].persona_name
+    collective_service = PersonaGroupCollectiveService()
+    content, references = await asyncio.to_thread(
+        collective_service.collective_reply,
+        persona_name=persona_name,
+        pm_question=message,
+        agents=contexts,
+        prior_conversation=prior_conversation,
+    )
+
+    now = datetime.now(timezone.utc)
+    pm_turn = PersonaGroupTurn(
+        role=PersonaGroupRole.PM,
+        content=message,
+        created_at=now,
+    )
+    collective_turn = PersonaGroupTurn(
+        role=PersonaGroupRole.COLLECTIVE,
+        content=content,
+        created_at=now,
+        references=references,
+    )
+    await _append_group_log_best_effort(
+        group_log=group_log,
+        customer_id=customer_id,
+        sim_id=sim_id,
+        persona_id=persona_id,
+        turns=(pm_turn, collective_turn),
+    )
+
+    return PersonaGroupChatResponse(
+        role=PersonaGroupRole.COLLECTIVE,
+        created_at=now,
+        content=content,
+        references=references,
+        # Codex #82 round-1 P2: surface load failures so the frontend can
+        # warn "answer reflects X of N agents". None when every load
+        # succeeded; otherwise a list of the agents we couldn't load.
+        unavailable_agents=unavailable if unavailable else None,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Individual fan-out mode (preserved from #54)
+# ──────────────────────────────────────────────────────────────────────
+
+
+async def _handle_individual_fanout(
+    *,
+    customer_id: str,
+    sim_id: str,
+    persona_id: str,
+    message: str,
+    metadatas: list[AgentInstanceMetadata],
+    labels: list[str],
+) -> PersonaGroupChatResponse:
+    """Original #54 fan-out + synthesis path. Behaviour unchanged."""
     chat_service = AgentChatService()
     semaphore = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
 
@@ -177,9 +380,6 @@ async def send_persona_group_message(
             )
 
     if not successful_replies:
-        # Every fan-out failed. Don't run synthesis on zero replies — return
-        # a 502 so the client can surface "all agents failed" instead of
-        # rendering a synthesis line about zero replies.
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=(
@@ -189,18 +389,12 @@ async def send_persona_group_message(
             ),
         )
 
-    # Synthesis runs against the agents that actually replied. This is
-    # honest about count ("3 of 3 said X" when 2 of 5 failed and 3 succeeded).
     synthesis_service = PersonaGroupSynthesisService()
     synthesis_text = await asyncio.to_thread(
         synthesis_service.synthesize, message, successful_replies
     )
 
     now = datetime.now(timezone.utc)
-
-    # Persist BOTH the PM turn and the synthesis to the per-persona-group
-    # log. Synthesis carries the full per_agent payload so the audit trail
-    # is self-contained — replaying the log doesn't require re-fanning out.
     group_log = PersonaGroupLog(get_store())
     pm_turn = PersonaGroupTurn(
         role=PersonaGroupRole.PM,
@@ -213,15 +407,86 @@ async def send_persona_group_message(
         created_at=now,
         per_agent=per_agent,
     )
-    # Persona-group log writes are best-effort by the same logic as the
-    # synthesis fallback above (codex #80 [P2]): the per-agent fan-out has
-    # already persisted the source-of-truth PM/agent pairs to individual
-    # logs. If the group-log append fails (R2 hiccup, transient storage
-    # error), 500ing would invite a client retry that re-fans-out the same
-    # PM message to every agent, duplicating their individual conversations.
-    # The audit trail is downstream of the data we care about — degrade it
-    # rather than corrupt the per-agent logs.
-    for turn in (pm_turn, synth_turn):
+    await _append_group_log_best_effort(
+        group_log=group_log,
+        customer_id=customer_id,
+        sim_id=sim_id,
+        persona_id=persona_id,
+        turns=(pm_turn, synth_turn),
+    )
+
+    return PersonaGroupChatResponse(
+        role=PersonaGroupRole.SYNTHESIS,
+        created_at=now,
+        synthesis=synthesis_text,
+        per_agent=per_agent,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Shared helpers
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _pair_prior_turns(
+    prior_turns: list[PersonaGroupTurn],
+) -> list[tuple[str, str]]:
+    """Build coherent (role, content) tuples for the collective LLM context.
+
+    Codex #82 round-1 P2: a naive filter that keeps PM + COLLECTIVE turns
+    leaves the LLM seeing a dangling unanswered PM whenever the user
+    previously switched into individual-fanout mode (the PM is in the log
+    but the synthesis reply is filtered out). Worse, a best-effort
+    log-append failure that persisted the PM but not the reply produces
+    the same orphan.
+
+    Strategy: only emit a PM turn if the NEXT turn in the log is a reply
+    (collective or synthesis). Emit the reply paired with it, labelled
+    `collective` or `synthesis` so the LLM knows which surface answered.
+    Orphan PMs (no following reply) are dropped — they confuse the model
+    more than they help.
+    """
+    out: list[tuple[str, str]] = []
+    i = 0
+    while i < len(prior_turns):
+        turn = prior_turns[i]
+        if turn.role != PersonaGroupRole.PM:
+            # A stray reply with no PM before it: shouldn't happen in well-
+            # formed logs, but defensively skip rather than emit context-free.
+            i += 1
+            continue
+        next_turn = prior_turns[i + 1] if i + 1 < len(prior_turns) else None
+        if next_turn is None or next_turn.role == PersonaGroupRole.PM:
+            # Orphan PM — drop it. Either the run was interrupted mid-turn or
+            # an audit-trail append silently failed (see _append_group_log_best_effort).
+            i += 1
+            continue
+        if next_turn.role in (PersonaGroupRole.COLLECTIVE, PersonaGroupRole.SYNTHESIS):
+            out.append((turn.role.value, turn.content))
+            out.append((next_turn.role.value, next_turn.content))
+            i += 2
+            continue
+        i += 1
+    return out
+
+
+async def _append_group_log_best_effort(
+    *,
+    group_log: PersonaGroupLog,
+    customer_id: str,
+    sim_id: str,
+    persona_id: str,
+    turns: tuple[PersonaGroupTurn, ...],
+) -> None:
+    """Append every turn to the group log, swallowing per-turn failures.
+
+    Codex #80 [P2] lesson: audit-trail writes are downstream of any
+    irreversible work; a 500 here invites a client retry that may duplicate
+    upstream state. Appends are sequential — the JSONL log expects ordered
+    lines, so we do NOT parallelize even though concurrent writes would
+    technically work.
+    """
+    for turn in turns:
         try:
             await asyncio.to_thread(
                 group_log.append,
@@ -230,7 +495,7 @@ async def send_persona_group_message(
                 persona_id=persona_id,
                 turn=turn,
             )
-        except Exception as exc:  # noqa: BLE001 - audit trail is best-effort
+        except Exception as exc:  # noqa: BLE001 — audit trail is best-effort
             log.warning(
                 "persona_group.log_append_failed",
                 simulation_id=sim_id,
@@ -239,12 +504,6 @@ async def send_persona_group_message(
                 exc_type=type(exc).__name__,
                 error=str(exc),
             )
-
-    return PersonaGroupChatResponse(
-        synthesis=synthesis_text,
-        per_agent=per_agent,
-        created_at=now,
-    )
 
 
 @router.get(
