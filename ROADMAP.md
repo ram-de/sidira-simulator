@@ -222,6 +222,12 @@ When per-customer feedback volume justifies it (~6–12 months after first custo
 
 ---
 
+## Deferred ideas
+
+**A/B experimentation mode (deferred 2026-05-26, session `ab-experiment-mode`).** Two-part proposal: (a) extend the simulator to model both treatment and control arms with a predicted-lift output, and (b) accept real A/B test data as input to the same Analysis tab. Part (a) is a natural post-Phase-4 extension — same agents, same identity_seed, ~1-2 weeks of work, score formula redesign needed. Part (b) was rejected outright: no PM has asked for it, the analyzer market is crowded (Eppo, GrowthBook, Statsig), and it dilutes the agent-simulation moat. If we ever build (b), the natural home is **Phase 9 Layer-3 calibration** — "what we predicted vs what actually happened" using real A/B data as the ground-truth tuning signal, not as a standalone analyzer. Re-open scoping for (a) when Phase 4 is shipping and we have at least one PM interpreting agent transcripts in the wild.
+
+---
+
 ## Links
 
 - [GitHub Project](https://github.com/users/ram-de/projects/) — open tickets (canonical)
