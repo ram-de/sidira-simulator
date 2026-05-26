@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +26,32 @@ from pydantic import BaseModel, Field
 class PersonaGroupRole(str, Enum):
     PM = "pm"
     SYNTHESIS = "synthesis"
+    COLLECTIVE = "collective"
+
+
+# Mode literal used in PersonaGroupChatRequest. "collective" is the default
+# (single LLM call speaking for the persona as a group); "individual" preserves
+# the original #54 fan-out semantics (one reply per agent + synthesis line).
+PersonaGroupMode = Literal["collective", "individual"]
+
+
+class AgentReference(BaseModel):
+    """One agent cited inline by a collective reply.
+
+    The collective LLM emits `[agent_label]` tokens in its prose; the route
+    resolves each label to the canonical `agent_id` so the frontend can
+    linkify the citation to `/agents/{agent_id}`. Unresolved labels (LLM
+    hallucinated a name that doesn't exist in the persona group) are dropped
+    rather than producing a broken link.
+    """
+
+    agent_id: str
+    agent_label: str = Field(
+        description=(
+            "The exact token the LLM used inline (e.g. 'rivka_001'). The "
+            "frontend matches this against `[token]` occurrences in `content`."
+        ),
+    )
 
 
 class PerAgentReply(BaseModel):
@@ -48,21 +75,47 @@ class PerAgentReply(BaseModel):
 
 
 class PersonaGroupChatRequest(BaseModel):
-    """PM sends one message; the system fans it out to every agent in the persona."""
+    """PM sends one message; routed to collective synthesis or individual fan-out.
+
+    `mode="collective"` (default): single LLM call answering in the voice of
+    the persona group; cites individuals via inline `[label]` tokens.
+    `mode="individual"`: fans out to every agent and returns N replies + a
+    one-line synthesis (the original #54 behaviour).
+    """
 
     message: str
+    mode: PersonaGroupMode = "collective"
 
 
 class PersonaGroupChatResponse(BaseModel):
-    """Synthesis + per-agent replies returned to the chat UI."""
+    """Discriminated response shape.
 
-    synthesis: str
-    per_agent: list[PerAgentReply]
+    `role="collective"` populates `content` + `references`.
+    `role="synthesis"` populates `synthesis` + `per_agent`.
+    The frontend branches on `role`.
+    """
+
+    role: PersonaGroupRole
     created_at: datetime
+    # Collective-mode fields
+    content: str | None = None
+    references: list[AgentReference] | None = None
+    # Individual-fanout-mode fields
+    synthesis: str | None = None
+    per_agent: list[PerAgentReply] | None = None
 
 
 class PersonaGroupTurn(BaseModel):
-    """One row in the persona-group turn log (turns.jsonl)."""
+    """One row in the persona-group turn log (turns.jsonl).
+
+    Roles:
+      - `pm`: the PM's question. `content` only.
+      - `synthesis`: individual-fan-out result. `content` is the one-line
+        synthesis; `per_agent` carries the full payload.
+      - `collective`: collective-mode result. `content` is the collective
+        voice's reply with `[label]` tokens inline; `references` carries
+        the resolved `[label]` → `agent_id` mapping.
+    """
 
     role: PersonaGroupRole
     content: str
@@ -70,7 +123,14 @@ class PersonaGroupTurn(BaseModel):
     per_agent: list[PerAgentReply] | None = Field(
         default=None,
         description=(
-            "Populated only on synthesis turns. Mirrors what the route "
-            "returned so the audit trail is self-contained."
+            "Populated only on synthesis turns (individual fan-out). Mirrors "
+            "what the route returned so the audit trail is self-contained."
+        ),
+    )
+    references: list[AgentReference] | None = Field(
+        default=None,
+        description=(
+            "Populated only on collective turns. Resolved [label] → agent_id "
+            "citations from the collective reply prose."
         ),
     )
