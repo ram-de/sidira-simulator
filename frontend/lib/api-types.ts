@@ -118,8 +118,9 @@ export interface paths {
          * Get Agent
          * @description Load an agent's full state: identity, initial reaction, conversation history.
          *
-         *     The same agent that participated in the simulation — identity is frozen,
-         *     conversation grows.
+         *     Identity is frozen at simulation time — calling this twice with no
+         *     intervening chat returns identical `identity_prompt` and `initial_reaction`.
+         *     Only the `conversation` array grows.
          */
         get: operations["get_agent_agents__agent_id__get"];
         put?: never;
@@ -142,8 +143,60 @@ export interface paths {
         /**
          * Send Message
          * @description Send a follow-up message to a specific agent.
+         *
+         *     The PM's message is appended to the agent's conversation log before the
+         *     LLM call so the new turn persists even if the LLM call fails. The
+         *     agent's reply is then generated from the frozen identity + frozen
+         *     initial reaction + the full conversation log (including the new PM
+         *     message), with `_CHAT_GUARD_PREFIX` keeping the model in character.
+         *
+         *     Returns the single new agent turn. The PM turn is already persisted on
+         *     the server; clients render it optimistically from the request payload.
          */
         post: operations["send_message_agents__agent_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulations/{sim_id}/personas/{persona_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Persona Group Message
+         * @description Fan out one PM message to every agent in the persona; return synthesis + per-agent replies.
+         */
+        post: operations["send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulations/{sim_id}/personas/{persona_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Persona Group Turns
+         * @description Replay the persona-group conversation log.
+         *
+         *     Used by the frontend `/simulations/[id]/personas/[persona_id]` route to
+         *     render prior turns on page load.
+         */
+        get: operations["list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -727,6 +780,29 @@ export interface components {
             is_latest: boolean;
         };
         /**
+         * PerAgentReply
+         * @description One agent's response within a persona-group fan-out.
+         *
+         *     `content` is None when `error` is set — the agent's LLM call failed and
+         *     nothing was persisted to that agent's individual conversation log
+         *     (`AgentChatService.send_message`'s LLM-failure contract).
+         */
+        PerAgentReply: {
+            /** Agent Id */
+            agent_id: string;
+            /**
+             * Agent Label
+             * @description Short, human-readable label used in the synthesis sentence. Derived from persona_id (+ a/b/c suffix when N>1 per persona).
+             */
+            agent_label: string;
+            /** Persona Name */
+            persona_name: string;
+            /** Content */
+            content?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
          * Persona
          * @description One persona — the template an AgentInstance is created from.
          */
@@ -751,6 +827,53 @@ export interface components {
                 [key: string]: number;
             };
             behavioral_seeds?: components["schemas"]["BehavioralSeedSchema"] | null;
+        };
+        /**
+         * PersonaGroupChatRequest
+         * @description PM sends one message; the system fans it out to every agent in the persona.
+         */
+        PersonaGroupChatRequest: {
+            /** Message */
+            message: string;
+        };
+        /**
+         * PersonaGroupChatResponse
+         * @description Synthesis + per-agent replies returned to the chat UI.
+         */
+        PersonaGroupChatResponse: {
+            /** Synthesis */
+            synthesis: string;
+            /** Per Agent */
+            per_agent: components["schemas"]["PerAgentReply"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * PersonaGroupRole
+         * @enum {string}
+         */
+        PersonaGroupRole: "pm" | "synthesis";
+        /**
+         * PersonaGroupTurn
+         * @description One row in the persona-group turn log (turns.jsonl).
+         */
+        PersonaGroupTurn: {
+            role: components["schemas"]["PersonaGroupRole"];
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Per Agent
+             * @description Populated only on synthesis turns. Mirrors what the route returned so the audit trail is self-contained.
+             */
+            per_agent?: components["schemas"]["PerAgentReply"][] | null;
         };
         /** PersonaPack */
         PersonaPack: {
@@ -1299,6 +1422,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                persona_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonaGroupChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaGroupChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                persona_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaGroupTurn"][];
                 };
             };
             /** @description Validation Error */

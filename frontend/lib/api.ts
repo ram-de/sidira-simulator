@@ -23,6 +23,10 @@ export type AgentSummary = components["schemas"]["AgentSummary"];
 export type AgentChatRequest = components["schemas"]["AgentChatRequest"];
 export type AgentChatResponse = components["schemas"]["AgentChatResponse"];
 export type AgentChatTurn = components["schemas"]["AgentChatTurn"];
+export type PersonaGroupChatRequest = components["schemas"]["PersonaGroupChatRequest"];
+export type PersonaGroupChatResponse = components["schemas"]["PersonaGroupChatResponse"];
+export type PersonaGroupTurn = components["schemas"]["PersonaGroupTurn"];
+export type PerAgentReply = components["schemas"]["PerAgentReply"];
 export type SimulationRunState = components["schemas"]["SimulationRunState"];
 export type RunPhase = components["schemas"]["RunPhase"];
 export type RunEvent = components["schemas"]["RunEvent"];
@@ -98,6 +102,21 @@ export const sendAgentMessage = (id: string, message: string) =>
 
 export const getAgent = (id: string) =>
   apiGet<AgentInstance>(`/agents/${id}`);
+
+export const getPersonaGroupTurns = (simId: string, personaId: string) =>
+  apiGet<PersonaGroupTurn[]>(
+    `/simulations/${simId}/personas/${personaId}/turns`,
+  );
+
+export const sendPersonaGroupMessage = (
+  simId: string,
+  personaId: string,
+  message: string,
+) =>
+  apiPost<PersonaGroupChatRequest, PersonaGroupChatResponse>(
+    `/simulations/${simId}/personas/${personaId}/messages`,
+    { message },
+  );
 
 // ── UX helpers ─────────────────────────────────────────────────────────
 
