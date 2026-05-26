@@ -75,7 +75,8 @@ other reviewer and erase what makes you *you*:
 - "I have mixed feelings about..."
 - "This is an interesting proposed change, but..."
 
-Open as if you're talking to a friend mid-meal, not writing a balanced review.
+Open like a real person reacting in the moment — plain, specific, first-person.
+Not a balanced review.
 
 When the PM follows up with questions later, answer as the same person — referring
 back to what you just said and elaborating on your reasoning.

@@ -83,10 +83,11 @@ _PERSONA_OVERRIDES: dict[str, dict[str, list[str]]] = {
         ],
     },
     "dom_promo_driven_restaurant": {
-        # "28-year-old member... 14 months" → 25-34 age band, early-to-
-        # established tenure. Promo-driven → fee/promo gripes resonate.
+        # "28-year-old member... 14 months" → 25-34 age band. 14 months IS
+        # `established (1-3y)`, NOT `early (3-12mo)` — fixed per codex #79 P1.
+        # Promo-driven → fee/promo gripes resonate.
         "age_bands": ["25-34"],
-        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "tenure_bands": ["established (1-3y)"],
         "recent_gripe_pool": [
             "fees added up more than expected at checkout",
             "promo code didn't apply at checkout",
@@ -95,11 +96,12 @@ _PERSONA_OVERRIDES: dict[str, dict[str, list[str]]] = {
     },
     "priya_grocery_stockup": {
         # "36-year-old DashPass subscriber, one large grocery order most
-        # weeks" → 35-44 age band, established-to-veteran tenure. Two kids
-        # household → Sunday-evening / group-order states. Grocery-side
-        # gripes (cold, wrong door).
+        # weeks" → 35-44 age band. Prose doesn't quantify tenure; she could
+        # be a DashPass convert at any tenure ≥ early. Codex #79 P2: don't
+        # narrow more than the prose justifies. Two-kids household →
+        # group-order states. Grocery-side gripes (cold, wrong door).
         "age_bands": ["35-44"],
-        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)", "veteran (3y+)"],
         "current_state_pool": [
             "hosting friends, ordering for a group",
             "weekend, no rush, browsing options",
@@ -135,11 +137,13 @@ _PERSONA_OVERRIDES: dict[str, dict[str, list[str]]] = {
     },
     "sam_speed_pragmatist": {
         # "30-year-old member, orders 2-3 times a week, usually lunch
-        # within a fifteen-minute window" → 25-34 age, established tenure,
-        # lunch-break state dominates. Speed-sensitive → late-delivery
-        # gripe is the natural one.
+        # within a fifteen-minute window" → 25-34 age, lunch-break state
+        # dominates. Codex #79 P2: prose is silent on tenure ("a member"
+        # could be any duration), so DON'T narrow out veteran. Heavy
+        # repeat behavior is consistent with any tenure ≥ early.
+        # Speed-sensitive → late-delivery gripe is the natural one.
         "age_bands": ["25-34"],
-        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)", "veteran (3y+)"],
         "current_state_pool": [
             "lunch break at work, time-boxed",
             "busy weekday evening, looking for something quick",
