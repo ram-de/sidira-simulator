@@ -107,3 +107,30 @@ def test_compose_identity_prompt_renders_unknown_for_empty_seed_field() -> None:
         identity_seed=seed,
     )
     assert "- **Location:** _(unknown)_" in prompt
+
+
+def test_compose_identity_prompt_includes_opener_guidance() -> None:
+    """#77: composed prompt must carry the anti-template opener instructions
+    so the LLM stops opening every reaction with "Honestly, I'm not thrilled..."
+
+    Pinned at the prompt-content level; opener-quality behavior in production
+    is observed via PM-side calibration thumbs (#56) and Phase 9."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    # Positive instructions present
+    assert "How to open" in prompt
+    assert "first sentence MUST start from a concrete, in-the-moment detail" in prompt
+    # Each of the 4 grounding anchors mentioned by name
+    assert "current_state" in prompt
+    assert "recent_gripe" in prompt
+    # Negative templates explicitly listed so an LLM steering away from one
+    # doesn't just pick the next nearest hedge
+    assert "Honestly, I'm not" in prompt
+    assert "As someone who" in prompt
+    assert "mixed feelings" in prompt
+    assert "interesting proposed change" in prompt
