@@ -34,6 +34,15 @@ export default function NewSimulationPage() {
   // Wizard ships v1 with treatment_fraction baked at 0.5 (paired sampling
   // makes other splits statistically wasteful per docs/4.6 Q3). The
   // schema accepts other values for future flexibility.
+  //
+  // Phase 4.6 STAGED ROLLOUT GATE: the toggle is DISABLED in this PR
+  // because the runner doesn't honor `arm_split` yet — #89 wires the
+  // dual-arm orchestrator that consumes this field. Without this gate a
+  // PM could click the toggle, submit, get arm_split=0.5 back on the
+  // result page, but actually get a single-arm execution — silent
+  // user-facing mismatch (codex #93 [P1]). Flip this constant to false
+  // when #89 lands.
+  const AB_MODE_DISABLED_UNTIL_89 = true;
   const [abMode, setAbMode] = useState(false);
   // Wizard-side mirror of the API's hard per-arm cap. Matches
   // PYTHIA_MAX_AGENTS in the default env (50). The cost preview uses
@@ -282,7 +291,8 @@ export default function NewSimulationPage() {
           confirmThreshold={CONFIRM_TOTAL_AGENTS_THRESHOLD}
           acknowledged={acknowledgedLargeRun}
           onAcknowledge={setAcknowledgedLargeRun}
-          disabled={formDisabled}
+          disabled={formDisabled || AB_MODE_DISABLED_UNTIL_89}
+          stagedRolloutNote={AB_MODE_DISABLED_UNTIL_89}
         />
 
         <div style={fieldGroup}>
@@ -358,6 +368,7 @@ function ABModeSection({
   acknowledged,
   onAcknowledge,
   disabled,
+  stagedRolloutNote,
 }: {
   enabled: boolean;
   onToggle: (next: boolean) => void;
@@ -367,6 +378,11 @@ function ABModeSection({
   acknowledged: boolean;
   onAcknowledge: (next: boolean) => void;
   disabled: boolean;
+  // Phase 4.6 STAGED ROLLOUT: when true, the toggle is rendered but
+  // checkbox is disabled with a "coming in next PR" badge. Set by the
+  // parent when AB_MODE_DISABLED_UNTIL_89 is on. Once #89 wires the
+  // dual-arm runner, the parent flips this to false.
+  stagedRolloutNote: boolean;
 }) {
   const perArm =
     populationSize != null ? Math.min(populationSize, perArmCap) : 0;
@@ -397,27 +413,60 @@ function ABModeSection({
           <span style={{ color: "#888", fontWeight: 400 }}>
             — predicts a lift, costs ~2×
           </span>
+          {stagedRolloutNote && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 999,
+                background: "#f0e6ff",
+                color: "#5a2ca0",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Coming next
+            </span>
+          )}
         </span>
       </label>
-      <div id="ab-mode-helper" style={{ ...helperStyle, marginLeft: 24 }}>
-        {enabled && populationSize != null && populationSize > 0 ? (
-          <>
-            ≈ <strong>{perArm} treatment + {perArm} control</strong> ={" "}
-            <strong>{totalAgents} LLM agents</strong> for this run. Each
-            persona is paired across arms (same identity reacts to BOTH the
-            current product and the proposed change), so the lift is a
-            within-persona delta — not an apples-to-oranges comparison.
-          </>
-        ) : enabled ? (
-          <>Enter a population size above to see the agent count.</>
-        ) : (
-          <>
-            Off by default. When on, the simulator runs both a treatment
-            arm (sees the proposed change) and a control arm (sees the
-            current product), and reports a predicted lift between them.
-          </>
-        )}
-      </div>
+      {stagedRolloutNote && (
+        <div
+          style={{
+            ...helperStyle,
+            marginLeft: 24,
+            color: "#5a2ca0",
+          }}
+        >
+          A/B execution lands in the next PR (#89 — dual-arm orchestrator
+          + control-arm prompt). The request shape is wired here so #89
+          plugs in without a follow-up schema migration; the wizard
+          toggle is disabled until the runner can honor it.
+        </div>
+      )}
+      {!stagedRolloutNote && (
+        <div id="ab-mode-helper" style={{ ...helperStyle, marginLeft: 24 }}>
+          {enabled && populationSize != null && populationSize > 0 ? (
+            <>
+              ≈ <strong>{perArm} treatment + {perArm} control</strong> ={" "}
+              <strong>{totalAgents} LLM agents</strong> for this run. Each
+              persona is paired across arms (same identity reacts to BOTH the
+              current product and the proposed change), so the lift is a
+              within-persona delta — not an apples-to-oranges comparison.
+            </>
+          ) : enabled ? (
+            <>Enter a population size above to see the agent count.</>
+          ) : (
+            <>
+              Off by default. When on, the simulator runs both a treatment
+              arm (sees the proposed change) and a control arm (sees the
+              current product), and reports a predicted lift between them.
+            </>
+          )}
+        </div>
+      )}
       {enabled && isLarge && (
         <label
           style={{
