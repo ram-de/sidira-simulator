@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-4-agent-chat
-status: active
+status: closed
 started: 2026-05-26
+closed: 2026-05-26
 owner: ram-de
 ---
 
@@ -12,9 +13,10 @@ owner: ram-de
 Ship the three agent-chat surfaces per `docs/agent-chat-ui-spec.md`: individual-agent chat, persona-group chat, and the calibration-thumbs feedback layer. Result table foundation already shipped in Phase 2.5 PR #67; the spec-mandated additions to it (sentiment chip, top quote, 💬 chat button) come back into scope once chat exists to navigate into.
 
 ## In Progress
-- [ ] **#56 calibration thumbs** — per-turn 👍/👎 on individual replies AND on synthesis + collective lines. Collective quality is the failure mode the rubric can't catch; only PM signal can.
+— session complete
 
 ## Completed
+- [x] **#56 merged via [PR #85](https://github.com/ram-de/pythia-simulator/pull/85)** as `aae85a4`. Calibration thumbs on agent / synthesis / collective replies. Backend: append-only `feedback.jsonl` per simulation with `latest_flags()` + `read_all()` (full history for Phase 9; latest-wins for UI). Two POST routes — agent + persona-group; both validate target + turn_index exist; PM-turn targets rejected as 400 on BOTH routes (codex round-1 P2). Per-sim `asyncio.Lock` map serializes R2 read-modify-write appends so concurrent thumbs don't drop events (codex round-1 P2; pinned by 12-concurrent-POSTs test). GET handlers join `realistic_flag` onto each turn from the feedback log on read; `PersonaGroupTurn` gains optional `realistic_flag`. Frontend: shared `ThumbsControl` (optimistic + rollback, `aria-pressed`, tri-state toggle with clear = third state). Wired into individual chat AND both renderers on persona-group page. 2 codex rounds, final CLEAR. Suite 233 → 257 (+24).
 - [x] **#52 merged via [PR #75](https://github.com/ram-de/pythia-simulator/pull/75)** as `f1b9d2d`. `GET /agents/{id}` + `POST /agents/{id}/messages` un-stubbed. Routes call `AgentMemory.load` (wrapped in `asyncio.to_thread` for the sync R2 read) + `AgentChatService.send_message`. Customer scoping enforced at the repo layer; cross-customer agent reads return 404. LLM-side exceptions surface as 502 (distinguishable from a "service broken" 500). Best-effort `repo.touch()` for `last_active_at`/`message_count` after the turn lands; failures logged via structlog (`agents.touch_failed` with agent_id + customer_id + exc_type), not silently swallowed. 7 new tests in `test_agents_api.py` (GET/POST happy paths, 404 cases, customer scoping, empty-body rejection, multi-turn identity-continuity). **Codex P1 fix mid-PR**: PM-turn-before-LLM-call ordering was a retry-duplication footgun; moved to PM-turn-after-LLM-success-only in `AgentChatService.send_message`. Suite 156 → 164.
 - [x] **#53 merged via [PR #76](https://github.com/ram-de/pythia-simulator/pull/76)** as `a8c4eb7`. Individual-agent chat at `/agents/[id]`. Sticky identity card (persona name + persona_id + 5 identity_seed fields), hypothesis + initial reaction in view together, bounded-scroll conversation (`maxHeight: 50vh` so the sticky card stays in place when new turns arrive), composer with Enter-to-send + Shift+Enter newline + IME composition guard. Optimistic PM turn rendering with refetch-on-success to canonical state. Codex P1 fix mid-PR: split POST-success from refetch-failure so a refetch error doesn't roll back a successfully-persisted turn (which would prompt a duplicating retry). 4 codex rounds, 0 P1 outstanding, 0 P2 outstanding.
 - [x] **#51 merged via [PR #84](https://github.com/ram-de/pythia-simulator/pull/84)** as `ed6449b`. Result-table sentiment chip + top-quote columns. Backend: `SimulationResult.per_agent_analyses` populated at score time (was discarded); `/agents` endpoint joins onto `AgentSummary` so the table renders without N R2 reads. Frontend: `SentimentChip` (3-step palette + glyph + confidence-driven background alpha, text stays opaque), `TopQuoteLine` (click-to-expand inline), `aggregateSentiment` (confidence-weighted mean bucketed at ±0.33), `pickGroupQuote` (longest across the group). 3 codex rounds, final CLEAR. New helper `_derive_top_quote` picks the first sentence (#77's identity-grounded opener makes first-sentence the most persona-specific anchor) with word-boundary truncation at 120 chars. Suite 218 → 231 (+13).
@@ -26,10 +28,14 @@ Ship the three agent-chat surfaces per `docs/agent-chat-ui-spec.md`: individual-
   - **#78 identity_seed × persona contradiction** — a `lex_new_explorer` agent (persona: "first 60 days") was drawn with `tenure_band: "veteran (3y+)"`. Fix: `_PERSONA_OVERRIDES` table in `services/identity_seed.py` constraining the 6 demo personas to coherent draws. Stopgap with sunset note — pack-supplied `behavioral_seeds` (v1.1 packs, eventually) bypass it entirely. Codex P1 fix mid-PR: Dom's tenure was over-permissive (allowed `early (3-12mo)` even though prose says "14 months" = established only); narrowed. Sam + Priya were over-narrow (excluded `veteran` and `early` respectively without textual justification); widened. Suite 164 → 170.
 
 ## Next Steps
-**Phase 4 chat scope complete (#52, #53, #54, #55, #51, collective-mode pivot).** One last ticket remains:
+— session complete
 
-1. **#56 calibration thumbs.** Per-turn 👍/👎 on individual replies AND on synthesis + collective lines. Hook into existing `AgentFeedbackRepo` (already wired for individual-chat feedback; needs extension to cover synthesis + collective turns on the persona-group log). The Layer-3 signal Phase 9 will consume. This is the empirical eval surface that catches what the rubric/prompt-pin tests can't — real PM judgment on whether each reply was useful.
-2. **Phase 5a #68 (parallel track):** Postgres repo wiring. Lifts the in-memory persistence to actual durable storage so chat history survives uvicorn `--reload` and process restarts.
+**Out-of-session followups** (for the next session to pick up, not this one):
+- **Phase 5a #68:** Postgres repo wiring. Lifts in-memory persistence to durable storage so chat history + feedback + simulation results survive uvicorn `--reload` and process restarts. Parallel track to Phase 4; was deferred because Phase 4 needed to ship first.
+- **pythia-personas v1.1 packs:** unblocks deletion of the `_PERSONA_OVERRIDES` stopgap in `services/identity_seed.py`. Cross-repo work in the sibling.
+- **streamly_sample override coverage:** no override entries for the streamly demo personas; if we start demoing that customer externally, populate the table.
+- **Multi-replica feedback lock:** the per-sim `asyncio.Lock` in `api/feedback.py` is process-local. A move to multiple uvicorn workers would need an external coordinator (Redis or a per-sim row in a DB table).
+- **Phase 9 Layer-3 calibration:** Reads `feedback.jsonl` (full history) to drive prompt-quality scoring. This whole session was build-up to that.
 
 ## Carryover questions / follow-ups surfaced during testing
 
@@ -63,15 +69,21 @@ Ship the three agent-chat surfaces per `docs/agent-chat-ui-spec.md`: individual-
 - **"Service never raises after fan-out" pattern (#54 codex P1).** When a route does irreversible work (per-agent persistence via `AgentChatService.send_message`) and then downstream work (synthesis, audit-log write), an exception in the downstream step that bubbles to the route 500s and invites a client retry — which re-runs the irreversible step and duplicates per-agent state. Fix: wrap downstream calls in try/except + structlog warn + deterministic fallback. The downstream work degrades; the upstream truth is preserved. Apply this to any future post-fan-out step.
 
 ## For my cofounder
-**Phase 4 core is shipped as of 2026-05-26: all five chat tickets + 2 PM-trust papercut fixes + a major collective-mode pivot** (#52, #53, #54, #55, #77, #78, PR #82). A PM can now:
-1. Open `/agents/[id]` to chat 1:1 with a frozen agent. Identity-continuity guaranteed.
+**Phase 4 chat scope CLOSED as of 2026-05-26.** All seven planned tickets shipped + a major mid-session design pivot + two PM-trust papercut fixes (#52, #53, #54, #55, #51, #56, #77, #78, PR #82 collective-mode). A PM can now:
+
+1. Open `/agents/[id]` to chat 1:1 with a frozen agent. Identity-continuity guaranteed. 👍/👎 every agent reply.
 2. Open `/simulations/[id]/personas/[persona_id]` to talk to a persona group with a mode toggle:
-   - **collective** (default): one voice speaks for the persona, cites individuals via `[label]` tokens that linkify to `/agents/[id]`.
-   - **individual fan-out**: N replies side-by-side with a counted synthesis on top.
-3. Drill from any collective citation or fan-out reply into the individual agent's chat surface, then come back to the group via a "back to {persona_name} (group chat)" link. Drafts on both surfaces survive the round-trip via `sessionStorage`.
+   - **collective** (default): one voice speaks for the persona, cites individuals via `[label]` tokens that linkify to `/agents/[id]`. 👍/👎 the collective line.
+   - **individual fan-out**: N replies side-by-side with a counted synthesis on top. 👍/👎 the synthesis line.
+3. Drill from any collective citation or fan-out reply into the individual agent's chat surface, then come back via "back to {persona_name} (group chat)". Drafts survive the round-trip via `sessionStorage`.
+4. See `/simulations/[id]` with a sentiment chip + top quote per persona row + per agent row. Group sentiment is the order-weighted aggregate of its agents; group quote is the longest verbatim across the group.
 
-The collective pivot was the load-bearing design fix: real PM testing on PR #80 surfaced that meta questions ("what's the consensus?", "who reacted negatively?") to fan-out produced N solipsistic guesses. The two-mode design is mirofish-shaped (one orchestrator voice + opt-in fan-out) and matches how PMs actually think about user segments.
+**Calibration loop is closed:** every reply turn is thumbs-able. The append-only `feedback.jsonl` carries full history (Phase 9 reads this) and latest-wins (UI). PM-turn targets rejected at both routes. Per-sim async lock prevents R2 read-modify-write races under concurrent thumbs.
 
-**What's next:** #51 result-table polish (sentiment chip + top quote — the 💬 buttons already work) → #56 calibration thumbs (on individual, synthesis, AND collective lines). Phase 5a #68 (Postgres repo wiring) is a parallel track.
+**The collective pivot was the load-bearing design fix:** real PM testing on PR #80 surfaced that meta questions ("what's the consensus?", "who reacted negatively?") to fan-out produced N solipsistic guesses. The two-mode design is mirofish-shaped (one orchestrator voice + opt-in fan-out) and matches how PMs actually think about user segments.
 
-To pick this up: `/pythia-session resume phase-4-agent-chat`, read `docs/agent-chat-ui-spec.md` Surface 2 for current design (collective default + mode toggle + `[label]` linkification), then start on either #51 or #56.
+**What's next** (start a new session for these — this one is closed):
+- **Phase 5a #68:** Postgres repo wiring. Lifts in-memory persistence to durable storage. Parallel track.
+- **Phase 9 Layer-3 calibration:** the consumer for everything #56 produces. The actual eval loop.
+
+To resume: pick a new session domain (e.g. `/pythia-session new phase-5a-postgres-wiring` or `/pythia-session new phase-9-calibration`). This session file is the durable record of how the chat surface got built.
