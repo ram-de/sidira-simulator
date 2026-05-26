@@ -63,14 +63,18 @@ export default function PersonaGroupChatPage() {
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Restore draft from sessionStorage on mount.
+  // Restore draft from sessionStorage on mount or when the route key
+  // changes (client-side navigation to a different persona group).
+  // Codex #83 round-1 P2: ALWAYS reset to cached-or-empty so the prior
+  // route's draft doesn't leak into a new route that has no cached draft.
   useEffect(() => {
     if (!simId || !personaId) return;
     try {
       const cached = sessionStorage.getItem(draftKey(simId, personaId));
-      if (cached) setDraft(cached);
+      setDraft(cached ?? "");
     } catch {
       // sessionStorage can throw in SSR or sandboxed contexts — non-fatal.
+      setDraft("");
     }
   }, [simId, personaId]);
 
@@ -141,7 +145,10 @@ export default function PersonaGroupChatPage() {
     const trimmed = draft.trim();
     if (!trimmed || sending) return;
     setSendError(null);
-    setUnavailable([]);
+    // Codex #83 round-1 P2: DO NOT clear `unavailable` here — if the next
+    // send fails and rolls back, the most-recently-visible collective
+    // reply is still the prior partial one, and its warning must stay
+    // accurate. Clear on success (after the new reply is in state).
     setSending(true);
 
     // Optimistic PM turn (matches #53 / prior #55 pattern). Capture exact
@@ -181,20 +188,47 @@ export default function PersonaGroupChatPage() {
         }
       }
 
-      // Phase 2: refetch canonical turn log. Codex #53 round-1 P1 pattern —
-      // refetch failure ≠ send failure; keep optimistic, surface warn.
       if (resp) {
-        if (resp.unavailable_agents && resp.unavailable_agents.length > 0) {
-          setUnavailable(resp.unavailable_agents);
-        }
+        // Codex #83 round-1 P2: derive the canonical PM + reply pair from
+        // the response and apply it locally. The backend's group-log
+        // append is best-effort (codex #82 round-1 P2 made it swallow
+        // failures), so a refetched turn log might NOT contain the new
+        // reply we just received. Trusting `resp` directly means a
+        // successful POST is always visible to the PM, even when the
+        // audit-trail write degraded.
+        const replyTurn = _buildReplyTurnFromResponse(resp, trimmed);
+        const canonicalPm: PersonaGroupTurn = {
+          role: "pm",
+          content: trimmed,
+          created_at: resp.created_at,
+          per_agent: null,
+          references: null,
+        };
+        setTurns((current) => [
+          ...current.filter((t) => t !== optimisticPm),
+          canonicalPm,
+          replyTurn,
+        ]);
+
+        // Surface unavailable_agents AFTER the new reply is in state, so
+        // a subsequent failed send can't strand a stale "reflects X of N"
+        // warning over the wrong reply.
+        setUnavailable(resp.unavailable_agents ?? []);
+
+        // Phase 2: refetch as a verification step. If the log includes
+        // our new reply, prefer it (canonical ordering, server timestamps).
+        // If the log is shorter than what we just appended (best-effort
+        // append failed), keep the locally-derived turns.
         try {
           const fresh = await getPersonaGroupTurns(simId, personaId);
-          setTurns(fresh);
+          setTurns((current) => (fresh.length >= current.length ? fresh : current));
         } catch (e) {
+          // The locally-derived turns are already in state; don't roll
+          // them back — just inform the user the refresh failed.
           setSendError(
             e instanceof Error
-              ? `Sent, but couldn't refresh: ${e.message}. Reload to see the reply.`
-              : "Sent, but couldn't refresh. Reload to see the reply.",
+              ? `Sent. Couldn't fetch the canonical log (${e.message}); the reply you see is from the response payload.`
+              : "Sent. Couldn't fetch the canonical log; the reply you see is from the response payload.",
           );
         }
       }
@@ -446,21 +480,37 @@ function ModeToggle({
   disabled: boolean;
   n: number;
 }) {
+  // Codex #83 round-1 P2: use native <input type="radio"> for the
+  // expected keyboard model (ArrowLeft/Right cycles, Tab enters/exits
+  // the group, only the checked radio is in the tab order). Wraps the
+  // native input in a styled <label> so the pill chrome stays.
+  const groupName = "persona-group-mode";
   return (
-    <div
-      role="radiogroup"
-      aria-label="Persona-group chat mode"
+    <fieldset
       style={{
+        border: "none",
+        padding: 0,
+        margin: "0 0 8px 0",
         display: "flex",
         alignItems: "center",
         gap: 6,
-        marginBottom: 8,
         fontSize: 12,
         color: "#555",
       }}
     >
-      <span style={{ color: "#888" }}>Ask the group as</span>
+      <legend
+        style={{
+          padding: 0,
+          color: "#888",
+          fontSize: 12,
+          marginRight: 6,
+        }}
+      >
+        Ask the group as
+      </legend>
       <ModeRadio
+        name={groupName}
+        value="collective"
         checked={mode === "collective"}
         onSelect={() => setMode("collective")}
         disabled={disabled}
@@ -468,23 +518,29 @@ function ModeToggle({
         title={`One voice speaking for all ${n} agent${n === 1 ? "" : "s"}; cites individuals inline.`}
       />
       <ModeRadio
+        name={groupName}
+        value="individual"
         checked={mode === "individual"}
         onSelect={() => setMode("individual")}
         disabled={disabled}
         label="individual fan-out"
         title={`Send to all ${n} agent${n === 1 ? "" : "s"} separately; see every reply.`}
       />
-    </div>
+    </fieldset>
   );
 }
 
 function ModeRadio({
+  name,
+  value,
   checked,
   onSelect,
   disabled,
   label,
   title,
 }: {
+  name: string;
+  value: PersonaGroupMode;
   checked: boolean;
   onSelect: () => void;
   disabled: boolean;
@@ -492,14 +548,12 @@ function ModeRadio({
   title: string;
 }) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
+    <label
       title={title}
-      onClick={onSelect}
-      disabled={disabled}
       style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
         background: checked ? "#111" : "transparent",
         color: checked ? "#fff" : "#444",
         border: "1px solid #ddd",
@@ -508,10 +562,28 @@ function ModeRadio({
         fontSize: 12,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
+        userSelect: "none",
       }}
     >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        disabled={disabled}
+        onChange={() => onSelect()}
+        // Visually hide the native control but keep it in the a11y tree
+        // so screen readers + keyboard arrow-nav still work.
+        style={{
+          position: "absolute",
+          opacity: 0,
+          pointerEvents: "none",
+          width: 0,
+          height: 0,
+        }}
+      />
       {label}
-    </button>
+    </label>
   );
 }
 
@@ -732,6 +804,32 @@ function RenderWithCitations({
 }
 
 class _PersonaNotFound extends Error {}
+
+// Build the reply turn locally from the response so a best-effort
+// group-log append failure on the backend (codex #82 round-1 P2) doesn't
+// hide the reply from the PM. Mirrors the shape the server would have
+// written to turns.jsonl.
+function _buildReplyTurnFromResponse(
+  resp: Awaited<ReturnType<typeof sendPersonaGroupMessage>>,
+  _pmContent: string,
+): PersonaGroupTurn {
+  if (resp.role === "collective") {
+    return {
+      role: "collective",
+      content: resp.content ?? "",
+      created_at: resp.created_at,
+      references: resp.references ?? null,
+      per_agent: null,
+    };
+  }
+  return {
+    role: "synthesis",
+    content: resp.synthesis ?? "",
+    created_at: resp.created_at,
+    per_agent: resp.per_agent ?? null,
+    references: null,
+  };
+}
 
 // ───────────────────────────────────────────────────────────────────────
 // Styles

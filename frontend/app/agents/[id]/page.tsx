@@ -41,16 +41,18 @@ export default function AgentChatPage() {
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Restore draft from sessionStorage on mount; persist on every change.
-  // Round-trip continuity for users navigating between collective surface
-  // and individual chat via [label] citation links.
+  // Restore draft from sessionStorage on mount or on route change. Codex
+  // #83 round-1 P2: ALWAYS reset to cached-or-empty so the prior agent's
+  // draft doesn't leak into a new /agents/[id] route that has no cached
+  // draft.
   useEffect(() => {
     if (!agentId) return;
     try {
       const cached = sessionStorage.getItem(draftKey(agentId));
-      if (cached) setDraft(cached);
+      setDraft(cached ?? "");
     } catch {
       // ignore — SSR / sandboxed contexts can throw
+      setDraft("");
     }
   }, [agentId]);
 
