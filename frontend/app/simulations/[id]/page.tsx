@@ -483,48 +483,13 @@ export default function SimulationDetailPage() {
                 {Math.round(result.confidence_score)}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {result.confidence_score_ci &&
-                  (() => {
-                    const [ciLo, ciHi] = result.confidence_score_ci;
-                    // Threshold on the 0-100 scale. Below this, the bootstrap
-                    // CI has collapsed (typically because every agent landed
-                    // on the same sentiment — see #71). Showing "95% CI: [30.0
-                    // – 30.0]" looks like a math bug; the truthful framing is
-                    // "the population agreed" — signal, not noise.
-                    const isUnanimous = ciHi - ciLo < 0.2;
-                    if (isUnanimous) {
-                      const n = sim?.sampled_agent_count ?? null;
-                      return (
-                        <div
-                          style={{
-                            fontSize: 14,
-                            color: "#444",
-                            fontVariantNumeric: "tabular-nums",
-                          }}
-                          title="Every agent shared the same sentiment direction; re-runs of this simulation produce the same score. This is a confident reading, not a measurement error."
-                        >
-                          Unanimous{n != null ? ` (n=${n})` : ""}{" "}
-                          <span
-                            aria-label="Every agent shared the same sentiment direction; re-runs of this simulation produce the same score."
-                            style={{ color: "#888", cursor: "help" }}
-                          >
-                            &#9432;
-                          </span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div
-                        style={{
-                          fontSize: 14,
-                          color: "#444",
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        95% CI: [{ciLo.toFixed(1)} &ndash; {ciHi.toFixed(1)}]
-                      </div>
-                    );
-                  })()}
+                {result.confidence_score_ci && (
+                  <ConfidenceIntervalLabel
+                    ciLow={result.confidence_score_ci[0]}
+                    ciHigh={result.confidence_score_ci[1]}
+                    sampledAgentCount={sim?.sampled_agent_count ?? null}
+                  />
+                )}
                 <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
                   &ge;80 = validated; below = needs refinement.
                 </div>
@@ -782,6 +747,69 @@ function _safeRange(
   return { v, lo, hi };
 }
 
+// #71: when the bootstrap CI width is below this threshold on the 0-100
+// scale, the rendering treats it as "collapsed" — we hide the band and
+// switch the label from "95% CI: [X – Y]" to "Strong agreement". This is
+// a PRESENTATION threshold, not a unanimity proof — the backend doesn't
+// surface an explicit unanimity flag, so the copy is intentionally softer
+// ("strong agreement") than a categorical claim ("unanimous"). 0.2 catches
+// both truly-zero CIs and rounded-to-zero CIs without grabbing genuinely-
+// tight-but-real intervals. Shared between the label component and
+// ScoreCiBar so a future tweak lands in one place.
+const _CI_COLLAPSE_THRESHOLD = 0.2;
+
+function ConfidenceIntervalLabel({
+  ciLow,
+  ciHigh,
+  sampledAgentCount,
+}: {
+  ciLow: number;
+  ciHigh: number;
+  sampledAgentCount: number | null;
+}) {
+  const isCollapsed = ciHigh - ciLow < _CI_COLLAPSE_THRESHOLD;
+  if (isCollapsed) {
+    const tooltipText =
+      "Every agent landed on the same sentiment direction; re-runs of this simulation would produce the same score. This is a confident reading, not a measurement error.";
+    return (
+      <div
+        style={{
+          fontSize: 14,
+          color: "#444",
+          fontVariantNumeric: "tabular-nums",
+        }}
+        title={tooltipText}
+      >
+        Strong agreement
+        {sampledAgentCount != null ? ` (n=${sampledAgentCount})` : ""}{" "}
+        {/* Focusable info glyph so keyboard users can discover the tooltip via
+            the aria-label (codex P2: title alone is mouse-only/mobile-unreliable
+            and aria-label on a non-focusable span is invisible to keyboards). */}
+        <span
+          role="img"
+          tabIndex={0}
+          aria-label={tooltipText}
+          title={tooltipText}
+          style={{ color: "#666", cursor: "help", outline: "none" }}
+        >
+          &#9432;
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        fontSize: 14,
+        color: "#444",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      95% CI: [{ciLow.toFixed(1)} &ndash; {ciHigh.toFixed(1)}]
+    </div>
+  );
+}
+
 function ScoreCiBar({
   score,
   ciLow,
@@ -793,17 +821,16 @@ function ScoreCiBar({
 }) {
   // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
   const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
-  // #71: when the bootstrap CI collapses (every agent agreed → zero
-  // variance), a hairline-width gold band looks like a render bug. Hide the
-  // band in that case and show just the marker; the score-card text above
-  // already explains the "Unanimous" framing.
-  const isUnanimous = hi - lo < 0.2;
+  // Same threshold as ConfidenceIntervalLabel — see #71. Hairline-width
+  // band looks like a render bug; hide it and show just the marker. The
+  // label above already explains the "Strong agreement" framing.
+  const isCollapsed = hi - lo < _CI_COLLAPSE_THRESHOLD;
   return (
     <div style={{ marginTop: 16, paddingTop: 4 }}>
       <div
         role="img"
         aria-label={
-          isUnanimous
+          isCollapsed
             ? `Confidence score ${v.toFixed(1)}; every agent agreed (CI collapsed to a single point).`
             : `Confidence score ${v.toFixed(1)} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`
         }
@@ -818,7 +845,7 @@ function ScoreCiBar({
           overflow: "hidden",
         }}
       >
-        {!isUnanimous && (
+        {!isCollapsed && (
           <div
             style={{
               position: "absolute",
