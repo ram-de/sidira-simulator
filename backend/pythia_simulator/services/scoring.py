@@ -11,11 +11,12 @@ without driving an end-to-end simulation.
 from __future__ import annotations
 
 import asyncio
-import logging
 import random
 import secrets
 from collections import Counter
 from typing import Iterable, Sequence
+
+import structlog
 
 from pythia_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
 from pythia_simulator.schemas.scoring import (
@@ -34,7 +35,7 @@ from pythia_simulator.services.statistics import bootstrap_percentile_ci, wilson
 # namespace tuple — distinct domain anyway, so this is defense in depth).
 _BOOTSTRAP_SEED_MIX = 0xB007_5747_5474
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 # ─── Per-agent reaction record passed to the scorer ─────────────────────
@@ -169,10 +170,22 @@ class ScoringService:
         weakness_failed = isinstance(weakness, BaseException)
         sentiment_failed = isinstance(sentiment, BaseException)
         if weakness_failed:
-            log.warning("weakness classification failed: %s", weakness)
+            log.warning(
+                "scoring.weakness_classification_failed",
+                agent_id=reaction.agent_id,
+                persona_id=reaction.persona_id,
+                error=str(weakness),
+                exc_type=type(weakness).__name__,
+            )
             weakness = WeaknessClassification(categories=[], primary_reason="(classification failed)")
         if sentiment_failed:
-            log.warning("sentiment classification failed: %s", sentiment)
+            log.warning(
+                "scoring.sentiment_classification_failed",
+                agent_id=reaction.agent_id,
+                persona_id=reaction.persona_id,
+                error=str(sentiment),
+                exc_type=type(sentiment).__name__,
+            )
             sentiment = SentimentClassification(
                 sentiment=Sentiment.NEUTRAL, confidence=0.0, one_line_summary="(classification failed)"
             )

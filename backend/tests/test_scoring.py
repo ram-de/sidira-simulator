@@ -629,6 +629,84 @@ async def test_analyze_drops_hallucinated_categories() -> None:
     assert "this_is_made_up" not in analysis.weakness.categories
 
 
+# ── Classification-failure WARN visibility (#70) ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_analyze_warns_on_weakness_classification_failure() -> None:
+    """#70: when the weakness classification raises, analyze() must emit a
+    structlog WARN with the agent context AND fall back to a neutral
+    classification. Without this test the WARN previously went to a
+    handler-less stdlib logger and was silently dropped."""
+    import structlog
+
+    class _WeaknessRaiser:
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            if schema is WeaknessClassification:
+                raise RuntimeError("simulated upstream LLM failure")
+            return SentimentClassification(
+                sentiment=Sentiment.POSITIVE, confidence=0.7, one_line_summary=""
+            )
+
+        def chat(self, *a, **k):  # pragma: no cover
+            raise NotImplementedError
+
+    svc = ScoringService(chat_client=_WeaknessRaiser())
+    with structlog.testing.capture_logs() as captured:
+        analysis = await svc.analyze(
+            Hypothesis(capability_name="reorder", prose="test"),
+            AgentReaction(
+                agent_id="agent-123", persona_id="p", persona_name="P", reaction_text="r"
+            ),
+        )
+    # Fallback path
+    assert analysis.weakness_failed is True
+    assert analysis.weakness.categories == []
+    assert analysis.sentiment_failed is False
+    # WARN was emitted with structured context
+    warn_events = [
+        e for e in captured if e.get("log_level") == "warning"
+        and "weakness_classification_failed" in e.get("event", "")
+    ]
+    assert len(warn_events) == 1, f"expected 1 weakness-failure WARN, got {warn_events!r}"
+    assert warn_events[0]["agent_id"] == "agent-123"
+    assert "simulated upstream LLM failure" in warn_events[0]["error"]
+    assert warn_events[0]["exc_type"] == "RuntimeError"
+
+
+@pytest.mark.asyncio
+async def test_analyze_warns_on_sentiment_classification_failure() -> None:
+    """#70 mirror: sentiment-classification failure also emits a structlog WARN."""
+    import structlog
+
+    class _SentimentRaiser:
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            if schema is SentimentClassification:
+                raise RuntimeError("simulated sentiment failure")
+            return WeaknessClassification(categories=[], primary_reason="")
+
+        def chat(self, *a, **k):  # pragma: no cover
+            raise NotImplementedError
+
+    svc = ScoringService(chat_client=_SentimentRaiser())
+    with structlog.testing.capture_logs() as captured:
+        analysis = await svc.analyze(
+            Hypothesis(capability_name="reorder", prose="test"),
+            AgentReaction(
+                agent_id="agent-xyz", persona_id="p", persona_name="P", reaction_text="r"
+            ),
+        )
+    assert analysis.sentiment_failed is True
+    assert analysis.sentiment.confidence == 0.0
+    assert analysis.weakness_failed is False
+    warn_events = [
+        e for e in captured if e.get("log_level") == "warning"
+        and "sentiment_classification_failed" in e.get("event", "")
+    ]
+    assert len(warn_events) == 1, f"expected 1 sentiment-failure WARN, got {warn_events!r}"
+    assert warn_events[0]["agent_id"] == "agent-xyz"
+
+
 # ── Score + degenerate cases ──────────────────────────────────────────
 
 
