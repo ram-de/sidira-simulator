@@ -1384,7 +1384,7 @@ const WEAKNESS_INFO: Record<
   wrong_cohort: {
     title: "Wrong Cohort",
     description:
-      "The change targets the wrong slice of users. The cohort selected for measurement is either too narrow to detect a real effect, or too broad to attribute one — the lift gets washed out by users the change doesn't apply to.",
+      "The change is being tested on users who don't have a reason to respond to it. Even if the feature works as designed, this audience isn't the one it would meaningfully affect — so the experiment can't tell you whether the change matters to the users it SHOULD matter to. Fix: re-target the experiment at users whose behavior the change is actually trying to move.",
   },
   broken_mechanism: {
     title: "Broken Mechanism",
@@ -1404,7 +1404,7 @@ const WEAKNESS_INFO: Record<
   underpowered_design: {
     title: "Underpowered Design",
     description:
-      "The experiment has too few agents (or too little signal variation across them) to draw a confident conclusion. Adding population or letting the experiment run longer would shrink the confidence interval enough to read the result.",
+      "The experiment can't reliably detect the effect the team is looking for. Common causes: the targeted segment is too narrow, the expected effect size (MDE) is set too optimistically, the experiment duration is too short, or too many agent classifications failed to complete (a data-quality degradation gate fires when more than half fail). Fix depends on the cause: widen the segment, calibrate the MDE more conservatively, run longer, or rerun the simulation to recover failed classifications.",
   },
 };
 
