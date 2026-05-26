@@ -43,23 +43,42 @@ class AgentChatService:
         metadata: AgentInstanceMetadata,
         pm_message: str,
     ) -> AgentChatTurn:
-        """PM sends a follow-up; the same agent that ran in the simulation responds."""
+        """PM sends a follow-up; the same agent that ran in the simulation responds.
+
+        Ordering note (codex #52 P1): the PM turn is persisted ONLY after the
+        LLM call succeeds, alongside the agent turn. The earlier "persist PM
+        first, then call LLM" pattern meant that a transient LLM failure
+        (timeout, JSON parse error, rate limit) left a half-written turn pair:
+        the PM message persisted, no reply. The natural client retry then
+        appended the SAME PM message a second time, permanently corrupting
+        the conversation history. The fix is to make the two appends an
+        atomic-feeling pair: either both turns persist together, or neither
+        does — retries become naturally idempotent at the user level.
+        Tradeoff acknowledged: on LLM failure the PM's typed message isn't
+        recoverable from the server; the client still has it in the input
+        box and can simply retry. That's the better failure mode.
+        """
         agent = self._memory.load(metadata)
 
-        # Append the PM's message before composing the LLM call so the new turn is
-        # part of the persisted history regardless of LLM outcome.
-        pm_turn = AgentMemory.new_turn(AgentRole.PM, pm_message)
-        self._memory.append_turn(metadata, pm_turn)
-
-        # Replay frozen identity + frozen initial reaction + all prior turns + new PM turn.
-        # We append the chat guard as a final system supplement (not edited into the
-        # frozen identity) so identity continuity is preserved while still hardening
-        # the LLM against drift.
+        # Build the replay stack WITHOUT yet persisting the PM turn. Identity
+        # continuity is preserved (frozen identity_prompt + frozen
+        # initial_reaction + the prior conversation log) and the new PM
+        # message is supplied as the final user turn for the LLM call.
         messages = AgentMemory.build_replay_messages(agent)
         messages.append({"role": "system", "content": _CHAT_GUARD_PREFIX})
         messages.append({"role": "user", "content": pm_message})
 
         agent_text = self._chat.chat(messages=messages)
+
+        # LLM call succeeded — now persist both turns. The two appends are
+        # sequential (PM first so the conversation reads correctly on reload);
+        # in the rare case the second append fails the agent turn is lost but
+        # the PM turn remains, which is still preferable to the pre-fix
+        # "PM persisted, no reply" footgun because the next retry just sees
+        # an orphan PM message and the user can decide what to do.
+        pm_turn = AgentMemory.new_turn(AgentRole.PM, pm_message)
+        self._memory.append_turn(metadata, pm_turn)
+
         agent_turn = AgentMemory.new_turn(AgentRole.AGENT, agent_text)
         self._memory.append_turn(metadata, agent_turn)
 

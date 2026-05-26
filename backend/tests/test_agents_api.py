@@ -27,28 +27,31 @@ from pythia_simulator.services.simulation_runner import SimulationRunner  # noqa
 
 
 class _StubChat:
-    """LLM stub — distinct, recognizable text per call so tests can pin the
-    `chat()` path used by `AgentChatService.send_message`."""
+    """LLM stub with a swappable reply so tests can pin sim-phase vs
+    chat-phase output without coupling to the chat-guard prose.
+
+    Pattern: `reply` defaults to the sim-time canned response; tests call
+    `chat.reply_for_chat = "..."` after the simulation completes and before
+    the chat POST to differentiate the two phases. Counters help tests
+    assert call-count deltas without reading message text."""
 
     def __init__(self) -> None:
         self.reply_for_sim = "I'd give it a shot."
         self.reply_for_chat = "Following up: I'd want to know how often it surfaces."
+        self._phase = "sim"  # tests flip to "chat" via _enter_chat_phase
         self.json_calls: list[tuple[type, list[dict]]] = []
         self.chat_calls: list[list[dict]] = []
         self.call_count = 0
 
+    def _enter_chat_phase(self) -> None:
+        """Tests call this once the simulation has completed and before any
+        chat POST, so subsequent chat() calls return the chat-time reply."""
+        self._phase = "chat"
+
     def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):
         self.chat_calls.append(messages)
         self.call_count += 1
-        # Heuristic: chat-time messages include the _CHAT_GUARD_PREFIX system
-        # supplement that AgentChatService appends. Simulation-time reactions
-        # don't carry that. Match a distinctive phrase from the actual prefix.
-        has_guard = any(
-            isinstance(m.get("content"), str)
-            and "follow-up question from the product manager" in m["content"]
-            for m in messages
-        )
-        return self.reply_for_chat if has_guard else self.reply_for_sim
+        return self.reply_for_chat if self._phase == "chat" else self.reply_for_sim
 
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
         self.json_calls.append((schema, messages))
@@ -113,9 +116,14 @@ def client_with_chat_stub(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def _run_sim_and_pick_agent(client: TestClient, agent_repo) -> tuple[str, dict]:
+def _run_sim_and_pick_agent(
+    client: TestClient, agent_repo, chat: _StubChat | None = None
+) -> tuple[str, dict]:
     """Submit a small simulation, wait for completion, return one agent_id
-    + its persisted repo row (for assertions on metadata vs. response)."""
+    + its persisted repo row. If `chat` is provided, flip its phase to
+    "chat" so subsequent stub LLM calls return the chat-time canned reply
+    instead of the sim-time one — replaces an earlier brittle heuristic
+    that matched the chat-guard prose. (codex #52 P2)"""
     resp = client.post(
         "/simulations",
         json={
@@ -136,6 +144,8 @@ def _run_sim_and_pick_agent(client: TestClient, agent_repo) -> tuple[str, dict]:
     assert len(agent_ids) >= 1
     agent_id = agent_ids[0]
     row = next(a for a in agent_repo._agents.values() if a["id"] == agent_id)
+    if chat is not None:
+        chat._enter_chat_phase()
     return agent_id, row
 
 
@@ -199,7 +209,7 @@ def test_send_message_appends_turn_and_returns_agent_reply(
     frozen identity + initial reaction + guard prefix, persists the agent reply,
     and returns the new turn."""
     client, chat, agent_repo = client_with_chat_stub
-    agent_id, _row = _run_sim_and_pick_agent(client, agent_repo)
+    agent_id, _row = _run_sim_and_pick_agent(client, agent_repo, chat=chat)
 
     # Baseline: chat() call count after sim
     pre_count = chat.call_count
@@ -252,6 +262,51 @@ def test_send_message_404_for_unknown_agent(client_with_chat_stub) -> None:
     )
     assert resp.status_code == 404
     assert chat.call_count == pre_count
+
+
+def test_send_message_llm_failure_leaves_no_persisted_turn(
+    client_with_chat_stub, monkeypatch
+) -> None:
+    """Codex #52 P1: a 502 from the LLM must leave the conversation log
+    untouched so that a natural client retry doesn't duplicate the PM turn.
+    Pre-fix, the PM turn was appended BEFORE the LLM call — failure left an
+    orphan PM message and retry appended a second copy.
+    """
+    client, chat, agent_repo = client_with_chat_stub
+    agent_id, _row = _run_sim_and_pick_agent(client, agent_repo)
+
+    # Conversation starts empty
+    assert client.get(f"/agents/{agent_id}").json()["conversation"] == []
+
+    # Make the next LLM call raise — both routes wrap the service call so the
+    # route layer surfaces this as a 502.
+    def _boom(messages, max_tokens=4096, temperature=0.0, seed=None):
+        raise TimeoutError("simulated LLM timeout")
+
+    monkeypatch.setattr(chat, "chat", _boom)
+
+    resp = client.post(
+        f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"}
+    )
+    assert resp.status_code == 502
+    # Conversation still empty — no orphan PM turn
+    assert client.get(f"/agents/{agent_id}").json()["conversation"] == []
+
+    # Restore a working LLM and retry the SAME message. Should produce
+    # exactly one PM + one agent turn (not two PM turns).
+    monkeypatch.setattr(
+        chat,
+        "chat",
+        lambda messages, max_tokens=4096, temperature=0.0, seed=None: chat.reply_for_chat,
+    )
+    resp = client.post(
+        f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"}
+    )
+    assert resp.status_code == 200
+    turns = client.get(f"/agents/{agent_id}").json()["conversation"]
+    assert len(turns) == 2
+    assert [t["role"] for t in turns] == ["pm", "agent"]
+    assert turns[0]["content"] == "First try (will fail)"
 
 
 def test_send_message_multi_turn_preserves_identity_continuity(

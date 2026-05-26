@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from pythia_simulator.adapters.repositories import AgentInstanceRepo
@@ -27,6 +28,7 @@ from pythia_simulator.schemas.agent import (
 )
 from pythia_simulator.services.agent_chat import AgentChatService
 
+log = structlog.get_logger()
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
@@ -123,12 +125,20 @@ async def send_message(
             detail=f"Agent reply failed: {exc}",
         ) from exc
 
-    # Touch the metadata row so list views can sort by activity. Failure here
-    # is non-fatal — the turn is already persisted to R2; the touch is a
-    # convenience for UI sorting.
+    # Touch the metadata row so list views can sort by activity. Failure
+    # here is non-fatal — the turn is already persisted to R2; the touch is
+    # a convenience for UI sorting. Log so a broken metadata layer or DB
+    # connectivity issue is visible in observability instead of silent
+    # (codex #52 P2).
     try:
         await agent_repo.touch(agent_id, customer_id)
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning(
+            "agents.touch_failed",
+            agent_id=agent_id,
+            customer_id=customer_id,
+            error=str(exc),
+            exc_type=type(exc).__name__,
+        )
 
     return AgentChatResponse(turn=agent_turn)
