@@ -197,6 +197,81 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
             assert 0.0 <= w["ci_low"] <= w["frequency"] <= w["ci_high"] <= 1.0
 
 
+def test_per_agent_analyses_persisted_on_result_and_join_into_agent_summary(
+    client_with_stub_llm,
+) -> None:
+    """#51: SimulationResult.per_agent_analyses is populated at score time
+    AND the /agents endpoint joins it onto AgentSummary so the result-table
+    cells render without N extra fetches."""
+    client, chat, _sim_repo, _agent_repo = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Show a reorder banner for premium subscribers.",
+            },
+            "population_size": 3,
+        },
+    )
+    sim_id = resp.json()["id"]
+    final = client.get(f"/simulations/{sim_id}")
+    assert final.status_code == 200
+    body = final.json()
+    # Persisted on the result
+    analyses = body["result"]["per_agent_analyses"]
+    assert isinstance(analyses, list)
+    assert len(analyses) == 3
+    for a in analyses:
+        assert a["sentiment"] in {"positive", "neutral", "negative"}
+        assert 0.0 <= a["sentiment_confidence"] <= 1.0
+        assert isinstance(a["top_quote"], str)
+        # The stub LLM uses "I'd give it a shot." as the canned reaction.
+        assert a["top_quote"].startswith("I'd give it a shot")
+
+    # Joined onto AgentSummary
+    agents_resp = client.get(f"/simulations/{sim_id}/agents")
+    assert agents_resp.status_code == 200
+    agents = agents_resp.json()
+    assert len(agents) == 3
+    for row in agents:
+        # New fields populated for completed sims
+        assert row["sentiment"] in {"positive", "neutral", "negative"}
+        assert 0.0 <= row["sentiment_confidence"] <= 1.0
+        assert row["top_quote"]
+
+
+def test_agent_summary_fields_are_none_for_pre_51_result_json(
+    client_with_stub_llm,
+) -> None:
+    """Backwards-compat: a sim whose result_json predates #51 (no
+    per_agent_analyses field) must not 500 — the join falls back to None
+    on every row."""
+    client, _chat, sim_repo, _agent_repo = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Show a reorder banner.",
+            },
+            "population_size": 3,
+        },
+    )
+    sim_id = resp.json()["id"]
+    # Mutate the persisted result to remove per_agent_analyses, simulating
+    # a sim that ran before this field existed.
+    sim = sim_repo._sims[sim_id]
+    sim["result_json"].pop("per_agent_analyses", None)
+
+    agents_resp = client.get(f"/simulations/{sim_id}/agents")
+    assert agents_resp.status_code == 200
+    for row in agents_resp.json():
+        assert row["sentiment"] is None
+        assert row["sentiment_confidence"] is None
+        assert row["top_quote"] is None
+
+
 def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
     """Codex P1: when the caller omits run_seed, the orchestrator must persist
     the seed it actually used -- otherwise the simulation can't be replayed."""

@@ -83,9 +83,18 @@ export default function SimulationDetailPage() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Agent metadata for the persona-grouped table. Lazy: only fetched once
   // the simulation lands in a terminal state and we know which agents ran.
-  // Stored as the minimum we need so a future N=50 sim still renders cheap.
+  // #51: now carries sentiment + top_quote so the result-table cells render
+  // without N extra fetches (backend joins these from the persisted
+  // result_json.per_agent_analyses).
   const [agentMeta, setAgentMeta] = useState<
-    { agent_id: string; persona_id: string; persona_name: string }[] | null
+    {
+      agent_id: string;
+      persona_id: string;
+      persona_name: string;
+      sentiment: "positive" | "neutral" | "negative" | null;
+      sentiment_confidence: number | null;
+      top_quote: string | null;
+    }[] | null
   >(null);
   const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
 
@@ -206,6 +215,9 @@ export default function SimulationDetailPage() {
             agent_id: a.agent_id,
             persona_id: a.persona_id,
             persona_name: a.persona_name,
+            sentiment: a.sentiment ?? null,
+            sentiment_confidence: a.sentiment_confidence ?? null,
+            top_quote: a.top_quote ?? null,
           })),
         );
       } catch (e) {
@@ -931,28 +943,30 @@ function WeaknessFrequencyBar({
   );
 }
 
-function PersonaGroupedAgents({
-  agents,
-}: {
-  agents: { agent_id: string; persona_id: string; persona_name: string }[];
-}) {
+// Row shape for the result table: agent metadata + sentiment/top_quote
+// joined from the persisted result (#51). Defined once so the result-table
+// component tree stays consistent.
+type AgentRow = {
+  agent_id: string;
+  persona_id: string;
+  persona_name: string;
+  sentiment: "positive" | "neutral" | "negative" | null;
+  sentiment_confidence: number | null;
+  top_quote: string | null;
+};
+
+function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
   // Group by persona_id (stable key); persona_name is the human label.
   // Preserve first-seen order so the visual order matches the simulator's
   // allocation order (largest persona first under largest-remainder).
   const order: string[] = [];
-  const byPersona = new Map<
-    string,
-    { persona_name: string; agent_ids: string[] }
-  >();
+  const byPersona = new Map<string, { persona_name: string; agents: AgentRow[] }>();
   for (const a of agents) {
     if (!byPersona.has(a.persona_id)) {
-      byPersona.set(a.persona_id, {
-        persona_name: a.persona_name,
-        agent_ids: [],
-      });
+      byPersona.set(a.persona_id, { persona_name: a.persona_name, agents: [] });
       order.push(a.persona_id);
     }
-    byPersona.get(a.persona_id)!.agent_ids.push(a.agent_id);
+    byPersona.get(a.persona_id)!.agents.push(a);
   }
 
   return (
@@ -964,7 +978,7 @@ function PersonaGroupedAgents({
             key={pid}
             personaId={pid}
             personaName={group.persona_name}
-            agentIds={group.agent_ids}
+            agents={group.agents}
             isFirst={i === 0}
           />
         );
@@ -976,18 +990,23 @@ function PersonaGroupedAgents({
 function PersonaGroupRow({
   personaId,
   personaName,
-  agentIds,
+  agents,
   isFirst,
 }: {
   personaId: string;
   personaName: string;
-  agentIds: string[];
+  agents: AgentRow[];
   isFirst: boolean;
 }) {
   const params = useParams<{ id: string }>();
   const simId = params?.id ?? "";
   const [open, setOpen] = useState(false);
   const listId = `persona-agents-${personaId}`;
+
+  // #51: aggregate sentiment + pick top quote across the group.
+  const groupSentiment = aggregateSentiment(agents);
+  const groupQuote = pickGroupQuote(agents);
+
   return (
     <li
       style={{
@@ -1051,8 +1070,12 @@ function PersonaGroupRow({
           {personaName}
         </span>
         <span style={{ fontSize: 14, color: "#444", flex: "0 0 auto" }}>
-          &times; {agentIds.length} agent{agentIds.length === 1 ? "" : "s"}
+          &times; {agents.length} agent{agents.length === 1 ? "" : "s"}
         </span>
+        <SentimentChip
+          sentiment={groupSentiment.label}
+          intensity={groupSentiment.intensity}
+        />
         <span
           style={{
             fontSize: 12,
@@ -1060,8 +1083,6 @@ function PersonaGroupRow({
             marginLeft: "auto",
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-            // Truncate long ids on narrow widths so the row never exceeds
-            // its container.
             minWidth: 0,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -1085,6 +1106,7 @@ function PersonaGroupRow({
         💬 chat
       </Link>
       </div>
+      {groupQuote && <TopQuoteLine text={groupQuote} />}
       {open && (
         <ul
           id={listId}
@@ -1094,29 +1116,241 @@ function PersonaGroupRow({
             margin: 0,
           }}
         >
-          {agentIds.map((aid) => (
+          {agents.map((a) => (
             <li
-              key={aid}
+              key={a.agent_id}
               style={{
-                padding: "4px 0",
-                fontFamily:
-                  "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-                fontSize: 13,
+                padding: "8px 0",
+                borderTop: "1px dashed #f0f0f0",
               }}
             >
-              <Link
-                href={`/agents/${aid}`}
-                style={{ color: "#1d4ed8", textDecoration: "none" }}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 12,
+                  fontSize: 13,
+                }}
               >
-                {aid.slice(0, 8)}
-              </Link>
-              <span style={{ color: "#aaa", marginLeft: 8 }}>{aid}</span>
+                <Link
+                  href={`/agents/${a.agent_id}`}
+                  style={{
+                    color: "#1d4ed8",
+                    textDecoration: "none",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  {a.agent_id.slice(0, 8)}
+                </Link>
+                <SentimentChip
+                  sentiment={a.sentiment}
+                  intensity={a.sentiment_confidence ?? null}
+                />
+                <span style={{ flex: 1 }} />
+                <Link
+                  href={`/agents/${a.agent_id}`}
+                  aria-label={`Open individual chat with ${a.agent_id}`}
+                  style={{
+                    fontSize: 12,
+                    color: "#1d4ed8",
+                    textDecoration: "none",
+                    flex: "0 0 auto",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  💬 chat 1:1
+                </Link>
+              </div>
+              {a.top_quote && <TopQuoteLine text={a.top_quote} />}
             </li>
           ))}
         </ul>
       )}
     </li>
   );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// #51 — sentiment chip + top-quote helpers
+// ───────────────────────────────────────────────────────────────────────
+
+type SentimentLabel = "positive" | "neutral" | "negative" | null;
+
+function SentimentChip({
+  sentiment,
+  intensity,
+}: {
+  sentiment: SentimentLabel;
+  intensity: number | null;
+}) {
+  if (sentiment == null) {
+    // Sentiment not yet classified — spec calls for "—" placeholder.
+    return (
+      <span
+        aria-label="Sentiment not yet available"
+        style={{
+          fontSize: 12,
+          color: "#aaa",
+          flex: "0 0 auto",
+          padding: "2px 8px",
+          borderRadius: 999,
+          background: "#f5f5f5",
+          border: "1px solid #eee",
+        }}
+      >
+        —
+      </span>
+    );
+  }
+  // Three-step palette (spec leaves five-step as open Q; three reads
+  // cleaner on a table cell). Intensity is encoded via the glyph + the
+  // confidence-driven background tint. Codex #84 round-1 P2: alpha is
+  // applied to the BACKGROUND only, not to the whole chip — fading text
+  // along with the background hurt WCAG contrast on low-confidence
+  // states.
+  const palette = {
+    positive: {
+      bgR: 231,
+      bgG: 246,
+      bgB: 236,
+      fg: "#0a7d3a",
+      border: "#b4d9bf",
+      glyph: "+",
+    },
+    neutral: {
+      bgR: 241,
+      bgG: 241,
+      bgB: 241,
+      fg: "#555",
+      border: "#d4d4d4",
+      glyph: "~",
+    },
+    negative: {
+      bgR: 253,
+      bgG: 236,
+      bgB: 236,
+      fg: "#a30000",
+      border: "#d9a3a3",
+      glyph: "−",
+    },
+  } as const;
+  const p = palette[sentiment];
+  // Confidence in [0.6, 1.0] drives the background alpha so low-confidence
+  // chips read as muted without affecting label legibility.
+  const bgAlpha = Math.max(0.6, Math.min(1, intensity ?? 0.8));
+  return (
+    <span
+      title={`${sentiment} (confidence ${intensity != null ? intensity.toFixed(2) : "—"})`}
+      aria-label={`Sentiment: ${sentiment}`}
+      style={{
+        fontSize: 12,
+        color: p.fg,
+        flex: "0 0 auto",
+        padding: "2px 8px",
+        borderRadius: 999,
+        background: `rgba(${p.bgR}, ${p.bgG}, ${p.bgB}, ${bgAlpha})`,
+        // Codex #84 round-2 P2: opaque border (was an 8-digit hex alpha
+        // `${p.fg}22` which kept the border ~13% opacity even after the
+        // round-1 opacity fix). Mid-tone opaque hex stays visually light
+        // without dropping legibility.
+        border: `1px solid ${p.border}`,
+        // No `opacity` on the chip itself — text + glyph stay fully opaque
+        // for accessibility (codex #84 round-1 P2).
+        textTransform: "lowercase",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <span aria-hidden style={{ fontWeight: 600 }}>{p.glyph}</span>
+      {sentiment}
+    </span>
+  );
+}
+
+function TopQuoteLine({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  // Inline-expand on click (spec: "click expands inline (no nav)").
+  // Collapsed: single-line ellipsis; expanded: full wrap.
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      aria-expanded={expanded}
+      title={expanded ? "Click to collapse" : "Click to expand"}
+      style={{
+        display: "block",
+        width: "100%",
+        textAlign: "left",
+        background: "transparent",
+        border: "none",
+        padding: "4px 0 0 24px",
+        margin: 0,
+        cursor: "pointer",
+        fontSize: 13,
+        color: "#666",
+        lineHeight: 1.5,
+        whiteSpace: expanded ? "normal" : "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+    >
+      <span aria-hidden style={{ color: "#bbb", marginRight: 6 }}>
+        “
+      </span>
+      {text}
+      <span aria-hidden style={{ color: "#bbb", marginLeft: 4 }}>
+        ”
+      </span>
+    </button>
+  );
+}
+
+// Order-weighted sentiment aggregation. Maps each agent's sentiment to a
+// numeric value (positive=+1, neutral=0, negative=-1) and confidence-weights
+// the mean. Returns the chip-renderable {label, intensity} pair.
+//
+// Tie-breaking: any agent with `sentiment == null` is skipped (still
+// classifying / pre-#51 result). If EVERY agent is unclassified, returns
+// {null, null} so the chip renders the "—" placeholder.
+function aggregateSentiment(agents: AgentRow[]): {
+  label: SentimentLabel;
+  intensity: number | null;
+} {
+  let weighted = 0;
+  let total = 0;
+  const valueOf = { positive: 1, neutral: 0, negative: -1 } as const;
+  for (const a of agents) {
+    if (a.sentiment == null) continue;
+    const w = a.sentiment_confidence ?? 0.5;
+    weighted += valueOf[a.sentiment] * w;
+    total += w;
+  }
+  if (total === 0) return { label: null, intensity: null };
+  const score = weighted / total;
+  // Buckets: > +0.33 positive; < -0.33 negative; else neutral.
+  const label: SentimentLabel =
+    score > 0.33 ? "positive" : score < -0.33 ? "negative" : "neutral";
+  return { label, intensity: Math.abs(score) };
+}
+
+// Pick the longest top_quote across the group as the persona-row quote
+// (spec: "most-cited or longest verbatim across the group"). Longest is
+// the heuristic — no citation count yet. Ties broken by first agent in
+// allocation order so the choice is deterministic across reloads.
+function pickGroupQuote(agents: AgentRow[]): string | null {
+  let best: string | null = null;
+  let bestLen = -1;
+  for (const a of agents) {
+    if (!a.top_quote) continue;
+    if (a.top_quote.length > bestLen) {
+      best = a.top_quote;
+      bestLen = a.top_quote.length;
+    }
+  }
+  return best;
 }
 
 function Pill({ label, value }: { label: string; value: string }) {

@@ -33,6 +33,7 @@ from pythia_simulator.schemas.agent import AgentInstanceMetadata
 from pythia_simulator.schemas.feature_pack import Capability
 from pythia_simulator.schemas.persona import Persona, PersonaPack
 from pythia_simulator.schemas.simulation import (
+    AgentAnalysisSummary,
     Hypothesis,
     Simulation,
     SimulationResult,
@@ -347,9 +348,24 @@ class SimulationRunner:
             for r in agent_records
         ]
 
-        result, _analyses = await scoring.score(
+        result, analyses = await scoring.score(
             hypothesis, reactions, run_seed=run_seed
         )
+        # #51: persist per-agent sentiment + top-quote on the result so the
+        # detail page can render the table without N extra R2 reads. Pair
+        # analyses with their reaction text by agent_id (same len + same order
+        # in practice, but defensive join keeps us correct if scoring ever
+        # reorders or drops rows).
+        reaction_by_id = {r.agent_id: r.reaction_text for r in agent_records}
+        result.per_agent_analyses = [
+            AgentAnalysisSummary(
+                agent_id=a.agent_id,
+                sentiment=a.sentiment.sentiment.value,
+                sentiment_confidence=a.sentiment.confidence,
+                top_quote=_derive_top_quote(reaction_by_id.get(a.agent_id, "")),
+            )
+            for a in analyses
+        ]
         self._run_state.emit(state, "score.updated", score=result.confidence_score)
 
         # Refinement runs only when there's meaningful room to improve.
@@ -367,4 +383,45 @@ class SimulationRunner:
             result.refinement_suggestions = suggestions
 
         return result
+
+
+# Max length of a single-line quote shown in the result table. Tuned for the
+# table cell — long enough to carry voice, short enough to fit on one line.
+_TOP_QUOTE_MAX = 120
+
+
+def _derive_top_quote(reaction_text: str) -> str:
+    """Pick a short, voice-y quote from an agent's initial reaction for the
+    result-table cell. Strategy: take the first sentence (up to the first
+    ".", "!", or "?"); if that's longer than `_TOP_QUOTE_MAX`, fall back to
+    a hard truncation at a word boundary with an ellipsis suffix.
+
+    The spec calls "first sentence vs longest vs highest-attention span" an
+    open question. First-sentence wins on signal-per-effort: the opener
+    pattern enforced by #77's prompt-composer fix means the first sentence
+    is the most persona-specific anchor in the reaction.
+    """
+    text = (reaction_text or "").strip()
+    if not text:
+        return ""
+    end = len(text)
+    for ch in (".", "!", "?"):
+        i = text.find(ch)
+        if 0 <= i < end:
+            end = i + 1
+    first_sentence = text[:end].strip() or text
+    if len(first_sentence) <= _TOP_QUOTE_MAX:
+        return first_sentence
+    truncated = first_sentence[: _TOP_QUOTE_MAX - 1]
+    cut = truncated.rfind(" ")
+    # Codex #84 round-1 P2: prefer ANY positive word boundary over a
+    # mid-token slice. The earlier `cut > _TOP_QUOTE_MAX // 2` gate
+    # silently fell back to mid-token truncation when the only available
+    # space was near the start of a very long single token ("Short " +
+    # huge_word would slice the huge_word mid-character). The spec calls
+    # for word-boundary truncation; only fall back to a hard cut when
+    # the truncated prefix contains literally no spaces.
+    if cut > 0:
+        truncated = truncated[:cut]
+    return truncated.rstrip() + "…"
 
