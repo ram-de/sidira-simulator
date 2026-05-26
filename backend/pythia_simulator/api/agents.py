@@ -70,10 +70,30 @@ async def get_agent(
     # AgentMemory.load is sync (reads from R2 / local store). Wrap to keep
     # the event loop responsive on slow object-store reads.
     from pythia_simulator.adapters.r2 import get_store
+    from pythia_simulator.memory.feedback_log import FeedbackLog
+    from pythia_simulator.schemas.feedback import FeedbackTargetKind
 
     store = get_store()
     memory = AgentMemory(store, store)
-    return await asyncio.to_thread(memory.load, metadata)
+    agent = await asyncio.to_thread(memory.load, metadata)
+
+    # #56: join calibration feedback onto the conversation turns. The
+    # canonical turn log is append-only, so feedback lives in a separate
+    # JSONL and we paint the `realistic_flag` onto each turn at read time.
+    # Latest event per turn_index wins; cleared thumbs (None) overwrite
+    # prior 👍/👎 so the UI sees the actual state.
+    flags = await asyncio.to_thread(
+        FeedbackLog(store).latest_flags,
+        customer_id=customer_id,
+        simulation_id=metadata.simulation_id,
+        target_kind=FeedbackTargetKind.AGENT,
+        target_id=agent_id,
+    )
+    if flags and agent.conversation:
+        for idx, turn in enumerate(agent.conversation):
+            if idx in flags:
+                turn.realistic_flag = flags[idx]
+    return agent
 
 
 @router.post("/{agent_id}/messages", response_model=AgentChatResponse)

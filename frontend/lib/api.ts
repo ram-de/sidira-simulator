@@ -31,6 +31,8 @@ export type PerAgentReply = components["schemas"]["PerAgentReply"];
 export type AgentReference = components["schemas"]["AgentReference"];
 export type UnavailableAgent = components["schemas"]["UnavailableAgent"];
 export type PersonaGroupMode = "collective" | "individual";
+export type FeedbackRequest = components["schemas"]["FeedbackRequest"];
+export type FeedbackResponse = components["schemas"]["FeedbackResponse"];
 export type SimulationRunState = components["schemas"]["SimulationRunState"];
 export type RunPhase = components["schemas"]["RunPhase"];
 export type RunEvent = components["schemas"]["RunEvent"];
@@ -121,6 +123,30 @@ export const sendPersonaGroupMessage = (
   apiPost<PersonaGroupChatRequest, PersonaGroupChatResponse>(
     `/simulations/${simId}/personas/${personaId}/messages`,
     { message, mode },
+  );
+
+// #56: calibration feedback. realistic_flag is True (👍) / False (👎) /
+// null (clear). The backend latest-wins per (target, turn_index); the
+// clear path is what powers the third-state toggle UX.
+export const sendAgentTurnFeedback = (
+  agentId: string,
+  turnIndex: number,
+  realisticFlag: boolean | null,
+) =>
+  apiPost<FeedbackRequest, FeedbackResponse>(
+    `/agents/${agentId}/turns/${turnIndex}/feedback`,
+    { realistic_flag: realisticFlag },
+  );
+
+export const sendPersonaGroupTurnFeedback = (
+  simId: string,
+  personaId: string,
+  turnIndex: number,
+  realisticFlag: boolean | null,
+) =>
+  apiPost<FeedbackRequest, FeedbackResponse>(
+    `/simulations/${simId}/personas/${personaId}/turns/${turnIndex}/feedback`,
+    { realistic_flag: realisticFlag },
   );
 
 // ── UX helpers ─────────────────────────────────────────────────────────

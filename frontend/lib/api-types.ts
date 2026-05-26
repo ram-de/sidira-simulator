@@ -205,6 +205,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/{agent_id}/turns/{turn_index}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Agent Turn Feedback
+         * @description Record 👍/👎/clear on one turn of an individual agent's conversation.
+         */
+        post: operations["record_agent_turn_feedback_agents__agent_id__turns__turn_index__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulations/{sim_id}/personas/{persona_id}/turns/{turn_index}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Persona Group Turn Feedback
+         * @description Record 👍/👎/clear on one turn of a persona-group conversation.
+         *
+         *     Works on both synthesis turns (fan-out mode) and collective turns —
+         *     the role lives on the turn; feedback is role-agnostic. PM turns are
+         *     NOT a valid target (no LLM-generated content to calibrate); the
+         *     route 400s if the targeted turn is a PM turn.
+         */
+        post: operations["record_persona_group_turn_feedback_simulations__sim_id__personas__persona_id__turns__turn_index__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/capabilities": {
         parameters: {
             query?: never;
@@ -768,6 +813,48 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * FeedbackRequest
+         * @description PM sets / clears feedback on a turn.
+         */
+        FeedbackRequest: {
+            /**
+             * Realistic Flag
+             * @description True = 👍, False = 👎, null = clear. The clear path persists an event with realistic_flag=null so the latest-wins read shows no thumb after the user un-flags.
+             */
+            realistic_flag: boolean | null;
+        };
+        /**
+         * FeedbackResponse
+         * @description Echoed back to the client after a successful POST.
+         */
+        FeedbackResponse: {
+            target_kind: components["schemas"]["FeedbackTargetKind"];
+            /** Target Id */
+            target_id: string;
+            /** Turn Index */
+            turn_index: number;
+            /** Realistic Flag */
+            realistic_flag: boolean | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * FeedbackTargetKind
+         * @description Which reply surface a feedback event applies to.
+         *
+         *     `agent`: the per-agent conversation log (`/agents/[id]`). turn_index
+         *       points into that agent's `conversation.jsonl`.
+         *     `persona_group`: the persona-group turn log
+         *       (`/simulations/[id]/personas/[id]/turns.jsonl`). turn_index points
+         *       into that log. Covers BOTH synthesis (fan-out) and collective
+         *       turns — the role lives on the turn itself, not on the feedback.
+         * @enum {string}
+         */
+        FeedbackTargetKind: "agent" | "persona_group";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -974,6 +1061,11 @@ export interface components {
              * @description Populated only on collective turns. Resolved [label] → agent_id citations from the collective reply prose.
              */
             references?: components["schemas"]["AgentReference"][] | null;
+            /**
+             * Realistic Flag
+             * @description #56: PM calibration thumb. True = 👍, False = 👎, None = no thumb / cleared. Joined from the feedback log at read time; the turn JSONL itself stays append-only.
+             */
+            realistic_flag?: boolean | null;
         };
         /** PersonaPack */
         PersonaPack: {
@@ -1610,6 +1702,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonaGroupTurn"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_agent_turn_feedback_agents__agent_id__turns__turn_index__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                turn_index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_persona_group_turn_feedback_simulations__sim_id__personas__persona_id__turns__turn_index__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sim_id: string;
+                persona_id: string;
+                turn_index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResponse"];
                 };
             };
             /** @description Validation Error */

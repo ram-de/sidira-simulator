@@ -9,6 +9,7 @@ import {
   getSimulation,
   listSimulationAgents,
   sendPersonaGroupMessage,
+  sendPersonaGroupTurnFeedback,
   type AgentReference,
   type AgentSummary,
   type PerAgentReply,
@@ -17,6 +18,7 @@ import {
   type Simulation,
   type UnavailableAgent,
 } from "@/lib/api";
+import { ThumbsControl } from "@/components/ThumbsControl";
 
 // Phase 4 #55 + collective mode (PR #82): persona-group chat surface.
 // Spec: docs/agent-chat-ui-spec.md Surface 2 — two modes share one composer.
@@ -353,31 +355,48 @@ export default function PersonaGroupChatPage() {
             </div>
           ) : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {turns.map((turn, i) => (
-                <li
-                  key={`${turn.created_at}-${i}`}
-                  style={{
-                    padding: "12px 0",
-                    borderTop: i === 0 ? "none" : "1px solid #f0f0f0",
-                  }}
-                >
-                  {turn.role === "pm" ? (
-                    <PmTurn content={turn.content} />
-                  ) : turn.role === "collective" ? (
-                    <CollectiveTurn
-                      content={turn.content}
-                      references={turn.references ?? []}
-                      personaName={personaName}
-                    />
-                  ) : (
-                    <SynthesisTurn
-                      synthesis={turn.content}
-                      perAgent={turn.per_agent ?? []}
-                      personaName={personaName}
-                    />
-                  )}
-                </li>
-              ))}
+              {turns.map((turn, i) => {
+                // #56: shared onSet for any non-PM turn at index i.
+                // Updates the local turn state on success so subsequent
+                // toggles read the new flag.
+                const setFlag = async (next: boolean | null) => {
+                  await sendPersonaGroupTurnFeedback(simId, personaId, i, next);
+                  setTurns((current) =>
+                    current.map((t, idx) =>
+                      idx === i ? { ...t, realistic_flag: next } : t,
+                    ),
+                  );
+                };
+                return (
+                  <li
+                    key={`${turn.created_at}-${i}`}
+                    style={{
+                      padding: "12px 0",
+                      borderTop: i === 0 ? "none" : "1px solid #f0f0f0",
+                    }}
+                  >
+                    {turn.role === "pm" ? (
+                      <PmTurn content={turn.content} />
+                    ) : turn.role === "collective" ? (
+                      <CollectiveTurn
+                        content={turn.content}
+                        references={turn.references ?? []}
+                        personaName={personaName}
+                        flag={turn.realistic_flag ?? null}
+                        onSetFlag={setFlag}
+                      />
+                    ) : (
+                      <SynthesisTurn
+                        synthesis={turn.content}
+                        perAgent={turn.per_agent ?? []}
+                        personaName={personaName}
+                        flag={turn.realistic_flag ?? null}
+                        onSetFlag={setFlag}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           <div ref={conversationEndRef} />
@@ -629,15 +648,34 @@ function CollectiveTurn({
   content,
   references,
   personaName,
+  flag,
+  onSetFlag,
 }: {
   content: string;
   references: AgentReference[];
   personaName: string;
+  flag: boolean | null;
+  onSetFlag: (next: boolean | null) => Promise<void>;
 }) {
   return (
     <>
-      <div style={collectiveLabelStyle}>
-        {personaName} <span style={{ color: "#888" }}>(collective)</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 4,
+        }}
+      >
+        <span style={collectiveLabelStyle}>
+          {personaName} <span style={{ color: "#888" }}>(collective)</span>
+        </span>
+        <span style={{ flex: 1 }} />
+        <ThumbsControl
+          ariaLabel="Was this collective reply useful?"
+          flag={flag}
+          onSet={onSetFlag}
+        />
       </div>
       <div
         style={{
@@ -658,14 +696,33 @@ function SynthesisTurn({
   synthesis,
   perAgent,
   personaName,
+  flag,
+  onSetFlag,
 }: {
   synthesis: string;
   perAgent: PerAgentReply[];
   personaName: string;
+  flag: boolean | null;
+  onSetFlag: (next: boolean | null) => Promise<void>;
 }) {
   return (
     <>
-      <div style={synthesisLabelStyle}>Synthesis (fan-out)</div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 4,
+        }}
+      >
+        <span style={synthesisLabelStyle}>Synthesis (fan-out)</span>
+        <span style={{ flex: 1 }} />
+        <ThumbsControl
+          ariaLabel="Was this synthesis line accurate?"
+          flag={flag}
+          onSet={onSetFlag}
+        />
+      </div>
       <div
         style={{
           ...turnBodyStyle,
