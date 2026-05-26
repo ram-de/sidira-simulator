@@ -98,7 +98,10 @@ A live example session lives at `sessions/persona-classifier/context.md` — tha
 ### PRs
 
 - One topic per PR. If it grows past ~500 lines, consider splitting.
-- `/codex` review before merge for any change that touches schemas, scoring, or the agent memory model.
+- **`/codex review` before merge. Every PR. No exceptions.** This is non-negotiable across all three Pythia repos (pythia-simulator, pythia-personas, pythia-crawler). Codex catches the class of bug self-review misses — silent failures, type/boundary issues, inconsistent error paths, off-by-one in stats code, drift between spec docstring and implementation. Previously this rule applied only to schema/scoring/agent-memory changes; the narrow version existed because Codex used to cost real money. It doesn't now. Run it everywhere.
+  - If Codex flags `[P1]`: fix before merge. Re-run review until CLEAR.
+  - If Codex flags `[P2]`: fix in the same PR if it's a 5-minute change; defer to a follow-up ticket otherwise, but call it out in the PR body.
+  - If you're tempted to skip Codex on "trivial" changes (docs-only, one-line typo, tests-only): don't. The 30-second runtime is cheaper than the trust we lose when a "trivial" change breaks something.
 - Squash on merge unless the commits are individually meaningful (rare).
 
 ---
