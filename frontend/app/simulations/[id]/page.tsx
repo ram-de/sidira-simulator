@@ -749,12 +749,12 @@ function _safeRange(
 
 // #71: when the bootstrap CI width is below this threshold on the 0-100
 // scale, the rendering treats it as "collapsed" — we hide the band and
-// switch the label from "95% CI: [X – Y]" to "Strong agreement". This is
-// a PRESENTATION threshold, not a unanimity proof — the backend doesn't
-// surface an explicit unanimity flag, so the copy is intentionally softer
-// ("strong agreement") than a categorical claim ("unanimous"). 0.2 catches
-// both truly-zero CIs and rounded-to-zero CIs without grabbing genuinely-
-// tight-but-real intervals. Shared between the label component and
+// switch the label from "95% CI: [X – Y]" to "Narrow interval". This is
+// a PRESENTATION threshold; the backend doesn't surface an explicit
+// unanimity flag, so the copy describes the OBSERVATION (a narrow
+// interval) rather than CLAIMING the cause (every agent agreed). 0.2
+// catches both truly-zero CIs and rounded-to-zero CIs without grabbing
+// genuinely-tight-but-real intervals. Shared between the label and
 // ScoreCiBar so a future tweak lands in one place.
 const _CI_COLLAPSE_THRESHOLD = 0.2;
 
@@ -769,8 +769,10 @@ function ConfidenceIntervalLabel({
 }) {
   const isCollapsed = ciHigh - ciLow < _CI_COLLAPSE_THRESHOLD;
   if (isCollapsed) {
-    const tooltipText =
-      "Every agent landed on the same sentiment direction; re-runs of this simulation would produce the same score. This is a confident reading, not a measurement error.";
+    // No info icon: the phrase is self-explanatory and avoids the focusable-
+    // span / outline-none / tooltip-discoverability rabbit hole codex flagged
+    // in round 2. Anyone digging deeper can hover the bar (which carries the
+    // collapsed-CI explanation in its aria-label) or read the docs.
     return (
       <div
         style={{
@@ -778,22 +780,9 @@ function ConfidenceIntervalLabel({
           color: "#444",
           fontVariantNumeric: "tabular-nums",
         }}
-        title={tooltipText}
       >
-        Strong agreement
-        {sampledAgentCount != null ? ` (n=${sampledAgentCount})` : ""}{" "}
-        {/* Focusable info glyph so keyboard users can discover the tooltip via
-            the aria-label (codex P2: title alone is mouse-only/mobile-unreliable
-            and aria-label on a non-focusable span is invisible to keyboards). */}
-        <span
-          role="img"
-          tabIndex={0}
-          aria-label={tooltipText}
-          title={tooltipText}
-          style={{ color: "#666", cursor: "help", outline: "none" }}
-        >
-          &#9432;
-        </span>
+        Narrow interval
+        {sampledAgentCount != null ? ` (n=${sampledAgentCount})` : ""}
       </div>
     );
   }
@@ -831,7 +820,7 @@ function ScoreCiBar({
         role="img"
         aria-label={
           isCollapsed
-            ? `Confidence score ${v.toFixed(1)}; every agent agreed (CI collapsed to a single point).`
+            ? `Confidence score ${v.toFixed(1)} with a narrow confidence interval that collapsed to a single point at this display resolution.`
             : `Confidence score ${v.toFixed(1)} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`
         }
         style={{
