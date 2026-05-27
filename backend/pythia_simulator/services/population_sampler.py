@@ -115,11 +115,21 @@ def allocate(
     *,
     weight_scheme: str = "head_count",
     max_agents: int | None = None,
+    selected_personas: list[str] | None = None,
 ) -> list[tuple[str, int]]:
     """Allocate `min(population_size, max_agents)` agents across the pack's personas.
 
     Returns a list of `(persona_id, agent_count)` tuples in persona_id sort
     order. Counts sum to the effective sample size.
+
+    `selected_personas` (Phase 5 #101): when None, allocates across the full
+    pack (today's behavior). When a non-empty list, restricts allocation to
+    those persona_ids and **renormalizes** their weights to sum to 1 before
+    largest-remainder so the full `population_size` lands on the selected
+    cohort — not a proportional share of it. Unknown ids in the list raise
+    ValueError; empty list raises ValueError. Validation happens here too,
+    not just at the schema layer, because the allocator is called from
+    several paths (orchestrator, tests, future direct callers).
     """
     if population_size < 0:
         raise ValueError(f"population_size must be >= 0, got {population_size!r}")
@@ -135,10 +145,36 @@ def allocate(
     persona_ids = sorted(raw_ids)
     _validate_weights(weights, persona_ids, weight_scheme)
 
+    # Phase 5 #101: persona-filter branch. Restrict to selected ids and
+    # renormalize their weights BEFORE the largest-remainder math runs.
+    # Unknown / empty inputs are rejected here as a defense-in-depth
+    # against callers that bypassed the Pydantic validator on
+    # SimulationRequest.
+    if selected_personas is not None:
+        if len(selected_personas) == 0:
+            raise ValueError(
+                "selected_personas must contain at least one persona_id "
+                "(or be None to allocate across the full pack)"
+            )
+        pack_id_set = set(persona_ids)
+        unknown = sorted(set(selected_personas) - pack_id_set)
+        if unknown:
+            raise ValueError(
+                f"selected_personas references persona_ids not present in "
+                f"the active pack: {unknown}"
+            )
+        selected_set = set(selected_personas)
+        persona_ids = [pid for pid in persona_ids if pid in selected_set]
+        weights = {pid: weights.get(pid, 0.0) for pid in persona_ids}
+
     # Normalize away the tolerated drift from _WEIGHT_SUM_TOLERANCE. Without this,
     # weights that pass validation (e.g. two 0.49955s, sum 0.9991) can produce a
     # remainder larger than the number of personas at large n, leaving the final
     # count short of the effective sample size.
+    # Phase 5 #101: this same renormalize step also handles the selected-
+    # personas re-weight — after filtering, the kept weights almost certainly
+    # don't sum to 1, and dividing each by the new total redistributes the
+    # full `n` across the selected cohort in the original weight ratio.
     total = sum(weights.values())
     if total > 0 and total != 1.0:
         weights = {pid: w / total for pid, w in weights.items()}

@@ -61,6 +61,14 @@ class Simulation(Base):
     # always sends 0.5 (paired sampling makes other values statistically
     # wasteful, but the field stays flexible for future indep-sampling).
     treatment_fraction: Mapped[float | None] = mapped_column(nullable=True)
+    # Phase 5 (#101): optional persona-filter applied to this sim. NULL =
+    # ran against all personas (today's default). When a non-empty JSON array
+    # of persona_ids, the allocator restricted + re-weighted to those before
+    # largest-remainder. Denormalized so the result-page cohort banner
+    # survives even if the active Persona Pack version changes after the run.
+    selected_personas: Mapped[list[str] | None] = mapped_column(
+        JSONB, nullable=True
+    )
 
     agents: Mapped[list["AgentInstance"]] = relationship(
         back_populates="simulation", cascade="all, delete-orphan"

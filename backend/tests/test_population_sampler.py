@@ -302,3 +302,136 @@ def test_near_one_weights_at_large_n_still_sum_exactly() -> None:
     pack = _pack({"a": 0.49955, "b": 0.49955})
     alloc = allocate(pack, population_size=10_000, max_agents=10_000)
     assert sum(n for _, n in alloc) == 10_000
+
+
+# ── Phase 5 #101: persona filter (selected_personas) ────────────────────────
+
+
+def test_selected_personas_none_matches_unfiltered_default() -> None:
+    """`selected_personas=None` must be byte-identical to omitting the kwarg.
+
+    This is the backwards-compat contract: pre-#101 callers (every test in
+    this file above) pass nothing; the persisted None on legacy Simulation
+    rows turns into a None passed here. Both must produce the same allocation.
+    """
+    pack = _pack(_DEMO_WEIGHTS)
+    no_kwarg = allocate(pack, population_size=50, max_agents=50)
+    explicit_none = allocate(
+        pack, population_size=50, max_agents=50, selected_personas=None
+    )
+    assert no_kwarg == explicit_none
+
+
+def test_selected_personas_full_list_matches_unfiltered() -> None:
+    """`selected_personas=<all pack ids>` must equal the unfiltered allocation.
+
+    Renormalizing weights that already sum to 1 is the identity op, so
+    selecting every persona explicitly must be indistinguishable from None.
+    """
+    pack = _pack(_DEMO_WEIGHTS)
+    unfiltered = allocate(pack, population_size=50, max_agents=50)
+    all_selected = allocate(
+        pack,
+        population_size=50,
+        max_agents=50,
+        selected_personas=list(_DEMO_WEIGHTS.keys()),
+    )
+    assert dict(unfiltered) == dict(all_selected)
+
+
+def test_selected_personas_reweights_subset_preserves_population_size() -> None:
+    """Picking 3 of 6 personas allocates the FULL population to them, not a share.
+
+    Re-weight invariant (locked decision #1 in docs/4.6 ... err, #101 ticket):
+    selected weights renormalize to sum to 1, then largest-remainder runs on
+    the full `n`. Without reweight a 12%-weight persona selected solo would
+    get 6 agents at n=50; with reweight it gets all 50.
+    """
+    pack = _pack(_DEMO_WEIGHTS)
+    selected = [
+        "dom_promo_driven_restaurant",  # 0.28
+        "jordan_lapsing_disengaged",  # 0.20
+        "priya_grocery_stockup",  # 0.12
+    ]
+    alloc = allocate(
+        pack, population_size=50, max_agents=50, selected_personas=selected
+    )
+    # Only the selected personas appear in the output.
+    assert {pid for pid, _ in alloc} == set(selected)
+    # And the total matches the unfiltered population_size, NOT
+    # int(50 * 0.60) = 30 (which would be the "keep absolute weights" path).
+    assert sum(n for _, n in alloc) == 50
+    # Selected weights renormalize to: 0.28/0.60=0.467, 0.20/0.60=0.333,
+    # 0.12/0.60=0.200. At n=50 expected: 23, 17, 10 (±1 from largest-remainder).
+    by_id = dict(alloc)
+    assert abs(by_id["dom_promo_driven_restaurant"] - 23) <= 1
+    assert abs(by_id["jordan_lapsing_disengaged"] - 17) <= 1
+    assert abs(by_id["priya_grocery_stockup"] - 10) <= 1
+
+
+def test_selected_personas_solo_pick_gets_full_population() -> None:
+    """Selecting a single low-weight persona allocates the full `n` to it."""
+    pack = _pack(_DEMO_WEIGHTS)
+    alloc = allocate(
+        pack,
+        population_size=50,
+        max_agents=50,
+        selected_personas=["lex_new_explorer"],  # original weight 0.10
+    )
+    assert alloc == [("lex_new_explorer", 50)]
+
+
+def test_selected_personas_empty_list_raises() -> None:
+    """Empty `selected_personas` is rejected at the allocator layer.
+
+    Defense-in-depth — the Pydantic validator on SimulationRequest catches
+    this too, but the allocator is called from other paths (tests, future
+    direct callers) so it must also self-validate.
+    """
+    pack = _pack(_DEMO_WEIGHTS)
+    with pytest.raises(ValueError, match="at least one persona_id"):
+        allocate(
+            pack, population_size=50, max_agents=50, selected_personas=[]
+        )
+
+
+def test_selected_personas_unknown_id_raises() -> None:
+    """Unknown persona_ids in the selection are rejected with a clear message."""
+    pack = _pack(_DEMO_WEIGHTS)
+    with pytest.raises(ValueError, match="not present in the active pack"):
+        allocate(
+            pack,
+            population_size=50,
+            max_agents=50,
+            selected_personas=["dom_promo_driven_restaurant", "made_up_id"],
+        )
+
+
+def test_selected_personas_paired_invariant_for_ab_mode() -> None:
+    """Phase 4.6 #89 paired-sampling invariant survives the filter.
+
+    The runner calls allocate() twice (once per arm) at A/B f=0.5 with the
+    SAME (pack, target, max_agents, selected_personas). The result must be
+    byte-identical between the two calls so (persona_id, sample_index) keys
+    match across arms. This test pins that the filter doesn't perturb
+    determinism.
+    """
+    pack = _pack(_DEMO_WEIGHTS)
+    selected = ["dom_promo_driven_restaurant", "jordan_lapsing_disengaged"]
+    treatment = allocate(
+        pack, population_size=20, max_agents=50, selected_personas=selected
+    )
+    control = allocate(
+        pack, population_size=20, max_agents=50, selected_personas=selected
+    )
+    assert treatment == control
+
+
+# Note: a "zero-weight persona selected solo" edge case is intentionally not
+# tested. The renormalize step divides by sum(selected_weights); when that
+# sum is 0 the existing `total > 0` guard keeps weights unchanged and the
+# largest-remainder pass leaves the cohort short of population_size. This
+# is theoretical (no real pack has zero-weight personas; the
+# `test_all_zero_weights_raises` case enforces that upstream), so we accept
+# the degenerate behavior rather than introduce a special case in the
+# allocator.

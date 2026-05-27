@@ -113,10 +113,15 @@ async def create_simulation(
             sampled_agent_count=derived_sample_size,
             run_seed=payload.run_seed,
             treatment_fraction=treatment_fraction,
+            selected_personas=payload.selected_personas,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        # Phase 5 #101: selected_personas referenced unknown persona_ids.
+        # Eager-validated in orchestrator.prepare() against the active pack.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     background_tasks.add_task(run)
     return CreateSimulationResponse(
@@ -156,6 +161,10 @@ async def get_simulation(
         sampled_agent_count=row.get("sampled_agent_count"),
         run_seed=row.get("run_seed"),
         arm_split=arm_split,
+        # Phase 5 #101: surface the persisted persona filter on GET so the
+        # result-page cohort banner can render. None = unfiltered (today's
+        # behavior); the frontend branches on null to hide the banner.
+        selected_personas=row.get("selected_personas"),
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )

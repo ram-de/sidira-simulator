@@ -434,10 +434,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/personas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Active Personas
+         * @description Return the active Persona Pack's personas + head-count weights.
+         *
+         *     Used by the wizard's #101 persona-filter UI. `weight` is from the
+         *     `head_count` scheme (the same one allocate() uses by default), so the
+         *     subtext displayed to PMs matches what the allocator would actually do.
+         */
+        get: operations["list_active_personas_personas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActivePersonasResponse */
+        ActivePersonasResponse: {
+            /** Pack Version */
+            pack_version: string;
+            /** Personas */
+            personas: components["schemas"]["PersonaSummary"][];
+        };
         /**
          * AgentAnalysisSummary
          * @description Per-agent post-run summary (#51 result table).
@@ -1126,6 +1157,24 @@ export interface components {
             /** Stability Score */
             stability_score: number;
         };
+        /**
+         * PersonaSummary
+         * @description Wizard-shaped projection of a Persona.
+         *
+         *     Just what the persona-filter checkbox list needs to render -- id (for
+         *     the SimulationRequest.selected_personas payload), name (for the label),
+         *     and weight (for the "{N}% of population" subtext). The full Persona
+         *     schema carries description + behavioral_seeds etc. that the wizard
+         *     doesn't surface.
+         */
+        PersonaSummary: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Weight */
+            weight: number;
+        };
         /** PreviewRequest */
         PreviewRequest: {
             /** Table Fqn */
@@ -1209,6 +1258,8 @@ export interface components {
             /** Run Seed */
             run_seed?: number | null;
             arm_split?: components["schemas"]["ArmSplit"] | null;
+            /** Selected Personas */
+            selected_personas?: string[] | null;
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
@@ -1253,6 +1304,11 @@ export interface components {
             run_seed?: number | null;
             /** @description When present, runs A/B mode (treatment + control arms with paired sampling). When None, runs single-arm (today's behavior). See docs/4.6-ab-experiment-mode.md. */
             arm_split?: components["schemas"]["ArmSplit"] | null;
+            /**
+             * Selected Personas
+             * @description Phase 5 #101: optional subset of persona_ids to run the sim against. When None, runs against ALL personas in the active Persona Pack (today's behavior, backwards-compatible). When a non-empty list, the allocator filters to these personas and re-weights them to sum to 1 before largest-remainder allocation, so `population_size` is preserved across the selected cohort. Empty list is rejected. Unknown persona_ids are rejected at the API layer (the schema can't see the active pack). A/B mode applies the filter symmetrically to both arms (the paired-sampling invariant from #89 keeps working because both arms run the same persona set).
+             */
+            selected_personas?: string[] | null;
         };
         /** SimulationResult */
         SimulationResult: {
@@ -2192,6 +2248,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_active_personas_personas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivePersonasResponse"];
                 };
             };
         };

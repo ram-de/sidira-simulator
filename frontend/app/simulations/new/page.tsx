@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   ApiError,
   createSimulation,
+  getActivePersonas,
   getCapabilities,
+  type ActivePersonasResponse,
   type FeaturePackManifest,
+  type PersonaSummary,
   type SimulationRequest,
 } from "@/lib/api";
 
@@ -67,6 +70,20 @@ export default function NewSimulationPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Phase 5 #101: persona filter. Default = all personas selected (today's
+  // behavior). PM can uncheck individual personas behind "Advanced options"
+  // to run against a narrowed cohort. Submit payload sends
+  // `selected_personas: null` when the full set is checked (matches the
+  // backend's "None = all" convention and keeps the persisted row tidy);
+  // sends an explicit subset when narrowed.
+  const [activePersonas, setActivePersonas] = useState<PersonaSummary[]>([]);
+  const [packVersion, setPackVersion] = useState<string | null>(null);
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
+  const [personasError, setPersonasError] = useState<string | null>(null);
+  const [selectedPersonas, setSelectedPersonas] = useState<Set<string>>(
+    new Set(),
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -99,9 +116,44 @@ export default function NewSimulationPage() {
     };
   }, []);
 
+  // Phase 5 #101: load the active Persona Pack on mount so the filter
+  // checkbox list has names + weights. Default = all checked.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp: ActivePersonasResponse = await getActivePersonas();
+        if (cancelled) return;
+        setActivePersonas(resp.personas);
+        setPackVersion(resp.pack_version);
+        setSelectedPersonas(new Set(resp.personas.map((p) => p.id)));
+      } catch (e) {
+        if (cancelled) return;
+        // Non-fatal: hide the filter UI, fall back to "all personas"
+        // (selected_personas: null on submit).
+        if (e instanceof Error) {
+          setPersonasError(`Could not load personas: ${e.message}`);
+        } else {
+          setPersonasError("Could not load personas.");
+        }
+      } finally {
+        if (!cancelled) setLoadingPersonas(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
   const formDisabled = loadingCaps || !hasCapabilities || submitting;
+  // Phase 5 #101: derive filter state.
+  const totalPersonaCount = activePersonas.length;
+  const selectedCount = selectedPersonas.size;
+  const allPersonasSelected =
+    totalPersonaCount > 0 && selectedCount === totalPersonaCount;
+  const noPersonasSelected = totalPersonaCount > 0 && selectedCount === 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -127,6 +179,15 @@ export default function NewSimulationPage() {
       setValidationError("Population must be between 1 and 10,000.");
       return;
     }
+    // Phase 5 #101: if the persona pack loaded and the PM cleared every
+    // checkbox, refuse to submit -- the API would 422 and the wizard
+    // shouldn't trip that.
+    if (totalPersonaCount > 0 && noPersonasSelected) {
+      setValidationError(
+        "Select at least one persona to run the simulation against.",
+      );
+      return;
+    }
 
     // Phase 4.6 #88: when A/B mode is on, total agents = 2 × per_arm.
     // The PM has to acknowledge the cost if total exceeds the threshold.
@@ -143,6 +204,23 @@ export default function NewSimulationPage() {
       return;
     }
 
+    // Phase 5 #101: send `selected_personas: null` when:
+    //   (1) ALL personas are checked (= "no filter"), OR
+    //   (2) the /personas fetch hasn't loaded yet / failed, so we don't
+    //       know the full set and the PM can't actually be filtering --
+    //       falling back to "null = all personas" is the correct
+    //       backwards-compat behavior. (codex R1-P2 on #101: without this,
+    //       a still-loading or errored /personas call left
+    //       selectedPersonas empty, and the wizard submitted
+    //       selected_personas: [] which the API 422-rejects -- breaking
+    //       the exact fallback path the error UI promised would "run
+    //       against all personas.")
+    // Send the explicit subset only when the PM has actually narrowed.
+    const personaFilter: string[] | null =
+      totalPersonaCount === 0 || allPersonasSelected
+        ? null
+        : Array.from(selectedPersonas);
+
     const req: SimulationRequest = {
       hypothesis: {
         capability_name: capability,
@@ -153,6 +231,7 @@ export default function NewSimulationPage() {
       },
       population_size: populationSize,
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
+      selected_personas: personaFilter,
     };
 
     setSubmitting(true);
@@ -311,7 +390,7 @@ export default function NewSimulationPage() {
               disabled={formDisabled}
               style={toggleBtnStyle}
             >
-              + Add proposed PRD
+              + Advanced options (proposed PRD, persona filter)
             </button>
           ) : (
             <>
@@ -331,15 +410,34 @@ export default function NewSimulationPage() {
                   fontFamily: "inherit",
                 }}
               />
+
+              {/* Phase 5 #101: persona filter checkbox list. Defaults to
+                  all checked (today's behavior); narrowing is opt-in. */}
+              <PersonaFilterSection
+                personas={activePersonas}
+                packVersion={packVersion}
+                loading={loadingPersonas}
+                error={personasError}
+                selected={selectedPersonas}
+                onChange={setSelectedPersonas}
+                disabled={formDisabled}
+              />
+
               <button
                 type="button"
                 onClick={() => {
                   setShowAdvanced(false);
                   setProposedPrd("");
+                  // Reset the persona filter to "all" when the disclosure
+                  // closes -- otherwise a narrowed-then-hidden filter would
+                  // silently apply at submit without the PM seeing it.
+                  setSelectedPersonas(
+                    new Set(activePersonas.map((p) => p.id)),
+                  );
                 }}
                 style={{ ...toggleBtnStyle, marginTop: 8 }}
               >
-                - Hide proposed PRD
+                - Hide advanced options
               </button>
             </>
           )}
@@ -592,3 +690,187 @@ const emptyStateStyle: React.CSSProperties = {
   fontSize: 14,
   border: "1px solid #eee",
 };
+
+// Phase 5 #101 — Persona filter section.
+// Renders inside the wizard's Advanced disclosure. All personas checked by
+// default; PM unchecks to narrow the cohort. Submit payload sends `null` for
+// "all checked" and an explicit subset only when narrowed (matches backend's
+// "None = all" convention, keeps persisted sim row tidy).
+function PersonaFilterSection({
+  personas,
+  packVersion,
+  loading,
+  error,
+  selected,
+  onChange,
+  disabled,
+}: {
+  personas: PersonaSummary[];
+  packVersion: string | null;
+  loading: boolean;
+  error: string | null;
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  disabled: boolean;
+}) {
+  if (loading) {
+    return (
+      <div style={{ marginTop: 16, fontSize: 13, color: "#888" }}>
+        Loading personas…
+      </div>
+    );
+  }
+  if (error) {
+    // Non-fatal: the parent still submits with selected_personas: null
+    // (= all personas), so we don't block the form. Surface the error so
+    // the PM knows narrowing isn't available.
+    return (
+      <div
+        style={{
+          marginTop: 16,
+          padding: "8px 12px",
+          fontSize: 13,
+          color: "#a86b00",
+          background: "#fff8e6",
+          border: "1px solid #f0d68c",
+          borderRadius: 4,
+        }}
+      >
+        {error} (Will run against all personas.)
+      </div>
+    );
+  }
+  if (personas.length === 0) {
+    return null;
+  }
+
+  const allChecked = selected.size === personas.length;
+  const noneChecked = selected.size === 0;
+
+  function toggle(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    onChange(next);
+  }
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <label style={labelStyle}>
+        Persona filter (optional)
+      </label>
+      <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
+        Run only against selected personas. Defaults to all{" "}
+        {personas.length} personas in pack <code>{packVersion}</code>. When
+        narrowed, the simulator re-weights the selected personas and
+        allocates the full population across just those.
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          fontSize: 12,
+          marginBottom: 8,
+          color: "#1d4ed8",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onChange(new Set(personas.map((p) => p.id)))}
+          disabled={disabled || allChecked}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: allChecked ? "#aaa" : "#1d4ed8",
+            cursor: allChecked ? "default" : "pointer",
+            padding: 0,
+            textDecoration: "underline",
+            fontSize: 12,
+          }}
+        >
+          Select all
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(new Set())}
+          disabled={disabled || noneChecked}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: noneChecked ? "#aaa" : "#1d4ed8",
+            cursor: noneChecked ? "default" : "pointer",
+            padding: 0,
+            textDecoration: "underline",
+            fontSize: 12,
+          }}
+        >
+          Clear all
+        </button>
+      </div>
+      <ul
+        style={{
+          listStyle: "none",
+          padding: 0,
+          margin: 0,
+          border: "1px solid #eee",
+          borderRadius: 6,
+        }}
+      >
+        {personas.map((p, i) => {
+          const isChecked = selected.has(p.id);
+          return (
+            <li
+              key={p.id}
+              style={{
+                padding: "8px 12px",
+                borderTop: i === 0 ? "none" : "1px solid #f3f3f3",
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  fontSize: 14,
+                  color: "#111",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  disabled={disabled}
+                  onChange={() => toggle(p.id)}
+                />
+                <span style={{ flex: 1 }}>{p.name}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "#888",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {(p.weight * 100).toFixed(0)}% of population
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {noneChecked && (
+        <div style={{ marginTop: 6, fontSize: 13, color: "#a30000" }}>
+          Select at least one persona — empty filter is rejected.
+        </div>
+      )}
+      {!allChecked && !noneChecked && (
+        <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+          Filtered: {selected.size} of {personas.length} personas. Full
+          population_size will be allocated across the selected cohort.
+        </div>
+      )}
+    </div>
+  );
+}

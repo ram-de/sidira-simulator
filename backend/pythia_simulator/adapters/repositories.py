@@ -74,6 +74,7 @@ class SimulationRepo(Protocol):
         sampled_agent_count: int | None = None,
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> None: ...
 
     async def update_status(
@@ -111,6 +112,7 @@ class PostgresSimulationRepo:
         sampled_agent_count: int | None = None,
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> None:
         row = Simulation(
             id=sim_id,
@@ -124,6 +126,7 @@ class PostgresSimulationRepo:
             sampled_agent_count=sampled_agent_count,
             run_seed=run_seed,
             treatment_fraction=treatment_fraction,
+            selected_personas=selected_personas,
         )
         self._session.add(row)
         await self._session.commit()
@@ -186,6 +189,7 @@ class InMemorySimulationRepo:
         sampled_agent_count: int | None = None,
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> None:
         self._sims[sim_id] = {
             "id": sim_id,
@@ -203,6 +207,7 @@ class InMemorySimulationRepo:
             "sampled_agent_count": sampled_agent_count,
             "run_seed": run_seed,
             "treatment_fraction": treatment_fraction,
+            "selected_personas": selected_personas,
         }
 
     async def update_status(
@@ -409,6 +414,7 @@ def _simulation_to_dict(row: Simulation) -> dict[str, Any]:
         "sampled_agent_count": row.sampled_agent_count,
         "run_seed": row.run_seed,
         "treatment_fraction": row.treatment_fraction,
+        "selected_personas": row.selected_personas,
     }
 
 

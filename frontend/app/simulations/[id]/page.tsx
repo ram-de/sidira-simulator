@@ -447,6 +447,19 @@ export default function SimulationDetailPage() {
       {/* Result (complete) */}
       {status === "complete" && result && (
         <>
+          {/* Phase 5 #101: cohort banner. Renders only when the PM submitted
+              a persona filter (sim.selected_personas != null). Lists N of M
+              with persona names so a PM revisiting the page in two weeks
+              remembers they filtered. Names come from agentMeta (already
+              loaded on terminal status); falls back to IDs if agentMeta
+              hasn't joined yet. */}
+          {sim?.selected_personas != null && (
+            <CohortBanner
+              selectedIds={sim.selected_personas}
+              agentMeta={agentMeta}
+            />
+          )}
+
           {(sim?.population_size != null ||
             sim?.sampled_agent_count != null) && (
             <section
@@ -804,6 +817,50 @@ export default function SimulationDetailPage() {
 // (A/B mode). Single-arm sims skip this block entirely so their result page
 // looks byte-identical to today. Lift is expressed in confidence-score units
 // (see scoring.py:_mean_paired_delta) — positive = treatment beats control.
+// Phase 5 #101: cohort banner. Renders above the population banner when the
+// sim was submitted with a persona filter. Joins selected persona_ids against
+// agentMeta (loaded by the result page on terminal status) to surface human
+// names — falls back to IDs if agentMeta hasn't joined yet. Absent entirely
+// when the sim wasn't filtered (sim.selected_personas is null).
+function CohortBanner({
+  selectedIds,
+  agentMeta,
+}: {
+  selectedIds: string[];
+  agentMeta: AgentRow[] | null;
+}) {
+  // Build {persona_id -> persona_name} from agentMeta. Deduped because
+  // multiple agents in a persona group all share the same persona_name.
+  const idToName = new Map<string, string>();
+  if (agentMeta != null) {
+    for (const a of agentMeta) {
+      if (!idToName.has(a.persona_id)) {
+        idToName.set(a.persona_id, a.persona_name);
+      }
+    }
+  }
+  const names = selectedIds.map((pid) => idToName.get(pid) ?? pid);
+  return (
+    <section
+      style={{
+        ...cardStyle,
+        padding: "12px 16px",
+        background: "#fff8e6",
+        border: "1px solid #f0d68c",
+        color: "#664c00",
+        fontSize: 14,
+      }}
+    >
+      <strong style={{ color: "#664c00" }}>Persona-filtered run:</strong>{" "}
+      this simulation was scoped to {selectedIds.length} persona
+      {selectedIds.length === 1 ? "" : "s"}: {names.join(", ")}.
+      {" "}Lift / scores are for the selected cohort, not the full
+      Persona Pack — re-run with all personas to compare against the
+      unfiltered baseline.
+    </section>
+  );
+}
+
 function LiftCard({
   lift,
   liftCi,
