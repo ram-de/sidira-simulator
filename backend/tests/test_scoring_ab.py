@@ -121,16 +121,13 @@ def test_positive_lift_all_pairs_positive() -> None:
     assert lift.paired_n == 10
     assert lift.lift is not None
     assert lift.lift > 0
-    # When every agent is matched (no unpaired, no failures), the matched-
-    # subset score diff equals the full-arm score diff modulo rounding
-    # (each end rounds to 1 decimal independently). Codex P1 fix: lift now
-    # bootstraps the matched-subset statistic, so the relationship to
-    # per-arm scores is "same direction, equal up to rounding step", not
-    # "exact bitwise equality" as the prior naive diff guaranteed.
+    # Per-arm scores include weakness signal + shrinkage; lift is the
+    # locked Q2 paired sentiment-delta statistic (codex R2-P2 fix). They
+    # only agree in degenerate cases — check direction only.
     assert t_result.confidence_score > c_result.confidence_score
-    assert lift.lift == pytest.approx(
-        t_result.confidence_score - c_result.confidence_score, abs=0.2
-    )
+    # Each pair delta = 1.0 × 1.0 − 1.0 × 0.0 = 1.0; mean=1.0;
+    # scaled = 1.0 × 0.6 × 100 = 60.0.
+    assert lift.lift == pytest.approx(60.0, abs=1e-6)
     # CI should exclude zero on the positive side AND bracket the point.
     assert lift.lift_ci is not None
     assert lift.lift_ci[0] > 0
@@ -363,6 +360,131 @@ async def test_score_ab_empty_inputs_returns_placeholder() -> None:
     assert result.confidence_score == 0.0
     assert result.lift is None
     assert result.lift_paired_n is None
+
+
+# ── Codex R2-P1 (PR #96): arm-aware scoring prompts ──────────────────
+
+
+class _PromptRecorder:
+    """Records every system prompt + user-message pair sent to chat_json,
+    so tests can assert which scoring prompt was used for which arm."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str, type]] = []
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        system = next(m["content"] for m in messages if m["role"] == "system")
+        user = next(m["content"] for m in messages if m["role"] == "user")
+        self.calls.append((system, user, schema))
+        if schema is WeaknessClassification:
+            return WeaknessClassification(categories=[], primary_reason="ok")
+        return SentimentClassification(
+            sentiment=Sentiment.POSITIVE, confidence=0.8, one_line_summary=""
+        )
+
+    def chat(self, *a, **k):  # pragma: no cover
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_analyze_routes_control_arm_to_status_quo_sentiment_prompt() -> None:
+    """Control reactions must NOT be classified with the treatment-arm
+    sentiment prompt (codex R2-P1). The treatment prompt frames the
+    reaction as reception-of-a-proposed-change; a control reaction is
+    about the current product."""
+    recorder = _PromptRecorder()
+    svc = ScoringService(chat_client=recorder)
+
+    await svc.analyze(
+        Hypothesis(capability_name="reorder", prose="test change"),
+        AgentReaction(
+            agent_id="c0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="status-quo feedback",
+            sample_index=0,
+            arm="control",
+        ),
+    )
+    # Control arm → exactly one chat_json call (sentiment only).
+    assert len(recorder.calls) == 1
+    system, user, schema = recorder.calls[0]
+    assert schema is SentimentClassification
+    assert "STATUS-QUO" in system or "status-quo" in user
+    assert "proposed product change" not in system.lower()
+
+
+@pytest.mark.asyncio
+async def test_analyze_routes_treatment_arm_to_change_sentiment_prompt() -> None:
+    """Treatment arm keeps the original 'reception of a proposed product
+    change' prompt — backwards-compat with single-arm sims."""
+    recorder = _PromptRecorder()
+    svc = ScoringService(chat_client=recorder)
+
+    await svc.analyze(
+        Hypothesis(capability_name="reorder", prose="test change"),
+        AgentReaction(
+            agent_id="t0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="reaction to change",
+            sample_index=0,
+            arm="treatment",
+        ),
+    )
+    # Treatment arm → two chat_json calls (weakness + sentiment).
+    assert len(recorder.calls) == 2
+    schemas = {schema for _system, _user, schema in recorder.calls}
+    assert schemas == {WeaknessClassification, SentimentClassification}
+    sentiment_call = next(c for c in recorder.calls if c[2] is SentimentClassification)
+    assert "proposed product change" in sentiment_call[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_analyze_skips_weakness_classification_for_control_arm() -> None:
+    """The 6 weakness categories describe experiment-design weaknesses in
+    the proposed change. They're undefined for the control arm — skip the
+    LLM call and return empty categories."""
+    recorder = _PromptRecorder()
+    svc = ScoringService(chat_client=recorder)
+
+    analysis = await svc.analyze(
+        Hypothesis(capability_name="reorder", prose="test change"),
+        AgentReaction(
+            agent_id="c0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="status-quo feedback",
+            sample_index=0,
+            arm="control",
+        ),
+    )
+    weakness_calls = [c for c in recorder.calls if c[2] is WeaknessClassification]
+    assert weakness_calls == []
+    assert analysis.weakness.categories == []
+    assert analysis.weakness_failed is False
+
+
+@pytest.mark.asyncio
+async def test_analyze_single_arm_arm_none_keeps_treatment_prompts() -> None:
+    """Single-arm sims (arm=None, pre-#90 callers) keep the original
+    two-classification flow with the treatment-style prompts. Backwards
+    compatibility check."""
+    recorder = _PromptRecorder()
+    svc = ScoringService(chat_client=recorder)
+
+    await svc.analyze(
+        Hypothesis(capability_name="reorder", prose="test change"),
+        AgentReaction(
+            agent_id="x0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="reaction",
+            sample_index=0,
+            arm=None,
+        ),
+    )
+    assert len(recorder.calls) == 2  # weakness + sentiment as before
 
 
 # ── Codex P1 fix (PR #96): CI must bracket lift, always ──────────────
