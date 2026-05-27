@@ -119,18 +119,22 @@ def test_positive_lift_all_pairs_positive() -> None:
     t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
 
     assert lift.paired_n == 10
-    # Per-agent delta = 1.0 × 1.0 − 1.0 × 0.0 = 1.0 for each pair.
-    # CI on lift = (sentiment_weight × 100) × CI on mean(delta) = 60 × (1, 1).
     assert lift.lift is not None
     assert lift.lift > 0
-    # confidence_score delta is what `lift` reports — both arms have identical
-    # weakness signal (no categories), so lift equals sentiment contribution
-    # diff: (1.0 − 0.0 with shrinkage k=1 toward 0.5) × 0.6 × 100.
+    # When every agent is matched (no unpaired, no failures), the matched-
+    # subset score diff equals the full-arm score diff modulo rounding
+    # (each end rounds to 1 decimal independently). Codex P1 fix: lift now
+    # bootstraps the matched-subset statistic, so the relationship to
+    # per-arm scores is "same direction, equal up to rounding step", not
+    # "exact bitwise equality" as the prior naive diff guaranteed.
     assert t_result.confidence_score > c_result.confidence_score
-    assert lift.lift == pytest.approx(t_result.confidence_score - c_result.confidence_score, abs=1e-6)
-    # CI should exclude zero on the positive side
+    assert lift.lift == pytest.approx(
+        t_result.confidence_score - c_result.confidence_score, abs=0.2
+    )
+    # CI should exclude zero on the positive side AND bracket the point.
     assert lift.lift_ci is not None
     assert lift.lift_ci[0] > 0
+    assert lift.lift_ci[0] <= lift.lift <= lift.lift_ci[1]
 
 
 # ── 3. Negative lift, all pairs negative ──────────────────────────────
@@ -359,6 +363,25 @@ async def test_score_ab_empty_inputs_returns_placeholder() -> None:
     assert result.confidence_score == 0.0
     assert result.lift is None
     assert result.lift_paired_n is None
+
+
+# ── Codex P1 fix (PR #96): CI must bracket lift, always ──────────────
+
+
+def test_lift_ci_brackets_point_estimate_with_shrinkage() -> None:
+    """Codex P1: prior version computed lift as full per-arm score diff
+    but bootstrapped only the sentiment-delta CI. At small N + default
+    shrinkage that produced cases where the CI excluded the point
+    estimate (e.g. lift=15, ci=(30,30)). Post-fix: both numbers come from
+    the same matched-subset statistic, so CI brackets lift by construction.
+    """
+    treatment, control = _matched_pairs(1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL)
+    _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    assert lift.lift is not None
+    assert lift.lift_ci is not None
+    assert lift.lift_ci[0] <= lift.lift <= lift.lift_ci[1], (
+        f"CI {lift.lift_ci} must bracket point estimate {lift.lift}"
+    )
 
 
 # ── Pairing key uses (persona_id, sample_index), not persona alone ────

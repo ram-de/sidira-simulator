@@ -592,7 +592,12 @@ def _match_paired_analyses(
 
     paired_pairs: list[tuple[AgentAnalysis, AgentAnalysis]] = []
     sentiment_failure_drops = 0
-    for key in matched_keys:
+    # Sort matched keys for deterministic iteration (codex P2 PR #96):
+    # `set` iteration order depends on Python hash seed, so the same
+    # (data, run_seed) tuple could produce different CIs across processes
+    # because the RNG resample indices would land on a shuffled `deltas`
+    # list. Sorting pins the ordering.
+    for key in sorted(matched_keys):
         t = treatment_by_key[key]
         c = control_by_key[key]
         if t.sentiment_failed or c.sentiment_failed:
@@ -603,6 +608,27 @@ def _match_paired_analyses(
     unpaired_treatment = len(treatment_keys - control_keys)
     unpaired_control = len(control_keys - treatment_keys)
     return paired_pairs, unpaired_treatment, unpaired_control, sentiment_failure_drops
+
+
+def _paired_score_diff(
+    pairs: Sequence[tuple[AgentAnalysis, AgentAnalysis]],
+    cfg: ScoringConfig,
+) -> float:
+    """Compute the lift statistic on a (resampled or full) list of matched pairs.
+
+    Runs `_compute_score` over the treatment half and the control half of
+    each pair, returns the diff in confidence_score units. Used both for
+    the lift point estimate (on the full pair list) and the bootstrap CI
+    (on each resample). Computing both off the SAME statistic guarantees
+    `lift_ci` brackets `lift` by construction — fixes codex P1 PR #96.
+    """
+    if not pairs:
+        return 0.0
+    treatment = [t for t, _c in pairs]
+    control = [c for _t, c in pairs]
+    t_score, _, _ = ScoringService._compute_score(treatment, cfg)
+    c_score, _, _ = ScoringService._compute_score(control, cfg)
+    return t_score - c_score
 
 
 def aggregate_ab(
@@ -617,17 +643,16 @@ def aggregate_ab(
     Reuses the existing single-arm `ScoringService.aggregate()` for each
     arm so the per-arm `confidence_score` / weakness surface stays
     identical to today's behavior. The lift layer matches treatment and
-    control by `(persona_id, sample_index)`, computes per-pair
-    confidence-weighted sentiment deltas, and percentile-bootstraps the
-    mean to produce a 95% CI on the lift.
-
-    The CI is reported in `confidence_score` units (range [-100, +100])
-    by scaling the per-agent-delta CI by `sentiment_weight × 100` — the
-    same linear factor `_compute_score` uses for the sentiment
-    contribution. The point estimate `lift` equals
-    `treatment.confidence_score − control.confidence_score` so the value
-    PMs read on the result table matches what they'd compute by hand from
-    the per-arm scores.
+    control by `(persona_id, sample_index)`, then computes the lift
+    point estimate AND the bootstrap CI off the SAME statistic — the
+    `_compute_score` diff over the matched-pair subset. This is the
+    codex-P1 fix from PR #96 review: the prior version reported lift as
+    the full per-arm diff (including unpaired agents + shrinkage + the
+    weakness signal) while bootstrapping only the sentiment-delta CI,
+    which could produce a CI that excluded the point estimate at small
+    N. Both numbers now describe the SAME paired comparison on the
+    matched subset; per-arm `treatment_score` / `control_score` still
+    expose the full-arm scores for the result table.
 
     Degenerate cases surface honestly via the drop counters and None
     fields — see `docs/4.6-ab-experiment-mode.md` § "Degenerate-case
@@ -659,30 +684,31 @@ def aggregate_ab(
         # results are still populated so the result table renders.
         return treatment_result, control_result, lift_result
 
-    # Point estimate: confidence_score diff is what the PM sees on the
-    # result table, so the lift number must match it exactly.
-    lift_result.lift = round(
-        treatment_result.confidence_score - control_result.confidence_score,
-        cfg.confidence_rounding,
-    )
+    # Point estimate + CI both bootstrap the SAME statistic on the
+    # matched-pair subset, so the CI brackets the point by construction.
+    lift_point = _paired_score_diff(paired_pairs, cfg)
+    lift_result.lift = round(lift_point, cfg.confidence_rounding)
 
-    # Bootstrap CI on the per-pair sentiment delta, then scale into
-    # confidence_score units via the same linear factor as _compute_score.
     if cfg.bootstrap_resamples > 0:
-        deltas = [_agent_delta(t, c) for t, c in paired_pairs]
         effective_seed = (
             run_seed if run_seed is not None else secrets.randbits(53)
         ) ^ _BOOTSTRAP_SEED_MIX
         rng = random.Random(effective_seed)
-        ci_low_delta, ci_high_delta = bootstrap_percentile_ci(
-            deltas,
-            lambda resample: sum(resample) / len(resample),
+        ci_low, ci_high = bootstrap_percentile_ci(
+            paired_pairs,
+            lambda resample: _paired_score_diff(resample, cfg),
             n_resamples=cfg.bootstrap_resamples,
             rng=rng,
         )
-        scale = cfg.sentiment_weight * 100.0
-        ci_low = round(ci_low_delta * scale, cfg.confidence_rounding)
-        ci_high = round(ci_high_delta * scale, cfg.confidence_rounding)
-        lift_result.lift_ci = (ci_low, ci_high)
+        ci_low_r = round(ci_low, cfg.confidence_rounding)
+        ci_high_r = round(ci_high, cfg.confidence_rounding)
+        # Mirror aggregate()'s edge clamp: independent rounding (and discrete
+        # percentile boundaries at small B/N) can violate
+        # ci_low <= lift <= ci_high. Widen by at most one rounding step so
+        # callers that inspect both fields always see a bracketing CI.
+        lift_result.lift_ci = (
+            min(ci_low_r, lift_result.lift),
+            max(ci_high_r, lift_result.lift),
+        )
 
     return treatment_result, control_result, lift_result
