@@ -359,7 +359,45 @@ async def test_score_ab_empty_inputs_returns_placeholder() -> None:
     assert analyses == []
     assert result.confidence_score == 0.0
     assert result.lift is None
+    # No reactions at all → never entered aggregate_ab; field stays at
+    # schema default None, matching single-arm sims.
     assert result.lift_paired_n is None
+
+
+@pytest.mark.asyncio
+async def test_score_ab_zero_matched_pairs_preserves_paired_n_zero() -> None:
+    """Codex R3-P2b: when A/B mode runs but no pairs match (all unpaired
+    or all sentiment-failed), the serialized result must distinguish
+    'A/B attempted, lift not computable' (lift_paired_n=0) from
+    'single-arm sim, no A/B at all' (lift_paired_n=None)."""
+    svc = ScoringService(chat_client=_ScriptedChat())
+    hypothesis = Hypothesis(capability_name="reorder", prose="test")
+    # Treatment on persona p0; control on persona p1 → zero matched pairs.
+    treatment = [
+        AgentReaction(
+            agent_id="t0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="TREATMENT_REACTION",
+            sample_index=0,
+            arm="treatment",
+        )
+    ]
+    control = [
+        AgentReaction(
+            agent_id="c0",
+            persona_id="p1",
+            persona_name="P1",
+            reaction_text="CONTROL_REACTION",
+            sample_index=0,
+            arm="control",
+        )
+    ]
+    result, _ = await svc.score_ab(hypothesis, treatment, control, config=_NO_CI_CFG, run_seed=42)
+    assert result.lift is None
+    assert result.lift_paired_n == 0  # NOT None
+    assert result.lift_unpaired_treatment == 1
+    assert result.lift_unpaired_control == 1
 
 
 # ── Codex R2-P1 (PR #96): arm-aware scoring prompts ──────────────────
@@ -463,6 +501,78 @@ async def test_analyze_skips_weakness_classification_for_control_arm() -> None:
     assert weakness_calls == []
     assert analysis.weakness.categories == []
     assert analysis.weakness_failed is False
+
+
+def test_aggregate_control_arm_degradation_uses_attempted_count() -> None:
+    """Codex R3-P2a: control-arm agents skip weakness classification, so
+    `aggregate()`'s degradation rate must divide by ATTEMPTED
+    classifications, not by 2N. Without this, a fully-failed
+    control-sentiment run reports 50% (N/2N) and never trips the
+    strict `> degradation_threshold` gate."""
+    from pythia_simulator.schemas.simulation import SimulationResult
+
+    # 4 control agents, all with sentiment_failed=True. Weakness not
+    # attempted (control-arm flow). Failure rate should be 4/4 = 100%,
+    # not 4/8 = 50%.
+    control_analyses = [
+        AgentAnalysis(
+            agent_id=f"c{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            sample_index=0,
+            weakness=WeaknessClassification(categories=[]),
+            sentiment=SentimentClassification(
+                sentiment=Sentiment.NEUTRAL, confidence=0.0, one_line_summary=""
+            ),
+            weakness_failed=False,
+            weakness_attempted=False,
+            sentiment_failed=True,
+        )
+        for i in range(4)
+    ]
+    result: SimulationResult = ScoringService.aggregate(
+        control_analyses, ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+    )
+    # Degradation gate must fire → underpowered_design weakness prepended.
+    assert any(
+        w.category == "underpowered_design"
+        and "100%" in (w.summary or "")
+        and "4/4" in (w.summary or "")
+        for w in result.weaknesses
+    ), f"degradation gate did not fire correctly: {result.weaknesses}"
+
+
+def test_aggregate_treatment_arm_degradation_unchanged() -> None:
+    """Sanity: treatment-arm agents still attempt both classifications,
+    so the 2N denominator is preserved. Mirrors the pre-#90 behavior."""
+    from pythia_simulator.schemas.simulation import SimulationResult
+
+    # 4 treatment agents, all sentiment fails, weakness succeeds.
+    # Total attempted = 2N = 8; failures = 4; rate = 50% — at the
+    # strict-`>` threshold, no degradation.
+    treatment_analyses = [
+        AgentAnalysis(
+            agent_id=f"t{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            sample_index=0,
+            weakness=WeaknessClassification(categories=[]),
+            sentiment=SentimentClassification(
+                sentiment=Sentiment.NEUTRAL, confidence=0.0, one_line_summary=""
+            ),
+            weakness_failed=False,
+            weakness_attempted=True,
+            sentiment_failed=True,
+        )
+        for i in range(4)
+    ]
+    result: SimulationResult = ScoringService.aggregate(
+        treatment_analyses, ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+    )
+    # 50% exactly → no degradation message
+    assert not any(
+        "discounted" in (w.summary or "") for w in result.weaknesses
+    )
 
 
 @pytest.mark.asyncio

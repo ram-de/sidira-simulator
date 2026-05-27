@@ -286,6 +286,7 @@ class ScoringService:
             sentiment=sentiment,
             weakness_failed=weakness_failed,
             sentiment_failed=sentiment_failed,
+            weakness_attempted=not is_control,
         )
 
     # — Pack-level scoring (A/B mode) ————————————————————————————————
@@ -348,7 +349,13 @@ class ScoringService:
                 "control_score": control_result.confidence_score,
                 "lift": lift.lift,
                 "lift_ci": lift.lift_ci,
-                "lift_paired_n": lift.paired_n if lift.paired_n > 0 else None,
+                # Phase 4.6 #90 (codex R3-P2b): pass paired_n through
+                # verbatim so the serialized result can distinguish
+                # "A/B attempted, no matched pairs" (lift_paired_n=0)
+                # from "single-arm sim, no A/B" (lift_paired_n=None,
+                # the schema default — single-arm sims never call this
+                # composition path).
+                "lift_paired_n": lift.paired_n,
                 "lift_unpaired_treatment": lift.unpaired_treatment,
                 "lift_unpaired_control": lift.unpaired_control,
                 "lift_sentiment_failure_drops": lift.sentiment_failure_drops,
@@ -495,10 +502,17 @@ class ScoringService:
         # underpowered_design weakness so the PM sees the degraded state.
         # Without this, a totally-failed run silently returns ~70 (neutral
         # sentiment with shrinkage, zero weakness flags) — misleadingly fine.
+        # Phase 4.6 #90 (codex R3-P2a): count only ATTEMPTED classifications.
+        # Treatment + single-arm agents attempt 2 (weakness + sentiment);
+        # control-arm agents skip weakness, so attempting 1. Without this,
+        # a fully-failed control-sentiment run reports 50% (N failures /
+        # 2N total) and never trips the strict `>` degradation threshold.
         failed_classifications = sum(
             int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses_list
         )
-        total_classifications = 2 * n
+        total_classifications = sum(
+            int(a.weakness_attempted) + 1 for a in analyses_list
+        )
         failure_rate = (
             failed_classifications / total_classifications
             if total_classifications > 0

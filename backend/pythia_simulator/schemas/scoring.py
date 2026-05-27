@@ -62,6 +62,16 @@ class AgentAnalysis(BaseModel):
     sentiment: SentimentClassification
     weakness_failed: bool = False
     sentiment_failed: bool = False
+    weakness_attempted: bool = True
+    """Whether the weakness classifier ran for this agent. Phase 4.6 #90
+    (codex R3-P2a): control-arm agents skip weakness classification
+    entirely because the 6 categories describe experiment-design
+    weaknesses in the proposed change, undefined for the status-quo
+    arm. `aggregate()`'s degradation gate divides failures by
+    *attempted* classifications, not by 2N — otherwise a fully-failed
+    control sentiment run would show 50% failure rate (N/2N) and miss
+    the strict `>` threshold. Treatment + single-arm callers keep the
+    default True."""
     sample_index: int = 0
     """Per-persona draw index. Phase 4.6 #90 pairs treatment/control by
     (persona_id, sample_index); default 0 keeps single-arm callers
