@@ -42,12 +42,16 @@ class ArmSplit(BaseModel):
 
     treatment_fraction: float = Field(
         default=0.5,
-        gt=0.0,
-        lt=1.0,
+        ge=0.5,
+        le=0.5,
         description=(
             "Fraction of population_size allocated to the treatment arm. "
-            "Strictly between 0 and 1 (neither bound inclusive — an empty "
-            "arm has no meaning). Defaults to 0.5 for paired sampling."
+            "v1 only supports 0.5 (paired sampling). Codex P2 on PR #95: "
+            "non-0.5 splits get silently overridden by the per-arm max "
+            "agent cap (treatment_fraction=0.8 with cap=50 still produces "
+            "50/50), and #90's paired lift formula needs f=0.5 anyway. "
+            "Re-open this range when we have a product reason for "
+            "asymmetric arms AND a scorer that supports them."
         ),
     )
 

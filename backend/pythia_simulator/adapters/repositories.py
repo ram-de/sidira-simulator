@@ -423,6 +423,7 @@ def _agent_to_dict(row: AgentInstance) -> dict[str, Any]:
         "created_at": row.created_at,
         "last_active_at": row.last_active_at,
         "message_count": row.message_count,
+        "arm": row.arm,
     }
 
 

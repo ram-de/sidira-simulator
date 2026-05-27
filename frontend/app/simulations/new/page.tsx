@@ -35,14 +35,17 @@ export default function NewSimulationPage() {
   // makes other splits statistically wasteful per docs/4.6 Q3). The
   // schema accepts other values for future flexibility.
   //
-  // Phase 4.6 STAGED ROLLOUT GATE: the toggle is DISABLED in this PR
-  // because the runner doesn't honor `arm_split` yet — #89 wires the
-  // dual-arm orchestrator that consumes this field. Without this gate a
-  // PM could click the toggle, submit, get arm_split=0.5 back on the
-  // result page, but actually get a single-arm execution — silent
-  // user-facing mismatch (codex #93 [P1]). Flip this constant to false
-  // when #89 lands.
-  const AB_MODE_DISABLED_UNTIL_89 = true;
+  // Phase 4.6 staged rollout gate: #89 wires the dual-arm runner
+  // (composer → orchestrator → dual-arm allocation → arm-tagged
+  // AgentInstance rows), but ScoringService still runs the
+  // single-arm path. If we enabled the toggle now, the result page
+  // would render confidence_score over a mixed treatment+control
+  // cohort — a number that looks like predicted lift but isn't.
+  // Codex P1 on PR #95 flagged this; we re-gate until #90 (paired
+  // lift formula) + #91 (lift display on result page) land.
+  // Direct API still accepts arm_split for #89's dual-arm runner
+  // tests — only the wizard UI is locked.
+  const AB_MODE_DISABLED_UNTIL_LIFT = true;
   const [abMode, setAbMode] = useState(false);
   // Wizard-side mirror of the API's hard per-arm cap. Matches
   // PYTHIA_MAX_AGENTS in the default env (50). The cost preview uses
@@ -291,8 +294,8 @@ export default function NewSimulationPage() {
           confirmThreshold={CONFIRM_TOTAL_AGENTS_THRESHOLD}
           acknowledged={acknowledgedLargeRun}
           onAcknowledge={setAcknowledgedLargeRun}
-          disabled={formDisabled || AB_MODE_DISABLED_UNTIL_89}
-          stagedRolloutNote={AB_MODE_DISABLED_UNTIL_89}
+          disabled={formDisabled || AB_MODE_DISABLED_UNTIL_LIFT}
+          stagedRolloutNote={AB_MODE_DISABLED_UNTIL_LIFT}
         />
 
         <div style={fieldGroup}>
@@ -380,7 +383,7 @@ function ABModeSection({
   disabled: boolean;
   // Phase 4.6 STAGED ROLLOUT: when true, the toggle is rendered but
   // checkbox is disabled with a "coming in next PR" badge. Set by the
-  // parent when AB_MODE_DISABLED_UNTIL_89 is on. Once #89 wires the
+  // parent when AB_MODE_DISABLED_UNTIL_LIFT is on. Once #89 wires the
   // dual-arm runner, the parent flips this to false.
   stagedRolloutNote: boolean;
 }) {
@@ -440,10 +443,10 @@ function ABModeSection({
             color: "#5a2ca0",
           }}
         >
-          A/B execution lands in the next PR (#89 — dual-arm orchestrator
-          + control-arm prompt). The request shape is wired here so #89
-          plugs in without a follow-up schema migration; the wizard
-          toggle is disabled until the runner can honor it.
+          A/B execution runs end-to-end now (#89), but the result page
+          still shows confidence — not lift. The wizard toggle stays
+          disabled until #90 (paired lift formula) + #91 (lift display)
+          land so PMs never see a single-arm score over a mixed cohort.
         </div>
       )}
       {!stagedRolloutNote && (

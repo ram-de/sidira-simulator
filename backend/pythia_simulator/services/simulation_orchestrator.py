@@ -116,6 +116,7 @@ class SimulationOrchestrator:
                 # the row recorded. Otherwise PYTHIA_MAX_AGENTS=0 makes the API
                 # clamp to 1 while allocate() falls back to default 50. (codex P2)
                 max_agents=sampled_agent_count,
+                treatment_fraction=treatment_fraction,
             )
 
         return sim_id, run
@@ -141,6 +142,7 @@ class SimulationOrchestrator:
         population_size: int,
         run_seed: int | None,
         max_agents: int | None = None,
+        treatment_fraction: float | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -163,6 +165,7 @@ class SimulationOrchestrator:
                 population_size=population_size,
                 run_seed=run_seed,
                 max_agents=max_agents,
+                treatment_fraction=treatment_fraction,
             )
 
         except Exception as exc:
@@ -187,6 +190,7 @@ class SimulationOrchestrator:
         population_size: int,
         run_seed: int | None,
         max_agents: int | None = None,
+        treatment_fraction: float | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -199,6 +203,7 @@ class SimulationOrchestrator:
             run_seed=run_seed,
             max_agents=max_agents,
             sim_id=sim_id,
+            treatment_fraction=treatment_fraction,
         )
 
         # Persist agent_instances rows using the records the runner exposed.
@@ -214,6 +219,7 @@ class SimulationOrchestrator:
                     "created_at": record.created_at,
                     "last_active_at": record.created_at,
                     "message_count": 0,
+                    "arm": record.arm,
                 }
             )
 

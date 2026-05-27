@@ -66,6 +66,12 @@ class AgentRecord:
     persona_name: str
     created_at: datetime
     reaction_text: str = ""
+    sample_index: int = 0
+    # Phase 4.6 #89: A/B mode arm tag. None for single-arm sims. "treatment"
+    # or "control" for A/B. #90's lift formula matches pairs by
+    # (persona_id, sample_index) across arms; this field tells the matcher
+    # which side of the comparison each record belongs to.
+    arm: str | None = None
 
 
 class SimulationRunner:
@@ -102,6 +108,7 @@ class SimulationRunner:
         run_seed: int | None = None,
         max_agents: int | None = None,
         sim_id: str | None = None,
+        treatment_fraction: float | None = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
         # run_seed pinned per simulation. Unset means caller didn't fix it -- mint a
@@ -131,13 +138,72 @@ class SimulationRunner:
         # so the runner and the persisted sampled_agent_count never disagree).
         # When None, allocate() falls back to env/default. sample_index is
         # per-persona (0..count-1) and feeds into draw_identity_seed's RNG seed.
-        allocation = allocate(persona_pack, population_size, max_agents=max_agents)
+        #
+        # Phase 4.6 #89: in A/B mode, both arms get their own allocate() call.
+        # When treatment_fraction=0.5 (wizard's locked v1 default), the two
+        # allocations are byte-identical because allocate() is deterministic
+        # on (persona_pack, total, max_agents). That means treatment + control
+        # share the same (persona_id, sample_index) tuples, which means
+        # draw_identity_seed produces matching identity_seeds across arms —
+        # paired sampling for free (Q3 locked in docs/4.6). For asymmetric
+        # fractions (schema-allowed for future flexibility), the arms diverge
+        # and #90's lift formula handles unpaired agents via the matched-pair
+        # bookkeeping.
         pack_by_id = {p.id: p for p in persona_pack.personas}
-        agent_specs: list[tuple[Persona, int]] = []
-        for persona_id, count in allocation:
-            persona = pack_by_id[persona_id]
-            for sample_index in range(count):
-                agent_specs.append((persona, sample_index))
+        agent_specs: list[tuple[Persona, int, str | None]] = []
+        if treatment_fraction is None:
+            # Single-arm: today's behavior, no arm tag.
+            allocation = allocate(persona_pack, population_size, max_agents=max_agents)
+            for persona_id, count in allocation:
+                persona = pack_by_id[persona_id]
+                for sample_index in range(count):
+                    agent_specs.append((persona, sample_index, None))
+        else:
+            # A/B mode: in A/B mode `population_size` is the PER-ARM target
+            # (matches the wizard's `perArm = min(populationSize,
+            # WIZARD_PER_ARM_CAP)` cost-preview math — see
+            # frontend/app/simulations/new/page.tsx). Each arm calls
+            # allocate() with the SAME (persona_pack, target, max_agents)
+            # triple at the wizard's locked f=0.5 — that's what makes
+            # treatment_alloc byte-identical to control_alloc, which is
+            # what makes (persona_id, sample_index) pairs match across
+            # arms, which is what makes draw_identity_seed produce
+            # identical seeds per pair (paired sampling for free).
+            #
+            # Codex P1 on PR #95 caught the earlier "split the population
+            # first" math: for pop=50 + max=50, that produced 25 vs 25
+            # instead of the 50/50 the wizard's "≈ 50 + 50 = 100 agents"
+            # preview promised, AND broke pair matching for odd pops.
+            # The fix is to NOT pre-split — treat population_size as
+            # per-arm target, then derive treatment_target / control_target
+            # symmetrically from treatment_fraction.
+            if abs(treatment_fraction - 0.5) < 1e-9:
+                # Locked v1 default. Both arms get the same target → paired.
+                treatment_target = population_size
+                control_target = population_size
+            else:
+                # Asymmetric split. The wizard does not currently expose
+                # this path (schema accepts it for future flexibility), so
+                # the trade-off is documented but not heavily exercised:
+                # at f != 0.5 the arms diverge in size, the byte-equivalent
+                # allocation invariant is lost, and #90's pair matcher
+                # falls back to per-(persona, sample_index) intersection.
+                treatment_target = int(round(population_size * 2 * treatment_fraction))
+                control_target = int(round(population_size * 2 * (1 - treatment_fraction)))
+            treatment_alloc = allocate(
+                persona_pack, treatment_target, max_agents=max_agents
+            )
+            control_alloc = allocate(
+                persona_pack, control_target, max_agents=max_agents
+            )
+            for persona_id, count in treatment_alloc:
+                persona = pack_by_id[persona_id]
+                for sample_index in range(count):
+                    agent_specs.append((persona, sample_index, "treatment"))
+            for persona_id, count in control_alloc:
+                persona = pack_by_id[persona_id]
+                for sample_index in range(count):
+                    agent_specs.append((persona, sample_index, "control"))
 
         state.agents_total = len(agent_specs)
         state.mark_phase(RunPhase.MATERIALIZING_AGENTS)
@@ -162,8 +228,9 @@ class SimulationRunner:
                     persona_pack.version,
                     sample_index,
                     resolved_run_seed,
+                    arm=arm,
                 )
-                for persona, sample_index in agent_specs
+                for persona, sample_index, arm in agent_specs
             ),
             return_exceptions=True,
         )
@@ -203,6 +270,7 @@ class SimulationRunner:
         persona_pack_version: str,
         sample_index: int,
         run_seed: int,
+        arm: str | None = None,
     ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
@@ -211,16 +279,41 @@ class SimulationRunner:
                 "agent.reaction.started",
                 agent_id=agent_id,
                 persona=persona.name,
+                arm=arm,
             )
 
             identity_seed = draw_identity_seed(persona, sample_index, run_seed)
+            # Phase 4.6 #89: thread arm into the composer so treatment/control
+            # diverge ONLY in the task block (preamble stays byte-identical,
+            # which is the paired-comparison invariant pinned by
+            # test_control_arm_keeps_identity_preamble_byte_equivalent).
+            composer_arm = arm if arm in ("treatment", "control") else "treatment"
             identity_prompt = compose_identity_prompt(
                 customer_id=customer_id,
                 persona=persona,
                 capability=capability,
                 hypothesis=hypothesis,
                 identity_seed=identity_seed,
+                arm=composer_arm,
             )
+
+            # The "user turn" reaction prompt also has to diverge: in the
+            # control arm there's no proposed change to react to, so the
+            # status-quo framing in the system prompt would be undercut if
+            # the user turn still said "React to the proposed change".
+            if composer_arm == "control":
+                user_turn = (
+                    "React to the **current** product experience as yourself. Give your "
+                    "honest, specific take in first-person prose. Reference the current "
+                    "product flows and copy where relevant. Do not speculate about "
+                    "hypothetical changes."
+                )
+            else:
+                user_turn = (
+                    "React to the proposed change as yourself. Give your honest, "
+                    "specific reaction in first-person prose. Reference the current "
+                    "product flows and copy where relevant."
+                )
 
             try:
                 initial_reaction = await asyncio.wait_for(
@@ -228,14 +321,7 @@ class SimulationRunner:
                         self._chat.chat,
                         [
                             {"role": "system", "content": identity_prompt},
-                            {
-                                "role": "user",
-                                "content": (
-                                    "React to the proposed change as yourself. Give your honest, "
-                                    "specific reaction in first-person prose. Reference the current "
-                                    "product flows and copy where relevant."
-                                ),
-                            },
+                            {"role": "user", "content": user_turn},
                         ],
                     ),
                     timeout=self._per_agent_timeout_s,
@@ -272,6 +358,7 @@ class SimulationRunner:
                 created_at=now,
                 last_active_at=now,
                 message_count=0,
+                arm=arm,
             )
 
             # FROZEN — the identity-continuity guarantee starts here.
@@ -299,6 +386,8 @@ class SimulationRunner:
                 persona_name=persona.name,
                 created_at=now,
                 reaction_text=initial_reaction,
+                sample_index=sample_index,
+                arm=arm,
             )
 
     async def _score(

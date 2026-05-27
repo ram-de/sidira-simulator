@@ -109,6 +109,7 @@ async def record_agent_turn_feedback(
         created_at=row["created_at"],
         last_active_at=row["last_active_at"],
         message_count=row.get("message_count", 0) or 0,
+        arm=row.get("arm"),
     )
     agent = await asyncio.to_thread(memory.load, metadata)
     conversation = agent.conversation or []

@@ -134,3 +134,152 @@ def test_compose_identity_prompt_includes_opener_guidance() -> None:
     assert "As someone who" in prompt
     assert "mixed feelings" in prompt
     assert "interesting proposed change" in prompt
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Phase 4.6 #89 — control-arm prompt variant
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_treatment_arm_is_the_default() -> None:
+    """Backwards compatibility: pre-#89 callers don't know about `arm` and
+    must keep getting the treatment-arm prompt. Pin via byte-equivalence
+    against the explicit-treatment call."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    default_prompt = compose_identity_prompt(**args)
+    explicit_treatment = compose_identity_prompt(**args, arm="treatment")
+    assert default_prompt == explicit_treatment
+
+
+def test_control_arm_omits_proposed_change_section() -> None:
+    """#89 Q1 (locked in docs/4.6): control-arm prompt drops the
+    `## The proposed change` section entirely. The agent reacts to the
+    current product, NOT to a hypothetical change."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        arm="control",
+    )
+    assert "## The proposed change" not in prompt
+    # The hypothesis prose specifically must not appear in the control arm
+    # (carrying it through would re-introduce the proposed-change reality
+    # the control arm is supposed to be blind to).
+    assert _hypothesis().prose not in prompt
+
+
+def test_control_arm_includes_status_quo_task_framing() -> None:
+    """The control arm replaces the treatment task with a status-quo
+    framing that prompts the agent to react to TODAY's experience."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        arm="control",
+    )
+    assert "as it works for you TODAY" in prompt
+    # Explicit anti-speculation guard so the LLM doesn't drift into
+    # "well if you imagined a change..." in the control arm. Normalize
+    # whitespace because the prompt wraps lines.
+    normalized = " ".join(prompt.split())
+    assert "Do not speculate about hypothetical changes" in normalized
+
+
+def test_control_arm_preserves_77_anti_template_guards() -> None:
+    """Codex regression risk: any change to `prompt_composer.py` can drop
+    the #77 anti-templated-opener guards. Both arms MUST keep the same
+    "Do NOT open" template list — otherwise the control arm starts
+    emitting "Honestly, I'm not too thrilled" again and the lift becomes
+    a comparison of templated drift, not real persona reaction."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        arm="control",
+    )
+    for hedge in (
+        "Honestly, I'm not",
+        "As someone who",
+        "mixed feelings",
+        "interesting proposed change",
+    ):
+        assert hedge in prompt, f"control arm dropped #77 guard for {hedge!r}"
+
+
+def test_control_arm_drops_proposed_change_opener_anchor() -> None:
+    """The treatment arm's 4th opener anchor is 'a specific number, item, or
+    flow step from the proposed change.' That doesn't apply to the control
+    arm since there IS no proposed change — drop it. The other three anchors
+    (current_state / recent_gripe / role-gated experience) stay."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        arm="control",
+    )
+    # Three anchors that survive
+    assert "current_state" in prompt
+    assert "recent_gripe" in prompt
+    assert "role-gated experience" in prompt
+    # The proposed-change anchor is removed
+    assert "specific number, item, or flow step from the proposed change" not in prompt
+
+
+def test_control_arm_keeps_identity_preamble_byte_equivalent() -> None:
+    """The persona / about-you / behavioral-snapshot / product-today preamble
+    MUST be byte-identical between arms. This is the pairing invariant: the
+    only diff between a treatment and control agent's prompt is the task
+    framing — everything that defines who the agent IS stays the same.
+    Drift here breaks the paired comparison in #90."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    treatment = compose_identity_prompt(**args, arm="treatment")
+    control = compose_identity_prompt(**args, arm="control")
+    # The shared preamble runs from "You are roleplaying" through the
+    # "### Structural spec" section. Both prompts must contain this region
+    # verbatim.
+    shared_start = "You are roleplaying"
+    shared_end_marker = "### Structural spec"
+    t_start = treatment.find(shared_start)
+    t_end = treatment.find(shared_end_marker)
+    c_start = control.find(shared_start)
+    c_end = control.find(shared_end_marker)
+    assert t_start >= 0 and t_end > t_start
+    assert c_start >= 0 and c_end > c_start
+    # Compare the shared region (preamble through end of "Structural spec"
+    # header). The trailing figma summary is included downstream, but the
+    # header position alignment is enough to pin "same preamble shape".
+    assert treatment[t_start:t_end] == control[c_start:c_end]
+
+
+def test_control_arm_works_without_identity_seed() -> None:
+    """Back-compat: control arm must accept identity_seed=None (single-arm
+    sims pre-#5 had no seed; an A/B run against a v1.0 persona pack with
+    no behavioral_seeds also produces None)."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=None,
+        arm="control",
+    )
+    # No about-you section, but the control task framing still landed.
+    assert "## About you specifically" not in prompt
+    assert "as it works for you TODAY" in prompt
