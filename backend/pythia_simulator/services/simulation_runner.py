@@ -433,13 +433,30 @@ class SimulationRunner:
                 persona_id=r.persona_id,
                 persona_name=r.persona_name,
                 reaction_text=r.reaction_text,
+                sample_index=r.sample_index,
+                arm=r.arm,
             )
             for r in agent_records
         ]
 
-        result, analyses = await scoring.score(
-            hypothesis, reactions, run_seed=run_seed
-        )
+        # Phase 4.6 #90: A/B mode → run the paired-lift aggregator over the
+        # treatment + control split. Detect dual-arm via any record carrying
+        # an `arm` tag; single-arm sims keep `arm=None` everywhere and fall
+        # through to the existing `score()` path unchanged.
+        is_ab_mode = any(r.arm is not None for r in reactions)
+        if is_ab_mode:
+            treatment_reactions = [r for r in reactions if r.arm == "treatment"]
+            control_reactions = [r for r in reactions if r.arm == "control"]
+            result, analyses = await scoring.score_ab(
+                hypothesis,
+                treatment_reactions,
+                control_reactions,
+                run_seed=run_seed,
+            )
+        else:
+            result, analyses = await scoring.score(
+                hypothesis, reactions, run_seed=run_seed
+            )
         # #51: persist per-agent sentiment + top-quote on the result so the
         # detail page can render the table without N extra R2 reads. Pair
         # analyses with their reaction text by agent_id (same len + same order

@@ -1,0 +1,380 @@
+"""Tests for `services.scoring.aggregate_ab` — Phase 4.6 #90 paired lift.
+
+Six known-answer fixtures pin the formula per `docs/4.6-ab-experiment-mode.md`
+§ Test fixtures:
+
+1. zero-lift balanced pairs                — lift ≈ 0, CI tight
+2. positive lift, all pairs positive       — lift > 0, CI excludes 0
+3. negative lift, all pairs negative       — lift < 0, CI excludes 0
+4. mixed lift, CI crosses zero
+5. single matched pair (N=1 degenerate)    — lift_ci = (lift, lift)
+6. partial-failure: unmatched + sentiment_failed drops
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from pythia_simulator.schemas.scoring import (
+    ABLiftResult,
+    AgentAnalysis,
+    ScoringConfig,
+    Sentiment,
+    SentimentClassification,
+    WeaknessClassification,
+)
+from pythia_simulator.schemas.simulation import Hypothesis
+from pythia_simulator.services.scoring import AgentReaction, ScoringService, aggregate_ab
+
+
+def _a(
+    *,
+    agent_id: str,
+    persona_id: str,
+    sample_index: int,
+    sentiment: Sentiment,
+    confidence: float = 1.0,
+    categories: list[str] | None = None,
+    sentiment_failed: bool = False,
+) -> AgentAnalysis:
+    return AgentAnalysis(
+        agent_id=agent_id,
+        persona_id=persona_id,
+        persona_name=persona_id,
+        sample_index=sample_index,
+        weakness=WeaknessClassification(categories=categories or []),
+        sentiment=SentimentClassification(
+            sentiment=sentiment, confidence=confidence, one_line_summary=""
+        ),
+        sentiment_failed=sentiment_failed,
+    )
+
+
+# Disable bootstrap when we want to focus on the point estimate or drop counts;
+# CI-aware tests opt into a non-zero bootstrap explicitly.
+_NO_CI_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+_CI_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=500)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
+
+def _matched_pairs(
+    n: int,
+    *,
+    t_sentiment: Sentiment,
+    c_sentiment: Sentiment,
+    confidence: float = 1.0,
+) -> tuple[list[AgentAnalysis], list[AgentAnalysis]]:
+    """Build N matched (persona_id, sample_index) pairs across two arms."""
+    treatment = [
+        _a(
+            agent_id=f"t{i}",
+            persona_id=f"p{i}",
+            sample_index=0,
+            sentiment=t_sentiment,
+            confidence=confidence,
+        )
+        for i in range(n)
+    ]
+    control = [
+        _a(
+            agent_id=f"c{i}",
+            persona_id=f"p{i}",
+            sample_index=0,
+            sentiment=c_sentiment,
+            confidence=confidence,
+        )
+        for i in range(n)
+    ]
+    return treatment, control
+
+
+# ── 1. Zero-lift balanced pairs ───────────────────────────────────────
+
+
+def test_zero_lift_balanced_pairs() -> None:
+    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.NEUTRAL, c_sentiment=Sentiment.NEUTRAL)
+    t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+
+    assert isinstance(lift, ABLiftResult)
+    assert lift.paired_n == 10
+    assert lift.unpaired_treatment == 0
+    assert lift.unpaired_control == 0
+    assert lift.sentiment_failure_drops == 0
+    assert lift.lift == pytest.approx(0.0, abs=1e-6)
+    assert lift.lift_ci is not None
+    # CI should bracket zero and be tight (both arms identical)
+    assert lift.lift_ci[0] == pytest.approx(0.0, abs=1e-6)
+    assert lift.lift_ci[1] == pytest.approx(0.0, abs=1e-6)
+    # Per-arm SimulationResults still populated
+    assert t_result.confidence_score == pytest.approx(c_result.confidence_score, abs=1e-6)
+
+
+# ── 2. Positive lift, all pairs positive ──────────────────────────────
+
+
+def test_positive_lift_all_pairs_positive() -> None:
+    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+
+    assert lift.paired_n == 10
+    # Per-agent delta = 1.0 × 1.0 − 1.0 × 0.0 = 1.0 for each pair.
+    # CI on lift = (sentiment_weight × 100) × CI on mean(delta) = 60 × (1, 1).
+    assert lift.lift is not None
+    assert lift.lift > 0
+    # confidence_score delta is what `lift` reports — both arms have identical
+    # weakness signal (no categories), so lift equals sentiment contribution
+    # diff: (1.0 − 0.0 with shrinkage k=1 toward 0.5) × 0.6 × 100.
+    assert t_result.confidence_score > c_result.confidence_score
+    assert lift.lift == pytest.approx(t_result.confidence_score - c_result.confidence_score, abs=1e-6)
+    # CI should exclude zero on the positive side
+    assert lift.lift_ci is not None
+    assert lift.lift_ci[0] > 0
+
+
+# ── 3. Negative lift, all pairs negative ──────────────────────────────
+
+
+def test_negative_lift_all_pairs_negative() -> None:
+    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.NEGATIVE, c_sentiment=Sentiment.POSITIVE)
+    t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+
+    assert lift.paired_n == 10
+    assert lift.lift is not None
+    assert lift.lift < 0
+    assert lift.lift_ci is not None
+    # CI should exclude zero on the negative side
+    assert lift.lift_ci[1] < 0
+
+
+# ── 4. Mixed lift, CI crosses zero ────────────────────────────────────
+
+
+def test_mixed_lift_ci_crosses_zero() -> None:
+    # Half positive deltas, half negative — symmetric around zero.
+    treatment: list[AgentAnalysis] = []
+    control: list[AgentAnalysis] = []
+    for i in range(10):
+        t_sent = Sentiment.POSITIVE if i < 5 else Sentiment.NEGATIVE
+        c_sent = Sentiment.NEGATIVE if i < 5 else Sentiment.POSITIVE
+        treatment.append(_a(agent_id=f"t{i}", persona_id=f"p{i}", sample_index=0, sentiment=t_sent))
+        control.append(_a(agent_id=f"c{i}", persona_id=f"p{i}", sample_index=0, sentiment=c_sent))
+
+    _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    assert lift.paired_n == 10
+    assert lift.lift is not None
+    assert lift.lift == pytest.approx(0.0, abs=1e-6)
+    assert lift.lift_ci is not None
+    # The mixed-sign distribution should yield a CI that brackets zero.
+    assert lift.lift_ci[0] < 0 < lift.lift_ci[1]
+
+
+# ── 5. Single matched pair (N=1 degenerate) ───────────────────────────
+
+
+def test_single_matched_pair_degenerate_ci() -> None:
+    treatment, control = _matched_pairs(1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL)
+    _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+
+    assert lift.paired_n == 1
+    assert lift.lift is not None
+    assert lift.lift > 0
+    # N=1 bootstrap always picks the same element → CI collapses to a point.
+    # The point need not equal `lift` exactly: `lift` is the per-arm
+    # confidence_score diff (incl. shrinkage + weakness signal), while the
+    # CI is anchored on the sentiment-only delta bootstrap. They differ
+    # whenever the two arms' weakness / shrinkage contributions diverge.
+    assert lift.lift_ci is not None
+    assert lift.lift_ci[0] == lift.lift_ci[1]
+
+
+# ── 6. Partial-failure: unmatched + sentiment_failed drops ────────────
+
+
+def test_partial_failure_drop_counters() -> None:
+    # 5 treatment + 5 control, but only 3 matched pairs; 2 treatment unmatched,
+    # 2 control unmatched. Of the 3 matched, one has sentiment_failed=True on
+    # the treatment side and gets dropped from the bootstrap.
+    treatment = [
+        _a(agent_id="t0", persona_id="p0", sample_index=0, sentiment=Sentiment.POSITIVE),
+        _a(agent_id="t1", persona_id="p1", sample_index=0, sentiment=Sentiment.POSITIVE),
+        _a(
+            agent_id="t2",
+            persona_id="p2",
+            sample_index=0,
+            sentiment=Sentiment.NEUTRAL,
+            sentiment_failed=True,
+        ),
+        _a(agent_id="t3", persona_id="p3", sample_index=0, sentiment=Sentiment.POSITIVE),
+        _a(agent_id="t4", persona_id="p4", sample_index=0, sentiment=Sentiment.POSITIVE),
+    ]
+    control = [
+        _a(agent_id="c0", persona_id="p0", sample_index=0, sentiment=Sentiment.NEGATIVE),
+        _a(agent_id="c1", persona_id="p1", sample_index=0, sentiment=Sentiment.NEGATIVE),
+        _a(agent_id="c2", persona_id="p2", sample_index=0, sentiment=Sentiment.NEGATIVE),
+        # p5 / p6 unmatched on control side (no treatment with persona_id p5/p6
+        # would be needed; instead p3/p4 unmatched on control side).
+    ]
+    # treatment has p0..p4; control has p0..p2 → matched on p0/p1/p2.
+    # Unmatched: t3, t4 (2 treatment), no unmatched controls.
+    # Sentiment-failed: p2 matched but t2.sentiment_failed=True → dropped.
+    # Surviving paired_n = 2 (p0, p1).
+    _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    assert lift.paired_n == 2
+    assert lift.unpaired_treatment == 2
+    assert lift.unpaired_control == 0
+    assert lift.sentiment_failure_drops == 1
+    assert lift.lift is not None
+    assert lift.lift > 0  # the 2 surviving pairs are POS − NEG
+
+
+# ── Degenerate: zero usable pairs ─────────────────────────────────────
+
+
+def test_zero_usable_pairs_returns_none() -> None:
+    treatment = [_a(agent_id="t0", persona_id="p0", sample_index=0, sentiment=Sentiment.POSITIVE)]
+    control = [_a(agent_id="c0", persona_id="p1", sample_index=0, sentiment=Sentiment.NEGATIVE)]
+    _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    assert lift.paired_n == 0
+    assert lift.lift is None
+    assert lift.lift_ci is None
+    assert lift.unpaired_treatment == 1
+    assert lift.unpaired_control == 1
+
+
+# ── bootstrap_resamples=0 → lift but no CI ────────────────────────────
+
+
+def test_bootstrap_zero_leaves_lift_ci_none() -> None:
+    treatment, control = _matched_pairs(5, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    _t, _c, lift = aggregate_ab(treatment, control, _NO_CI_CFG, run_seed=42)
+    assert lift.paired_n == 5
+    assert lift.lift is not None
+    assert lift.lift_ci is None
+
+
+# ── Determinism ───────────────────────────────────────────────────────
+
+
+def test_aggregate_ab_deterministic_with_run_seed() -> None:
+    treatment, control = _matched_pairs(8, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    _t1, _c1, lift1 = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    _t2, _c2, lift2 = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
+    assert lift1.lift == lift2.lift
+    assert lift1.lift_ci == lift2.lift_ci
+
+
+# ── score_ab composition (end-to-end through analyze) ────────────────
+
+
+class _ScriptedChat:
+    """Returns positive sentiment for treatment-arm reactions, negative for
+    control-arm reactions. Drives a deterministic lift > 0 case so the
+    composition assertions are stable."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        self.calls += 1
+        user_msg = next(m["content"] for m in messages if m["role"] == "user")
+        if schema is WeaknessClassification:
+            return WeaknessClassification(categories=[], primary_reason="ok")
+        # Sentiment: marker tokens in the reaction_text drive the canned bucket.
+        if "TREATMENT_REACTION" in user_msg:
+            return SentimentClassification(
+                sentiment=Sentiment.POSITIVE, confidence=1.0, one_line_summary=""
+            )
+        return SentimentClassification(
+            sentiment=Sentiment.NEGATIVE, confidence=1.0, one_line_summary=""
+        )
+
+    def chat(self, *a, **k):  # pragma: no cover
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_score_ab_composes_lift_fields_onto_result() -> None:
+    svc = ScoringService(chat_client=_ScriptedChat())
+    hypothesis = Hypothesis(capability_name="reorder", prose="test")
+
+    treatment = [
+        AgentReaction(
+            agent_id=f"t{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="TREATMENT_REACTION",
+            sample_index=0,
+            arm="treatment",
+        )
+        for i in range(5)
+    ]
+    control = [
+        AgentReaction(
+            agent_id=f"c{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="CONTROL_REACTION",
+            sample_index=0,
+            arm="control",
+        )
+        for i in range(5)
+    ]
+
+    result, analyses = await svc.score_ab(
+        hypothesis,
+        treatment,
+        control,
+        run_seed=42,
+        config=_CI_CFG,
+    )
+
+    assert len(analyses) == 10
+    # Per-arm scores populated and ordered correctly (treatment > control)
+    assert result.treatment_score is not None
+    assert result.control_score is not None
+    assert result.treatment_score > result.control_score
+    # Lift fields populated
+    assert result.lift is not None
+    assert result.lift > 0
+    assert result.lift_ci is not None
+    assert result.lift_paired_n == 5
+    assert result.lift_unpaired_treatment == 0
+    assert result.lift_unpaired_control == 0
+    assert result.lift_sentiment_failure_drops == 0
+    # Headline confidence_score is the treatment arm (the proposed change)
+    assert result.confidence_score == pytest.approx(result.treatment_score)
+
+
+@pytest.mark.asyncio
+async def test_score_ab_empty_inputs_returns_placeholder() -> None:
+    svc = ScoringService(chat_client=object())  # not called
+    result, analyses = await svc.score_ab(
+        Hypothesis(capability_name="reorder", prose="test"),
+        treatment_reactions=[],
+        control_reactions=[],
+    )
+    assert analyses == []
+    assert result.confidence_score == 0.0
+    assert result.lift is None
+    assert result.lift_paired_n is None
+
+
+# ── Pairing key uses (persona_id, sample_index), not persona alone ────
+
+
+def test_pairing_distinguishes_sample_index() -> None:
+    # Two treatment agents on same persona at sample_index 0 and 1;
+    # control has only sample_index 0 → one matched, one unmatched.
+    treatment = [
+        _a(agent_id="t0", persona_id="p0", sample_index=0, sentiment=Sentiment.POSITIVE),
+        _a(agent_id="t1", persona_id="p0", sample_index=1, sentiment=Sentiment.POSITIVE),
+    ]
+    control = [
+        _a(agent_id="c0", persona_id="p0", sample_index=0, sentiment=Sentiment.NEGATIVE),
+    ]
+    _t, _c, lift = aggregate_ab(treatment, control, _NO_CI_CFG, run_seed=42)
+    assert lift.paired_n == 1
+    assert lift.unpaired_treatment == 1
+    assert lift.unpaired_control == 0

@@ -62,6 +62,10 @@ class AgentAnalysis(BaseModel):
     sentiment: SentimentClassification
     weakness_failed: bool = False
     sentiment_failed: bool = False
+    sample_index: int = 0
+    """Per-persona draw index. Phase 4.6 #90 pairs treatment/control by
+    (persona_id, sample_index); default 0 keeps single-arm callers
+    backwards-compatible."""
 
 
 # ── Scoring configuration ─────────────────────────────────────────────
@@ -131,6 +135,33 @@ class ScoringConfig(BaseModel):
             "means the reported score is 70% of the raw score."
         ),
     )
+
+
+# ── A/B lift result (Phase 4.6 #90) ───────────────────────────────────
+
+
+class ABLiftResult(BaseModel):
+    """Paired-bootstrap lift between treatment and control arms.
+
+    Returned by `services.scoring.aggregate_ab` alongside the per-arm
+    SimulationResults; the route layer composes it onto the unified
+    SimulationResult via the `lift*` fields.
+
+    `lift` is in confidence_score units (range [-100, +100]) so it's
+    directly comparable to a confidence_score delta. `lift_ci` is in the
+    same units, derived by scaling the per-agent-delta bootstrap CI by
+    `sentiment_weight × 100`. `paired_n` is the count of matched pairs
+    that actually fed the bootstrap; the three drop counters surface
+    what was excluded so PMs see partial-failure runs honestly instead
+    of a silently shrunken N.
+    """
+
+    lift: float | None = None
+    lift_ci: tuple[float, float] | None = None
+    paired_n: int = 0
+    unpaired_treatment: int = 0
+    unpaired_control: int = 0
+    sentiment_failure_drops: int = 0
 
 
 # ── Refinement ────────────────────────────────────────────────────────

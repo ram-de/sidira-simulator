@@ -148,6 +148,17 @@ class SimulationResult(BaseModel):
         ),
     )
 
+    # ── A/B mode fields (Phase 4.6 #90) ──
+    # All None / 0 for single-arm sims so older `result_json` rows load.
+    treatment_score: float | None = None
+    control_score: float | None = None
+    lift: float | None = None
+    lift_ci: tuple[float, float] | None = None
+    lift_paired_n: int | None = None
+    lift_unpaired_treatment: int = 0
+    lift_unpaired_control: int = 0
+    lift_sentiment_failure_drops: int = 0
+
 
 class Simulation(BaseModel):
     id: str
