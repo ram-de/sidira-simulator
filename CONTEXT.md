@@ -2,11 +2,21 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-27 (Phase 4.6 closed -- A/B experiment mode shipped end-to-end)
+**Last updated:** 2026-05-27 (Phase 4.6 closed + #101 persona filter shipped)
 
 ---
 
 ## What just shipped
+
+✅ **#101 -- persona filter, SHIPPED 2026-05-27 (PR #102, commit `2a313c1`, session `persona-filter`).**
+PMs can narrow a sim to a subset of personas via a checkbox list behind the wizard's "Advanced options" disclosure. Default unchanged (all personas). Allocator re-weights the selected personas' weights to sum to 1 before largest-remainder, so a 12%-weight persona selected solo gets the full 50 agents -- preserves the cohort sample size. New `GET /personas` endpoint feeds the wizard's checkbox list. Cohort banner on the result page surfaces "filtered to N of M personas: {names}" so a PM revisiting the page in two weeks remembers they filtered. A/B mode + filter compose symmetrically (same persona subset in both arms preserves the #89 paired-sampling invariant). Backend suite at 327 passed / 10 skipped (15 new #101 tests). Codex review: 2 rounds, 1 P2 fixed, R2 GATE PASS.
+
+**One follow-up filed on top of #101:**
+- **#103** -- model selection (multi-provider: Anthropic + OpenAI + Groq). PMs pick the LLM that powers the agents. Motivating reason: better agent reasoning on subtle hypotheses (autoplay-is-divisive on llama would benefit from Opus-level inference). Filed 2026-05-27, ~3-4 days, biggest piece is the multi-provider `ChatClient` abstraction. A/B mode enforces same-model-in-both-arms (preserves #90 paired-lift invariant).
+
+---
+
+## What just shipped (earlier)
 
 ✅ **Phase 4.6 -- A/B experiment mode, SHIPPED 2026-05-27 (session `phase-4.6-ab-experiment-mode`).**
 PMs can now submit a hypothesis with the A/B toggle enabled, watch both treatment and control arms run with paired sampling, and read a predicted-lift card with bootstrap CI on the result page. All six tickets landed (#87 design / #88 schema + wizard input / #89 dual-arm runner + control-arm prompt / #90 paired-lift formula + CI / #91 result-page lift card + arm-split table + wizard toggle live / #92 e2e calibration dogfood). Wizard A/B toggle is live end-to-end. Backend suite at 312 passed / 10 skipped (same baseline #90 established).
