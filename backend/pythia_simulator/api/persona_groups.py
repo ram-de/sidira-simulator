@@ -33,7 +33,9 @@ import asyncio
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from pythia_simulator.adapters.r2 import get_store
 from pythia_simulator.adapters.repositories import AgentInstanceRepo, SimulationRepo
@@ -106,12 +108,22 @@ async def send_persona_group_message(
     sim_id: str,
     persona_id: str,
     payload: PersonaGroupChatRequest,
+    arm: Literal["treatment", "control"] | None = Query(
+        default=None,
+        description=(
+            "Phase 5 #98: scope the chat to one arm in A/B sims. When set, "
+            "only agents with the matching arm are included in the fan-out "
+            "and the transcript is logged to an arm-scoped path. Omit for "
+            "single-arm sims (today's behavior)."
+        ),
+    ),
     customer_id: str = Depends(current_customer_id),
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
     sim_repo: SimulationRepo = Depends(get_simulation_repo),
 ) -> PersonaGroupChatResponse:
     """Send one PM message to the persona group. `mode` selects collective
-    voice (default) or individual fan-out. See docs/agent-chat-ui-spec.md
+    voice (default) or individual fan-out. `arm` (Phase 5 #98) scopes the
+    fan-out + transcript to one A/B arm. See docs/agent-chat-ui-spec.md
     Surface 2."""
     message = payload.message.strip()
     if not message:
@@ -129,13 +141,22 @@ async def send_persona_group_message(
 
     rows = await agent_repo.list_for_simulation(sim_id, customer_id)
     persona_rows = [r for r in rows if r["persona_id"] == persona_id]
-    if not persona_rows:
+    if arm is None and any(r.get("arm") is not None for r in persona_rows):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                f"No agents found in simulation {sim_id} for persona {persona_id}"
-            ),
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A/B persona-group chats require ?arm=treatment or ?arm=control.",
         )
+    if arm is not None:
+        # Phase 5 #98: arm-scoped fan-out. Only agents in the named arm
+        # participate; the rest stay in the other room. Single-arm sims
+        # have agents with arm=None and would never be filtered by this
+        # branch (their callers don't pass ?arm=).
+        persona_rows = [r for r in persona_rows if r.get("arm") == arm]
+    if not persona_rows:
+        detail = f"No agents found in simulation {sim_id} for persona {persona_id}"
+        if arm is not None:
+            detail = f"{detail} in arm {arm!r}"
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
     # Deterministic ordering so labels are stable across calls and across
     # collective/individual modes within the same persona group.
@@ -151,6 +172,7 @@ async def send_persona_group_message(
             message=message,
             metadatas=metadatas,
             labels=labels,
+            arm=arm,
         )
     return await _handle_individual_fanout(
         customer_id=customer_id,
@@ -159,6 +181,7 @@ async def send_persona_group_message(
         message=message,
         metadatas=metadatas,
         labels=labels,
+        arm=arm,
     )
 
 
@@ -175,6 +198,7 @@ async def _handle_collective(
     message: str,
     metadatas: list[AgentInstanceMetadata],
     labels: list[str],
+    arm: Literal["treatment", "control"] | None = None,
 ) -> PersonaGroupChatResponse:
     """One LLM call answering in the voice of the persona group.
 
@@ -265,6 +289,7 @@ async def _handle_collective(
             customer_id=customer_id,
             simulation_id=sim_id,
             persona_id=persona_id,
+            arm=arm,
         )
     except Exception as exc:  # noqa: BLE001 — read failure is recoverable
         log.warning(
@@ -306,6 +331,7 @@ async def _handle_collective(
         sim_id=sim_id,
         persona_id=persona_id,
         turns=(pm_turn, collective_turn),
+        arm=arm,
     )
 
     return PersonaGroupChatResponse(
@@ -333,8 +359,14 @@ async def _handle_individual_fanout(
     message: str,
     metadatas: list[AgentInstanceMetadata],
     labels: list[str],
+    arm: Literal["treatment", "control"] | None = None,
 ) -> PersonaGroupChatResponse:
-    """Original #54 fan-out + synthesis path. Behaviour unchanged."""
+    """Original #54 fan-out + synthesis path. Behaviour unchanged.
+
+    Phase 5 #98: when arm is set, the audit-log append goes to the arm-scoped
+    path so the two A/B rooms stay isolated. Fan-out itself was already
+    arm-scoped by the caller pruning `metadatas` to one arm.
+    """
     chat_service = AgentChatService()
     semaphore = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
 
@@ -414,6 +446,7 @@ async def _handle_individual_fanout(
         sim_id=sim_id,
         persona_id=persona_id,
         turns=(pm_turn, synth_turn),
+        arm=arm,
     )
 
     return PersonaGroupChatResponse(
@@ -478,6 +511,7 @@ async def _append_group_log_best_effort(
     sim_id: str,
     persona_id: str,
     turns: tuple[PersonaGroupTurn, ...],
+    arm: Literal["treatment", "control"] | None = None,
 ) -> None:
     """Append every turn to the group log, swallowing per-turn failures.
 
@@ -486,6 +520,8 @@ async def _append_group_log_best_effort(
     upstream state. Appends are sequential — the JSONL log expects ordered
     lines, so we do NOT parallelize even though concurrent writes would
     technically work.
+
+    Phase 5 #98: when arm is set, all turns land on the arm-scoped log path.
     """
     for turn in turns:
         try:
@@ -495,6 +531,7 @@ async def _append_group_log_best_effort(
                 simulation_id=sim_id,
                 persona_id=persona_id,
                 turn=turn,
+                arm=arm,
             )
         except Exception as exc:  # noqa: BLE001 — audit trail is best-effort
             log.warning(
@@ -514,6 +551,13 @@ async def _append_group_log_best_effort(
 async def list_persona_group_turns(
     sim_id: str,
     persona_id: str,
+    arm: Literal["treatment", "control"] | None = Query(
+        default=None,
+        description=(
+            "Phase 5 #98: replay the arm-scoped transcript when set. Omit "
+            "for single-arm sims (today's behavior)."
+        ),
+    ),
     customer_id: str = Depends(current_customer_id),
     sim_repo: SimulationRepo = Depends(get_simulation_repo),
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
@@ -521,7 +565,8 @@ async def list_persona_group_turns(
     """Replay the persona-group conversation log.
 
     Used by the frontend `/simulations/[id]/personas/[persona_id]` route to
-    render prior turns on page load.
+    render prior turns on page load. Phase 5 #98: when ``arm`` is set the
+    response is restricted to that arm's transcript.
     """
     sim = await sim_repo.get(sim_id, customer_id)
     if sim is None:
@@ -532,11 +577,26 @@ async def list_persona_group_turns(
     # Confirm the persona exists in this sim before returning (avoids
     # leaking "empty log" as a positive answer for a typo'd persona_id).
     rows = await agent_repo.list_for_simulation(sim_id, customer_id)
-    if not any(r["persona_id"] == persona_id for r in rows):
+    persona_rows = [r for r in rows if r["persona_id"] == persona_id]
+    if not persona_rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(f"No agents found in simulation {sim_id} for persona {persona_id}"),
+        )
+    if arm is None and any(r.get("arm") is not None for r in persona_rows):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A/B persona-group chats require ?arm=treatment or ?arm=control.",
+        )
+    # Phase 5 #98: if arm scope is requested, also confirm at least one
+    # agent in that arm exists. Otherwise a typo'd ?arm=tratment would
+    # silently return an empty transcript that looks correct.
+    if arm is not None and not any(r.get("arm") == arm for r in persona_rows):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                f"No agents found in simulation {sim_id} for persona {persona_id}"
+                f"No agents found in simulation {sim_id} for persona "
+                f"{persona_id} in arm {arm!r}"
             ),
         )
 
@@ -547,20 +607,28 @@ async def list_persona_group_turns(
         customer_id=customer_id,
         simulation_id=sim_id,
         persona_id=persona_id,
+        arm=arm,
     )
 
     # #56: paint calibration thumbs onto each turn from the feedback log.
     # Latest event per (sim/persona, turn_index) wins; cleared thumbs
     # overwrite prior 👍/👎. Same join pattern as the per-agent route.
+    #
+    # Phase 5 #98: when ``arm`` is set the feedback target_id gains an arm
+    # suffix so T-turn-0 thumbs and C-turn-0 thumbs don't collide on the
+    # same (sim_id, persona_id, turn_index) key. Pre-#98 single-arm sims
+    # keep the 2-segment target_id for backwards-compat. The feedback POST
+    # handler MUST mirror this scheme; see api/feedback.py.
     from pythia_simulator.memory.feedback_log import FeedbackLog
     from pythia_simulator.schemas.feedback import FeedbackTargetKind
 
+    target_id = f"{sim_id}/{persona_id}/{arm}" if arm is not None else f"{sim_id}/{persona_id}"
     flags = await asyncio.to_thread(
         FeedbackLog(store).latest_flags,
         customer_id=customer_id,
         simulation_id=sim_id,
         target_kind=FeedbackTargetKind.PERSONA_GROUP,
-        target_id=f"{sim_id}/{persona_id}",
+        target_id=target_id,
     )
     if flags:
         for idx, turn in enumerate(turns):
