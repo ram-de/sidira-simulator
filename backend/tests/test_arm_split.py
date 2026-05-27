@@ -91,12 +91,15 @@ def test_arm_split_rejects_extra_fields() -> None:
         ArmSplit.model_validate({"treatment_fraction": 0.5, "control_fraction": 0.5})
 
 
-def test_arm_split_accepts_off_center_fraction() -> None:
-    """The field exists for future flexibility (independent sampling) even
-    though the wizard always sends 0.5 in v1. Non-50/50 fractions must
-    still validate at the schema layer."""
-    split = ArmSplit(treatment_fraction=0.7)
-    assert split.treatment_fraction == 0.7
+def test_arm_split_rejects_non_half_fraction() -> None:
+    """Codex P2 on PR #95: non-0.5 splits are silently overridden by the
+    per-arm max-agent cap and #90's paired lift formula needs f=0.5
+    anyway. Tighten the schema to reject anything else until we have a
+    product reason for asymmetric arms AND a scorer that supports them."""
+    with pytest.raises(ValidationError):
+        ArmSplit(treatment_fraction=0.7)
+    with pytest.raises(ValidationError):
+        ArmSplit(treatment_fraction=0.3)
 
 
 # ──────────────────────────────────────────────────────────────────────
