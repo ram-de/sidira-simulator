@@ -204,13 +204,22 @@ export default function NewSimulationPage() {
       return;
     }
 
-    // Phase 5 #101: send `selected_personas: null` when ALL personas are
-    // checked (matches the backend's "None = all" convention, keeps the
-    // persisted sim row tidy, and lets the result page hide the cohort
-    // banner). Send the explicit subset only when the PM actually narrowed.
-    const personaFilter: string[] | null = allPersonasSelected
-      ? null
-      : Array.from(selectedPersonas);
+    // Phase 5 #101: send `selected_personas: null` when:
+    //   (1) ALL personas are checked (= "no filter"), OR
+    //   (2) the /personas fetch hasn't loaded yet / failed, so we don't
+    //       know the full set and the PM can't actually be filtering --
+    //       falling back to "null = all personas" is the correct
+    //       backwards-compat behavior. (codex R1-P2 on #101: without this,
+    //       a still-loading or errored /personas call left
+    //       selectedPersonas empty, and the wizard submitted
+    //       selected_personas: [] which the API 422-rejects -- breaking
+    //       the exact fallback path the error UI promised would "run
+    //       against all personas.")
+    // Send the explicit subset only when the PM has actually narrowed.
+    const personaFilter: string[] | null =
+      totalPersonaCount === 0 || allPersonasSelected
+        ? null
+        : Array.from(selectedPersonas);
 
     const req: SimulationRequest = {
       hypothesis: {
