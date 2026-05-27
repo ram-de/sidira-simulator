@@ -62,6 +62,20 @@ class AgentAnalysis(BaseModel):
     sentiment: SentimentClassification
     weakness_failed: bool = False
     sentiment_failed: bool = False
+    weakness_attempted: bool = True
+    """Whether the weakness classifier ran for this agent. Phase 4.6 #90
+    (codex R3-P2a): control-arm agents skip weakness classification
+    entirely because the 6 categories describe experiment-design
+    weaknesses in the proposed change, undefined for the status-quo
+    arm. `aggregate()`'s degradation gate divides failures by
+    *attempted* classifications, not by 2N — otherwise a fully-failed
+    control sentiment run would show 50% failure rate (N/2N) and miss
+    the strict `>` threshold. Treatment + single-arm callers keep the
+    default True."""
+    sample_index: int = 0
+    """Per-persona draw index. Phase 4.6 #90 pairs treatment/control by
+    (persona_id, sample_index); default 0 keeps single-arm callers
+    backwards-compatible."""
 
 
 # ── Scoring configuration ─────────────────────────────────────────────
@@ -131,6 +145,33 @@ class ScoringConfig(BaseModel):
             "means the reported score is 70% of the raw score."
         ),
     )
+
+
+# ── A/B lift result (Phase 4.6 #90) ───────────────────────────────────
+
+
+class ABLiftResult(BaseModel):
+    """Paired-bootstrap lift between treatment and control arms.
+
+    Returned by `services.scoring.aggregate_ab` alongside the per-arm
+    SimulationResults; the route layer composes it onto the unified
+    SimulationResult via the `lift*` fields.
+
+    `lift` is in confidence_score units (range [-100, +100]) so it's
+    directly comparable to a confidence_score delta. `lift_ci` is in the
+    same units, derived by scaling the per-agent-delta bootstrap CI by
+    `sentiment_weight × 100`. `paired_n` is the count of matched pairs
+    that actually fed the bootstrap; the three drop counters surface
+    what was excluded so PMs see partial-failure runs honestly instead
+    of a silently shrunken N.
+    """
+
+    lift: float | None = None
+    lift_ci: tuple[float, float] | None = None
+    paired_n: int = 0
+    unpaired_treatment: int = 0
+    unpaired_control: int = 0
+    sentiment_failure_drops: int = 0
 
 
 # ── Refinement ────────────────────────────────────────────────────────

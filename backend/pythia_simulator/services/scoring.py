@@ -20,6 +20,7 @@ import structlog
 
 from pythia_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
 from pythia_simulator.schemas.scoring import (
+    ABLiftResult,
     AgentAnalysis,
     ScoringConfig,
     Sentiment,
@@ -42,9 +43,21 @@ log = structlog.get_logger()
 
 
 class AgentReaction:
-    """Lightweight DTO so scoring doesn't import SimulationRunner internals."""
+    """Lightweight DTO so scoring doesn't import SimulationRunner internals.
 
-    __slots__ = ("agent_id", "persona_id", "persona_name", "reaction_text")
+    `sample_index` + `arm` (Phase 4.6 #90): both default-safe for single-arm
+    callers. The pair (persona_id, sample_index) is the lift formula's
+    matching key; `arm` partitions the population at the score step.
+    """
+
+    __slots__ = (
+        "agent_id",
+        "persona_id",
+        "persona_name",
+        "reaction_text",
+        "sample_index",
+        "arm",
+    )
 
     def __init__(
         self,
@@ -53,11 +66,15 @@ class AgentReaction:
         persona_id: str,
         persona_name: str,
         reaction_text: str,
+        sample_index: int = 0,
+        arm: str | None = None,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
         self.persona_name = persona_name
         self.reaction_text = reaction_text
+        self.sample_index = sample_index
+        self.arm = arm
 
 
 # ─── Prompt templates ──────────────────────────────────────────────────
@@ -106,6 +123,28 @@ Return STRICT JSON:
 Use lower confidence (0.4-0.6) when the reaction is genuinely mixed."""
 
 
+# Phase 4.6 #90 (codex R2-P1): the control arm's reaction is to the
+# product AS IT WORKS TODAY, not to a proposed change. Reusing the
+# treatment-arm sentiment prompt mislabels the input — the classifier
+# would try to read the reaction as reception of a hypothetical change
+# the user never saw. This prompt frames the classification correctly.
+_SENTIMENT_SYSTEM_CONTROL = """You classify a single user's reception of a product as it works for them today.
+
+This is the STATUS-QUO arm of an A/B simulation — the user is reacting to the CURRENT
+product, NOT to any proposed change. Do not speculate about what the user might think
+of any change; only classify how they feel about the product as described.
+
+Reception buckets:
+- positive: the user welcomes / values / engages with the current product
+- neutral: the user uses the product without strong feelings either way
+- negative: the user is frustrated / would disengage / churn-risk on the current product
+
+Return STRICT JSON:
+{"sentiment": "positive|neutral|negative", "confidence": 0.0..1.0, "one_line_summary": "<one sentence>"}.
+
+Use lower confidence (0.4-0.6) when the reaction is genuinely mixed."""
+
+
 def _build_weakness_user_prompt(hypothesis: Hypothesis, reaction: str) -> str:
     return (
         f"Proposed change (capability `{hypothesis.capability_name}`):\n"
@@ -118,6 +157,14 @@ def _build_sentiment_user_prompt(hypothesis: Hypothesis, reaction: str) -> str:
     return (
         f"Proposed change (capability `{hypothesis.capability_name}`):\n"
         f"{hypothesis.prose}\n\n"
+        f"User's reaction:\n{reaction}"
+    )
+
+
+def _build_sentiment_user_prompt_control(hypothesis: Hypothesis, reaction: str) -> str:
+    return (
+        f"Capability under evaluation: `{hypothesis.capability_name}` (status-quo arm; "
+        f"the user is reacting to the product AS IT WORKS TODAY, not to any proposed change).\n\n"
         f"User's reaction:\n{reaction}"
     )
 
@@ -140,26 +187,63 @@ class ScoringService:
     async def analyze(
         self, hypothesis: Hypothesis, reaction: AgentReaction
     ) -> AgentAnalysis:
-        """Run weakness + sentiment classification in parallel for one agent."""
-        weakness_task = asyncio.to_thread(
-            self._chat.chat_json,
-            [
-                {"role": "system", "content": _WEAKNESS_SYSTEM},
-                {
-                    "role": "user",
-                    "content": _build_weakness_user_prompt(hypothesis, reaction.reaction_text),
-                },
-            ],
-            WeaknessClassification,
-        )
+        """Run weakness + sentiment classification in parallel for one agent.
+
+        Phase 4.6 #90 (codex R2-P1): when `reaction.arm == "control"`, the
+        user reacted to the STATUS-QUO product, not to a proposed change.
+        Two consequences:
+          - Sentiment uses a control-specific system prompt that frames
+            reception as feelings-about-the-current-product, NOT
+            reception-of-a-change. Mislabeling there would corrupt
+            `control_score` and therefore lift.
+          - Weakness classification is SKIPPED. The 6 categories
+            (wrong_metric, wrong_cohort, etc.) describe experiment-design
+            weaknesses in the proposed change, which is undefined for the
+            control arm. Returning empty `categories` keeps the schema
+            stable and saves the LLM call.
+        Single-arm sims (arm=None) keep the existing treatment-style
+        prompts unchanged.
+        """
+        is_control = reaction.arm == "control"
+
+        if is_control:
+            # No-op weakness coroutine so gather() still works without a
+            # second LLM call. Returns a deterministic empty classification.
+            async def _noop_weakness() -> WeaknessClassification:
+                return WeaknessClassification(
+                    categories=[],
+                    primary_reason="(control arm — weakness classification not applicable)",
+                )
+
+            weakness_task = _noop_weakness()
+            sentiment_system = _SENTIMENT_SYSTEM_CONTROL
+            sentiment_user = _build_sentiment_user_prompt_control(
+                hypothesis, reaction.reaction_text
+            )
+        else:
+            weakness_task = asyncio.to_thread(
+                self._chat.chat_json,
+                [
+                    {"role": "system", "content": _WEAKNESS_SYSTEM},
+                    {
+                        "role": "user",
+                        "content": _build_weakness_user_prompt(
+                            hypothesis, reaction.reaction_text
+                        ),
+                    },
+                ],
+                WeaknessClassification,
+            )
+            sentiment_system = _SENTIMENT_SYSTEM
+            sentiment_user = _build_sentiment_user_prompt(
+                hypothesis, reaction.reaction_text
+            )
+
         sentiment_task = asyncio.to_thread(
             self._chat.chat_json,
             [
-                {"role": "system", "content": _SENTIMENT_SYSTEM},
-                {
-                    "role": "user",
-                    "content": _build_sentiment_user_prompt(hypothesis, reaction.reaction_text),
-                },
+                {"role": "system", "content": sentiment_system},
+                {"role": "user", "content": sentiment_user},
             ],
             SentimentClassification,
         )
@@ -197,11 +281,117 @@ class ScoringService:
             agent_id=reaction.agent_id,
             persona_id=reaction.persona_id,
             persona_name=reaction.persona_name,
+            sample_index=reaction.sample_index,
             weakness=weakness,
             sentiment=sentiment,
             weakness_failed=weakness_failed,
             sentiment_failed=sentiment_failed,
+            weakness_attempted=not is_control,
         )
+
+    # — Pack-level scoring (A/B mode) ————————————————————————————————
+
+    async def score_ab(
+        self,
+        hypothesis: Hypothesis,
+        treatment_reactions: list[AgentReaction],
+        control_reactions: list[AgentReaction],
+        *,
+        run_seed: int | None = None,
+        config: ScoringConfig | None = None,
+    ) -> tuple[SimulationResult, list[AgentAnalysis]]:
+        """Fan out per-agent analysis across both arms, then aggregate with lift.
+
+        Returns a single composed SimulationResult whose `confidence_score`
+        is the treatment arm's score (the headline number PMs read) and
+        whose `lift*` / `treatment_score` / `control_score` fields surface
+        the paired-bootstrap output. `analyses` includes every successful
+        agent across both arms, preserving the per-agent table render.
+        """
+        if not treatment_reactions and not control_reactions:
+            return (
+                SimulationResult(
+                    confidence_score=0.0,
+                    weaknesses=[
+                        Weakness(
+                            category="underpowered_design",
+                            summary="No agent reactions available to score.",
+                        )
+                    ],
+                    refinement_suggestions=[],
+                ),
+                [],
+            )
+
+        # Phase 4.6 #90 (codex R5-P2): single-arm-empty A/B run. If every
+        # agent in one arm failed materialization upstream, the runner
+        # still hands us a non-empty `all_reactions`, but the empty arm's
+        # `aggregate()` returns confidence_score=0 with no weaknesses —
+        # which the composition step would surface as "treatment is
+        # terrible" or "control is terrible" with no explanation. Treat
+        # this as degraded/uncomputable: name the missing arm in an
+        # underpowered_design weakness, return paired_n=0, skip the
+        # refinement / aggregate fan-out entirely so we don't burn LLM
+        # calls on a half-broken run.
+        if not treatment_reactions or not control_reactions:
+            missing = "treatment" if not treatment_reactions else "control"
+            return (
+                SimulationResult(
+                    confidence_score=0.0,
+                    weaknesses=[
+                        Weakness(
+                            category="underpowered_design",
+                            summary=(
+                                f"A/B simulation completed with no successful "
+                                f"{missing}-arm agents; lift not computable."
+                            ),
+                        )
+                    ],
+                    refinement_suggestions=[],
+                    lift_paired_n=0,
+                ),
+                [],
+            )
+
+        all_reactions = treatment_reactions + control_reactions
+        analyses = await asyncio.gather(
+            *(self.analyze(hypothesis, r) for r in all_reactions),
+            return_exceptions=False,
+        )
+        treatment_analyses = analyses[: len(treatment_reactions)]
+        control_analyses = analyses[len(treatment_reactions) :]
+
+        treatment_result, control_result, lift = aggregate_ab(
+            treatment_analyses,
+            control_analyses,
+            config,
+            run_seed=run_seed,
+        )
+
+        # Compose: headline is treatment arm (the change the PM is testing).
+        # Lift fields surface the comparison, per-arm scores let the result
+        # page split the table. Weaknesses come from the treatment arm —
+        # those are the weaknesses in the PROPOSED change. Control-arm
+        # weaknesses describe the status quo and aren't shown by default.
+        composed = treatment_result.model_copy(
+            update={
+                "treatment_score": treatment_result.confidence_score,
+                "control_score": control_result.confidence_score,
+                "lift": lift.lift,
+                "lift_ci": lift.lift_ci,
+                # Phase 4.6 #90 (codex R3-P2b): pass paired_n through
+                # verbatim so the serialized result can distinguish
+                # "A/B attempted, no matched pairs" (lift_paired_n=0)
+                # from "single-arm sim, no A/B" (lift_paired_n=None,
+                # the schema default — single-arm sims never call this
+                # composition path).
+                "lift_paired_n": lift.paired_n,
+                "lift_unpaired_treatment": lift.unpaired_treatment,
+                "lift_unpaired_control": lift.unpaired_control,
+                "lift_sentiment_failure_drops": lift.sentiment_failure_drops,
+            }
+        )
+        return composed, list(analyses)
 
     # — Pack-level scoring ——————————————————————————————————————————
 
@@ -342,10 +532,17 @@ class ScoringService:
         # underpowered_design weakness so the PM sees the degraded state.
         # Without this, a totally-failed run silently returns ~70 (neutral
         # sentiment with shrinkage, zero weakness flags) — misleadingly fine.
+        # Phase 4.6 #90 (codex R3-P2a): count only ATTEMPTED classifications.
+        # Treatment + single-arm agents attempt 2 (weakness + sentiment);
+        # control-arm agents skip weakness, so attempting 1. Without this,
+        # a fully-failed control-sentiment run reports 50% (N failures /
+        # 2N total) and never trips the strict `>` degradation threshold.
         failed_classifications = sum(
             int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses_list
         )
-        total_classifications = 2 * n
+        total_classifications = sum(
+            int(a.weakness_attempted) + 1 for a in analyses_list
+        )
         failure_rate = (
             failed_classifications / total_classifications
             if total_classifications > 0
@@ -459,3 +656,196 @@ class ScoringService:
 
 def _summarize_category(category: str, count: int, total: int) -> str:
     return f"{count}/{total} agents flagged this — {category.replace('_', ' ')}."
+
+
+# ─── A/B paired-lift aggregator (Phase 4.6 #90) ────────────────────────
+
+
+def _agent_delta(treatment: AgentAnalysis, control: AgentAnalysis) -> float:
+    """Confidence-weighted sentiment delta for one matched pair.
+
+    Range [-1.0, +1.0]. Each side's sentiment value is shrunk toward
+    the neutral midpoint (0.5) by the inverse of the classifier's
+    confidence:
+
+        value_shrunk = confidence × value + (1 − confidence) × 0.5
+
+    The naive `confidence × value` (codex R4-P1 PR #96) silently strips
+    confidence for NEGATIVE classifications because `value=0`, so a
+    `confidence=0.1, negative` carried the same weight as
+    `confidence=1.0, negative`. Shrinking toward neutral applies
+    confidence symmetrically across positive (1.0), neutral (0.5),
+    and negative (0.0): a low-confidence classification on either end
+    collapses toward the neutral midpoint and contributes less to the
+    paired delta. Mirrors the shrinkage behavior of the aggregate
+    sentiment_score in `_compute_score` (Bayesian prior toward 0.5).
+    """
+    t_value = ScoringService._SENTIMENT_VALUE[treatment.sentiment.sentiment]
+    c_value = ScoringService._SENTIMENT_VALUE[control.sentiment.sentiment]
+    t_conf = treatment.sentiment.confidence
+    c_conf = control.sentiment.confidence
+    t_shrunk = t_conf * t_value + (1.0 - t_conf) * 0.5
+    c_shrunk = c_conf * c_value + (1.0 - c_conf) * 0.5
+    return t_shrunk - c_shrunk
+
+
+def _match_paired_analyses(
+    treatment_analyses: Sequence[AgentAnalysis],
+    control_analyses: Sequence[AgentAnalysis],
+) -> tuple[list[tuple[AgentAnalysis, AgentAnalysis]], int, int, int]:
+    """Match treatment/control by (persona_id, sample_index).
+
+    Returns:
+      paired_pairs: (treatment, control) tuples where BOTH classifications
+        succeeded (sentiment_failed=False on both sides).
+      unpaired_treatment: count of treatment agents with no matching control.
+      unpaired_control: count of control agents with no matching treatment.
+      sentiment_failure_drops: matched pairs dropped because one or both
+        agents had sentiment_failed=True. Surfacing this counter prevents
+        phantom signal from neutral-fallback classifications leaking into
+        the paired bootstrap.
+    """
+    treatment_by_key: dict[tuple[str, int], AgentAnalysis] = {
+        (a.persona_id, a.sample_index): a for a in treatment_analyses
+    }
+    control_by_key: dict[tuple[str, int], AgentAnalysis] = {
+        (a.persona_id, a.sample_index): a for a in control_analyses
+    }
+    treatment_keys = set(treatment_by_key)
+    control_keys = set(control_by_key)
+    matched_keys = treatment_keys & control_keys
+
+    paired_pairs: list[tuple[AgentAnalysis, AgentAnalysis]] = []
+    sentiment_failure_drops = 0
+    # Sort matched keys for deterministic iteration (codex P2 PR #96):
+    # `set` iteration order depends on Python hash seed, so the same
+    # (data, run_seed) tuple could produce different CIs across processes
+    # because the RNG resample indices would land on a shuffled `deltas`
+    # list. Sorting pins the ordering.
+    for key in sorted(matched_keys):
+        t = treatment_by_key[key]
+        c = control_by_key[key]
+        if t.sentiment_failed or c.sentiment_failed:
+            sentiment_failure_drops += 1
+            continue
+        paired_pairs.append((t, c))
+
+    unpaired_treatment = len(treatment_keys - control_keys)
+    unpaired_control = len(control_keys - treatment_keys)
+    return paired_pairs, unpaired_treatment, unpaired_control, sentiment_failure_drops
+
+
+def _mean_paired_delta(
+    pairs: Sequence[tuple[AgentAnalysis, AgentAnalysis]],
+    cfg: ScoringConfig,
+) -> float:
+    """Mean per-pair sentiment delta scaled into confidence_score units.
+
+    Runs `_agent_delta` over each matched pair, takes the unweighted mean,
+    scales by `sentiment_weight × 100` to land in the same [-100, +100]
+    range as confidence_score. This is the locked Q2 statistic from
+    `docs/4.6-ab-experiment-mode.md`: paired bootstrap on per-agent
+    sentiment delta, NOT on per-arm score diff.
+
+    Used for both the lift point estimate (on the full pair list) and
+    the bootstrap CI (on each resample). Computing both off the SAME
+    statistic guarantees `lift_ci` brackets `lift` by construction
+    (codex R1-P1 PR #96). Excluding the weakness signal keeps weakness
+    flags in per-arm `confidence_score` only — they describe the
+    proposed change, not the paired comparison (codex R2-P2 PR #96).
+    """
+    if not pairs:
+        return 0.0
+    deltas = [_agent_delta(t, c) for t, c in pairs]
+    mean_delta = sum(deltas) / len(deltas)
+    return mean_delta * cfg.sentiment_weight * 100.0
+
+
+def aggregate_ab(
+    treatment_analyses: Sequence[AgentAnalysis],
+    control_analyses: Sequence[AgentAnalysis],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+) -> tuple[SimulationResult, SimulationResult, ABLiftResult]:
+    """Per-arm aggregate + paired bootstrap on lift.
+
+    Reuses the existing single-arm `ScoringService.aggregate()` for each
+    arm so the per-arm `confidence_score` / weakness surface stays
+    identical to today's behavior. The lift layer matches treatment and
+    control by `(persona_id, sample_index)`, then computes the lift
+    point estimate AND the bootstrap CI off the SAME statistic — the
+    locked Q2 paired sentiment delta from
+    `docs/4.6-ab-experiment-mode.md`, scaled by `sentiment_weight × 100`
+    into confidence_score units.
+
+    Two codex review rounds shaped this. R1-P1: point and CI must come
+    from the same statistic (else the CI can exclude the point at small
+    N). R2-P2: that statistic must be paired sentiment delta only —
+    pulling the weakness signal into lift contaminates the paired
+    comparison since weakness flags describe the proposed change, not
+    the user reaction. Both are now satisfied: lift = paired sentiment
+    delta scaled to score units, CI = bootstrap of the same. Per-arm
+    `treatment_score` / `control_score` continue to expose the full-arm
+    confidence_score (sentiment + weakness, both with their gates) for
+    the result table.
+
+    Degenerate cases surface honestly via the drop counters and None
+    fields — see `docs/4.6-ab-experiment-mode.md` § "Degenerate-case
+    behaviour" for the full table.
+    """
+    cfg = config or ScoringConfig()
+
+    treatment_result = ScoringService.aggregate(
+        treatment_analyses, cfg, run_seed=run_seed
+    )
+    control_result = ScoringService.aggregate(
+        control_analyses, cfg, run_seed=run_seed
+    )
+
+    paired_pairs, unpaired_t, unpaired_c, sentiment_drops = _match_paired_analyses(
+        treatment_analyses, control_analyses
+    )
+    paired_n = len(paired_pairs)
+
+    lift_result = ABLiftResult(
+        paired_n=paired_n,
+        unpaired_treatment=unpaired_t,
+        unpaired_control=unpaired_c,
+        sentiment_failure_drops=sentiment_drops,
+    )
+
+    if paired_n == 0:
+        # No usable pairs — lift is genuinely not computable. Per-arm
+        # results are still populated so the result table renders.
+        return treatment_result, control_result, lift_result
+
+    # Point estimate + CI both bootstrap the SAME statistic on the
+    # matched-pair subset (the locked Q2 paired sentiment delta), so the
+    # CI brackets the point by construction.
+    lift_point = _mean_paired_delta(paired_pairs, cfg)
+    lift_result.lift = round(lift_point, cfg.confidence_rounding)
+
+    if cfg.bootstrap_resamples > 0:
+        effective_seed = (
+            run_seed if run_seed is not None else secrets.randbits(53)
+        ) ^ _BOOTSTRAP_SEED_MIX
+        rng = random.Random(effective_seed)
+        ci_low, ci_high = bootstrap_percentile_ci(
+            paired_pairs,
+            lambda resample: _mean_paired_delta(resample, cfg),
+            n_resamples=cfg.bootstrap_resamples,
+            rng=rng,
+        )
+        ci_low_r = round(ci_low, cfg.confidence_rounding)
+        ci_high_r = round(ci_high, cfg.confidence_rounding)
+        # Mirror aggregate()'s edge clamp: independent rounding (and discrete
+        # percentile boundaries at small B/N) can violate
+        # ci_low <= lift <= ci_high. Widen by at most one rounding step so
+        # callers that inspect both fields always see a bracketing CI.
+        lift_result.lift_ci = (
+            min(ci_low_r, lift_result.lift),
+            max(ci_high_r, lift_result.lift),
+        )
+
+    return treatment_result, control_result, lift_result

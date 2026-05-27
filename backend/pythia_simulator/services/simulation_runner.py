@@ -433,13 +433,30 @@ class SimulationRunner:
                 persona_id=r.persona_id,
                 persona_name=r.persona_name,
                 reaction_text=r.reaction_text,
+                sample_index=r.sample_index,
+                arm=r.arm,
             )
             for r in agent_records
         ]
 
-        result, analyses = await scoring.score(
-            hypothesis, reactions, run_seed=run_seed
-        )
+        # Phase 4.6 #90: A/B mode → run the paired-lift aggregator over the
+        # treatment + control split. Detect dual-arm via any record carrying
+        # an `arm` tag; single-arm sims keep `arm=None` everywhere and fall
+        # through to the existing `score()` path unchanged.
+        is_ab_mode = any(r.arm is not None for r in reactions)
+        if is_ab_mode:
+            treatment_reactions = [r for r in reactions if r.arm == "treatment"]
+            control_reactions = [r for r in reactions if r.arm == "control"]
+            result, analyses = await scoring.score_ab(
+                hypothesis,
+                treatment_reactions,
+                control_reactions,
+                run_seed=run_seed,
+            )
+        else:
+            result, analyses = await scoring.score(
+                hypothesis, reactions, run_seed=run_seed
+            )
         # #51: persist per-agent sentiment + top-quote on the result so the
         # detail page can render the table without N extra R2 reads. Pair
         # analyses with their reaction text by agent_id (same len + same order
@@ -458,7 +475,14 @@ class SimulationRunner:
         self._run_state.emit(state, "score.updated", score=result.confidence_score)
 
         # Refinement runs only when there's meaningful room to improve.
-        if result.confidence_score < 80.0:
+        # Phase 4.6 #90 (codex R6-P2): when A/B mode short-circuited on a
+        # missing-arm run, `analyses` is empty and the placeholder result
+        # has confidence_score=0 only because lift is uncomputable, not
+        # because the surviving arm tanked. Running refinement on the
+        # surviving arm's reactions would burn an LLM call to "improve"
+        # a run that's genuinely broken upstream — skip it.
+        ab_missing_arm = is_ab_mode and not analyses
+        if result.confidence_score < 80.0 and not ab_missing_arm:
             sample_reactions = [r.reaction_text for r in agent_records[:3]]
             suggestions = await refinement.suggest(
                 RefinementInput(
