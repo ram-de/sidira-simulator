@@ -2,11 +2,30 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-22 (Phase 2.5 closed)
+**Last updated:** 2026-05-27 (Phase 4.6 closed -- A/B experiment mode shipped end-to-end)
 
 ---
 
 ## What just shipped
+
+✅ **Phase 4.6 -- A/B experiment mode, SHIPPED 2026-05-27 (session `phase-4.6-ab-experiment-mode`).**
+PMs can now submit a hypothesis with the A/B toggle enabled, watch both treatment and control arms run with paired sampling, and read a predicted-lift card with bootstrap CI on the result page. All six tickets landed (#87 design / #88 schema + wizard input / #89 dual-arm runner + control-arm prompt / #90 paired-lift formula + CI / #91 result-page lift card + arm-split table + wizard toggle live / #92 e2e calibration dogfood). Wizard A/B toggle is live end-to-end. Backend suite at 312 passed / 10 skipped (same baseline #90 established).
+
+- **#90 paired-lift formula (PR #96):** mean per-pair confidence-weighted sentiment delta scaled into confidence-score units, with paired bootstrap CI on the same statistic. Locked through 6 rounds of `/codex review` (1 P1 + 6 P2s, all fixed). Backend exposes `lift`, `lift_ci`, `treatment_score`, `control_score`, `lift_paired_n`, and three drop counters on `SimulationResult`.
+- **#91 result-page lift card + arm-split table (PR #97):** new `LiftCard` component with sign-coloured big number, paired CI, drop-counter callouts, and clear "this is synthetic-agent reception, not a real business metric" copy (added after a live PM-read failure during smoke testing -- "what's this lift on? what metric?"). Persona table grows T|C twin chips with treatment-pinned summary quote. `AB_MODE_DISABLED_UNTIL_LIFT` flipped to false in same PR. Codex review: 5 rounds, 4 P2s all fixed, ZERO P1s. The load-bearing fix (R4): gate A/B UI on `sim.arm_split` (request-level truth), not result-shape fields, because results can be missing for at least three distinct reasons.
+- **#92 e2e calibration dogfood (2026-05-27):** four wizard-driven sims against `streamly_sample` -- 3 cleanly-predicted hypotheses (Skip Intro +15.9 / Resume->Continue rename +10.0 borderline-null / remove-recs A-Z grid -11.2) all confirmed directionally. Bonus finding: PM-predicted autoplay-next-episode as expected-positive; Pythia returned -10.5 with 85% `hidden_guardrail_risk` weakness flag, correctly catching the well-known autoplay-is-divisive dynamic. Full writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)".
+
+**Three followups carved out of #92 (separate tickets, not Phase 4.6 blockers):**
+1. **Arm-scoped persona-group chat.** Currently disabled in A/B mode with a tooltip (codex R2-P2 on #91). PM's first question in dogfood was "why can't I chat with the persona group?" -- confirms the followup is wanted, not theoretical. Recommended: split into separate Treatment / Control chat rooms per persona row.
+2. **De-asymmetric the A/B result-page UX.** Per #90 contract the control arm skips weakness classification, so per-arm side-by-side scores aren't on the same scale -- "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Either visual de-emphasis of per-arm scores or symmetric weakness scoring on control.
+3. **Wizard cost preview vs. backend cap.** Wizard says 50/arm; backend clamps to 20-25 in practice. Either document or surface the cap.
+4. **Delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing** after the feature soaks for a couple of weeks.
+
+**Lasting lesson from Phase 4.6:** for A/B-mode UI conditionals, key everything off the REQUEST (`sim.arm_split`), not the RESULT shape. The result fields can be missing for at least three distinct reasons (single-arm sim, A/B with no matched pairs, fully-failed A/B run), and gating on any single result field collapses subsets back together. Generalizes to any future A/B-mode UI conditional.
+
+---
+
+## What just shipped (earlier)
 
 ✅ **Magic Moment Sprint — Phases 2 + 3 done in one sitting (2026-05-21).**
 A PM can submit a hypothesis through `/simulations/new`, see 6 personas react via real Groq LLM calls, and get a confidence score + 3 diagnosed weaknesses + 3 refinement suggestions rendered live on `/simulations/[id]`. Verified end-to-end with sim `63c778c8` returning score 30/100.

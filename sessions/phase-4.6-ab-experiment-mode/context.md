@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-4.6-ab-experiment-mode
-status: active
+status: closed
 started: 2026-05-26
+closed: 2026-05-27
 owner: ram-de
 ---
 
@@ -12,9 +13,14 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
-- [ ] **#92 -- e2e dogfood with calibration hypotheses**. LAST Phase 4.6 ticket. Three runs against the demo Persona Pack (expected-lift / expected-null / expected-negative-lift) to confirm the lift formula directionally agrees with the hypothesis sign and that PMs can read the lift card. The -20.5 from #91 local smoke (deep-discount-on-fees hypothesis or similar) is already a candidate "expected-negative-lift" data point. Document PM-read interpretations in `docs/4.6-ab-experiment-mode.md`. Closes Phase 4.6.
+-- session complete --
 
 ## Completed
+- **#92 -- e2e calibration dogfood** (2026-05-27). Four wizard-driven A/B sims against `streamly_sample` (3 cleanly-predicted hypotheses + one re-run after an informative PM-prediction miss). Writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)". Calibration verdict: 3/3 cleanly-predicted hypotheses directionally confirmed (Skip Intro +15.9 [+9.6,+21.8]; Resume->Continue rename +10.0 [+1.8,+18.2] (borderline-null); remove-recs/A-Z-grid -11.2 [-19.8,-3.1]). The one PM-prediction override (autoplay-next-episode -10.5 [-21.0,-0.8]) was Pythia correctly catching the well-known autoplay-is-divisive dynamic the PM intuition missed. Zero drop counters across all runs. Pythia's lift formula is calibrated for production PM use.
+  - Three #92-discovered findings carved out as separate tickets:
+    - (F1) Per-arm side-by-side confidence-score display is misleading -- control arm skips the weakness classifier per #90 contract, so "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Either visual de-emphasis of per-arm scores in A/B mode, or symmetric weakness scoring on control.
+    - (F2) PMs immediately want persona-group chat back in A/B mode (currently disabled per codex R2-P2 on #91). First dogfood question was literally "why can't I chat with the persona group?" Confirms the followup is not theoretical. Recommended: split the chat route into separate Treatment / Control rooms.
+    - (F3) Wizard cost preview says 50/arm but backend clamps to 20-25 in practice -- either document the clamp on the wizard or surface PYTHIA_MAX_AGENTS in the cost preview.
 - **#91 -- frontend: result-table arm split + lift display** (MERGED PR #97, commit `7f8f76a`, 2026-05-27).
   - **New `LiftCard` component** (`frontend/app/simulations/[id]/page.tsx`) above the confidence-score card. Big sign-coloured number (green/red, gray for `|lift| < 0.5`), 95% CI in confidence-score units with sign formatting, "CI crosses zero" caveat, paired-N footnote, drop counters surfaced inline. Copy explicitly names the metric ("predicted synthetic-agent reception, not a real business metric") -- this came from a live PM-read failure during smoke testing ("what's this lift on? what metric?") and is load-bearing for #92 dogfood interpretation.
   - **Confidence-score card** relabels to "Treatment arm confidence" in A/B mode + adds a Control-arm sub-row using `result.control_score`. Headline number stays `confidence_score` (= treatment arm per #90 contract).
