@@ -219,9 +219,7 @@ def test_agent_feedback_concurrent_thumbs_all_persisted(client) -> None:
     store = LocalArtifactStore(_FIXTURE_ROOT)
     flog = FeedbackLog(store)
     events = flog.read_all(customer_id="demo", simulation_id=_sim_id)
-    agent_events = [
-        e for e in events if e.target_kind.value == "agent" and e.target_id == agent_id
-    ]
+    agent_events = [e for e in events if e.target_kind.value == "agent" and e.target_id == agent_id]
     assert len(agent_events) == n, (
         f"expected {n} feedback events under per-sim lock, got "
         f"{len(agent_events)} — concurrent appends were lost"
@@ -288,6 +286,62 @@ def _run_sim_and_send_group_turn(
     persona_id, _ = _pick_persona(client, sim_id)
     chat._enter_chat_phase()
     _send_group_message(client, sim_id, persona_id, mode, chat)
+    return sim_id, persona_id
+
+
+def _run_ab_sim_pick_persona_and_send_group_turn(
+    client: TestClient,
+    chat: _PhaseAwareChat,
+    mode: str = "collective",
+):
+    """Create a 50/50 A/B sim and send one turn to each arm-scoped room."""
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Surface a one-tap reorder banner.",
+            },
+            "population_size": 6,
+            "arm_split": {"treatment_fraction": 0.5},
+        },
+    )
+    sim_id = resp.json()["id"]
+
+    detail = client.get(f"/simulations/{sim_id}")
+    agent_ids = detail.json()["agent_instance_ids"]
+    by_persona: dict[str, dict[str, int]] = {}
+    for aid in agent_ids:
+        agent = client.get(f"/agents/{aid}").json()["metadata"]
+        arm = agent["arm"]
+        assert arm in ("treatment", "control")
+        arms = by_persona.setdefault(agent["persona_id"], {"treatment": 0, "control": 0})
+        arms[arm] += 1
+
+    persona_id = next(
+        pid for pid, arms in by_persona.items() if arms["treatment"] > 0 and arms["control"] > 0
+    )
+
+    chat._enter_chat_phase()
+    if mode == "collective":
+        chat.collective_labels = [persona_id]
+    else:
+        chat.synthesis_n = by_persona[persona_id]["treatment"]
+    treatment = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages?arm=treatment",
+        json={"mode": mode, "message": "treatment question"},
+    )
+    assert treatment.status_code == 200, treatment.text
+
+    if mode == "collective":
+        chat.collective_labels = [persona_id]
+    else:
+        chat.synthesis_n = by_persona[persona_id]["control"]
+    control = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages?arm=control",
+        json={"mode": mode, "message": "control question"},
+    )
+    assert control.status_code == 200, control.text
     return sim_id, persona_id
 
 
@@ -380,3 +434,39 @@ def test_persona_group_feedback_clear_overwrites(client) -> None:
     )
     turns = c.get(f"/simulations/{sim_id}/personas/{persona_id}/turns").json()
     assert turns[1]["realistic_flag"] is None
+
+
+def test_persona_group_feedback_is_arm_scoped(client) -> None:
+    """#98: thumbs in the treatment room must not paint the control room."""
+    c, chat = client
+    sim_id, persona_id = _run_ab_sim_pick_persona_and_send_group_turn(c, chat, mode="collective")
+
+    resp = c.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/turns/1/feedback?arm=treatment",
+        json={"realistic_flag": True},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["target_id"] == f"{sim_id}/{persona_id}/treatment"
+
+    treatment_turns = c.get(
+        f"/simulations/{sim_id}/personas/{persona_id}/turns?arm=treatment"
+    ).json()
+    control_turns = c.get(f"/simulations/{sim_id}/personas/{persona_id}/turns?arm=control").json()
+
+    assert treatment_turns[1]["role"] == "collective"
+    assert treatment_turns[1]["realistic_flag"] is True
+    assert control_turns[1]["role"] == "collective"
+    assert control_turns[1]["realistic_flag"] is None
+
+
+def test_persona_group_feedback_ab_requires_arm(client) -> None:
+    """#98: A/B feedback must target an arm-scoped transcript."""
+    c, chat = client
+    sim_id, persona_id = _run_ab_sim_pick_persona_and_send_group_turn(c, chat, mode="collective")
+
+    resp = c.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/turns/1/feedback",
+        json={"realistic_flag": True},
+    )
+    assert resp.status_code == 400
+    assert "arm" in resp.json()["detail"]

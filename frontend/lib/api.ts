@@ -34,6 +34,7 @@ export type PerAgentReply = components["schemas"]["PerAgentReply"];
 export type AgentReference = components["schemas"]["AgentReference"];
 export type UnavailableAgent = components["schemas"]["UnavailableAgent"];
 export type PersonaGroupMode = "collective" | "individual";
+export type PersonaGroupArm = "treatment" | "control";
 export type FeedbackRequest = components["schemas"]["FeedbackRequest"];
 export type FeedbackResponse = components["schemas"]["FeedbackResponse"];
 export type SimulationRunState = components["schemas"]["SimulationRunState"];
@@ -117,9 +118,16 @@ export const sendAgentMessage = (id: string, message: string) =>
 export const getAgent = (id: string) =>
   apiGet<AgentInstance>(`/agents/${id}`);
 
-export const getPersonaGroupTurns = (simId: string, personaId: string) =>
+const personaGroupArmQuery = (arm?: PersonaGroupArm | null) =>
+  arm ? `?arm=${arm}` : "";
+
+export const getPersonaGroupTurns = (
+  simId: string,
+  personaId: string,
+  arm?: PersonaGroupArm | null,
+) =>
   apiGet<PersonaGroupTurn[]>(
-    `/simulations/${simId}/personas/${personaId}/turns`,
+    `/simulations/${simId}/personas/${personaId}/turns${personaGroupArmQuery(arm)}`,
   );
 
 export const sendPersonaGroupMessage = (
@@ -127,9 +135,10 @@ export const sendPersonaGroupMessage = (
   personaId: string,
   message: string,
   mode: PersonaGroupMode = "collective",
+  arm?: PersonaGroupArm | null,
 ) =>
   apiPost<PersonaGroupChatRequest, PersonaGroupChatResponse>(
-    `/simulations/${simId}/personas/${personaId}/messages`,
+    `/simulations/${simId}/personas/${personaId}/messages${personaGroupArmQuery(arm)}`,
     { message, mode },
   );
 
@@ -151,9 +160,10 @@ export const sendPersonaGroupTurnFeedback = (
   personaId: string,
   turnIndex: number,
   realisticFlag: boolean | null,
+  arm?: PersonaGroupArm | null,
 ) =>
   apiPost<FeedbackRequest, FeedbackResponse>(
-    `/simulations/${simId}/personas/${personaId}/turns/${turnIndex}/feedback`,
+    `/simulations/${simId}/personas/${personaId}/turns/${turnIndex}/feedback${personaGroupArmQuery(arm)}`,
     { realistic_flag: realisticFlag },
   );
 

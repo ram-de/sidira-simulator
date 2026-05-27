@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from typing import Literal
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from pythia_simulator.adapters.r2 import get_store
 from pythia_simulator.adapters.repositories import AgentInstanceRepo, SimulationRepo
@@ -117,8 +118,7 @@ async def record_agent_turn_feedback(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                f"turn_index {turn_index} out of range "
-                f"(agent has {len(conversation)} turns)"
+                f"turn_index {turn_index} out of range " f"(agent has {len(conversation)} turns)"
             ),
         )
     # Codex #85 round-1 P2: same reply-only contract as the persona-group
@@ -170,6 +170,13 @@ async def record_persona_group_turn_feedback(
     persona_id: str,
     turn_index: int,
     payload: FeedbackRequest,
+    arm: Literal["treatment", "control"] | None = Query(
+        default=None,
+        description=(
+            "Phase 5 #98: scope feedback to one A/B persona-group room. "
+            "Omit for single-arm sims."
+        ),
+    ),
     customer_id: str = Depends(current_customer_id),
     sim_repo: SimulationRepo = Depends(get_simulation_repo),
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
@@ -177,9 +184,11 @@ async def record_persona_group_turn_feedback(
     """Record 👍/👎/clear on one turn of a persona-group conversation.
 
     Works on both synthesis turns (fan-out mode) and collective turns —
-    the role lives on the turn; feedback is role-agnostic. PM turns are
-    NOT a valid target (no LLM-generated content to calibrate); the
-    route 400s if the targeted turn is a PM turn.
+    the role lives on the turn; feedback is role-agnostic. In A/B sims,
+    `arm` scopes both the transcript lookup and the feedback target id so
+    treatment/control turn indexes do not collide. PM turns are NOT a valid
+    target (no LLM-generated content to calibrate); the route 400s if the
+    targeted turn is a PM turn.
     """
     if turn_index < 0:
         raise HTTPException(
@@ -194,11 +203,23 @@ async def record_persona_group_turn_feedback(
             detail=f"Simulation {sim_id} not found",
         )
     rows = await agent_repo.list_for_simulation(sim_id, customer_id)
-    if not any(r["persona_id"] == persona_id for r in rows):
+    persona_rows = [r for r in rows if r["persona_id"] == persona_id]
+    if not persona_rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(f"No agents found in simulation {sim_id} for persona {persona_id}"),
+        )
+    if arm is None and any(r.get("arm") is not None for r in persona_rows):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A/B persona-group feedback requires ?arm=treatment or ?arm=control.",
+        )
+    if arm is not None and not any(r.get("arm") == arm for r in persona_rows):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                f"No agents found in simulation {sim_id} for persona {persona_id}"
+                f"No agents found in simulation {sim_id} for persona "
+                f"{persona_id} in arm {arm!r}"
             ),
         )
 
@@ -209,13 +230,13 @@ async def record_persona_group_turn_feedback(
         customer_id=customer_id,
         simulation_id=sim_id,
         persona_id=persona_id,
+        arm=arm,
     )
     if turn_index >= len(turns):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
-                f"turn_index {turn_index} out of range "
-                f"(persona group has {len(turns)} turns)"
+                f"turn_index {turn_index} out of range " f"(persona group has {len(turns)} turns)"
             ),
         )
     target_turn = turns[turn_index]
@@ -231,7 +252,7 @@ async def record_persona_group_turn_feedback(
         )
 
     now = datetime.now(timezone.utc)
-    target_id = f"{sim_id}/{persona_id}"
+    target_id = f"{sim_id}/{persona_id}/{arm}" if arm is not None else f"{sim_id}/{persona_id}"
     event = FeedbackEvent(
         target_kind=FeedbackTargetKind.PERSONA_GROUP,
         target_id=target_id,

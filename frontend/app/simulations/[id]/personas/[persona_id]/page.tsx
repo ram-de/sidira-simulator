@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
@@ -13,6 +13,7 @@ import {
   type AgentReference,
   type AgentSummary,
   type PerAgentReply,
+  type PersonaGroupArm,
   type PersonaGroupMode,
   type PersonaGroupTurn,
   type Simulation,
@@ -33,13 +34,20 @@ import { ThumbsControl } from "@/components/ThumbsControl";
 
 // sessionStorage key — round-trip continuity: a mid-typed question
 // survives navigating to /agents/[id] and back.
-const draftKey = (simId: string, personaId: string) =>
-  `pythia.personaGroupDraft.${simId}.${personaId}`;
+const draftKey = (simId: string, personaId: string, arm: PersonaGroupArm | null) =>
+  `pythia.personaGroupDraft.${simId}.${personaId}.${arm ?? "single"}`;
 
 export default function PersonaGroupChatPage() {
   const params = useParams<{ id: string; persona_id: string }>();
+  const searchParams = useSearchParams();
   const simId = params?.id ?? "";
   const personaId = params?.persona_id ?? "";
+  const armParam = searchParams.get("arm");
+  const arm: PersonaGroupArm | null =
+    armParam === "treatment" || armParam === "control" ? armParam : null;
+  const invalidArm = armParam != null && arm == null;
+  const armLabel =
+    arm === "treatment" ? "Treatment" : arm === "control" ? "Control" : null;
 
   const [sim, setSim] = useState<Simulation | null>(null);
   const [agentsInPersona, setAgentsInPersona] = useState<AgentSummary[]>([]);
@@ -77,7 +85,7 @@ export default function PersonaGroupChatPage() {
   const lastDraftKey = useRef<string | null>(null);
   useEffect(() => {
     if (!simId || !personaId) return;
-    const key = draftKey(simId, personaId);
+    const key = draftKey(simId, personaId, arm);
     if (lastDraftKey.current !== key) {
       // First mount for this route key (or client-side navigation to a
       // different persona group). Restore from storage and DO NOT persist
@@ -99,18 +107,18 @@ export default function PersonaGroupChatPage() {
     } catch {
       // ignore
     }
-  }, [simId, personaId, draft]);
+  }, [simId, personaId, arm, draft]);
 
   // Initial load: sim (hypothesis) + agents (filter to persona) + turn log.
   useEffect(() => {
-    if (!simId || !personaId) return;
+    if (!simId || !personaId || invalidArm) return;
     let cancelled = false;
     (async () => {
       try {
         const [simData, agents, turnLog] = await Promise.all([
           getSimulation(simId),
           listSimulationAgents(simId),
-          getPersonaGroupTurns(simId, personaId).catch((e) => {
+          getPersonaGroupTurns(simId, personaId, arm).catch((e) => {
             if (e instanceof ApiError && e.status === 404) {
               throw new _PersonaNotFound();
             }
@@ -118,7 +126,9 @@ export default function PersonaGroupChatPage() {
           }),
         ]);
         if (cancelled) return;
-        const filtered = agents.filter((a) => a.persona_id === personaId);
+        const filtered = agents.filter(
+          (a) => a.persona_id === personaId && (arm == null || a.arm === arm),
+        );
         if (filtered.length === 0) {
           setNotFound(true);
           return;
@@ -143,7 +153,7 @@ export default function PersonaGroupChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [simId, personaId]);
+  }, [simId, personaId, arm, invalidArm]);
 
   // Auto-scroll within the bounded conversation container.
   useEffect(() => {
@@ -179,7 +189,7 @@ export default function PersonaGroupChatPage() {
       // Phase 1: POST. Failure → rollback optimistic; restore draft.
       let resp: Awaited<ReturnType<typeof sendPersonaGroupMessage>> | null = null;
       try {
-        resp = await sendPersonaGroupMessage(simId, personaId, trimmed, mode);
+        resp = await sendPersonaGroupMessage(simId, personaId, trimmed, mode, arm);
       } catch (e) {
         setTurns((current) => current.filter((t) => t !== optimisticPm));
         setDraft(trimmed);
@@ -232,7 +242,7 @@ export default function PersonaGroupChatPage() {
         // If the log is shorter than what we just appended (best-effort
         // append failed), keep the locally-derived turns.
         try {
-          const fresh = await getPersonaGroupTurns(simId, personaId);
+          const fresh = await getPersonaGroupTurns(simId, personaId, arm);
           setTurns((current) => (fresh.length >= current.length ? fresh : current));
         } catch (e) {
           // The locally-derived turns are already in state; don't roll
@@ -263,6 +273,22 @@ export default function PersonaGroupChatPage() {
   }
 
   // ─── Render ────────────────────────────────────────────────────────────
+
+  if (invalidArm) {
+    return (
+      <main style={pageStyle}>
+        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+          <strong>Unknown persona-group chat arm.</strong>{" "}
+          <Link
+            href={`/simulations/${simId}`}
+            style={{ color: "#1d4ed8", textDecoration: "underline" }}
+          >
+            Back to simulation
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   if (notFound) {
     return (
@@ -320,6 +346,22 @@ export default function PersonaGroupChatPage() {
           <span style={{ fontSize: 14, color: "#888", fontWeight: 400 }}>
             (n={n})
           </span>
+          {armLabel && (
+            <span
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                color: arm === "treatment" ? "#1d4ed8" : "#555",
+                background: arm === "treatment" ? "#eff6ff" : "#f5f5f5",
+                border: "1px solid #e5e7eb",
+                borderRadius: 999,
+                padding: "2px 8px",
+                verticalAlign: "middle",
+              }}
+            >
+              {armLabel}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
           {personaId}
@@ -360,7 +402,7 @@ export default function PersonaGroupChatPage() {
                 // Updates the local turn state on success so subsequent
                 // toggles read the new flag.
                 const setFlag = async (next: boolean | null) => {
-                  await sendPersonaGroupTurnFeedback(simId, personaId, i, next);
+                  await sendPersonaGroupTurnFeedback(simId, personaId, i, next, arm);
                   setTurns((current) =>
                     current.map((t, idx) =>
                       idx === i ? { ...t, realistic_flag: next } : t,

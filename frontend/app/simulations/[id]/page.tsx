@@ -1518,24 +1518,29 @@ function PersonaGroupRow({
         </span>
       </button>
       {isAbMode ? (
-        // Codex R2-P2 on #91: persona-group chat fans out to every agent in
-        // the persona, with no arm filter — clicking "chat" from an A/B sim
-        // would mix treatment + control reactions in one room and the PM
-        // would have no way to tell which agents saw the proposed change.
-        // 1:1 chat below is unaffected (single agent, known arm).
-        // Re-enables when persona-chat is made arm-scoped (followup ticket).
         <span
-          title="Persona-group chat is disabled for A/B sims — it would mix treatment and control reactions. Use the 1:1 chat link on individual agents instead."
-          aria-label="Persona-group chat unavailable for A/B sims"
           style={{
-            fontSize: 12,
-            color: "#aaa",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
             flex: "0 0 auto",
             whiteSpace: "nowrap",
-            cursor: "help",
           }}
         >
-          💬 chat (1:1 only)
+          <ArmChatPill
+            simId={simId}
+            personaId={personaId}
+            personaName={personaName}
+            arm="treatment"
+            enabled={treatmentAgents.length > 0}
+          />
+          <ArmChatPill
+            simId={simId}
+            personaId={personaId}
+            personaName={personaName}
+            arm="control"
+            enabled={controlAgents.length > 0}
+          />
         </span>
       ) : (
         <Link
@@ -1583,6 +1588,60 @@ function PersonaGroupRow({
           </ul>
         ))}
     </li>
+  );
+}
+
+function ArmChatPill({
+  simId,
+  personaId,
+  personaName,
+  arm,
+  enabled,
+}: {
+  simId: string;
+  personaId: string;
+  personaName: string;
+  arm: Arm;
+  enabled: boolean;
+}) {
+  const isTreatment = arm === "treatment";
+  const label = isTreatment ? "T" : "C";
+  const armName = isTreatment ? "treatment" : "control";
+  const style = {
+    fontSize: 12,
+    textDecoration: "none",
+    border: `1px solid ${isTreatment ? "#dbeafe" : "#e5e7eb"}`,
+    borderRadius: 999,
+    padding: "2px 7px",
+    background: isTreatment ? "#eff6ff" : "#f9fafb",
+    color: isTreatment ? "#1d4ed8" : "#374151",
+  };
+
+  if (!enabled) {
+    return (
+      <span
+        aria-label={`${armName} persona-group chat unavailable for ${personaName}`}
+        title={`No ${armName} agents are available for this persona in the completed run.`}
+        style={{
+          ...style,
+          color: "#aaa",
+          background: "#f7f7f7",
+          cursor: "not-allowed",
+        }}
+      >
+        💬 {label}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={`/simulations/${simId}/personas/${personaId}?arm=${arm}`}
+      aria-label={`Open ${armName} persona-group chat with ${personaName}`}
+      style={style}
+    >
+      💬 {label}
+    </Link>
   );
 }
 
