@@ -466,9 +466,16 @@ export default function SimulationDetailPage() {
             </section>
           )}
 
-          {result.lift != null && (
+          {/* Phase 4.6 #91 (codex R1 P2): key the A/B UI off `lift_paired_n`,
+              not `lift`. Backend uses lift=null + paired_n=0 to mean
+              "A/B attempted, no matched pairs" (codex R3-P2b on #90), distinct
+              from lift=null + paired_n=null which means "single-arm sim, no
+              A/B attempted." Gating on `lift` alone collapsed both back
+              together and made a degraded A/B run look like an ordinary
+              single-arm result. */}
+          {result.lift_paired_n != null && (
             <LiftCard
-              lift={result.lift}
+              lift={result.lift ?? null}
               liftCi={result.lift_ci ?? null}
               pairedN={result.lift_paired_n ?? null}
               unpairedTreatment={result.lift_unpaired_treatment ?? 0}
@@ -488,7 +495,7 @@ export default function SimulationDetailPage() {
                 marginBottom: 8,
               }}
             >
-              {result.lift != null ? "Treatment arm confidence" : "Confidence score"}
+              {result.lift_paired_n != null ? "Treatment arm confidence" : "Confidence score"}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
               <div
@@ -521,7 +528,7 @@ export default function SimulationDetailPage() {
                 ciHigh={result.confidence_score_ci[1]}
               />
             )}
-            {result.lift != null && result.control_score != null && (
+            {result.lift_paired_n != null && result.control_score != null && (
               <div
                 style={{
                   marginTop: 16,
@@ -798,7 +805,7 @@ function LiftCard({
   sentimentFailureDrops,
   controlScore,
 }: {
-  lift: number;
+  lift: number | null;
   liftCi: [number, number] | null;
   pairedN: number | null;
   unpairedTreatment: number;
@@ -808,10 +815,18 @@ function LiftCard({
 }) {
   // Sign-coloured big number. Near-zero (|lift| < 0.5) is rendered gray so a
   // bootstrap-noise lift around zero doesn't read as a real movement.
-  const sign = lift > 0 ? "+" : lift < 0 ? "−" : "";
-  const magnitude = Math.abs(lift);
+  // When lift is null (A/B attempted but uncomputable — see degraded-state
+  // block below), the number area is replaced by a placeholder instead.
+  const sign = lift == null ? "" : lift > 0 ? "+" : lift < 0 ? "−" : "";
+  const magnitude = lift == null ? null : Math.abs(lift);
   const color =
-    magnitude < 0.5 ? "#555" : lift > 0 ? "#0a7d3a" : "#a30000";
+    lift == null
+      ? "#888"
+      : Math.abs(lift) < 0.5
+        ? "#555"
+        : lift > 0
+          ? "#0a7d3a"
+          : "#a30000";
   const ciNarrow =
     liftCi != null && Math.abs(liftCi[1] - liftCi[0]) < _CI_COLLAPSE_THRESHOLD;
   const ciCrossesZero =
@@ -819,11 +834,13 @@ function LiftCard({
   const anyDrops =
     unpairedTreatment > 0 || unpairedControl > 0 || sentimentFailureDrops > 0;
 
-  // pairedN == 0 means A/B was attempted but no pairs matched (every agent in
-  // one arm was dropped). The lift itself is undefined in that case — backend
-  // returns lift=None, so we wouldn't render the card. But guard anyway in
-  // case a degraded run squeaks through with lift==0 and pairedN==0.
-  const noPairs = pairedN === 0;
+  // Codex R1-P2 on #91: lift=null + paired_n=0 means "A/B was attempted but
+  // no pairs matched" — every agent in one arm was dropped (e.g. all sentiment
+  // failures, or no shared (persona_id, sample_index) keys between arms).
+  // The backend deliberately distinguishes this from single-arm sims, which
+  // surface paired_n=null; the result page must honour that distinction or
+  // the PM loses the only signal that the run was an A/B attempt.
+  const noPairs = lift == null;
 
   return (
     <section
@@ -862,16 +879,26 @@ function LiftCard({
       <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
         <div
           style={{
-            fontSize: 64,
+            fontSize: noPairs ? 32 : 64,
             fontWeight: 700,
             lineHeight: 1,
             color,
             fontVariantNumeric: "tabular-nums",
           }}
-          aria-label={`Predicted lift ${lift >= 0 ? "+" : ""}${lift.toFixed(1)} confidence points`}
+          aria-label={
+            lift == null
+              ? "Predicted lift not available — A/B run produced no matched pairs"
+              : `Predicted lift ${lift >= 0 ? "+" : ""}${lift.toFixed(1)} confidence points`
+          }
         >
-          {sign}
-          {magnitude.toFixed(1)}
+          {lift == null || magnitude == null ? (
+            "n/a"
+          ) : (
+            <>
+              {sign}
+              {magnitude.toFixed(1)}
+            </>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {liftCi && !ciNarrow && (
@@ -909,7 +936,7 @@ function LiftCard({
               CI crosses zero — the data does not rule out "no effect."
             </div>
           )}
-          {controlScore != null && (
+          {controlScore != null && lift != null && (
             <div style={{ fontSize: 12, color: "#888" }}>
               vs control baseline of {Math.round(controlScore)}.
             </div>
@@ -920,11 +947,23 @@ function LiftCard({
         <div
           style={{
             marginTop: 12,
+            padding: "10px 12px",
+            background: "#fdecec",
+            border: "1px solid #f5b5b5",
+            borderRadius: 6,
             fontSize: 13,
             color: "#a30000",
+            lineHeight: 1.5,
           }}
         >
-          A/B run produced no matched pairs — lift is undefined.
+          <strong>A/B run completed but lift is uncomputable.</strong> No
+          matched (treatment, control) pairs were available — every agent in
+          at least one arm was dropped (sentiment classification failure, no
+          matching paired-sampling key, or one arm produced zero usable
+          reactions). The treatment arm&rsquo;s confidence score is shown
+          below, but it is NOT a lift measurement — it&rsquo;s only the
+          treatment arm in isolation. See the drop counters for which
+          dropout caused this.
         </div>
       )}
       {anyDrops && (
