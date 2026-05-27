@@ -323,6 +323,36 @@ class ScoringService:
                 [],
             )
 
+        # Phase 4.6 #90 (codex R5-P2): single-arm-empty A/B run. If every
+        # agent in one arm failed materialization upstream, the runner
+        # still hands us a non-empty `all_reactions`, but the empty arm's
+        # `aggregate()` returns confidence_score=0 with no weaknesses —
+        # which the composition step would surface as "treatment is
+        # terrible" or "control is terrible" with no explanation. Treat
+        # this as degraded/uncomputable: name the missing arm in an
+        # underpowered_design weakness, return paired_n=0, skip the
+        # refinement / aggregate fan-out entirely so we don't burn LLM
+        # calls on a half-broken run.
+        if not treatment_reactions or not control_reactions:
+            missing = "treatment" if not treatment_reactions else "control"
+            return (
+                SimulationResult(
+                    confidence_score=0.0,
+                    weaknesses=[
+                        Weakness(
+                            category="underpowered_design",
+                            summary=(
+                                f"A/B simulation completed with no successful "
+                                f"{missing}-arm agents; lift not computable."
+                            ),
+                        )
+                    ],
+                    refinement_suggestions=[],
+                    lift_paired_n=0,
+                ),
+                [],
+            )
+
         all_reactions = treatment_reactions + control_reactions
         analyses = await asyncio.gather(
             *(self.analyze(hypothesis, r) for r in all_reactions),

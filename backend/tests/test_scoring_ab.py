@@ -370,6 +370,65 @@ async def test_score_ab_empty_inputs_returns_placeholder() -> None:
 
 
 @pytest.mark.asyncio
+async def test_score_ab_treatment_arm_empty_returns_degraded_placeholder() -> None:
+    """Codex R5-P2: A/B run with no successful treatment agents must
+    surface an underpowered_design warning naming the missing arm,
+    NOT silently report confidence_score=0 as if treatment was
+    legitimately terrible. Same for empty control arm. Saves the
+    LLM-budget by skipping the analyze fan-out for the broken run."""
+    svc = ScoringService(chat_client=object())  # not called — short-circuits
+    result, analyses = await svc.score_ab(
+        Hypothesis(capability_name="reorder", prose="test"),
+        treatment_reactions=[],
+        control_reactions=[
+            AgentReaction(
+                agent_id="c0",
+                persona_id="p0",
+                persona_name="P0",
+                reaction_text="r",
+                sample_index=0,
+                arm="control",
+            )
+        ],
+    )
+    assert analyses == []
+    assert result.confidence_score == 0.0
+    assert result.lift is None
+    assert result.lift_paired_n == 0
+    assert any(
+        w.category == "underpowered_design" and "treatment" in (w.summary or "")
+        for w in result.weaknesses
+    ), f"missing-arm warning absent: {result.weaknesses}"
+
+
+@pytest.mark.asyncio
+async def test_score_ab_control_arm_empty_returns_degraded_placeholder() -> None:
+    """Symmetric to the treatment-empty case."""
+    svc = ScoringService(chat_client=object())
+    result, analyses = await svc.score_ab(
+        Hypothesis(capability_name="reorder", prose="test"),
+        treatment_reactions=[
+            AgentReaction(
+                agent_id="t0",
+                persona_id="p0",
+                persona_name="P0",
+                reaction_text="r",
+                sample_index=0,
+                arm="treatment",
+            )
+        ],
+        control_reactions=[],
+    )
+    assert analyses == []
+    assert result.confidence_score == 0.0
+    assert result.lift_paired_n == 0
+    assert any(
+        w.category == "underpowered_design" and "control" in (w.summary or "")
+        for w in result.weaknesses
+    )
+
+
+@pytest.mark.asyncio
 async def test_score_ab_zero_matched_pairs_preserves_paired_n_zero() -> None:
     """Codex R3-P2b: when A/B mode runs but no pairs match (all unpaired
     or all sentiment-failed), the serialized result must distinguish
