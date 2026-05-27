@@ -1417,19 +1417,41 @@ function PersonaGroupRow({
           {personaId}
         </span>
       </button>
-      <Link
-        href={`/simulations/${simId}/personas/${personaId}`}
-        aria-label={`Open persona-group chat with ${personaName}`}
-        style={{
-          fontSize: 13,
-          color: "#1d4ed8",
-          textDecoration: "none",
-          flex: "0 0 auto",
-          whiteSpace: "nowrap",
-        }}
-      >
-        💬 chat
-      </Link>
+      {isAbMode ? (
+        // Codex R2-P2 on #91: persona-group chat fans out to every agent in
+        // the persona, with no arm filter — clicking "chat" from an A/B sim
+        // would mix treatment + control reactions in one room and the PM
+        // would have no way to tell which agents saw the proposed change.
+        // 1:1 chat below is unaffected (single agent, known arm).
+        // Re-enables when persona-chat is made arm-scoped (followup ticket).
+        <span
+          title="Persona-group chat is disabled for A/B sims — it would mix treatment and control reactions. Use the 1:1 chat link on individual agents instead."
+          aria-label="Persona-group chat unavailable for A/B sims"
+          style={{
+            fontSize: 12,
+            color: "#aaa",
+            flex: "0 0 auto",
+            whiteSpace: "nowrap",
+            cursor: "help",
+          }}
+        >
+          💬 chat (1:1 only)
+        </span>
+      ) : (
+        <Link
+          href={`/simulations/${simId}/personas/${personaId}`}
+          aria-label={`Open persona-group chat with ${personaName}`}
+          style={{
+            fontSize: 13,
+            color: "#1d4ed8",
+            textDecoration: "none",
+            flex: "0 0 auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          💬 chat
+        </Link>
+      )}
       </div>
       {groupQuote && <TopQuoteLine text={groupQuote} />}
       {open &&
