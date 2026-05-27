@@ -461,8 +461,11 @@ export default function SimulationDetailPage() {
               <strong style={{ color: "#111" }}>Population:</strong>{" "}
               {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
               {sim.sampled_agent_count ?? "—"} agent
-              {sim.sampled_agent_count === 1 ? "" : "s"} in proportion to
-              persona weights)
+              {sim.sampled_agent_count === 1 ? "" : "s"}
+              {result?.lift_paired_n != null && sim.sampled_agent_count != null
+                ? ` per arm — ${2 * sim.sampled_agent_count} total across treatment + control,`
+                : ""}
+              {" "}in proportion to persona weights)
             </section>
           )}
 
@@ -1276,9 +1279,8 @@ function PersonaGroupRow({
   const [open, setOpen] = useState(false);
   const listId = `persona-agents-${personaId}`;
 
-  // #51: aggregate sentiment + pick top quote across the group.
+  // #51: aggregate sentiment across the group.
   const groupSentiment = aggregateSentiment(agents);
-  const groupQuote = pickGroupQuote(agents);
 
   // Phase 4.6 #91: split agents into arms for A/B render. Untagged agents
   // (legacy or partial-rollout) fall into neither bucket and are listed
@@ -1287,6 +1289,16 @@ function PersonaGroupRow({
   const controlAgents = agents.filter((a) => a.arm === "control");
   const untaggedAgents = agents.filter((a) => a.arm == null);
   const treatmentSentiment = aggregateSentiment(treatmentAgents);
+
+  // #51: pick top quote across the group.
+  // Codex R3-P2 on #91: in A/B mode the longest quote could come from a
+  // control agent, but the collapsed persona summary reads as "what this
+  // persona thought about the proposed change." Pin the summary quote to
+  // the treatment arm (which is the only arm that saw the change). Single-
+  // arm sims fall through to the original pick across all agents.
+  const groupQuote = pickGroupQuote(
+    isAbMode ? treatmentAgents : agents,
+  );
   const controlSentiment = aggregateSentiment(controlAgents);
 
   return (
@@ -1453,7 +1465,12 @@ function PersonaGroupRow({
         </Link>
       )}
       </div>
-      {groupQuote && <TopQuoteLine text={groupQuote} />}
+      {groupQuote && (
+        <TopQuoteLine
+          text={groupQuote}
+          armLabel={isAbMode ? "treatment" : null}
+        />
+      )}
       {open &&
         (isAbMode ? (
           <div id={listId} style={{ padding: "8px 0 0 24px" }}>
@@ -1696,7 +1713,17 @@ function SentimentChip({
   );
 }
 
-function TopQuoteLine({ text }: { text: string }) {
+function TopQuoteLine({
+  text,
+  armLabel = null,
+}: {
+  text: string;
+  // When set, prefixes the quote with a small "[treatment]" or "[control]"
+  // tag so the PM can tell which arm spoke when the collapsed persona
+  // summary chooses a single quote across an A/B run. Null in single-arm
+  // mode keeps the original visual untouched.
+  armLabel?: "treatment" | "control" | null;
+}) {
   const [expanded, setExpanded] = useState(false);
   // Inline-expand on click (spec: "click expands inline (no nav)").
   // Collapsed: single-line ellipsis; expanded: full wrap.
@@ -1723,6 +1750,25 @@ function TopQuoteLine({ text }: { text: string }) {
         textOverflow: "ellipsis",
       }}
     >
+      {armLabel && (
+        <span
+          aria-label={`${armLabel} arm`}
+          style={{
+            fontSize: 10,
+            color: "#888",
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            fontWeight: 600,
+            marginRight: 8,
+            padding: "1px 6px",
+            background: "#f0f0f0",
+            border: "1px solid #e0e0e0",
+            borderRadius: 4,
+          }}
+        >
+          {armLabel}
+        </span>
+      )}
       <span aria-hidden style={{ color: "#bbb", marginRight: 6 }}>
         “
       </span>
