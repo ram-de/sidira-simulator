@@ -45,7 +45,12 @@ export default function NewSimulationPage() {
   // lift formula) + #91 (lift display on result page) land.
   // Direct API still accepts arm_split for #89's dual-arm runner
   // tests — only the wizard UI is locked.
-  const AB_MODE_DISABLED_UNTIL_LIFT = true;
+  // Phase 4.6 #91 (2026-05-26): flipped to false. #90 (paired lift formula)
+  // + #91 (result-page lift card + arm-split table) are both on main, so
+  // the wizard A/B toggle now produces a result the PM can read end-to-end.
+  // Keep the constant + the staged-rollout note plumbing so a future
+  // emergency rollback is a one-line flip.
+  const AB_MODE_DISABLED_UNTIL_LIFT = false;
   const [abMode, setAbMode] = useState(false);
   // Wizard-side mirror of the API's hard per-arm cap. Matches
   // PYTHIA_MAX_AGENTS in the default env (50). The cost preview uses

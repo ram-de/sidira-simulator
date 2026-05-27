@@ -517,6 +517,12 @@ export interface components {
         /**
          * AgentInstanceMetadata
          * @description Lightweight metadata stored in Postgres (the heavy stuff lives in R2).
+         *
+         *     Phase 4.6 #89: `arm` carries A/B mode tag. None for single-arm sims
+         *     (today's default; backwards-compat with all pre-#89 rows).
+         *     `"treatment"` / `"control"` for A/B sims; pinned at materialization
+         *     time and never changes for the lifetime of the agent (identity
+         *     continuity per memory/agent_memory.py).
          */
         AgentInstanceMetadata: {
             /** Id */
@@ -546,6 +552,8 @@ export interface components {
              * @default 0
              */
             message_count: number;
+            /** Arm */
+            arm?: string | null;
         };
         /**
          * AgentReference
@@ -600,6 +608,8 @@ export interface components {
             sentiment_confidence?: number | null;
             /** Top Quote */
             top_quote?: string | null;
+            /** Arm */
+            arm?: ("treatment" | "control") | null;
         };
         /**
          * ArmSplit
@@ -622,7 +632,7 @@ export interface components {
         ArmSplit: {
             /**
              * Treatment Fraction
-             * @description Fraction of population_size allocated to the treatment arm. Strictly between 0 and 1 (neither bound inclusive — an empty arm has no meaning). Defaults to 0.5 for paired sampling.
+             * @description Fraction of population_size allocated to the treatment arm. v1 only supports 0.5 (paired sampling). Codex P2 on PR #95: non-0.5 splits get silently overridden by the per-arm max agent cap (treatment_fraction=0.8 with cap=50 still produces 50/50), and #90's paired lift formula needs f=0.5 anyway. Re-open this range when we have a product reason for asymmetric arms AND a scorer that supports them.
              * @default 0.5
              */
             treatment_fraction: number;
@@ -1262,6 +1272,34 @@ export interface components {
              * @description Per-agent sentiment + top quote for the result-table render. Populated by the runner when scoring completes. Empty for sims that ran before #51 landed (backwards-compatible).
              */
             per_agent_analyses?: components["schemas"]["AgentAnalysisSummary"][];
+            /** Treatment Score */
+            treatment_score?: number | null;
+            /** Control Score */
+            control_score?: number | null;
+            /** Lift */
+            lift?: number | null;
+            /** Lift Ci */
+            lift_ci?: [
+                number,
+                number
+            ] | null;
+            /** Lift Paired N */
+            lift_paired_n?: number | null;
+            /**
+             * Lift Unpaired Treatment
+             * @default 0
+             */
+            lift_unpaired_treatment: number;
+            /**
+             * Lift Unpaired Control
+             * @default 0
+             */
+            lift_unpaired_control: number;
+            /**
+             * Lift Sentiment Failure Drops
+             * @default 0
+             */
+            lift_sentiment_failure_drops: number;
         };
         /**
          * SimulationRunState

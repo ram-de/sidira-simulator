@@ -86,16 +86,7 @@ export default function SimulationDetailPage() {
   // #51: now carries sentiment + top_quote so the result-table cells render
   // without N extra fetches (backend joins these from the persisted
   // result_json.per_agent_analyses).
-  const [agentMeta, setAgentMeta] = useState<
-    {
-      agent_id: string;
-      persona_id: string;
-      persona_name: string;
-      sentiment: "positive" | "neutral" | "negative" | null;
-      sentiment_confidence: number | null;
-      top_quote: string | null;
-    }[] | null
-  >(null);
+  const [agentMeta, setAgentMeta] = useState<AgentRow[] | null>(null);
   const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
 
   // Initial fetch of the simulation.
@@ -218,6 +209,10 @@ export default function SimulationDetailPage() {
             sentiment: a.sentiment ?? null,
             sentiment_confidence: a.sentiment_confidence ?? null,
             top_quote: a.top_quote ?? null,
+            arm:
+              a.arm === "treatment" || a.arm === "control"
+                ? (a.arm as Arm)
+                : null,
           })),
         );
       } catch (e) {
@@ -466,9 +461,36 @@ export default function SimulationDetailPage() {
               <strong style={{ color: "#111" }}>Population:</strong>{" "}
               {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
               {sim.sampled_agent_count ?? "—"} agent
-              {sim.sampled_agent_count === 1 ? "" : "s"} in proportion to
-              persona weights)
+              {sim.sampled_agent_count === 1 ? "" : "s"}
+              {sim.arm_split != null && sim.sampled_agent_count != null
+                ? ` per arm — ${2 * sim.sampled_agent_count} total across treatment + control,`
+                : ""}
+              {" "}in proportion to persona weights)
             </section>
+          )}
+
+          {/* Phase 4.6 #91 A/B UI gate.
+              Codex R1-P2: lift=null alone collapses "single-arm" and "A/B
+              with no matched pairs" together. First fix was to key off
+              `lift_paired_n != null`.
+              Codex R4-P2: if A/B fully fails (zero successful agents),
+              SimulationRunner._score returns the generic placeholder with
+              NO lift_paired_n at all — that misclassifies as single-arm
+              again. The request-level field `sim.arm_split` is the ground
+              truth for "user asked for A/B," independent of whether the
+              backend produced any per-arm data. Gate everything off that;
+              LiftCard handles all three result-shape variants internally
+              (good lift, paired_n=0, paired_n=null). */}
+          {sim.arm_split != null && (
+            <LiftCard
+              lift={result.lift ?? null}
+              liftCi={result.lift_ci ?? null}
+              pairedN={result.lift_paired_n ?? null}
+              unpairedTreatment={result.lift_unpaired_treatment ?? 0}
+              unpairedControl={result.lift_unpaired_control ?? 0}
+              sentimentFailureDrops={result.lift_sentiment_failure_drops ?? 0}
+              controlScore={result.control_score ?? null}
+            />
           )}
 
           <section style={cardStyle}>
@@ -481,7 +503,7 @@ export default function SimulationDetailPage() {
                 marginBottom: 8,
               }}
             >
-              Confidence score
+              {sim.arm_split != null ? "Treatment arm confidence" : "Confidence score"}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
               <div
@@ -513,6 +535,44 @@ export default function SimulationDetailPage() {
                 ciLow={result.confidence_score_ci[0]}
                 ciHigh={result.confidence_score_ci[1]}
               />
+            )}
+            {sim.arm_split != null && result.control_score != null && (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 12,
+                  borderTop: "1px solid #eee",
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 12,
+                  fontSize: 14,
+                  color: "#555",
+                }}
+              >
+                <span
+                  style={{
+                    textTransform: "uppercase",
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    color: "#888",
+                  }}
+                >
+                  Control arm
+                </span>
+                <span
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: scoreColor(result.control_score),
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {Math.round(result.control_score)}
+                </span>
+                <span style={{ color: "#888" }}>
+                  (status-quo product TODAY, no proposed change)
+                </span>
+              </div>
             )}
           </section>
 
@@ -740,6 +800,235 @@ export default function SimulationDetailPage() {
   );
 }
 
+// Phase 4.6 #91: headline lift card. Renders ONLY when result.lift is non-null
+// (A/B mode). Single-arm sims skip this block entirely so their result page
+// looks byte-identical to today. Lift is expressed in confidence-score units
+// (see scoring.py:_mean_paired_delta) — positive = treatment beats control.
+function LiftCard({
+  lift,
+  liftCi,
+  pairedN,
+  unpairedTreatment,
+  unpairedControl,
+  sentimentFailureDrops,
+  controlScore,
+}: {
+  lift: number | null;
+  liftCi: [number, number] | null;
+  pairedN: number | null;
+  unpairedTreatment: number;
+  unpairedControl: number;
+  sentimentFailureDrops: number;
+  controlScore: number | null;
+}) {
+  // Sign-coloured big number. Near-zero (|lift| < 0.5) is rendered gray so a
+  // bootstrap-noise lift around zero doesn't read as a real movement.
+  // When lift is null (A/B attempted but uncomputable — see degraded-state
+  // block below), the number area is replaced by a placeholder instead.
+  const sign = lift == null ? "" : lift > 0 ? "+" : lift < 0 ? "−" : "";
+  const magnitude = lift == null ? null : Math.abs(lift);
+  const color =
+    lift == null
+      ? "#888"
+      : Math.abs(lift) < 0.5
+        ? "#555"
+        : lift > 0
+          ? "#0a7d3a"
+          : "#a30000";
+  const ciNarrow =
+    liftCi != null && Math.abs(liftCi[1] - liftCi[0]) < _CI_COLLAPSE_THRESHOLD;
+  const ciCrossesZero =
+    liftCi != null && liftCi[0] <= 0 && liftCi[1] >= 0;
+  const anyDrops =
+    unpairedTreatment > 0 || unpairedControl > 0 || sentimentFailureDrops > 0;
+
+  // Codex R1-P2 on #91: lift=null + paired_n=0 means "A/B was attempted but
+  // no pairs matched" — every agent in one arm was dropped (e.g. all sentiment
+  // failures, or no shared (persona_id, sample_index) keys between arms).
+  // The backend deliberately distinguishes this from single-arm sims, which
+  // surface paired_n=null; the result page must honour that distinction or
+  // the PM loses the only signal that the run was an A/B attempt.
+  const noPairs = lift == null;
+
+  return (
+    <section
+      style={{
+        ...cardStyle,
+        // Slight emphasis vs neighbouring cards — this is the headline number
+        // in A/B mode.
+        borderColor: "#d0d7e2",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          color: "#888",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          marginBottom: 4,
+        }}
+      >
+        Predicted reception lift (treatment − control)
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          color: "#555",
+          marginBottom: 12,
+          maxWidth: 640,
+          lineHeight: 1.5,
+        }}
+      >
+        Synthetic-agent sentiment toward the proposed change vs. the current
+        product — paired comparison per agent. This is a forecast of how the
+        change will <em>land</em> with customers, not a real business metric
+        (orders, retention, conversion).
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
+        <div
+          style={{
+            fontSize: noPairs ? 32 : 64,
+            fontWeight: 700,
+            lineHeight: 1,
+            color,
+            fontVariantNumeric: "tabular-nums",
+          }}
+          aria-label={
+            lift == null
+              ? "Predicted lift not available — A/B run produced no matched pairs"
+              : `Predicted lift ${lift >= 0 ? "+" : ""}${lift.toFixed(1)} confidence points`
+          }
+        >
+          {lift == null || magnitude == null ? (
+            "n/a"
+          ) : (
+            <>
+              {sign}
+              {magnitude.toFixed(1)}
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {liftCi && !ciNarrow && (
+            <div
+              style={{
+                fontSize: 14,
+                color: "#444",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              95% CI: [{liftCi[0] >= 0 ? "+" : ""}
+              {liftCi[0].toFixed(1)} &ndash; {liftCi[1] >= 0 ? "+" : ""}
+              {liftCi[1].toFixed(1)}]
+            </div>
+          )}
+          {liftCi && ciNarrow && (
+            <div style={{ fontSize: 14, color: "#444" }}>Narrow interval</div>
+          )}
+          <div style={{ fontSize: 14, color: "#555", maxWidth: 520 }}>
+            Same 0–100 scale as the headline confidence score (so −20 here
+            means treatment lands ~20 confidence-points worse than the current
+            product). Paired bootstrap over per-agent sentiment deltas.
+            {pairedN != null && pairedN > 0 && (
+              <> {pairedN} paired agent{pairedN === 1 ? "" : "s"}.</>
+            )}
+          </div>
+          {liftCi && ciCrossesZero && !ciNarrow && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "#a86b00",
+                marginTop: 2,
+              }}
+            >
+              CI crosses zero — the data does not rule out "no effect."
+            </div>
+          )}
+          {controlScore != null && lift != null && (
+            <div style={{ fontSize: 12, color: "#888" }}>
+              vs control baseline of {Math.round(controlScore)}.
+            </div>
+          )}
+        </div>
+      </div>
+      {noPairs && pairedN != null && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            background: "#fdecec",
+            border: "1px solid #f5b5b5",
+            borderRadius: 6,
+            fontSize: 13,
+            color: "#a30000",
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>A/B run completed but lift is uncomputable.</strong> No
+          matched (treatment, control) pairs were available — every agent in
+          at least one arm was dropped (sentiment classification failure, no
+          matching paired-sampling key, or one arm produced zero usable
+          reactions). The treatment arm&rsquo;s confidence score is shown
+          below, but it is NOT a lift measurement — it&rsquo;s only the
+          treatment arm in isolation. See the drop counters for which
+          dropout caused this.
+        </div>
+      )}
+      {noPairs && pairedN == null && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            background: "#fdecec",
+            border: "1px solid #f5b5b5",
+            borderRadius: 6,
+            fontSize: 13,
+            color: "#a30000",
+            lineHeight: 1.5,
+          }}
+        >
+          {/* Codex R4-P2: backend returned a generic placeholder result
+              with no per-arm fields at all. Common cause: zero successful
+              agents in either arm (LLM outage, every agent timing out).
+              Distinct from the no-pairs case above — there scoring ran but
+              found no pairs; here scoring never produced per-arm output. */}
+          <strong>A/B run did not produce per-arm scoring output.</strong>{" "}
+          The simulation finished but the backend returned a single-arm
+          placeholder result — usually because no agents in either arm
+          completed successfully (LLM outage, timeouts, or every agent
+          erroring). Re-run the simulation, or check the run state for the
+          failure reason.
+        </div>
+      )}
+      {anyDrops && (
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: "1px solid #eee",
+            fontSize: 12,
+            color: "#888",
+            lineHeight: 1.5,
+          }}
+        >
+          Dropped from pairing:
+          {unpairedTreatment > 0 && (
+            <> {unpairedTreatment} unpaired treatment;</>
+          )}
+          {unpairedControl > 0 && (
+            <> {unpairedControl} unpaired control;</>
+          )}
+          {sentimentFailureDrops > 0 && (
+            <> {sentimentFailureDrops} sentiment classification failure
+            {sentimentFailureDrops === 1 ? "" : "s"};</>
+          )}{" "}
+          excluded from the paired-delta statistic.
+        </div>
+      )}
+    </section>
+  );
+}
+
 // Shared sanitizer for CI bar inputs (codex P2 round 1).
 // - Coerces non-finite values to a safe default.
 // - Clamps to [min, max].
@@ -951,6 +1240,8 @@ function WeaknessFrequencyBar({
 // Row shape for the result table: agent metadata + sentiment/top_quote
 // joined from the persisted result (#51). Defined once so the result-table
 // component tree stays consistent.
+type Arm = "treatment" | "control";
+
 type AgentRow = {
   agent_id: string;
   persona_id: string;
@@ -958,6 +1249,7 @@ type AgentRow = {
   sentiment: "positive" | "neutral" | "negative" | null;
   sentiment_confidence: number | null;
   top_quote: string | null;
+  arm: Arm | null;
 };
 
 function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
@@ -974,6 +1266,13 @@ function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
     byPersona.get(a.persona_id)!.agents.push(a);
   }
 
+  // Phase 4.6 #91: A/B mode is detected at the table level — if ANY agent in
+  // the sim has an arm tag, we treat the table as arm-split and render two
+  // chips per persona row. Detecting per-persona would be wrong: a persona
+  // that happens to land entirely in one arm should still render with the
+  // arm-split layout so the table visual stays consistent across personas.
+  const isAbMode = agents.some((a) => a.arm != null);
+
   return (
     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
       {order.map((pid, i) => {
@@ -985,6 +1284,7 @@ function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
             personaName={group.persona_name}
             agents={group.agents}
             isFirst={i === 0}
+            isAbMode={isAbMode}
           />
         );
       })}
@@ -997,20 +1297,40 @@ function PersonaGroupRow({
   personaName,
   agents,
   isFirst,
+  isAbMode,
 }: {
   personaId: string;
   personaName: string;
   agents: AgentRow[];
   isFirst: boolean;
+  isAbMode: boolean;
 }) {
   const params = useParams<{ id: string }>();
   const simId = params?.id ?? "";
   const [open, setOpen] = useState(false);
   const listId = `persona-agents-${personaId}`;
 
-  // #51: aggregate sentiment + pick top quote across the group.
+  // #51: aggregate sentiment across the group.
   const groupSentiment = aggregateSentiment(agents);
-  const groupQuote = pickGroupQuote(agents);
+
+  // Phase 4.6 #91: split agents into arms for A/B render. Untagged agents
+  // (legacy or partial-rollout) fall into neither bucket and are listed
+  // separately at the bottom of the expanded view.
+  const treatmentAgents = agents.filter((a) => a.arm === "treatment");
+  const controlAgents = agents.filter((a) => a.arm === "control");
+  const untaggedAgents = agents.filter((a) => a.arm == null);
+  const treatmentSentiment = aggregateSentiment(treatmentAgents);
+
+  // #51: pick top quote across the group.
+  // Codex R3-P2 on #91: in A/B mode the longest quote could come from a
+  // control agent, but the collapsed persona summary reads as "what this
+  // persona thought about the proposed change." Pin the summary quote to
+  // the treatment arm (which is the only arm that saw the change). Single-
+  // arm sims fall through to the original pick across all agents.
+  const groupQuote = pickGroupQuote(
+    isAbMode ? treatmentAgents : agents,
+  );
+  const controlSentiment = aggregateSentiment(controlAgents);
 
   return (
     <li
@@ -1077,10 +1397,53 @@ function PersonaGroupRow({
         <span style={{ fontSize: 14, color: "#444", flex: "0 0 auto" }}>
           &times; {agents.length} agent{agents.length === 1 ? "" : "s"}
         </span>
-        <SentimentChip
-          sentiment={groupSentiment.label}
-          intensity={groupSentiment.intensity}
-        />
+        {isAbMode ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              flex: "0 0 auto",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                fontSize: 11,
+                color: "#888",
+                fontWeight: 600,
+              }}
+              title="Treatment arm"
+            >
+              T
+            </span>
+            <SentimentChip
+              sentiment={treatmentSentiment.label}
+              intensity={treatmentSentiment.intensity}
+            />
+            <span
+              aria-hidden
+              style={{
+                fontSize: 11,
+                color: "#888",
+                fontWeight: 600,
+                marginLeft: 4,
+              }}
+              title="Control arm"
+            >
+              C
+            </span>
+            <SentimentChip
+              sentiment={controlSentiment.label}
+              intensity={controlSentiment.intensity}
+            />
+          </span>
+        ) : (
+          <SentimentChip
+            sentiment={groupSentiment.label}
+            intensity={groupSentiment.intensity}
+          />
+        )}
         <span
           style={{
             fontSize: 12,
@@ -1097,83 +1460,189 @@ function PersonaGroupRow({
           {personaId}
         </span>
       </button>
-      <Link
-        href={`/simulations/${simId}/personas/${personaId}`}
-        aria-label={`Open persona-group chat with ${personaName}`}
-        style={{
-          fontSize: 13,
-          color: "#1d4ed8",
-          textDecoration: "none",
-          flex: "0 0 auto",
-          whiteSpace: "nowrap",
-        }}
-      >
-        💬 chat
-      </Link>
-      </div>
-      {groupQuote && <TopQuoteLine text={groupQuote} />}
-      {open && (
-        <ul
-          id={listId}
+      {isAbMode ? (
+        // Codex R2-P2 on #91: persona-group chat fans out to every agent in
+        // the persona, with no arm filter — clicking "chat" from an A/B sim
+        // would mix treatment + control reactions in one room and the PM
+        // would have no way to tell which agents saw the proposed change.
+        // 1:1 chat below is unaffected (single agent, known arm).
+        // Re-enables when persona-chat is made arm-scoped (followup ticket).
+        <span
+          title="Persona-group chat is disabled for A/B sims — it would mix treatment and control reactions. Use the 1:1 chat link on individual agents instead."
+          aria-label="Persona-group chat unavailable for A/B sims"
           style={{
-            listStyle: "none",
-            padding: "8px 0 0 24px",
-            margin: 0,
+            fontSize: 12,
+            color: "#aaa",
+            flex: "0 0 auto",
+            whiteSpace: "nowrap",
+            cursor: "help",
           }}
         >
-          {agents.map((a) => (
-            <li
-              key={a.agent_id}
-              style={{
-                padding: "8px 0",
-                borderTop: "1px dashed #f0f0f0",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 12,
-                  fontSize: 13,
-                }}
-              >
-                <Link
-                  href={`/agents/${a.agent_id}`}
-                  style={{
-                    color: "#1d4ed8",
-                    textDecoration: "none",
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
-                    flex: "0 0 auto",
-                  }}
-                >
-                  {a.agent_id.slice(0, 8)}
-                </Link>
-                <SentimentChip
-                  sentiment={a.sentiment}
-                  intensity={a.sentiment_confidence ?? null}
-                />
-                <span style={{ flex: 1 }} />
-                <Link
-                  href={`/agents/${a.agent_id}`}
-                  aria-label={`Open individual chat with ${a.agent_id}`}
-                  style={{
-                    fontSize: 12,
-                    color: "#1d4ed8",
-                    textDecoration: "none",
-                    flex: "0 0 auto",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  💬 chat 1:1
-                </Link>
-              </div>
-              {a.top_quote && <TopQuoteLine text={a.top_quote} />}
-            </li>
-          ))}
-        </ul>
+          💬 chat (1:1 only)
+        </span>
+      ) : (
+        <Link
+          href={`/simulations/${simId}/personas/${personaId}`}
+          aria-label={`Open persona-group chat with ${personaName}`}
+          style={{
+            fontSize: 13,
+            color: "#1d4ed8",
+            textDecoration: "none",
+            flex: "0 0 auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          💬 chat
+        </Link>
       )}
+      </div>
+      {groupQuote && (
+        <TopQuoteLine
+          text={groupQuote}
+          armLabel={isAbMode ? "treatment" : null}
+        />
+      )}
+      {open &&
+        (isAbMode ? (
+          <div id={listId} style={{ padding: "8px 0 0 24px" }}>
+            <ArmAgentSubList label="Treatment" agents={treatmentAgents} />
+            <ArmAgentSubList label="Control" agents={controlAgents} />
+            {untaggedAgents.length > 0 && (
+              <ArmAgentSubList label="Untagged" agents={untaggedAgents} />
+            )}
+          </div>
+        ) : (
+          <ul
+            id={listId}
+            style={{
+              listStyle: "none",
+              padding: "8px 0 0 24px",
+              margin: 0,
+            }}
+          >
+            {agents.map((a) => (
+              <AgentLi key={a.agent_id} agent={a} />
+            ))}
+          </ul>
+        ))}
     </li>
+  );
+}
+
+// Phase 4.6 #91: single agent row, factored out so the A/B sub-sections and
+// the single-arm flat list share the exact same row markup. Touching this
+// once flows through both branches.
+function AgentLi({ agent: a }: { agent: AgentRow }) {
+  return (
+    <li
+      style={{
+        padding: "8px 0",
+        borderTop: "1px dashed #f0f0f0",
+        listStyle: "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          fontSize: 13,
+        }}
+      >
+        <Link
+          href={`/agents/${a.agent_id}`}
+          style={{
+            color: "#1d4ed8",
+            textDecoration: "none",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+            flex: "0 0 auto",
+          }}
+        >
+          {a.agent_id.slice(0, 8)}
+        </Link>
+        <SentimentChip
+          sentiment={a.sentiment}
+          intensity={a.sentiment_confidence ?? null}
+        />
+        <span style={{ flex: 1 }} />
+        <Link
+          href={`/agents/${a.agent_id}`}
+          aria-label={`Open individual chat with ${a.agent_id}`}
+          style={{
+            fontSize: 12,
+            color: "#1d4ed8",
+            textDecoration: "none",
+            flex: "0 0 auto",
+            whiteSpace: "nowrap",
+          }}
+        >
+          💬 chat 1:1
+        </Link>
+      </div>
+      {a.top_quote && <TopQuoteLine text={a.top_quote} />}
+    </li>
+  );
+}
+
+function ArmAgentSubList({
+  label,
+  agents,
+}: {
+  label: "Treatment" | "Control" | "Untagged";
+  agents: AgentRow[];
+}) {
+  if (agents.length === 0) {
+    return (
+      <div style={{ paddingTop: 6, paddingBottom: 4 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: "#888",
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            fontWeight: 600,
+          }}
+        >
+          {label}
+        </div>
+        <div style={{ fontSize: 12, color: "#aaa", paddingTop: 4 }}>
+          — no agents in this arm —
+        </div>
+      </div>
+    );
+  }
+  const sub = aggregateSentiment(agents);
+  return (
+    <div style={{ paddingTop: 6, paddingBottom: 4 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 11,
+          color: "#888",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          fontWeight: 600,
+          padding: "4px 0",
+          borderBottom: "1px solid #eee",
+        }}
+      >
+        <span>{label}</span>
+        <span style={{ color: "#aaa", fontWeight: 400 }}>
+          ({agents.length} agent{agents.length === 1 ? "" : "s"})
+        </span>
+        <span style={{ marginLeft: "auto" }}>
+          <SentimentChip sentiment={sub.label} intensity={sub.intensity} />
+        </span>
+      </div>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {agents.map((a) => (
+          <AgentLi key={a.agent_id} agent={a} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -1275,7 +1744,17 @@ function SentimentChip({
   );
 }
 
-function TopQuoteLine({ text }: { text: string }) {
+function TopQuoteLine({
+  text,
+  armLabel = null,
+}: {
+  text: string;
+  // When set, prefixes the quote with a small "[treatment]" or "[control]"
+  // tag so the PM can tell which arm spoke when the collapsed persona
+  // summary chooses a single quote across an A/B run. Null in single-arm
+  // mode keeps the original visual untouched.
+  armLabel?: "treatment" | "control" | null;
+}) {
   const [expanded, setExpanded] = useState(false);
   // Inline-expand on click (spec: "click expands inline (no nav)").
   // Collapsed: single-line ellipsis; expanded: full wrap.
@@ -1302,6 +1781,25 @@ function TopQuoteLine({ text }: { text: string }) {
         textOverflow: "ellipsis",
       }}
     >
+      {armLabel && (
+        <span
+          aria-label={`${armLabel} arm`}
+          style={{
+            fontSize: 10,
+            color: "#888",
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            fontWeight: 600,
+            marginRight: 8,
+            padding: "1px 6px",
+            background: "#f0f0f0",
+            border: "1px solid #e0e0e0",
+            borderRadius: 4,
+          }}
+        >
+          {armLabel}
+        </span>
+      )}
       <span aria-hidden style={{ color: "#bbb", marginRight: 6 }}>
         “
       </span>

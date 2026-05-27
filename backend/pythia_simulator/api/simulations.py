@@ -183,6 +183,11 @@ class AgentSummary(BaseModel):
     sentiment: Literal["positive", "neutral", "negative"] | None = None
     sentiment_confidence: float | None = None
     top_quote: str | None = None
+    # Phase 4.6 #91: arm tag for A/B-mode result-table render. None for
+    # single-arm sims and for legacy pre-#89 rows (backwards-compatible).
+    # The frontend treats the table as A/B whenever ANY row has a non-None
+    # arm, so legacy sims keep their original single-arm layout.
+    arm: Literal["treatment", "control"] | None = None
 
 
 @router.get("/{simulation_id}/agents", response_model=list[AgentSummary])
@@ -227,6 +232,7 @@ async def list_simulation_agents(
                     analysis.get("sentiment_confidence") if analysis else None
                 ),
                 top_quote=analysis.get("top_quote") if analysis else None,
+                arm=r.get("arm"),
             )
         )
     return out
