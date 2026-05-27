@@ -634,15 +634,29 @@ def _summarize_category(category: str, count: int, total: int) -> str:
 def _agent_delta(treatment: AgentAnalysis, control: AgentAnalysis) -> float:
     """Confidence-weighted sentiment delta for one matched pair.
 
-    Range [-1.0, +1.0]. Per `docs/4.6-ab-experiment-mode.md` Q2: confidence
-    applied to both sides so an unconfident +1 vs unconfident −1 carries
-    less weight than a confident pair with the same sentiments.
+    Range [-1.0, +1.0]. Each side's sentiment value is shrunk toward
+    the neutral midpoint (0.5) by the inverse of the classifier's
+    confidence:
+
+        value_shrunk = confidence × value + (1 − confidence) × 0.5
+
+    The naive `confidence × value` (codex R4-P1 PR #96) silently strips
+    confidence for NEGATIVE classifications because `value=0`, so a
+    `confidence=0.1, negative` carried the same weight as
+    `confidence=1.0, negative`. Shrinking toward neutral applies
+    confidence symmetrically across positive (1.0), neutral (0.5),
+    and negative (0.0): a low-confidence classification on either end
+    collapses toward the neutral midpoint and contributes less to the
+    paired delta. Mirrors the shrinkage behavior of the aggregate
+    sentiment_score in `_compute_score` (Bayesian prior toward 0.5).
     """
     t_value = ScoringService._SENTIMENT_VALUE[treatment.sentiment.sentiment]
     c_value = ScoringService._SENTIMENT_VALUE[control.sentiment.sentiment]
-    t_weighted = treatment.sentiment.confidence * t_value
-    c_weighted = control.sentiment.confidence * c_value
-    return t_weighted - c_weighted
+    t_conf = treatment.sentiment.confidence
+    c_conf = control.sentiment.confidence
+    t_shrunk = t_conf * t_value + (1.0 - t_conf) * 0.5
+    c_shrunk = c_conf * c_value + (1.0 - c_conf) * 0.5
+    return t_shrunk - c_shrunk
 
 
 def _match_paired_analyses(

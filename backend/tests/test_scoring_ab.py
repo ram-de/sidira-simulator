@@ -24,7 +24,12 @@ from pythia_simulator.schemas.scoring import (
     WeaknessClassification,
 )
 from pythia_simulator.schemas.simulation import Hypothesis
-from pythia_simulator.services.scoring import AgentReaction, ScoringService, aggregate_ab
+from pythia_simulator.services.scoring import (
+    AgentReaction,
+    ScoringService,
+    _agent_delta,
+    aggregate_ab,
+)
 
 
 def _a(
@@ -398,6 +403,78 @@ async def test_score_ab_zero_matched_pairs_preserves_paired_n_zero() -> None:
     assert result.lift_paired_n == 0  # NOT None
     assert result.lift_unpaired_treatment == 1
     assert result.lift_unpaired_control == 1
+
+
+# ── Codex R4-P1 (PR #96): confidence weighting applies to negative too ──
+
+
+def test_agent_delta_low_confidence_negative_shrinks_toward_neutral() -> None:
+    """Codex R4-P1: prior formula was `confidence × value`, which silently
+    dropped confidence for NEGATIVE (value=0) since c × 0 = 0. A
+    low-confidence negative carried the same weight as a high-confidence
+    one. Post-fix: each side shrinks toward neutral (0.5) by (1 −
+    confidence), so low confidence collapses the contribution toward 0
+    delta regardless of bucket."""
+    treatment_hi = _a(
+        agent_id="t", persona_id="p", sample_index=0,
+        sentiment=Sentiment.POSITIVE, confidence=1.0,
+    )
+    control_low = _a(
+        agent_id="c", persona_id="p", sample_index=0,
+        sentiment=Sentiment.NEGATIVE, confidence=0.1,
+    )
+    control_hi = _a(
+        agent_id="c2", persona_id="p", sample_index=0,
+        sentiment=Sentiment.NEGATIVE, confidence=1.0,
+    )
+
+    delta_low_conf = _agent_delta(treatment_hi, control_low)
+    delta_hi_conf = _agent_delta(treatment_hi, control_hi)
+
+    # Hi-conf NEG: t_shrunk = 1.0, c_shrunk = 0.0 → delta = 1.0
+    assert delta_hi_conf == pytest.approx(1.0, abs=1e-6)
+    # Low-conf NEG (c=0.1): c_shrunk = 0.1*0 + 0.9*0.5 = 0.45 → delta = 1.0 - 0.45 = 0.55
+    assert delta_low_conf == pytest.approx(0.55, abs=1e-6)
+    # Low-conf NEG MUST contribute less than hi-conf NEG (this is the bug)
+    assert delta_low_conf < delta_hi_conf
+
+
+def test_agent_delta_low_confidence_positive_also_shrinks() -> None:
+    """Symmetry check: confidence weighting must apply to POSITIVE as
+    well (was already partially working in the buggy formula since
+    c × 1.0 differs by c, but the new formula must preserve this)."""
+    control = _a(
+        agent_id="c", persona_id="p", sample_index=0,
+        sentiment=Sentiment.NEUTRAL, confidence=1.0,
+    )
+    treatment_low = _a(
+        agent_id="t", persona_id="p", sample_index=0,
+        sentiment=Sentiment.POSITIVE, confidence=0.1,
+    )
+    treatment_hi = _a(
+        agent_id="t2", persona_id="p", sample_index=0,
+        sentiment=Sentiment.POSITIVE, confidence=1.0,
+    )
+    delta_low = _agent_delta(treatment_low, control)
+    delta_hi = _agent_delta(treatment_hi, control)
+    assert delta_hi > delta_low
+    # Low-conf POS (c=0.1): t_shrunk = 0.1*1 + 0.9*0.5 = 0.55; control NEU c=1 → c_shrunk=0.5
+    # delta = 0.55 - 0.5 = 0.05
+    assert delta_low == pytest.approx(0.05, abs=1e-6)
+
+
+def test_agent_delta_zero_confidence_both_sides_yields_zero() -> None:
+    """Pathological floor: if both classifiers report confidence=0, neither
+    side contributes any signal — paired delta must be exactly zero."""
+    treatment = _a(
+        agent_id="t", persona_id="p", sample_index=0,
+        sentiment=Sentiment.POSITIVE, confidence=0.0,
+    )
+    control = _a(
+        agent_id="c", persona_id="p", sample_index=0,
+        sentiment=Sentiment.NEGATIVE, confidence=0.0,
+    )
+    assert _agent_delta(treatment, control) == pytest.approx(0.0, abs=1e-6)
 
 
 # ── Codex R2-P1 (PR #96): arm-aware scoring prompts ──────────────────
