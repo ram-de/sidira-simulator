@@ -82,6 +82,7 @@ def _metadata_from_row(row: dict) -> AgentInstanceMetadata:
         created_at=row["created_at"],
         last_active_at=row["last_active_at"],
         message_count=row.get("message_count", 0) or 0,
+        arm=row.get("arm"),
     )
 
 

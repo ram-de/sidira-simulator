@@ -246,9 +246,9 @@ async def test_dual_arm_run_tags_agents_per_arm() -> None:
     arms = [r.arm for r in records]
     assert None not in arms, "every dual-arm record must have an arm tag"
     assert set(arms) == {"treatment", "control"}
-    assert arms.count("treatment") == arms.count("control"), (
-        "f=0.5 with even pop must split exactly"
-    )
+    # Per-arm semantics (post-Codex P1 #95): pop=6 means 6 per arm.
+    assert arms.count("treatment") == 6
+    assert arms.count("control") == 6
 
 
 @pytest.mark.asyncio
@@ -375,8 +375,66 @@ async def test_dual_arm_control_prompt_omits_proposed_change() -> None:
     without_prose = sum(
         1 for p in chat.system_prompts if "UNIQUE_TREATMENT_PROSE" not in p
     )
-    assert with_prose == 2, f"expected 2 treatment prompts, got {with_prose}"
-    assert without_prose == 2, f"expected 2 control prompts, got {without_prose}"
+    # Per-arm semantics (post-Codex P1 #95): pop=4 means 4 per arm.
+    assert with_prose == 4, f"expected 4 treatment prompts, got {with_prose}"
+    assert without_prose == 4, f"expected 4 control prompts, got {without_prose}"
+
+
+@pytest.mark.asyncio
+async def test_dual_arm_per_arm_count_matches_population_size_at_f_half() -> None:
+    """Codex P1 regression on PR #95: the runner used to do `treatment_pop =
+    int(population_size * 0.5)` which silently halved the user-requested
+    per-arm cohort. The wizard's cost preview promises "≈ N treatment + N
+    control" for `populationSize = N`; the runner has to honor that."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=6,
+        run_seed=1,
+        treatment_fraction=0.5,
+    )
+    treatment = [r for r in runner._last_run_agent_records if r.arm == "treatment"]
+    control = [r for r in runner._last_run_agent_records if r.arm == "control"]
+    assert len(treatment) == 6, f"expected 6 treatment, got {len(treatment)}"
+    assert len(control) == 6, f"expected 6 control, got {len(control)}"
+
+
+@pytest.mark.asyncio
+async def test_dual_arm_odd_population_still_pairs() -> None:
+    """At odd population_size + f=0.5, the prior split-first math produced
+    `int(7*0.5) = 3` treatment vs `7-3 = 4` control — unequal arms, one
+    unpaired agent. With per-arm interpretation both arms get 7 → paired."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=7,
+        run_seed=1,
+        treatment_fraction=0.5,
+    )
+    treatment_keys = {
+        (r.persona_id, r.sample_index)
+        for r in runner._last_run_agent_records
+        if r.arm == "treatment"
+    }
+    control_keys = {
+        (r.persona_id, r.sample_index)
+        for r in runner._last_run_agent_records
+        if r.arm == "control"
+    }
+    assert treatment_keys == control_keys
+    assert len(treatment_keys) == 7
 
 
 @pytest.mark.asyncio

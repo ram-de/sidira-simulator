@@ -159,17 +159,42 @@ class SimulationRunner:
                 for sample_index in range(count):
                     agent_specs.append((persona, sample_index, None))
         else:
-            # A/B mode: each arm gets its own allocation. Arms cap
-            # independently at max_agents (the wizard's WIZARD_PER_ARM_CAP
-            # mirrors this: per-arm cap, not total). Floor+ceiling on the
-            # fraction split so the two arms always sum to population_size.
-            treatment_pop = int(population_size * treatment_fraction)
-            control_pop = population_size - treatment_pop
+            # A/B mode: in A/B mode `population_size` is the PER-ARM target
+            # (matches the wizard's `perArm = min(populationSize,
+            # WIZARD_PER_ARM_CAP)` cost-preview math — see
+            # frontend/app/simulations/new/page.tsx). Each arm calls
+            # allocate() with the SAME (persona_pack, target, max_agents)
+            # triple at the wizard's locked f=0.5 — that's what makes
+            # treatment_alloc byte-identical to control_alloc, which is
+            # what makes (persona_id, sample_index) pairs match across
+            # arms, which is what makes draw_identity_seed produce
+            # identical seeds per pair (paired sampling for free).
+            #
+            # Codex P1 on PR #95 caught the earlier "split the population
+            # first" math: for pop=50 + max=50, that produced 25 vs 25
+            # instead of the 50/50 the wizard's "≈ 50 + 50 = 100 agents"
+            # preview promised, AND broke pair matching for odd pops.
+            # The fix is to NOT pre-split — treat population_size as
+            # per-arm target, then derive treatment_target / control_target
+            # symmetrically from treatment_fraction.
+            if abs(treatment_fraction - 0.5) < 1e-9:
+                # Locked v1 default. Both arms get the same target → paired.
+                treatment_target = population_size
+                control_target = population_size
+            else:
+                # Asymmetric split. The wizard does not currently expose
+                # this path (schema accepts it for future flexibility), so
+                # the trade-off is documented but not heavily exercised:
+                # at f != 0.5 the arms diverge in size, the byte-equivalent
+                # allocation invariant is lost, and #90's pair matcher
+                # falls back to per-(persona, sample_index) intersection.
+                treatment_target = int(round(population_size * 2 * treatment_fraction))
+                control_target = int(round(population_size * 2 * (1 - treatment_fraction)))
             treatment_alloc = allocate(
-                persona_pack, treatment_pop, max_agents=max_agents
+                persona_pack, treatment_target, max_agents=max_agents
             )
             control_alloc = allocate(
-                persona_pack, control_pop, max_agents=max_agents
+                persona_pack, control_target, max_agents=max_agents
             )
             for persona_id, count in treatment_alloc:
                 persona = pack_by_id[persona_id]
