@@ -462,21 +462,26 @@ export default function SimulationDetailPage() {
               {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
               {sim.sampled_agent_count ?? "—"} agent
               {sim.sampled_agent_count === 1 ? "" : "s"}
-              {result?.lift_paired_n != null && sim.sampled_agent_count != null
+              {sim.arm_split != null && sim.sampled_agent_count != null
                 ? ` per arm — ${2 * sim.sampled_agent_count} total across treatment + control,`
                 : ""}
               {" "}in proportion to persona weights)
             </section>
           )}
 
-          {/* Phase 4.6 #91 (codex R1 P2): key the A/B UI off `lift_paired_n`,
-              not `lift`. Backend uses lift=null + paired_n=0 to mean
-              "A/B attempted, no matched pairs" (codex R3-P2b on #90), distinct
-              from lift=null + paired_n=null which means "single-arm sim, no
-              A/B attempted." Gating on `lift` alone collapsed both back
-              together and made a degraded A/B run look like an ordinary
-              single-arm result. */}
-          {result.lift_paired_n != null && (
+          {/* Phase 4.6 #91 A/B UI gate.
+              Codex R1-P2: lift=null alone collapses "single-arm" and "A/B
+              with no matched pairs" together. First fix was to key off
+              `lift_paired_n != null`.
+              Codex R4-P2: if A/B fully fails (zero successful agents),
+              SimulationRunner._score returns the generic placeholder with
+              NO lift_paired_n at all — that misclassifies as single-arm
+              again. The request-level field `sim.arm_split` is the ground
+              truth for "user asked for A/B," independent of whether the
+              backend produced any per-arm data. Gate everything off that;
+              LiftCard handles all three result-shape variants internally
+              (good lift, paired_n=0, paired_n=null). */}
+          {sim.arm_split != null && (
             <LiftCard
               lift={result.lift ?? null}
               liftCi={result.lift_ci ?? null}
@@ -498,7 +503,7 @@ export default function SimulationDetailPage() {
                 marginBottom: 8,
               }}
             >
-              {result.lift_paired_n != null ? "Treatment arm confidence" : "Confidence score"}
+              {sim.arm_split != null ? "Treatment arm confidence" : "Confidence score"}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
               <div
@@ -531,7 +536,7 @@ export default function SimulationDetailPage() {
                 ciHigh={result.confidence_score_ci[1]}
               />
             )}
-            {result.lift_paired_n != null && result.control_score != null && (
+            {sim.arm_split != null && result.control_score != null && (
               <div
                 style={{
                   marginTop: 16,
@@ -946,7 +951,7 @@ function LiftCard({
           )}
         </div>
       </div>
-      {noPairs && (
+      {noPairs && pairedN != null && (
         <div
           style={{
             marginTop: 12,
@@ -967,6 +972,32 @@ function LiftCard({
           below, but it is NOT a lift measurement — it&rsquo;s only the
           treatment arm in isolation. See the drop counters for which
           dropout caused this.
+        </div>
+      )}
+      {noPairs && pairedN == null && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            background: "#fdecec",
+            border: "1px solid #f5b5b5",
+            borderRadius: 6,
+            fontSize: 13,
+            color: "#a30000",
+            lineHeight: 1.5,
+          }}
+        >
+          {/* Codex R4-P2: backend returned a generic placeholder result
+              with no per-arm fields at all. Common cause: zero successful
+              agents in either arm (LLM outage, every agent timing out).
+              Distinct from the no-pairs case above — there scoring ran but
+              found no pairs; here scoring never produced per-arm output. */}
+          <strong>A/B run did not produce per-arm scoring output.</strong>{" "}
+          The simulation finished but the backend returned a single-arm
+          placeholder result — usually because no agents in either arm
+          completed successfully (LLM outage, timeouts, or every agent
+          erroring). Re-run the simulation, or check the run state for the
+          failure reason.
         </div>
       )}
       {anyDrops && (
