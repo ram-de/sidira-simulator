@@ -58,6 +58,7 @@ class SimulationOrchestrator:
         sampled_agent_count: int | None = None,
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -71,6 +72,22 @@ class SimulationOrchestrator:
 
         persona_pack = self._personas.load_latest(customer_id)
         feature_pack_version = self._features.resolve_latest_version(customer_id)
+
+        # Phase 5 #101: eager validation of selected_personas against the
+        # active pack. Catches unknown persona_ids at submit time with a
+        # clean 400 (POST handler maps ValueError -> 400) instead of failing
+        # the background run after the sim row is already persisted. The
+        # allocator does the same check defensively, but doing it here means
+        # the sim row never even gets created for a bad request.
+        if selected_personas is not None:
+            pack_ids = {p.id for p in persona_pack.personas}
+            unknown = sorted(set(selected_personas) - pack_ids)
+            if unknown:
+                raise ValueError(
+                    f"selected_personas references persona_ids not present "
+                    f"in the active Persona Pack ({persona_pack.version}): "
+                    f"{unknown}. Known ids: {sorted(pack_ids)}"
+                )
 
         # Phase 2.5 (#5): the runner now does its own allocate()-based stratification
         # over population_size, so we just thread it (plus run_seed for identity
@@ -103,6 +120,7 @@ class SimulationOrchestrator:
             sampled_agent_count=sampled_agent_count,
             run_seed=resolved_run_seed,
             treatment_fraction=treatment_fraction,
+            selected_personas=selected_personas,
         )
 
         async def run() -> None:
@@ -117,6 +135,7 @@ class SimulationOrchestrator:
                 # clamp to 1 while allocate() falls back to default 50. (codex P2)
                 max_agents=sampled_agent_count,
                 treatment_fraction=treatment_fraction,
+                selected_personas=selected_personas,
             )
 
         return sim_id, run
@@ -143,6 +162,7 @@ class SimulationOrchestrator:
         run_seed: int | None,
         max_agents: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -166,6 +186,7 @@ class SimulationOrchestrator:
                 run_seed=run_seed,
                 max_agents=max_agents,
                 treatment_fraction=treatment_fraction,
+                selected_personas=selected_personas,
             )
 
         except Exception as exc:
@@ -191,6 +212,7 @@ class SimulationOrchestrator:
         run_seed: int | None,
         max_agents: int | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -204,6 +226,7 @@ class SimulationOrchestrator:
             max_agents=max_agents,
             sim_id=sim_id,
             treatment_fraction=treatment_fraction,
+            selected_personas=selected_personas,
         )
 
         # Persist agent_instances rows using the records the runner exposed.

@@ -330,3 +330,116 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
     # API clamps PYTHIA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
     assert body["sampled_agent_count"] == 1
     assert len(body["agent_instance_ids"]) == 1
+
+
+# ── Phase 5 #101: persona-filter end-to-end ─────────────────────────────────
+
+
+def test_post_simulation_with_unknown_persona_returns_400(
+    client_with_stub_llm,
+) -> None:
+    """selected_personas with an id not in the active pack -> 400.
+
+    Eager-validated in orchestrator.prepare() before the sim row is persisted,
+    so a bad request never creates a dangling sim that would fail in the
+    background.
+    """
+    client, _, sim_repo, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button.",
+            },
+            "population_size": 5,
+            "selected_personas": ["made_up_persona_id"],
+        },
+    )
+    assert resp.status_code == 400, resp.text
+    assert "not present in the active Persona Pack" in resp.json()["detail"]
+
+
+def test_post_simulation_with_empty_selected_personas_returns_422(
+    client_with_stub_llm,
+) -> None:
+    """Empty selected_personas is rejected by the Pydantic validator (422)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button.",
+            },
+            "population_size": 5,
+            "selected_personas": [],
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_simulation_with_persona_filter_completes_against_subset(
+    client_with_stub_llm,
+) -> None:
+    """selected_personas=[<one valid id>] -> sim runs against ONLY that persona.
+
+    Acceptance criterion: full population_size lands on the selected cohort
+    (re-weight invariant), not a proportional share of it.
+    """
+    client, _, sim_repo, agent_repo = client_with_stub_llm
+
+    # Hardcoded id from the fixture demo pack. There is no read-side
+    # /personas endpoint yet (#101 frontend lands one next); the wizard
+    # will use it, but the test fixture loads the demo pack directly.
+    chosen = ["maya_late_night_premium"]
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Test the persona-filter end-to-end.",
+            },
+            "population_size": 3,
+            "selected_personas": chosen,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    final = client.get(f"/simulations/{sim_id}").json()
+    assert final["status"] == "complete", final
+    # Filter round-trips through the persisted sim row.
+    assert final["selected_personas"] == chosen
+    # All materialized agents belong to the selected persona (re-weight
+    # invariant: the full population_size lands on the cohort, not a share).
+    agent_ids = final["agent_instance_ids"]
+    assert len(agent_ids) == 3
+    agents = client.get(f"/simulations/{sim_id}/agents").json()
+    assert {a["persona_id"] for a in agents} == set(chosen)
+
+
+def test_simulation_without_persona_filter_runs_against_all_personas(
+    client_with_stub_llm,
+) -> None:
+    """Backwards-compat: omitting selected_personas == today's behavior.
+
+    The persisted row exposes selected_personas=None on GET so the frontend
+    cohort banner can branch off it.
+    """
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Unfiltered control case.",
+            },
+            "population_size": 5,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    final = client.get(f"/simulations/{sim_id}").json()
+    assert final["selected_personas"] is None

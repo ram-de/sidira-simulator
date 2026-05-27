@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from pythia_simulator.schemas.feature_pack import ReverseFigma
 
@@ -83,6 +83,48 @@ class SimulationRequest(BaseModel):
             "See docs/4.6-ab-experiment-mode.md."
         ),
     )
+    selected_personas: list[str] | None = Field(
+        default=None,
+        description=(
+            "Phase 5 #101: optional subset of persona_ids to run the sim "
+            "against. When None, runs against ALL personas in the active "
+            "Persona Pack (today's behavior, backwards-compatible). When a "
+            "non-empty list, the allocator filters to these personas and "
+            "re-weights them to sum to 1 before largest-remainder "
+            "allocation, so `population_size` is preserved across the "
+            "selected cohort. Empty list is rejected. Unknown persona_ids "
+            "are rejected at the API layer (the schema can't see the "
+            "active pack). A/B mode applies the filter symmetrically to "
+            "both arms (the paired-sampling invariant from #89 keeps "
+            "working because both arms run the same persona set)."
+        ),
+    )
+
+    @field_validator("selected_personas")
+    @classmethod
+    def _selected_personas_nonempty(cls, v: list[str] | None) -> list[str] | None:
+        # None = all personas (today's behavior). Explicit empty list is a
+        # PM mistake: "I want to run against zero personas" has no meaning,
+        # so we reject it here rather than letting the allocator return
+        # zero agents downstream and the run fail at orchestrator time.
+        # Unknown persona_id values can't be validated here (the schema
+        # doesn't see the active pack); the API layer rejects those.
+        if v is None:
+            return v
+        if len(v) == 0:
+            raise ValueError(
+                "selected_personas must contain at least one persona_id "
+                "(or be omitted entirely to run against all personas)"
+            )
+        # Dedupe while preserving order — duplicate IDs in the list would
+        # otherwise double-count a persona's weight at renormalization time.
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for pid in v:
+            if pid not in seen:
+                seen.add(pid)
+                deduped.append(pid)
+        return deduped
 
 
 class SimulationStatus(str, Enum):
@@ -172,5 +214,10 @@ class Simulation(BaseModel):
     sampled_agent_count: int | None = None
     run_seed: int | None = None
     arm_split: ArmSplit | None = None
+    # Phase 5 #101: denormalized copy of the filter the PM submitted, so the
+    # result-page cohort banner ("This run included N of M personas: …")
+    # survives even if the Persona Pack changes after the sim completes.
+    # None = all personas (today's behavior).
+    selected_personas: list[str] | None = None
     agent_instance_ids: list[str] = Field(default_factory=list)
     result: SimulationResult | None = None

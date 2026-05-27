@@ -12,6 +12,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
 // ── Re-exported schema types for page imports ──────────────────────────
 
 export type FeaturePackManifest = components["schemas"]["FeaturePackManifest"];
+export type PersonaSummary = components["schemas"]["PersonaSummary"];
+export type ActivePersonasResponse = components["schemas"]["ActivePersonasResponse"];
 export type Hypothesis = components["schemas"]["Hypothesis"];
 export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
@@ -75,6 +77,11 @@ export const apiPost = <T, U>(path: string, body: T) =>
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
 export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities");
+
+// Phase 5 #101: list the active Persona Pack's personas for the wizard's
+// persona-filter checkbox list.
+export const getActivePersonas = () =>
+  apiGet<ActivePersonasResponse>("/personas");
 
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);

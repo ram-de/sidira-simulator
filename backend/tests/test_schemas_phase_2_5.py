@@ -222,3 +222,47 @@ def test_agent_instance_identity_seed_optional_for_existing_code() -> None:
     )
     agent = AgentInstance(metadata=meta, identity_prompt="...", initial_reaction="...")
     assert agent.identity_seed is None
+
+
+# ── Phase 5 #101: SimulationRequest.selected_personas validation ───────────
+
+
+def test_simulation_request_selected_personas_default_none() -> None:
+    """Default is None == 'run against all personas' (backwards-compat)."""
+    req = SimulationRequest(hypothesis=_hypothesis(), population_size=10)
+    assert req.selected_personas is None
+
+
+def test_simulation_request_selected_personas_accepts_list() -> None:
+    """Non-empty list of persona_ids round-trips through Pydantic unchanged."""
+    req = SimulationRequest(
+        hypothesis=_hypothesis(),
+        population_size=10,
+        selected_personas=["p1", "p2"],
+    )
+    assert req.selected_personas == ["p1", "p2"]
+
+
+def test_simulation_request_selected_personas_empty_list_rejected() -> None:
+    """Empty list is a PM mistake -- reject at the schema layer."""
+    with pytest.raises(ValidationError, match="at least one persona_id"):
+        SimulationRequest(
+            hypothesis=_hypothesis(),
+            population_size=10,
+            selected_personas=[],
+        )
+
+
+def test_simulation_request_selected_personas_dedupes_duplicates() -> None:
+    """Dupes must collapse so a persona's weight isn't double-counted.
+
+    The PM submitting ["p1", "p1", "p2"] almost certainly meant ["p1", "p2"];
+    the allocator's renormalize step would otherwise count p1's weight twice
+    in the denominator and give it 2/3 of the population instead of 1/2.
+    """
+    req = SimulationRequest(
+        hypothesis=_hypothesis(),
+        population_size=10,
+        selected_personas=["p1", "p1", "p2"],
+    )
+    assert req.selected_personas == ["p1", "p2"]

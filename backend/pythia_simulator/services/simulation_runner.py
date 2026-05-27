@@ -109,6 +109,7 @@ class SimulationRunner:
         max_agents: int | None = None,
         sim_id: str | None = None,
         treatment_fraction: float | None = None,
+        selected_personas: list[str] | None = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
         # run_seed pinned per simulation. Unset means caller didn't fix it -- mint a
@@ -153,7 +154,12 @@ class SimulationRunner:
         agent_specs: list[tuple[Persona, int, str | None]] = []
         if treatment_fraction is None:
             # Single-arm: today's behavior, no arm tag.
-            allocation = allocate(persona_pack, population_size, max_agents=max_agents)
+            allocation = allocate(
+                persona_pack,
+                population_size,
+                max_agents=max_agents,
+                selected_personas=selected_personas,
+            )
             for persona_id, count in allocation:
                 persona = pack_by_id[persona_id]
                 for sample_index in range(count):
@@ -190,11 +196,22 @@ class SimulationRunner:
                 # falls back to per-(persona, sample_index) intersection.
                 treatment_target = int(round(population_size * 2 * treatment_fraction))
                 control_target = int(round(population_size * 2 * (1 - treatment_fraction)))
+            # Phase 5 #101: persona-filter applies symmetrically across arms.
+            # Same `selected_personas` to both allocate() calls preserves the
+            # paired-sampling invariant from #89: at f=0.5 both arms still
+            # produce byte-identical allocations because the filter + reweight
+            # happens deterministically before largest-remainder.
             treatment_alloc = allocate(
-                persona_pack, treatment_target, max_agents=max_agents
+                persona_pack,
+                treatment_target,
+                max_agents=max_agents,
+                selected_personas=selected_personas,
             )
             control_alloc = allocate(
-                persona_pack, control_target, max_agents=max_agents
+                persona_pack,
+                control_target,
+                max_agents=max_agents,
+                selected_personas=selected_personas,
             )
             for persona_id, count in treatment_alloc:
                 persona = pack_by_id[persona_id]
