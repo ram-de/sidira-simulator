@@ -35,14 +35,11 @@ export default function NewSimulationPage() {
   // makes other splits statistically wasteful per docs/4.6 Q3). The
   // schema accepts other values for future flexibility.
   //
-  // Phase 4.6 STAGED ROLLOUT GATE: the toggle is DISABLED in this PR
-  // because the runner doesn't honor `arm_split` yet — #89 wires the
-  // dual-arm orchestrator that consumes this field. Without this gate a
-  // PM could click the toggle, submit, get arm_split=0.5 back on the
-  // result page, but actually get a single-arm execution — silent
-  // user-facing mismatch (codex #93 [P1]). Flip this constant to false
-  // when #89 lands.
-  const AB_MODE_DISABLED_UNTIL_89 = true;
+  // Phase 4.6 staged rollout gate (flipped in #89): the runner now honors
+  // `arm_split` end-to-end (composer → orchestrator → dual-arm allocation
+  // → arm-tagged AgentInstance rows). The toggle is enabled; the cost
+  // preview + confirm-if-large remain the user-facing safety rails.
+  const AB_MODE_DISABLED_UNTIL_89 = false;
   const [abMode, setAbMode] = useState(false);
   // Wizard-side mirror of the API's hard per-arm cap. Matches
   // PYTHIA_MAX_AGENTS in the default env (50). The cost preview uses

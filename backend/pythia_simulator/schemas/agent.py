@@ -35,7 +35,14 @@ class AgentChatTurn(BaseModel):
 
 
 class AgentInstanceMetadata(BaseModel):
-    """Lightweight metadata stored in Postgres (the heavy stuff lives in R2)."""
+    """Lightweight metadata stored in Postgres (the heavy stuff lives in R2).
+
+    Phase 4.6 #89: `arm` carries A/B mode tag. None for single-arm sims
+    (today's default; backwards-compat with all pre-#89 rows).
+    `"treatment"` / `"control"` for A/B sims; pinned at materialization
+    time and never changes for the lifetime of the agent (identity
+    continuity per memory/agent_memory.py).
+    """
 
     id: str
     customer_id: str
@@ -46,6 +53,7 @@ class AgentInstanceMetadata(BaseModel):
     created_at: datetime
     last_active_at: datetime
     message_count: int = 0
+    arm: str | None = None
 
 
 class AgentInstance(BaseModel):

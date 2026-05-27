@@ -91,6 +91,13 @@ class AgentInstance(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     last_active_at: Mapped[datetime] = mapped_column(server_default=func.now())
     message_count: Mapped[int] = mapped_column(default=0)
+    # Phase 4.6 #89: A/B mode arm tag. NULL = single-arm sim (today's
+    # default; pre-#89 rows round-trip with NULL). "treatment" / "control"
+    # for A/B sims. Persisted at materialization time and never changes
+    # for the lifetime of the AgentInstance — re-instantiation with a
+    # different arm produces a different agent (identity-continuity
+    # invariant per memory/agent_memory.py).
+    arm: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     simulation: Mapped[Simulation] = relationship(back_populates="agents")
     feedback: Mapped[list["AgentFeedback"]] = relationship(

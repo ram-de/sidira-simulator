@@ -3,9 +3,18 @@
 This is called ONCE per agent, at simulation time. The output is persisted to
 R2 as `identity.md` and is never recomputed. See the identity-continuity
 guarantee in pythia_simulator/memory/agent_memory.py.
+
+Phase 4.6 #89 adds the `arm` parameter to support A/B mode. The treatment-arm
+prompt is unchanged from the single-arm/pre-4.6 shape. The control-arm prompt
+drops the proposed-change section and replaces the task framing with a
+status-quo reaction prompt. Both arms share the persona/identity_seed/
+behavioral_snapshot/product-today preamble AND the #77 opener guidance
+(identity-grounded openers + the anti-polite-hedge template list).
 """
 
 from __future__ import annotations
+
+from typing import Literal
 
 from pythia_simulator.schemas.feature_pack import Capability
 from pythia_simulator.schemas.identity import IdentitySeed
@@ -13,7 +22,12 @@ from pythia_simulator.schemas.persona import Persona
 from pythia_simulator.schemas.simulation import Hypothesis
 
 
-_TEMPLATE = """You are roleplaying a real user of {customer_id}'s product.
+Arm = Literal["treatment", "control"]
+
+
+# Shared preamble: persona identity + about-you + behavioral snapshot + product-today.
+# Both arms see this verbatim — only the trailing task framing differs.
+_PREAMBLE_TEMPLATE = """You are roleplaying a real user of {customer_id}'s product.
 
 ## Who you are
 
@@ -41,8 +55,11 @@ this reality.
 ### Structural spec
 
 {reverse_figma_summary}
+"""
 
-## The proposed change
+
+# Treatment-arm task: react to the PROPOSED change. Unchanged from pre-4.6.
+_TREATMENT_TASK_BLOCK = """## The proposed change
 
 The product team is considering this change:
 
@@ -83,14 +100,70 @@ back to what you just said and elaborating on your reasoning.
 """
 
 
+# Control-arm task: react to the CURRENT product (no proposed change). Same
+# anti-template guards from #77 stay applied (codex regression risk: any drift
+# here breaks the paired comparison + lets templated hedges back into either
+# arm). The opener anchors drop the "specific item from proposed change" bullet
+# since there IS no proposed change in this arm; the other three anchors stay.
+_CONTROL_TASK_BLOCK = """## Your task
+
+React to the **{capability_name}** capability as it works for you TODAY, as
+**you** — this specific person, with your behaviors and motivations. What
+works? What frustrates you? What would you want changed?
+
+Be honest. If the current experience works fine for you, say so. If something
+specific breaks for you, say exactly what — reference the copy and flows you
+actually see. Do not invent flows you weren't told about. Do not speculate
+about hypothetical changes — react to the experience as it IS.
+
+### How to open
+
+Your first sentence MUST start from a concrete, in-the-moment detail about YOU:
+- What you're doing right now (`current_state` above), OR
+- Something that recently went wrong for you (`recent_gripe` above), OR
+- The specific role-gated experience you have of this product (guest / member /
+  premium_member — pick the one that matches your behavioral snapshot).
+
+Do NOT open with these polite-hedge templates — they make you sound like every
+other reviewer and erase what makes you *you*:
+- "Honestly, I'm not sure / not thrilled / not too thrilled about..."
+- "As someone who [persona summary], I..."
+- "I have mixed feelings about..."
+- "This is an interesting proposed change, but..."
+
+Open like a real person reacting in the moment — plain, specific, first-person.
+Not a balanced review.
+
+When the PM follows up with questions later, answer as the same person — referring
+back to what you just said and elaborating on your reasoning.
+"""
+
+
 def compose_identity_prompt(
     customer_id: str,
     persona: Persona,
     capability: Capability,
     hypothesis: Hypothesis,
     identity_seed: IdentitySeed | None = None,
+    arm: Arm = "treatment",
 ) -> str:
-    """Build the frozen system prompt that defines this AgentInstance forever."""
+    """Build the frozen system prompt that defines this AgentInstance forever.
+
+    Phase 4.6 #89: `arm` selects which task framing to apply.
+    - `arm="treatment"` (default, backwards-compat): agent reacts to the
+      proposed change. Unchanged from pre-4.6.
+    - `arm="control"`: agent reacts to the current product, no proposed
+      change. The `hypothesis` argument is still required for callers that
+      hand the same object to both arms, but its prose is NOT injected into
+      the control prompt — only `capability_name` is used to name what the
+      agent is reacting to.
+
+    Identity continuity (memory/agent_memory.py): this output is persisted
+    to R2 as `identity.md` and never recomputed. An agent created with
+    `arm="control"` STAYS a control agent for all chat replay, even when
+    a PM asks follow-ups months later. Re-computing the prompt with a
+    different arm would silently change the agent's reality.
+    """
     jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
 
     snapshot = persona.behavioral_snapshot
@@ -100,11 +173,7 @@ def compose_identity_prompt(
         else "_(no behavioral snapshot available)_"
     )
 
-    proposed_prd_section = (
-        f"### Proposed PRD\n\n{hypothesis.proposed_prd}" if hypothesis.proposed_prd else ""
-    )
-
-    return _TEMPLATE.format(
+    preamble = _PREAMBLE_TEMPLATE.format(
         customer_id=customer_id,
         persona_name=persona.name,
         persona_description=persona.description,
@@ -114,9 +183,24 @@ def compose_identity_prompt(
         capability_name=capability.name,
         reverse_prd=capability.reverse_prd,
         reverse_figma_summary=_summarize_figma(capability),
-        hypothesis_prose=hypothesis.prose,
-        proposed_prd_section=proposed_prd_section,
     )
+
+    if arm == "treatment":
+        proposed_prd_section = (
+            f"### Proposed PRD\n\n{hypothesis.proposed_prd}"
+            if hypothesis.proposed_prd
+            else ""
+        )
+        task_block = _TREATMENT_TASK_BLOCK.format(
+            hypothesis_prose=hypothesis.prose,
+            proposed_prd_section=proposed_prd_section,
+        )
+    else:  # arm == "control"
+        task_block = _CONTROL_TASK_BLOCK.format(
+            capability_name=capability.name,
+        )
+
+    return preamble + "\n" + task_block
 
 
 def _about_you_section(seed: IdentitySeed | None) -> str:
