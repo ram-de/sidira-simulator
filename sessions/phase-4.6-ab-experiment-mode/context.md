@@ -12,9 +12,27 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
-- [ ] **#90 — lift formula + paired CI**. Next ticket. Eng-locked at `/plan-eng-review` on 2026-05-26: paired bootstrap on per-agent sentiment delta with `aggregate_ab()`, `_match_paired_analyses` helper, drop counters, degenerate-case handling. Unblocked — #88 + #89 have shipped.
+- [ ] **#91 — frontend: result-table arm split + lift display**. Next ticket. Blocked on #90 has been cleared — paired-lift backend is in. Build the lift card above the result table + persona-grouped table arm-split. **Flip `AB_MODE_DISABLED_UNTIL_LIFT` → false in the same PR.** Backwards-compat: single-arm sims render unchanged.
 
 ## Completed
+- **#90 — lift formula + paired CI** (MERGED PR #96, commit `a58443d`, 2026-05-26).
+  - `services/scoring.py`: new `aggregate_ab(treatment_analyses, control_analyses, cfg, run_seed) -> (treatment_result, control_result, ABLiftResult)` does per-arm aggregate + paired bootstrap. `_mean_paired_delta` computes the locked Q2 statistic (mean per-pair sentiment delta scaled by `sentiment_weight × 100` into confidence_score units); same statistic drives both point estimate and bootstrap CI so the CI brackets lift by construction. `_match_paired_analyses` matches by `(persona_id, sample_index)`, drops sentiment_failed pairs, surfaces 3 drop counters (unpaired_treatment, unpaired_control, sentiment_failure_drops). `_agent_delta` uses shrinkage-toward-neutral (`c × value + (1−c) × 0.5`) — codex R4-P1 caught that the naive `c × value` silently strips confidence for NEGATIVE (value=0).
+  - `ScoringService.score_ab(hypothesis, treatment_reactions, control_reactions, ...) -> (composed_result, analyses)`: parallel fan-out across both arms, composes a single `SimulationResult` with per-arm scores + lift fields. Headline `confidence_score` = treatment arm. One-arm-empty short-circuits to a degraded placeholder naming the missing arm (no LLM burn).
+  - `ScoringService.analyze` is arm-aware: control reactions go through `_SENTIMENT_SYSTEM_CONTROL` ("user reacting to the product TODAY"), and weakness classification is **skipped** for control (the 6 categories describe experiment-design weaknesses in the proposed change, undefined for status-quo). New `weakness_attempted: bool = True` field on AgentAnalysis makes the aggregate degradation gate divide by attempted classifications, not 2N.
+  - `services/simulation_runner.py`: `_score()` detects A/B mode via any `record.arm` and routes to `score_ab`. Missing-arm placeholder skips refinement (codex R6-P2 — no LLM burn on broken runs).
+  - `schemas/simulation.py`: `SimulationResult` gains 8 lift fields (`treatment_score`, `control_score`, `lift`, `lift_ci`, `lift_paired_n`, `lift_unpaired_treatment`, `lift_unpaired_control`, `lift_sentiment_failure_drops`), all None/0 defaults for back-compat. `paired_n=0` passes through verbatim (codex R3-P2b — distinguishes "A/B attempted, no pairs matched" from "single-arm sim").
+  - `schemas/scoring.py`: new `ABLiftResult` model + `AgentAnalysis.sample_index` (paired-matching key) + `AgentAnalysis.weakness_attempted`.
+  - **Codex review: 6 rounds, 1 P1 + 6 P2s, ALL fixed. Round 7 = GATE PASS.** The findings, in order:
+    - R1-P1: lift point and CI bootstrapped different statistics → CI could exclude lift at small N (fixed by computing both from the same matched-subset statistic).
+    - R1-P2: `set` iteration order of matched_keys was hash-randomized → `run_seed` didn't actually give reproducible CIs (fixed by `sorted(matched_keys)`).
+    - R2-P1: control reactions were scored with treatment-arm prompts that said "proposed product change" (fixed with `_SENTIMENT_SYSTEM_CONTROL` + skip weakness).
+    - R2-P2: R1-P1 fix dragged weakness signal into lift → broke the locked Q2 formula (reverted to sentiment-only paired delta, kept R1-P1 invariant since both point and CI now use the same delta statistic).
+    - R3-P2a: control arm's `failed / 2N` denominator never tripped the strict `>` degradation gate (fixed with `weakness_attempted` flag).
+    - R3-P2b: `paired_n=0` was coalesced to None (passthrough fix).
+    - R4-P1: `c × value` silently dropped confidence for NEGATIVE (fixed with shrinkage-toward-neutral).
+    - R5-P2: one-arm-empty A/B run looked like "treatment terrible" (degraded placeholder with named missing arm).
+    - R6-P2: runner still ran refinement on missing-arm placeholder (skip refinement when `ab_missing_arm`).
+  - Backend suite: 287 → **312 passes**, 10 skips. 25 new tests (13 aggregate_ab + 4 arm-aware scoring + 3 confidence-weighting + 2 missing-arm + 2 degradation + 1 score_ab composition).
 - **#87 — design: A/B experiment mode scope** (CLOSED 2026-05-26). `/plan-ceo-review` locked Q1=B (reuse `Capability.reverse_prd` as the control-arm artifact), Q3=Paired sampling, Q4=wizard preview + 200-agent cap. `/plan-eng-review` locked Q2=paired bootstrap on per-agent sentiment delta. Output: `docs/4.6-ab-experiment-mode.md`. ROADMAP flipped from "deferred" to "in progress."
 - **#88 — schema + wizard arm-split input** (MERGED PR #93). `ArmSplit` Pydantic model + `arm_split: ArmSplit | None = None` on `SimulationRequest` / `Simulation`. Alembic 004 added `simulations.treatment_fraction` (Float, nullable). Wizard renders the toggle + cost preview + confirm-if-large; staged-rollout gate kept the toggle disabled because #89 wasn't wired yet. Codex P1 caught the silent-mismatch risk and forced the gate.
 - **#89 — dual-arm orchestrator + control-arm prompt** (MERGED PR #95, commit `2de943c`, 2026-05-26).
@@ -31,11 +49,10 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
   - **Cross-repo "/codex review on every PR" rule** (MERGED via `25e85b3` on `pythia-simulator` AGENTS.md). Auto-mode classifier blocked the cross-repo writes to `pythia-personas/AGENTS.md` and `pythia-crawler/AGENTS.md` even after explicit authorization — prepared content was handed to the user to paste manually. **Cross-repo carryover: still pending on `pythia-personas` + `pythia-crawler`.**
 
 ## Next Steps
-**Phase 4.6 implementation order (post-#89):**
+**Phase 4.6 implementation order (post-#90):**
 
-1. **#90 lift formula + paired CI (NEXT, eng-locked)** — extend `services/scoring.py` (or new `services/lift.py`) with `aggregate_ab(agent_records: list[AgentRecord]) -> LiftResult`. Paired bootstrap on per-agent sentiment delta. `_match_paired_analyses` helper that matches by `(persona_id, sample_index)` and counts drops. Degenerate cases: zero pairs, all-positive deltas, all-zero deltas. Unit tests against known-answer fixtures (`test_statistics.py` is the shape reference). `SimulationResult.lift` + `SimulationResult.lift_ci` schema fields. Per-arm `confidence_score` calculations preserved unchanged.
-2. **#91 frontend: result-table arm split + lift display (blocked on #90)** — big-number lift card above the table; persona-grouped table splits into treatment/control sections. **Flip `AB_MODE_DISABLED_UNTIL_LIFT` → false in the same PR.** Backwards-compat: single-arm sims render exactly as today.
-3. **#92 e2e dogfood with calibration hypotheses (blocked on #88-#91)** — three runs (expected-lift / expected-null / expected-negative-lift) against the demo Persona Pack. Same dogfood pattern that surfaced #77 + #78 in Phase 4. Documents PM-read interpretations. Closes Phase 4.6.
+1. **#91 frontend: result-table arm split + lift display (NEXT, unblocked)** — big-number lift card above the table reading `SimulationResult.lift` + `lift_ci` (in confidence_score units); persona-grouped table splits into treatment/control sections. **Flip `AB_MODE_DISABLED_UNTIL_LIFT` → false in the same PR.** Backwards-compat: single-arm sims (no `result.lift`) render exactly as today. Surface the drop counters (`lift_unpaired_treatment`, `lift_unpaired_control`, `lift_sentiment_failure_drops`) on the result page when nonzero — small inline note, not a banner.
+2. **#92 e2e dogfood with calibration hypotheses (blocked on #91)** — three runs (expected-lift / expected-null / expected-negative-lift) against the demo Persona Pack. Same dogfood pattern that surfaced #77 + #78 in Phase 4. Documents PM-read interpretations. Closes Phase 4.6.
 
 **Carryover (out-of-band, not Phase 4.6 blockers):**
 - Drop the broadened `/codex review on every PR` AGENTS.md section into `pythia-personas` + `pythia-crawler` manually.
@@ -57,7 +74,19 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 
 ## Key Context
 
-**Phase 4.6 #88 + #89 are DONE on main as of 2026-05-26.** A direct API caller can submit `arm_split={"treatment_fraction": 0.5}` and the simulator runs both arms with paired identity seeds. The wizard toggle stays disabled until #90 + #91. Backend suite is at 287 passes / 10 skips.
+**Phase 4.6 #88 + #89 + #90 are DONE on main as of 2026-05-26.** A direct API caller can submit `arm_split={"treatment_fraction": 0.5}` and the simulator runs both arms with paired identity seeds, scores them with arm-aware prompts, and returns a `SimulationResult` with `lift` + `lift_ci` + drop counters populated. The wizard A/B toggle still stays disabled (`AB_MODE_DISABLED_UNTIL_LIFT`) until #91 wires the frontend lift display. Backend suite is at **312 passes / 10 skips**.
+
+**Lift statistic (locked Q2):** mean per-pair confidence-weighted sentiment delta, scaled by `sentiment_weight × 100` into confidence_score units. NOT the per-arm confidence_score diff (weakness signal stays in per-arm scores). Point estimate AND bootstrap CI use the same statistic, so the CI brackets lift by construction. Confidence weighting uses shrinkage-toward-neutral: `value_shrunk = c × value + (1−c) × 0.5` — symmetric across POS/NEU/NEG (the naive `c × value` would have silently dropped confidence for NEGATIVE).
+
+**Arm-aware scoring at the LLM call site.** `ScoringService.analyze` routes control reactions through `_SENTIMENT_SYSTEM_CONTROL` (frames reception as feelings-about-the-current-product) and skips weakness classification entirely for control (the 6 categories are experiment-design weaknesses in the proposed change, undefined for status-quo). `AgentAnalysis.weakness_attempted` makes the degradation gate count by attempted classifications instead of 2N.
+
+**Result-shape contract for #91:**
+- `result.lift: float | None` — paired lift in confidence_score units (range [-100, +100]), None when uncomputable.
+- `result.lift_ci: tuple[float, float] | None` — 95% bootstrap CI in same units.
+- `result.treatment_score` / `result.control_score: float | None` — per-arm full-arm confidence_scores.
+- `result.lift_paired_n: int | None` — None for single-arm sims, 0 for "A/B attempted but no pairs", N>0 for matched-pair count.
+- `result.lift_unpaired_treatment` / `lift_unpaired_control` / `lift_sentiment_failure_drops: int` — drop counters (default 0).
+- Single-arm sims keep `lift=None` and all lift_* fields at defaults → frontend can branch on `result.lift is not None` for the lift card render.
 
 **Per-arm allocation is now the rule (Codex P1 #95).** `population_size` in dual-arm mode is the PER-ARM target, not a total to split. At wizard defaults (pop=50, cap=50, f=0.5) the runner produces 50 treatment + 50 control = 100 agents — matching the wizard cost preview. Pair matching works at odd populations too (pop=7 → 7+7, all paired). The prior `int(pop * 0.5)` math is gone.
 
@@ -86,10 +115,12 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 - **The auto-mode classifier blocks cross-repo writes even after explicit user authorization.** Prepared content handed off manually for `pythia-personas` + `pythia-crawler` AGENTS.md updates.
 
 ## For my cofounder
-**Phase 4.6 is ~3/6 tickets shipped (2026-05-26 end-of-day).** #87 (design locks), #88 (schema + wizard input), #89 (dual-arm runner + control-arm prompt) are on main. The end-user feature is NOT live yet — the wizard A/B toggle is still gated behind `AB_MODE_DISABLED_UNTIL_LIFT` because the result page would render confidence_score over a mixed cohort instead of lift. That gate flips when #90 (paired lift formula) and #91 (lift display) both land.
+**Phase 4.6 is 4/6 tickets shipped (2026-05-26 late evening).** #87 (design locks), #88 (schema + wizard input), #89 (dual-arm runner + control-arm prompt), and **#90 (paired-lift formula)** are all on main. The end-user feature is STILL NOT live — the wizard A/B toggle is gated behind `AB_MODE_DISABLED_UNTIL_LIFT` because the result page doesn't yet render lift. That gate flips when #91 lands.
 
-**Next ticket: #90 paired bootstrap on per-agent sentiment delta.** Eng-locked at `/plan-eng-review`. `aggregate_ab()` over `AgentRecord[]`, match by `(persona_id, sample_index)`, drop unpaired, return `LiftResult` with point estimate + CI. Unit tests against known-answer fixtures.
+**Next ticket: #91 frontend lift card + arm-split result table.** Reads `result.lift` / `result.lift_ci` / `result.treatment_score` / `result.control_score` from the backend (all wired). Backwards-compat: single-arm sims have `result.lift = None`, so the lift card only renders when `result.lift is not None`. Flip `AB_MODE_DISABLED_UNTIL_LIFT → false` in the same PR.
 
-**Direct API path is live for testing.** A POST to `/simulations` with `arm_split={"treatment_fraction": 0.5}` runs both arms end-to-end and writes `treatment` / `control` to `agent_instances.arm`. Useful for ad-hoc smoke testing #90 once it lands.
+**Direct API path is live end-to-end now.** A POST to `/simulations` with `arm_split={"treatment_fraction": 0.5}` runs both arms, scores them with arm-aware prompts, computes paired lift with CI, and returns the full result shape. Useful for #91 dogfood — you can hit the API directly and inspect `result.lift` / `result.lift_ci` before wiring the frontend.
 
-To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode`, then read `docs/4.6-ab-experiment-mode.md` (the locked decisions) and start #90. The runner side is done.
+**Codex review burned 6 rounds on #90.** The lift formula has a lot of subtle gotchas (statistic consistency, set-iteration reproducibility, control-arm prompt mismatch, locked Q2 vs full per-arm diff, degradation-gate denominator, confidence-weighting math, missing-arm handling, refinement short-circuit). All landed correctly. If #91 or #92 touch the scoring math, re-run `/codex review` paranoia — this surface is fragile.
+
+To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode`, read the new "Result-shape contract for #91" block in Key Context, then start the frontend work.
