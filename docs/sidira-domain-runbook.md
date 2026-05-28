@@ -13,6 +13,12 @@ Canonical Phase 4.7 hostnames:
 - `sidira.ai` resolves to `162.255.119.57`, but HTTPS does not currently answer on port 443.
 - `app.sidira.ai` has no DNS answer yet.
 - `api.sidira.ai` has no DNS answer yet.
+- Route 53 public hosted zone exists: `Z01279103CLJX7PS4TEFN`.
+- Current registrar nameservers are still Namecheap:
+  `dns1.registrar-servers.com`, `dns2.registrar-servers.com`.
+- Route 53 assigned nameservers:
+  `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
+  `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
 - GitHub Project #1 is titled Sidira.
 - The simulator repo is renamed to `ram-de/sidira-simulator`; local `origin` should point to `git@github.com-personal:ram-de/sidira-simulator.git`.
 - `pythia-personas` and `pythia-crawler` descriptions/homepages use Sidira metadata, but their repo/package names remain unchanged until producer rename work is explicitly scheduled.
@@ -100,7 +106,7 @@ files:
 # Amplify environment variable
 NEXT_PUBLIC_API_BASE=https://api.sidira.ai
 
-# Lightsail container environment variables
+# EC2/Docker environment variables
 SIDIRA_CUSTOMER_ID=demo
 SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai
 DATABASE_URL=<neon pooled postgres url>
@@ -117,8 +123,10 @@ R2_SECRET_ACCESS_KEY=<r2 secret key>
 
 Route 53:
 
-- Create a public hosted zone for `sidira.ai`.
-- Copy the four NS values from the hosted zone.
+- Create a public hosted zone for `sidira.ai`. Done: `Z01279103CLJX7PS4TEFN`.
+- Copy the four NS values from the hosted zone. Done:
+  `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
+  `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
 - In Namecheap, set Domain > Nameservers to Custom DNS and paste the four Route
   53 nameservers.
 - Expect DNS propagation to take minutes to hours; keep checking with
