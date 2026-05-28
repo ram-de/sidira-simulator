@@ -6,6 +6,8 @@ A PM submits a feature hypothesis (PRD + Figma). Sidira simulates how the custom
 
 ## Subsystems in the Sidira architecture
 
+Producer repos are still named `pythia-*` until the metadata/domain follow-up (#115) handles repo renames.
+
 ```
 pythia-personas/      → Persona Pack
 pythia-crawler/       → Feature Pack

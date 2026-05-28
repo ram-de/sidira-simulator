@@ -1,19 +1,21 @@
 ---
 type: docs
-domain: pythia
+domain: sidira
 status: draft
 date: 2026-05-20
 ---
 
-# Pythia — System Architecture
+# Sidira — System Architecture
 
 **Version:** 1.0 (Draft)
 **Scope:** Lumen MVP through Phase 2
 **Status:** Architecture finalized, awaiting review
 
+**Rename note (2026-05-28):** the product and backend package are Sidira / `sidira_simulator`. GitHub repos and producer package names remain `pythia-*` until the metadata/domain follow-up (#115) explicitly renames them.
+
 ## Overview
 
-Pythia is a pre-experiment hypothesis validation product. PMs submit a feature hypothesis (PRD + Figma) against a customer's userbase; behavioral simulation agents react as that userbase; Pythia returns a confidence score with diagnosed weaknesses and refinement suggestions. This document defines how the three subsystems compose into one customer-facing product.
+Sidira is a pre-experiment hypothesis validation product. PMs submit a feature hypothesis (PRD + Figma) against a customer's userbase; behavioral simulation agents react as that userbase; Sidira returns a confidence score with diagnosed weaknesses and refinement suggestions. This document defines how the three subsystems compose into one customer-facing product.
 
 ## Core principle
 
@@ -65,12 +67,14 @@ Producers (persona pack, feature pack) write versioned artifacts to a shared obj
 
 ## Repository layout
 
+Repo names below are the current GitHub/package names, not the product name.
+
 | Repo | Role | Stack |
 |---|---|---|
 | **`pythia-personas`** (exists) | Produces Persona Pack from a customer's user table | Python, scikit-learn, Snowflake/Datalake connector |
 | **`pythia-crawler`** (new) | Produces Feature Pack via weekly Playwright crawl | Python, Playwright, LLM (Anthropic/Groq) |
 | **`pythia-simulator`** (new) | Customer-facing app: frontend + backend + workers | Next.js + Python/FastAPI |
-| **`pythia-schemas`** (new) | Shared Pydantic schemas (Persona Pack, Feature Pack, Simulation Result) | Python only; TS types generated from OpenAPI export |
+| **`pythia-schemas`** (new; rename to `sidira-schemas` in #115) | Shared Pydantic schemas (Persona Pack, Feature Pack, Simulation Result) | Python only; TS types generated from OpenAPI export |
 | Artifact store | Cloudflare R2 bucket | S3-compatible API, zero egress |
 
 ### `pythia-simulator/` internal layout
@@ -105,7 +109,7 @@ Both invocation paths converge on the same artifact contract: write versioned ou
 ## Artifact store: layout & contract
 
 ```
-r2://pythia-artifacts/
+r2://sidira-artifacts/
 └── customers/
     └── <customer_id>/
         ├── personas/
@@ -253,7 +257,7 @@ One simulation produces N AgentInstances (one per persona slot). Each is indepen
 
 ### Identity-continuity guarantee
 
-The agent a PM chats with after a simulation is **the same agent that participated** — not a freshly-instantiated twin built from the persona template. This distinguishes Pythia from mirofish-style engines where the chat-time agent is re-spun from a persona description and loses the simulation-time reasoning.
+The agent a PM chats with after a simulation is **the same agent that participated** — not a freshly-instantiated twin built from the persona template. This distinguishes Sidira from mirofish-style engines where the chat-time agent is re-spun from a persona description and loses the simulation-time reasoning.
 
 Enforced by two invariants:
 
@@ -272,7 +276,7 @@ Chat never re-runs the prompt-composer. It loads these frozen artifacts and appe
 
 ### Strategic value
 
-- **Layer-3 calibration hook** — PM marking responses as "realistic" / "not realistic" during chat becomes training signal for the specialized 8B model (per the Pythia roadmap)
+- **Layer-3 calibration hook** — PM marking responses as "realistic" / "not realistic" during chat becomes training signal for the specialized 8B model (per the Sidira roadmap)
 - **Moat surface** — accumulated agent memory per customer compounds with use; competitors can't replicate months of conversation history
 - **Daily-engagement wedge** — PMs return to chat with agents even without a new hypothesis to test, drastically increasing DAU vs the one-shot "submit and forget" pattern of competing tools
 
@@ -280,7 +284,7 @@ Chat never re-runs the prompt-composer. It loads these frozen artifacts and appe
 
 ## Feature store adapters & customer credential handling
 
-Customers' user data lives in their own warehouses (Snowflake first; BigQuery, Databricks, Redshift, CSV upload later). The simulator backend exposes a self-serve flow where a customer connects their warehouse, maps columns to Pythia's 7 feature groups, previews their population, and builds a versioned persona pack — without engineering involvement on the Pythia side.
+Customers' user data lives in their own warehouses (Snowflake first; BigQuery, Databricks, Redshift, CSV upload later). The simulator backend exposes a self-serve flow where a customer connects their warehouse, maps columns to Sidira's 7 feature groups, previews their population, and builds a versioned persona pack — without engineering involvement on the Sidira side.
 
 ### Pluggable feature-store adapters
 
@@ -299,7 +303,7 @@ MVP ships `SnowflakeStore`. New warehouse types are added by implementing the Pr
 
 ### LLM-assisted column mapping
 
-`services/column_mapper.py` reads the customer's column list + sample values and proposes which Pythia feature group each column belongs in (one LLM call per schema). The user reviews suggestions in the UI before the mapping is persisted. Cheap (~one call per onboarding) but turns a 30-minute manual mapping task into a 30-second review.
+`services/column_mapper.py` reads the customer's column list + sample values and proposes which Sidira feature group each column belongs in (one LLM call per schema). The user reviews suggestions in the UI before the mapping is persisted. Cheap (~one call per onboarding) but turns a 30-minute manual mapping task into a 30-second review.
 
 ### Credential storage — envelope encryption
 
@@ -425,10 +429,10 @@ Each repo has its own GitHub Actions pipeline:
 | Customer-supplied capability list for crawler | LLM-driven capability auto-discovery |
 | Manual customer onboarding (admin endpoint) | Self-serve onboarding |
 | Single-region deployment | Multi-region, data residency options |
-| One LLM family (Groq + Anthropic) | Specialized 8B model from Pythia roadmap |
+| One LLM family (Groq + Anthropic) | Specialized 8B model from Sidira roadmap |
 | Sentry + Langfuse | Full observability stack (Datadog, etc.) |
 | Bucket-level encryption | Per-customer KMS keys |
-| Pythia infra + customer sandbox creds | Self-hosted crawler for regulated industries |
+| Sidira infra + customer sandbox creds | Self-hosted crawler for regulated industries |
 
 ---
 
@@ -466,7 +470,7 @@ Each repo has its own GitHub Actions pipeline:
 
 ## Related
 
-- [[pythia]] — overall project page
-- [[pythia-de-spec]] — pretraining corpus spec (orthogonal layer)
-- [[pythia-feature-pack-crawler-spec]] — Feature Pack Crawler design (subsystem detail)
+- [[sidira]] — overall project page
+- [[sidira-de-spec]] — pretraining corpus spec (orthogonal layer)
+- [[sidira-feature-pack-crawler-spec]] — Feature Pack Crawler design (subsystem detail)
 - `~/vaults/personal/sessions/persona-classifier/context.md` — persona pack work-in-progress

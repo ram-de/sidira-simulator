@@ -2,11 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-27 (#103 model selection shipped)
+**Last updated:** 2026-05-28 (Phase 4.7 Sidira rename in progress)
 
 ---
 
 ## What just shipped
+
+✅ **Phase 4.7 Sidira rename partial -- #111/#113/#112/#114 shipped 2026-05-28 (session `phase-4.7-sidira-rename`).**
+The pre-public product rename is now real in the app, backend code, and active docs. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`, kept a temporary `pythia-simulator` CLI compatibility alias, and stabilized a flaky bootstrap CI test that blocked the merge gate. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. sidira.ai deployment/origin/project metadata remains #115.
 
 ✅ **#103 -- model selection, SHIPPED 2026-05-27 (PR #105, commit `ea5440e`, session `model-selection`).**
 PMs can now pick the LLM provider/model that powers a simulation while preserving the Groq `llama-3.3-70b-versatile` default. Backend exposes `GET /models` filtered to configured providers, validates unknown/unavailable `model_id`s up front, persists the selected model on each simulation, and routes sim reactions, scoring, refinement, follow-up agent chat, persona-group collective fan-out, and synthesis through that same model. A/B mode uses one selected model for both arms so paired-lift math stays apples-to-apples. The wizard shows grouped Groq/Anthropic/OpenAI choices, and result pages show the model used while legacy rows with `NULL model_id` render as untracked instead of being mislabeled. Groq selection now includes GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, Llama 4 Scout, and the existing Llama defaults. Verification: backend 346 passed / 10 skipped, frontend typecheck clean, live `/models` + wizard rendering verified, Codex review clear.
@@ -26,7 +29,7 @@ PMs can now submit a hypothesis with the A/B toggle enabled, watch both treatmen
 
 - **#90 paired-lift formula (PR #96):** mean per-pair confidence-weighted sentiment delta scaled into confidence-score units, with paired bootstrap CI on the same statistic. Locked through 6 rounds of `/codex review` (1 P1 + 6 P2s, all fixed). Backend exposes `lift`, `lift_ci`, `treatment_score`, `control_score`, `lift_paired_n`, and three drop counters on `SimulationResult`.
 - **#91 result-page lift card + arm-split table (PR #97):** new `LiftCard` component with sign-coloured big number, paired CI, drop-counter callouts, and clear "this is synthetic-agent reception, not a real business metric" copy (added after a live PM-read failure during smoke testing -- "what's this lift on? what metric?"). Persona table grows T|C twin chips with treatment-pinned summary quote. `AB_MODE_DISABLED_UNTIL_LIFT` flipped to false in same PR. Codex review: 5 rounds, 4 P2s all fixed, ZERO P1s. The load-bearing fix (R4): gate A/B UI on `sim.arm_split` (request-level truth), not result-shape fields, because results can be missing for at least three distinct reasons.
-- **#92 e2e calibration dogfood (2026-05-27):** four wizard-driven sims against `streamly_sample` -- 3 cleanly-predicted hypotheses (Skip Intro +15.9 / Resume->Continue rename +10.0 borderline-null / remove-recs A-Z grid -11.2) all confirmed directionally. Bonus finding: PM-predicted autoplay-next-episode as expected-positive; Pythia returned -10.5 with 85% `hidden_guardrail_risk` weakness flag, correctly catching the well-known autoplay-is-divisive dynamic. Full writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)".
+- **#92 e2e calibration dogfood (2026-05-27):** four wizard-driven sims against `streamly_sample` -- 3 cleanly-predicted hypotheses (Skip Intro +15.9 / Resume->Continue rename +10.0 borderline-null / remove-recs A-Z grid -11.2) all confirmed directionally. Bonus finding: PM-predicted autoplay-next-episode as expected-positive; Sidira returned -10.5 with 85% `hidden_guardrail_risk` weakness flag, correctly catching the well-known autoplay-is-divisive dynamic. Full writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)".
 
 **Two followups carved out of #92 (separate tickets, not Phase 4.6 blockers):**
 1. **#99** -- De-asymmetric the A/B result-page UX. Per #90 contract the control arm skips weakness classification, so per-arm side-by-side scores aren't on the same scale -- "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Recommended: visual de-emphasis of per-arm scores in A/B mode + lift-first layout.
@@ -75,24 +78,11 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-Two reasonable paths from here; pick based on appetite:
+**Phase 4.7 — finish Sidira rename.**
 
-**Path A — Phase 4 (Agent chat, the differentiator).** Bigger product win, more design surface to nail. See ticket list below.
-
-**Path B — Phase 5a (Postgres wiring, #68).** ~1 day standalone. Right now every uvicorn restart wipes the simulation list because `InMemorySimulationRepo` is the wired-up repo (the Postgres adapter + schema both exist, just the FastAPI `AsyncSession` dep is stubbed). Worth landing before showing the simulator to anyone external, and a hard prereq for Phase 7 (Lumen MVP). Carved out of Phase 5 so the small persistence win doesn't wait for the Clerk + multi-tenancy work.
-
----
-
-**Phase 4 — Agent chat (the differentiator).** PMs can talk to each agent that participated in a simulation. Infrastructure is already in place (`AgentMemory`, frozen `identity_seed`, R2 sidecars, `_CHAT_GUARD_PREFIX`); what's missing is the API + the chat surface.
-
-Five open tickets:
-- **#52** backend: un-stub `GET /agents/{id}` + `POST /agents/{id}/messages` against `AgentMemory`. (Currently 501.)
-- **#53** frontend: individual-agent chat with pinned persona + identity_seed + initial reaction at top.
-- **#54** api: persona-group chat with per-agent fan-out + one-line LLM synthesis. ("Ask the whole `DashPass Power × 15` group why they pushed back.")
-- **#55** frontend: persona-group chat page with side-by-side per-agent replies + synthesis.
-- **#56** per-turn calibration thumbs (👍/👎 on each reply) — feeds Phase 9 Layer-3.
-
-Open question to brainstorm before code: **synthesis quality bar.** A bad one-line synthesis ("the group had mixed feelings") is worse than no synthesis. Worth a `/plan-ceo-review` before #54 lands to decide on prompt strategy + a quality eval.
+Current order:
+1. **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata/repo-name decision now that active docs are coherent.
+2. Then resume the pre-customer hardening path: **Phase 5a #68** Postgres repo wiring so simulation history survives restarts before external demos.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)

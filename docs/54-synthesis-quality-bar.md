@@ -182,7 +182,7 @@ this; the rubric's `non_substantive_replies` fixture catches regressions.
 
 - [ ] **T1 (P1, human: ~2h / CC: ~15min)** — `services/persona_group_synthesis.py` — write the synthesis service.
   - Surfaced by: Decision A (prompt + post-process).
-  - Files: `backend/pythia_simulator/services/persona_group_synthesis.py` (new).
+  - Files: `backend/sidira_simulator/services/persona_group_synthesis.py` (new).
   - Verify: unit tests in T2 pass.
 
 - [ ] **T2 (P1, human: ~3h / CC: ~25min)** — Synthesis rubric eval suite.
@@ -192,7 +192,7 @@ this; the rubric's `non_substantive_replies` fixture catches regressions.
 
 - [ ] **T3 (P1, human: ~1h / CC: ~10min)** — Wire synthesis into the persona-group route.
   - Surfaced by: spec line 101-105 (backend contract).
-  - Files: `backend/pythia_simulator/api/persona_groups.py` (new) — `POST /simulations/{sim_id}/personas/{persona_id}/messages`.
+  - Files: `backend/sidira_simulator/api/persona_groups.py` (new) — `POST /simulations/{sim_id}/personas/{persona_id}/messages`.
   - Verify: integration test sends PM message, asserts response shape `{synthesis, per_agent: [...]}` and asserts each agent's `AgentMemory` log got the PM turn + agent turn (identity-continuity preserved).
 
 - [ ] **T4 (P1, human: ~30min / CC: ~5min)** — Persist synthesis to per-persona-group log.
