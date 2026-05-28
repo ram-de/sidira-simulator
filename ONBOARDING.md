@@ -1,4 +1,4 @@
-# Pythia — Cofounder Onboarding
+# Sidira — Cofounder Onboarding
 
 Welcome. This doc gets you from "just got the GitHub invite" to "shipped my first PR" in about 90 minutes. You can read it yourself, or paste it to your Claude Code instance and have it walk you through. It's written for both.
 
@@ -6,11 +6,13 @@ Welcome. This doc gets you from "just got the GitHub invite" to "shipped my firs
 
 ---
 
-## What Pythia is, in 60 seconds
+## What Sidira is, in 60 seconds
 
-Pythia simulates how a customer's userbase would react to a proposed product change. A PM submits a hypothesis ("if we add one-tap reorder, weekly orders go up 8%"); Pythia samples agents from a calibrated persona pack, runs each agent's reaction through an LLM, scores the result, and the PM can then chat with each agent to ask why they reacted the way they did. The defining feature is **agent memory** — the agent you chat with is the same entity that simulated, not a re-instantiation.
+Sidira simulates how a customer's userbase would react to a proposed product change. A PM submits a hypothesis ("if we add one-tap reorder, weekly orders go up 8%"); Sidira samples agents from a calibrated persona pack, runs each agent's reaction through an LLM, scores the result, and the PM can then chat with each agent to ask why they reacted the way they did. The defining feature is **agent memory** — the agent you chat with is the same entity that simulated, not a re-instantiation.
 
 Three repos:
+
+The product is Sidira; the GitHub repositories are still named `pythia-*` until the metadata/domain ticket (#115) handles repo renames.
 
 | Repo | What it does |
 |---|---|
@@ -26,7 +28,7 @@ The simulator is the integration point — strategy, roadmap, and team docs live
 
 You need:
 
-- [ ] GitHub `ram-de` access — invite to `pythia-simulator`, `pythia-personas`, `pythia-crawler`, plus the [Pythia GitHub Project](https://github.com/users/ram-de/projects/)
+- [ ] GitHub `ram-de` access — invite to `pythia-simulator`, `pythia-personas`, `pythia-crawler`, plus the [Sidira GitHub Project](https://github.com/users/ram-de/projects/)
 - [ ] Groq API key — for LLM calls. Founder has one at `~/mirofish-ui/.env` they can share, or sign up at https://groq.com (free tier works for now)
 - [ ] (Optional, for Postgres work) Neon dev instance credentials — ask founder for the `DATABASE_URL`
 - [ ] (Optional, for Anthropic fallback) Anthropic API key
@@ -75,11 +77,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Run the tests — should be 60/60 passing
+# Run the tests — should be green; current baseline is 363 passed / 10 skipped
 pytest tests/ -q
 ```
 
-Expected output: `60 passed in ~0.5s`. If anything fails, check Python version (need 3.11+) and try `pip install -e ".[dev]" --force-reinstall`.
+Expected output is roughly `363 passed, 10 skipped`. If anything fails, check Python version (need 3.11+) and try `pip install -e ".[dev]" --force-reinstall`.
 
 ### Environment variables
 
@@ -148,7 +150,7 @@ Within ~10 seconds you should see a score (something between 20 and 70), three d
 In this order, in the `pythia-simulator` repo:
 
 1. **`CONTEXT.md`** (top-level) — what just shipped, what's next, what's not yet real. 2-minute read. This is the daily orientation file.
-2. **`ROADMAP.md`** (top-level) — strategy, all 10 phases, critical path, locked design decisions for the next phase (2.5). Read the "Where we are today" and "What's next" sections at minimum.
+2. **`ROADMAP.md`** (top-level) — strategy, all phases, critical path, and locked decisions for the current phase. Read the "Where we are today" and "What's next" sections at minimum.
 3. **`AGENTS.md`** (top-level) — conventions, tools, how the team works with AI agents. Read top-to-bottom.
 4. **`sessions/persona-classifier/context.md`** — the full working state of the project from sprint 0 to today (~240 lines). Skim the top, then read "Magic Moment Sprint plan" and the most recent updates. This is the deeper history when you need design rationale or "what did we try and reject."
 
@@ -170,7 +172,7 @@ Three commands you'll use:
 | `/pythia-session save` | Stages + commits + pushes the session file. Founder sees it on next pull. |
 | `/pythia-session resume <slug>` | Loads an existing session and continues from "Next Steps" |
 
-Naming: `/pythia-session` (not `/session`) because some of us have a different `/session` skill at user level pointing to an employer work vault. The `pythia-` prefix prevents that collision from accidentally writing Pythia state to the wrong place.
+Naming: `/pythia-session` (not `/session`) because some of us have a different `/session` skill at user level pointing to an employer work vault. The `pythia-` prefix prevents that collision from accidentally writing Sidira state to the wrong place.
 
 ---
 
@@ -185,7 +187,7 @@ Read `CONTEXT.md` ("What's next") and `ROADMAP.md` ("Where we are today") to lea
    - Acceptance criteria are concrete and testable (the ticket says exactly what "done" looks like)
    - Surface area is one file or one route (low blast radius for a first PR)
    - No `Depends on:` block in the body, or the dependency is already merged
-3. **Match your background.** Component field tells you `backend` / `frontend` / `schema` / `docs`. A frontend ticket in your first week is fine — Pythia's frontend is small and intentionally low-magic.
+3. **Match your background.** Component field tells you `backend` / `frontend` / `schema` / `docs`. A frontend ticket in your first week is fine — Sidira's frontend is small and intentionally low-magic.
 4. **Read the body in full.** Especially the "Out of scope" section. The fastest way to derail a first PR is to expand scope past what the ticket asked for.
 
 If nothing in `Status = Next` looks right, ask the founder in the daily check-in which Backlog ticket they'd like pulled forward — that's the cheapest unblock.
@@ -226,7 +228,7 @@ The full version is in `AGENTS.md`. The 90% version:
 - **Conventional commits:** `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`
 - **One commit per logical change.** Atomic, easy to revert.
 - **One topic per PR.** Split if it grows past ~500 lines.
-- **`/codex review` at PR boundary** for anything touching schemas, scoring, or the agent memory model.
+- **`/codex review` at PR boundary** for every PR.
 - **`/qa` before merge** for any change that touches the frontend.
 - **Never push to `main` directly.** Always PR.
 - **AI-assisted commits get `Co-Authored-By: Claude <noreply@anthropic.com>`** trailer — not a value judgment, just a record.
@@ -260,7 +262,7 @@ By end of week one you should have:
 - One PR merged
 - A second PR in flight
 - A session file in `sessions/<your-slug>/` with active work
-- Read `ROADMAP.md` enough to know what Phase 4 is and why it matters (it's the differentiator, the agent chat UI)
+- Read `ROADMAP.md` enough to know the current phase, what is shipped, and what is next
 
 ---
 

@@ -2,7 +2,7 @@
 
 The defining feature: after a simulation, a PM can talk to the agents that participated. This document is the source of truth for the three interaction surfaces and the backend contract they assume. ROADMAP Phase 4 implements it.
 
-> **Status:** Design locked. Implementation tickets in the [Pythia GitHub Project](https://github.com/users/ram-de/projects/), Phase = 4.
+> **Status:** Design locked. Implementation tickets in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/), Phase = 4.
 
 ---
 
@@ -186,7 +186,7 @@ Collective mode is ONE LLM call per turn regardless of N. Fan-out scales with N 
 Decisions we're making explicitly, so we don't drift into them later:
 
 - **No cross-persona chat.** "Talk to everyone who reacted badly" is tempting; we're rejecting it for v1 because there's no honest aggregation across personas (they have different weights and different sample sizes). Use the per-persona surface and read across.
-- **No agent-to-agent chat.** Mirofish does this; we don't. See `docs/mirofish-prior-art.md` "Inter-agent socialization" — Pythia's confidence math assumes independent reactions.
+- **No agent-to-agent chat.** Mirofish does this; we don't. See `docs/mirofish-prior-art.md` "Inter-agent socialization" — Sidira's confidence math assumes independent reactions.
 - **No "regenerate" or "branch" of an agent's reply.** Identity-continuity means the conversation log is append-only. If a reply is wrong, the PM disagrees in the next turn — they don't rewrite history.
 - **No proactive agent messages.** Agents reply only when asked. They don't surface "you might also want to know X" — that would break the "I'm the user, you're the PM" frame.
 

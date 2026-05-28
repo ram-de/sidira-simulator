@@ -1,8 +1,8 @@
-# Pythia — Overall Roadmap
+# Sidira — Overall Roadmap
 
-**Last updated:** 2026-05-21 (post Magic Moment Sprint)
+**Last updated:** 2026-05-28 (Phase 4.7 Sidira rename in progress)
 
-The Pythia product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Pythia GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across pythia-simulator + pythia-personas + pythia-crawler), not in markdown — see "Where to find what" below.
+The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across the currently named pythia-simulator + pythia-personas + pythia-crawler repos), not in markdown — see "Where to find what" below.
 
 | Repo | Role |
 |---|---|
@@ -28,17 +28,15 @@ The Pythia product spans three repos. This document is the strategy map: phases,
 
 ---
 
-## Where we are today (2026-05-21)
+## Where we are today (2026-05-28)
 
-✅ **Magic Moment Sprint complete** (Phases 2 + 3, Waves 0–6 in one sitting). A PM can submit a hypothesis through the UI, see 6 agents react via real LLM calls, and get a confidence score + diagnosed weaknesses + refinement suggestions rendered live.
-✅ End-to-end demo verified: sim `63c778c8` returned score 30/100 with 3 weaknesses (hidden_guardrail_risk, broken_mechanism, wrong_cohort) and 3 actionable refinements.
-✅ Architecture, agent memory, identity-continuity guarantee, MiroFish prior-art adaptation — all done in Phases 0 + 1 + 1.5.
-✅ Simulation list view shipped (added during Wave 6 /qa).
-✅ CORS middleware, scoring-formula codex review, and three review fixups landed on `main`.
+✅ **Magic Moment Sprint complete** (Phases 2 + 3). A PM can submit a hypothesis through the UI, see agents react via real LLM calls, and get a confidence score + diagnosed weaknesses + refinement suggestions rendered live.
+✅ **Phase 2.5 complete.** Population-size input, Hamilton allocation, identity seeds, score/weakness CIs, degradation guard, and population-aware frontend results are shipped.
+✅ **Phase 4 agent chat foundations shipped.** PMs can chat with individual agents and persona groups, including arm-scoped group chat in A/B mode.
+✅ **Phase 4.6 A/B experiment mode shipped.** Wizard toggle, paired treatment/control runner, paired-lift formula, and lift-first result UI are live.
+🚧 **Phase 4.7 Sidira rename in progress.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, and active Sidira docs/roadmap are merged. sidira.ai/domain metadata (#115) remains.
 
 What's **not yet real**:
-- **Calibrated mix.** Today's `_sample_personas` returns top-N personas by head_count weight — not stratified sampling. Phase 2.5 fixes this.
-- **Agent chat surface.** `/agents/{id}` page exists but the chat UI that justifies "agents you can talk to" is unbuilt. Phase 4.
 - **Real persona generation.** Demo uses a hand-built 6-persona fixture. pythia-personas can already generate packs; the simulator just hasn't consumed a real one yet.
 - **Persistence across restarts.** `InMemorySimulationRepo` resets on backend restart. Phase 5a (#68) un-stubs the Postgres wiring (schema + adapters already exist) — small standalone ticket, carved out of Phase 5 so it can ship before auth.
 - **Multi-tenancy.** Everything is hardcoded to `customer_id = "demo"`. Phase 5.
@@ -56,8 +54,10 @@ What's **not yet real**:
 | 2 | Persona + Feature Pack loaders + Postgres metadata | (Round 1 ✅; Round 2 pending) | Walker (Playwright) | ✅ Simulator done; crawler 🔲 |
 | 3 | Simulation runner + scoring + refinement | — | Synthesis (PRD + Figma) | ✅ Simulator done; crawler 🔲 |
 | **2.5** | Weighted population sampling | (per-cluster stats for v1.1 — optional) | — | ✅ Done |
-| 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | 🔲 Next |
+| 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | ✅ Simulator done |
 | 4.5 | Persona Builder UI (scaffolded) | — | — | 🚧 Scaffolded |
+| 4.6 | A/B experiment mode | — | — | ✅ Done |
+| **4.7** | **Sidira rename: product, config, package, docs, domain metadata** | Repo/package names later | Repo/package names later | 🚧 In progress |
 | **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | 🔲 Pending |
 | 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
@@ -71,7 +71,7 @@ What's **not yet real**:
 ## Critical path
 
 ```
-✅ Magic Moment (Phase 2+3) ──> ✅ Phase 2.5 (calibrated mix) ──> Phase 4 (chat UI) ──> Phase 5a (Postgres wiring, #68) ──> Phase 5 (auth+multi-tenancy) ──> Phase 7 (first customer)
+✅ Magic Moment (Phase 2+3) ──> ✅ Phase 2.5 (calibrated mix) ──> ✅ Phase 4/4.6 (chat + A/B) ──> 🚧 Phase 4.7 (Sidira rename) ──> Phase 5a (Postgres wiring, #68) ──> Phase 5 (auth+multi-tenancy) ──> Phase 7 (first customer)
                                                                                                                        │
                                                                                                                        ▼
                                                                                                               Phase 8 → 9 → 10
@@ -86,29 +86,18 @@ What's **not yet real**:
 
 ## What's next
 
-**Phase 2.5 — Weighted Population Sampling.** The thesis claim ("with weights, simulation is a calibrated reflection of the real company") is currently false in code. Today's `_sample_personas` returns top-N by head_count weight, not stratified. Phase 2.5 makes this true.
+**Phase 4.7 — Sidira rename.** The product is still pre-public, so we are finishing the naming cleanup now instead of carrying the old placeholder into first-customer setup.
 
-**Locked decisions** (from the post-Magic-Moment conversation):
+Current ticket order:
+- **#114 done:** active simulator docs and roadmap now read as Sidira while preserving historical session logs, compatibility fallbacks, and current `pythia-*` repo/package names awaiting #115.
+- **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata after docs are coherent.
 
-| Decision | Choice | Why |
-|---|---|---|
-| User input | Replace `persona_sample_size` with `population_size` (single integer) | One scalar the PM understands: "imagine N users facing this hypothesis" |
-| Sample cap | `min(population_size, 50)`, cap configurable via env var | 50 keeps Groq free tier viable; cap stays in code for easy bumps |
-| Allocation | Largest-remainder method (Hamilton) against persona weight scheme | Standard stratified-sampling math; handles rounding cleanly |
-| Variance | Per-agent personal context (`identity_seed`) injected into persona prompt | Cheap, plausible, fully inside pythia-simulator |
-| Aggregation | Score `± CI`, weakness frequencies with Wilson intervals | 50 agents gives meaningful CIs; bare 30 is misleading |
+Already merged in this phase:
+- **#111:** visible product surface and FastAPI display metadata.
+- **#113:** `SIDIRA_*` config namespace with `PYTHIA_*` fallbacks.
+- **#112:** backend package/import/CLI rename to `sidira_simulator` / `sidira-simulator`.
 
-**Open questions for the Phase 2.5 brainstorm** (live in the Project as P2.5 tickets):
-- Identity_seed: rule-based draws or hybrid (deterministic fields + LLM-generated prose)?
-- Where does per-persona attribute schema live — emit from pythia-personas v1.1, or hand-roll in simulator?
-- CI method: Wilson for proportions + bootstrap for aggregate, or single bootstrap over everything?
-- Detail-view UX: virtualized list of 50 agents, or grouped by persona ("DashPass Power × 15")?
-
-**Hard constraints to honor:**
-- Rate-limit backoff on Groq before any 50-agent run ships (3 LLM calls per agent × 50 = 150 sequential bursts will 429 the free tier)
-- Scoring degradation guard: if >50% of weakness/sentiment classifications fail, return underpowered_design + discount the score
-
-**Estimated effort:** ~1.5 weeks. Phase ends when a 1000-population sim produces a calibrated-mix result with CIs in the UI.
+Acceptance for the phase: a new teammate reads the active docs as Sidira end-to-end; local setup uses `SIDIRA_*` and `sidira_simulator`; sidira.ai/app/API origins are configured; any old-name references are explicitly historical, compatibility-only, or current repo/package names awaiting #115.
 
 ---
 
@@ -149,7 +138,7 @@ Four patterns ported: `SimulationRunState` + JSONL event log; parallel agent exe
 - Refinement service: separate LLM call after scoring, returns 1–3 actionable suggestions
 - Backed by 60 backend tests; codex cross-model review applied at PR boundary
 
-### Phase 2.5 — Weighted population sampling 🔲
+### Phase 2.5 — Weighted population sampling ✅
 
 **Goal:** make the calibration thesis true in code. Population-size input + stratified sample + per-agent variance + confidence intervals.
 
@@ -169,17 +158,38 @@ Four patterns ported: `SimulationRunState` + JSONL event log; parallel agent exe
 
 **Risks:** Groq rate limits at higher sample sizes; UX of 50-agent agent list; CI method choice.
 
-### Phase 4 — Agent chat UI 🔲
+### Phase 4 — Agent chat UI ✅
 
 **Goal:** PM can chat with each agent that participated in a simulation. The defining feature.
 
-The infrastructure is largely in place (`AgentMemory`, frozen identity + initial reaction in R2, `_CHAT_GUARD_PREFIX`). What's missing: the chat surface in the frontend + a `/agents/{id}/messages` POST that appends to the conversation log.
-
-**Estimated effort:** ~2 weeks.
+Shipped across the Phase 4 tickets: individual-agent chat, persona-group fan-out chat, one-line synthesis, calibration thumbs, and A/B arm-scoped persona-group rooms so treatment/control conversations remain isolated.
 
 ### Phase 4.5 — Persona Builder UI 🔲 (scaffolded)
 
 7-step wizard scaffolded with stub bodies (`/personas/new`). Goal: PM connects Snowflake → maps columns to 7 feature groups → triggers a pythia-personas build → resulting pack appears in the simulator. Snowflake-only MVP; single-source builds; LLM-assisted column mapping.
+
+### Phase 4.6 — A/B experiment mode ✅
+
+Treatment/control simulation mode shipped 2026-05-27. Wizard A/B toggle runs paired treatment and control arms, computes predicted lift from matched agents, and renders a lift-first result card. Calibration writeup lives in `docs/4.6-ab-experiment-mode.md`.
+
+Followups carved out of the dogfood:
+- #99 de-asymmetric A/B result-page UX.
+- #100 wizard cost preview vs backend cap.
+- Plumbing cleanup: delete `AB_MODE_DISABLED_UNTIL_LIFT` after soak.
+
+### Phase 4.7 — Sidira rename 🚧
+
+Pre-public rename from the old placeholder to Sidira.
+
+Done:
+- #111 visible product surface.
+- #113 `SIDIRA_*` config namespace with `PYTHIA_*` fallback compatibility.
+- #112 `sidira_simulator` backend package and `sidira-simulator` CLI.
+
+Remaining:
+- #115 sidira.ai deployment/origins and GitHub metadata/repo-name decision.
+
+Dependencies: #115 should run after #112/#113/#114 are merged so domain/repo metadata is not racing active code/docs. Repo names remain `pythia-*` until #115 explicitly changes them.
 
 ### Phase 5a — Postgres repo wiring 🔲 (carve-out — #68)
 
@@ -215,7 +225,7 @@ PM reads refinement, refines hypothesis, resubmits → simulator compares old/ne
 
 ### Phase 9 — Layer-3 calibration 🔲
 
-PM "realistic / not realistic" flags on agent reactions become training signal. This is the moat — every customer makes Pythia smarter on their userbase over time. First useful signal expected ~6 months after first customer.
+PM "realistic / not realistic" flags on agent reactions become training signal. This is the moat — every customer makes Sidira smarter on their userbase over time. First useful signal expected ~6 months after first customer.
 
 ### Phase 10 — Specialized 8B model 🔲
 

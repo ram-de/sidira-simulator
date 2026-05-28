@@ -4,6 +4,7 @@
 **Branch:** `wave-4-scoring`
 **Reviewer:** OpenAI Codex CLI 0.133.0 (model: codex default, reasoning=high)
 **Prompt scope:** `backend/pythia_simulator/services/scoring.py` `ScoringService.aggregate()` and the schemas it consumes from `backend/pythia_simulator/schemas/scoring.py`.
+**Current path note:** after the 2026-05-28 Sidira package rename (#112), these files now live under `backend/sidira_simulator/...`.
 
 This is the cross-model second opinion planned in `/plan-eng-review` (Wave 0). It was preceded by a self-review; the two reviews converged on 4 of 5 findings independently, with Codex catching one additional bug.
 

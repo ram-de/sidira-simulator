@@ -1,11 +1,13 @@
 # GitHub Project — Seed Issues
 
-This file is the one-time seed list for the Pythia GitHub Project board. After bulk-creating these issues, delete this file (or keep it as a historical record). All future tickets get created directly in the Project.
+> Historical note: this was the one-time project-board seed list. Current tickets live directly in the Sidira GitHub Project; old repo names and early-domain placeholders in this file are preserved as historical setup context.
+
+This file is the one-time seed list for the Sidira GitHub Project board. After bulk-creating these issues, delete this file (or keep it as a historical record). All future tickets get created directly in the Project.
 
 ## How to create the Project
 
 1. Go to https://github.com/users/ram-de/projects → New project → Board template
-2. Name: **Pythia**
+2. Name: **Sidira**
 3. Visibility: Private (or Public if shipping in the open)
 4. Add the three repos as sources: `ram-de/pythia-simulator`, `ram-de/pythia-personas`, `ram-de/pythia-crawler`
 5. Add custom fields:
