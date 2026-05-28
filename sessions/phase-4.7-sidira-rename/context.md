@@ -12,17 +12,23 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] #111 -- Rename simulator product surface to Sidira.
+- [ ] #111 -- Rename simulator product surface to Sidira. Branch: `codex/111-sidira-product-surface`. Project status: In Progress.
 
 ## Completed
-(nothing yet)
+- Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
+- Moved #111 to In Progress in the GitHub Project.
+- Created feature branch `codex/111-sidira-product-surface`.
+- Audited active product-surface references. #111 should touch visible frontend copy and FastAPI display metadata, not package/env/repo names.
+- Added RED/GREEN backend smoke coverage for Sidira OpenAPI display metadata.
+- Implemented #111 visible product-surface rename in frontend app metadata, nav, home page, simulations list copy, product placeholder copy, and FastAPI display metadata.
+- Verification passed: backend full suite (`350 passed, 10 skipped`), frontend `npm run typecheck`, `git diff --check`, and live HTTP smoke for home/simulations/product/OpenAPI output.
+- Code commit: `0c0f9b0 feat: rename product surface to Sidira`.
 
 ## Next Steps
-1. Move #111 to In Progress in the GitHub Project.
-2. Create branch `codex/111-sidira-product-surface`.
-3. Audit active user-facing `Pythia` references in frontend and backend API display metadata.
-4. Implement the #111 product-surface rename without touching package/env/repo names.
-5. Verify frontend typecheck and backend tests if API display metadata changes.
+1. Save this session update to `main`.
+2. Run pre-PR review for #111.
+3. Push `codex/111-sidira-product-surface`.
+4. Open a PR for #111.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -37,6 +43,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Product is pre-public, so deeper rename is appropriate for later tickets, but #111 stays scoped to active product surface and display metadata only.
 - Historical session logs should not be bulk rewritten. Remaining `Pythia` references under `sessions/**` are archive context unless a specific active session file needs a note.
 - Canonical brand: Sidira. Canonical domain: sidira.ai.
+- Remaining #111-scope `rg "Pythia|pythia|PYTHIA" frontend/app frontend/components backend/pythia_simulator/main.py` hits are intentionally not changed in this ticket: `pythia_simulator` import path, `PYTHIA_CORS_ORIGINS`, and `pythia.*` browser draft-storage keys.
 
 ## For my cofounder
 Session opened 2026-05-28. Starting with #111 because it gives immediate product consistency with low blast radius. Package/module/env/repo renames are tracked separately in #112/#113/#115 and should not leak into this first PR.
