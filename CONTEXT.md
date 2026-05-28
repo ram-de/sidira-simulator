@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-27 (Phase 4.6 closed + #101 persona filter shipped)
+**Last updated:** 2026-05-27 (#98 arm-scoped persona chat shipped)
 
 ---
 
@@ -10,6 +10,9 @@
 
 ✅ **#101 -- persona filter, SHIPPED 2026-05-27 (PR #102, commit `2a313c1`, session `persona-filter`).**
 PMs can narrow a sim to a subset of personas via a checkbox list behind the wizard's "Advanced options" disclosure. Default unchanged (all personas). Allocator re-weights the selected personas' weights to sum to 1 before largest-remainder, so a 12%-weight persona selected solo gets the full 50 agents -- preserves the cohort sample size. New `GET /personas` endpoint feeds the wizard's checkbox list. Cohort banner on the result page surfaces "filtered to N of M personas: {names}" so a PM revisiting the page in two weeks remembers they filtered. A/B mode + filter compose symmetrically (same persona subset in both arms preserves the #89 paired-sampling invariant). Backend suite at 327 passed / 10 skipped (15 new #101 tests). Codex review: 2 rounds, 1 P2 fixed, R2 GATE PASS.
+
+✅ **#98 -- arm-scoped persona-group chat, SHIPPED 2026-05-27 (PR #104, commit `bdac59b`, session `arm-scoped-persona-chat`).**
+A/B persona rows now expose separate Treatment and Control persona-group chat rooms (`💬 T` / `💬 C`) instead of disabling group chat. Backend chat POST/GET routes accept `?arm=treatment|control`, filter fan-out/replay to that arm, and physically isolate transcripts under `persona_groups/<persona_id>/<arm>/turns.jsonl`. Persona-group feedback is also arm-scoped via `{sim_id}/{persona_id}/{arm}` target IDs so T/C turn indexes cannot collide. Direct/old A/B calls without `?arm=` now 400 instead of recreating the mixed treatment/control room. Empty-arm chat pills are disabled when a persona has no surviving agents in that arm. Verification: backend 331 passed / 10 skipped, frontend typecheck + build clean, Codex review clear.
 
 **One follow-up filed on top of #101:**
 - **#103** -- model selection (multi-provider: Anthropic + OpenAI + Groq). PMs pick the LLM that powers the agents. Motivating reason: better agent reasoning on subtle hypotheses (autoplay-is-divisive on llama would benefit from Opus-level inference). Filed 2026-05-27, ~3-4 days, biggest piece is the multi-provider `ChatClient` abstraction. A/B mode enforces same-model-in-both-arms (preserves #90 paired-lift invariant).
@@ -25,11 +28,10 @@ PMs can now submit a hypothesis with the A/B toggle enabled, watch both treatmen
 - **#91 result-page lift card + arm-split table (PR #97):** new `LiftCard` component with sign-coloured big number, paired CI, drop-counter callouts, and clear "this is synthetic-agent reception, not a real business metric" copy (added after a live PM-read failure during smoke testing -- "what's this lift on? what metric?"). Persona table grows T|C twin chips with treatment-pinned summary quote. `AB_MODE_DISABLED_UNTIL_LIFT` flipped to false in same PR. Codex review: 5 rounds, 4 P2s all fixed, ZERO P1s. The load-bearing fix (R4): gate A/B UI on `sim.arm_split` (request-level truth), not result-shape fields, because results can be missing for at least three distinct reasons.
 - **#92 e2e calibration dogfood (2026-05-27):** four wizard-driven sims against `streamly_sample` -- 3 cleanly-predicted hypotheses (Skip Intro +15.9 / Resume->Continue rename +10.0 borderline-null / remove-recs A-Z grid -11.2) all confirmed directionally. Bonus finding: PM-predicted autoplay-next-episode as expected-positive; Pythia returned -10.5 with 85% `hidden_guardrail_risk` weakness flag, correctly catching the well-known autoplay-is-divisive dynamic. Full writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)".
 
-**Three followups carved out of #92 (separate tickets, not Phase 4.6 blockers):**
-1. **#98** -- Arm-scoped persona-group chat. Currently disabled in A/B mode with a tooltip (codex R2-P2 on #91). PM's first question in dogfood was "why can't I chat with the persona group?" -- confirms the followup is wanted, not theoretical. Recommended: split into separate Treatment / Control chat rooms per persona row.
-2. **#99** -- De-asymmetric the A/B result-page UX. Per #90 contract the control arm skips weakness classification, so per-arm side-by-side scores aren't on the same scale -- "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Recommended: visual de-emphasis of per-arm scores in A/B mode + lift-first layout.
-3. **#100** -- Wizard cost preview vs. backend cap. Wizard says 50/arm; backend clamps to 20-25 in practice. Recommended: surface PYTHIA_MAX_AGENTS via a config endpoint.
-4. Pure plumbing TODO (no ticket): delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing after the feature soaks for a couple of weeks.
+**Two followups carved out of #92 (separate tickets, not Phase 4.6 blockers):**
+1. **#99** -- De-asymmetric the A/B result-page UX. Per #90 contract the control arm skips weakness classification, so per-arm side-by-side scores aren't on the same scale -- "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Recommended: visual de-emphasis of per-arm scores in A/B mode + lift-first layout.
+2. **#100** -- Wizard cost preview vs. backend cap. Wizard says 50/arm; backend clamps to 20-25 in practice. Recommended: surface PYTHIA_MAX_AGENTS via a config endpoint.
+3. Pure plumbing TODO (no ticket): delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing after the feature soaks for a couple of weeks.
 
 **Lasting lesson from Phase 4.6:** for A/B-mode UI conditionals, key everything off the REQUEST (`sim.arm_split`), not the RESULT shape. The result fields can be missing for at least three distinct reasons (single-arm sim, A/B with no matched pairs, fully-failed A/B run), and gating on any single result field collapses subsets back together. Generalizes to any future A/B-mode UI conditional.
 
