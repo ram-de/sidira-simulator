@@ -24,7 +24,7 @@ export default function TopNav() {
       }}
     >
       <Link href="/" style={{ fontWeight: 600, fontSize: 18, textDecoration: "none", color: "#111" }}>
-        Pythia
+        Sidira
       </Link>
       <nav style={{ display: "flex", gap: 16 }}>
         {TABS.map((tab) => {

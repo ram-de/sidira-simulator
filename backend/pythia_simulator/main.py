@@ -33,10 +33,10 @@ def _cors_origins() -> list[str]:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="pythia-simulator",
+        title="Sidira Simulator API",
         version=__version__,
         description=(
-            "Pythia simulation engine — pre-experiment hypothesis validation via "
+            "Sidira simulation engine — pre-experiment hypothesis validation via "
             "behavioral simulation + post-simulation agent chat."
         ),
     )
