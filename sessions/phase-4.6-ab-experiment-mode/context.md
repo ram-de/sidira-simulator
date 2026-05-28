@@ -1,9 +1,10 @@
 ---
 type: session
 domain: phase-4.6-ab-experiment-mode
-status: closed
+status: active
 started: 2026-05-26
 closed: 2026-05-27
+reopened: 2026-05-28
 owner: ram-de
 ---
 
@@ -13,7 +14,7 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
--- session complete --
+- [ ] **#99 -- de-asymmetric A/B per-arm confidence-score display.** Reopened Phase 4.6 follow-up work to make the result page lift-first and visually de-emphasize non-comparable per-arm confidence scores.
 
 ## Completed
 - **#92 -- e2e calibration dogfood** (2026-05-27). Four wizard-driven A/B sims against `streamly_sample` (3 cleanly-predicted hypotheses + one re-run after an informative PM-prediction miss). Writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)". Calibration verdict: 3/3 cleanly-predicted hypotheses directionally confirmed (Skip Intro +15.9 [+9.6,+21.8]; Resume->Continue rename +10.0 [+1.8,+18.2] (borderline-null); remove-recs/A-Z-grid -11.2 [-19.8,-3.1]). The one PM-prediction override (autoplay-next-episode -10.5 [-21.0,-0.8]) was Pythia correctly catching the well-known autoplay-is-divisive dynamic the PM intuition missed. Zero drop counters across all runs. Pythia's lift formula is calibrated for production PM use.
@@ -70,17 +71,10 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
   - **Cross-repo "/codex review on every PR" rule** (MERGED via `25e85b3` on `pythia-simulator` AGENTS.md). Auto-mode classifier blocked the cross-repo writes to `pythia-personas/AGENTS.md` and `pythia-crawler/AGENTS.md` even after explicit authorization -- prepared content was handed to the user to paste manually. **Cross-repo carryover: still pending on `pythia-personas` + `pythia-crawler`.**
 
 ## Next Steps
-**Phase 4.6 implementation order (post-#91):**
-
-1. **#92 e2e dogfood with calibration hypotheses (NEXT, unblocked, CLOSES PHASE 4.6)** -- three runs against the demo Persona Pack: expected-lift (e.g. "lower fees on every order"), expected-null (cosmetic change), expected-negative-lift (e.g. "raise prices 20%"). For each run capture screenshots of the lift card, document PM-read interpretation, note whether CI direction matches expected sign. Lands a short writeup in `docs/4.6-ab-experiment-mode.md`. The -20.5 from #91 smoke is already a candidate expected-negative-lift data point.
-
-**Followups carved out of #91 (not Phase 4.6 blockers, separate tickets):**
-- **Arm-scoped persona-group chat.** Currently disabled with a tooltip in A/B mode (codex R2-P2). Long-term either splits the route into separate Treatment / Control rooms or adds an arm selector + filter on `/simulations/{id}/personas/{persona_id}` chat handler. Touches backend chat fan-out, not just frontend.
-- **Delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing** after #92 dogfood validates the feature for a couple of weeks. Currently dead-but-flipped (false) -- kept as a one-line emergency rollback.
-
-**Carryover (out-of-band, not Phase 4.6 blockers):**
-- Drop the broadened `/codex review on every PR` AGENTS.md section into `pythia-personas` + `pythia-crawler` manually.
-- **#86** multi-replica feedback lock followup -- blocked on Phase 5a Postgres wiring.
+1. Inspect `frontend/app/simulations/[id]/page.tsx` around the current confidence-score card and A/B lift card.
+2. Implement #99 option (a): keep single-arm confidence score prominent, but in A/B mode move treatment/control confidence values into a smaller "Per-arm detail" section with explicit asymmetric-scoring copy.
+3. Run frontend typecheck and live-smoke the result page if a local A/B simulation is available.
+4. PR with `Closes #99`; update this session when merged.
 
 ## Key Files
 - `docs/4.6-ab-experiment-mode.md` -- LOCKED decisions (Q1=B, Q2=paired bootstrap, Q3=paired, Q4=wizard preview + 200 cap). Single source of truth before code.
@@ -98,7 +92,9 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 
 ## Key Context
 
-**Phase 4.6 #88 + #89 + #90 + #91 are DONE on main as of 2026-05-27.** The wizard A/B toggle is LIVE end-to-end -- a PM can flip the A/B toggle, submit a sim with 50+50 agents, and read the lift card with CI on the result page. Backend suite at **312 passes / 10 skips**. Only ticket left for Phase 4.6 close is **#92 calibration dogfood**.
+**Phase 4.6 #88 + #89 + #90 + #91 are DONE on main as of 2026-05-27, and #92/#98 follow-ups have also shipped.** The wizard A/B toggle is LIVE end-to-end -- a PM can flip the A/B toggle, submit a sim with 50+50 agents, and read the lift card with CI on the result page. Backend suite at **312 passes / 10 skips** at the original close point.
+
+**Session reopened 2026-05-28 for #99.** This is a Phase 4.6 follow-up carved out of #92: per-arm confidence scores are structurally asymmetric because the treatment arm includes the weakness debit and the control arm skips weakness classification. The UI fix is frontend-only: lift remains the A/B headline; per-arm scores become secondary detail with copy warning that only Lift is apples-to-apples.
 
 **Lift statistic (locked Q2):** mean per-pair confidence-weighted sentiment delta, scaled by `sentiment_weight * 100` into confidence_score units. NOT the per-arm confidence_score diff (weakness signal stays in per-arm scores). Point estimate AND bootstrap CI use the same statistic, so the CI brackets lift by construction. Confidence weighting uses shrinkage-toward-neutral: `value_shrunk = c * value + (1-c) * 0.5` -- symmetric across POS/NEU/NEG (the naive `c * value` would have silently dropped confidence for NEGATIVE).
 
@@ -141,9 +137,9 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 - **The auto-mode classifier blocks cross-repo writes even after explicit user authorization.** Prepared content handed off manually for `pythia-personas` + `pythia-crawler` AGENTS.md updates.
 
 ## For my cofounder
-**Phase 4.6 is 5/6 tickets shipped (2026-05-27).** #87 (design locks), #88 (schema + wizard input), #89 (dual-arm runner + control-arm prompt), #90 (paired-lift formula), and **#91 (lift card + arm-split table + wizard toggle live)** are all on main. **The end-user feature IS LIVE END-TO-END:** a PM can submit an A/B sim from the wizard, watch both arms run, and read the lift card with CI on the result page. Local smoke produced a clean -20.5 lift with CI excluding zero on a negative-lift hypothesis.
+**Phase 4.6 is reopened for follow-up #99 (2026-05-28).** #87, #88, #89, #90, #91, #92, #98 are already shipped; #99 is now in progress. The goal is a frontend-only result-page cleanup: keep lift as the A/B headline and demote treatment/control confidence scores into explanatory detail because those two scores are not directly comparable.
 
-**Last ticket: #92 e2e dogfood with calibration hypotheses.** Three runs against the demo Persona Pack to validate the lift formula directionally agrees with hypothesis sign and that PMs can read the result page. Expected-lift / expected-null / expected-negative-lift. Writeup lands in `docs/4.6-ab-experiment-mode.md`. **Closes Phase 4.6.**
+**Current ticket: #99.** Treat this as a frontend follow-up, not a re-litigation of the A/B scoring formula. The scoring asymmetry is intentional; the UI needs to stop implying the two per-arm confidence scores should be subtracted.
 
 **Codex review on #91 burned 5 rounds. The pattern was all one family: "are we correctly distinguishing A/B-mode from single-arm at the UI layer?"** The R4 lesson is the load-bearing one for everything downstream: gate A/B-conditional UI off `sim.arm_split` (the REQUEST), not result shape -- the result fields can be missing for at least three distinct reasons and any single-result-field gate collapses subsets together. This rule should generalize to any future A/B-mode UI conditional we add.
 
