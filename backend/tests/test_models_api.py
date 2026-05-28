@@ -26,6 +26,12 @@ def test_get_models_returns_only_keyed_models_and_marks_default(monkeypatch) -> 
     assert "llama-3.3-70b-versatile" in ids
     assert "claude-opus-4-7" in ids
     assert "gpt-5.5" not in ids
+    assert {
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3-32b",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+    }.issubset(ids)
     assert body["default_model_id"] == "llama-3.3-70b-versatile"
     assert [m["id"] for m in body["models"] if m["is_default"]] == ["llama-3.3-70b-versatile"]
 

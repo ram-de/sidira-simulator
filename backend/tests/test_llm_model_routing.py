@@ -28,6 +28,7 @@ class _FakeOpenAIResponsesChat(_FakeChat):
     ("model_id", "expected_type"),
     [
         ("llama-3.3-70b-versatile", _FakeGroqChat),
+        ("openai/gpt-oss-120b", _FakeGroqChat),
         ("claude-sonnet-4-6", _FakeAnthropicChat),
         ("gpt-5.5", _FakeOpenAIResponsesChat),
     ],

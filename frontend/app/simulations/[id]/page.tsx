@@ -37,6 +37,13 @@ function formatCategory(cat: string): string {
 
 const MODEL_LABELS: Record<string, { label: string; provider: string }> = {
   "llama-3.3-70b-versatile": { label: "Llama 3.3 70B", provider: "Groq" },
+  "openai/gpt-oss-120b": { label: "GPT-OSS 120B", provider: "Groq" },
+  "openai/gpt-oss-20b": { label: "GPT-OSS 20B", provider: "Groq" },
+  "qwen/qwen3-32b": { label: "Qwen3 32B", provider: "Groq" },
+  "meta-llama/llama-4-scout-17b-16e-instruct": {
+    label: "Llama 4 Scout 17B",
+    provider: "Groq",
+  },
   "llama-3.1-8b-instant": { label: "Llama 3.1 8B Instant", provider: "Groq" },
   "claude-opus-4-7": { label: "Claude Opus 4.7", provider: "Anthropic" },
   "claude-sonnet-4-6": { label: "Claude Sonnet 4.6", provider: "Anthropic" },
