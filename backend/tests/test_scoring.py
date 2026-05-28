@@ -336,17 +336,32 @@ def test_confidence_ci_deterministic_with_run_seed() -> None:
     assert r1.confidence_score_ci[1] > r1.confidence_score_ci[0]
 
 
-def test_confidence_ci_changes_without_seed() -> None:
-    """No run_seed → fresh entropy each call. Test 10 unseeded calls and
-    assert at least 2 distinct CIs across the batch — robust to occasional
-    rounded-tuple coincidence that the schema's `confidence_rounding<=2`
-    cap makes possible on small binary inputs."""
-    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=1000, confidence_rounding=2)
+def test_confidence_ci_uses_fresh_entropy_without_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No run_seed -> request fresh entropy for every aggregate call.
+
+    The rounded bootstrap CI can legitimately coincide across different RNG
+    seeds, so assert the entropy contract directly instead of relying on
+    probabilistic output variation.
+    """
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=10, confidence_rounding=2)
     analyses = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)] + [
         _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(10)
     ]
-    cis = {ScoringService.aggregate(analyses, cfg).confidence_score_ci for _ in range(10)}
-    assert len(cis) >= 2, f"unseeded bootstrap should vary, got only {cis!r}"
+    calls: list[int] = []
+    seeds = iter([101, 202, 303])
+
+    def fake_randbits(k: int) -> int:
+        calls.append(k)
+        return next(seeds)
+
+    monkeypatch.setattr("sidira_simulator.services.scoring.secrets.randbits", fake_randbits)
+
+    for _ in range(3):
+        assert ScoringService.aggregate(analyses, cfg).confidence_score_ci is not None
+
+    assert calls == [53, 53, 53]
 
 
 def test_n50_ci_narrower_than_n6() -> None:
