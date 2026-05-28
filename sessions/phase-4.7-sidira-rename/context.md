@@ -12,7 +12,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] None. #111 is merged; next pickup is #113 or #112.
+- [ ] #113 -- Migrate simulator config from `PYTHIA_*` to `SIDIRA_*` with fallbacks. Project status: In Progress.
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -28,11 +28,12 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - PR opened: #116 (`https://github.com/ram-de/pythia-simulator/pull/116`).
 - PR #116 squash-merged to `main` as `fb620a1` (`feat: rename product surface to Sidira (#116)`).
 - #111 closed as completed and Project status verified as Done.
+- Moved #113 to In Progress in the GitHub Project.
 
 ## Next Steps
-1. Pick up #113 (public config/env and external labels) if the next goal is production readiness without code package churn.
-2. Pick up #112 (package/module/import rename) if the next goal is deeper code identity cleanup.
-3. Keep #115 (domain/project/repo metadata) for the last coordination pass after package/config decisions settle.
+1. Audit active `PYTHIA_*` configuration reads in backend/frontend/docs.
+2. Add centralized `SIDIRA_*` primary + `PYTHIA_*` fallback handling with tests for primary-only, fallback-only, and precedence.
+3. Update docs/sample env references so new setup uses `SIDIRA_*` while compatibility notes document `PYTHIA_*`.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -49,6 +50,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Canonical brand: Sidira. Canonical domain: sidira.ai.
 - Remaining #111-scope `rg "Pythia|pythia|PYTHIA" frontend/app frontend/components backend/pythia_simulator/main.py` hits are intentionally not changed in this ticket: `pythia_simulator` import path, `PYTHIA_CORS_ORIGINS`, and `pythia.*` browser draft-storage keys.
 - PR #116 shipped the visible product surface only. Package/module/env/repo names remain intentionally tracked by #112/#113/#115.
+- #113 should not rename Python package/import paths. It is config/env/docs only, with fallback compatibility.
 
 ## For my cofounder
-Session opened 2026-05-28. #111 is merged. The session remains active for Phase 4.7; next recommended pickup is #113 for outward-facing config labels, then #112 for package/module/import rename after the external surface is stable.
+Session opened 2026-05-28. #111 is merged. #113 is now in progress for `SIDIRA_*` config namespace migration with `PYTHIA_*` fallback. Deeper package/module/import rename remains #112 after the config surface is stable.
