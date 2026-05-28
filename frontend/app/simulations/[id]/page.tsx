@@ -528,92 +528,62 @@ export default function SimulationDetailPage() {
               unpairedTreatment={result.lift_unpaired_treatment ?? 0}
               unpairedControl={result.lift_unpaired_control ?? 0}
               sentimentFailureDrops={result.lift_sentiment_failure_drops ?? 0}
-              controlScore={result.control_score ?? null}
             />
           )}
 
-          <section style={cardStyle}>
-            <div
-              style={{
-                fontSize: 13,
-                color: "#888",
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: 8,
-              }}
-            >
-              {sim.arm_split != null ? "Treatment arm confidence" : "Confidence score"}
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+          {sim.arm_split == null ? (
+            <section style={cardStyle}>
               <div
                 style={{
-                  fontSize: 64,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  color: scoreColor(result.confidence_score),
+                  fontSize: 13,
+                  color: "#888",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  marginBottom: 8,
                 }}
               >
-                {Math.round(result.confidence_score)}
+                Confidence score
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {result.confidence_score_ci && (
-                  <ConfidenceIntervalLabel
-                    ciLow={result.confidence_score_ci[0]}
-                    ciHigh={result.confidence_score_ci[1]}
-                    sampledAgentCount={sim?.sampled_agent_count ?? null}
-                  />
-                )}
-                <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
-                  &ge;80 = validated; below = needs refinement.
+              <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+                <div
+                  style={{
+                    fontSize: 64,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    color: scoreColor(result.confidence_score),
+                  }}
+                >
+                  {Math.round(result.confidence_score)}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {result.confidence_score_ci && (
+                    <ConfidenceIntervalLabel
+                      ciLow={result.confidence_score_ci[0]}
+                      ciHigh={result.confidence_score_ci[1]}
+                      sampledAgentCount={sim?.sampled_agent_count ?? null}
+                    />
+                  )}
+                  <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
+                    &ge;80 = validated; below = needs refinement.
+                  </div>
                 </div>
               </div>
-            </div>
-            {result.confidence_score_ci && (
-              <ScoreCiBar
-                score={result.confidence_score}
-                ciLow={result.confidence_score_ci[0]}
-                ciHigh={result.confidence_score_ci[1]}
-              />
-            )}
-            {sim.arm_split != null && result.control_score != null && (
-              <div
-                style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: "1px solid #eee",
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 12,
-                  fontSize: 14,
-                  color: "#555",
-                }}
-              >
-                <span
-                  style={{
-                    textTransform: "uppercase",
-                    fontSize: 12,
-                    letterSpacing: 0.5,
-                    color: "#888",
-                  }}
-                >
-                  Control arm
-                </span>
-                <span
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 600,
-                    color: scoreColor(result.control_score),
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {Math.round(result.control_score)}
-                </span>
-                <span style={{ color: "#888" }}>
-                  (status-quo product TODAY, no proposed change)
-                </span>
-              </div>
-            )}
-          </section>
+              {result.confidence_score_ci && (
+                <ScoreCiBar
+                  score={result.confidence_score}
+                  ciLow={result.confidence_score_ci[0]}
+                  ciHigh={result.confidence_score_ci[1]}
+                />
+              )}
+            </section>
+          ) : (
+            <PerArmDetailCard
+              treatmentScore={result.treatment_score ?? result.confidence_score}
+              treatmentCi={result.confidence_score_ci ?? null}
+              controlScore={result.control_score ?? null}
+              sampledAgentCount={sim?.sampled_agent_count ?? null}
+            />
+          )}
 
           {result.weaknesses && result.weaknesses.length > 0 && (
             <section style={cardStyle}>
@@ -912,7 +882,6 @@ function LiftCard({
   unpairedTreatment,
   unpairedControl,
   sentimentFailureDrops,
-  controlScore,
 }: {
   lift: number | null;
   liftCi: [number, number] | null;
@@ -920,7 +889,6 @@ function LiftCard({
   unpairedTreatment: number;
   unpairedControl: number;
   sentimentFailureDrops: number;
-  controlScore: number | null;
 }) {
   // Sign-coloured big number. Near-zero (|lift| < 0.5) is rendered gray so a
   // bootstrap-noise lift around zero doesn't read as a real movement.
@@ -1027,7 +995,7 @@ function LiftCard({
             <div style={{ fontSize: 14, color: "#444" }}>Narrow interval</div>
           )}
           <div style={{ fontSize: 14, color: "#555", maxWidth: 520 }}>
-            Same 0–100 scale as the headline confidence score (so −20 here
+            Same 0–100 scale as the single-arm confidence score (so −20 here
             means treatment lands ~20 confidence-points worse than the current
             product). Paired bootstrap over per-agent sentiment deltas.
             {pairedN != null && pairedN > 0 && (
@@ -1043,11 +1011,6 @@ function LiftCard({
               }}
             >
               CI crosses zero — the data does not rule out "no effect."
-            </div>
-          )}
-          {controlScore != null && lift != null && (
-            <div style={{ fontSize: 12, color: "#888" }}>
-              vs control baseline of {Math.round(controlScore)}.
             </div>
           )}
         </div>
@@ -1127,6 +1090,151 @@ function LiftCard({
         </div>
       )}
     </section>
+  );
+}
+
+function PerArmDetailCard({
+  treatmentScore,
+  treatmentCi,
+  controlScore,
+  sampledAgentCount,
+}: {
+  treatmentScore: number;
+  treatmentCi: [number, number] | null;
+  controlScore: number | null;
+  sampledAgentCount: number | null;
+}) {
+  return (
+    <section
+      style={{
+        ...cardStyle,
+        padding: "16px 18px",
+        background: "#fafafa",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          color: "#666",
+          textTransform: "uppercase",
+          letterSpacing: 0,
+          marginBottom: 6,
+        }}
+      >
+        Per-arm detail
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          color: "#555",
+          lineHeight: 1.5,
+          maxWidth: 760,
+          marginBottom: 14,
+        }}
+      >
+        These diagnostic scores are not directly comparable. The treatment arm
+        includes weakness penalties for the proposed change; the control arm is
+        scored as the status-quo product and skips weakness classification. Use
+        Lift above for the apples-to-apples A/B read.
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+        }}
+      >
+        <ArmScoreTile
+          label="Treatment confidence"
+          description="Proposed change, including weakness penalties."
+          score={treatmentScore}
+          ci={treatmentCi}
+          sampledAgentCount={sampledAgentCount}
+        />
+        <ArmScoreTile
+          label="Control status-quo score"
+          description="Current product TODAY; weakness classifier is not run."
+          score={controlScore}
+          ci={null}
+          sampledAgentCount={null}
+        />
+      </div>
+      <div
+        style={{
+          marginTop: 12,
+          paddingTop: 12,
+          borderTop: "1px solid #e8e8e8",
+          fontSize: 12,
+          color: "#777",
+          lineHeight: 1.5,
+        }}
+      >
+        Single-arm rubric still applies to the treatment confidence score:
+        {" "}&ge;80 = validated; below = needs refinement.
+      </div>
+    </section>
+  );
+}
+
+function ArmScoreTile({
+  label,
+  description,
+  score,
+  ci,
+  sampledAgentCount,
+}: {
+  label: string;
+  description: string;
+  score: number | null;
+  ci: [number, number] | null;
+  sampledAgentCount: number | null;
+}) {
+  return (
+    <div
+      style={{
+        padding: "4px 0",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          color: "#777",
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+        <div
+          style={{
+            fontSize: 28,
+            lineHeight: 1,
+            fontWeight: 700,
+            color: score == null ? "#888" : scoreColor(score),
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {score == null ? "n/a" : Math.round(score)}
+        </div>
+        {ci != null && (
+          <ConfidenceIntervalLabel
+            ciLow={ci[0]}
+            ciHigh={ci[1]}
+            sampledAgentCount={sampledAgentCount}
+          />
+        )}
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 12,
+          color: "#777",
+          lineHeight: 1.4,
+        }}
+      >
+        {description}
+      </div>
+    </div>
   );
 }
 
