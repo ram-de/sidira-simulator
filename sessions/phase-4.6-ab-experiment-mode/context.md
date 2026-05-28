@@ -14,7 +14,7 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
-- [ ] **#99 -- de-asymmetric A/B per-arm confidence-score display.** Reopened Phase 4.6 follow-up work to make the result page lift-first and visually de-emphasize non-comparable per-arm confidence scores.
+- [ ] **#99 -- de-asymmetric A/B per-arm confidence-score display.** Frontend implementation is done and verified locally (`npm run typecheck` + Playwright smoke with stubbed A/B data and real single-arm page). Next: codex review, commit, push, PR.
 
 ## Completed
 - **#92 -- e2e calibration dogfood** (2026-05-27). Four wizard-driven A/B sims against `streamly_sample` (3 cleanly-predicted hypotheses + one re-run after an informative PM-prediction miss). Writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)". Calibration verdict: 3/3 cleanly-predicted hypotheses directionally confirmed (Skip Intro +15.9 [+9.6,+21.8]; Resume->Continue rename +10.0 [+1.8,+18.2] (borderline-null); remove-recs/A-Z-grid -11.2 [-19.8,-3.1]). The one PM-prediction override (autoplay-next-episode -10.5 [-21.0,-0.8]) was Pythia correctly catching the well-known autoplay-is-divisive dynamic the PM intuition missed. Zero drop counters across all runs. Pythia's lift formula is calibrated for production PM use.
@@ -71,10 +71,9 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
   - **Cross-repo "/codex review on every PR" rule** (MERGED via `25e85b3` on `pythia-simulator` AGENTS.md). Auto-mode classifier blocked the cross-repo writes to `pythia-personas/AGENTS.md` and `pythia-crawler/AGENTS.md` even after explicit authorization -- prepared content was handed to the user to paste manually. **Cross-repo carryover: still pending on `pythia-personas` + `pythia-crawler`.**
 
 ## Next Steps
-1. Inspect `frontend/app/simulations/[id]/page.tsx` around the current confidence-score card and A/B lift card.
-2. Implement #99 option (a): keep single-arm confidence score prominent, but in A/B mode move treatment/control confidence values into a smaller "Per-arm detail" section with explicit asymmetric-scoring copy.
-3. Run frontend typecheck and live-smoke the result page if a local A/B simulation is available.
-4. PR with `Closes #99`; update this session when merged.
+1. Run codex review on the #99 diff.
+2. Commit + push `codex/99-de-asymmetric-ab-scores`.
+3. Open PR with `Closes #99`; update this session when merged.
 
 ## Key Files
 - `docs/4.6-ab-experiment-mode.md` -- LOCKED decisions (Q1=B, Q2=paired bootstrap, Q3=paired, Q4=wizard preview + 200 cap). Single source of truth before code.
@@ -89,6 +88,7 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 - `backend/pythia_simulator/adapters/db_models.py` -- `Simulation.treatment_fraction` (Float, alembic 004) + `AgentInstance.arm` (VARCHAR(16), alembic 005). Both nullable for back-compat.
 - `frontend/app/simulations/new/page.tsx` -- `AB_MODE_DISABLED_UNTIL_LIFT` gate. Flip in #91.
 - `frontend/app/simulations/[id]/page.tsx` -- #91 lift card lives here; weakness info popover already in.
+  - #99 changes here: A/B mode now renders `PerArmDetailCard` instead of the prominent confidence-score card; single-arm rendering stays unchanged.
 
 ## Key Context
 
