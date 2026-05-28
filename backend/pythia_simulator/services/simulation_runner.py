@@ -219,9 +219,9 @@ class SimulationRunner:
                     agent_specs.append((persona, sample_index, None))
         else:
             # A/B mode: in A/B mode `population_size` is the PER-ARM target
-            # (matches the wizard's `perArm = min(populationSize,
-            # WIZARD_PER_ARM_CAP)` cost-preview math — see
-            # frontend/app/simulations/new/page.tsx). Each arm calls
+            # (matches the wizard's cost-preview math, which uses the
+            # backend-reported max_agents_per_arm from /config/limits). Each
+            # arm calls
             # allocate() with the SAME (persona_pack, target, max_agents)
             # triple at the wizard's locked f=0.5 — that's what makes
             # treatment_alloc byte-identical to control_alloc, which is

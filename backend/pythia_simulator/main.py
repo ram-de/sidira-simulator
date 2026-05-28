@@ -11,6 +11,7 @@ from pythia_simulator import __version__
 from pythia_simulator.api import (
     agents,
     capabilities,
+    config,
     feature_stores,
     feedback,
     models,
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback.agent_router)
     app.include_router(feedback.group_router)
     app.include_router(models.router)
+    app.include_router(config.router)
     app.include_router(capabilities.router)
     app.include_router(feature_stores.router)
     app.include_router(persona_builds.router)
