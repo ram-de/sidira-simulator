@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import TopNav from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "Pythia",
+  title: "Sidira",
   description: "Validate product hypotheses before you build them.",
 };
 

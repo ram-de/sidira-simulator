@@ -7,8 +7,8 @@ export default function ProductPage() {
         Each capability becomes a reverse-PRD + reverse-Figma in your Feature Pack.
       </p>
       <p style={{ marginTop: 24, color: "#888", fontSize: 14 }}>
-        Placeholder. Backed by <code>pythia-crawler</code> producer. Wizard flow lands in a future
-        phase parallel to Phase 4.5 (Personas wizard).
+        Placeholder. Backed by the crawler producer. Wizard flow lands in a future phase parallel
+        to Phase 4.5 (Personas wizard).
       </p>
     </main>
   );

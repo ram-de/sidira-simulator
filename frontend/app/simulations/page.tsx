@@ -52,7 +52,7 @@ export default function SimulationsIndexPage() {
         </Link>
       </div>
       <p style={{ color: "#555" }}>
-        Submit a hypothesis. Pythia samples your latest persona pack, runs reactions against your
+        Submit a hypothesis. Sidira samples your latest persona pack, runs reactions against your
         latest feature pack, and returns a confidence score plus diagnosed weaknesses. Then chat
         with each agent that participated.
       </p>

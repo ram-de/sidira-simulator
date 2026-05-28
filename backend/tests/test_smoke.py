@@ -60,6 +60,9 @@ def test_openapi_renders() -> None:
     client = TestClient(app)
     resp = client.get("/openapi.json")
     assert resp.status_code == 200
+    info = resp.json()["info"]
+    assert info["title"] == "Sidira Simulator API"
+    assert "Sidira simulation engine" in info["description"]
     paths = resp.json()["paths"]
     assert "/simulations" in paths
     assert "/agents/{agent_id}" in paths

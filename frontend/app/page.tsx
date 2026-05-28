@@ -4,7 +4,7 @@ const CARDS = [
   {
     href: "/personas",
     title: "Personas",
-    body: "Connect your Snowflake, map your columns into Pythia's 7 feature groups, and build a versioned persona pack.",
+    body: "Connect your Snowflake, map your columns into Sidira's 7 feature groups, and build a versioned persona pack.",
     cta: "Build personas",
   },
   {
@@ -24,7 +24,7 @@ const CARDS = [
 export default function HomePage() {
   return (
     <main style={{ maxWidth: 960, margin: "64px auto", padding: "0 24px" }}>
-      <h1 style={{ fontSize: 40, margin: 0 }}>Pythia</h1>
+      <h1 style={{ fontSize: 40, margin: 0 }}>Sidira</h1>
       <p style={{ color: "#555", marginTop: 8, marginBottom: 48 }}>
         Validate product hypotheses before you build them.
       </p>
