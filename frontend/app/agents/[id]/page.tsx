@@ -256,6 +256,14 @@ export default function AgentChatPage() {
   const seed = agent.identity_seed;
   const persona = agent.metadata.persona_name;
   const hypothesisProse = sim?.hypothesis?.prose ?? null;
+  const groupArm =
+    agent.metadata.arm === "treatment" || agent.metadata.arm === "control"
+      ? agent.metadata.arm
+      : null;
+  const personaGroupHref = `/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}${
+    groupArm ? `?arm=${groupArm}` : ""
+  }`;
+  const personaGroupLabel = groupArm ? `${groupArm} group chat` : "group chat";
 
   return (
     <main style={pageStyle}>
@@ -274,10 +282,10 @@ export default function AgentChatPage() {
           ← back to simulation
         </Link>
         <Link
-          href={`/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}`}
+          href={personaGroupHref}
           style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
         >
-          ← back to {persona} (group chat)
+          ← back to {persona} ({personaGroupLabel})
         </Link>
       </div>
 
