@@ -112,6 +112,10 @@ npm install
 npx tsc --noEmit            # should pass clean
 ```
 
+For production deploys, copy `frontend/.env.example` and set
+`NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Local development can leave it
+unset or use `http://127.0.0.1:8000`.
+
 ---
 
 ## Step 6 — Run the Magic Moment locally (10 min)

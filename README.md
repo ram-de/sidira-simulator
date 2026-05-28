@@ -64,6 +64,11 @@ Use `SIDIRA_*` for simulator-specific backend config, for example
 Legacy `PYTHIA_*` names are still accepted as fallbacks during the pre-launch
 rename; when both are set, `SIDIRA_*` wins.
 
+For deployment, the canonical Sidira hosts are `sidira.ai`, `app.sidira.ai`,
+and `api.sidira.ai`. Set frontend `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`
+and backend `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`.
+See `docs/sidira-domain-runbook.md` for the domain and metadata checklist.
+
 ## License
 
 MIT
