@@ -69,13 +69,17 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Route 53 assigned nameservers: `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`, `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
 - Confirmed current public delegation still points to Namecheap nameservers (`dns1.registrar-servers.com`, `dns2.registrar-servers.com`), so the next external change is updating Namecheap Custom DNS.
 - Pushed #115 commit `f6e5415 docs: record Route 53 hosted zone`.
+- Updated Namecheap Domain > Nameservers to Custom DNS with the four Route 53 nameservers.
+- Immediate post-save `dig NS sidira.ai` still returned Namecheap delegation, so DNS propagation is pending.
+- Pushed #115 commit `a8efc94 docs: record Namecheap delegation update`.
 
 ## Next Steps
-1. With approval, update Namecheap nameservers for `sidira.ai` to the four Route 53 NS values.
+1. Re-check `dig NS sidira.ai` until it returns the Route 53 delegation.
 2. Create an Amplify Hosting app for `ram-de/sidira-simulator` with monorepo root `frontend`, `AMPLIFY_MONOREPO_APP_ROOT=frontend`, and `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
-3. Create `/sidira/prod/*` secrets in AWS Parameter Store/Secrets Manager, create `SidiraApiProdRole`, then create a small EC2 API VM with that instance profile.
-4. Attach an Elastic IP, point `api.sidira.ai` at it, and run `docker compose -f deploy/docker-compose.api.yml up -d --build` from browser SSH after writing a root-owned `/opt/sidira/api.env` from AWS-managed secrets.
-5. Open PR for `codex/115-sidira-domain-metadata`, run Codex review, and merge after the external DNS/hosting state is recorded or explicitly deferred.
+3. Before creating each billable AWS resource, give the user the estimated monthly cost and ask for approval.
+4. Create `/sidira/prod/*` secrets in AWS Parameter Store/Secrets Manager, create `SidiraApiProdRole`, then create a small EC2 API VM with that instance profile.
+5. Attach an Elastic IP, point `api.sidira.ai` at it, and run `docker compose -f deploy/docker-compose.api.yml up -d --build` from browser SSH after writing a root-owned `/opt/sidira/api.env` from AWS-managed secrets.
+6. Open PR for `codex/115-sidira-domain-metadata`, run Codex review, and merge after the external DNS/hosting state is recorded or explicitly deferred.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -94,7 +98,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - `backend/Dockerfile`, `backend/.dockerignore` -- FastAPI production image scaffold.
 - `deploy/docker-compose.api.yml`, `deploy/Caddyfile.api`, `deploy/README.md` -- browser-console-friendly API VM deployment path.
 - `AGENTS.md`, `ONBOARDING.md`, `README.md`, `ROADMAP.md`, `CONTEXT.md`, `docs/system-architecture.md` -- active docs updated for `sidira-simulator` repo rename.
-- `docs/sidira-domain-runbook.md` -- now includes Route 53 hosted zone ID and assigned NS records.
+- `docs/sidira-domain-runbook.md` -- now includes Route 53 hosted zone ID, assigned NS records, and Namecheap delegation status.
 
 ## Key Context
 - Phase 4.7 plan: #110.
@@ -113,6 +117,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
 - User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
 - For a browser-only backend bootstrap, prefer Amplify for frontend plus a small EC2 API VM running Docker Compose and Caddy. Lightsail Containers can be revisited after a clean image-publishing path exists, but EC2 wins now because instance profiles solve backend secret retrieval cleanly.
+- As of 2026-05-28T23:29:58Z, Namecheap shows Custom DNS set to the Route 53 nameservers, but public DNS still resolves `sidira.ai` to Namecheap registrar nameservers. Treat this as propagation pending, not failed.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, local deployment scaffold is pushed, and Route 53 hosted zone `Z01279103CLJX7PS4TEFN` exists. Next external step is updating Namecheap nameservers to Route 53; root `sidira.ai` still resolves via Namecheap and `app.sidira.ai` / `api.sidira.ai` do not resolve yet. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, local deployment scaffold is pushed, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` exists, and Namecheap Custom DNS is set to the Route 53 nameservers. Public `dig NS sidira.ai` still resolves via Namecheap immediately after save, so wait for propagation before adding production DNS records. Use browser-only AWS operations; do not use local AWS CLI.
