@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
-os.environ.setdefault("PYTHIA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
 from pythia_simulator.adapters import llm as llm_mod  # noqa: E402
 from pythia_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
@@ -185,24 +185,17 @@ def test_get_agent_404_for_unknown_id(client_with_chat_stub) -> None:
     assert "not found" in resp.json()["detail"].lower()
 
 
-def test_get_agent_404_for_cross_customer(client_with_chat_stub) -> None:
+def test_get_agent_404_for_cross_customer(client_with_chat_stub, monkeypatch) -> None:
     """An agent belonging to a different customer must not be readable.
     Verifies that AgentInstanceRepo.get enforces customer scoping (it does in
     both InMemory and Postgres variants); this is the route-level proof."""
     client, _chat, agent_repo = client_with_chat_stub
     agent_id, _row = _run_sim_and_pick_agent(client, agent_repo)
     # Default customer is "demo"; flip via env to simulate a different customer
-    # asking for the same id. We restore after.
-    prev = os.environ.get("PYTHIA_CUSTOMER_ID")
-    os.environ["PYTHIA_CUSTOMER_ID"] = "someone-else"
-    try:
-        resp = client.get(f"/agents/{agent_id}")
-        assert resp.status_code == 404
-    finally:
-        if prev is None:
-            del os.environ["PYTHIA_CUSTOMER_ID"]
-        else:
-            os.environ["PYTHIA_CUSTOMER_ID"] = prev
+    # asking for the same id.
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "someone-else")
+    resp = client.get(f"/agents/{agent_id}")
+    assert resp.status_code == 404
 
 
 def test_send_message_appends_turn_and_returns_agent_reply(

@@ -128,7 +128,7 @@ class SimulationOrchestrator:
                 population_size=effective_population_size,
                 run_seed=resolved_run_seed,
                 # Pass the API-derived cap so allocate() uses the same number
-                # the row recorded. Otherwise PYTHIA_MAX_AGENTS=0 makes the API
+                # the row recorded. Otherwise SIDIRA_MAX_AGENTS=0 makes the API
                 # clamp to 1 while allocate() falls back to default 50. (codex P2)
                 max_agents=sampled_agent_count,
                 treatment_fraction=treatment_fraction,

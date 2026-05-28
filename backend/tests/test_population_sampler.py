@@ -182,6 +182,7 @@ def test_max_agents_negative_arg_raises() -> None:
 
 def test_max_agents_env_zero_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Bad env value (0) → fall back to default 50, matching api/simulations.py."""
+    monkeypatch.delenv("SIDIRA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)  # max_agents omitted → env path
@@ -189,6 +190,7 @@ def test_max_agents_env_zero_falls_back_to_default(monkeypatch: pytest.MonkeyPat
 
 
 def test_max_agents_env_negative_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SIDIRA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "-7")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)
@@ -196,6 +198,7 @@ def test_max_agents_env_negative_falls_back_to_default(monkeypatch: pytest.Monke
 
 
 def test_max_agents_env_garbage_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SIDIRA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "abc")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)
@@ -259,14 +262,29 @@ def test_missing_optional_scheme_raises() -> None:
 
 
 def test_max_agents_env_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """PYTHIA_MAX_AGENTS env var sets the default cap when max_agents not passed."""
+    """SIDIRA_MAX_AGENTS env var sets the default cap when max_agents not passed."""
     from pythia_simulator.services import population_sampler
 
-    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "10")
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "10")
     pack = _pack(_DEMO_WEIGHTS)
     # explicit None means "use the default", which reads env.
     alloc = population_sampler.allocate(pack, population_size=1000)
     assert sum(n for _, n in alloc) == 10
+
+
+def test_max_agents_env_prefers_sidira_over_pythia(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pythia_simulator.services import population_sampler
+
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "8")
+    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "10")
+    pack = _pack(_DEMO_WEIGHTS)
+
+    alloc = population_sampler.allocate(pack, population_size=1000)
+
+    assert sum(n for _, n in alloc) == 8
 
 
 # ── codex P2 hardening ──────────────────────────────────────────────────────

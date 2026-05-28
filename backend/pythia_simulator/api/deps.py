@@ -1,6 +1,6 @@
 """FastAPI dependencies — customer scope + orchestrator wiring.
 
-MVP: resolves customer_id from PYTHIA_CUSTOMER_ID env (default "demo") and uses
+MVP: resolves customer_id from SIDIRA_CUSTOMER_ID env (default "demo") and uses
 in-memory repos. Phase 5 will swap the resolver to read from a Clerk session
 JWT; the JWT path will take precedence over the env, and the env will continue
 to act as the dev-time default.
@@ -21,6 +21,7 @@ from pythia_simulator.adapters.repositories import (
     SimulationRepo,
     get_in_memory_repos,
 )
+from pythia_simulator.services.runtime_config import resolve_sidira_env
 from pythia_simulator.services.simulation_orchestrator import SimulationOrchestrator
 
 DEFAULT_CUSTOMER_ID = "demo"
@@ -29,10 +30,13 @@ DEFAULT_CUSTOMER_ID = "demo"
 def current_customer_id() -> str:
     """Resolve the customer for the current request.
 
-    MVP: read from PYTHIA_CUSTOMER_ID env var, fall back to "demo". Phase 5 will
-    layer a Clerk JWT resolver on top.
+    MVP: read from SIDIRA_CUSTOMER_ID env var, fall back through legacy
+    PYTHIA_CUSTOMER_ID, then to "demo". Phase 5 will layer a Clerk JWT resolver
+    on top.
     """
-    return os.environ.get("PYTHIA_CUSTOMER_ID", DEFAULT_CUSTOMER_ID)
+    customer_id = resolve_sidira_env("CUSTOMER_ID", DEFAULT_CUSTOMER_ID)
+    assert customer_id is not None
+    return customer_id
 
 
 def _repos() -> tuple[CustomerRepo, SimulationRepo, AgentInstanceRepo, AgentFeedbackRepo]:

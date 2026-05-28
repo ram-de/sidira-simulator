@@ -48,13 +48,19 @@ This is also the surface for Layer-3 calibration: PM "realistic / not realistic"
 # Backend
 cd backend && python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-uvicorn pythia_simulator.main:app --reload
+cp .env.example .env
+uvicorn pythia_simulator.main:app --reload --env-file .env
 
 # Frontend
 cd frontend && npm install && npm run dev
 ```
 
 Backend reads artifacts from a local mirror when `R2_BUCKET` is unset (see `LocalArtifactStore`).
+Use `SIDIRA_*` for simulator-specific backend config, for example
+`SIDIRA_CUSTOMER_ID`, `SIDIRA_LOCAL_ARTIFACTS`, `SIDIRA_MAX_AGENTS`,
+`SIDIRA_CORS_ORIGINS`, `SIDIRA_CRED_MODE`, and `SIDIRA_LOCAL_CRED_KEY`.
+Legacy `PYTHIA_*` names are still accepted as fallbacks during the pre-launch
+rename; when both are set, `SIDIRA_*` wins.
 
 ## License
 

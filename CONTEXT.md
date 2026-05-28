@@ -30,7 +30,7 @@ PMs can now submit a hypothesis with the A/B toggle enabled, watch both treatmen
 
 **Two followups carved out of #92 (separate tickets, not Phase 4.6 blockers):**
 1. **#99** -- De-asymmetric the A/B result-page UX. Per #90 contract the control arm skips weakness classification, so per-arm side-by-side scores aren't on the same scale -- "Treatment 34 / Control 59" reads as "treatment is 25 points worse" when the only apples-to-apples number is `lift`. Recommended: visual de-emphasis of per-arm scores in A/B mode + lift-first layout.
-2. **#100** -- Wizard cost preview vs. backend cap. Wizard says 50/arm; backend clamps to 20-25 in practice. Recommended: surface PYTHIA_MAX_AGENTS via a config endpoint.
+2. **#100** -- Wizard cost preview vs. backend cap. Wizard says 50/arm; backend clamps to 20-25 in practice. Recommended: surface `SIDIRA_MAX_AGENTS` via a config endpoint (`PYTHIA_MAX_AGENTS` remains the legacy fallback during the rename).
 3. Pure plumbing TODO (no ticket): delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing after the feature soaks for a couple of weeks.
 
 **Lasting lesson from Phase 4.6:** for A/B-mode UI conditionals, key everything off the REQUEST (`sim.arm_split`), not the RESULT shape. The result fields can be missing for at least three distinct reasons (single-arm sim, A/B with no matched pairs, fully-failed A/B run), and gating on any single result field collapses subsets back together. Generalizes to any future A/B-mode UI conditional.

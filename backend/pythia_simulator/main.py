@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,13 +19,15 @@ from pythia_simulator.api import (
     personas,
     simulations,
 )
+from pythia_simulator.services.runtime_config import resolve_sidira_env
 
 
 def _cors_origins() -> list[str]:
-    raw = os.environ.get(
-        "PYTHIA_CORS_ORIGINS",
+    raw = resolve_sidira_env(
+        "CORS_ORIGINS",
         "http://localhost:3000,http://127.0.0.1:3000",
     )
+    assert raw is not None
     return [o.strip() for o in raw.split(",") if o.strip()]
 
 

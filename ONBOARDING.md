@@ -88,15 +88,17 @@ Create `backend/.env` (it's gitignored):
 ```bash
 # Required
 GROQ_API_KEY=gsk_...                                  # from founder or signup
-PYTHIA_LOCAL_ARTIFACTS=/Users/<you>/Projects/pythia-simulator/local-artifacts
+SIDIRA_LOCAL_ARTIFACTS=/Users/<you>/Projects/pythia-simulator/local-artifacts
 
 # Optional
 ANTHROPIC_API_KEY=sk-ant-...                          # fallback when Groq 429s
-DATABASE_URL=postgresql://...                          # only if doing Phase 5 work; InMemory works for everything else
-PYTHIA_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000   # defaults are fine for dev
+DATABASE_URL=postgresql://...                         # only if doing Phase 5 work; InMemory works for everything else
+SIDIRA_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000   # defaults are fine for dev
 ```
 
-Export them before running the backend (or use `direnv` / `python-dotenv` — your call).
+Load them before running the backend with `uvicorn --env-file .env`, or export
+them in your shell. Legacy `PYTHIA_*` names still work during the rename, but
+new setup should use `SIDIRA_*`.
 
 ---
 
@@ -118,9 +120,8 @@ This is the smoke test: a hypothesis goes in, 6 agents react, score comes back. 
 ```bash
 cd ~/Projects/pythia-simulator/backend
 source .venv/bin/activate
-export GROQ_API_KEY=...
-export PYTHIA_LOCAL_ARTIFACTS=$(cd .. && pwd)/local-artifacts
-uvicorn pythia_simulator.main:app --host 127.0.0.1 --port 8000 --reload
+cp .env.example .env   # first run only; add GROQ_API_KEY to .env
+uvicorn pythia_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-file .env
 ```
 
 **Terminal 2 — frontend:**
@@ -138,7 +139,7 @@ Then in a browser:
 
 Within ~10 seconds you should see a score (something between 20 and 70), three diagnosed weaknesses, three refinement suggestions, and six agent chips. If you see this, you're in.
 
-**If it fails:** check the backend log for CORS errors (means env vars wrong), or `Failed to load capabilities` (means `PYTHIA_LOCAL_ARTIFACTS` is wrong — must point to the dir containing the fixture pack).
+**If it fails:** check the backend log for CORS errors (means env vars wrong), or `Failed to load capabilities` (means `SIDIRA_LOCAL_ARTIFACTS` is wrong — must point to the dir containing the fixture pack).
 
 ---
 
@@ -242,7 +243,7 @@ The full version is in `AGENTS.md`. The 90% version:
 | "What was the design decision for X?" | Search `sessions/persona-classifier/context.md` and `ROADMAP.md` first |
 | "Why is the code shaped this way?" | `git log -- <file>` + read commit messages. We write detailed commit bodies for a reason. |
 | Tests fail and you don't know why | `pytest tests/ -v -x` to stop at first failure with full trace; check it's not an env-var issue |
-| Frontend won't connect to backend | CORS — check backend log; verify `PYTHIA_CORS_ORIGINS` matches your frontend origin |
+| Frontend won't connect to backend | CORS — check backend log; verify `SIDIRA_CORS_ORIGINS` matches your frontend origin |
 | LLM calls fail with 429 | Groq rate limit — wait 60s, or fall back to Anthropic (set `ANTHROPIC_API_KEY`) |
 | Genuinely blocked | Drop a one-line note in your session file's "Next Steps" with `[BLOCKED]` prefix, `/pythia-session save`, then ping founder. They'll see the block context on pull. |
 

@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 # Point LocalArtifactStore at the committed fixture before app starts.
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
-os.environ.setdefault("PYTHIA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
 from pythia_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
 from pythia_simulator.api.deps import get_orchestrator  # noqa: E402
@@ -350,11 +350,12 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
 def test_runner_agent_count_matches_persisted_cap_under_bad_env(
     client_with_stub_llm, monkeypatch
 ) -> None:
-    """Codex P2: when PYTHIA_MAX_AGENTS is misconfigured (e.g. '0'), the runner
+    """Codex P2: when SIDIRA_MAX_AGENTS is misconfigured (e.g. '0'), the runner
     must produce exactly sampled_agent_count agents -- not silently fall back
     to the population_sampler default of 50."""
     client, _, sim_repo, agent_repo = client_with_stub_llm
-    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "0")
 
     resp = client.post(
         "/simulations",
@@ -370,7 +371,7 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
     sim_id = resp.json()["id"]
 
     body = client.get(f"/simulations/{sim_id}").json()
-    # API clamps PYTHIA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
+    # API clamps SIDIRA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
     assert body["sampled_agent_count"] == 1
     assert len(body["agent_instance_ids"]) == 1
 
