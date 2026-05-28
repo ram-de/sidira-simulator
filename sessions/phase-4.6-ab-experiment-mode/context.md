@@ -1,11 +1,12 @@
 ---
 type: session
 domain: phase-4.6-ab-experiment-mode
-status: closed
+status: active
 started: 2026-05-26
 closed: 2026-05-27
 reopened: 2026-05-28
 reclosed: 2026-05-28
+reopened_for_100: 2026-05-28
 owner: ram-de
 ---
 
@@ -15,7 +16,7 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
-- None. Phase 4.6 follow-up #99 is merged and closed.
+- [ ] **#100 -- wizard: reconcile A/B cost preview with backend per-arm cap.** Ticket assigned to `ram-de` and Project status moved to In Progress. Plan: expose the active backend max-agent cap via a small config endpoint, have the wizard load it, and drive the A/B cost preview from that live value instead of the hardcoded frontend constant.
 
 ## Completed
 - **#99 -- de-asymmetric A/B per-arm confidence-score display** (MERGED PR #108, commit `4cf60f3`, 2026-05-28). Frontend-only cleanup from #92 dogfood: A/B result pages now keep Lift as the headline and move treatment/control confidence scores into a compact `Per-arm detail` section with copy warning that these diagnostics are not directly comparable. Single-arm confidence-score rendering stays unchanged. Verification: `npm run typecheck`, Playwright smoke with stubbed A/B + real single-arm page, and `codex review` (no discrete correctness issues). GitHub issue #99 is closed and Project status is Done.
@@ -73,7 +74,10 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
   - **Cross-repo "/codex review on every PR" rule** (MERGED via `25e85b3` on `pythia-simulator` AGENTS.md). Auto-mode classifier blocked the cross-repo writes to `pythia-personas/AGENTS.md` and `pythia-crawler/AGENTS.md` even after explicit authorization -- prepared content was handed to the user to paste manually. **Cross-repo carryover: still pending on `pythia-personas` + `pythia-crawler`.**
 
 ## Next Steps
-1. Phase 4.6 follow-up session is closed. Pick the next ticket from Project status = Next.
+1. Create `codex/100-ab-cost-preview-cap` from `main`.
+2. Add backend config/limits response for the effective `PYTHIA_MAX_AGENTS` cap.
+3. Update the wizard cost preview to use the live cap and render clear copy when population is clamped.
+4. Add focused backend/frontend verification, then run `codex review` before PR.
 
 ## Key Files
 - `docs/4.6-ab-experiment-mode.md` -- LOCKED decisions (Q1=B, Q2=paired bootstrap, Q3=paired, Q4=wizard preview + 200 cap). Single source of truth before code.
@@ -87,6 +91,7 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 - `backend/pythia_simulator/schemas/simulation.py` -- `ArmSplit` now locks `treatment_fraction=0.5`. `SimulationResult` schema extension lands in #90.
 - `backend/pythia_simulator/adapters/db_models.py` -- `Simulation.treatment_fraction` (Float, alembic 004) + `AgentInstance.arm` (VARCHAR(16), alembic 005). Both nullable for back-compat.
 - `frontend/app/simulations/new/page.tsx` -- `AB_MODE_DISABLED_UNTIL_LIFT` gate. Flip in #91.
+  - #100 changes here: remove hardcoded A/B per-arm preview drift; use backend-reported cap for cost preview.
 - `frontend/app/simulations/[id]/page.tsx` -- #91 lift card lives here; weakness info popover already in.
   - #99 changes here: A/B mode now renders `PerArmDetailCard` instead of the prominent confidence-score card; single-arm rendering stays unchanged.
 
@@ -97,6 +102,8 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 **Session reopened 2026-05-28 for #99.** This is a Phase 4.6 follow-up carved out of #92: per-arm confidence scores are structurally asymmetric because the treatment arm includes the weakness debit and the control arm skips weakness classification. The UI fix is frontend-only: lift remains the A/B headline; per-arm scores become secondary detail with copy warning that only Lift is apples-to-apples.
 
 **#99 status as of 2026-05-28:** PR #108 is merged and issue #99 is closed. It keeps single-arm results unchanged, keeps Lift as the A/B headline, moves treatment/control scores into a compact Per-arm detail card with asymmetry copy, and removes the old control-baseline line from the lift card. Verification: `npm run typecheck`, Playwright smoke with stubbed A/B + real single-arm page, and `codex review` (no discrete correctness issues).
+
+**#100 status as of 2026-05-28:** reopened this Phase 4.6 session for the last A/B-mode cleanup. Root issue: wizard preview can show 50 agents per arm while backend clamps actual sampled agents lower via `PYTHIA_MAX_AGENTS`. The preferred fix is option (a) from the ticket: backend exposes the effective limit; wizard consumes it and previews the truth.
 
 **Lift statistic (locked Q2):** mean per-pair confidence-weighted sentiment delta, scaled by `sentiment_weight * 100` into confidence_score units. NOT the per-arm confidence_score diff (weakness signal stays in per-arm scores). Point estimate AND bootstrap CI use the same statistic, so the CI brackets lift by construction. Confidence weighting uses shrinkage-toward-neutral: `value_shrunk = c * value + (1-c) * 0.5` -- symmetric across POS/NEU/NEG (the naive `c * value` would have silently dropped confidence for NEGATIVE).
 
@@ -139,9 +146,9 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 - **The auto-mode classifier blocks cross-repo writes even after explicit user authorization.** Prepared content handed off manually for `pythia-personas` + `pythia-crawler` AGENTS.md updates.
 
 ## For my cofounder
-**Phase 4.6 follow-up #99 is closed (2026-05-28).** #87, #88, #89, #90, #91, #92, #98, and #99 are shipped. #99 was a frontend-only result-page cleanup: keep lift as the A/B headline and demote treatment/control confidence scores into explanatory detail because those two scores are not directly comparable.
+**Phase 4.6 is reopened for follow-up #100 (2026-05-28).** #87, #88, #89, #90, #91, #92, #98, and #99 are shipped. #100 is the remaining 4.6 cleanup: make the wizard's A/B cost preview use the backend's active per-arm cap so PMs see the same sample count before submit that the result page shows after completion.
 
-**No active Phase 4.6 ticket remains in this session.** Treat #99 as a UI follow-up, not a re-litigation of the A/B scoring formula. The scoring asymmetry is intentional; the UI fix stops implying the two per-arm confidence scores should be subtracted.
+**Current ticket: #100.** Treat this as a product-truth cleanup. Do not rework the A/B runner or sampling formula; just remove the preview/runtime cap drift.
 
 **Codex review on #91 burned 5 rounds. The pattern was all one family: "are we correctly distinguishing A/B-mode from single-arm at the UI layer?"** The R4 lesson is the load-bearing one for everything downstream: gate A/B-conditional UI off `sim.arm_split` (the REQUEST), not result shape -- the result fields can be missing for at least three distinct reasons and any single-result-field gate collapses subsets together. This rule should generalize to any future A/B-mode UI conditional we add.
 
@@ -149,4 +156,4 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 1. Arm-scoped persona-group chat (currently disabled in A/B mode with a tooltip; clicking 1:1 chat on any agent still works fine).
 2. Delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing after #92 dogfood proves out the feature.
 
-To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode` only for archaeology. For new work, start a fresh session from the next Project ticket.
+To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode`, then continue #100 from the Next Steps above.
