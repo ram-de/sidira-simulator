@@ -51,12 +51,19 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - PR #119 opened and squash-merged to `main` as `7e07922` (`docs: update active Sidira roadmap and onboarding (#119)`).
 - #114 closed as completed and issue body tracking updated to `Status: Done`.
 - Moved #115 to In Progress in issue tracking.
+- Created #115 feature branch `codex/115-sidira-domain-metadata`.
+- Updated GitHub metadata outside the repo: Project #1 title is now Sidira; `pythia-simulator`, `pythia-personas`, and `pythia-crawler` repo descriptions/homepages now use Sidira and `https://sidira.ai`.
+- Chose not to rename repos yet. Repo/package names remain `pythia-*` until producer-package alignment is explicitly scheduled.
+- Added first #115 local commit on the feature branch (`aba778c docs: add Sidira domain deployment runbook`) with frontend/backend deploy env examples and `docs/sidira-domain-runbook.md`.
+- DNS audit: `sidira.ai` resolves to `162.255.119.57` but HTTPS does not answer; `app.sidira.ai` and `api.sidira.ai` do not resolve yet.
+- Verification for first #115 local slice passed: `git diff --check`, frontend `npm run typecheck`, and focused backend config tests (`14 passed`).
 
 ## Next Steps
-1. Create `codex/115-sidira-domain-metadata` from updated `main`.
-2. Audit deployment/domain surfaces: frontend API base config, backend CORS/env docs, GitHub Project/repo metadata, and any deploy/provider config present in the repo.
-3. Decide which parts of #115 are local-code/docs changes versus external provider actions that need manual credentials/access.
-4. Implement the local #115 changes first, then document any external DNS/hosting/project metadata steps that cannot be completed from this environment.
+1. Configure DNS/provider records for `sidira.ai`, `app.sidira.ai`, and `api.sidira.ai`, or get the provider access needed to do it.
+2. Point frontend deployment at `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
+3. Point backend deployment at `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`.
+4. Verify `https://sidira.ai` or `https://app.sidira.ai` loads and `https://api.sidira.ai/health` responds.
+5. Once external DNS/hosting is configured or explicitly deferred, run `codex review`, open PR from `codex/115-sidira-domain-metadata`, and merge.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -69,6 +76,8 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - `backend/.env.example` -- Sidira-first local backend env template.
 - `ONBOARDING.md`, `README.md`, `ROADMAP.md`, `CONTEXT.md`, `docs/**` -- active config/docs updates from #113.
 - `AGENTS.md`, `MILESTONES.md`, `docs/system-architecture.md`, `docs/feature-pack-crawler-spec.md`, `docs/mirofish-prior-art.md` -- active Sidira docs updates from #114.
+- `frontend/.env.example` -- frontend API base example for local and Sidira production.
+- `docs/sidira-domain-runbook.md` -- canonical hostnames, deploy env, DNS/HTTPS checklist, GitHub metadata checklist, rollback notes.
 
 ## Key Context
 - Phase 4.7 plan: #110.
@@ -83,6 +92,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Project board has only Todo / In Progress / Done. #114 is Done; #115 is now In Progress.
 - #114 shipped the active team/developer docs cleanup. Historical session logs and old PR references were preserved unless they needed active current-state notes.
 - #115 is the final Phase 4.7 ticket currently tracked in the roadmap: sidira.ai deployment/origins and GitHub metadata/repo-name decision.
+- #115 is partially complete: GitHub metadata and local deploy docs/env examples are done; DNS/hosting is not complete because `app.sidira.ai` and `api.sidira.ai` do not resolve yet.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. Active code/docs now use Sidira product surface, `SIDIRA_*` config with `PYTHIA_*` fallback, the `sidira_simulator` backend package, and Sidira-facing active onboarding/roadmap/architecture docs. #115 is active next: domain/deployment origins plus GitHub Project/repo metadata.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is started on `codex/115-sidira-domain-metadata`: GitHub Project/repo descriptions are Sidira, and the first local deploy/runbook commit is pushed. Remaining blocker is external DNS/hosting: root `sidira.ai` resolves but does not serve HTTPS, and `app.sidira.ai` / `api.sidira.ai` do not resolve yet.
