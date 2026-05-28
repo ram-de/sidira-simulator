@@ -75,6 +75,7 @@ class SimulationRepo(Protocol):
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> None: ...
 
     async def update_status(
@@ -113,6 +114,7 @@ class PostgresSimulationRepo:
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> None:
         row = Simulation(
             id=sim_id,
@@ -127,6 +129,7 @@ class PostgresSimulationRepo:
             run_seed=run_seed,
             treatment_fraction=treatment_fraction,
             selected_personas=selected_personas,
+            model_id=model_id,
         )
         self._session.add(row)
         await self._session.commit()
@@ -190,6 +193,7 @@ class InMemorySimulationRepo:
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> None:
         self._sims[sim_id] = {
             "id": sim_id,
@@ -208,6 +212,7 @@ class InMemorySimulationRepo:
             "run_seed": run_seed,
             "treatment_fraction": treatment_fraction,
             "selected_personas": selected_personas,
+            "model_id": model_id,
         }
 
     async def update_status(
@@ -415,6 +420,7 @@ def _simulation_to_dict(row: Simulation) -> dict[str, Any]:
         "run_seed": row.run_seed,
         "treatment_fraction": row.treatment_fraction,
         "selected_personas": row.selected_personas,
+        "model_id": row.model_id,
     }
 
 

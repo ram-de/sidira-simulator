@@ -17,8 +17,12 @@ import asyncio
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from pythia_simulator.adapters.repositories import AgentInstanceRepo
-from pythia_simulator.api.deps import current_customer_id, get_agent_repo
+from pythia_simulator.adapters.repositories import AgentInstanceRepo, SimulationRepo
+from pythia_simulator.api.deps import (
+    current_customer_id,
+    get_agent_repo,
+    get_simulation_repo,
+)
 from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.schemas.agent import (
     AgentChatRequest,
@@ -103,6 +107,7 @@ async def send_message(
     payload: AgentChatRequest,
     customer_id: str = Depends(current_customer_id),
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
+    sim_repo: SimulationRepo = Depends(get_simulation_repo),
 ) -> AgentChatResponse:
     """Send a follow-up message to a specific agent.
 
@@ -129,11 +134,13 @@ async def send_message(
             detail=f"Agent {agent_id} not found",
         )
     metadata = _metadata_from_row(row)
+    sim = await sim_repo.get(metadata.simulation_id, customer_id)
+    model_id = sim.get("model_id") if sim is not None else None
 
     # AgentChatService.send_message is sync (network LLM call). Wrap to keep
     # the FastAPI worker available for other requests during the round-trip.
-    service = AgentChatService()
     try:
+        service = AgentChatService(model_id=model_id)
         agent_turn = await asyncio.to_thread(service.send_message, metadata, message)
     except Exception as exc:
         # Surface a structured error rather than a generic 500. The PM-side

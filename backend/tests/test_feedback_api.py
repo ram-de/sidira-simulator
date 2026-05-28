@@ -36,10 +36,10 @@ from test_persona_groups_api import _PhaseAwareChat  # noqa: E402
 @pytest.fixture
 def client(monkeypatch):
     chat = _PhaseAwareChat()
-    monkeypatch.setattr(llm_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(synthesis_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(collective_mod, "get_chat_client", lambda: chat)
+    monkeypatch.setattr(llm_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(synthesis_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(collective_mod, "get_chat_client", lambda model_id=None: chat)
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     customer_repo._customers.clear()

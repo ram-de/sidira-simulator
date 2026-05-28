@@ -19,6 +19,8 @@ export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
 export type SimulationResult = components["schemas"]["SimulationResult"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
+export type ModelInfo = components["schemas"]["ModelInfo"];
+export type ListModelsResponse = components["schemas"]["ListModelsResponse"];
 export type ArmSplit = components["schemas"]["ArmSplit"];
 export type Weakness = components["schemas"]["Weakness"];
 export type AgentInstance = components["schemas"]["AgentInstance"];
@@ -78,6 +80,9 @@ export const apiPost = <T, U>(path: string, body: T) =>
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
 export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities");
+
+export const listSupportedModels = () =>
+  apiGet<ListModelsResponse>("/models");
 
 // Phase 5 #101: list the active Persona Pack's personas for the wizard's
 // persona-filter checkbox list.

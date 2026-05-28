@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from pythia_simulator.adapters.base import ArtifactNotFound
+from pythia_simulator.adapters.llm import resolve_model_id
 from pythia_simulator.adapters.r2 import get_store
 from pythia_simulator.adapters.repositories import AgentInstanceRepo
 from pythia_simulator.api.deps import (
@@ -60,7 +61,11 @@ async def list_simulations(
         items.append(
             SimulationListItem(
                 id=row["id"],
-                status=SimulationStatus(row["status"]) if row.get("status") else SimulationStatus.PENDING,
+                status=(
+                    SimulationStatus(row["status"])
+                    if row.get("status")
+                    else SimulationStatus.PENDING
+                ),
                 created_at=row.get("created_at") or datetime.utcnow(),
                 completed_at=row.get("completed_at"),
                 hypothesis_prose=hyp.get("prose", ""),
@@ -101,9 +106,14 @@ async def create_simulation(
     # this PR (#88) — the dual-arm execution path lives in #89. Persisting
     # without using lets the row tell the truth from day one and avoids a
     # subsequent migration when #89 lands.
-    treatment_fraction = (
-        payload.arm_split.treatment_fraction if payload.arm_split else None
-    )
+    treatment_fraction = payload.arm_split.treatment_fraction if payload.arm_split else None
+    try:
+        model_id = resolve_model_id(
+            payload.model_id,
+            require_available=payload.model_id is not None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         sim_id, run = await orchestrator.prepare(
@@ -114,6 +124,7 @@ async def create_simulation(
             run_seed=payload.run_seed,
             treatment_fraction=treatment_fraction,
             selected_personas=payload.selected_personas,
+            model_id=model_id,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.
@@ -165,6 +176,7 @@ async def get_simulation(
         # result-page cohort banner can render. None = unfiltered (today's
         # behavior); the frontend branches on null to hide the banner.
         selected_personas=row.get("selected_personas"),
+        model_id=row.get("model_id"),
         agent_instance_ids=row.get("agent_instance_ids", []),
         result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
     )
@@ -215,9 +227,7 @@ async def list_simulation_agents(
     """
     sim_row = await orchestrator.get(simulation_id, customer_id)
     if sim_row is None:
-        raise HTTPException(
-            status_code=404, detail=f"Simulation {simulation_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Simulation {simulation_id} not found")
     rows = await agent_repo.list_for_simulation(simulation_id, customer_id)
 
     # Build a {agent_id -> AgentAnalysisSummary} map from the persisted
@@ -237,9 +247,7 @@ async def list_simulation_agents(
                 persona_id=r["persona_id"],
                 persona_name=r["persona_name"],
                 sentiment=analysis.get("sentiment") if analysis else None,
-                sentiment_confidence=(
-                    analysis.get("sentiment_confidence") if analysis else None
-                ),
+                sentiment_confidence=(analysis.get("sentiment_confidence") if analysis else None),
                 top_quote=analysis.get("top_quote") if analysis else None,
                 arm=r.get("arm"),
             )

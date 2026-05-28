@@ -108,8 +108,17 @@ PM question:
 class PersonaGroupCollectiveService:
     """Generates collective-voice replies for persona-group chat."""
 
-    def __init__(self, chat_client: ChatClient | None = None) -> None:
-        self._chat = chat_client or get_chat_client()
+    def __init__(
+        self,
+        chat_client: ChatClient | None = None,
+        model_id: str | None = None,
+    ) -> None:
+        if chat_client is not None:
+            self._chat = chat_client
+        elif model_id is not None:
+            self._chat = get_chat_client(model_id)
+        else:
+            self._chat = get_chat_client()
 
     def collective_reply(
         self,
@@ -144,8 +153,7 @@ class PersonaGroupCollectiveService:
         """
         if not agents:
             return (
-                "No agents available in this persona group — re-run the "
-                "simulation.",
+                "No agents available in this persona group — re-run the " "simulation.",
                 [],
             )
 
@@ -193,8 +201,7 @@ class PersonaGroupCollectiveService:
 
         if prior_conversation:
             prior_block = "\n".join(
-                f"{role.upper()}: {_truncate(content, 800)}"
-                for role, content in prior_conversation
+                f"{role.upper()}: {_truncate(content, 800)}" for role, content in prior_conversation
             )
         else:
             prior_block = "(no prior turns — this is the first collective question)"

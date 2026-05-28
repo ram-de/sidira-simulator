@@ -20,14 +20,15 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from threading import Lock
 
 import structlog
 
 from pythia_simulator.adapters.llm import ChatClient, get_chat_client
 from pythia_simulator.adapters.r2 import ArtifactStore, get_store
 from pythia_simulator.memory.agent_memory import AgentMemory
-from dataclasses import dataclass
 
 from pythia_simulator.schemas.agent import AgentInstanceMetadata
 from pythia_simulator.schemas.feature_pack import Capability
@@ -74,6 +75,57 @@ class AgentRecord:
     arm: str | None = None
 
 
+class _LazyModelChatClient:
+    """One per-run model-bound client, resolved on first LLM call.
+
+    Keeping resolution lazy preserves the no-key demo path: missing credentials
+    are counted as per-agent reaction failures instead of failing the run before
+    the existing zero-agent placeholder result can be produced.
+    """
+
+    def __init__(self, model_id: str | None) -> None:
+        self._model_id = model_id
+        self._client: ChatClient | None = None
+        self._lock = Lock()
+
+    def _resolve(self) -> ChatClient:
+        if self._client is None:
+            with self._lock:
+                if self._client is None:
+                    self._client = get_chat_client(self._model_id)
+        return self._client
+
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> str:
+        return self._resolve().chat(
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            seed=seed,
+        )
+
+    def chat_json(
+        self,
+        messages: list[dict[str, str]],
+        schema: type,
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ):
+        return self._resolve().chat_json(
+            messages,
+            schema,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            seed=seed,
+        )
+
+
 class SimulationRunner:
     def __init__(
         self,
@@ -91,11 +143,10 @@ class SimulationRunner:
         self._semaphore = asyncio.Semaphore(max_concurrent_agents)
         self._per_agent_timeout_s = per_agent_timeout_s
 
-    @property
-    def _chat(self) -> ChatClient:
-        if self._chat_explicit is None:
-            self._chat_explicit = get_chat_client()
-        return self._chat_explicit
+    def _chat_for_model(self, model_id: str | None) -> ChatClient:
+        if self._chat_explicit is not None:
+            return self._chat_explicit
+        return _LazyModelChatClient(model_id)
 
     async def run(
         self,
@@ -110,8 +161,10 @@ class SimulationRunner:
         sim_id: str | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
+        chat_client = self._chat_for_model(model_id)
         # run_seed pinned per simulation. Unset means caller didn't fix it -- mint a
         # fresh time-based seed so every default run gets distinct identities. The
         # resolved seed flows out via SimulationRunState (observable) and is used
@@ -245,6 +298,7 @@ class SimulationRunner:
                     persona_pack.version,
                     sample_index,
                     resolved_run_seed,
+                    chat_client,
                     arm=arm,
                 )
                 for persona, sample_index, arm in agent_specs
@@ -258,7 +312,7 @@ class SimulationRunner:
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
         result = await self._score(
-            state, sim_id, hypothesis, agent_records, resolved_run_seed
+            state, sim_id, hypothesis, agent_records, resolved_run_seed, chat_client
         )
 
         state.mark_phase(RunPhase.COMPLETE)
@@ -272,6 +326,7 @@ class SimulationRunner:
             persona_pack_version=persona_pack.version,
             feature_pack_version=feature_pack_version,
             hypothesis=hypothesis,
+            model_id=model_id,
             agent_instance_ids=list(agent_ids),
             result=result,
         )
@@ -287,6 +342,7 @@ class SimulationRunner:
         persona_pack_version: str,
         sample_index: int,
         run_seed: int,
+        chat_client: ChatClient,
         arm: str | None = None,
     ) -> AgentRecord:
         async with self._semaphore:
@@ -335,7 +391,7 @@ class SimulationRunner:
             try:
                 initial_reaction = await asyncio.wait_for(
                     asyncio.to_thread(
-                        self._chat.chat,
+                        chat_client.chat,
                         [
                             {"role": "system", "content": identity_prompt},
                             {"role": "user", "content": user_turn},
@@ -414,6 +470,7 @@ class SimulationRunner:
         hypothesis: Hypothesis,
         agent_records: list[AgentRecord],
         run_seed: int,
+        chat_client: ChatClient,
     ) -> SimulationResult:
         """Call ScoringService + RefinementService over the agent reactions.
 
@@ -422,9 +479,7 @@ class SimulationRunner:
         path complete cleanly instead of failing.
         """
         if not agent_records:
-            self._run_state.emit(
-                state, "score.updated", score=0.0, note="no successful agents"
-            )
+            self._run_state.emit(state, "score.updated", score=0.0, note="no successful agents")
             return SimulationResult(
                 confidence_score=0.0,
                 weaknesses=[
@@ -441,8 +496,8 @@ class SimulationRunner:
         from pythia_simulator.services.refinement import RefinementService
         from pythia_simulator.services.scoring import AgentReaction, ScoringService
 
-        scoring = ScoringService(chat_client=self._chat_explicit)
-        refinement = RefinementService(chat_client=self._chat_explicit)
+        scoring = ScoringService(chat_client=chat_client)
+        refinement = RefinementService(chat_client=chat_client)
 
         reactions = [
             AgentReaction(
@@ -471,9 +526,7 @@ class SimulationRunner:
                 run_seed=run_seed,
             )
         else:
-            result, analyses = await scoring.score(
-                hypothesis, reactions, run_seed=run_seed
-            )
+            result, analyses = await scoring.score(hypothesis, reactions, run_seed=run_seed)
         # #51: persist per-agent sentiment + top-quote on the result so the
         # detail page can render the table without N extra R2 reads. Pair
         # analyses with their reaction text by agent_id (same len + same order
@@ -554,4 +607,3 @@ def _derive_top_quote(reaction_text: str) -> str:
     if cut > 0:
         truncated = truncated[:cut]
     return truncated.rstrip() + "…"
-

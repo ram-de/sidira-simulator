@@ -69,6 +69,9 @@ class Simulation(Base):
     selected_personas: Mapped[list[str] | None] = mapped_column(
         JSONB, nullable=True
     )
+    # Phase 5 (#103): model that powered sim-time agent reasoning and
+    # classifiers. Nullable so legacy rows round-trip as "backend default".
+    model_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     agents: Mapped[list["AgentInstance"]] = relationship(
         back_populates="simulation", cascade="all, delete-orphan"

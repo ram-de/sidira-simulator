@@ -15,7 +15,8 @@ import os
 import random
 import re
 import time
-from typing import Callable, Protocol, TypeVar
+from dataclasses import dataclass
+from typing import Callable, Literal, Protocol, TypeVar
 
 import structlog
 from pydantic import BaseModel, ValidationError
@@ -23,6 +24,150 @@ from pydantic import BaseModel, ValidationError
 T = TypeVar("T", bound=BaseModel)
 
 log = structlog.get_logger()
+
+Provider = Literal["groq", "anthropic", "openai"]
+DEFAULT_MODEL_ID = "llama-3.3-70b-versatile"
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    id: str
+    provider: Provider
+    label: str
+    description: str
+    speed_label: str
+    cost_label: str
+
+
+MODEL_SPECS: tuple[ModelSpec, ...] = (
+    ModelSpec(
+        id=DEFAULT_MODEL_ID,
+        provider="groq",
+        label="Llama 3.3 70B",
+        description="Default model; fast enough for broad simulation runs.",
+        speed_label="fast",
+        cost_label="default",
+    ),
+    ModelSpec(
+        id="llama-3.1-8b-instant",
+        provider="groq",
+        label="Llama 3.1 8B Instant",
+        description="Lowest-cost Groq option for quick rough cuts.",
+        speed_label="fastest",
+        cost_label="low",
+    ),
+    ModelSpec(
+        id="claude-opus-4-7",
+        provider="anthropic",
+        label="Claude Opus 4.7",
+        description="Highest-reasoning Claude option for subtle hypotheses.",
+        speed_label="moderate",
+        cost_label="high",
+    ),
+    ModelSpec(
+        id="claude-sonnet-4-6",
+        provider="anthropic",
+        label="Claude Sonnet 4.6",
+        description="Balanced Claude option for quality and speed.",
+        speed_label="fast",
+        cost_label="medium",
+    ),
+    ModelSpec(
+        id="claude-haiku-4-5",
+        provider="anthropic",
+        label="Claude Haiku 4.5",
+        description="Fast Claude option for lower-cost iteration.",
+        speed_label="fastest",
+        cost_label="low",
+    ),
+    ModelSpec(
+        id="gpt-5.5",
+        provider="openai",
+        label="GPT-5.5",
+        description="OpenAI frontier option for strongest reasoning.",
+        speed_label="moderate",
+        cost_label="high",
+    ),
+    ModelSpec(
+        id="gpt-5.4-mini",
+        provider="openai",
+        label="GPT-5.4 Mini",
+        description="Lower-latency OpenAI option for iteration.",
+        speed_label="fast",
+        cost_label="medium",
+    ),
+)
+
+_MODEL_BY_ID = {m.id: m for m in MODEL_SPECS}
+_PROVIDER_ENV = {
+    "groq": "GROQ_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+}
+_DEFAULT_PRIORITY = (
+    DEFAULT_MODEL_ID,
+    "claude-sonnet-4-6",
+    "gpt-5.4-mini",
+    "llama-3.1-8b-instant",
+    "claude-haiku-4-5",
+    "gpt-5.5",
+    "claude-opus-4-7",
+)
+
+
+def provider_env_var(provider: Provider) -> str:
+    return _PROVIDER_ENV[provider]
+
+
+def provider_is_configured(provider: Provider) -> bool:
+    return bool(os.environ.get(provider_env_var(provider)))
+
+
+def model_is_available(model_id: str) -> bool:
+    spec = _MODEL_BY_ID.get(model_id)
+    return spec is not None and provider_is_configured(spec.provider)
+
+
+def configured_model_specs() -> list[ModelSpec]:
+    """Return models whose provider API key is configured in this backend process."""
+    return [m for m in MODEL_SPECS if provider_is_configured(m.provider)]
+
+
+def default_model_id() -> str:
+    """Backend default for omitted model_id.
+
+    Prefer today's Groq default. If that provider key is absent but another
+    provider is configured, fall back to the first available production model
+    so local/dev deployments with only Anthropic or OpenAI keys remain usable.
+    If no provider keys are configured, return the historical Groq id; the
+    first LLM call will raise the same "missing key" class of error as before.
+    """
+    available = {m.id for m in configured_model_specs()}
+    for model_id in _DEFAULT_PRIORITY:
+        if model_id in available:
+            return model_id
+    return DEFAULT_MODEL_ID
+
+
+def get_model_spec(model_id: str) -> ModelSpec:
+    try:
+        return _MODEL_BY_ID[model_id]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported model_id {model_id!r}.") from exc
+
+
+def resolve_model_id(
+    model_id: str | None,
+    *,
+    require_available: bool = False,
+) -> str:
+    resolved = model_id or default_model_id()
+    spec = get_model_spec(resolved)
+    if require_available and not provider_is_configured(spec.provider):
+        env_var = provider_env_var(spec.provider)
+        raise ValueError(f"model_id {resolved!r} requires {env_var} to be set on the backend.")
+    return resolved
+
 
 # Backoff config -- Phase 2.5 hard constraint (issue #7). Keep small + bounded;
 # upstream callers fan out concurrently, so total wall-clock budget per
@@ -173,12 +318,74 @@ class AnthropicChat:
         return parse_llm_json(raw, schema)
 
 
-def get_chat_client() -> ChatClient:
-    if os.environ.get("GROQ_API_KEY"):
-        return GroqChat()
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return AnthropicChat()
-    raise RuntimeError("Set GROQ_API_KEY (preferred) or ANTHROPIC_API_KEY.")
+class OpenAIResponsesChat:
+    def __init__(self, model: str = "gpt-5.5") -> None:
+        from openai import OpenAI
+
+        self._client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self._model = model
+
+    def chat(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> str:
+        # Responses API is the current OpenAI surface for GPT-5.x models.
+        # Seed is not exposed here; temperature is intentionally omitted
+        # because reasoning-family models can reject unsupported sampling args.
+        del temperature, seed
+        resp = _retry_on_rate_limit(
+            "openai",
+            lambda: self._client.responses.create(
+                model=self._model,
+                input=[{"role": m["role"], "content": m["content"]} for m in messages],
+                max_output_tokens=max_tokens,
+            ),
+        )
+        return _extract_openai_response_text(resp)
+
+    def chat_json(
+        self,
+        messages: list[dict[str, str]],
+        schema: type[T],
+        max_tokens: int = 4096,
+        temperature: float = 0.0,
+        seed: int | None = None,
+    ) -> T:
+        raw = self.chat(messages, max_tokens=max_tokens, temperature=temperature, seed=seed)
+        return parse_llm_json(raw, schema)
+
+
+def _extract_openai_response_text(resp) -> str:
+    text = getattr(resp, "output_text", None)
+    if text:
+        return text
+
+    parts: list[str] = []
+    for item in getattr(resp, "output", []) or []:
+        for content in getattr(item, "content", []) or []:
+            candidate = getattr(content, "text", None)
+            if candidate:
+                parts.append(candidate)
+    return "\n".join(parts)
+
+
+def get_chat_client(model_id: str | None = None) -> ChatClient:
+    resolved = resolve_model_id(model_id, require_available=model_id is not None)
+    spec = get_model_spec(resolved)
+    if not provider_is_configured(spec.provider):
+        raise RuntimeError(
+            "Set GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY before running LLM calls."
+        )
+    if spec.provider == "groq":
+        return GroqChat(model=spec.id)
+    if spec.provider == "anthropic":
+        return AnthropicChat(model=spec.id)
+    if spec.provider == "openai":
+        return OpenAIResponsesChat(model=spec.id)
+    raise RuntimeError(f"Unsupported model provider {spec.provider!r}.")
 
 
 # ---------------------------------------------------------------------------
