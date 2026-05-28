@@ -2,13 +2,13 @@
 
 **Last updated:** 2026-05-28 (Phase 4.7 Sidira rename in progress)
 
-The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across the currently named pythia-simulator + pythia-personas + pythia-crawler repos), not in markdown — see "Where to find what" below.
+The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + pythia-personas + pythia-crawler), not in markdown — see "Where to find what" below.
 
 | Repo | Role |
 |---|---|
 | [`pythia-personas`](https://github.com/ram-de/pythia-personas) | Persona Pack producer (clustering, weights, prompt compilation) |
 | [`pythia-crawler`](https://github.com/ram-de/pythia-crawler) | Feature Pack producer (weekly Playwright crawl → reverse PRD + Figma) |
-| [`pythia-simulator`](https://github.com/ram-de/pythia-simulator) | Customer-facing app (FE + BE + agent memory + single UI for all 3 producers) |
+| [`sidira-simulator`](https://github.com/ram-de/sidira-simulator) | Customer-facing app (FE + BE + agent memory + single UI for all 3 producers) |
 
 ---
 
@@ -46,7 +46,7 @@ What's **not yet real**:
 
 ## Cross-repo phase alignment
 
-| Phase | `pythia-simulator` | `pythia-personas` | `pythia-crawler` | Status |
+| Phase | `sidira-simulator` | `pythia-personas` | `pythia-crawler` | Status |
 |---|---|---|---|---|
 | 0 | Design | Architecture | Design | ✅ Done |
 | 1 | Scaffold | Adapter/Encoder/Cluster/Calibrate | Scaffold | ✅ Done |
@@ -57,7 +57,7 @@ What's **not yet real**:
 | 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | ✅ Simulator done |
 | 4.5 | Persona Builder UI (scaffolded) | — | — | 🚧 Scaffolded |
 | 4.6 | A/B experiment mode | — | — | ✅ Done |
-| **4.7** | **Sidira rename: product, config, package, docs, domain metadata** | Repo/package names later | Repo/package names later | 🚧 In progress |
+| **4.7** | **Sidira rename: product, config, package, docs, repo/domain metadata** | Repo/package names later | Repo/package names later | 🚧 In progress |
 | **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | 🔲 Pending |
 | 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
@@ -89,15 +89,15 @@ What's **not yet real**:
 **Phase 4.7 — Sidira rename.** The product is still pre-public, so we are finishing the naming cleanup now instead of carrying the old placeholder into first-customer setup.
 
 Current ticket order:
-- **#114 done:** active simulator docs and roadmap now read as Sidira while preserving historical session logs, compatibility fallbacks, and current `pythia-*` repo/package names awaiting #115.
-- **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata after docs are coherent.
+- **#114 done:** active simulator docs and roadmap now read as Sidira while preserving historical session logs and compatibility fallbacks.
+- **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata after docs are coherent. The simulator repo is now `sidira-simulator`; producer repos remain `pythia-*`.
 
 Already merged in this phase:
 - **#111:** visible product surface and FastAPI display metadata.
 - **#113:** `SIDIRA_*` config namespace with `PYTHIA_*` fallbacks.
 - **#112:** backend package/import/CLI rename to `sidira_simulator` / `sidira-simulator`.
 
-Acceptance for the phase: a new teammate reads the active docs as Sidira end-to-end; local setup uses `SIDIRA_*` and `sidira_simulator`; sidira.ai/app/API origins are configured; any old-name references are explicitly historical, compatibility-only, or current repo/package names awaiting #115.
+Acceptance for the phase: a new teammate reads the active docs as Sidira end-to-end; local setup uses `SIDIRA_*` and `sidira_simulator`; sidira.ai/app/API origins are configured; any old-name references are explicitly historical, compatibility-only, or intentional producer repo/package names.
 
 ---
 

@@ -12,11 +12,11 @@ Sidira simulates how a customer's userbase would react to a proposed product cha
 
 Three repos:
 
-The product is Sidira; the GitHub repositories are still named `pythia-*` until the metadata/domain ticket (#115) handles repo renames.
+The product is Sidira. The customer-facing simulator repo is `sidira-simulator`; producer repos remain `pythia-personas` and `pythia-crawler` until their package/repo rename work is explicitly scheduled.
 
 | Repo | What it does |
 |---|---|
-| `pythia-simulator` | Customer-facing app (FE + BE + agent memory + the only UI). This repo. |
+| `sidira-simulator` | Customer-facing app (FE + BE + agent memory + the only UI). This repo. |
 | `pythia-personas` | Persona Pack producer (clusters real userbase data into archetypes with weights) |
 | `pythia-crawler` | Feature Pack producer (weekly Playwright crawl of customer's product → reverse PRD) |
 
@@ -28,7 +28,7 @@ The simulator is the integration point — strategy, roadmap, and team docs live
 
 You need:
 
-- [ ] GitHub `ram-de` access — invite to `pythia-simulator`, `pythia-personas`, `pythia-crawler`, plus the [Sidira GitHub Project](https://github.com/users/ram-de/projects/)
+- [ ] GitHub `ram-de` access — invite to `sidira-simulator`, `pythia-personas`, `pythia-crawler`, plus the [Sidira GitHub Project](https://github.com/users/ram-de/projects/)
 - [ ] Groq API key — for LLM calls. Founder has one at `~/mirofish-ui/.env` they can share, or sign up at https://groq.com (free tier works for now)
 - [ ] (Optional, for Postgres work) Neon dev instance credentials — ask founder for the `DATABASE_URL`
 - [ ] (Optional, for Anthropic fallback) Anthropic API key
@@ -58,7 +58,7 @@ Verify by opening Claude Code in any directory and typing `/qa` — you should s
 
 ```bash
 mkdir -p ~/Projects && cd ~/Projects
-git clone git@github.com:ram-de/pythia-simulator.git
+git clone git@github.com:ram-de/sidira-simulator.git
 git clone git@github.com:ram-de/pythia-personas.git
 git clone git@github.com:ram-de/pythia-crawler.git
 ```
@@ -72,7 +72,7 @@ If your SSH key isn't set up with GitHub, use HTTPS URLs instead (`https://githu
 The simulator is the main repo. You'll spend most of your time here.
 
 ```bash
-cd ~/Projects/pythia-simulator/backend
+cd ~/Projects/sidira-simulator/backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -90,7 +90,7 @@ Create `backend/.env` (it's gitignored):
 ```bash
 # Required
 GROQ_API_KEY=gsk_...                                  # from founder or signup
-SIDIRA_LOCAL_ARTIFACTS=/Users/<you>/Projects/pythia-simulator/local-artifacts
+SIDIRA_LOCAL_ARTIFACTS=/Users/<you>/Projects/sidira-simulator/local-artifacts
 
 # Optional
 ANTHROPIC_API_KEY=sk-ant-...                          # fallback when Groq 429s
@@ -107,7 +107,7 @@ new setup should use `SIDIRA_*`.
 ## Step 5 — Set up the simulator frontend (5 min)
 
 ```bash
-cd ~/Projects/pythia-simulator/frontend
+cd ~/Projects/sidira-simulator/frontend
 npm install
 npx tsc --noEmit            # should pass clean
 ```
@@ -124,7 +124,7 @@ This is the smoke test: a hypothesis goes in, 6 agents react, score comes back. 
 
 **Terminal 1 — backend:**
 ```bash
-cd ~/Projects/pythia-simulator/backend
+cd ~/Projects/sidira-simulator/backend
 source .venv/bin/activate
 cp .env.example .env   # first run only; add GROQ_API_KEY to .env
 uvicorn sidira_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-file .env
@@ -132,7 +132,7 @@ uvicorn sidira_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-fi
 
 **Terminal 2 — frontend:**
 ```bash
-cd ~/Projects/pythia-simulator/frontend
+cd ~/Projects/sidira-simulator/frontend
 npm run dev
 ```
 
@@ -151,7 +151,7 @@ Within ~10 seconds you should see a score (something between 20 and 70), three d
 
 ## Step 7 — Read the team context (15 min)
 
-In this order, in the `pythia-simulator` repo:
+In this order, in the `sidira-simulator` repo:
 
 1. **`CONTEXT.md`** (top-level) — what just shipped, what's next, what's not yet real. 2-minute read. This is the daily orientation file.
 2. **`ROADMAP.md`** (top-level) — strategy, all phases, critical path, and locked decisions for the current phase. Read the "Where we are today" and "What's next" sections at minimum.
@@ -166,7 +166,7 @@ The `MILESTONES.md` in each of the three repos is a stub — ignore it. Planning
 
 We share working state through `git`, not Slack. There's a project-local skill called `/pythia-session` that writes session files into the repo at `sessions/<domain>/context.md`. When you commit + push a session file, the founder sees your state on their next `git pull`. Same the other way.
 
-The skill is at `.claude/skills/pythia-session/` — Claude Code auto-discovers it when you're inside the `pythia-simulator` repo. No install required, it's just there.
+The skill is at `.claude/skills/pythia-session/` — Claude Code auto-discovers it when you're inside the `sidira-simulator` repo. No install required, it's just there.
 
 Three commands you'll use:
 
@@ -201,7 +201,7 @@ To claim it: assign yourself on the issue and move it to `In progress` in the Pr
 ### Doing the work
 
 ```bash
-cd ~/Projects/pythia-simulator
+cd ~/Projects/sidira-simulator
 git pull                                  # always start with this
 git checkout -b feat/2.5-<short-desc>     # one branch per ticket
 
@@ -282,8 +282,8 @@ By end of week one you should have:
 | GitHub Project | Open tickets | Daily |
 | `pythia-personas/MILESTONES.md` | Stub — ignore | Never |
 | `pythia-crawler/MILESTONES.md` | Stub — ignore | Never |
-| `pythia-simulator/MILESTONES.md` | Stub — ignore | Never |
-| `pythia-simulator/docs/SEED_ISSUES.md` | One-time Project seed list | Never (historical) |
+| `sidira-simulator/MILESTONES.md` | Stub — ignore | Never |
+| `sidira-simulator/docs/SEED_ISSUES.md` | One-time Project seed list | Never (historical) |
 
 ---
 
