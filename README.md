@@ -69,6 +69,16 @@ and `api.sidira.ai`. Set frontend `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`
 and backend `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`.
 See `docs/sidira-domain-runbook.md` for the domain and metadata checklist.
 
+## AWS deployment scaffold
+
+- `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting.
+- `backend/Dockerfile` packages the FastAPI backend for the production Docker
+  Compose API host or another Linux container host.
+- `deploy/docker-compose.api.yml` runs the API behind Caddy for a small
+  browser-console-managed Lightsail/EC2 instance.
+- Production secrets stay in the AWS console environment variable surfaces; do
+  not commit `.env` files.
+
 ## License
 
 MIT

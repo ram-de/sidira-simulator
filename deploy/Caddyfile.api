@@ -1,0 +1,4 @@
+api.sidira.ai {
+	encode gzip
+	reverse_proxy api:8000
+}
