@@ -57,13 +57,15 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Added first #115 local commit on the feature branch (`aba778c docs: add Sidira domain deployment runbook`) with frontend/backend deploy env examples and `docs/sidira-domain-runbook.md`.
 - DNS audit: `sidira.ai` resolves to `162.255.119.57` but HTTPS does not answer; `app.sidira.ai` and `api.sidira.ai` do not resolve yet.
 - Verification for first #115 local slice passed: `git diff --check`, frontend `npm run typecheck`, and focused backend config tests (`14 passed`).
+- Added AWS deployment scaffold in commit `4303653`: Amplify monorepo build spec, backend Dockerfile, Docker ignore, and browser-console-friendly Docker Compose/Caddy API host for a small Lightsail/EC2 VM.
+- Verification for #115 deployment scaffold passed: `git diff --check`, frontend `npm run typecheck`, frontend `npm run build`, focused backend tests (`18 passed`), `docker compose ... config`, `docker build -t sidira-api:local backend`, and image import smoke.
+- Opened AWS Console via browser only. Route 53 currently shows zero hosted zones; paused before creating `sidira.ai` hosted zone because it is billable.
 
 ## Next Steps
-1. Configure DNS/provider records for `sidira.ai`, `app.sidira.ai`, and `api.sidira.ai`, or get the provider access needed to do it.
-2. Point frontend deployment at `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
-3. Point backend deployment at `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`.
-4. Verify `https://sidira.ai` or `https://app.sidira.ai` loads and `https://api.sidira.ai/health` responds.
-5. Once external DNS/hosting is configured or explicitly deferred, run `codex review`, open PR from `codex/115-sidira-domain-metadata`, and merge.
+1. If approved, create a Route 53 public hosted zone for `sidira.ai` in the personal AWS account, then copy the assigned NS values into Namecheap Custom DNS.
+2. Create an Amplify Hosting app for `ram-de/pythia-simulator` with monorepo root `frontend`, `AMPLIFY_MONOREPO_APP_ROOT=frontend`, and `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
+3. Create a small Lightsail/EC2 API VM, attach static IP, point `api.sidira.ai` at it, and run `docker compose -f deploy/docker-compose.api.yml up -d --build` from browser SSH.
+4. Open PR for `codex/115-sidira-domain-metadata`, run Codex review, and merge after the external DNS/hosting state is recorded or explicitly deferred.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -78,6 +80,9 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - `AGENTS.md`, `MILESTONES.md`, `docs/system-architecture.md`, `docs/feature-pack-crawler-spec.md`, `docs/mirofish-prior-art.md` -- active Sidira docs updates from #114.
 - `frontend/.env.example` -- frontend API base example for local and Sidira production.
 - `docs/sidira-domain-runbook.md` -- canonical hostnames, deploy env, DNS/HTTPS checklist, GitHub metadata checklist, rollback notes.
+- `amplify.yml` -- AWS Amplify monorepo build spec for `frontend/`.
+- `backend/Dockerfile`, `backend/.dockerignore` -- FastAPI production image scaffold.
+- `deploy/docker-compose.api.yml`, `deploy/Caddyfile.api`, `deploy/README.md` -- browser-console-friendly API VM deployment path.
 
 ## Key Context
 - Phase 4.7 plan: #110.
@@ -93,6 +98,9 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - #114 shipped the active team/developer docs cleanup. Historical session logs and old PR references were preserved unless they needed active current-state notes.
 - #115 is the final Phase 4.7 ticket currently tracked in the roadmap: sidira.ai deployment/origins and GitHub metadata/repo-name decision.
 - #115 is partially complete: GitHub metadata and local deploy docs/env examples are done; DNS/hosting is not complete because `app.sidira.ai` and `api.sidira.ai` do not resolve yet.
+- App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
+- User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
+- For a browser-only backend bootstrap, prefer Amplify for frontend plus a small Lightsail/EC2 API VM running Docker Compose and Caddy. Lightsail Containers can be revisited after a clean image-publishing path exists.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is started on `codex/115-sidira-domain-metadata`: GitHub Project/repo descriptions are Sidira, and the first local deploy/runbook commit is pushed. Remaining blocker is external DNS/hosting: root `sidira.ai` resolves but does not serve HTTPS, and `app.sidira.ai` / `api.sidira.ai` do not resolve yet.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: GitHub Project/repo descriptions are Sidira, local deployment scaffold is pushed, AWS Console is open in the browser, and Route 53 hosted-zone creation is waiting on explicit approval because it is billable. Remaining blocker is external DNS/hosting: root `sidira.ai` resolves but does not serve HTTPS, and `app.sidira.ai` / `api.sidira.ai` do not resolve yet.
