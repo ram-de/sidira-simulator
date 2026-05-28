@@ -12,7 +12,7 @@ owner: ram-de
 Ship #103: let PMs choose which LLM powers a simulation, spanning Groq, Anthropic, and OpenAI, while preserving today's Groq default and enforcing one model per simulation/A-B run.
 
 ## In Progress
-- [ ] Lock the #103 implementation design before production code changes.
+- [ ] PR #105 is open; wait for checks/review, then merge and close #103/session.
 
 ## Completed
 - [x] Closed prior `arm-scoped-persona-chat` session and verified #98 Project status is Done.
@@ -23,13 +23,18 @@ Ship #103: let PMs choose which LLM powers a simulation, spanning Groq, Anthropi
 - [x] Inspected current LLM call paths: sim reactions, scoring, refinement, individual chat, persona-group collective/synthesis, and column mapping all depend on `adapters.llm.ChatClient`.
 - [x] Checked installed SDKs: `openai==2.37.0` and `anthropic==0.103.1`; OpenAI client supports both `responses` and `chat`.
 - [x] Verified current official model docs for implementation-time model IDs. OpenAI docs now list GPT-5.5/GPT-5.4 family; Anthropic docs list Claude Opus 4.7 / Sonnet 4.6 / Haiku 4.5; Groq docs list the existing llama defaults.
+- [x] Locked the #103 implementation design around a backend model registry, configured-provider filtering, one model-bound chat client per simulation, and explicit `model_id` persistence.
+- [x] Implemented backend model routing for Groq, Anthropic, and OpenAI, including `GET /models`, request validation, DB/API schema persistence, and migration `007_phase_5_model_id.py`.
+- [x] Routed simulation-time reactions, scoring, refinement, follow-up agent chat, persona-group fan-out/synthesis, and collective chat through the persisted simulation model.
+- [x] Added the wizard model selector and result-page model-used banner, including empty-provider fallback and legacy untracked-run handling.
+- [x] Regenerated frontend OpenAPI types and added model-selection regression tests.
+- [x] Ran verification: backend `./.venv/bin/pytest tests/` = 345 passed / 10 skipped; frontend `npm run typecheck` passed; `git diff --check` clean.
+- [x] Ran `/codex review` until clear; final review found no remaining P1/P2 model-selection issues.
+- [x] Pushed `feat/103-model-selection` and opened PR #105: https://github.com/ram-de/pythia-simulator/pull/105
 
 ## Next Steps
-1. Present the concrete #103 implementation design for approval before code.
-2. Implement backend model registry + provider routing + `GET /models`.
-3. Persist `model_id` through schema/repos/migration/orchestrator/runner.
-4. Add wizard model selector and result-page model banner.
-5. Regenerate frontend OpenAPI types and run backend + frontend verification.
+1. Watch PR #105 checks/review and merge when green.
+2. After merge, confirm GitHub Project #103 is Done, close this session, and update `CONTEXT.md` if the shipped model-selection UX should be called out in the sprint narrative.
 
 ## Key Files
 - `backend/pythia_simulator/adapters/llm.py` -- current single-provider-ish ChatClient, Groq default, Anthropic fallback.
@@ -62,4 +67,4 @@ Discovery notes:
 - OpenAI docs changed since the ticket: the current official latest family is GPT-5.5/GPT-5.4, and the issue's "pick latest available at implementation time" points to using current official IDs rather than hard-coding `gpt-5`.
 
 ## For my cofounder
-Starting #103 on `feat/103-model-selection`. The main risk is not the UI; it is keeping model routing explicit and testable across every LLM call path (agent reaction, sentiment classifier, weakness classifier, and refinement if it remains part of the sim flow). The design pass should confirm exactly where the current Groq client is injected before code changes.
+#103 is implemented on `feat/103-model-selection` and PR #105 is open. The important design decision is that a simulation stores one `model_id`, and every LLM call tied to that run uses that model, including later agent/persona chat; legacy rows with `NULL model_id` render as untracked rather than being mislabeled as Groq.
