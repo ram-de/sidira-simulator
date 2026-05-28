@@ -14,7 +14,7 @@ owner: ram-de
 Ship Phase 4.6: extend the simulator to run two arms (treatment + control), compute a predicted lift between them, and surface it in the result UI. Builds on Phase 4 chat infrastructure (agents, identity_seed, scoring, result table) which all shipped 2026-05-26.
 
 ## In Progress
-- [ ] **#99 -- de-asymmetric A/B per-arm confidence-score display.** Frontend implementation is done and verified locally (`npm run typecheck` + Playwright smoke with stubbed A/B data and real single-arm page). Next: codex review, commit, push, PR.
+- [ ] **#99 -- de-asymmetric A/B per-arm confidence-score display.** Frontend implementation is done, verified, reviewed, committed, pushed, and opened as PR #108. Next: review/merge PR #108, then let `Closes #99` close the ticket.
 
 ## Completed
 - **#92 -- e2e calibration dogfood** (2026-05-27). Four wizard-driven A/B sims against `streamly_sample` (3 cleanly-predicted hypotheses + one re-run after an informative PM-prediction miss). Writeup in `docs/4.6-ab-experiment-mode.md` § "#92 e2e dogfood calibration (2026-05-27)". Calibration verdict: 3/3 cleanly-predicted hypotheses directionally confirmed (Skip Intro +15.9 [+9.6,+21.8]; Resume->Continue rename +10.0 [+1.8,+18.2] (borderline-null); remove-recs/A-Z-grid -11.2 [-19.8,-3.1]). The one PM-prediction override (autoplay-next-episode -10.5 [-21.0,-0.8]) was Pythia correctly catching the well-known autoplay-is-divisive dynamic the PM intuition missed. Zero drop counters across all runs. Pythia's lift formula is calibrated for production PM use.
@@ -71,9 +71,9 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
   - **Cross-repo "/codex review on every PR" rule** (MERGED via `25e85b3` on `pythia-simulator` AGENTS.md). Auto-mode classifier blocked the cross-repo writes to `pythia-personas/AGENTS.md` and `pythia-crawler/AGENTS.md` even after explicit authorization -- prepared content was handed to the user to paste manually. **Cross-repo carryover: still pending on `pythia-personas` + `pythia-crawler`.**
 
 ## Next Steps
-1. Run codex review on the #99 diff.
-2. Commit + push `codex/99-de-asymmetric-ab-scores`.
-3. Open PR with `Closes #99`; update this session when merged.
+1. Review/merge PR #108: `fix: de-emphasize A/B per-arm confidence scores`.
+2. After merge, confirm #99 closes and move/verify the Project status as Done.
+3. Close this reopened Phase 4.6 follow-up session.
 
 ## Key Files
 - `docs/4.6-ab-experiment-mode.md` -- LOCKED decisions (Q1=B, Q2=paired bootstrap, Q3=paired, Q4=wizard preview + 200 cap). Single source of truth before code.
@@ -95,6 +95,8 @@ Ship Phase 4.6: extend the simulator to run two arms (treatment + control), comp
 **Phase 4.6 #88 + #89 + #90 + #91 are DONE on main as of 2026-05-27, and #92/#98 follow-ups have also shipped.** The wizard A/B toggle is LIVE end-to-end -- a PM can flip the A/B toggle, submit a sim with 50+50 agents, and read the lift card with CI on the result page. Backend suite at **312 passes / 10 skips** at the original close point.
 
 **Session reopened 2026-05-28 for #99.** This is a Phase 4.6 follow-up carved out of #92: per-arm confidence scores are structurally asymmetric because the treatment arm includes the weakness debit and the control arm skips weakness classification. The UI fix is frontend-only: lift remains the A/B headline; per-arm scores become secondary detail with copy warning that only Lift is apples-to-apples.
+
+**#99 status as of 2026-05-28:** PR #108 is open from `codex/99-de-asymmetric-ab-scores`. It keeps single-arm results unchanged, keeps Lift as the A/B headline, moves treatment/control scores into a compact Per-arm detail card with asymmetry copy, and removes the old control-baseline line from the lift card. Verification: `npm run typecheck`, Playwright smoke with stubbed A/B + real single-arm page, and `codex review` (no discrete correctness issues).
 
 **Lift statistic (locked Q2):** mean per-pair confidence-weighted sentiment delta, scaled by `sentiment_weight * 100` into confidence_score units. NOT the per-arm confidence_score diff (weakness signal stays in per-arm scores). Point estimate AND bootstrap CI use the same statistic, so the CI brackets lift by construction. Confidence weighting uses shrinkage-toward-neutral: `value_shrunk = c * value + (1-c) * 0.5` -- symmetric across POS/NEU/NEG (the naive `c * value` would have silently dropped confidence for NEGATIVE).
 
@@ -137,9 +139,9 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 - **The auto-mode classifier blocks cross-repo writes even after explicit user authorization.** Prepared content handed off manually for `pythia-personas` + `pythia-crawler` AGENTS.md updates.
 
 ## For my cofounder
-**Phase 4.6 is reopened for follow-up #99 (2026-05-28).** #87, #88, #89, #90, #91, #92, #98 are already shipped; #99 is now in progress. The goal is a frontend-only result-page cleanup: keep lift as the A/B headline and demote treatment/control confidence scores into explanatory detail because those two scores are not directly comparable.
+**Phase 4.6 is reopened for follow-up #99 (2026-05-28).** #87, #88, #89, #90, #91, #92, #98 are already shipped; #99 is implemented and open as PR #108. The goal is a frontend-only result-page cleanup: keep lift as the A/B headline and demote treatment/control confidence scores into explanatory detail because those two scores are not directly comparable.
 
-**Current ticket: #99.** Treat this as a frontend follow-up, not a re-litigation of the A/B scoring formula. The scoring asymmetry is intentional; the UI needs to stop implying the two per-arm confidence scores should be subtracted.
+**Current ticket: #99 / PR #108.** Treat this as a frontend follow-up, not a re-litigation of the A/B scoring formula. The scoring asymmetry is intentional; the UI fix stops implying the two per-arm confidence scores should be subtracted.
 
 **Codex review on #91 burned 5 rounds. The pattern was all one family: "are we correctly distinguishing A/B-mode from single-arm at the UI layer?"** The R4 lesson is the load-bearing one for everything downstream: gate A/B-conditional UI off `sim.arm_split` (the REQUEST), not result shape -- the result fields can be missing for at least three distinct reasons and any single-result-field gate collapses subsets together. This rule should generalize to any future A/B-mode UI conditional we add.
 
@@ -147,4 +149,4 @@ If `prompt_composer.py` ever gets touched again, the #77 anti-template guards (`
 1. Arm-scoped persona-group chat (currently disabled in A/B mode with a tooltip; clicking 1:1 chat on any agent still works fine).
 2. Delete `AB_MODE_DISABLED_UNTIL_LIFT` constant + `stagedRolloutNote` plumbing after #92 dogfood proves out the feature.
 
-To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode`, then start #92 -- pick three hypotheses with clear expected signs and run them at default settings (pop=50, f=0.5).
+To pick this up: `/pythia-session resume phase-4.6-ab-experiment-mode`, review/merge PR #108, verify #99 closes, then close the reopened follow-up session.
