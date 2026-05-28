@@ -31,6 +31,8 @@ Ship #103: let PMs choose which LLM powers a simulation, spanning Groq, Anthropi
 - [x] Ran verification: backend `./.venv/bin/pytest tests/` = 345 passed / 10 skipped; frontend `npm run typecheck` passed; `git diff --check` clean.
 - [x] Ran `/codex review` until clear; final review found no remaining P1/P2 model-selection issues.
 - [x] Pushed `feat/103-model-selection` and opened PR #105: https://github.com/ram-de/pythia-simulator/pull/105
+- [x] Updated still-open PR #105 with expanded Groq model selection: GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, and Llama 4 Scout; refreshed routing, result labels, tests, and PR body.
+- [x] Re-verified after expansion: backend `./.venv/bin/pytest tests/` = 346 passed / 10 skipped; frontend `npm run typecheck` passed; `git diff --check` clean; `/models`, wizard rendering, and `/codex review` were clear.
 
 ## Next Steps
 1. Watch PR #105 checks/review and merge when green.
@@ -65,6 +67,7 @@ Discovery notes:
 - API-created simulations use a process-level orchestrator dependency. The model choice should be persisted at prepare time, then `_run_in_background()` should build or select the model-bound chat client for that sim before running.
 - Post-simulation chat and persona-group chat currently build fresh default clients from `get_chat_client()`. #103 acceptance is about sim-time agent reasoning + classifiers + result traceability; inheriting the sim's model for later chat is product-reasonable but adds repo reads/service plumbing. Decide explicitly in design.
 - OpenAI docs changed since the ticket: the current official latest family is GPT-5.5/GPT-5.4, and the issue's "pick latest available at implementation time" points to using current official IDs rather than hard-coding `gpt-5`.
+- Groq expansion deliberately adds chat/text models exposed by the current Groq catalog and omits audio/tooling-only systems. The `openai/gpt-oss-*` IDs route through Groq because they are Groq-hosted open-weight model IDs.
 
 ## For my cofounder
-#103 is implemented on `feat/103-model-selection` and PR #105 is open. The important design decision is that a simulation stores one `model_id`, and every LLM call tied to that run uses that model, including later agent/persona chat; legacy rows with `NULL model_id` render as untracked rather than being mislabeled as Groq.
+#103 is implemented on `feat/103-model-selection` and PR #105 is open with the expanded Groq catalog. The important design decision is that a simulation stores one `model_id`, and every LLM call tied to that run uses that model, including later agent/persona chat; legacy rows with `NULL model_id` render as untracked rather than being mislabeled as Groq.
