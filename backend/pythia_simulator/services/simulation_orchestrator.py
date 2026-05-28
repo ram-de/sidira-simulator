@@ -11,7 +11,6 @@ Why this exists:
 
 from __future__ import annotations
 
-import asyncio
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -25,7 +24,7 @@ from pythia_simulator.adapters.repositories import (
     CustomerRepo,
     SimulationRepo,
 )
-from pythia_simulator.schemas.simulation import Hypothesis, Simulation, SimulationStatus
+from pythia_simulator.schemas.simulation import Hypothesis
 from pythia_simulator.services.simulation_runner import SimulationRunner
 
 log = structlog.get_logger()
@@ -59,6 +58,7 @@ class SimulationOrchestrator:
         run_seed: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
         sample_size: int = 10,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
@@ -94,9 +94,7 @@ class SimulationOrchestrator:
         # reproducibility) through. Legacy `sample_size` is no longer consulted by
         # the runner but kept on this signature as a defaulted no-op so older direct
         # callers don't break at import time.
-        effective_population_size = (
-            population_size if population_size is not None else sample_size
-        )
+        effective_population_size = population_size if population_size is not None else sample_size
         # Resolve run_seed BEFORE persisting so the DB row matches the seed the
         # runner will actually use. If we let the runner mint its own default, the
         # row stores NULL while the simulation uses a time-derived seed -- and the
@@ -105,9 +103,7 @@ class SimulationOrchestrator:
         # through JavaScript clients (Number.MAX_SAFE_INTEGER = 2**53 - 1). A
         # browser reading back time.time_ns() (~1.7e18) and resubmitting it for
         # replay would round the value and hash a different RNG seed. (codex P2)
-        resolved_run_seed = (
-            run_seed if run_seed is not None else secrets.randbits(53)
-        )
+        resolved_run_seed = run_seed if run_seed is not None else secrets.randbits(53)
 
         sim_id = str(uuid.uuid4())
         await self._simulations.create(
@@ -121,6 +117,7 @@ class SimulationOrchestrator:
             run_seed=resolved_run_seed,
             treatment_fraction=treatment_fraction,
             selected_personas=selected_personas,
+            model_id=model_id,
         )
 
         async def run() -> None:
@@ -136,6 +133,7 @@ class SimulationOrchestrator:
                 max_agents=sampled_agent_count,
                 treatment_fraction=treatment_fraction,
                 selected_personas=selected_personas,
+                model_id=model_id,
             )
 
         return sim_id, run
@@ -163,6 +161,7 @@ class SimulationOrchestrator:
         max_agents: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -187,6 +186,7 @@ class SimulationOrchestrator:
                 max_agents=max_agents,
                 treatment_fraction=treatment_fraction,
                 selected_personas=selected_personas,
+                model_id=model_id,
             )
 
         except Exception as exc:
@@ -213,6 +213,7 @@ class SimulationOrchestrator:
         max_agents: int | None = None,
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
+        model_id: str | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -227,6 +228,7 @@ class SimulationOrchestrator:
             sim_id=sim_id,
             treatment_fraction=treatment_fraction,
             selected_personas=selected_personas,
+            model_id=model_id,
         )
 
         # Persist agent_instances rows using the records the runner exposed.

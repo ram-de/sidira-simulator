@@ -138,6 +138,7 @@ async def send_persona_group_message(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Simulation {sim_id} not found",
         )
+    model_id = sim.get("model_id")
 
     rows = await agent_repo.list_for_simulation(sim_id, customer_id)
     persona_rows = [r for r in rows if r["persona_id"] == persona_id]
@@ -173,6 +174,7 @@ async def send_persona_group_message(
             metadatas=metadatas,
             labels=labels,
             arm=arm,
+            model_id=model_id,
         )
     return await _handle_individual_fanout(
         customer_id=customer_id,
@@ -182,6 +184,7 @@ async def send_persona_group_message(
         metadatas=metadatas,
         labels=labels,
         arm=arm,
+        model_id=model_id,
     )
 
 
@@ -199,6 +202,7 @@ async def _handle_collective(
     metadatas: list[AgentInstanceMetadata],
     labels: list[str],
     arm: Literal["treatment", "control"] | None = None,
+    model_id: str | None = None,
 ) -> PersonaGroupChatResponse:
     """One LLM call answering in the voice of the persona group.
 
@@ -304,7 +308,7 @@ async def _handle_collective(
     prior_conversation = _pair_prior_turns(prior_turns)
 
     persona_name = metadatas[0].persona_name
-    collective_service = PersonaGroupCollectiveService()
+    collective_service = PersonaGroupCollectiveService(model_id=model_id)
     content, references = await asyncio.to_thread(
         collective_service.collective_reply,
         persona_name=persona_name,
@@ -360,6 +364,7 @@ async def _handle_individual_fanout(
     metadatas: list[AgentInstanceMetadata],
     labels: list[str],
     arm: Literal["treatment", "control"] | None = None,
+    model_id: str | None = None,
 ) -> PersonaGroupChatResponse:
     """Original #54 fan-out + synthesis path. Behaviour unchanged.
 
@@ -367,7 +372,7 @@ async def _handle_individual_fanout(
     path so the two A/B rooms stay isolated. Fan-out itself was already
     arm-scoped by the caller pruning `metadatas` to one arm.
     """
-    chat_service = AgentChatService()
+    chat_service = AgentChatService(model_id=model_id)
     semaphore = asyncio.Semaphore(_FANOUT_MAX_CONCURRENCY)
 
     async def _one_agent(meta: AgentInstanceMetadata) -> tuple[str, Exception | None]:
@@ -422,7 +427,7 @@ async def _handle_individual_fanout(
             ),
         )
 
-    synthesis_service = PersonaGroupSynthesisService()
+    synthesis_service = PersonaGroupSynthesisService(model_id=model_id)
     synthesis_text = await asyncio.to_thread(
         synthesis_service.synthesize, message, successful_replies
     )

@@ -30,7 +30,6 @@ from pythia_simulator.schemas.simulation import (  # noqa: E402
     SimulationRequest,
 )
 
-
 # ──────────────────────────────────────────────────────────────────────
 # Schema validation
 # ──────────────────────────────────────────────────────────────────────
@@ -151,7 +150,7 @@ class _StubChat:
 @pytest.fixture
 def client_with_stub(monkeypatch):
     chat = _StubChat()
-    monkeypatch.setattr(llm_mod, "get_chat_client", lambda: chat)
+    monkeypatch.setattr(llm_mod, "get_chat_client", lambda model_id=None: chat)
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     customer_repo._customers.clear()

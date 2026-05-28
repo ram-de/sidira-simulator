@@ -72,9 +72,7 @@ class SimulationRequest(BaseModel):
     population_size: int = Field(default=1000, ge=1, le=10_000_000)
     # Bound to signed BIGINT range so over-large values fail at request validation
     # rather than as a Postgres INSERT error after the row is half-built. (codex P2)
-    run_seed: int | None = Field(
-        default=None, ge=-(2**63), le=2**63 - 1
-    )
+    run_seed: int | None = Field(default=None, ge=-(2**63), le=2**63 - 1)
     arm_split: ArmSplit | None = Field(
         default=None,
         description=(
@@ -97,6 +95,14 @@ class SimulationRequest(BaseModel):
             "active pack). A/B mode applies the filter symmetrically to "
             "both arms (the paired-sampling invariant from #89 keeps "
             "working because both arms run the same persona set)."
+        ),
+    )
+    model_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Phase 5 #103: optional LLM model id powering this simulation. "
+            "When omitted, the backend resolves its configured default."
         ),
     )
 
@@ -219,5 +225,9 @@ class Simulation(BaseModel):
     # survives even if the Persona Pack changes after the sim completes.
     # None = all personas (today's behavior).
     selected_personas: list[str] | None = None
+    # Phase 5 #103: denormalized model id used for the sim-time agent
+    # reactions/classifiers, so result pages remain interpretable later.
+    # Legacy rows may be NULL because they predate model tracking.
+    model_id: str | None = None
     agent_instance_ids: list[str] = Field(default_factory=list)
     result: SimulationResult | None = None

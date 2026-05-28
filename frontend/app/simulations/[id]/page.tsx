@@ -35,6 +35,30 @@ function formatCategory(cat: string): string {
     .join(" ");
 }
 
+const MODEL_LABELS: Record<string, { label: string; provider: string }> = {
+  "llama-3.3-70b-versatile": { label: "Llama 3.3 70B", provider: "Groq" },
+  "openai/gpt-oss-120b": { label: "GPT-OSS 120B", provider: "Groq" },
+  "openai/gpt-oss-20b": { label: "GPT-OSS 20B", provider: "Groq" },
+  "qwen/qwen3-32b": { label: "Qwen3 32B", provider: "Groq" },
+  "meta-llama/llama-4-scout-17b-16e-instruct": {
+    label: "Llama 4 Scout 17B",
+    provider: "Groq",
+  },
+  "llama-3.1-8b-instant": { label: "Llama 3.1 8B Instant", provider: "Groq" },
+  "claude-opus-4-7": { label: "Claude Opus 4.7", provider: "Anthropic" },
+  "claude-sonnet-4-6": { label: "Claude Sonnet 4.6", provider: "Anthropic" },
+  "claude-haiku-4-5": { label: "Claude Haiku 4.5", provider: "Anthropic" },
+  "gpt-5.5": { label: "GPT-5.5", provider: "OpenAI" },
+  "gpt-5.4-mini": { label: "GPT-5.4 Mini", provider: "OpenAI" },
+};
+
+function modelDisplay(
+  modelId: string | null | undefined,
+): { label: string; provider: string } | null {
+  if (!modelId) return null;
+  return MODEL_LABELS[modelId] ?? { label: modelId, provider: "selected provider" };
+}
+
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
@@ -447,6 +471,8 @@ export default function SimulationDetailPage() {
       {/* Result (complete) */}
       {status === "complete" && result && (
         <>
+          <ModelBanner modelId={sim?.model_id ?? null} />
+
           {/* Phase 5 #101: cohort banner. Renders only when the PM submitted
               a persona filter (sim.selected_personas != null). Lists N of M
               with persona names so a PM revisiting the page in two weeks
@@ -813,10 +839,28 @@ export default function SimulationDetailPage() {
   );
 }
 
-// Phase 4.6 #91: headline lift card. Renders ONLY when result.lift is non-null
-// (A/B mode). Single-arm sims skip this block entirely so their result page
-// looks byte-identical to today. Lift is expressed in confidence-score units
-// (see scoring.py:_mean_paired_delta) — positive = treatment beats control.
+function ModelBanner({ modelId }: { modelId: string | null }) {
+  const model = modelDisplay(modelId);
+  const body =
+    model == null
+      ? "Not tracked for this legacy run. New simulations store the selected model so comparisons can account for model variance."
+      : `Ran on ${model.label} (${model.provider}). Reactions, classifiers, and lift reflect this model; comparing runs across models should be read as model variance, not only product variance.`;
+
+  return (
+    <section
+      style={{
+        ...cardStyle,
+        padding: "12px 16px",
+        background: "#f8f7fb",
+        color: "#444",
+        fontSize: 14,
+      }}
+    >
+      <strong style={{ color: "#111" }}>Model:</strong> {body}
+    </section>
+  );
+}
+
 // Phase 5 #101: cohort banner. Renders above the population banner when the
 // sim was submitted with a persona filter. Joins selected persona_ids against
 // agentMeta (loaded by the result page on terminal status) to surface human

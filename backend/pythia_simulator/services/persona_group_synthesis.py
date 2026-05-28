@@ -73,8 +73,17 @@ class CountMismatchError(RuntimeError):
 class PersonaGroupSynthesisService:
     """Synthesizes one-sentence summaries for persona-group chat fan-outs."""
 
-    def __init__(self, chat_client: ChatClient | None = None) -> None:
-        self._chat = chat_client or get_chat_client()
+    def __init__(
+        self,
+        chat_client: ChatClient | None = None,
+        model_id: str | None = None,
+    ) -> None:
+        if chat_client is not None:
+            self._chat = chat_client
+        elif model_id is not None:
+            self._chat = get_chat_client(model_id)
+        else:
+            self._chat = get_chat_client()
 
     def synthesize(self, pm_question: str, replies: list[AgentReply]) -> str:
         """Generate the synthesis line for `replies` to `pm_question`.
@@ -100,9 +109,7 @@ class PersonaGroupSynthesisService:
             # it does we don't want to ship "0 of 0 said …" to the PM.
             return "No agent replies were collected — re-run the fan-out."
 
-        first = self._call_llm_safely(
-            pm_question, replies, retry_hint=None, attempt="first"
-        )
+        first = self._call_llm_safely(pm_question, replies, retry_hint=None, attempt="first")
         if first is not None and self._count_matches(first, len(replies)):
             return first.strip()
 
@@ -110,19 +117,21 @@ class PersonaGroupSynthesisService:
         # already requires N-of-M accuracy; the retry message names the actual
         # number to make the constraint impossible to miss.
         retry_hint = (
-            f"Your previous synthesis was: {first!r}. The count it claimed "
-            f"does not match the actual number of replies ({len(replies)}). "
-            f"Try again. There were EXACTLY {len(replies)} replies. "
-            f"Your synthesis must lead with a count that uses {len(replies)} "
-            f"as the denominator (e.g. 'N of {len(replies)}') or be the "
-            f"split / non-substantive form using exactly {len(replies)}."
-        ) if first is not None else (
-            f"There were EXACTLY {len(replies)} replies. Lead with a count "
-            f"that uses {len(replies)} as the denominator."
+            (
+                f"Your previous synthesis was: {first!r}. The count it claimed "
+                f"does not match the actual number of replies ({len(replies)}). "
+                f"Try again. There were EXACTLY {len(replies)} replies. "
+                f"Your synthesis must lead with a count that uses {len(replies)} "
+                f"as the denominator (e.g. 'N of {len(replies)}') or be the "
+                f"split / non-substantive form using exactly {len(replies)}."
+            )
+            if first is not None
+            else (
+                f"There were EXACTLY {len(replies)} replies. Lead with a count "
+                f"that uses {len(replies)} as the denominator."
+            )
         )
-        retry = self._call_llm_safely(
-            pm_question, replies, retry_hint=retry_hint, attempt="retry"
-        )
+        retry = self._call_llm_safely(pm_question, replies, retry_hint=retry_hint, attempt="retry")
         if retry is not None and self._count_matches(retry, len(replies)):
             return retry.strip()
 

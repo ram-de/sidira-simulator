@@ -124,10 +124,10 @@ def _format_collective_reply(labels: list[str]) -> str:
 def client_with_persona_group_stub(monkeypatch):
     chat = _PhaseAwareChat()
 
-    monkeypatch.setattr(llm_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(synthesis_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(collective_mod, "get_chat_client", lambda: chat)
+    monkeypatch.setattr(llm_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(synthesis_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(collective_mod, "get_chat_client", lambda model_id=None: chat)
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     customer_repo._customers.clear()
@@ -159,18 +159,18 @@ def client_with_persona_group_stub(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def _run_sim(client: TestClient) -> str:
+def _run_sim(client: TestClient, model_id: str | None = None) -> str:
     """Submit a small sim, return its sim_id."""
-    resp = client.post(
-        "/simulations",
-        json={
-            "hypothesis": {
-                "capability_name": "reorder",
-                "prose": "Surface a one-tap reorder banner for premium subscribers.",
-            },
-            "population_size": 3,
+    payload = {
+        "hypothesis": {
+            "capability_name": "reorder",
+            "prose": "Surface a one-tap reorder banner for premium subscribers.",
         },
-    )
+        "population_size": 3,
+    }
+    if model_id is not None:
+        payload["model_id"] = model_id
+    resp = client.post("/simulations", json=payload)
     assert resp.status_code == 202, resp.text
     return resp.json()["id"]
 
@@ -274,6 +274,38 @@ def test_persona_group_fanout_returns_synthesis_and_per_agent(
     #   - 1 synthesis call
     assert chat.calls_by_phase["chat"] == n
     assert chat.calls_by_phase["synthesis"] == 1
+
+
+def test_persona_group_fanout_uses_simulation_model_for_reply_and_synthesis(
+    client_with_persona_group_stub,
+    monkeypatch,
+) -> None:
+    """#103: individual fan-out replies and synthesis stay on the run model."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    requested_models: list[str | None] = []
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic")
+
+    def fake_get_chat_client(model_id: str | None = None):
+        requested_models.append(model_id)
+        return chat
+
+    monkeypatch.setattr(agent_chat_mod, "get_chat_client", fake_get_chat_client)
+    monkeypatch.setattr(synthesis_mod, "get_chat_client", fake_get_chat_client)
+
+    sim_id = _run_sim(client, model_id="claude-sonnet-4-6")
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+
+    chat._enter_chat_phase()
+    chat.synthesis_n = len(agent_ids)
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "individual", "message": "Would this still work?"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert requested_models == ["claude-sonnet-4-6", "claude-sonnet-4-6"]
 
 
 def test_persona_group_persists_turns_to_log(client_with_persona_group_stub, tmp_path) -> None:
@@ -706,6 +738,37 @@ def test_collective_default_when_mode_omitted(client_with_persona_group_stub) ->
     assert chat.calls_by_phase["collective"] == 1
     assert chat.calls_by_phase["chat"] == 0
     assert chat.calls_by_phase["synthesis"] == 0
+
+
+def test_collective_uses_simulation_model(client_with_persona_group_stub, monkeypatch) -> None:
+    """#103: collective-mode chat stays on the model selected for the run."""
+    client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
+    requested_models: list[str | None] = []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
+
+    def fake_get_chat_client(model_id: str | None = None):
+        requested_models.append(model_id)
+        return chat
+
+    monkeypatch.setattr(collective_mod, "get_chat_client", fake_get_chat_client)
+
+    sim_id = _run_sim(client, model_id="gpt-5.4-mini")
+    persona_id, agent_ids = _pick_persona(client, sim_id)
+    chat._enter_chat_phase()
+    chat.collective_labels = (
+        [persona_id]
+        if len(agent_ids) == 1
+        else [f"{persona_id}_{chr(ord('a') + i)}" for i in range(len(agent_ids))]
+    )
+
+    resp = client.post(
+        f"/simulations/{sim_id}/personas/{persona_id}/messages",
+        json={"mode": "collective", "message": "What's the consensus here?"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert requested_models == ["gpt-5.4-mini"]
 
 
 def test_collective_resolves_inline_labels_to_agent_ids(

@@ -83,8 +83,8 @@ def client_with_chat_stub(monkeypatch):
     # inside the route) picks up the stub. The service does
     # `from ...adapters.llm import get_chat_client` — a local name binding —
     # so patching only the source module wouldn't catch the service's import.
-    monkeypatch.setattr(llm_mod, "get_chat_client", lambda: chat)
-    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda: chat)
+    monkeypatch.setattr(llm_mod, "get_chat_client", lambda model_id=None: chat)
+    monkeypatch.setattr(agent_chat_mod, "get_chat_client", lambda model_id=None: chat)
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     customer_repo._customers.clear()
@@ -117,23 +117,26 @@ def client_with_chat_stub(monkeypatch):
 
 
 def _run_sim_and_pick_agent(
-    client: TestClient, agent_repo, chat: _StubChat | None = None
+    client: TestClient,
+    agent_repo,
+    chat: _StubChat | None = None,
+    model_id: str | None = None,
 ) -> tuple[str, dict]:
     """Submit a small simulation, wait for completion, return one agent_id
     + its persisted repo row. If `chat` is provided, flip its phase to
     "chat" so subsequent stub LLM calls return the chat-time canned reply
     instead of the sim-time one — replaces an earlier brittle heuristic
     that matched the chat-guard prose. (codex #52 P2)"""
-    resp = client.post(
-        "/simulations",
-        json={
-            "hypothesis": {
-                "capability_name": "reorder",
-                "prose": "Surface a one-tap reorder banner for premium subscribers.",
-            },
-            "population_size": 3,
+    payload = {
+        "hypothesis": {
+            "capability_name": "reorder",
+            "prose": "Surface a one-tap reorder banner for premium subscribers.",
         },
-    )
+        "population_size": 3,
+    }
+    if model_id is not None:
+        payload["model_id"] = model_id
+    resp = client.post("/simulations", json=payload)
     assert resp.status_code == 202, resp.text
     sim_id = resp.json()["id"]
     # TestClient + BackgroundTasks: the response returns AFTER background work
@@ -237,6 +240,34 @@ def test_send_message_appends_turn_and_returns_agent_reply(
     assert turns[1]["content"] == chat.reply_for_chat
 
 
+def test_send_message_uses_simulation_model_id(client_with_chat_stub, monkeypatch) -> None:
+    """#103: follow-up chat should stay on the model selected for the run."""
+    client, chat, agent_repo = client_with_chat_stub
+    requested_models: list[str | None] = []
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic")
+
+    def fake_get_chat_client(model_id: str | None = None):
+        requested_models.append(model_id)
+        return chat
+
+    monkeypatch.setattr(agent_chat_mod, "get_chat_client", fake_get_chat_client)
+    agent_id, _row = _run_sim_and_pick_agent(
+        client,
+        agent_repo,
+        chat=chat,
+        model_id="claude-opus-4-7",
+    )
+
+    resp = client.post(
+        f"/agents/{agent_id}/messages",
+        json={"message": "Does your original reaction still hold?"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert requested_models == ["claude-opus-4-7"]
+
+
 def test_send_message_rejects_empty_body(client_with_chat_stub) -> None:
     """Empty message → 400, no LLM call, no turn persisted."""
     client, chat, agent_repo = client_with_chat_stub
@@ -285,9 +316,7 @@ def test_send_message_llm_failure_leaves_no_persisted_turn(
 
     monkeypatch.setattr(chat, "chat", _boom)
 
-    resp = client.post(
-        f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"}
-    )
+    resp = client.post(f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"})
     assert resp.status_code == 502
     # Conversation still empty — no orphan PM turn
     assert client.get(f"/agents/{agent_id}").json()["conversation"] == []
@@ -299,9 +328,7 @@ def test_send_message_llm_failure_leaves_no_persisted_turn(
         "chat",
         lambda messages, max_tokens=4096, temperature=0.0, seed=None: chat.reply_for_chat,
     )
-    resp = client.post(
-        f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"}
-    )
+    resp = client.post(f"/agents/{agent_id}/messages", json={"message": "First try (will fail)"})
     assert resp.status_code == 200
     turns = client.get(f"/agents/{agent_id}").json()["conversation"]
     assert len(turns) == 2
@@ -322,9 +349,7 @@ def test_send_message_multi_turn_preserves_identity_continuity(
     frozen_reaction = baseline["initial_reaction"]
 
     for n in range(3):
-        resp = client.post(
-            f"/agents/{agent_id}/messages", json={"message": f"Follow-up #{n}"}
-        )
+        resp = client.post(f"/agents/{agent_id}/messages", json={"message": f"Follow-up #{n}"})
         assert resp.status_code == 200
 
     after = client.get(f"/agents/{agent_id}").json()

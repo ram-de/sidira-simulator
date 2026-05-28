@@ -9,7 +9,6 @@ Uses a stub LLM so no real network calls fire. Validates that:
 
 from __future__ import annotations
 
-import asyncio
 import os
 from pathlib import Path
 
@@ -139,6 +138,50 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
     assert body["status"] == "pending"
     assert body["id"]
     assert body["poll_url"] == f"/simulations/{body['id']}/state"
+
+
+def test_post_simulation_rejects_unavailable_model_id(monkeypatch) -> None:
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    resp = TestClient(app).post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Show a reorder banner for premium subscribers.",
+            },
+            "population_size": 3,
+            "model_id": "gpt-5.5",
+        },
+    )
+
+    assert resp.status_code == 400, resp.text
+    assert "model_id" in resp.text
+
+
+def test_post_simulation_persists_model_id(client_with_stub_llm, monkeypatch) -> None:
+    monkeypatch.setenv("GROQ_API_KEY", "test-groq")
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Show a reorder banner for premium subscribers.",
+            },
+            "population_size": 3,
+            "model_id": "llama-3.3-70b-versatile",
+        },
+    )
+
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    final = client.get(f"/simulations/{sim_id}")
+    assert final.status_code == 200, final.text
+    assert final.json()["model_id"] == "llama-3.3-70b-versatile"
 
 
 def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> None:
@@ -296,9 +339,9 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
     assert isinstance(row["run_seed"], int)
     # Codex P2: must be JS-safe so frontend round-trip doesn't round and break
     # replay reproducibility.
-    assert 0 <= row["run_seed"] <= 2**53 - 1, (
-        f"default run_seed {row['run_seed']} exceeds JS Number.MAX_SAFE_INTEGER"
-    )
+    assert (
+        0 <= row["run_seed"] <= 2**53 - 1
+    ), f"default run_seed {row['run_seed']} exceeds JS Number.MAX_SAFE_INTEGER"
     # And the API response surfaces the same seed.
     final = client.get(f"/simulations/{sim_id}").json()
     assert final["run_seed"] == row["run_seed"]

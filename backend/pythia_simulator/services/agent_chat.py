@@ -13,7 +13,6 @@ from pythia_simulator.adapters.r2 import ArtifactStore, get_store
 from pythia_simulator.memory.agent_memory import AgentMemory
 from pythia_simulator.schemas.agent import AgentChatTurn, AgentInstanceMetadata, AgentRole
 
-
 # Adapted from mirofish simulation_runner.py:25 (INTERVIEW_PROMPT_PREFIX).
 # Pinned as a system-supplement on every chat turn to prevent the LLM from
 # drifting out of character ("As an AI language model..."), requesting tools,
@@ -33,9 +32,15 @@ class AgentChatService:
         self,
         store: ArtifactStore | None = None,
         chat_client: ChatClient | None = None,
+        model_id: str | None = None,
     ) -> None:
         self._store = store or get_store()
-        self._chat = chat_client or get_chat_client()
+        if chat_client is not None:
+            self._chat = chat_client
+        elif model_id is not None:
+            self._chat = get_chat_client(model_id)
+        else:
+            self._chat = get_chat_client()
         self._memory = AgentMemory(self._store, self._store)
 
     def send_message(

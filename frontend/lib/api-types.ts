@@ -172,7 +172,8 @@ export interface paths {
         /**
          * Send Persona Group Message
          * @description Send one PM message to the persona group. `mode` selects collective
-         *     voice (default) or individual fan-out. See docs/agent-chat-ui-spec.md
+         *     voice (default) or individual fan-out. `arm` (Phase 5 #98) scopes the
+         *     fan-out + transcript to one A/B arm. See docs/agent-chat-ui-spec.md
          *     Surface 2.
          */
         post: operations["send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post"];
@@ -194,7 +195,8 @@ export interface paths {
          * @description Replay the persona-group conversation log.
          *
          *     Used by the frontend `/simulations/[id]/personas/[persona_id]` route to
-         *     render prior turns on page load.
+         *     render prior turns on page load. Phase 5 #98: when ``arm`` is set the
+         *     response is restricted to that arm's transcript.
          */
         get: operations["list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get"];
         put?: never;
@@ -239,11 +241,36 @@ export interface paths {
          * @description Record 👍/👎/clear on one turn of a persona-group conversation.
          *
          *     Works on both synthesis turns (fan-out mode) and collective turns —
-         *     the role lives on the turn; feedback is role-agnostic. PM turns are
-         *     NOT a valid target (no LLM-generated content to calibrate); the
-         *     route 400s if the targeted turn is a PM turn.
+         *     the role lives on the turn; feedback is role-agnostic. In A/B sims,
+         *     `arm` scopes both the transcript lookup and the feedback target id so
+         *     treatment/control turn indexes do not collide. PM turns are NOT a valid
+         *     target (no LLM-generated content to calibrate); the route 400s if the
+         *     targeted turn is a PM turn.
          */
         post: operations["record_persona_group_turn_feedback_simulations__sim_id__personas__persona_id__turns__turn_index__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Models
+         * @description Return models actually usable by this backend process.
+         *
+         *     Providers without API keys are omitted so the wizard reflects runtime
+         *     truth instead of presenting choices that would fail after submit.
+         */
+        get: operations["list_models_models_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -958,10 +985,37 @@ export interface components {
             /** Prose */
             prose?: string | null;
         };
+        /** ListModelsResponse */
+        ListModelsResponse: {
+            /** Models */
+            models: components["schemas"]["ModelInfo"][];
+            /** Default Model Id */
+            default_model_id: string;
+        };
         /** MappingSuggestion */
         MappingSuggestion: {
             /** Suggestions */
             suggestions: components["schemas"]["ColumnSuggestion"][];
+        };
+        /** ModelInfo */
+        ModelInfo: {
+            /** Id */
+            id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "groq" | "anthropic" | "openai";
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Speed Label */
+            speed_label: string;
+            /** Cost Label */
+            cost_label: string;
+            /** Is Default */
+            is_default: boolean;
         };
         /**
          * PackStatus
@@ -1260,6 +1314,8 @@ export interface components {
             arm_split?: components["schemas"]["ArmSplit"] | null;
             /** Selected Personas */
             selected_personas?: string[] | null;
+            /** Model Id */
+            model_id?: string | null;
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
@@ -1309,6 +1365,11 @@ export interface components {
              * @description Phase 5 #101: optional subset of persona_ids to run the sim against. When None, runs against ALL personas in the active Persona Pack (today's behavior, backwards-compatible). When a non-empty list, the allocator filters to these personas and re-weights them to sum to 1 before largest-remainder allocation, so `population_size` is preserved across the selected cohort. Empty list is rejected. Unknown persona_ids are rejected at the API layer (the schema can't see the active pack). A/B mode applies the filter symmetrically to both arms (the paired-sampling invariant from #89 keeps working because both arms run the same persona set).
              */
             selected_personas?: string[] | null;
+            /**
+             * Model Id
+             * @description Phase 5 #103: optional LLM model id powering this simulation. When omitted, the backend resolves its configured default.
+             */
+            model_id?: string | null;
         };
         /** SimulationResult */
         SimulationResult: {
@@ -1775,7 +1836,10 @@ export interface operations {
     };
     send_persona_group_message_simulations__sim_id__personas__persona_id__messages_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Phase 5 #98: scope the chat to one arm in A/B sims. When set, only agents with the matching arm are included in the fan-out and the transcript is logged to an arm-scoped path. Omit for single-arm sims (today's behavior). */
+                arm?: ("treatment" | "control") | null;
+            };
             header?: never;
             path: {
                 sim_id: string;
@@ -1811,7 +1875,10 @@ export interface operations {
     };
     list_persona_group_turns_simulations__sim_id__personas__persona_id__turns_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Phase 5 #98: replay the arm-scoped transcript when set. Omit for single-arm sims (today's behavior). */
+                arm?: ("treatment" | "control") | null;
+            };
             header?: never;
             path: {
                 sim_id: string;
@@ -1879,7 +1946,10 @@ export interface operations {
     };
     record_persona_group_turn_feedback_simulations__sim_id__personas__persona_id__turns__turn_index__feedback_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Phase 5 #98: scope feedback to one A/B persona-group room. Omit for single-arm sims. */
+                arm?: ("treatment" | "control") | null;
+            };
             header?: never;
             path: {
                 sim_id: string;
@@ -1910,6 +1980,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_models_models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListModelsResponse"];
                 };
             };
         };

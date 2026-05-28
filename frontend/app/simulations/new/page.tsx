@@ -7,8 +7,10 @@ import {
   createSimulation,
   getActivePersonas,
   getCapabilities,
+  listSupportedModels,
   type ActivePersonasResponse,
   type FeaturePackManifest,
+  type ModelInfo,
   type PersonaSummary,
   type SimulationRequest,
 } from "@/lib/api";
@@ -70,6 +72,12 @@ export default function NewSimulationPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+
   // Phase 5 #101: persona filter. Default = all personas selected (today's
   // behavior). PM can uncheck individual personas behind "Advanced options"
   // to run against a narrowed cohort. Submit payload sends
@@ -116,6 +124,35 @@ export default function NewSimulationPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await listSupportedModels();
+        if (cancelled) return;
+        setModels(resp.models);
+        setDefaultModelId(resp.default_model_id);
+        const selected =
+          resp.models.find((m) => m.is_default)?.id ??
+          resp.models[0]?.id ??
+          "";
+        setSelectedModelId(selected);
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof Error) {
+          setModelsError(`Could not load model list: ${e.message}`);
+        } else {
+          setModelsError("Could not load model list.");
+        }
+      } finally {
+        if (!cancelled) setLoadingModels(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Phase 5 #101: load the active Persona Pack on mount so the filter
   // checkbox list has names + weights. Default = all checked.
   useEffect(() => {
@@ -147,7 +184,7 @@ export default function NewSimulationPage() {
 
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
-  const formDisabled = loadingCaps || !hasCapabilities || submitting;
+  const formDisabled = loadingCaps || loadingModels || !hasCapabilities || submitting;
   // Phase 5 #101: derive filter state.
   const totalPersonaCount = activePersonas.length;
   const selectedCount = selectedPersonas.size;
@@ -232,6 +269,7 @@ export default function NewSimulationPage() {
       population_size: populationSize,
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
       selected_personas: personaFilter,
+      model_id: selectedModelId || null,
     };
 
     setSubmitting(true);
@@ -365,6 +403,16 @@ export default function NewSimulationPage() {
           </div>
         </div>
 
+        <ModelSelectorSection
+          models={models}
+          selectedModelId={selectedModelId}
+          defaultModelId={defaultModelId}
+          loading={loadingModels}
+          error={modelsError}
+          onChange={setSelectedModelId}
+          disabled={formDisabled}
+        />
+
         {/* Phase 4.6 #88: A/B experiment-mode toggle + cost preview */}
         <ABModeSection
           enabled={abMode}
@@ -459,6 +507,118 @@ export default function NewSimulationPage() {
       </form>
     </main>
   );
+}
+
+function ModelSelectorSection({
+  models,
+  selectedModelId,
+  defaultModelId,
+  loading,
+  error,
+  onChange,
+  disabled,
+}: {
+  models: ModelInfo[];
+  selectedModelId: string;
+  defaultModelId: string | null;
+  loading: boolean;
+  error: string | null;
+  onChange: (next: string) => void;
+  disabled: boolean;
+}) {
+  if (loading) {
+    return (
+      <div style={fieldGroup}>
+        <div style={labelStyle}>Model</div>
+        <div style={helperStyle}>Loading available models…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={fieldGroup}>
+        <div style={labelStyle}>Model</div>
+        <div
+          style={{
+            ...helperStyle,
+            padding: "8px 12px",
+            border: "1px solid #f0d68c",
+            borderRadius: 4,
+            background: "#fff8e6",
+            color: "#8a5a00",
+          }}
+        >
+          {error} The backend will use its configured default.
+        </div>
+      </div>
+    );
+  }
+
+  if (models.length === 0) {
+    return (
+      <div style={fieldGroup}>
+        <div style={labelStyle}>Model</div>
+        <div
+          style={{
+            ...helperStyle,
+            padding: "8px 12px",
+            border: "1px solid #f0d68c",
+            borderRadius: 4,
+            background: "#fff8e6",
+            color: "#8a5a00",
+          }}
+        >
+          No provider API keys are configured. Submitting without a model
+          selection will use backend default resolution.
+        </div>
+      </div>
+    );
+  }
+
+  const selected = models.find((m) => m.id === selectedModelId) ?? models[0];
+  const providers: ModelInfo["provider"][] = ["anthropic", "openai", "groq"];
+
+  return (
+    <div style={fieldGroup}>
+      <label htmlFor="model-id" style={labelStyle}>
+        Model
+      </label>
+      <select
+        id="model-id"
+        value={selectedModelId || selected.id}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        style={inputStyle}
+      >
+        {providers.map((provider) => {
+          const providerModels = models.filter((m) => m.provider === provider);
+          if (providerModels.length === 0) return null;
+          return (
+            <optgroup key={provider} label={providerLabel(provider)}>
+              {providerModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                  {model.id === defaultModelId ? " (default)" : ""}
+                </option>
+              ))}
+            </optgroup>
+          );
+        })}
+      </select>
+      <div style={helperStyle}>
+        {selected.description} Speed: {selected.speed_label}; cost:{" "}
+        {selected.cost_label}. A/B simulations use this same model for both
+        arms.
+      </div>
+    </div>
+  );
+}
+
+function providerLabel(provider: ModelInfo["provider"]): string {
+  if (provider === "anthropic") return "Anthropic";
+  if (provider === "openai") return "OpenAI";
+  return "Groq";
 }
 
 // Phase 4.6 #88 — A/B experiment mode toggle + cost preview.
