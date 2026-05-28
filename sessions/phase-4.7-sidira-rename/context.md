@@ -23,12 +23,15 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Implemented #111 visible product-surface rename in frontend app metadata, nav, home page, simulations list copy, product placeholder copy, and FastAPI display metadata.
 - Verification passed: backend full suite (`350 passed, 10 skipped`), frontend `npm run typecheck`, `git diff --check`, and live HTTP smoke for home/simulations/product/OpenAPI output.
 - Code commit: `0c0f9b0 feat: rename product surface to Sidira`.
+- Rebased code commit after session save: `0ce0b63 feat: rename product surface to Sidira`.
+- Codex review clear: no discrete correctness issue introduced by the diff.
+- PR opened: #116 (`https://github.com/ram-de/pythia-simulator/pull/116`).
 
 ## Next Steps
-1. Save this session update to `main`.
-2. Run pre-PR review for #111.
-3. Push `codex/111-sidira-product-surface`.
-4. Open a PR for #111.
+1. Watch PR #116.
+2. Merge #116 after checks/review are acceptable.
+3. After merge, close #111 and update Project status if automation does not.
+4. Pick up #113 or #112 next.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
