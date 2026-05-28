@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from pythia_simulator.schemas.scoring import (
+from sidira_simulator.schemas.scoring import (
     ABLiftResult,
     AgentAnalysis,
     ScoringConfig,
@@ -23,8 +23,8 @@ from pythia_simulator.schemas.scoring import (
     SentimentClassification,
     WeaknessClassification,
 )
-from pythia_simulator.schemas.simulation import Hypothesis
-from pythia_simulator.services.scoring import (
+from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.scoring import (
     AgentReaction,
     ScoringService,
     _agent_delta,
@@ -99,7 +99,9 @@ def _matched_pairs(
 
 
 def test_zero_lift_balanced_pairs() -> None:
-    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.NEUTRAL, c_sentiment=Sentiment.NEUTRAL)
+    treatment, control = _matched_pairs(
+        10, t_sentiment=Sentiment.NEUTRAL, c_sentiment=Sentiment.NEUTRAL
+    )
     t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
 
     assert isinstance(lift, ABLiftResult)
@@ -120,7 +122,9 @@ def test_zero_lift_balanced_pairs() -> None:
 
 
 def test_positive_lift_all_pairs_positive() -> None:
-    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    treatment, control = _matched_pairs(
+        10, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE
+    )
     t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
 
     assert lift.paired_n == 10
@@ -143,7 +147,9 @@ def test_positive_lift_all_pairs_positive() -> None:
 
 
 def test_negative_lift_all_pairs_negative() -> None:
-    treatment, control = _matched_pairs(10, t_sentiment=Sentiment.NEGATIVE, c_sentiment=Sentiment.POSITIVE)
+    treatment, control = _matched_pairs(
+        10, t_sentiment=Sentiment.NEGATIVE, c_sentiment=Sentiment.POSITIVE
+    )
     t_result, c_result, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
 
     assert lift.paired_n == 10
@@ -180,7 +186,9 @@ def test_mixed_lift_ci_crosses_zero() -> None:
 
 
 def test_single_matched_pair_degenerate_ci() -> None:
-    treatment, control = _matched_pairs(1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL)
+    treatment, control = _matched_pairs(
+        1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL
+    )
     _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
 
     assert lift.paired_n == 1
@@ -253,7 +261,9 @@ def test_zero_usable_pairs_returns_none() -> None:
 
 
 def test_bootstrap_zero_leaves_lift_ci_none() -> None:
-    treatment, control = _matched_pairs(5, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    treatment, control = _matched_pairs(
+        5, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE
+    )
     _t, _c, lift = aggregate_ab(treatment, control, _NO_CI_CFG, run_seed=42)
     assert lift.paired_n == 5
     assert lift.lift is not None
@@ -264,7 +274,9 @@ def test_bootstrap_zero_leaves_lift_ci_none() -> None:
 
 
 def test_aggregate_ab_deterministic_with_run_seed() -> None:
-    treatment, control = _matched_pairs(8, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE)
+    treatment, control = _matched_pairs(
+        8, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEGATIVE
+    )
     _t1, _c1, lift1 = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
     _t2, _c2, lift2 = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
     assert lift1.lift == lift2.lift
@@ -475,16 +487,25 @@ def test_agent_delta_low_confidence_negative_shrinks_toward_neutral() -> None:
     confidence), so low confidence collapses the contribution toward 0
     delta regardless of bucket."""
     treatment_hi = _a(
-        agent_id="t", persona_id="p", sample_index=0,
-        sentiment=Sentiment.POSITIVE, confidence=1.0,
+        agent_id="t",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.POSITIVE,
+        confidence=1.0,
     )
     control_low = _a(
-        agent_id="c", persona_id="p", sample_index=0,
-        sentiment=Sentiment.NEGATIVE, confidence=0.1,
+        agent_id="c",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.NEGATIVE,
+        confidence=0.1,
     )
     control_hi = _a(
-        agent_id="c2", persona_id="p", sample_index=0,
-        sentiment=Sentiment.NEGATIVE, confidence=1.0,
+        agent_id="c2",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.NEGATIVE,
+        confidence=1.0,
     )
 
     delta_low_conf = _agent_delta(treatment_hi, control_low)
@@ -503,16 +524,25 @@ def test_agent_delta_low_confidence_positive_also_shrinks() -> None:
     well (was already partially working in the buggy formula since
     c × 1.0 differs by c, but the new formula must preserve this)."""
     control = _a(
-        agent_id="c", persona_id="p", sample_index=0,
-        sentiment=Sentiment.NEUTRAL, confidence=1.0,
+        agent_id="c",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.NEUTRAL,
+        confidence=1.0,
     )
     treatment_low = _a(
-        agent_id="t", persona_id="p", sample_index=0,
-        sentiment=Sentiment.POSITIVE, confidence=0.1,
+        agent_id="t",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.POSITIVE,
+        confidence=0.1,
     )
     treatment_hi = _a(
-        agent_id="t2", persona_id="p", sample_index=0,
-        sentiment=Sentiment.POSITIVE, confidence=1.0,
+        agent_id="t2",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.POSITIVE,
+        confidence=1.0,
     )
     delta_low = _agent_delta(treatment_low, control)
     delta_hi = _agent_delta(treatment_hi, control)
@@ -526,12 +556,18 @@ def test_agent_delta_zero_confidence_both_sides_yields_zero() -> None:
     """Pathological floor: if both classifiers report confidence=0, neither
     side contributes any signal — paired delta must be exactly zero."""
     treatment = _a(
-        agent_id="t", persona_id="p", sample_index=0,
-        sentiment=Sentiment.POSITIVE, confidence=0.0,
+        agent_id="t",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.POSITIVE,
+        confidence=0.0,
     )
     control = _a(
-        agent_id="c", persona_id="p", sample_index=0,
-        sentiment=Sentiment.NEGATIVE, confidence=0.0,
+        agent_id="c",
+        persona_id="p",
+        sample_index=0,
+        sentiment=Sentiment.NEGATIVE,
+        confidence=0.0,
     )
     assert _agent_delta(treatment, control) == pytest.approx(0.0, abs=1e-6)
 
@@ -645,7 +681,7 @@ def test_aggregate_control_arm_degradation_uses_attempted_count() -> None:
     classifications, not by 2N. Without this, a fully-failed
     control-sentiment run reports 50% (N/2N) and never trips the
     strict `> degradation_threshold` gate."""
-    from pythia_simulator.schemas.simulation import SimulationResult
+    from sidira_simulator.schemas.simulation import SimulationResult
 
     # 4 control agents, all with sentiment_failed=True. Weakness not
     # attempted (control-arm flow). Failure rate should be 4/4 = 100%,
@@ -681,7 +717,7 @@ def test_aggregate_control_arm_degradation_uses_attempted_count() -> None:
 def test_aggregate_treatment_arm_degradation_unchanged() -> None:
     """Sanity: treatment-arm agents still attempt both classifications,
     so the 2N denominator is preserved. Mirrors the pre-#90 behavior."""
-    from pythia_simulator.schemas.simulation import SimulationResult
+    from sidira_simulator.schemas.simulation import SimulationResult
 
     # 4 treatment agents, all sentiment fails, weakness succeeds.
     # Total attempted = 2N = 8; failures = 4; rate = 50% — at the
@@ -706,9 +742,7 @@ def test_aggregate_treatment_arm_degradation_unchanged() -> None:
         treatment_analyses, ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
     )
     # 50% exactly → no degradation message
-    assert not any(
-        "discounted" in (w.summary or "") for w in result.weaknesses
-    )
+    assert not any("discounted" in (w.summary or "") for w in result.weaknesses)
 
 
 @pytest.mark.asyncio
@@ -743,13 +777,15 @@ def test_lift_ci_brackets_point_estimate_with_shrinkage() -> None:
     estimate (e.g. lift=15, ci=(30,30)). Post-fix: both numbers come from
     the same matched-subset statistic, so CI brackets lift by construction.
     """
-    treatment, control = _matched_pairs(1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL)
+    treatment, control = _matched_pairs(
+        1, t_sentiment=Sentiment.POSITIVE, c_sentiment=Sentiment.NEUTRAL
+    )
     _t, _c, lift = aggregate_ab(treatment, control, _CI_CFG, run_seed=42)
     assert lift.lift is not None
     assert lift.lift_ci is not None
-    assert lift.lift_ci[0] <= lift.lift <= lift.lift_ci[1], (
-        f"CI {lift.lift_ci} must bracket point estimate {lift.lift}"
-    )
+    assert (
+        lift.lift_ci[0] <= lift.lift <= lift.lift_ci[1]
+    ), f"CI {lift.lift_ci} must bracket point estimate {lift.lift}"
 
 
 # ── Pairing key uses (persona_id, sample_index), not persona alone ────

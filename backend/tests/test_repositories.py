@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from pythia_simulator.adapters.repositories import (
+from sidira_simulator.adapters.repositories import (
     InMemoryAgentFeedbackRepo,
     InMemoryAgentInstanceRepo,
     InMemoryCustomerRepo,

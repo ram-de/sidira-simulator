@@ -14,15 +14,15 @@ from pathlib import Path
 
 import pytest
 
-from pythia_simulator.adapters.feature_pack_loader import FeaturePackLoader
-from pythia_simulator.adapters.persona_loader import PersonaPackLoader
-from pythia_simulator.adapters.r2 import LocalArtifactStore
-from pythia_simulator.memory.agent_memory import AgentMemory
-from pythia_simulator.schemas.agent import AgentInstanceMetadata
-from pythia_simulator.schemas.simulation import Hypothesis
-from pythia_simulator.services.identity_seed import draw_identity_seed
-from pythia_simulator.services.population_sampler import allocate
-from pythia_simulator.services.simulation_runner import SimulationRunner
+from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
+from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+from sidira_simulator.adapters.r2 import LocalArtifactStore
+from sidira_simulator.memory.agent_memory import AgentMemory
+from sidira_simulator.schemas.agent import AgentInstanceMetadata
+from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.identity_seed import draw_identity_seed
+from sidira_simulator.services.population_sampler import allocate
+from sidira_simulator.services.simulation_runner import SimulationRunner
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 
@@ -40,7 +40,7 @@ class _StubChat:
 
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
         self.json_calls.append((schema, messages))
-        from pythia_simulator.schemas.scoring import (
+        from sidira_simulator.schemas.scoring import (
             RefinementOutput,
             Sentiment,
             SentimentClassification,
@@ -136,7 +136,7 @@ async def test_model_id_builds_one_model_bound_client_for_whole_ab_run(monkeypat
         return chat
 
     monkeypatch.setattr(
-        "pythia_simulator.services.simulation_runner.get_chat_client",
+        "sidira_simulator.services.simulation_runner.get_chat_client",
         fake_get_chat_client,
     )
 
@@ -169,7 +169,7 @@ async def test_model_client_failure_becomes_zero_agent_placeholder(monkeypatch) 
         raise RuntimeError(f"missing key for {model_id}")
 
     monkeypatch.setattr(
-        "pythia_simulator.services.simulation_runner.get_chat_client",
+        "sidira_simulator.services.simulation_runner.get_chat_client",
         fake_get_chat_client,
     )
 
@@ -244,7 +244,7 @@ async def test_score_passes_run_seed_to_scoring_service(monkeypatch) -> None:
     """T5: SimulationRunner._score() must pass the runner's resolved run_seed
     into ScoringService.score so the bootstrap CI on confidence_score is
     reproducible run-to-run for the same input."""
-    from pythia_simulator.services import scoring as scoring_mod
+    from sidira_simulator.services import scoring as scoring_mod
 
     captured: dict[str, object] = {}
     original_score = scoring_mod.ScoringService.score

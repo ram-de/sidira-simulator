@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pythia_simulator.adapters.r2 import LocalArtifactStore, get_store
-from pythia_simulator.api.deps import current_customer_id
-from pythia_simulator.main import _cors_origins
-from pythia_simulator.services.runtime_config import resolve_sidira_env
+from sidira_simulator.adapters.r2 import LocalArtifactStore, get_store
+from sidira_simulator.api.deps import current_customer_id
+from sidira_simulator.main import _cors_origins
+from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 
 def _clear_product_env(monkeypatch, suffix: str) -> None:

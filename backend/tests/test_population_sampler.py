@@ -10,9 +10,8 @@ from datetime import datetime
 
 import pytest
 
-from pythia_simulator.schemas.persona import Persona, PersonaPack, WeightSchemes
-from pythia_simulator.services.population_sampler import allocate
-
+from sidira_simulator.schemas.persona import Persona, PersonaPack, WeightSchemes
+from sidira_simulator.services.population_sampler import allocate
 
 # ── fixtures ────────────────────────────────────────────────────────────────
 
@@ -263,7 +262,7 @@ def test_missing_optional_scheme_raises() -> None:
 
 def test_max_agents_env_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """SIDIRA_MAX_AGENTS env var sets the default cap when max_agents not passed."""
-    from pythia_simulator.services import population_sampler
+    from sidira_simulator.services import population_sampler
 
     monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("SIDIRA_MAX_AGENTS", "10")
@@ -276,7 +275,7 @@ def test_max_agents_env_default(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_max_agents_env_prefers_sidira_over_pythia(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from pythia_simulator.services import population_sampler
+    from sidira_simulator.services import population_sampler
 
     monkeypatch.setenv("SIDIRA_MAX_AGENTS", "8")
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "10")
@@ -334,9 +333,7 @@ def test_selected_personas_none_matches_unfiltered_default() -> None:
     """
     pack = _pack(_DEMO_WEIGHTS)
     no_kwarg = allocate(pack, population_size=50, max_agents=50)
-    explicit_none = allocate(
-        pack, population_size=50, max_agents=50, selected_personas=None
-    )
+    explicit_none = allocate(pack, population_size=50, max_agents=50, selected_personas=None)
     assert no_kwarg == explicit_none
 
 
@@ -371,9 +368,7 @@ def test_selected_personas_reweights_subset_preserves_population_size() -> None:
         "jordan_lapsing_disengaged",  # 0.20
         "priya_grocery_stockup",  # 0.12
     ]
-    alloc = allocate(
-        pack, population_size=50, max_agents=50, selected_personas=selected
-    )
+    alloc = allocate(pack, population_size=50, max_agents=50, selected_personas=selected)
     # Only the selected personas appear in the output.
     assert {pid for pid, _ in alloc} == set(selected)
     # And the total matches the unfiltered population_size, NOT
@@ -408,9 +403,7 @@ def test_selected_personas_empty_list_raises() -> None:
     """
     pack = _pack(_DEMO_WEIGHTS)
     with pytest.raises(ValueError, match="at least one persona_id"):
-        allocate(
-            pack, population_size=50, max_agents=50, selected_personas=[]
-        )
+        allocate(pack, population_size=50, max_agents=50, selected_personas=[])
 
 
 def test_selected_personas_unknown_id_raises() -> None:
@@ -436,12 +429,8 @@ def test_selected_personas_paired_invariant_for_ab_mode() -> None:
     """
     pack = _pack(_DEMO_WEIGHTS)
     selected = ["dom_promo_driven_restaurant", "jordan_lapsing_disengaged"]
-    treatment = allocate(
-        pack, population_size=20, max_agents=50, selected_personas=selected
-    )
-    control = allocate(
-        pack, population_size=20, max_agents=50, selected_personas=selected
-    )
+    treatment = allocate(pack, population_size=20, max_agents=50, selected_personas=selected)
+    control = allocate(pack, population_size=20, max_agents=50, selected_personas=selected)
     assert treatment == control
 
 

@@ -6,7 +6,7 @@ refactors don't drift the result-table quote heuristic.
 
 from __future__ import annotations
 
-from pythia_simulator.services.simulation_runner import _derive_top_quote
+from sidira_simulator.services.simulation_runner import _derive_top_quote
 
 
 def test_first_sentence_period() -> None:
@@ -17,9 +17,7 @@ def test_first_sentence_period() -> None:
 
 
 def test_first_sentence_question_mark() -> None:
-    out = _derive_top_quote(
-        "Why would I want this? It's just one more banner I'd scroll past."
-    )
+    out = _derive_top_quote("Why would I want this? It's just one more banner I'd scroll past.")
     assert out == "Why would I want this?"
 
 

@@ -19,10 +19,7 @@ import sqlalchemy as sa
 def _load_migration():
     """Load the 003 migration by file path (alembic.versions isn't a package)."""
     path = (
-        Path(__file__).resolve().parents[1]
-        / "alembic"
-        / "versions"
-        / "003_phase_2_5_run_seed.py"
+        Path(__file__).resolve().parents[1] / "alembic" / "versions" / "003_phase_2_5_run_seed.py"
     )
     spec = importlib.util.spec_from_file_location("migration_003", path)
     assert spec is not None and spec.loader is not None
@@ -71,7 +68,7 @@ def test_migration_003_downgrade_removes_run_seed_column() -> None:
 
 def test_simulations_orm_has_run_seed_column() -> None:
     """Sanity: the ORM model and the migration agree on the column."""
-    from pythia_simulator.adapters.db_models import Simulation
+    from sidira_simulator.adapters.db_models import Simulation
 
     cols = {c.name: c for c in Simulation.__table__.columns}
     assert "run_seed" in cols

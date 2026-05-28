@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from pythia_simulator.adapters.db_models import Base
+from sidira_simulator.adapters.db_models import Base
 
 config = context.config
 

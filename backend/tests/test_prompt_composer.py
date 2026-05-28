@@ -8,11 +8,11 @@ and `## Behavioral snapshot`; when absent, the prompt is unchanged
 
 from __future__ import annotations
 
-from pythia_simulator.schemas.feature_pack import Capability, ReverseFigma
-from pythia_simulator.schemas.identity import IdentitySeed
-from pythia_simulator.schemas.persona import Persona
-from pythia_simulator.schemas.simulation import Hypothesis
-from pythia_simulator.services.prompt_composer import compose_identity_prompt
+from sidira_simulator.schemas.feature_pack import Capability, ReverseFigma
+from sidira_simulator.schemas.identity import IdentitySeed
+from sidira_simulator.schemas.persona import Persona
+from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.prompt_composer import compose_identity_prompt
 
 
 def _persona() -> Persona:

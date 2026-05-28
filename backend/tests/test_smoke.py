@@ -8,13 +8,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from pythia_simulator import __version__
-from pythia_simulator.adapters.r2 import LocalArtifactStore
-from pythia_simulator.main import app
-from pythia_simulator.memory.agent_memory import AgentMemory
-from pythia_simulator.schemas.agent import (
-    AgentChatTurn,
-    AgentInstance,
+from sidira_simulator import __version__
+from sidira_simulator.adapters.r2 import LocalArtifactStore
+from sidira_simulator.main import app
+from sidira_simulator.memory.agent_memory import AgentMemory
+from sidira_simulator.schemas.agent import (
     AgentInstanceMetadata,
     AgentRole,
 )
@@ -100,7 +98,7 @@ def test_agent_memory_conversation_append(
 
 
 def test_json_repair_strips_code_fences_and_trailing_commas() -> None:
-    from pythia_simulator.adapters.llm import parse_llm_json
+    from sidira_simulator.adapters.llm import parse_llm_json
     from pydantic import BaseModel
 
     class Score(BaseModel):
@@ -119,7 +117,7 @@ def test_json_repair_strips_code_fences_and_trailing_commas() -> None:
 
 
 def test_json_repair_balances_truncated_braces() -> None:
-    from pythia_simulator.adapters.llm import parse_llm_json
+    from sidira_simulator.adapters.llm import parse_llm_json
     from pydantic import BaseModel
 
     class Score(BaseModel):
@@ -133,7 +131,7 @@ def test_json_repair_balances_truncated_braces() -> None:
 def test_run_state_event_log_appends(
     store: LocalArtifactStore,
 ) -> None:
-    from pythia_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
+    from sidira_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
 
     state = SimulationRunState(
         simulation_id="sim-xyz",
@@ -159,7 +157,7 @@ def test_chat_guard_prefix_appended_as_system_supplement() -> None:
     frozen identity prompt. Otherwise we'd break identity continuity by
     silently changing what the agent's defining prompt looks like.
     """
-    from pythia_simulator.services.agent_chat import _CHAT_GUARD_PREFIX
+    from sidira_simulator.services.agent_chat import _CHAT_GUARD_PREFIX
 
     # Just verify the prefix exists and is non-trivial; the AgentChatService
     # integration is covered by the live integration test in Phase 3.

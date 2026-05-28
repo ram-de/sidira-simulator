@@ -12,15 +12,15 @@ from __future__ import annotations
 
 import pytest
 
-from pythia_simulator.schemas.scoring import (
+from sidira_simulator.schemas.scoring import (
     AgentAnalysis,
     ScoringConfig,
     Sentiment,
     SentimentClassification,
     WeaknessClassification,
 )
-from pythia_simulator.schemas.simulation import Hypothesis
-from pythia_simulator.services.scoring import AgentReaction, ScoringService
+from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.scoring import AgentReaction, ScoringService
 
 
 def _analysis(
@@ -228,9 +228,7 @@ def test_aggregate_parity_snapshot() -> None:
         _analysis("a3", Sentiment.POSITIVE, confidence=0.8),
         _analysis("a4", Sentiment.NEUTRAL, confidence=0.5),
         _analysis("a5", Sentiment.NEUTRAL, confidence=0.5),
-        _analysis(
-            "a6", Sentiment.NEGATIVE, categories=["wrong_metric"], confidence=0.9
-        ),
+        _analysis("a6", Sentiment.NEGATIVE, categories=["wrong_metric"], confidence=0.9),
     ]
     result = ScoringService.aggregate(analyses, _FORMULA_CFG)
     # Rounded score (display-facing)
@@ -254,10 +252,7 @@ def test_aggregate_parity_snapshot() -> None:
 def test_weakness_frequency_and_wilson_populated() -> None:
     """N=20 with 5 agents flagging `wrong_metric` → frequency=0.25 with a
     Wilson CI that brackets the point estimate inside [0, 1]."""
-    flagged = [
-        _analysis(f"f{i}", Sentiment.NEUTRAL, categories=["wrong_metric"])
-        for i in range(5)
-    ]
+    flagged = [_analysis(f"f{i}", Sentiment.NEUTRAL, categories=["wrong_metric"]) for i in range(5)]
     clean = [_analysis(f"c{i}", Sentiment.NEUTRAL) for i in range(15)]
     result = ScoringService.aggregate(flagged + clean, _FORMULA_CFG)
     w = next(x for x in result.weaknesses if x.category == "wrong_metric")
@@ -283,8 +278,7 @@ def test_weakness_summary_shape_unchanged() -> None:
     """Existing summary text format ("X/N agents flagged this — …") must not
     drift — anything reading it as a string would break silently otherwise."""
     analyses = [
-        _analysis(f"a{i}", Sentiment.NEUTRAL, categories=["wrong_cohort"])
-        for i in range(3)
+        _analysis(f"a{i}", Sentiment.NEUTRAL, categories=["wrong_cohort"]) for i in range(3)
     ] + [_analysis(f"b{i}", Sentiment.NEUTRAL) for i in range(7)]
     result = ScoringService.aggregate(analyses, _FORMULA_CFG)
     w = next(x for x in result.weaknesses if x.category == "wrong_cohort")
@@ -294,7 +288,9 @@ def test_weakness_summary_shape_unchanged() -> None:
 def test_scoring_config_is_tunable_without_code_changes() -> None:
     """Sanity: changing weights changes the score predictably."""
     analyses = [_analysis(f"a{i}", Sentiment.POSITIVE) for i in range(5)]
-    cfg_heavy_sentiment = ScoringConfig(sentiment_weight=1.0, weakness_weight=0.0, min_sample_size=1)
+    cfg_heavy_sentiment = ScoringConfig(
+        sentiment_weight=1.0, weakness_weight=0.0, min_sample_size=1
+    )
     cfg_heavy_weakness = ScoringConfig(sentiment_weight=0.0, weakness_weight=1.0, min_sample_size=1)
     r_sent = ScoringService.aggregate(analyses, cfg_heavy_sentiment)
     r_weak = ScoringService.aggregate(analyses, cfg_heavy_weakness)
@@ -318,10 +314,7 @@ def test_confidence_ci_is_set_and_brackets_point_estimate() -> None:
     analyses = (
         [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
         + [_analysis(f"n{i}", Sentiment.NEUTRAL) for i in range(5)]
-        + [
-            _analysis(f"x{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
-            for i in range(5)
-        ]
+        + [_analysis(f"x{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(5)]
     )
     result = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=42)
     assert result.confidence_score_ci is not None
@@ -333,13 +326,9 @@ def test_confidence_ci_is_set_and_brackets_point_estimate() -> None:
 def test_confidence_ci_deterministic_with_run_seed() -> None:
     """Same analyses + same run_seed → byte-identical CI. Uses varied input
     so the CI has actual width to compare."""
-    analyses = (
-        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
-        + [
-            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
-            for i in range(10)
-        ]
-    )
+    analyses = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)] + [
+        _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(10)
+    ]
     r1 = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=12345)
     r2 = ScoringService.aggregate(analyses, _BOOT_CFG, run_seed=12345)
     assert r1.confidence_score_ci == r2.confidence_score_ci
@@ -347,37 +336,42 @@ def test_confidence_ci_deterministic_with_run_seed() -> None:
     assert r1.confidence_score_ci[1] > r1.confidence_score_ci[0]
 
 
-def test_confidence_ci_changes_without_seed() -> None:
-    """No run_seed → fresh entropy each call. Test 10 unseeded calls and
-    assert at least 2 distinct CIs across the batch — robust to occasional
-    rounded-tuple coincidence that the schema's `confidence_rounding<=2`
-    cap makes possible on small binary inputs."""
-    cfg = ScoringConfig(
-        min_sample_size=1, bootstrap_resamples=1000, confidence_rounding=2
-    )
-    analyses = (
-        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)]
-        + [
-            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
-            for i in range(10)
-        ]
-    )
-    cis = {
-        ScoringService.aggregate(analyses, cfg).confidence_score_ci
-        for _ in range(10)
-    }
-    assert len(cis) >= 2, f"unseeded bootstrap should vary, got only {cis!r}"
+def test_confidence_ci_uses_fresh_entropy_without_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No run_seed -> request fresh entropy for every aggregate call.
+
+    The rounded bootstrap CI can legitimately coincide across different RNG
+    seeds, so assert the entropy contract directly instead of relying on
+    probabilistic output variation.
+    """
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=10, confidence_rounding=2)
+    analyses = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(10)] + [
+        _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(10)
+    ]
+    calls: list[int] = []
+    seeds = iter([101, 202, 303])
+
+    def fake_randbits(k: int) -> int:
+        calls.append(k)
+        return next(seeds)
+
+    monkeypatch.setattr("sidira_simulator.services.scoring.secrets.randbits", fake_randbits)
+
+    for _ in range(3):
+        assert ScoringService.aggregate(analyses, cfg).confidence_score_ci is not None
+
+    assert calls == [53, 53, 53]
 
 
 def test_n50_ci_narrower_than_n6() -> None:
     """The calibration promise as an aggregate-level test: 50 agents with the
     same sentiment/weakness mix produces a strictly narrower CI than 6."""
+
     # 50% positive, 50% negative-with-weakness — same mix at both sizes
     def make(n: int) -> list:
         half = n // 2
-        return [
-            _analysis(f"p{i}", Sentiment.POSITIVE) for i in range(half)
-        ] + [
+        return [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(half)] + [
             _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
             for i in range(n - half)
         ]
@@ -471,13 +465,9 @@ def test_aggregate_30_percent_failures_does_not_degrade() -> None:
 
     10 agents × 2 classifications = 20 total. 6 failed = 30%. Mix of pos/neg
     among the successful ones to keep the score recognizable."""
-    successful = (
-        [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(5)]
-        + [
-            _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"])
-            for i in range(2)
-        ]
-    )
+    successful = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(5)] + [
+        _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(2)
+    ]
     # 3 fully-failed agents = 6 failed classifications out of 20 = 30%
     failed = [_failed_analysis(f"f{i}") for i in range(3)]
     baseline = ScoringService.aggregate(successful + failed, _DEGRADE_CFG)
@@ -489,9 +479,7 @@ def test_aggregate_30_percent_failures_does_not_degrade() -> None:
     control = ScoringService.aggregate(no_flags, _DEGRADE_CFG)
     assert baseline.confidence_score == control.confidence_score
     # And no degradation row prepended
-    assert not any(
-        "LLM classifications failed" in w.summary for w in baseline.weaknesses
-    )
+    assert not any("LLM classifications failed" in w.summary for w in baseline.weaknesses)
 
 
 def test_aggregate_at_exactly_50_percent_does_not_degrade() -> None:
@@ -501,9 +489,7 @@ def test_aggregate_at_exactly_50_percent_does_not_degrade() -> None:
     successful = [_analysis(f"s{i}", Sentiment.POSITIVE) for i in range(5)]
     failed = [_failed_analysis(f"f{i}") for i in range(5)]
     result = ScoringService.aggregate(successful + failed, _DEGRADE_CFG)
-    assert not any(
-        "LLM classifications failed" in w.summary for w in result.weaknesses
-    )
+    assert not any("LLM classifications failed" in w.summary for w in result.weaknesses)
 
 
 def test_aggregate_just_above_50_percent_does_degrade() -> None:
@@ -524,9 +510,7 @@ def test_aggregate_just_above_50_percent_does_degrade() -> None:
     fully_failed = [_failed_analysis(f"f{i}") for i in range(5)]
     analyses = healthy + sentiment_only_failed + fully_failed
     assert len(analyses) == 10  # sanity: agent count
-    total_failed = sum(
-        int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses
-    )
+    total_failed = sum(int(a.weakness_failed) + int(a.sentiment_failed) for a in analyses)
     assert total_failed == 11
     assert 2 * len(analyses) == 20
     assert total_failed / 20 > 0.5  # sanity: we crossed the threshold
@@ -545,9 +529,7 @@ def test_aggregate_both_gates_collapse_to_single_underpowered_row() -> None:
     # 2 agents (< min_sample_size=5) AND both fully failed (100% > 50%)
     analyses = [_failed_analysis("a1"), _failed_analysis("a2")]
     result = ScoringService.aggregate(analyses, cfg)
-    underpowered_rows = [
-        w for w in result.weaknesses if w.category == "underpowered_design"
-    ]
+    underpowered_rows = [w for w in result.weaknesses if w.category == "underpowered_design"]
     assert len(underpowered_rows) == 1, (
         f"expected one merged row when both gates fire, got "
         f"{len(underpowered_rows)}: {[w.summary for w in underpowered_rows]}"
@@ -569,14 +551,10 @@ def test_aggregate_degradation_discounts_bootstrap_ci_too() -> None:
     failed = [_failed_analysis(f"a{i}") for i in range(10)]
     degraded = ScoringService.aggregate(failed, cfg, run_seed=42)
     # Same shape but flags cleared → no degradation, CI unaffected
-    flags_off = [
-        _analysis(f"a{i}", Sentiment.NEUTRAL, confidence=0.0) for i in range(10)
-    ]
+    flags_off = [_analysis(f"a{i}", Sentiment.NEUTRAL, confidence=0.0) for i in range(10)]
     healthy = ScoringService.aggregate(flags_off, cfg, run_seed=42)
     # Score discounted by 30%
-    assert degraded.confidence_score == pytest.approx(
-        healthy.confidence_score * 0.7, abs=0.5
-    )
+    assert degraded.confidence_score == pytest.approx(healthy.confidence_score * 0.7, abs=0.5)
     # CI bounds shifted in the same direction
     assert degraded.confidence_score_ci is not None
     assert healthy.confidence_score_ci is not None
@@ -667,7 +645,9 @@ async def test_analyze_warns_on_weakness_classification_failure() -> None:
     # equality + all four kwargs pinned (codex P2: substring + partial-kwargs
     # let a future regression drop fields silently).
     warn_events = [
-        e for e in captured if e.get("log_level") == "warning"
+        e
+        for e in captured
+        if e.get("log_level") == "warning"
         and e.get("event") == "scoring.weakness_classification_failed"
     ]
     assert len(warn_events) == 1, f"expected 1 weakness-failure WARN, got {warn_events!r}"
@@ -706,7 +686,9 @@ async def test_analyze_warns_on_sentiment_classification_failure() -> None:
     assert analysis.weakness_failed is False
     # Same tightening as the weakness test: exact event-name + all four kwargs.
     warn_events = [
-        e for e in captured if e.get("log_level") == "warning"
+        e
+        for e in captured
+        if e.get("log_level") == "warning"
         and e.get("event") == "scoring.sentiment_classification_failed"
     ]
     assert len(warn_events) == 1, f"expected 1 sentiment-failure WARN, got {warn_events!r}"

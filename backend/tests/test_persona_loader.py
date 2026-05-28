@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from pythia_simulator.adapters.base import ArtifactNotFound, ArtifactSchemaError
-from pythia_simulator.adapters.persona_loader import PersonaPackLoader
-from pythia_simulator.adapters.r2 import LocalArtifactStore
+from sidira_simulator.adapters.base import ArtifactNotFound, ArtifactSchemaError
+from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+from sidira_simulator.adapters.r2 import LocalArtifactStore
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 
