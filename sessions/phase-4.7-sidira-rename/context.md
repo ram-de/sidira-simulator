@@ -12,7 +12,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] #111 -- Rename simulator product surface to Sidira. Branch: `codex/111-sidira-product-surface`. Project status: In Progress.
+- [ ] None. #111 is merged; next pickup is #113 or #112.
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -26,12 +26,13 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Rebased code commit after session save: `0ce0b63 feat: rename product surface to Sidira`.
 - Codex review clear: no discrete correctness issue introduced by the diff.
 - PR opened: #116 (`https://github.com/ram-de/pythia-simulator/pull/116`).
+- PR #116 squash-merged to `main` as `fb620a1` (`feat: rename product surface to Sidira (#116)`).
+- #111 closed as completed and Project status verified as Done.
 
 ## Next Steps
-1. Watch PR #116.
-2. Merge #116 after checks/review are acceptable.
-3. After merge, close #111 and update Project status if automation does not.
-4. Pick up #113 or #112 next.
+1. Pick up #113 (public config/env and external labels) if the next goal is production readiness without code package churn.
+2. Pick up #112 (package/module/import rename) if the next goal is deeper code identity cleanup.
+3. Keep #115 (domain/project/repo metadata) for the last coordination pass after package/config decisions settle.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -47,6 +48,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Historical session logs should not be bulk rewritten. Remaining `Pythia` references under `sessions/**` are archive context unless a specific active session file needs a note.
 - Canonical brand: Sidira. Canonical domain: sidira.ai.
 - Remaining #111-scope `rg "Pythia|pythia|PYTHIA" frontend/app frontend/components backend/pythia_simulator/main.py` hits are intentionally not changed in this ticket: `pythia_simulator` import path, `PYTHIA_CORS_ORIGINS`, and `pythia.*` browser draft-storage keys.
+- PR #116 shipped the visible product surface only. Package/module/env/repo names remain intentionally tracked by #112/#113/#115.
 
 ## For my cofounder
-Session opened 2026-05-28. Starting with #111 because it gives immediate product consistency with low blast radius. Package/module/env/repo renames are tracked separately in #112/#113/#115 and should not leak into this first PR.
+Session opened 2026-05-28. #111 is merged. The session remains active for Phase 4.7; next recommended pickup is #113 for outward-facing config labels, then #112 for package/module/import rename after the external surface is stable.
