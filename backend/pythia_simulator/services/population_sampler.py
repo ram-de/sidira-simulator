@@ -17,11 +17,11 @@ for actually instantiating that many agents.
 from __future__ import annotations
 
 import math
-import os
 from collections import Counter
 from typing import Literal
 
 from pythia_simulator.schemas.persona import PersonaPack
+from pythia_simulator.services.runtime_config import resolve_sidira_env
 
 WeightScheme = Literal["head_count", "order_weighted", "revenue_weighted"]
 
@@ -42,7 +42,7 @@ def _resolve_max_agents(arg: int | None) -> int:
         if arg <= 0:
             raise ValueError(f"max_agents must be >= 1, got {arg!r}")
         return arg
-    raw = os.environ.get("PYTHIA_MAX_AGENTS")
+    raw = resolve_sidira_env("MAX_AGENTS")
     if raw is None:
         return _DEFAULT_MAX_AGENTS
     try:

@@ -188,7 +188,7 @@ class SimulationRunner:
         )
 
         # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
-        # max_agents (caller-supplied, derived by the API from PYTHIA_MAX_AGENTS
+        # max_agents (caller-supplied, derived by the API from SIDIRA_MAX_AGENTS
         # so the runner and the persisted sampled_agent_count never disagree).
         # When None, allocate() falls back to env/default. sample_index is
         # per-persona (0..count-1) and feeds into draw_identity_seed's RNG seed.

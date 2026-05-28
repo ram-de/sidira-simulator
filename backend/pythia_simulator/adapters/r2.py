@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Protocol
 
+from pythia_simulator.services.runtime_config import resolve_sidira_env
+
 
 class ArtifactStore(Protocol):
     def read_text(self, key: str) -> str: ...
@@ -89,4 +91,6 @@ class R2ArtifactStore:
 def get_store() -> ArtifactStore:
     if os.environ.get("R2_BUCKET"):
         return R2ArtifactStore()
-    return LocalArtifactStore(os.environ.get("PYTHIA_LOCAL_ARTIFACTS", "local-artifacts"))
+    root = resolve_sidira_env("LOCAL_ARTIFACTS", "local-artifacts")
+    assert root is not None
+    return LocalArtifactStore(root)

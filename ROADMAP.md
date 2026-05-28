@@ -188,7 +188,8 @@ Small standalone ticket carved out of Phase 5 so persistence can ship before aut
 - Un-stubs `_repos()` to return Postgres-backed repos when `DATABASE_URL` is set.
 - `InMemorySimulationRepo` stays as the local-dev fallback when `DATABASE_URL` is unset.
 - Background-task session lifecycle (orchestrator runs outside request scope).
-- Optional `PYTHIA_AUTO_MIGRATE=1` flag for app-startup migration.
+- Optional `SIDIRA_AUTO_MIGRATE=1` flag for app-startup migration. Legacy
+  `PYTHIA_AUTO_MIGRATE` remains the compatibility fallback during the rename.
 - ~1 day. Blocks Phase 7 (first customer requires a backend that survives restarts).
 
 ### Phase 5 — Auth + multi-tenancy 🔲

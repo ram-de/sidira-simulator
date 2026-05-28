@@ -307,7 +307,7 @@ Snowflake credentials enter via the Connect form and are immediately encrypted b
 
 | Mode | Use | Key location |
 |---|---|---|
-| **`local`** | Dev only | Symmetric AESGCM key from `PYTHIA_LOCAL_CRED_KEY` env var |
+| **`local`** | Dev only | Symmetric AESGCM key from `SIDIRA_LOCAL_CRED_KEY` env var; legacy `PYTHIA_LOCAL_CRED_KEY` remains a compatibility fallback during the rename |
 | **`kms`** | Production | Per-customer Data Encryption Key (DEK) wrapped by a Key Encryption Key (KEK) in KMS (AWS KMS / Cloudflare KMS). The wrapped DEK and ciphertext are persisted to Postgres; KMS access is audit-logged. |
 
 Key rotation: KMS key rotation triggers a re-encrypt-on-read policy; old wrapped DEKs are unwrapped, rewrapped under the new KEK, and persisted on next access.

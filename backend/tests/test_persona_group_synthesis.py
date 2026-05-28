@@ -7,7 +7,7 @@ Two layers:
    regardless of LLM quality: count-mismatch triggers retry, second mismatch
    triggers deterministic fallback, count-correct outputs pass through.
 
-2. **Rubric eval** (gated behind `PYTHIA_RUN_LLM_EVALS=1` env var) — runs the
+2. **Rubric eval** (gated behind `SIDIRA_RUN_LLM_EVALS=1` env var) — runs the
    real LLM against 10 fixture scenarios and asserts trait-level rubric: must
    contain "N of M" or "N agents split" or non-substantive diagnostic; must
    not hedge ("mixed", "varied", etc.); must not editorialize. Cost per run:
@@ -18,7 +18,6 @@ See `docs/54-synthesis-quality-bar.md` for the locked design.
 
 from __future__ import annotations
 
-import os
 import re
 from dataclasses import dataclass
 
@@ -28,6 +27,7 @@ from pythia_simulator.services.persona_group_synthesis import (
     AgentReply,
     PersonaGroupSynthesisService,
 )
+from pythia_simulator.services.runtime_config import resolve_sidira_env
 
 # Phrases the synthesis MUST NOT use. Global blocklist; every fixture
 # enforces it. Mirrors the negative templates in prompt_composer (#77).
@@ -469,15 +469,16 @@ _FIXTURES: list[SynthesisFixture] = [
 
 
 _LLM_EVAL_REASON = (
-    "Set PYTHIA_RUN_LLM_EVALS=1 to run the synthesis rubric against the real "
+    "Set SIDIRA_RUN_LLM_EVALS=1 to run the synthesis rubric against the real "
     "LLM. Cost: ~10 calls × ~$0.005 ≈ $0.05 per run. Required pre-ship gate "
     "for #54; skip in default CI to avoid spurious failures from network or "
-    "rate-limit issues."
+    "rate-limit issues. Legacy PYTHIA_RUN_LLM_EVALS is still accepted during "
+    "the rename."
 )
 
 
 @pytest.mark.skipif(
-    not os.environ.get("PYTHIA_RUN_LLM_EVALS"),
+    not resolve_sidira_env("RUN_LLM_EVALS"),
     reason=_LLM_EVAL_REASON,
 )
 @pytest.mark.parametrize("fixture", _FIXTURES, ids=[f.name for f in _FIXTURES])

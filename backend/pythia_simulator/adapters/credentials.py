@@ -8,8 +8,8 @@ Envelope encryption pattern:
 - At decrypt time, KMS is called to unwrap the DEK; the DEK then unwraps the
   blob in memory. KMS access is logged for audit.
 
-MVP: a local-symmetric-key fallback (env var `PYTHIA_LOCAL_CRED_KEY`, base64
-Fernet key) for dev only. Production MUST use KMS. The KMS code path is
+MVP: a local-symmetric-key fallback (env var `SIDIRA_LOCAL_CRED_KEY`, base64
+AESGCM key) for dev only. Production MUST use KMS. The KMS code path is
 stubbed and intentionally raises until Phase 5 lands.
 """
 
@@ -20,6 +20,8 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Any
+
+from pythia_simulator.services.runtime_config import resolve_sidira_env
 
 
 class CredentialError(RuntimeError):
@@ -38,12 +40,12 @@ class EncryptedBlob:
 
 def encrypt(plaintext: dict[str, Any]) -> EncryptedBlob:
     """Encrypt a credentials dict for at-rest storage."""
-    mode = os.environ.get("PYTHIA_CRED_MODE", "local")
+    mode = resolve_sidira_env("CRED_MODE", "local")
     if mode == "local":
         return _encrypt_local(plaintext)
     if mode == "kms":
         raise NotImplementedError("Phase 5 — KMS-backed envelope encryption")
-    raise CredentialError(f"Unknown PYTHIA_CRED_MODE: {mode}")
+    raise CredentialError(f"Unknown SIDIRA_CRED_MODE/PYTHIA_CRED_MODE: {mode}")
 
 
 def decrypt(blob: EncryptedBlob) -> dict[str, Any]:
@@ -59,12 +61,14 @@ def decrypt(blob: EncryptedBlob) -> dict[str, Any]:
 # Local-key fallback (dev only)
 # ---------------------------------------------------------------------------
 
+
 def _local_key() -> bytes:
-    raw = os.environ.get("PYTHIA_LOCAL_CRED_KEY")
+    raw = resolve_sidira_env("LOCAL_CRED_KEY")
     if not raw:
         raise CredentialError(
-            "PYTHIA_LOCAL_CRED_KEY not set. For dev, generate with: "
+            "SIDIRA_LOCAL_CRED_KEY not set. For dev, generate with: "
             "python -c 'import secrets,base64;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())'"
+            ". Legacy PYTHIA_LOCAL_CRED_KEY is still accepted during the rename."
         )
     return base64.urlsafe_b64decode(raw)
 

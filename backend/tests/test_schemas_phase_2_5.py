@@ -120,12 +120,13 @@ def test_agent_instance_accepts_identity_seed() -> None:
 
 
 def test_max_agents_env_defaults_when_malformed(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Codex P2: PYTHIA_MAX_AGENTS='abc' must not 500 the POST. Fall back to 50."""
+    """Codex P2: SIDIRA_MAX_AGENTS='abc' must not 500 the POST. Fall back to 50."""
     from fastapi.testclient import TestClient
 
     from pythia_simulator.main import create_app
 
-    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "abc")
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "abc")
     client = TestClient(create_app())
     resp = client.post(
         "/simulations",
@@ -140,12 +141,13 @@ def test_max_agents_env_defaults_when_malformed(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_max_agents_env_clamped_to_min_one(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Codex P2: PYTHIA_MAX_AGENTS=0 must not derive a zero-agent run."""
+    """Codex P2: SIDIRA_MAX_AGENTS=0 must not derive a zero-agent run."""
     from fastapi.testclient import TestClient
 
     from pythia_simulator.main import create_app
 
-    monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "0")
     client = TestClient(create_app())
     resp = client.post(
         "/simulations",

@@ -19,7 +19,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
-os.environ.setdefault("PYTHIA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
 from pythia_simulator.adapters import llm as llm_mod  # noqa: E402
 from pythia_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
