@@ -14,8 +14,9 @@ Canonical Phase 4.7 hostnames:
 - `app.sidira.ai` has no DNS answer yet.
 - `api.sidira.ai` has no DNS answer yet.
 - Route 53 public hosted zone exists: `Z01279103CLJX7PS4TEFN`.
-- Current registrar nameservers are still Namecheap:
-  `dns1.registrar-servers.com`, `dns2.registrar-servers.com`.
+- Namecheap registrar nameservers were updated to Route 53 Custom DNS on
+  2026-05-28. Public `dig NS sidira.ai` still returned the previous Namecheap
+  delegation immediately after save, so propagation is pending.
 - Route 53 assigned nameservers:
   `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
   `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
@@ -128,7 +129,7 @@ Route 53:
   `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
   `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
 - In Namecheap, set Domain > Nameservers to Custom DNS and paste the four Route
-  53 nameservers.
+  53 nameservers. Done 2026-05-28; propagation pending.
 - Expect DNS propagation to take minutes to hours; keep checking with
   `dig NS sidira.ai`.
 
