@@ -7,11 +7,13 @@ import {
   createSimulation,
   getActivePersonas,
   getCapabilities,
+  getSimulationLimits,
   listSupportedModels,
   type ActivePersonasResponse,
   type FeaturePackManifest,
   type ModelInfo,
   type PersonaSummary,
+  type SimulationLimitsResponse,
   type SimulationRequest,
 } from "@/lib/api";
 
@@ -57,11 +59,6 @@ export default function NewSimulationPage() {
   // emergency rollback is a one-line flip.
   const AB_MODE_DISABLED_UNTIL_LIFT = false;
   const [abMode, setAbMode] = useState(false);
-  // Wizard-side mirror of the API's hard per-arm cap. Matches
-  // PYTHIA_MAX_AGENTS in the default env (50). The cost preview uses
-  // this to show realistic agent counts instead of the unclamped
-  // populationSize.
-  const WIZARD_PER_ARM_CAP = 50;
   // The "confirm-if-large" threshold from docs/4.6 Q4. When total agents
   // (across both arms) exceeds this, the PM gets an explicit
   // acknowledgement step before submit.
@@ -77,6 +74,11 @@ export default function NewSimulationPage() {
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [loadingModels, setLoadingModels] = useState(true);
   const [modelsError, setModelsError] = useState<string | null>(null);
+
+  const [simulationLimits, setSimulationLimits] =
+    useState<SimulationLimitsResponse | null>(null);
+  const [loadingLimits, setLoadingLimits] = useState(true);
+  const [limitsError, setLimitsError] = useState<string | null>(null);
 
   // Phase 5 #101: persona filter. Default = all personas selected (today's
   // behavior). PM can uncheck individual personas behind "Advanced options"
@@ -153,6 +155,29 @@ export default function NewSimulationPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await getSimulationLimits();
+        if (cancelled) return;
+        setSimulationLimits(resp);
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof Error) {
+          setLimitsError(`Could not load simulation limits: ${e.message}`);
+        } else {
+          setLimitsError("Could not load simulation limits.");
+        }
+      } finally {
+        if (!cancelled) setLoadingLimits(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Phase 5 #101: load the active Persona Pack on mount so the filter
   // checkbox list has names + weights. Default = all checked.
   useEffect(() => {
@@ -184,7 +209,14 @@ export default function NewSimulationPage() {
 
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
-  const formDisabled = loadingCaps || loadingModels || !hasCapabilities || submitting;
+  const activePerArmCap = simulationLimits?.max_agents_per_arm ?? null;
+  const formDisabled =
+    loadingCaps ||
+    loadingModels ||
+    loadingLimits ||
+    simulationLimits == null ||
+    !hasCapabilities ||
+    submitting;
   // Phase 5 #101: derive filter state.
   const totalPersonaCount = activePersonas.length;
   const selectedCount = selectedPersonas.size;
@@ -225,10 +257,16 @@ export default function NewSimulationPage() {
       );
       return;
     }
+    if (activePerArmCap == null) {
+      setValidationError(
+        "Simulation limits are unavailable. Reload after the backend is reachable.",
+      );
+      return;
+    }
 
     // Phase 4.6 #88: when A/B mode is on, total agents = 2 × per_arm.
     // The PM has to acknowledge the cost if total exceeds the threshold.
-    const perArmAgents = Math.min(populationSize, WIZARD_PER_ARM_CAP);
+    const perArmAgents = Math.min(populationSize, activePerArmCap);
     const totalAgents = abMode ? 2 * perArmAgents : perArmAgents;
     if (
       abMode &&
@@ -388,19 +426,33 @@ export default function NewSimulationPage() {
           />
           <div style={helperStyle}>
             How many users this hypothesis affects.{" "}
-            {populationSize != null && populationSize > 0 ? (
+            {loadingLimits ? (
+              <>Loading simulation limits...</>
+            ) : limitsError ? (
+              <>Simulation limits are unavailable; run is disabled.</>
+            ) : activePerArmCap != null &&
+              populationSize != null &&
+              populationSize > 0 ? (
               <>
                 We&rsquo;ll stratify down to{" "}
                 <strong>
-                  {Math.min(populationSize, 50)} sampled agent
-                  {Math.min(populationSize, 50) === 1 ? "" : "s"}
+                  {Math.min(populationSize, activePerArmCap)} sampled agent
+                  {Math.min(populationSize, activePerArmCap) === 1 ? "" : "s"}
                 </strong>{" "}
                 in proportion to your persona weights.
+                {populationSize > activePerArmCap && (
+                  <> Backend cap: {activePerArmCap} agents.</>
+                )}
               </>
             ) : (
               <>Enter a number between 1 and 10,000.</>
             )}
           </div>
+          {limitsError && (
+            <div style={{ ...helperStyle, color: "#8a5a00", marginTop: 4 }}>
+              {limitsError} Reload after the backend is reachable.
+            </div>
+          )}
         </div>
 
         <ModelSelectorSection
@@ -422,12 +474,13 @@ export default function NewSimulationPage() {
             if (!next) setAcknowledgedLargeRun(false);
           }}
           populationSize={populationSize}
-          perArmCap={WIZARD_PER_ARM_CAP}
+          perArmCap={activePerArmCap}
           confirmThreshold={CONFIRM_TOTAL_AGENTS_THRESHOLD}
           acknowledged={acknowledgedLargeRun}
           onAcknowledge={setAcknowledgedLargeRun}
           disabled={formDisabled || AB_MODE_DISABLED_UNTIL_LIFT}
           stagedRolloutNote={AB_MODE_DISABLED_UNTIL_LIFT}
+          capError={limitsError}
         />
 
         <div style={fieldGroup}>
@@ -635,11 +688,12 @@ function ABModeSection({
   onAcknowledge,
   disabled,
   stagedRolloutNote,
+  capError,
 }: {
   enabled: boolean;
   onToggle: (next: boolean) => void;
   populationSize: number | null;
-  perArmCap: number;
+  perArmCap: number | null;
   confirmThreshold: number;
   acknowledged: boolean;
   onAcknowledge: (next: boolean) => void;
@@ -649,9 +703,12 @@ function ABModeSection({
   // parent when AB_MODE_DISABLED_UNTIL_LIFT is on. Once #89 wires the
   // dual-arm runner, the parent flips this to false.
   stagedRolloutNote: boolean;
+  capError: string | null;
 }) {
   const perArm =
-    populationSize != null ? Math.min(populationSize, perArmCap) : 0;
+    populationSize != null && perArmCap != null
+      ? Math.min(populationSize, perArmCap)
+      : 0;
   const totalAgents = 2 * perArm;
   const isLarge = totalAgents > confirmThreshold;
 
@@ -714,13 +771,25 @@ function ABModeSection({
       )}
       {!stagedRolloutNote && (
         <div id="ab-mode-helper" style={{ ...helperStyle, marginLeft: 24 }}>
-          {enabled && populationSize != null && populationSize > 0 ? (
+          {enabled && capError ? (
+            <>Simulation limits are unavailable; A/B preview is disabled.</>
+          ) : enabled &&
+            populationSize != null &&
+            populationSize > 0 &&
+            perArmCap != null ? (
             <>
               ≈ <strong>{perArm} treatment + {perArm} control</strong> ={" "}
               <strong>{totalAgents} LLM agents</strong> for this run. Each
               persona is paired across arms (same identity reacts to BOTH the
               current product and the proposed change), so the lift is a
               within-persona delta — not an apples-to-oranges comparison.
+              {populationSize > perArmCap && (
+                <>
+                  {" "}Backend cap applies: requested population{" "}
+                  {populationSize.toLocaleString()} is capped at {perArm} agents
+                  per arm.
+                </>
+              )}
             </>
           ) : enabled ? (
             <>Enter a population size above to see the agent count.</>
@@ -730,6 +799,11 @@ function ABModeSection({
               arm (sees the proposed change) and a control arm (sees the
               current product), and reports a predicted lift between them.
             </>
+          )}
+          {capError && (
+            <div style={{ marginTop: 6, color: "#8a5a00" }}>
+              {capError} Reload after the backend is reachable.
+            </div>
           )}
         </div>
       )}

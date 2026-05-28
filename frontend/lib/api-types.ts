@@ -277,6 +277,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/config/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Limits
+         * @description Return effective caps for this backend process.
+         *
+         *     A/B v1 treats `population_size` as a per-arm target, so the same resolved
+         *     cap applies both to single-arm runs and to each arm in A/B mode.
+         */
+        get: operations["get_limits_config_limits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/capabilities": {
         parameters: {
             query?: never;
@@ -1320,6 +1343,16 @@ export interface components {
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
         };
+        /**
+         * SimulationLimitsResponse
+         * @description Limits that affect simulation cost previews and request shaping.
+         */
+        SimulationLimitsResponse: {
+            /** Max Agents Per Simulation */
+            max_agents_per_simulation: number;
+            /** Max Agents Per Arm */
+            max_agents_per_arm: number;
+        };
         /** SimulationListItem */
         SimulationListItem: {
             /** Id */
@@ -2000,6 +2033,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListModelsResponse"];
+                };
+            };
+        };
+    };
+    get_limits_config_limits_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationLimitsResponse"];
                 };
             };
         };

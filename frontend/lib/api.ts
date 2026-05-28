@@ -21,6 +21,8 @@ export type SimulationResult = components["schemas"]["SimulationResult"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type ModelInfo = components["schemas"]["ModelInfo"];
 export type ListModelsResponse = components["schemas"]["ListModelsResponse"];
+export type SimulationLimitsResponse =
+  components["schemas"]["SimulationLimitsResponse"];
 export type ArmSplit = components["schemas"]["ArmSplit"];
 export type Weakness = components["schemas"]["Weakness"];
 export type AgentInstance = components["schemas"]["AgentInstance"];
@@ -83,6 +85,9 @@ export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities"
 
 export const listSupportedModels = () =>
   apiGet<ListModelsResponse>("/models");
+
+export const getSimulationLimits = () =>
+  apiGet<SimulationLimitsResponse>("/config/limits");
 
 // Phase 5 #101: list the active Persona Pack's personas for the wizard's
 // persona-filter checkbox list.
