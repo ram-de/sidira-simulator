@@ -2,20 +2,20 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-27 (#98 arm-scoped persona chat shipped)
+**Last updated:** 2026-05-27 (#103 model selection shipped)
 
 ---
 
 ## What just shipped
+
+✅ **#103 -- model selection, SHIPPED 2026-05-27 (PR #105, commit `ea5440e`, session `model-selection`).**
+PMs can now pick the LLM provider/model that powers a simulation while preserving the Groq `llama-3.3-70b-versatile` default. Backend exposes `GET /models` filtered to configured providers, validates unknown/unavailable `model_id`s up front, persists the selected model on each simulation, and routes sim reactions, scoring, refinement, follow-up agent chat, persona-group collective fan-out, and synthesis through that same model. A/B mode uses one selected model for both arms so paired-lift math stays apples-to-apples. The wizard shows grouped Groq/Anthropic/OpenAI choices, and result pages show the model used while legacy rows with `NULL model_id` render as untracked instead of being mislabeled. Groq selection now includes GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, Llama 4 Scout, and the existing Llama defaults. Verification: backend 346 passed / 10 skipped, frontend typecheck clean, live `/models` + wizard rendering verified, Codex review clear.
 
 ✅ **#101 -- persona filter, SHIPPED 2026-05-27 (PR #102, commit `2a313c1`, session `persona-filter`).**
 PMs can narrow a sim to a subset of personas via a checkbox list behind the wizard's "Advanced options" disclosure. Default unchanged (all personas). Allocator re-weights the selected personas' weights to sum to 1 before largest-remainder, so a 12%-weight persona selected solo gets the full 50 agents -- preserves the cohort sample size. New `GET /personas` endpoint feeds the wizard's checkbox list. Cohort banner on the result page surfaces "filtered to N of M personas: {names}" so a PM revisiting the page in two weeks remembers they filtered. A/B mode + filter compose symmetrically (same persona subset in both arms preserves the #89 paired-sampling invariant). Backend suite at 327 passed / 10 skipped (15 new #101 tests). Codex review: 2 rounds, 1 P2 fixed, R2 GATE PASS.
 
 ✅ **#98 -- arm-scoped persona-group chat, SHIPPED 2026-05-27 (PR #104, commit `bdac59b`, session `arm-scoped-persona-chat`).**
 A/B persona rows now expose separate Treatment and Control persona-group chat rooms (`💬 T` / `💬 C`) instead of disabling group chat. Backend chat POST/GET routes accept `?arm=treatment|control`, filter fan-out/replay to that arm, and physically isolate transcripts under `persona_groups/<persona_id>/<arm>/turns.jsonl`. Persona-group feedback is also arm-scoped via `{sim_id}/{persona_id}/{arm}` target IDs so T/C turn indexes cannot collide. Direct/old A/B calls without `?arm=` now 400 instead of recreating the mixed treatment/control room. Empty-arm chat pills are disabled when a persona has no surviving agents in that arm. Verification: backend 331 passed / 10 skipped, frontend typecheck + build clean, Codex review clear.
-
-**One follow-up filed on top of #101:**
-- **#103** -- model selection (multi-provider: Anthropic + OpenAI + Groq). PMs pick the LLM that powers the agents. Motivating reason: better agent reasoning on subtle hypotheses (autoplay-is-divisive on llama would benefit from Opus-level inference). Filed 2026-05-27, ~3-4 days, biggest piece is the multi-provider `ChatClient` abstraction. A/B mode enforces same-model-in-both-arms (preserves #90 paired-lift invariant).
 
 ---
 

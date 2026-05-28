@@ -1,8 +1,9 @@
 ---
 type: session
 domain: model-selection
-status: active
+status: closed
 started: 2026-05-27
+closed: 2026-05-27
 owner: ram-de
 ---
 
@@ -12,7 +13,7 @@ owner: ram-de
 Ship #103: let PMs choose which LLM powers a simulation, spanning Groq, Anthropic, and OpenAI, while preserving today's Groq default and enforcing one model per simulation/A-B run.
 
 ## In Progress
-- [ ] PR #105 is open; wait for checks/review, then merge and close #103/session.
+(none)
 
 ## Completed
 - [x] Closed prior `arm-scoped-persona-chat` session and verified #98 Project status is Done.
@@ -33,10 +34,11 @@ Ship #103: let PMs choose which LLM powers a simulation, spanning Groq, Anthropi
 - [x] Pushed `feat/103-model-selection` and opened PR #105: https://github.com/ram-de/pythia-simulator/pull/105
 - [x] Updated still-open PR #105 with expanded Groq model selection: GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, and Llama 4 Scout; refreshed routing, result labels, tests, and PR body.
 - [x] Re-verified after expansion: backend `./.venv/bin/pytest tests/` = 346 passed / 10 skipped; frontend `npm run typecheck` passed; `git diff --check` clean; `/models`, wizard rendering, and `/codex review` were clear.
+- [x] Merged PR #105 into `main` with squash commit `ea5440e`.
+- [x] Confirmed GitHub issue #103 is closed as completed and its Pythia Project status is Done.
 
 ## Next Steps
-1. Watch PR #105 checks/review and merge when green.
-2. After merge, confirm GitHub Project #103 is Done, close this session, and update `CONTEXT.md` if the shipped model-selection UX should be called out in the sprint narrative.
+- session complete
 
 ## Key Files
 - `backend/pythia_simulator/adapters/llm.py` -- current single-provider-ish ChatClient, Groq default, Anthropic fallback.
@@ -70,4 +72,4 @@ Discovery notes:
 - Groq expansion deliberately adds chat/text models exposed by the current Groq catalog and omits audio/tooling-only systems. The `openai/gpt-oss-*` IDs route through Groq because they are Groq-hosted open-weight model IDs.
 
 ## For my cofounder
-#103 is implemented on `feat/103-model-selection` and PR #105 is open with the expanded Groq catalog. The important design decision is that a simulation stores one `model_id`, and every LLM call tied to that run uses that model, including later agent/persona chat; legacy rows with `NULL model_id` render as untracked rather than being mislabeled as Groq.
+#103 shipped to `main` in PR #105 / commit `ea5440e`. The important design decision is that a simulation stores one `model_id`, and every LLM call tied to that run uses that model, including later agent/persona chat; legacy rows with `NULL model_id` render as untracked rather than being mislabeled as Groq.
