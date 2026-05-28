@@ -121,7 +121,7 @@ This is the smoke test: a hypothesis goes in, 6 agents react, score comes back. 
 cd ~/Projects/pythia-simulator/backend
 source .venv/bin/activate
 cp .env.example .env   # first run only; add GROQ_API_KEY to .env
-uvicorn pythia_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-file .env
+uvicorn sidira_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-file .env
 ```
 
 **Terminal 2 — frontend:**

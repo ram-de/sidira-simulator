@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pythia_simulator.adapters.db_models import (
+from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
     Base,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from pythia_simulator.main import app
+from sidira_simulator.main import app
 
 
 def _clear_max_agents_env(monkeypatch) -> None:

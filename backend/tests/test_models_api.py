@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
-from pythia_simulator.main import app  # noqa: E402
+from sidira_simulator.main import app  # noqa: E402
 
 
 def test_get_models_returns_only_keyed_models_and_marks_default(monkeypatch) -> None:

@@ -14,8 +14,8 @@ import httpx
 import pytest
 from openai import APIError, RateLimitError
 
-from pythia_simulator.adapters import llm as llm_module
-from pythia_simulator.adapters.llm import GroqChat
+from sidira_simulator.adapters import llm as llm_module
+from sidira_simulator.adapters.llm import GroqChat
 
 
 def _rate_limit_error() -> RateLimitError:

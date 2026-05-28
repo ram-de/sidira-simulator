@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from pythia_simulator.memory.agent_memory import AgentMemory
-from pythia_simulator.schemas.agent import AgentInstanceMetadata
-from pythia_simulator.schemas.identity import IdentitySeed
+from sidira_simulator.memory.agent_memory import AgentMemory
+from sidira_simulator.schemas.agent import AgentInstanceMetadata
+from sidira_simulator.schemas.identity import IdentitySeed
 
 
 class _FakeArtifactStore:

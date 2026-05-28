@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from pythia_simulator.adapters.r2 import LocalArtifactStore
-from pythia_simulator.memory.feedback_log import FeedbackLog
-from pythia_simulator.schemas.feedback import FeedbackEvent, FeedbackTargetKind
+from sidira_simulator.adapters.r2 import LocalArtifactStore
+from sidira_simulator.memory.feedback_log import FeedbackLog
+from sidira_simulator.schemas.feedback import FeedbackEvent, FeedbackTargetKind
 
 
 @pytest.fixture
@@ -42,12 +42,15 @@ def _ev(
 def test_empty_log_reads_empty(store) -> None:
     flog = FeedbackLog(store)
     assert flog.read_all(customer_id="demo", simulation_id="s1") == []
-    assert flog.latest_flags(
-        customer_id="demo",
-        simulation_id="s1",
-        target_kind=FeedbackTargetKind.AGENT,
-        target_id="a1",
-    ) == {}
+    assert (
+        flog.latest_flags(
+            customer_id="demo",
+            simulation_id="s1",
+            target_kind=FeedbackTargetKind.AGENT,
+            target_id="a1",
+        )
+        == {}
+    )
 
 
 def test_single_event_round_trips(store) -> None:

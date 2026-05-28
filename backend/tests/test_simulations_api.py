@@ -19,11 +19,11 @@ from fastapi.testclient import TestClient
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
-from pythia_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
-from pythia_simulator.api.deps import get_orchestrator  # noqa: E402
-from pythia_simulator.main import app  # noqa: E402
-from pythia_simulator.services.simulation_orchestrator import SimulationOrchestrator  # noqa: E402
-from pythia_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
+from sidira_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
+from sidira_simulator.api.deps import get_orchestrator  # noqa: E402
+from sidira_simulator.main import app  # noqa: E402
+from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator  # noqa: E402
+from sidira_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
 
 
 class _StubChat:
@@ -48,7 +48,7 @@ class _StubChat:
 
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
         self.json_calls.append((schema, messages))
-        from pythia_simulator.schemas.scoring import (
+        from sidira_simulator.schemas.scoring import (
             RefinementOutput,
             SentimentClassification,
             WeaknessClassification,
@@ -60,7 +60,7 @@ class _StubChat:
                 primary_reason="Stub: user seems mismatched to the proposed cohort.",
             )
         if schema is SentimentClassification:
-            from pythia_simulator.schemas.scoring import Sentiment
+            from sidira_simulator.schemas.scoring import Sentiment
 
             return SentimentClassification(
                 sentiment=Sentiment.POSITIVE,
@@ -90,9 +90,9 @@ def client_with_stub_llm():
 
     runner = SimulationRunner(chat_client=chat)
 
-    from pythia_simulator.adapters.feature_pack_loader import FeaturePackLoader
-    from pythia_simulator.adapters.persona_loader import PersonaPackLoader
-    from pythia_simulator.adapters.r2 import LocalArtifactStore
+    from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
+    from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+    from sidira_simulator.adapters.r2 import LocalArtifactStore
 
     store = LocalArtifactStore(_FIXTURE_ROOT)
     persona_loader = PersonaPackLoader(store)

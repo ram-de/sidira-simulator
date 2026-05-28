@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from pythia_simulator.adapters.llm import JSONRepairError
-from pythia_simulator.schemas.scoring import RefinementInput, RefinementOutput
-from pythia_simulator.schemas.simulation import Weakness
-from pythia_simulator.services.refinement import RefinementService
+from sidira_simulator.adapters.llm import JSONRepairError
+from sidira_simulator.schemas.scoring import RefinementInput, RefinementOutput
+from sidira_simulator.schemas.simulation import Weakness
+from sidira_simulator.services.refinement import RefinementService
 
 
 def _payload(**overrides) -> RefinementInput:
@@ -36,9 +36,7 @@ def test_render_includes_all_inputs() -> None:
 
 
 def test_render_handles_empty_weaknesses() -> None:
-    rendered = RefinementService._render(
-        _payload(top_weaknesses=[], sample_reactions=[])
-    )
+    rendered = RefinementService._render(_payload(top_weaknesses=[], sample_reactions=[]))
     assert "none diagnosed" in rendered
 
 
@@ -97,8 +95,9 @@ async def test_suggest_warns_via_structlog_on_failure() -> None:
         suggestions = await svc.suggest(_payload())
     assert suggestions == []
     warn_events = [
-        e for e in captured if e.get("log_level") == "warning"
-        and e.get("event") == "refinement.failed"
+        e
+        for e in captured
+        if e.get("log_level") == "warning" and e.get("event") == "refinement.failed"
     ]
     assert len(warn_events) == 1, f"expected 1 refinement.failed WARN, got {warn_events!r}"
     assert "LLM returned garbage" in warn_events[0]["error"]

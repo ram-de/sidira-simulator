@@ -21,19 +21,19 @@ from fastapi.testclient import TestClient
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
-from pythia_simulator.adapters import llm as llm_mod  # noqa: E402
-from pythia_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
-from pythia_simulator.api.deps import get_orchestrator  # noqa: E402
-from pythia_simulator.main import app  # noqa: E402
-from pythia_simulator.services import agent_chat as agent_chat_mod  # noqa: E402
-from pythia_simulator.services import (  # noqa: E402
+from sidira_simulator.adapters import llm as llm_mod  # noqa: E402
+from sidira_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
+from sidira_simulator.api.deps import get_orchestrator  # noqa: E402
+from sidira_simulator.main import app  # noqa: E402
+from sidira_simulator.services import agent_chat as agent_chat_mod  # noqa: E402
+from sidira_simulator.services import (  # noqa: E402
     persona_group_collective as collective_mod,
     persona_group_synthesis as synthesis_mod,
 )
-from pythia_simulator.services.simulation_orchestrator import (  # noqa: E402
+from sidira_simulator.services.simulation_orchestrator import (  # noqa: E402
     SimulationOrchestrator,
 )
-from pythia_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
+from sidira_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
 
 
 class _PhaseAwareChat:
@@ -90,7 +90,7 @@ class _PhaseAwareChat:
         return self.reply_for_sim
 
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
-        from pythia_simulator.schemas.scoring import (
+        from sidira_simulator.schemas.scoring import (
             RefinementOutput,
             Sentiment,
             SentimentClassification,
@@ -136,9 +136,9 @@ def client_with_persona_group_stub(monkeypatch):
 
     runner = SimulationRunner(chat_client=chat)
 
-    from pythia_simulator.adapters.feature_pack_loader import FeaturePackLoader
-    from pythia_simulator.adapters.persona_loader import PersonaPackLoader
-    from pythia_simulator.adapters.r2 import LocalArtifactStore
+    from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
+    from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+    from sidira_simulator.adapters.r2 import LocalArtifactStore
 
     store = LocalArtifactStore(_FIXTURE_ROOT)
     persona_loader = PersonaPackLoader(store)
@@ -638,7 +638,7 @@ def test_persona_group_log_persistence_failure_returns_200(
     still return 200. A 500 here would invite the same client-retry
     duplication that the synthesis-failure fix prevents. The audit trail
     degrades; the per-agent logs (source of truth) stay intact."""
-    from pythia_simulator.api import persona_groups as route_mod
+    from sidira_simulator.api import persona_groups as route_mod
 
     client, chat, _agent_repo, _sim_repo = client_with_persona_group_stub
     sim_id = _run_sim(client)
@@ -1007,9 +1007,9 @@ def test_collective_drops_orphan_pm_with_no_reply(
 
     # Manually inject an orphan PM into the group log (bypassing the route)
     # to simulate the partial-append failure mode.
-    from pythia_simulator.adapters.r2 import LocalArtifactStore
-    from pythia_simulator.memory.persona_group_log import PersonaGroupLog
-    from pythia_simulator.schemas.persona_group import (
+    from sidira_simulator.adapters.r2 import LocalArtifactStore
+    from sidira_simulator.memory.persona_group_log import PersonaGroupLog
+    from sidira_simulator.schemas.persona_group import (
         PersonaGroupRole,
         PersonaGroupTurn,
     )
@@ -1083,7 +1083,7 @@ def test_collective_surfaces_unavailable_agents_on_load_failure(
     ]
 
     # Monkeypatch AgentMemory.load to fail for ONE specific agent.
-    from pythia_simulator.memory.agent_memory import AgentMemory
+    from sidira_simulator.memory.agent_memory import AgentMemory
 
     target_failed_id = agent_ids[0]
     original_load = AgentMemory.load
@@ -1119,7 +1119,7 @@ def test_collective_all_loads_fail_returns_502(client_with_persona_group_stub, m
     persona_id, _ = _pick_persona(client, sim_id)
     chat._enter_chat_phase()
 
-    from pythia_simulator.memory.agent_memory import AgentMemory
+    from sidira_simulator.memory.agent_memory import AgentMemory
 
     def _always_fail(self, metadata):
         raise IOError("simulated total store failure")

@@ -14,9 +14,9 @@ import textwrap
 
 import pytest
 
-from pythia_simulator.schemas.persona import BehavioralSeedSchema, Persona
-from pythia_simulator.services import identity_seed as identity_seed_module
-from pythia_simulator.services.identity_seed import (
+from sidira_simulator.schemas.persona import BehavioralSeedSchema, Persona
+from sidira_simulator.services import identity_seed as identity_seed_module
+from sidira_simulator.services.identity_seed import (
     _DEFAULT_BEHAVIORAL_SEEDS,
     draw_identity_seed,
 )
@@ -37,12 +37,8 @@ def _rich_seeds() -> BehavioralSeedSchema:
             "boston",
         ],
         tenure_bands=["<3mo", "3-12mo", "1-3y", "3-5y", "5y+"],
-        current_state_pool=[
-            f"state_{i}" for i in range(12)
-        ],
-        recent_gripe_pool=[
-            f"gripe_{i}" for i in range(12)
-        ],
+        current_state_pool=[f"state_{i}" for i in range(12)],
+        recent_gripe_pool=[f"gripe_{i}" for i in range(12)],
     )
 
 
@@ -115,13 +111,9 @@ def test_seed_falls_back_to_default_schema_when_v1_pack(capsys) -> None:
 
 def test_50_seeds_for_one_persona_produce_distinct_tuples() -> None:
     p = _persona(seeds=_rich_seeds())
-    seeds = [
-        draw_identity_seed(p, sample_index=i, run_seed=2026)
-        for i in range(50)
-    ]
+    seeds = [draw_identity_seed(p, sample_index=i, run_seed=2026) for i in range(50)]
     tuples = {
-        (s.age_band, s.locale_band, s.tenure_band, s.current_state, s.recent_gripe)
-        for s in seeds
+        (s.age_band, s.locale_band, s.tenure_band, s.current_state, s.recent_gripe) for s in seeds
     }
     assert len(tuples) >= 45, f"expected >=45 distinct tuples out of 50, got {len(tuples)}"
 
@@ -132,11 +124,10 @@ def test_cross_process_determinism(tmp_path) -> None:
     Catches anyone "simplifying" the sha256 path to random.Random(str), which
     has implementation-defined string hashing across Python versions.
     """
-    script = textwrap.dedent(
-        """
+    script = textwrap.dedent("""
         import json
-        from pythia_simulator.schemas.persona import BehavioralSeedSchema, Persona
-        from pythia_simulator.services.identity_seed import draw_identity_seed
+        from sidira_simulator.schemas.persona import BehavioralSeedSchema, Persona
+        from sidira_simulator.services.identity_seed import draw_identity_seed
 
         seeds = BehavioralSeedSchema(
             age_bands=["18-24", "25-34", "35-44"],
@@ -148,8 +139,7 @@ def test_cross_process_determinism(tmp_path) -> None:
         p = Persona(id="p_test", name="P", description="d", behavioral_seeds=seeds)
         s = draw_identity_seed(p, sample_index=5, run_seed=99)
         print(s.model_dump_json())
-        """
-    )
+        """)
     script_path = tmp_path / "subproc.py"
     script_path.write_text(script)
     result = subprocess.run(
@@ -177,10 +167,7 @@ def test_demo_persona_overrides_constrain_lex_to_new_tenure() -> None:
     "signed up six weeks ago") must NEVER draw tenure_band="veteran (3y+)".
     Sweep 20 sample indices to make the assertion robust against draw luck."""
     p = _persona(pid="lex_new_explorer", seeds=None)
-    drawn = [
-        draw_identity_seed(p, sample_index=i, run_seed=12345).tenure_band
-        for i in range(20)
-    ]
+    drawn = [draw_identity_seed(p, sample_index=i, run_seed=12345).tenure_band for i in range(20)]
     # Every draw lands in the per-persona override pool ({new (<3mo)} only)
     assert set(drawn) == {"new (<3mo)"}, f"got unexpected tenure bands: {set(drawn)}"
 
@@ -190,14 +177,11 @@ def test_demo_persona_overrides_constrain_maya_to_long_tenure() -> None:
     NEVER draw tenure_band="new (<3mo)" or "early (3-12mo)" — the persona
     description doesn't support those."""
     p = _persona(pid="maya_late_night_premium", seeds=None)
-    drawn = [
-        draw_identity_seed(p, sample_index=i, run_seed=98765).tenure_band
-        for i in range(20)
-    ]
+    drawn = [draw_identity_seed(p, sample_index=i, run_seed=98765).tenure_band for i in range(20)]
     allowed = {"established (1-3y)", "veteran (3y+)"}
-    assert set(drawn).issubset(allowed), (
-        f"maya should never draw new/early tenure; got {set(drawn) - allowed}"
-    )
+    assert set(drawn).issubset(
+        allowed
+    ), f"maya should never draw new/early tenure; got {set(drawn) - allowed}"
 
 
 def test_schema_with_overrides_passes_through_unknown_persona_id() -> None:
@@ -205,7 +189,7 @@ def test_schema_with_overrides_passes_through_unknown_persona_id() -> None:
     unknown persona_id returns the default schema unchanged. Stronger than
     the probabilistic draw test below — directly compares schemas, not
     draws."""
-    from pythia_simulator.services.identity_seed import (
+    from sidira_simulator.services.identity_seed import (
         _DEFAULT_BEHAVIORAL_SEEDS,
         _schema_with_overrides,
     )
@@ -224,10 +208,7 @@ def test_persona_without_override_uses_default_pools_unchanged() -> None:
     untouched. Sanity: the override table is opt-in per persona_id, not a
     global narrowing of the defaults."""
     p = _persona(pid="some_unknown_persona_id", seeds=None)
-    drawn = [
-        draw_identity_seed(p, sample_index=i, run_seed=42).tenure_band
-        for i in range(40)
-    ]
+    drawn = [draw_identity_seed(p, sample_index=i, run_seed=42).tenure_band for i in range(40)]
     # 40 draws from a 4-element pool — should hit at least 3 of the 4
     # default tenure bands.
     assert len(set(drawn)) >= 3, (

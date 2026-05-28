@@ -13,7 +13,7 @@ layer so future refactors don't drift.
 
 from __future__ import annotations
 
-from pythia_simulator.services.persona_group_collective import (
+from sidira_simulator.services.persona_group_collective import (
     CollectiveAgentContext,
     PersonaGroupCollectiveService,
     build_identity_seed_summary,
@@ -58,9 +58,7 @@ def _ctx(label: str, agent_id: str = "") -> CollectiveAgentContext:
 def test_resolves_every_cited_label_in_input() -> None:
     """Every `[label]` in the prose that matches an input agent gets a
     canonical agent_id in references."""
-    chat = _ScriptedChat(
-        ["Two pushed back — [maya_a] said X, [maya_b] said Y. [maya_c] was fine."]
-    )
+    chat = _ScriptedChat(["Two pushed back — [maya_a] said X, [maya_b] said Y. [maya_c] was fine."])
     svc = PersonaGroupCollectiveService(chat_client=chat)
     content, refs = svc.collective_reply(
         persona_name="Late-night premium",

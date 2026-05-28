@@ -284,7 +284,7 @@ Customers' user data lives in their own warehouses (Snowflake first; BigQuery, D
 
 ### Pluggable feature-store adapters
 
-`pythia_simulator/adapters/feature_stores/` defines a `FeatureStore` Protocol satisfied by every warehouse implementation:
+`sidira_simulator/adapters/feature_stores/` defines a `FeatureStore` Protocol satisfied by every warehouse implementation:
 
 ```python
 class FeatureStore(Protocol):

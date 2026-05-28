@@ -11,7 +11,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from pythia_simulator.schemas import (
+from sidira_simulator.schemas import (
     AgentInstance,
     AgentInstanceMetadata,
     Hypothesis,
@@ -20,8 +20,8 @@ from pythia_simulator.schemas import (
     SimulationResult,
     Weakness,
 )
-from pythia_simulator.schemas.persona import BehavioralSeedSchema
-from pythia_simulator.schemas.identity import IdentitySeed
+from sidira_simulator.schemas.persona import BehavioralSeedSchema
+from sidira_simulator.schemas.identity import IdentitySeed
 
 
 def _hypothesis() -> Hypothesis:
@@ -123,7 +123,7 @@ def test_max_agents_env_defaults_when_malformed(monkeypatch: pytest.MonkeyPatch)
     """Codex P2: SIDIRA_MAX_AGENTS='abc' must not 500 the POST. Fall back to 50."""
     from fastapi.testclient import TestClient
 
-    from pythia_simulator.main import create_app
+    from sidira_simulator.main import create_app
 
     monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("SIDIRA_MAX_AGENTS", "abc")
@@ -144,7 +144,7 @@ def test_max_agents_env_clamped_to_min_one(monkeypatch: pytest.MonkeyPatch) -> N
     """Codex P2: SIDIRA_MAX_AGENTS=0 must not derive a zero-agent run."""
     from fastapi.testclient import TestClient
 
-    from pythia_simulator.main import create_app
+    from sidira_simulator.main import create_app
 
     monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("SIDIRA_MAX_AGENTS", "0")
@@ -200,14 +200,10 @@ def test_simulation_request_rejects_out_of_bigint_range_run_seed() -> None:
     not as a database INSERT error."""
     # Just past signed BIGINT max.
     with pytest.raises(ValidationError):
-        SimulationRequest(
-            hypothesis=_hypothesis(), population_size=10, run_seed=2**63
-        )
+        SimulationRequest(hypothesis=_hypothesis(), population_size=10, run_seed=2**63)
     # Just past signed BIGINT min.
     with pytest.raises(ValidationError):
-        SimulationRequest(
-            hypothesis=_hypothesis(), population_size=10, run_seed=-(2**63) - 1
-        )
+        SimulationRequest(hypothesis=_hypothesis(), population_size=10, run_seed=-(2**63) - 1)
 
 
 def test_agent_instance_identity_seed_optional_for_existing_code() -> None:

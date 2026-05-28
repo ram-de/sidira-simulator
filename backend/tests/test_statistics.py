@@ -8,16 +8,14 @@ here as constants so the test suite remains scipy-free.
 
 from __future__ import annotations
 
-import math
 import random
 
 import pytest
 
-from pythia_simulator.services.statistics import (
+from sidira_simulator.services.statistics import (
     bootstrap_percentile_ci,
     wilson_interval,
 )
-
 
 # ── Wilson interval ─────────────────────────────────────────────────────
 
@@ -80,12 +78,8 @@ def _mean(xs):
 def test_bootstrap_deterministic_given_rng() -> None:
     """Two calls with separately-constructed Random(42) rngs produce identical CIs."""
     data = [0.1, 0.4, 0.5, 0.6, 0.9, 0.3, 0.7, 0.2, 0.8, 0.5]
-    ci_a = bootstrap_percentile_ci(
-        data, _mean, n_resamples=500, rng=random.Random(42)
-    )
-    ci_b = bootstrap_percentile_ci(
-        data, _mean, n_resamples=500, rng=random.Random(42)
-    )
+    ci_a = bootstrap_percentile_ci(data, _mean, n_resamples=500, rng=random.Random(42))
+    ci_b = bootstrap_percentile_ci(data, _mean, n_resamples=500, rng=random.Random(42))
     assert ci_a == ci_b
 
 
@@ -98,26 +92,19 @@ def test_bootstrap_50_narrower_than_6() -> None:
     """
     big = [0.0, 1.0] * 25  # 50 elements, mean 0.5
     small = [0.0, 1.0] * 3  # 6 elements, mean 0.5
-    ci_big = bootstrap_percentile_ci(
-        big, _mean, n_resamples=1000, rng=random.Random(7)
-    )
-    ci_small = bootstrap_percentile_ci(
-        small, _mean, n_resamples=1000, rng=random.Random(7)
-    )
+    ci_big = bootstrap_percentile_ci(big, _mean, n_resamples=1000, rng=random.Random(7))
+    ci_small = bootstrap_percentile_ci(small, _mean, n_resamples=1000, rng=random.Random(7))
     width_big = ci_big[1] - ci_big[0]
     width_small = ci_small[1] - ci_small[0]
     assert width_big < width_small, (
-        f"n=50 CI width {width_big} should be strictly narrower than "
-        f"n=6 CI width {width_small}"
+        f"n=50 CI width {width_big} should be strictly narrower than " f"n=6 CI width {width_small}"
     )
 
 
 def test_bootstrap_n1_returns_degenerate_ci() -> None:
     """Single-element input: every resample picks the same element, so CI collapses
     to a point. Locked from /plan-eng-review T1b."""
-    ci = bootstrap_percentile_ci(
-        [0.42], _mean, n_resamples=100, rng=random.Random(0)
-    )
+    ci = bootstrap_percentile_ci([0.42], _mean, n_resamples=100, rng=random.Random(0))
     assert ci == (0.42, 0.42)
 
 
@@ -141,9 +128,7 @@ def test_bootstrap_ci_brackets_sample_mean_under_iid() -> None:
     rng = random.Random(123)
     data = [rng.gauss(0.5, 0.1) for _ in range(40)]
     sample_mean = _mean(data)
-    ci = bootstrap_percentile_ci(
-        data, _mean, n_resamples=1000, rng=random.Random(123)
-    )
+    ci = bootstrap_percentile_ci(data, _mean, n_resamples=1000, rng=random.Random(123))
     assert ci[0] <= sample_mean <= ci[1]
     # And the CI should be much narrower than the data range
     assert (ci[1] - ci[0]) < 0.2

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pythia_simulator.adapters import llm as llm_module
+from sidira_simulator.adapters import llm as llm_module
 
 
 class _FakeChat:

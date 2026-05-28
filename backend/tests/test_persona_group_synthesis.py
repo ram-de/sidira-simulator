@@ -23,11 +23,11 @@ from dataclasses import dataclass
 
 import pytest
 
-from pythia_simulator.services.persona_group_synthesis import (
+from sidira_simulator.services.persona_group_synthesis import (
     AgentReply,
     PersonaGroupSynthesisService,
 )
-from pythia_simulator.services.runtime_config import resolve_sidira_env
+from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 # Phrases the synthesis MUST NOT use. Global blocklist; every fixture
 # enforces it. Mirrors the negative templates in prompt_composer (#77).
@@ -132,9 +132,7 @@ def test_double_mismatch_falls_back_to_deterministic_template(caplog) -> None:
 
 def test_split_form_passes_count_check() -> None:
     """The 'N agents split' shape is a valid count-claim."""
-    chat = _ScriptedChat(
-        ["3 agents split: a said X, b said Y, c said Z."]
-    )
+    chat = _ScriptedChat(["3 agents split: a said X, b said Y, c said Z."])
     svc = PersonaGroupSynthesisService(chat_client=chat)
     out = svc.synthesize(
         "?",
@@ -146,9 +144,7 @@ def test_split_form_passes_count_check() -> None:
 
 def test_non_substantive_form_passes_count_check() -> None:
     """The diagnostic shape for evasive replies is a valid output."""
-    chat = _ScriptedChat(
-        ["3 agents gave non-substantive replies - re-ask with more specificity."]
-    )
+    chat = _ScriptedChat(["3 agents gave non-substantive replies - re-ask with more specificity."])
     svc = PersonaGroupSynthesisService(chat_client=chat)
     out = svc.synthesize(
         "?",
@@ -273,9 +269,9 @@ def test_prompt_includes_negative_templates() -> None:
     assert system_msg["role"] == "system"
     # The four global hedges that show up most often in templated LLM output
     for phrase in ["mixed", "varied", "this suggests", "interestingly"]:
-        assert phrase in system_msg["content"], (
-            f"system prompt missing banned-phrase guard for {phrase!r}"
-        )
+        assert (
+            phrase in system_msg["content"]
+        ), f"system prompt missing banned-phrase guard for {phrase!r}"
 
 
 def test_prompt_includes_reply_count_and_labels() -> None:
@@ -490,8 +486,7 @@ def test_synthesis_rubric(fixture: SynthesisFixture) -> None:
     # 1. Counted shape — at least one of the allowed regex anchors matches.
     if fixture.must_match_any:
         assert any(re.search(p, out, re.IGNORECASE) for p in fixture.must_match_any), (
-            f"[{fixture.name}] output {out!r} matched none of "
-            f"{fixture.must_match_any}"
+            f"[{fixture.name}] output {out!r} matched none of " f"{fixture.must_match_any}"
         )
 
     # 2. At least one of the expected cause-nouns appears (case-insensitive).
@@ -506,8 +501,7 @@ def test_synthesis_rubric(fixture: SynthesisFixture) -> None:
     lowered = out.lower()
     for phrase in _BANNED_PHRASES + fixture.must_not_contain:
         assert phrase.lower() not in lowered, (
-            f"[{fixture.name}] output {out!r} contained banned phrase "
-            f"{phrase!r}"
+            f"[{fixture.name}] output {out!r} contained banned phrase " f"{phrase!r}"
         )
 
     # 4. Length cap (proxy: at most max_sentences sentence-ending punctuation).

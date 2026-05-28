@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pythia-simulator"
+name = "sidira-simulator"
 version = "0.1.0"
-description = "Pythia simulation backend — API, simulation orchestration, and agent chat"
+description = "Sidira simulation backend — API, simulation orchestration, and agent chat"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110",
@@ -37,10 +37,12 @@ dev = [
 ]
 
 [project.scripts]
-pythia-simulator = "pythia_simulator.cli:cli"
+sidira-simulator = "sidira_simulator.cli:cli"
+# Temporary pre-launch compatibility for existing developer virtualenvs.
+pythia-simulator = "sidira_simulator.cli:cli"
 
 [tool.setuptools.packages.find]
-include = ["pythia_simulator*"]
+include = ["sidira_simulator*"]
 
 [tool.ruff]
 line-length = 100
