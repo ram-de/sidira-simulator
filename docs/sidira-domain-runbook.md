@@ -86,6 +86,25 @@ Use this as the first production topology:
 | Database | Optional Postgres, code merged in #68 | Store the managed Postgres URL as `/sidira/prod/DATABASE_URL`, enable `SIDIRA_AUTO_MIGRATE=1` only for the deployment that should run Alembic, and verify list/detail/agent reloads before relying on durable metadata. |
 | Artifacts | Cloudflare R2 for now | Keep the existing artifact contract; switching storage is a separate migration. |
 
+## Production Postgres Provider Decision
+
+#68 only wired the app to use Postgres when `DATABASE_URL` exists. It did not
+create the production database. Track the actual provider/provisioning work in
+[#128](https://github.com/ram-de/sidira-simulator/issues/128).
+
+For the current alpha footprint (roughly 4-5 users, light daily usage), prefer
+the lowest-ops managed Postgres option:
+
+| Provider | Use when | Tradeoff |
+|---|---|---|
+| Neon | We only need managed/serverless Postgres for Sidira metadata. | Lowest-ops and likely cheapest for intermittent alpha traffic. |
+| Supabase | We expect to use its platform features later: Auth, Storage, Realtime, or auto APIs. | Supabase is not a Postgres replacement; it is managed Postgres plus backend platform services. More product surface than we need today. |
+| AWS RDS Postgres | We need AWS-native VPC/IAM/control-plane integration. | More AWS-native, but heavier and likely more expensive for the current alpha. |
+
+Recommendation: start with Neon unless we deliberately want Supabase Auth or
+Storage soon. RDS is a later upgrade path if AWS-native isolation/control becomes
+more important than low operational overhead.
+
 Do not use AWS App Runner for the first deployment unless the AWS account already
 has App Runner access. AWS now says App Runner is no longer open to new
 customers, so Lightsail Containers is the lower-friction AWS-native backend path

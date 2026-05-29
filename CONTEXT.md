@@ -84,7 +84,7 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 **Phase 5a -- configure production Postgres after #68.**
 
 Current order:
-1. Provision/configure production Postgres through the browser-based AWS/SSM flow: store `/sidira/prod/DATABASE_URL`, run one `SIDIRA_AUTO_MIGRATE=1` deployment, then verify simulation list/detail/agents survive backend restart.
+1. **#128:** choose/provision managed Postgres (Neon recommended first; Supabase if we want its platform features soon; RDS only if AWS-native control matters now), store `/sidira/prod/DATABASE_URL`, run one `SIDIRA_AUTO_MIGRATE=1` deployment, then verify simulation list/detail/agents survive backend restart.
 2. Keep #124 as a later hardening item for proxy auth before broader public access.
 3. Then pick up Phase 5 auth/multi-tenancy work.
 

@@ -87,10 +87,10 @@ What's **not yet real**:
 
 ## What's next
 
-**Post-#68 production database setup.** #68 is merged, so the next operational step is to configure production Postgres through SSM and verify durable metadata in production.
+**Post-#68 production database setup.** #68 is merged, so the next operational step is #128: choose/provision managed Postgres, configure it through SSM, and verify durable metadata in production.
 
 Current ticket order:
-- Configure managed Postgres and store `/sidira/prod/DATABASE_URL` outside git.
+- **#128:** choose the provider (Neon recommended first; Supabase acceptable if we want its platform features; RDS only if AWS-native control matters now), then configure managed Postgres and store `/sidira/prod/DATABASE_URL` outside git.
 - Run one deployment with `/sidira/prod/SIDIRA_AUTO_MIGRATE=1`, then disable it unless intentionally running future migrations.
 - Verify simulation list/detail/agents survive backend restart.
 - Keep #124 as low-priority proxy-auth hardening before broader public access.
