@@ -115,6 +115,7 @@ else
     --name sidira-api \
     --restart unless-stopped \
     --network sidira \
+    --network-alias api \
     --env-file "$ENV_FILE" \
     -e PORT=8000 \
     -v "$REPO_DIR/local-artifacts:/app/local-artifacts:ro" \
