@@ -126,8 +126,9 @@ Current production bootstrap status:
 - Provider keys are not configured yet. Add at least
   `/sidira/prod/GROQ_API_KEY` before expecting live model-backed simulations.
 - The first EC2 deployment uses `/opt/sidira/api.env` generated on the instance.
-  Next hardening step: replace manual env generation with a deploy/start script
-  that reads the approved `/sidira/prod/*` parameters at boot or deploy time.
+  The branch now includes `deploy/ec2-api-deploy.sh` to replace the manual
+  bootstrap with a repeatable deploy/start script that reads approved
+  `/sidira/prod/*` parameters at deploy time.
 
 ## Local vs Production Config
 
@@ -212,10 +213,12 @@ Backend API EC2 VM:
   `sidira-api` plus `sidira-caddy` Docker containers. Done.
 - Create `/opt/sidira/api.env` on the instance with the backend environment
   variables listed above, loaded from AWS-managed secrets. Partially done:
-  current file is instance-local and excludes provider keys.
+  current file is instance-local and excludes provider keys. Branch now includes
+  `deploy/ec2-api-deploy.sh` for the repeatable version.
 - From the repo root on the instance, run the API image behind Caddy. Done with
-  the current branch image; convert to a repeatable deploy script before
-  switching Amplify/backend deployment to `main`.
+  the current branch image; next deploy should use
+  `sudo SIDIRA_DEPLOY_BRANCH=main ./deploy/ec2-api-deploy.sh` after #115
+  merges and provider keys are in Parameter Store.
 - If validating compose before the production env file exists, set
   `SIDIRA_API_ENV_FILE` to a temporary env file path.
 - Verify `https://api.sidira.ai/health` returns `{"status":"ok"}`.

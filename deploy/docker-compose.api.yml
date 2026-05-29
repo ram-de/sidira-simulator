@@ -8,6 +8,8 @@ services:
       PORT: "8000"
     expose:
       - "8000"
+    volumes:
+      - ../local-artifacts:/app/local-artifacts:ro
     restart: unless-stopped
 
   caddy:
