@@ -75,12 +75,15 @@ def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
     api_client = (REPO_ROOT / "frontend" / "lib" / "api.ts").read_text()
     route = (REPO_ROOT / "frontend" / "app" / "api" / "[...path]" / "route.ts").read_text()
     env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
+    next_config = (REPO_ROOT / "frontend" / "next.config.js").read_text()
     runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
     amplify = (REPO_ROOT / "amplify.yml").read_text()
 
     assert 'process.env.NEXT_PUBLIC_API_BASE ?? "/api"' in api_client
     assert "process.env.SIDIRA_API_BASE_INTERNAL" in route
     assert "process.env.SIDIRA_INTERNAL_API_KEY" in route
+    assert "SIDIRA_API_BASE_INTERNAL: process.env.SIDIRA_API_BASE_INTERNAL" in next_config
+    assert "SIDIRA_INTERNAL_API_KEY: process.env.SIDIRA_INTERNAL_API_KEY" in next_config
     assert "X-Sidira-Internal-Key" in route
     assert "NEXT_PUBLIC_API_BASE=https://api.sidira.ai" not in env_example
     assert "SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>" in (
@@ -95,3 +98,5 @@ def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
         in amplify
     )
     assert "Production browser traffic should use the same-origin Next" in runbook
+    assert "alpha-stage gateway-token workaround" in runbook
+    assert "#124 tracks moving web proxy auth off" in runbook

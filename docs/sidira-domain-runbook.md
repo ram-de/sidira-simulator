@@ -99,8 +99,13 @@ Keep production secrets out of GitHub, Amplify public variables, user-data, PR
 bodies, and docs. Production browser traffic should use the same-origin Next
 `/api` proxy. Amplify receives the backend origin as a server-side variable
 (`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`) plus the temporary internal
-API key as a server-side secret (`SIDIRA_INTERNAL_API_KEY`), not as
-`NEXT_PUBLIC_*` config.
+API key as a server-side secret (`SIDIRA_INTERNAL_API_KEY`). The Next build
+uses `frontend/next.config.js` to make those values available to server routes;
+do not expose either value through `NEXT_PUBLIC_*` config. This is an
+alpha-stage gateway-token workaround: Amplify/Next SSR env values can be
+readable to users with deployment artifact access. The real model-provider
+keys stay only on the backend host, and #124 tracks moving web proxy auth off
+build artifacts before broader access.
 
 Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 
@@ -206,10 +211,12 @@ Amplify Hosting:
 - Remove any production `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` setting so
   browser traffic uses `/api`; set `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`
   and server-side `SIDIRA_INTERNAL_API_KEY=<same value as Parameter Store>`.
-- Let Amplify use the root `amplify.yml`. Done. The build spec writes
-  `SIDIRA_API_BASE_INTERNAL` and `SIDIRA_INTERNAL_API_KEY` into
-  `frontend/.env.production` during the build so Next.js server routes can read
-  them in Amplify Hosting compute; do not commit that generated file.
+- Let Amplify use the root `amplify.yml`. Done. The build spec fails fast when
+  either proxy variable is missing, writes both into `frontend/.env.production`
+  before `next build`, and `frontend/next.config.js` passes them into the server
+  route bundle. Do not commit that generated file. Treat the proxy token as a
+  revocable alpha gateway token until #124 replaces this with runtime-secret
+  proxy auth.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
   Amplify create or show the required DNS records in Route 53. Done.
   `www.sidira.ai` redirects to the apex through the frontend middleware.

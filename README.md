@@ -75,14 +75,18 @@ set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and
 ## AWS deployment scaffold
 
 - `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting and
-  writes the server-side API proxy env vars into `.env.production` for Amplify
-  Hosting compute.
+  validates then writes the server-side API proxy env vars into
+  `.env.production` before `next build`. `frontend/next.config.js` passes those
+  values to the server route bundle; they must not be exposed as `NEXT_PUBLIC_*`.
+  This is an alpha-stage gateway-token workaround for the web proxy, not a
+  long-term secret boundary; #124 tracks moving proxy auth to runtime secret
+  storage before broader access.
 - `backend/Dockerfile` packages the FastAPI backend for the production Docker
   Compose API host or another Linux container host.
 - `deploy/docker-compose.api.yml` runs the API behind Caddy for a small
   browser-console-managed Lightsail/EC2 instance.
-- Production secrets stay in the AWS console environment variable surfaces; do
-  not commit `.env` files.
+- Production model/provider secrets stay on the backend host in AWS-managed
+  secret storage; do not commit `.env` files.
 
 ## License
 
