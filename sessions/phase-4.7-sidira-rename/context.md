@@ -116,15 +116,23 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   errors.
 - Documented the AWS/domain deployment state in `docs/sidira-domain-runbook.md`
   and pushed branch commit `55b1bd3`.
-- Added repeatable EC2 deploy helper on the #115 branch in commit `384b474`
+- Added repeatable EC2 deploy helper on the #115 branch starting in commit `384b474`
   (`deploy/ec2-api-deploy.sh`). The script pulls the selected branch, reads
   `/sidira/prod/*` parameters through the EC2 instance role, writes
   `/opt/sidira/api.env`, mounts local artifacts at `/app/local-artifacts`, and
   starts the API/Caddy containers.
+- Fixed two deploy-helper issues found by live SSM deployment: use the
+  read-only GitHub deploy key for branch pulls (`1b43094`) and add Docker
+  network alias `api` in the fallback non-Compose path (`9012dd2`).
+- Re-ran the EC2 deploy helper successfully through SSM. Public smoke checks
+  after the helper deploy passed for `GET /health`, `GET /simulations`,
+  `GET /capabilities`, and the `https://sidira.ai/simulations/new` frontend
+  load. `GET /models` still returns an empty list until provider keys are
+  configured.
 
 ## Next Steps
 1. Store provider keys, starting with `GROQ_API_KEY`, under `/sidira/prod/*` in AWS Parameter Store SecureString. Do not put secrets in chat or repo files.
-2. Re-run the EC2 deploy through `deploy/ec2-api-deploy.sh` after provider keys are configured.
+2. Re-run the EC2 deploy through `deploy/ec2-api-deploy.sh` after provider keys are configured so the instance env picks them up.
 3. Run an end-to-end production smoke after provider keys are configured: model list should be non-empty and a small simulation should complete.
 4. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
 
@@ -190,9 +198,12 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   the EC2/Caddy API is live. `GET /health`, `GET /simulations`, and
   `GET /capabilities` succeed; `GET /models` returns an empty list because no
   provider API keys are configured yet.
-- As of branch commit `384b474`, #115 includes `deploy/ec2-api-deploy.sh`.
-  Next EC2 deployment should use the helper instead of hand-writing
-  `/opt/sidira/api.env`.
+- As of branch commit `9012dd2`, #115 includes and has live-tested
+  `deploy/ec2-api-deploy.sh`. The helper now uses the EC2 deploy key for git
+  pulls and gives the fallback Docker API container the `api` network alias
+  required by Caddy.
+- As of 2026-05-29T04:53Z, the EC2 API was redeployed through the helper and
+  public smoke checks passed again.
 - Current production data source is `streamly_sample`, not the local ignored
   food-delivery demo artifacts. Food-delivery artifacts need an explicit safe
   artifact path before production can use them.
