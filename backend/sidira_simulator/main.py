@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from sidira_simulator import __version__
+from sidira_simulator.adapters.migrations import run_startup_migrations
 from sidira_simulator.api import (
     agents,
     capabilities,
@@ -33,6 +34,8 @@ def _cors_origins() -> list[str]:
 
 
 def create_app() -> FastAPI:
+    run_startup_migrations()
+
     app = FastAPI(
         title="Sidira Simulator API",
         version=__version__,

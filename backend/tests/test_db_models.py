@@ -43,10 +43,12 @@ def test_agent_instances_has_persona_pack_version_for_identity_pinning() -> None
     """The identity-continuity guarantee depends on persona_pack_version being
     persisted so the AgentInstance is permanently pinned to one frozen identity.
     """
-    cols = {c.name for c in AgentInstance.__table__.columns}
+    cols = {c.name: c for c in AgentInstance.__table__.columns}
     assert "persona_pack_version" in cols
     assert "persona_id" in cols
     assert "simulation_id" in cols
+    assert "materialization_index" in cols
+    assert cols["materialization_index"].nullable is True
 
 
 def test_agent_feedback_columns() -> None:

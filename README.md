@@ -65,6 +65,21 @@ Use `SIDIRA_*` for simulator-specific backend config, for example
 Legacy `PYTHIA_*` names are still accepted as fallbacks during the pre-launch
 rename; when both are set, `SIDIRA_*` wins.
 
+Postgres is optional for local development. With no database URL, the backend
+uses process-local InMemory repos and simulation history resets on restart. To
+exercise the durable metadata path, point `DATABASE_URL` at Neon or a local
+Postgres instance and run migrations:
+
+```bash
+cd backend
+export DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/sidira_simulator
+alembic upgrade head
+uvicorn sidira_simulator.main:app --reload
+```
+
+`SIDIRA_DATABASE_URL` and legacy `PYTHIA_DATABASE_URL` are also accepted by the
+runtime, but `DATABASE_URL` is the recommended local and deployment spelling.
+
 For deployment, the canonical Sidira hosts are `sidira.ai`, `app.sidira.ai`,
 and `api.sidira.ai`. Production browser calls use the same-origin `/api` proxy;
 set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and

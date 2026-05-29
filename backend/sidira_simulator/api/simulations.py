@@ -215,9 +215,8 @@ async def list_simulation_agents(
     """Persona-grouped table feed (Phase 2.5 #51).
 
     Order matches the runner's materialization order (largest-remainder
-    allocator → largest persona first), since `list_for_simulation`
-    returns rows in insertion order in both the InMemory and Postgres
-    implementations.
+    allocator, largest persona first). InMemory preserves insertion order;
+    Postgres sorts by the persisted materialization index for stable reloads.
     """
     sim_row = await orchestrator.get(simulation_id, customer_id)
     if sim_row is None:

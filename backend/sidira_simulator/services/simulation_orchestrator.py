@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import AsyncContextManager
 
 import structlog
 
@@ -29,6 +31,8 @@ from sidira_simulator.services.simulation_runner import SimulationRunner
 
 log = structlog.get_logger()
 
+BackgroundOrchestratorFactory = Callable[[], AsyncContextManager["SimulationOrchestrator"]]
+
 
 class SimulationOrchestrator:
     def __init__(
@@ -40,6 +44,7 @@ class SimulationOrchestrator:
         persona_loader: PersonaPackLoader | None = None,
         feature_pack_loader: FeaturePackLoader | None = None,
         runner: SimulationRunner | None = None,
+        background_orchestrator_factory: BackgroundOrchestratorFactory | None = None,
     ) -> None:
         self._customers = customer_repo
         self._simulations = simulation_repo
@@ -47,6 +52,7 @@ class SimulationOrchestrator:
         self._personas = persona_loader or PersonaPackLoader()
         self._features = feature_pack_loader or FeaturePackLoader()
         self._runner = runner or SimulationRunner()
+        self._background_orchestrator_factory = background_orchestrator_factory
 
     async def prepare(
         self,
@@ -121,7 +127,26 @@ class SimulationOrchestrator:
         )
 
         async def run() -> None:
-            await self._run_in_background(
+            background_orchestrator = self
+            if self._background_orchestrator_factory is not None:
+                async with self._background_orchestrator_factory() as orchestrator:
+                    await orchestrator._run_in_background(
+                        sim_id=sim_id,
+                        customer_id=customer_id,
+                        hypothesis=hypothesis,
+                        population_size=effective_population_size,
+                        run_seed=resolved_run_seed,
+                        # Pass the API-derived cap so allocate() uses the same number
+                        # the row recorded. Otherwise SIDIRA_MAX_AGENTS=0 makes the API
+                        # clamp to 1 while allocate() falls back to default 50. (codex P2)
+                        max_agents=sampled_agent_count,
+                        treatment_fraction=treatment_fraction,
+                        selected_personas=selected_personas,
+                        model_id=model_id,
+                    )
+                return
+
+            await background_orchestrator._run_in_background(
                 sim_id=sim_id,
                 customer_id=customer_id,
                 hypothesis=hypothesis,
@@ -232,7 +257,9 @@ class SimulationOrchestrator:
         )
 
         # Persist agent_instances rows using the records the runner exposed.
-        for record in getattr(self._runner, "_last_run_agent_records", []):
+        for materialization_index, record in enumerate(
+            getattr(self._runner, "_last_run_agent_records", [])
+        ):
             await self._agents.create(
                 {
                     "id": record.agent_id,
@@ -244,6 +271,7 @@ class SimulationOrchestrator:
                     "created_at": record.created_at,
                     "last_active_at": record.created_at,
                     "message_count": 0,
+                    "materialization_index": materialization_index,
                     "arm": record.arm,
                 }
             )
