@@ -12,7 +12,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress. Remaining: provider secrets/model access, production smoke with a real model, and switching deployed branch to `main` after PR merge.
+- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress. Remaining: PR merge and switching deployed branch to `main` after merge.
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -186,12 +186,12 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Project board has only Todo / In Progress / Done. #114 is Done; #115 is now In Progress.
 - #114 shipped the active team/developer docs cleanup. Historical session logs and old PR references were preserved unless they needed active current-state notes.
 - #115 is the final Phase 4.7 ticket currently tracked in the roadmap: sidira.ai deployment/origins and GitHub metadata/repo-name decision.
-- #115 is partially complete: GitHub metadata, local deploy docs/env examples,
+- #115 is ready for PR/merge: GitHub metadata, local deploy docs/env examples,
   Route 53 delegation, temporary Amplify branch deployment, Amplify custom
   domains, `www` canonical redirect, Sidira favicon, and first EC2/Caddy API
   baseline are done. A repeatable EC2 deploy helper exists on the branch.
-  Groq provider secret is configured. Real-model production simulation smoke
-  remains.
+  Groq provider secret is configured and real-model production simulation smoke
+  passed.
 - App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
 - User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
 - User approved the initial low-traffic AWS baseline cost estimate for Route 53
@@ -224,4 +224,4 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Production is currently intentionally small: Amplify frontend + single `t4g.micro` EC2 backend. The filesystem artifact store is acceptable for this low-traffic development deployment, but the read/write artifact mount must be preserved until R2 is fully configured.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the EC2/Caddy API baseline is live at `api.sidira.ai`, a repeatable EC2 deploy helper is on the branch, and Groq model access is configured through Parameter Store. The app loads production capabilities and model picker; run one real production simulation smoke before calling #115 fully ready to merge. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the EC2/Caddy API baseline is live at `api.sidira.ai`, a repeatable EC2 deploy helper is on the branch, and Groq model access is configured through Parameter Store. The app loads production capabilities and model picker; production smoke simulation `16cf2a8a-41b2-4350-a6b5-43bb5e58711d` completed successfully. Use browser-only AWS operations; do not use local AWS CLI.
