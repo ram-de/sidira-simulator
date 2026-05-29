@@ -24,6 +24,15 @@ from sidira_simulator.adapters.db_models import (
     Simulation,
 )
 
+
+async def _commit(session: AsyncSession) -> None:
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Customer
 # ──────────────────────────────────────────────────────────────────────
@@ -41,7 +50,7 @@ class PostgresCustomerRepo:
         existing = await self._session.get(Customer, customer_id)
         if existing is None:
             self._session.add(Customer(id=customer_id, name=name or customer_id))
-            await self._session.commit()
+            await _commit(self._session)
 
 
 class InMemoryCustomerRepo:
@@ -127,7 +136,7 @@ class PostgresSimulationRepo:
             model_id=model_id,
         )
         self._session.add(row)
-        await self._session.commit()
+        await _commit(self._session)
 
     async def update_status(
         self,
@@ -149,7 +158,7 @@ class PostgresSimulationRepo:
             row.error = error
         if completed_at is not None:
             row.completed_at = completed_at
-        await self._session.commit()
+        await _commit(self._session)
 
     async def get(self, sim_id: str, customer_id: str) -> dict[str, Any] | None:
         row = await self._session.get(Simulation, sim_id)
@@ -263,7 +272,7 @@ class PostgresAgentInstanceRepo:
     async def create(self, metadata: dict[str, Any]) -> None:
         row = AgentInstance(**metadata)
         self._session.add(row)
-        await self._session.commit()
+        await _commit(self._session)
 
     async def list_for_simulation(self, sim_id: str, customer_id: str) -> list[dict[str, Any]]:
         stmt = select(AgentInstance).where(
@@ -285,7 +294,7 @@ class PostgresAgentInstanceRepo:
             raise KeyError(f"Agent {agent_id!r} not found for customer {customer_id!r}")
         row.last_active_at = datetime.now(timezone.utc)
         row.message_count = (row.message_count or 0) + 1
-        await self._session.commit()
+        await _commit(self._session)
 
 
 class InMemoryAgentInstanceRepo:
@@ -354,7 +363,7 @@ class PostgresAgentFeedbackRepo:
             realistic_flag=realistic_flag,
         )
         self._session.add(row)
-        await self._session.commit()
+        await _commit(self._session)
 
 
 class InMemoryAgentFeedbackRepo:

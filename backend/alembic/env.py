@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+from sidira_simulator.adapters.postgres import database_url
 from sidira_simulator.adapters.db_models import Base
 
 config = context.config
@@ -23,8 +23,8 @@ target_metadata = Base.metadata
 
 
 def _get_url() -> str:
-    """Prefer DATABASE_URL env var; fall back to alembic.ini setting."""
-    return os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    """Prefer runtime DB env vars; fall back to alembic.ini setting."""
+    return database_url() or config.get_main_option("sqlalchemy.url")
 
 
 def run_migrations_offline() -> None:

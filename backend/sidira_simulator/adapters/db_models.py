@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -27,7 +27,7 @@ class Customer(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     clerk_org_id: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
     name: Mapped[str] = mapped_column(String(256))
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Simulation(Base):
@@ -48,8 +48,8 @@ class Simulation(Base):
         String(64), ForeignKey("simulations.id", ondelete="SET NULL"), nullable=True, index=True
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Phase 2.5: modeled userbase + cap-derived sample count. Nullable so legacy
     # rows pre-dating the migration round-trip cleanly.
     population_size: Mapped[int | None] = mapped_column(nullable=True)
@@ -97,8 +97,10 @@ class AgentInstance(Base):
     persona_id: Mapped[str] = mapped_column(String(64), index=True)
     persona_pack_version: Mapped[str] = mapped_column(String(64))
     persona_name: Mapped[str] = mapped_column(String(256))
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    last_active_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     message_count: Mapped[int] = mapped_column(default=0)
     # Phase 4.6 #89: A/B mode arm tag. NULL = single-arm sim (today's
     # default; pre-#89 rows round-trip with NULL). "treatment" / "control"
@@ -126,6 +128,6 @@ class AgentFeedback(Base):
     )
     turn_index: Mapped[int] = mapped_column()
     realistic_flag: Mapped[bool] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     agent: Mapped[AgentInstance] = relationship(back_populates="feedback")

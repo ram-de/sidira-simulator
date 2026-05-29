@@ -8,21 +8,34 @@ to act as the dev-time default.
 
 from __future__ import annotations
 
-import os
+from contextlib import asynccontextmanager
+from typing import Annotated, AsyncIterator
 
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+from sidira_simulator.adapters.postgres import (
+    database_configured,
+    get_sessionmaker,
+)
 from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
     CustomerRepo,
+    PostgresAgentFeedbackRepo,
+    PostgresAgentInstanceRepo,
+    PostgresCustomerRepo,
+    PostgresSimulationRepo,
     SimulationRepo,
     get_in_memory_repos,
 )
 from sidira_simulator.services.runtime_config import resolve_sidira_env
-from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
+from sidira_simulator.services.simulation_orchestrator import (
+    BackgroundOrchestratorFactory,
+    SimulationOrchestrator,
+)
 
 DEFAULT_CUSTOMER_ID = "demo"
 
@@ -39,30 +52,54 @@ def current_customer_id() -> str:
     return customer_id
 
 
-def _repos() -> tuple[CustomerRepo, SimulationRepo, AgentInstanceRepo, AgentFeedbackRepo]:
-    if os.environ.get("DATABASE_URL"):
-        # Phase 2 wiring: real Postgres-backed repos. Deferred.
-        raise NotImplementedError(
-            "DATABASE_URL is set but Postgres repo wiring requires an async session "
-            "dependency. For now, unset DATABASE_URL to use in-memory repos."
-        )
-    return get_in_memory_repos()
+async def get_repository_session() -> AsyncIterator[AsyncSession | None]:
+    """Yield a request-scoped DB session when Postgres is configured.
+
+    Keeping the no-DB path as `None` lets local dev and the existing test suite
+    continue to use process-wide InMemory repos without creating an engine.
+    """
+    if not database_configured():
+        yield None
+        return
+
+    async with get_sessionmaker()() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
 
 
-def get_customer_repo() -> CustomerRepo:
-    return _repos()[0]
+RepositorySession = Annotated[AsyncSession | None, Depends(get_repository_session)]
 
 
-def get_simulation_repo() -> SimulationRepo:
-    return _repos()[1]
+def _repos(
+    session: AsyncSession | None,
+) -> tuple[CustomerRepo, SimulationRepo, AgentInstanceRepo, AgentFeedbackRepo]:
+    if session is None:
+        return get_in_memory_repos()
+    return (
+        PostgresCustomerRepo(session),
+        PostgresSimulationRepo(session),
+        PostgresAgentInstanceRepo(session),
+        PostgresAgentFeedbackRepo(session),
+    )
 
 
-def get_agent_repo() -> AgentInstanceRepo:
-    return _repos()[2]
+def get_customer_repo(session: RepositorySession = None) -> CustomerRepo:
+    return _repos(session)[0]
 
 
-def get_feedback_repo() -> AgentFeedbackRepo:
-    return _repos()[3]
+def get_simulation_repo(session: RepositorySession = None) -> SimulationRepo:
+    return _repos(session)[1]
+
+
+def get_agent_repo(session: RepositorySession = None) -> AgentInstanceRepo:
+    return _repos(session)[2]
+
+
+def get_feedback_repo(session: RepositorySession = None) -> AgentFeedbackRepo:
+    return _repos(session)[3]
 
 
 def get_persona_loader() -> PersonaPackLoader:
@@ -73,12 +110,40 @@ def get_feature_pack_loader() -> FeaturePackLoader:
     return FeaturePackLoader()
 
 
+def get_background_orchestrator_factory(
+    persona_loader: PersonaPackLoader = Depends(get_persona_loader),
+    feature_pack_loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+) -> BackgroundOrchestratorFactory | None:
+    if not database_configured():
+        return None
+
+    @asynccontextmanager
+    async def factory() -> AsyncIterator[SimulationOrchestrator]:
+        async with get_sessionmaker()() as session:
+            try:
+                yield SimulationOrchestrator(
+                    customer_repo=PostgresCustomerRepo(session),
+                    simulation_repo=PostgresSimulationRepo(session),
+                    agent_repo=PostgresAgentInstanceRepo(session),
+                    persona_loader=persona_loader,
+                    feature_pack_loader=feature_pack_loader,
+                )
+            except Exception:
+                await session.rollback()
+                raise
+
+    return factory
+
+
 def get_orchestrator(
     customer_repo: CustomerRepo = Depends(get_customer_repo),
     simulation_repo: SimulationRepo = Depends(get_simulation_repo),
     agent_repo: AgentInstanceRepo = Depends(get_agent_repo),
     persona_loader: PersonaPackLoader = Depends(get_persona_loader),
     feature_pack_loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+    background_orchestrator_factory: BackgroundOrchestratorFactory | None = Depends(
+        get_background_orchestrator_factory
+    ),
 ) -> SimulationOrchestrator:
     return SimulationOrchestrator(
         customer_repo=customer_repo,
@@ -86,4 +151,5 @@ def get_orchestrator(
         agent_repo=agent_repo,
         persona_loader=persona_loader,
         feature_pack_loader=feature_pack_loader,
+        background_orchestrator_factory=background_orchestrator_factory,
     )

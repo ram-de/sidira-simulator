@@ -18,15 +18,29 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from sidira_simulator.services.runtime_config import resolve_sidira_env
+
 _engine: AsyncEngine | None = None
 _sessionmaker: async_sessionmaker[AsyncSession] | None = None
+
+
+def database_url() -> str | None:
+    """Resolve the configured Postgres URL, including legacy rename fallback."""
+    raw = os.environ.get("DATABASE_URL")
+    if raw is not None and raw.strip():
+        return raw
+    return resolve_sidira_env("DATABASE_URL")
+
+
+def database_configured() -> bool:
+    return database_url() is not None
 
 
 def get_engine() -> AsyncEngine:
     """Lazy-init the async engine from DATABASE_URL."""
     global _engine
     if _engine is None:
-        url = os.environ.get("DATABASE_URL")
+        url = database_url()
         if not url:
             raise RuntimeError(
                 "DATABASE_URL not set. For dev without Postgres, use the in-memory "
@@ -48,4 +62,8 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 async def get_session() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency: yield an async session per request."""
     async with get_sessionmaker()() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
