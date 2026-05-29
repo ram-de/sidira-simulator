@@ -129,12 +129,17 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   `GET /capabilities`, and the `https://sidira.ai/simulations/new` frontend
   load. `GET /models` still returns an empty list until provider keys are
   configured.
+- Added `GROQ_API_KEY` to AWS Parameter Store as `/sidira/prod/GROQ_API_KEY`
+  SecureString, then redeployed the EC2 API through SSM so the backend reads it
+  through the instance role. No secret value is stored in repo/session docs.
+- Verified production `/models` now returns Groq-backed models and
+  `https://sidira.ai/simulations/new` shows the model picker instead of the
+  missing-provider-key warning.
 
 ## Next Steps
-1. Store provider keys, starting with `GROQ_API_KEY`, under `/sidira/prod/*` in AWS Parameter Store SecureString. Do not put secrets in chat or repo files.
-2. Re-run the EC2 deploy through `deploy/ec2-api-deploy.sh` after provider keys are configured so the instance env picks them up.
-3. Run an end-to-end production smoke after provider keys are configured: model list should be non-empty and a small simulation should complete.
-4. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
+1. Run an end-to-end production smoke with a small simulation using the Groq-backed model list.
+2. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
+3. If additional providers are needed later, add `/sidira/prod/OPENAI_API_KEY` and `/sidira/prod/ANTHROPIC_API_KEY` as Parameter Store SecureString values, then rerun `deploy/ec2-api-deploy.sh`.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -180,7 +185,8 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   Route 53 delegation, temporary Amplify branch deployment, Amplify custom
   domains, `www` canonical redirect, Sidira favicon, and first EC2/Caddy API
   baseline are done. A repeatable EC2 deploy helper exists on the branch.
-  Provider secrets and real-model production smoke remain.
+  Groq provider secret is configured. Real-model production simulation smoke
+  remains.
 - App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
 - User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
 - User approved the initial low-traffic AWS baseline cost estimate for Route 53
@@ -204,9 +210,12 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   required by Caddy.
 - As of 2026-05-29T04:53Z, the EC2 API was redeployed through the helper and
   public smoke checks passed again.
+- As of 2026-05-29T05:10Z, the Groq production key is present in Parameter
+  Store and the EC2 API was redeployed. `GET /models` returns the Groq model
+  list and the production frontend model picker renders those models.
 - Current production data source is `streamly_sample`, not the local ignored
   food-delivery demo artifacts. Food-delivery artifacts need an explicit safe
   artifact path before production can use them.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the first EC2/Caddy API baseline is live at `api.sidira.ai`, and a repeatable EC2 deploy helper is on the branch. The app loads production capabilities, but simulations still need provider secrets and a real-model smoke before calling production complete. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the EC2/Caddy API baseline is live at `api.sidira.ai`, a repeatable EC2 deploy helper is on the branch, and Groq model access is configured through Parameter Store. The app loads production capabilities and model picker; run one real production simulation smoke before calling #115 fully ready to merge. Use browser-only AWS operations; do not use local AWS CLI.
