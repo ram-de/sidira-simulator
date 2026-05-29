@@ -25,13 +25,13 @@ Canonical Phase 4.7 hostnames:
 - Temporary #115 branch deployment is live at
   `https://codex-115-sidira-domain-metadata.dbzf69xeoypqa.amplifyapp.com`.
   Smoke check returned HTTP 200 and rendered the Sidira home page.
-- Amplify custom domain setup is in progress for `sidira.ai` with an Amplify
+- Amplify custom domain setup is available for `sidira.ai` with an Amplify
   managed certificate. The root and `app` hostnames are both mapped to
-  `codex/115-sidira-domain-metadata`; the Amplify console currently reports
-  "Activating domain" while it propagates through CloudFront.
-- HTTPS smoke checks using the freshly resolved CloudFront targets returned
-  HTTP 200 for both `https://sidira.ai` and `https://app.sidira.ai`; local
-  resolver cache may lag the public DNS answers for a short period.
+  `codex/115-sidira-domain-metadata`.
+- HTTPS smoke checks returned HTTP 200 for `https://app.sidira.ai` with normal
+  resolution and for `https://sidira.ai` when pointed at the freshly resolved
+  CloudFront target; local resolver cache may lag the public apex DNS answer
+  for a short period.
 - GitHub Project #1 is titled Sidira.
 - The simulator repo is renamed to `ram-de/sidira-simulator`; local `origin` should point to `git@github.com-personal:ram-de/sidira-simulator.git`.
 - `pythia-personas` and `pythia-crawler` descriptions/homepages use Sidira metadata, but their repo/package names remain unchanged until producer rename work is explicitly scheduled.
@@ -157,8 +157,8 @@ Amplify Hosting:
 - Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Done.
 - Let Amplify use the root `amplify.yml`. Done.
 - Add custom domains `sidira.ai` and `app.sidira.ai`; let Amplify create or show
-  the required DNS records in Route 53. Done; Amplify reports domain activation
-  in progress and says CloudFront propagation can take up to 30 minutes.
+  the required DNS records in Route 53. Done; Amplify reports the custom domain
+  as available.
 
 Backend API EC2 VM:
 
@@ -183,9 +183,9 @@ Backend API EC2 VM:
 ## DNS And HTTPS Checklist
 
 - Point `sidira.ai` at the chosen frontend/edge provider. Done via Amplify /
-  CloudFront, activation still propagating.
+  CloudFront.
 - Point `app.sidira.ai` at the Next.js deployment. Done via Amplify /
-  CloudFront, activation still propagating.
+  CloudFront.
 - Point `api.sidira.ai` at the FastAPI deployment.
 - Enable provider-managed HTTPS certificates for all three names. Done for
   `sidira.ai` and `app.sidira.ai` through Amplify managed certificates; still
