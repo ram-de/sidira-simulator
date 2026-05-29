@@ -76,6 +76,7 @@ def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
     route = (REPO_ROOT / "frontend" / "app" / "api" / "[...path]" / "route.ts").read_text()
     env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
     runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
+    amplify = (REPO_ROOT / "amplify.yml").read_text()
 
     assert 'process.env.NEXT_PUBLIC_API_BASE ?? "/api"' in api_client
     assert "process.env.SIDIRA_API_BASE_INTERNAL" in route
@@ -84,5 +85,13 @@ def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
     assert "NEXT_PUBLIC_API_BASE=https://api.sidira.ai" not in env_example
     assert "SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>" in (
         env_example
+    )
+    assert 'test -n "$SIDIRA_API_BASE_INTERNAL"' in amplify
+    assert 'test -n "$SIDIRA_INTERNAL_API_KEY"' in amplify
+    assert "missing SIDIRA_API_BASE_INTERNAL" in amplify
+    assert "missing SIDIRA_INTERNAL_API_KEY" in amplify
+    assert (
+        'printf "SIDIRA_API_BASE_INTERNAL=%s\\nSIDIRA_INTERNAL_API_KEY=%s\\n"'
+        in amplify
     )
     assert "Production browser traffic should use the same-origin Next" in runbook

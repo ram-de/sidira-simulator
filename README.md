@@ -74,7 +74,9 @@ set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and
 
 ## AWS deployment scaffold
 
-- `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting.
+- `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting and
+  writes the server-side API proxy env vars into `.env.production` for Amplify
+  Hosting compute.
 - `backend/Dockerfile` packages the FastAPI backend for the production Docker
   Compose API host or another Linux container host.
 - `deploy/docker-compose.api.yml` runs the API behind Caddy for a small

@@ -206,7 +206,10 @@ Amplify Hosting:
 - Remove any production `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` setting so
   browser traffic uses `/api`; set `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`
   and server-side `SIDIRA_INTERNAL_API_KEY=<same value as Parameter Store>`.
-- Let Amplify use the root `amplify.yml`. Done.
+- Let Amplify use the root `amplify.yml`. Done. The build spec writes
+  `SIDIRA_API_BASE_INTERNAL` and `SIDIRA_INTERNAL_API_KEY` into
+  `frontend/.env.production` during the build so Next.js server routes can read
+  them in Amplify Hosting compute; do not commit that generated file.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
   Amplify create or show the required DNS records in Route 53. Done.
   `www.sidira.ai` redirects to the apex through the frontend middleware.
