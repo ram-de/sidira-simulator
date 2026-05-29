@@ -161,9 +161,8 @@ Amplify Hosting:
 - Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Done.
 - Let Amplify use the root `amplify.yml`. Done.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
-  Amplify create or show the required DNS records in Route 53. Done for root
-  and `app`; `www` was added as an alias and may briefly show update
-  propagation after the domain configuration save.
+  Amplify create or show the required DNS records in Route 53. Done.
+  `www.sidira.ai` redirects to the apex through the frontend middleware.
 
 Backend API EC2 VM:
 
