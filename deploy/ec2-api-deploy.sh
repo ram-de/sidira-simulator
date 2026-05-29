@@ -99,12 +99,13 @@ do
   write_env "$key" "$(ssm_value "$key")"
 done
 
+docker rm -f sidira-api sidira-caddy >/dev/null 2>&1 || true
+
 if docker compose version >/dev/null 2>&1; then
-  docker compose -f deploy/docker-compose.api.yml up -d --build
+  docker compose -p sidira -f deploy/docker-compose.api.yml up -d --build
 else
   docker network create sidira >/dev/null 2>&1 || true
   docker build -t sidira-api:latest backend
-  docker rm -f sidira-api sidira-caddy >/dev/null 2>&1 || true
   docker run -d \
     --name sidira-api \
     --restart unless-stopped \
