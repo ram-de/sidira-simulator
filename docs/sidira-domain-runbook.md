@@ -83,7 +83,7 @@ Use this as the first production topology:
 | DNS | Route 53 hosted zone for `sidira.ai` | Keep Namecheap as registrar; replace Namecheap nameservers with the four Route 53 nameservers. |
 | Frontend | AWS Amplify Hosting | Deploys `frontend/` from GitHub using the root `amplify.yml`. Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`. |
 | Backend | EC2 instance | Browser-console-friendly path with proper secret handling: attach an IAM instance profile, build `backend/Dockerfile` on the instance, and run `deploy/docker-compose.api.yml` behind Caddy for `api.sidira.ai`. |
-| Database | Optional Postgres after #68 | Keep `DATABASE_URL` out of production until the #68 branch is merged and deployed. Then store it as `/sidira/prod/DATABASE_URL`, enable `SIDIRA_AUTO_MIGRATE=1` for the deployment that should run Alembic, and verify list/detail/agent reloads before relying on durable metadata. |
+| Database | Optional Postgres, code merged in #68 | Store the managed Postgres URL as `/sidira/prod/DATABASE_URL`, enable `SIDIRA_AUTO_MIGRATE=1` only for the deployment that should run Alembic, and verify list/detail/agent reloads before relying on durable metadata. |
 | Artifacts | Cloudflare R2 for now | Keep the existing artifact contract; switching storage is a separate migration. |
 
 Do not use AWS App Runner for the first deployment unless the AWS account already
@@ -125,9 +125,9 @@ Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 
 Use Parameter Store `SecureString` for lightweight provider/R2 keys. Use
 Secrets Manager for credentials where rotation/lifecycle management matters,
-especially database credentials. Do not set `/sidira/prod/DATABASE_URL` until
-the #68 backend wiring has been merged and deployed; once set, pair it with an
-explicit `/sidira/prod/SIDIRA_AUTO_MIGRATE=1` deployment when you want app
+especially database credentials. The #68 backend wiring is merged; once
+`/sidira/prod/DATABASE_URL` is set, pair the first database-enabled rollout with
+an explicit `/sidira/prod/SIDIRA_AUTO_MIGRATE=1` deployment when you want app
 startup to run Alembic migrations. The EC2 instance role should have least-
 privilege access to read only the Sidira production paths and decrypt only the
 matching KMS key.

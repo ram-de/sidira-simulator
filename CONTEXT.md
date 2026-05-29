@@ -2,11 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring starting)
+**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring shipped)
 
 ---
 
 ## What just shipped
+
+✅ **Phase 5a #68 Postgres repository wiring, SHIPPED 2026-05-29 (PR #126, commit `cfcff57`, session `phase-5a-postgres-wiring`).**
+The backend now selects Postgres-backed repositories when `DATABASE_URL` is configured, while preserving the no-database InMemory fallback for local development and fast tests. Request handlers use request-scoped async SQLAlchemy sessions; background simulation runs get fresh DB sessions so they can continue safely after the POST request returns. The deploy helper reads `/sidira/prod/DATABASE_URL` and `/sidira/prod/SIDIRA_AUTO_MIGRATE` from SSM when present, startup migrations are opt-in, and provider-style Postgres URLs are normalized for asyncpg. Agent materialization order is now persisted through `agent_instances.materialization_index`, so Postgres list/detail/agent reads remain deterministic. Verification: backend 390 passed / 11 skipped, focused DB/deploy suite 31 passed, Docker Postgres smoke 1 passed, frontend typecheck clean, Codex review clear.
 
 ✅ **Phase 4.7 Sidira rename + first production deployment, SHIPPED 2026-05-29 (session `phase-4.7-sidira-rename`).**
 The pre-public product rename is now real in the app, backend code, active docs, GitHub repo metadata, and production domain. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115/#120 configured Route 53, Namecheap delegation, Amplify, `sidira.ai`, `www` redirect, `app.sidira.ai`, `api.sidira.ai`, EC2/Caddy backend deployment, Groq provider secret loading through SSM, and a temporary internal API key gate with the Next same-origin `/api` proxy. Follow-up fixes #122 and #125 moved production to `main` cleanly. `sidira.ai` now serves the app, model picker, capabilities, and API proxy; direct model-backed API access remains gated. #124 is the remaining low-priority hardening item before broader public access.
@@ -78,12 +81,12 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Phase 5a -- start #68 Postgres repository wiring.**
+**Phase 5a -- configure production Postgres after #68.**
 
 Current order:
-1. **#68 active next:** wire Postgres-backed repos behind FastAPI async session dependencies while preserving the InMemory fallback for local dev and tests.
-2. After #68: configure a production database only after the branch is merged and reviewed; do not set production `DATABASE_URL` before then.
-3. Keep #124 as a later hardening item for proxy auth before broader public access.
+1. Provision/configure production Postgres through the browser-based AWS/SSM flow: store `/sidira/prod/DATABASE_URL`, run one `SIDIRA_AUTO_MIGRATE=1` deployment, then verify simulation list/detail/agents survive backend restart.
+2. Keep #124 as a later hardening item for proxy auth before broader public access.
+3. Then pick up Phase 5 auth/multi-tenancy work.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
