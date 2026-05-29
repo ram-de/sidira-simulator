@@ -12,7 +12,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress.
+- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress. Remaining: provider secrets/model access, repeatable EC2 deploy script, production smoke with a real model, and switching deployed branch to `main` after PR merge.
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -99,14 +99,29 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   returns HTTP 200 locally, on the Amplify branch URL, and on `https://sidira.ai`.
 - Pushed #115 commits `e1eb4ba feat: add Sidira favicon and www redirect` and
   `dcd82ce docs: record www redirect verification`.
+- Created AWS API baseline in personal AWS account `897729137726`, us-east-1:
+  IAM role `SidiraApiProdRole`, instance profile `SidiraApiProdProfile`,
+  security group `sidira-api-sg`, EC2 `i-04b155fafcc90042b` (`t4g.micro`),
+  Elastic IP `32.194.187.147`, and Route 53 `api.sidira.ai` A record.
+- Added read-only GitHub deploy key for the EC2 instance:
+  `SHA256:Z5gu5BOLJL5nRyGl9YUdkJWSuiKyHxRxhk9MWrmUC8c`.
+- Deployed backend Docker image from branch `codex/115-sidira-domain-metadata`
+  behind Caddy on EC2. API health is live at `https://api.sidira.ai/health`.
+- Fixed the first API runtime failure by switching `SIDIRA_LOCAL_ARTIFACTS`
+  from unwritable `/var/lib/sidira/artifacts` to mounted
+  `/app/local-artifacts` and using checked-in `streamly_sample` artifacts.
+- Verified `https://api.sidira.ai/simulations` returns `[]`,
+  `https://api.sidira.ai/capabilities` returns the `streamly_sample` manifest,
+  and `https://sidira.ai/simulations/new` loads without fetch errors or console
+  errors.
+- Documented the AWS/domain deployment state in `docs/sidira-domain-runbook.md`
+  and pushed branch commit `55b1bd3`.
 
 ## Next Steps
-1. Re-check plain `curl -I https://www.sidira.ai/simulations/new` after local resolver cache catches up.
-2. After #115 merges, connect or switch the Amplify production branch to `main`.
-3. Before creating each billable AWS resource, give the user the estimated monthly cost and ask for approval.
-4. Create `/sidira/prod/*` secrets in AWS Parameter Store/Secrets Manager, create `SidiraApiProdRole`, then create a small EC2 API VM with that instance profile.
-5. Attach an Elastic IP, point `api.sidira.ai` at it, and run `docker compose -f deploy/docker-compose.api.yml up -d --build` from browser SSH after writing a root-owned `/opt/sidira/api.env` from AWS-managed secrets.
-6. Open PR for `codex/115-sidira-domain-metadata`, run Codex review, and merge after the external DNS/hosting state is recorded or explicitly deferred.
+1. Store provider keys, starting with `GROQ_API_KEY`, under `/sidira/prod/*` in AWS Parameter Store SecureString. Do not put secrets in chat or repo files.
+2. Replace the current manual `/opt/sidira/api.env` bootstrap with a repeatable EC2 deploy/start script that reads `/sidira/prod/*` parameters through the instance role.
+3. Run an end-to-end production smoke after provider keys are configured: model list should be non-empty and a small simulation should complete.
+4. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -129,6 +144,9 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - `deploy/docker-compose.api.yml`, `deploy/Caddyfile.api`, `deploy/README.md` -- browser-console-friendly API VM deployment path.
 - `AGENTS.md`, `ONBOARDING.md`, `README.md`, `ROADMAP.md`, `CONTEXT.md`, `docs/system-architecture.md` -- active docs updated for `sidira-simulator` repo rename.
 - `docs/sidira-domain-runbook.md` -- now includes Route 53 hosted zone ID, assigned NS records, Namecheap delegation status, Amplify app details, and Amplify custom domain activation status.
+- `docs/sidira-domain-runbook.md` -- now also records the EC2 API baseline,
+  deploy key, `api.sidira.ai` DNS/HTTPS state, current `streamly_sample`
+  fixture, and missing provider-secret state.
 
 ## Key Context
 - Phase 4.7 plan: #110.
@@ -143,9 +161,17 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Project board has only Todo / In Progress / Done. #114 is Done; #115 is now In Progress.
 - #114 shipped the active team/developer docs cleanup. Historical session logs and old PR references were preserved unless they needed active current-state notes.
 - #115 is the final Phase 4.7 ticket currently tracked in the roadmap: sidira.ai deployment/origins and GitHub metadata/repo-name decision.
-- #115 is partially complete: GitHub metadata, local deploy docs/env examples, Route 53 delegation, temporary Amplify branch deployment, Amplify custom domains, `www` canonical redirect, and Sidira favicon are done. Backend API deployment remains.
+- #115 is partially complete: GitHub metadata, local deploy docs/env examples,
+  Route 53 delegation, temporary Amplify branch deployment, Amplify custom
+  domains, `www` canonical redirect, Sidira favicon, and first EC2/Caddy API
+  baseline are done. Provider secrets, repeatable deploy, and real-model
+  production smoke remain.
 - App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
 - User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
+- User approved the initial low-traffic AWS baseline cost estimate for Route 53
+  hosted zone, Amplify, one small EC2 instance, Elastic IP while attached, and
+  minimal storage/egress. Ask again before adding any new billable service
+  beyond this baseline.
 - For a browser-only backend bootstrap, prefer Amplify for frontend plus a small EC2 API VM running Docker Compose and Caddy. Lightsail Containers can be revisited after a clean image-publishing path exists, but EC2 wins now because instance profiles solve backend secret retrieval cleanly.
 - As of 2026-05-29T00:26Z, public DNS delegation for `sidira.ai` resolves to the Route 53 nameservers.
 - As of 2026-05-29T00:43Z, Amplify reports the `sidira.ai` custom domain as `Available`. `app.sidira.ai` serves over normal HTTPS; `sidira.ai` has public CloudFront A records and works with an explicit resolve target, but this machine's local resolver cache still misses the apex.
@@ -153,6 +179,13 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   commit. `https://www.sidira.ai/simulations/new` returns HTTP/2 308 to
   `https://sidira.ai/simulations/new` when resolved to the current CloudFront
   target, and `https://sidira.ai/icon.svg` returns HTTP/2 200.
+- As of 2026-05-29T02:45Z, `api.sidira.ai` resolves to `32.194.187.147` and
+  the EC2/Caddy API is live. `GET /health`, `GET /simulations`, and
+  `GET /capabilities` succeed; `GET /models` returns an empty list because no
+  provider API keys are configured yet.
+- Current production data source is `streamly_sample`, not the local ignored
+  food-delivery demo artifacts. Food-delivery artifacts need an explicit safe
+  artifact path before production can use them.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch at `https://codex-115-sidira-domain-metadata.dbzf69xeoypqa.amplifyapp.com`, Amplify custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex through middleware, and the Sidira favicon is live. Next external step is backend API deployment for `api.sidira.ai`. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, and the first EC2/Caddy API baseline is live at `api.sidira.ai`. The app loads production capabilities, but simulations still need provider secrets and a repeatable EC2 deploy script before calling production complete. Use browser-only AWS operations; do not use local AWS CLI.
