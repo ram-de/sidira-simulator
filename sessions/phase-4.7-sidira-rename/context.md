@@ -135,10 +135,15 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Verified production `/models` now returns Groq-backed models and
   `https://sidira.ai/simulations/new` shows the model picker instead of the
   missing-provider-key warning.
+- Root-caused production simulation `0a6dd099-e625-4e17-921a-ea7142520be5` failing before agent materialization: the API container mounted `/app/local-artifacts` read-only while the filesystem artifact store needs to write run state and agent memory.
+- Fixed the EC2/Docker artifact mount contract by making the artifact bind mount writable, pinning the container user to UID/GID 10001, and having the deploy script chown the artifact tree before startup.
+- Verification for the deployment-permissions fix passed: backend full suite (`365 passed, 10 skipped`), `docker compose ... config`, backend Docker image build, container artifact-write smoke, and `git diff --check`.
+- Deployed the artifact-mount fix to EC2 from commit `acc69a3`.
+- Production smoke simulation `16cf2a8a-41b2-4350-a6b5-43bb5e58711d` completed with 1/1 agents materialized, 0 failures, and a persisted result. The original failed run remains failed because it died before state/result persistence.
 
 ## Next Steps
-1. Run an end-to-end production smoke with a small simulation using the Groq-backed model list.
-2. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
+1. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
+2. Re-check Amplify branch deployment and apex/www/app hostnames after the latest push.
 3. If additional providers are needed later, add `/sidira/prod/OPENAI_API_KEY` and `/sidira/prod/ANTHROPIC_API_KEY` as Parameter Store SecureString values, then rerun `deploy/ec2-api-deploy.sh`.
 
 ## Key Files
@@ -216,6 +221,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Current production data source is `streamly_sample`, not the local ignored
   food-delivery demo artifacts. Food-delivery artifacts need an explicit safe
   artifact path before production can use them.
+- Production is currently intentionally small: Amplify frontend + single `t4g.micro` EC2 backend. The filesystem artifact store is acceptable for this low-traffic development deployment, but the read/write artifact mount must be preserved until R2 is fully configured.
 
 ## For my cofounder
 Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the EC2/Caddy API baseline is live at `api.sidira.ai`, a repeatable EC2 deploy helper is on the branch, and Groq model access is configured through Parameter Store. The app loads production capabilities and model picker; run one real production simulation smoke before calling #115 fully ready to merge. Use browser-only AWS operations; do not use local AWS CLI.

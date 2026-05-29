@@ -8,6 +8,8 @@ PARAM_PREFIX="${SIDIRA_PARAM_PREFIX:-/sidira/prod}"
 ENV_FILE="${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}"
 LOCAL_CRED_KEY_FILE="${SIDIRA_LOCAL_CRED_KEY_FILE:-/opt/sidira/local_cred_key}"
 DEPLOY_KEY="${SIDIRA_DEPLOY_KEY:-/root/.ssh/sidira_deploy}"
+CONTAINER_UID="${SIDIRA_CONTAINER_UID:-10001}"
+CONTAINER_GID="${SIDIRA_CONTAINER_GID:-10001}"
 
 if ! command -v aws >/dev/null 2>&1; then
   echo "aws CLI is required on the EC2 instance to read ${PARAM_PREFIX} parameters" >&2
@@ -104,6 +106,10 @@ do
   write_env "$key" "$(ssm_value "$key")"
 done
 
+install -d -m 755 "$REPO_DIR/local-artifacts"
+chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"
+chmod -R u+rwX,go+rX "$REPO_DIR/local-artifacts"
+
 docker rm -f sidira-api sidira-caddy >/dev/null 2>&1 || true
 
 if docker compose version >/dev/null 2>&1; then
@@ -118,7 +124,7 @@ else
     --network-alias api \
     --env-file "$ENV_FILE" \
     -e PORT=8000 \
-    -v "$REPO_DIR/local-artifacts:/app/local-artifacts:ro" \
+    -v "$REPO_DIR/local-artifacts:/app/local-artifacts:rw" \
     sidira-api:latest
   docker run -d \
     --name sidira-caddy \

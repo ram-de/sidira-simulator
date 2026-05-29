@@ -9,7 +9,7 @@ services:
     expose:
       - "8000"
     volumes:
-      - ../local-artifacts:/app/local-artifacts:ro
+      - ../local-artifacts:/app/local-artifacts:rw
     restart: unless-stopped
 
   caddy:

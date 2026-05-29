@@ -45,8 +45,9 @@ Canonical Phase 4.7 hostnames:
   Caddy. `GET https://api.sidira.ai/health` returns
   `{"status":"ok","version":"0.1.0"}`.
 - The API container currently uses the checked-in `streamly_sample` artifact
-  fixture (`SIDIRA_CUSTOMER_ID=streamly_sample`) mounted read-only from
-  `/opt/sidira/repo/local-artifacts` to `/app/local-artifacts`.
+  fixture (`SIDIRA_CUSTOMER_ID=streamly_sample`) mounted read/write from
+  `/opt/sidira/repo/local-artifacts` to `/app/local-artifacts`, because
+  simulations write run state and agent memory under the same artifact root.
 - `GET https://api.sidira.ai/capabilities` returns the
   `streamly_sample` manifest, and `GET https://api.sidira.ai/simulations`
   returns `[]`.

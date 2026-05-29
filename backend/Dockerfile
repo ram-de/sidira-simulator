@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN addgroup --system sidira && adduser --system --ingroup sidira sidira
+RUN addgroup --system --gid 10001 sidira \
+    && adduser --system --uid 10001 --ingroup sidira sidira
 
 COPY pyproject.toml alembic.ini ./
 COPY alembic ./alembic
