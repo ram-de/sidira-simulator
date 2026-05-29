@@ -23,12 +23,29 @@ fi
 
 ssm_value() {
   local name="$1"
-  aws ssm get-parameter \
+  local output
+  local rc
+
+  set +e
+  output="$(aws ssm get-parameter \
     --region "$AWS_REGION" \
     --name "${PARAM_PREFIX}/${name}" \
     --with-decryption \
     --query 'Parameter.Value' \
-    --output text 2>/dev/null || true
+    --output text 2>&1)"
+  rc=$?
+  set -e
+
+  if [[ "$rc" -eq 0 ]]; then
+    printf '%s' "$output"
+    return 0
+  fi
+  if [[ "$output" == *"ParameterNotFound"* ]]; then
+    return 0
+  fi
+
+  echo "failed to read ${PARAM_PREFIX}/${name}: ${output}" >&2
+  return "$rc"
 }
 
 sanitize_value() {
@@ -76,11 +93,17 @@ max_agents="$(ssm_value SIDIRA_MAX_AGENTS)"
 cred_mode="$(ssm_value SIDIRA_CRED_MODE)"
 local_artifacts="$(ssm_value SIDIRA_LOCAL_ARTIFACTS)"
 local_cred_key="$(ssm_value SIDIRA_LOCAL_CRED_KEY)"
+internal_api_key="$(ssm_value SIDIRA_INTERNAL_API_KEY)"
+
+if [[ -z "$internal_api_key" || "$internal_api_key" == "None" ]]; then
+  echo "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY; create a SecureString and set the same value as Amplify SIDIRA_INTERNAL_API_KEY" >&2
+  exit 1
+fi
 
 if [[ -z "$local_cred_key" || "$local_cred_key" == "None" ]]; then
   install -d -m 700 "$(dirname "$LOCAL_CRED_KEY_FILE")"
   if [[ ! -s "$LOCAL_CRED_KEY_FILE" ]]; then
-    openssl rand -hex 32 > "$LOCAL_CRED_KEY_FILE"
+    openssl rand -base64 32 | tr '+/' '-_' > "$LOCAL_CRED_KEY_FILE"
     chmod 600 "$LOCAL_CRED_KEY_FILE"
   fi
   local_cred_key="$(cat "$LOCAL_CRED_KEY_FILE")"
@@ -92,31 +115,33 @@ write_env SIDIRA_MAX_AGENTS "$(default_value "$max_agents" "50")"
 write_env SIDIRA_CRED_MODE "$(default_value "$cred_mode" "local")"
 write_env SIDIRA_LOCAL_CRED_KEY "$local_cred_key"
 write_env SIDIRA_LOCAL_ARTIFACTS "$(default_value "$local_artifacts" "/app/local-artifacts")"
+write_env SIDIRA_INTERNAL_API_KEY "$internal_api_key"
 
 for key in \
   GROQ_API_KEY \
   ANTHROPIC_API_KEY \
   OPENAI_API_KEY \
-  DATABASE_URL \
   R2_BUCKET \
   R2_ENDPOINT_URL \
   R2_ACCESS_KEY_ID \
   R2_SECRET_ACCESS_KEY
 do
-  write_env "$key" "$(ssm_value "$key")"
+  value="$(ssm_value "$key")"
+  write_env "$key" "$value"
 done
 
 install -d -m 755 "$REPO_DIR/local-artifacts"
 chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"
 chmod -R u+rwX,go+rX "$REPO_DIR/local-artifacts"
 
-docker rm -f sidira-api sidira-caddy >/dev/null 2>&1 || true
-
 if docker compose version >/dev/null 2>&1; then
-  docker compose -p sidira -f deploy/docker-compose.api.yml up -d --build
+  docker compose -p sidira -f deploy/docker-compose.api.yml build
+  docker compose -p sidira -f deploy/docker-compose.api.yml up -d
 else
   docker network create sidira >/dev/null 2>&1 || true
   docker build -t sidira-api:latest backend
+  docker pull caddy:2-alpine
+  docker rm -f sidira-api sidira-caddy >/dev/null 2>&1 || true
   docker run -d \
     --name sidira-api \
     --restart unless-stopped \
@@ -130,6 +155,7 @@ else
     --name sidira-caddy \
     --restart unless-stopped \
     --network sidira \
+    --env-file "$ENV_FILE" \
     -p 80:80 \
     -p 443:443 \
     -v "$REPO_DIR/deploy/Caddyfile.api:/etc/caddy/Caddyfile:ro" \

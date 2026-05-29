@@ -112,9 +112,11 @@ npm install
 npx tsc --noEmit            # should pass clean
 ```
 
-For production deploys, copy `frontend/.env.example` and set
-`NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Local development can leave it
-unset or use `http://127.0.0.1:8000`.
+For production deploys, leave `NEXT_PUBLIC_API_BASE` unset so browser traffic
+uses the same-origin `/api` proxy. Set Amplify server-side
+`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` plus `SIDIRA_INTERNAL_API_KEY`.
+Local development can leave the proxy default or use direct
+`NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000`.
 
 ---
 

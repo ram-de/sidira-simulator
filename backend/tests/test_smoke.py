@@ -54,6 +54,22 @@ def test_app_boots() -> None:
     assert resp.json() == {"status": "ok", "version": __version__}
 
 
+def test_internal_api_key_gate_blocks_public_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIDIRA_INTERNAL_API_KEY", "test-internal-key")
+
+    client = TestClient(app)
+
+    health = client.get("/health")
+    assert health.status_code == 200
+
+    blocked = client.get("/models")
+    assert blocked.status_code == 404
+    assert blocked.json() == {"detail": "Not found"}
+
+    allowed = client.get("/models", headers={"X-Sidira-Internal-Key": "test-internal-key"})
+    assert allowed.status_code == 200
+
+
 def test_openapi_renders() -> None:
     client = TestClient(app)
     resp = client.get("/openapi.json")

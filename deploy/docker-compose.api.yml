@@ -1,5 +1,6 @@
 services:
   api:
+    container_name: sidira-api
     build:
       context: ../backend
     env_file:
@@ -13,7 +14,10 @@ services:
     restart: unless-stopped
 
   caddy:
+    container_name: sidira-caddy
     image: caddy:2-alpine
+    env_file:
+      - ${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}
     depends_on:
       - api
     ports:

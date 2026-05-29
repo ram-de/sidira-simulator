@@ -66,9 +66,11 @@ Legacy `PYTHIA_*` names are still accepted as fallbacks during the pre-launch
 rename; when both are set, `SIDIRA_*` wins.
 
 For deployment, the canonical Sidira hosts are `sidira.ai`, `app.sidira.ai`,
-and `api.sidira.ai`. Set frontend `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`
-and backend `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`.
-See `docs/sidira-domain-runbook.md` for the domain and metadata checklist.
+and `api.sidira.ai`. Production browser calls use the same-origin `/api` proxy;
+set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and
+`SIDIRA_INTERNAL_API_KEY`, and set backend
+`SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`. See
+`docs/sidira-domain-runbook.md` for the domain and metadata checklist.
 
 ## AWS deployment scaffold
 

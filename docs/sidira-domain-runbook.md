@@ -51,16 +51,17 @@ Canonical Phase 4.7 hostnames:
 - `GET https://api.sidira.ai/capabilities` returns the
   `streamly_sample` manifest, and `GET https://api.sidira.ai/simulations`
   returns `[]`.
-- `GET https://api.sidira.ai/models` currently returns no configured models
-  because provider API keys have not been stored on the instance yet. The
-  frontend renders this state without a fetch error.
+- `GET https://api.sidira.ai/models` returns Groq-backed models after
+  `/sidira/prod/GROQ_API_KEY` was added as an SSM `SecureString` and the API
+  was redeployed through the EC2 helper.
 
 ## Deploy Environment
 
 Frontend:
 
 ```bash
-NEXT_PUBLIC_API_BASE=https://api.sidira.ai
+SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai
+SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>
 ```
 
 Backend:
@@ -82,7 +83,7 @@ Use this as the first production topology:
 | DNS | Route 53 hosted zone for `sidira.ai` | Keep Namecheap as registrar; replace Namecheap nameservers with the four Route 53 nameservers. |
 | Frontend | AWS Amplify Hosting | Deploys `frontend/` from GitHub using the root `amplify.yml`. Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`. |
 | Backend | EC2 instance | Browser-console-friendly path with proper secret handling: attach an IAM instance profile, build `backend/Dockerfile` on the instance, and run `deploy/docker-compose.api.yml` behind Caddy for `api.sidira.ai`. |
-| Database | Neon Postgres for now | Keep the existing `DATABASE_URL`; move later only if AWS consolidation becomes valuable. |
+| Database | Unset for now | Leave `DATABASE_URL` out of production until Postgres-backed repos land in #68; current low-traffic deployment uses in-memory repos plus filesystem artifacts. |
 | Artifacts | Cloudflare R2 for now | Keep the existing artifact contract; switching storage is a separate migration. |
 
 Do not use AWS App Runner for the first deployment unless the AWS account already
@@ -94,9 +95,12 @@ so the server can use an IAM role to read only Sidira production secrets.
 
 ## Secrets And Credentials
 
-Keep production secrets out of GitHub, Amplify frontend variables, user-data,
-PR bodies, and docs. Amplify should only receive public frontend config:
-`NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
+Keep production secrets out of GitHub, Amplify public variables, user-data, PR
+bodies, and docs. Production browser traffic should use the same-origin Next
+`/api` proxy. Amplify receives the backend origin as a server-side variable
+(`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`) plus the temporary internal
+API key as a server-side secret (`SIDIRA_INTERNAL_API_KEY`), not as
+`NEXT_PUBLIC_*` config.
 
 Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 
@@ -104,17 +108,19 @@ Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 /sidira/prod/GROQ_API_KEY
 /sidira/prod/ANTHROPIC_API_KEY
 /sidira/prod/OPENAI_API_KEY
-/sidira/prod/DATABASE_URL
 /sidira/prod/R2_BUCKET
 /sidira/prod/R2_ENDPOINT_URL
 /sidira/prod/R2_ACCESS_KEY_ID
 /sidira/prod/R2_SECRET_ACCESS_KEY
 /sidira/prod/SIDIRA_LOCAL_CRED_KEY
+/sidira/prod/SIDIRA_INTERNAL_API_KEY
 ```
 
 Use Parameter Store `SecureString` for lightweight provider/R2 keys. Use
 Secrets Manager for credentials where rotation/lifecycle management matters,
-especially database credentials. The EC2 instance role should have least-
+especially future database credentials. Do not set `/sidira/prod/DATABASE_URL`
+until the backend's Postgres repository wiring is implemented; the current API
+intentionally raises when `DATABASE_URL` is present. The EC2 instance role should have least-
 privilege access to read only the Sidira production paths and decrypt only the
 matching KMS key.
 
@@ -124,20 +130,27 @@ Current production bootstrap status:
   instance profile `SidiraApiProdProfile`.
 - The role can read `/sidira/prod/*` Parameter Store paths and decrypt matching
   SSM SecureString values through the AWS-managed SSM/KMS path.
-- Provider keys are not configured yet. Add at least
-  `/sidira/prod/GROQ_API_KEY` before expecting live model-backed simulations.
-- The first EC2 deployment uses `/opt/sidira/api.env` generated on the instance.
-  The branch now includes `deploy/ec2-api-deploy.sh` to replace the manual
-  bootstrap with a repeatable deploy/start script that reads approved
-  `/sidira/prod/*` parameters at deploy time.
+- `/sidira/prod/GROQ_API_KEY` is configured as a `SecureString`; optional
+  Anthropic/OpenAI keys can be added later under the same prefix.
+- `/sidira/prod/SIDIRA_INTERNAL_API_KEY` is required before deploying the
+  backend from `main`; set the same value in Amplify as the server-side
+  `SIDIRA_INTERNAL_API_KEY` environment variable.
+- The EC2 deployment uses `/opt/sidira/api.env` generated on the instance by
+  `deploy/ec2-api-deploy.sh`. The helper reads approved `/sidira/prod/*`
+  parameters at deploy time and fails on access/KMS/region errors rather than
+  restarting with a partially empty secret file.
 
 ## Local vs Production Config
 
-Local development stays file-backed and points the browser at the local API:
+Local development stays file-backed. By default, browser code calls the
+same-origin `/api` proxy and the proxy forwards to the local API:
 
 ```bash
 # frontend/.env.local
-NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+SIDIRA_API_BASE_INTERNAL=http://127.0.0.1:8000
+
+# Optional direct browser-to-backend mode, bypassing the Next proxy:
+# NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
 
 # backend/.env
 SIDIRA_CUSTOMER_ID=demo
@@ -150,14 +163,15 @@ Production config belongs in AWS-managed environment variables, not committed
 files:
 
 ```bash
-# Amplify environment variable
-NEXT_PUBLIC_API_BASE=https://api.sidira.ai
+# Amplify server-side environment variables
+SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai
+SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>
 
 # EC2/Docker environment variables
 SIDIRA_CUSTOMER_ID=streamly_sample
 SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai
 SIDIRA_LOCAL_ARTIFACTS=/app/local-artifacts
-DATABASE_URL=<neon pooled postgres url>
+SIDIRA_INTERNAL_API_KEY=<from Parameter Store SecureString>
 GROQ_API_KEY=<from Parameter Store SecureString>
 ANTHROPIC_API_KEY=<optional>
 OPENAI_API_KEY=<optional>
@@ -189,7 +203,9 @@ Amplify Hosting:
   production branch to `main`.
 - Mark it as a monorepo app with app root `frontend`. Done.
 - Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`. Done.
-- Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Done.
+- Remove any production `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` setting so
+  browser traffic uses `/api`; set `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`
+  and server-side `SIDIRA_INTERNAL_API_KEY=<same value as Parameter Store>`.
 - Let Amplify use the root `amplify.yml`. Done.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
   Amplify create or show the required DNS records in Route 53. Done.
@@ -210,16 +226,19 @@ Backend API EC2 VM:
 - Add the read-only GitHub deploy key
   `SHA256:Z5gu5BOLJL5nRyGl9YUdkJWSuiKyHxRxhk9MWrmUC8c` to
   `ram-de/sidira-simulator`. Done.
+- Create `/sidira/prod/SIDIRA_INTERNAL_API_KEY` as a Parameter Store
+  `SecureString`, and set the same value in Amplify as the server-side
+  `SIDIRA_INTERNAL_API_KEY` variable before switching the live deployment to
+  `main`.
 - Clone `ram-de/sidira-simulator`, build `backend/Dockerfile`, and run
   `sidira-api` plus `sidira-caddy` Docker containers. Done.
 - Create `/opt/sidira/api.env` on the instance with the backend environment
-  variables listed above, loaded from AWS-managed secrets. Partially done:
-  current file is instance-local and excludes provider keys. Branch now includes
-  `deploy/ec2-api-deploy.sh` for the repeatable version.
+  variables listed above, loaded from AWS-managed secrets. Done through
+  `deploy/ec2-api-deploy.sh`.
 - From the repo root on the instance, run the API image behind Caddy. Done with
   the current branch image; next deploy should use
   `sudo SIDIRA_DEPLOY_BRANCH=main ./deploy/ec2-api-deploy.sh` after #115
-  merges and provider keys are in Parameter Store.
+  merges.
 - If validating compose before the production env file exists, set
   `SIDIRA_API_ENV_FILE` to a temporary env file path.
 - Verify `https://api.sidira.ai/health` returns `{"status":"ok"}`.
@@ -238,8 +257,8 @@ Backend API EC2 VM:
   `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai` through Amplify managed
   certificates; done for `api.sidira.ai` through Caddy/Let's Encrypt on EC2.
 - Verify `GET https://api.sidira.ai/health` returns `{"status":"ok"}`. Done.
-- Verify the frontend can call the API without a CORS failure from
-  `https://sidira.ai` and `https://app.sidira.ai`. Done for
+- Verify the frontend can call the API through the same-origin `/api` proxy
+  without exposing the internal API key to browser JavaScript. Done for
   `https://sidira.ai/simulations/new`; capabilities load and no console errors
   were observed.
 
@@ -253,14 +272,19 @@ instance `i-04b155fafcc90042b`.
 Pause API traffic:
 
 ```bash
-docker stop sidira-api
+cd /opt/sidira/repo
+docker compose -p sidira -f deploy/docker-compose.api.yml stop api
 ```
 
 Resume API traffic:
 
 ```bash
-docker start sidira-api
+cd /opt/sidira/repo
+docker compose -p sidira -f deploy/docker-compose.api.yml start api
 ```
+
+If the host was deployed through the fallback non-Compose path, use
+`docker stop sidira-api` and `docker start sidira-api` instead.
 
 Expected behavior while paused:
 
@@ -291,5 +315,7 @@ Stronger options:
 - GitHub repo renames create redirects, but local clones should still run:
   `git remote set-url origin git@github.com-personal:ram-de/sidira-simulator.git`.
 - Keep the temporary `pythia-simulator` CLI alias and `PYTHIA_*` env fallbacks until after the first Sidira deployment has soaked.
-- Revert frontend API routing by setting `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000` locally or to the prior backend URL in production.
+- Revert frontend API routing locally with
+  `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000`; only use a direct production API
+  base if the backend/Caddy internal-key gate is also disabled.
 - Revert backend CORS by restoring the previous `SIDIRA_CORS_ORIGINS` deploy value.
