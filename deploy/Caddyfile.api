@@ -1,15 +1,5 @@
 api.sidira.ai {
 	encode gzip
 
-	@health path /health
-	handle @health {
-		reverse_proxy api:8000
-	}
-
-	@authorized header X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}
-	handle @authorized {
-		reverse_proxy api:8000
-	}
-
-	respond 404
+	reverse_proxy api:8000
 }
