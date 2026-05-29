@@ -5,6 +5,12 @@ import TopNav from "@/components/TopNav";
 export const metadata: Metadata = {
   title: "Sidira",
   description: "Validate product hypotheses before you build them.",
+  applicationName: "Sidira",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

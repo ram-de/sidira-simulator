@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144" role="img" aria-labelledby="title desc">
+  <title id="title">Sidira</title>
+  <desc id="desc">Sidira split-test mark.</desc>
+  <rect width="144" height="144" rx="32" fill="#f4fafc"/>
+  <g transform="translate(23 29)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 43 C36 43 38 18 58 18" stroke="#14b8a6" stroke-width="10"/>
+    <path d="M20 43 C36 43 38 68 58 68" stroke="#2563eb" stroke-width="10"/>
+    <path d="M58 18 C76 18 76 43 94 43" stroke="#14b8a6" stroke-width="10"/>
+    <path d="M58 68 C76 68 76 43 94 43" stroke="#2563eb" stroke-width="10"/>
+    <circle cx="20" cy="43" r="10" fill="#07111f" stroke="#f4fafc" stroke-width="5"/>
+    <circle cx="58" cy="18" r="11" fill="#14b8a6" stroke="#f4fafc" stroke-width="5"/>
+    <circle cx="58" cy="68" r="11" fill="#2563eb" stroke="#f4fafc" stroke-width="5"/>
+    <circle cx="94" cy="43" r="11" fill="#07111f" stroke="#f4fafc" stroke-width="5"/>
+  </g>
+</svg>

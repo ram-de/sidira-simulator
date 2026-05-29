@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from sidira_simulator import __version__
 from sidira_simulator.api import (
@@ -48,6 +49,15 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def internal_api_key_gate(request: Request, call_next):
+        expected = resolve_sidira_env("INTERNAL_API_KEY")
+        if not expected or request.url.path == "/health" or request.method == "OPTIONS":
+            return await call_next(request)
+        if request.headers.get("x-sidira-internal-key") != expected:
+            return JSONResponse({"detail": "Not found"}, status_code=404)
+        return await call_next(request)
 
     @app.get("/health")
     def health() -> dict[str, str]:

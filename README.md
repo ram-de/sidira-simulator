@@ -6,7 +6,8 @@ A PM submits a feature hypothesis (PRD + Figma). Sidira simulates how the custom
 
 ## Subsystems in the Sidira architecture
 
-Producer repos are still named `pythia-*` until the metadata/domain follow-up (#115) handles repo renames.
+The customer-facing simulator repo is now `sidira-simulator`; producer repos
+remain `pythia-*` until their package/repo rename work is explicitly scheduled.
 
 ```
 pythia-personas/      → Persona Pack
@@ -63,6 +64,23 @@ Use `SIDIRA_*` for simulator-specific backend config, for example
 `SIDIRA_CORS_ORIGINS`, `SIDIRA_CRED_MODE`, and `SIDIRA_LOCAL_CRED_KEY`.
 Legacy `PYTHIA_*` names are still accepted as fallbacks during the pre-launch
 rename; when both are set, `SIDIRA_*` wins.
+
+For deployment, the canonical Sidira hosts are `sidira.ai`, `app.sidira.ai`,
+and `api.sidira.ai`. Production browser calls use the same-origin `/api` proxy;
+set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and
+`SIDIRA_INTERNAL_API_KEY`, and set backend
+`SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`. See
+`docs/sidira-domain-runbook.md` for the domain and metadata checklist.
+
+## AWS deployment scaffold
+
+- `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting.
+- `backend/Dockerfile` packages the FastAPI backend for the production Docker
+  Compose API host or another Linux container host.
+- `deploy/docker-compose.api.yml` runs the API behind Caddy for a small
+  browser-console-managed Lightsail/EC2 instance.
+- Production secrets stay in the AWS console environment variable surfaces; do
+  not commit `.env` files.
 
 ## License
 

@@ -1,0 +1,34 @@
+services:
+  api:
+    container_name: sidira-api
+    build:
+      context: ../backend
+    env_file:
+      - ${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}
+    environment:
+      PORT: "8000"
+    expose:
+      - "8000"
+    volumes:
+      - ../local-artifacts:/app/local-artifacts:rw
+    restart: unless-stopped
+
+  caddy:
+    container_name: sidira-caddy
+    image: caddy:2-alpine
+    env_file:
+      - ${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.api:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

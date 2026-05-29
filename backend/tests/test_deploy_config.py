@@ -1,0 +1,85 @@
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_api_artifact_mount_is_writable_for_run_state() -> None:
+    compose = (REPO_ROOT / "deploy" / "docker-compose.api.yml").read_text()
+
+    assert "../local-artifacts:/app/local-artifacts:rw" in compose
+    assert "../local-artifacts:/app/local-artifacts:ro" not in compose
+    assert "container_name: sidira-api" in compose
+
+
+def test_ec2_deploy_prepares_artifact_tree_for_container_user() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+    readme = (REPO_ROOT / "deploy" / "README.md").read_text()
+
+    assert 'CONTAINER_UID="${SIDIRA_CONTAINER_UID:-10001}"' in deploy
+    assert 'CONTAINER_GID="${SIDIRA_CONTAINER_GID:-10001}"' in deploy
+    assert 'chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"' in deploy
+    assert '-v "$REPO_DIR/local-artifacts:/app/local-artifacts:rw"' in deploy
+    assert "sudo chown -R 10001:10001 local-artifacts" in readme
+
+
+def test_ec2_deploy_does_not_export_unwired_database_url() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert "DATABASE_URL" not in deploy
+
+
+def test_ec2_deploy_generates_backend_compatible_local_credential_key() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert "openssl rand -hex 32" not in deploy
+    assert "openssl rand -base64 32 | tr '+/' '-_'" in deploy
+
+
+def test_ec2_deploy_fails_on_ssm_access_errors() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert "2>/dev/null || true" not in deploy
+    assert "ParameterNotFound" in deploy
+    assert 'echo "failed to read ${PARAM_PREFIX}/${name}: ${output}" >&2' in deploy
+
+
+def test_ec2_deploy_builds_before_replacing_live_containers() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert deploy.index(
+        "docker compose -p sidira -f deploy/docker-compose.api.yml build"
+    ) < deploy.index("docker compose -p sidira -f deploy/docker-compose.api.yml up -d")
+    assert deploy.index("docker build -t sidira-api:latest backend") < deploy.index(
+        "docker rm -f sidira-api sidira-caddy"
+    )
+
+
+def test_public_api_is_gated_behind_internal_proxy_key() -> None:
+    caddy = (REPO_ROOT / "deploy" / "Caddyfile.api").read_text()
+    compose = (REPO_ROOT / "deploy" / "docker-compose.api.yml").read_text()
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert "@health path /health" in caddy
+    assert "X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" in caddy
+    assert "respond 404" in caddy
+    assert "SIDIRA_API_ENV_FILE" in compose
+    assert "SIDIRA_INTERNAL_API_KEY" in deploy
+    assert "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY" in deploy
+    assert '--env-file "$ENV_FILE"' in deploy
+
+
+def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
+    api_client = (REPO_ROOT / "frontend" / "lib" / "api.ts").read_text()
+    route = (REPO_ROOT / "frontend" / "app" / "api" / "[...path]" / "route.ts").read_text()
+    env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
+    runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
+
+    assert 'process.env.NEXT_PUBLIC_API_BASE ?? "/api"' in api_client
+    assert "process.env.SIDIRA_API_BASE_INTERNAL" in route
+    assert "process.env.SIDIRA_INTERNAL_API_KEY" in route
+    assert "X-Sidira-Internal-Key" in route
+    assert "NEXT_PUBLIC_API_BASE=https://api.sidira.ai" not in env_example
+    assert "SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>" in (
+        env_example
+    )
+    assert "Production browser traffic should use the same-origin Next" in runbook

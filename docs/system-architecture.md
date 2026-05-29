@@ -11,7 +11,7 @@ date: 2026-05-20
 **Scope:** Lumen MVP through Phase 2
 **Status:** Architecture finalized, awaiting review
 
-**Rename note (2026-05-28):** the product and backend package are Sidira / `sidira_simulator`. GitHub repos and producer package names remain `pythia-*` until the metadata/domain follow-up (#115) explicitly renames them.
+**Rename note (2026-05-28):** the product, backend package, and customer-facing simulator repo are Sidira / `sidira_simulator` / `sidira-simulator`. Producer repo and package names remain `pythia-*` until their rename work is explicitly scheduled.
 
 ## Overview
 
@@ -29,7 +29,7 @@ Producers (persona pack, feature pack) write versioned artifacts to a shared obj
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    pythia-simulator/                        │
+│                    sidira-simulator/                        │
 │  (the only thing the customer sees)                         │
 │                                                             │
 │  ┌──────────────┐   ┌────────────────────┐                  │
@@ -73,14 +73,14 @@ Repo names below are the current GitHub/package names, not the product name.
 |---|---|---|
 | **`pythia-personas`** (exists) | Produces Persona Pack from a customer's user table | Python, scikit-learn, Snowflake/Datalake connector |
 | **`pythia-crawler`** (new) | Produces Feature Pack via weekly Playwright crawl | Python, Playwright, LLM (Anthropic/Groq) |
-| **`pythia-simulator`** (new) | Customer-facing app: frontend + backend + workers | Next.js + Python/FastAPI |
+| **`sidira-simulator`** | Customer-facing app: frontend + backend + workers | Next.js + Python/FastAPI |
 | **`pythia-schemas`** (new; rename to `sidira-schemas` in #115) | Shared Pydantic schemas (Persona Pack, Feature Pack, Simulation Result) | Python only; TS types generated from OpenAPI export |
 | Artifact store | Cloudflare R2 bucket | S3-compatible API, zero egress |
 
-### `pythia-simulator/` internal layout
+### `sidira-simulator/` internal layout
 
 ```
-pythia-simulator/
+sidira-simulator/
 ├── frontend/                Next.js + TypeScript, deployed to Vercel
 ├── backend/                 FastAPI service, deployed to Fly.io
 │   ├── api/                 HTTP routes
@@ -386,7 +386,7 @@ This is the **identity-continuity guarantee applied at the population level** �
 | Application errors | **Sentry** — backend + frontend SDK |
 | LLM traces (prompts, responses, latency, cost) | **Langfuse** — already used in the ETL skill |
 | Structured logs | JSON to stdout → Fly.io log aggregation; ship to Datadog/BetterStack when scale demands |
-| Pipeline metrics (crawler runs, persona runs) | Postgres tables + simple admin dashboard in `pythia-simulator/frontend/admin` |
+| Pipeline metrics (crawler runs, persona runs) | Postgres tables + simple admin dashboard in `sidira-simulator/frontend/admin` |
 | Uptime + healthchecks | Fly.io built-in + Better Uptime for external probes |
 
 ---
@@ -414,8 +414,8 @@ Each repo has its own GitHub Actions pipeline:
 |---|---|
 | `pythia-personas` | lint → unit tests → integration test (sample run) → publish package to private index |
 | `pythia-crawler` | lint → unit tests → Playwright smoke test → build Docker image → push to registry |
-| `pythia-simulator/backend` | lint → unit tests → typecheck → build Docker → deploy to Fly.io staging on `main` |
-| `pythia-simulator/frontend` | lint → typecheck → Next.js build → Vercel preview on PR; promote to prod on tag |
+| `sidira-simulator/backend` | lint → unit tests → typecheck → build Docker → deploy to AWS staging on `main` |
+| `sidira-simulator/frontend` | lint → typecheck → Next.js build → Amplify preview on PR; promote to prod on tag |
 | `pythia-schemas` | lint → tests → publish to private package index → triggers downstream rebuilds |
 
 ---
@@ -440,7 +440,7 @@ Each repo has its own GitHub Actions pipeline:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Three-repo split | `pythia-personas` / `pythia-crawler` / `pythia-simulator` | Different runtime profiles, security models, cadences; clean composition via artifact store |
+| Three-repo split | `pythia-personas` / `pythia-crawler` / `sidira-simulator` | Different runtime profiles, security models, cadences; clean composition via artifact store |
 | Artifact store | Cloudflare R2 | Zero egress for repeated reads by simulator, S3-compat for portability |
 | Backend language | Python (FastAPI) | Same language as producers → direct package imports, no IPC |
 | Frontend stack | Next.js + TypeScript | Dominant enterprise SaaS UI; types codegen'd from OpenAPI |
