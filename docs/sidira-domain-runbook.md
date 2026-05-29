@@ -243,6 +243,42 @@ Backend API EC2 VM:
   `https://sidira.ai/simulations/new`; capabilities load and no console errors
   were observed.
 
+## Pause Or Resume Backend
+
+Use this when the frontend can stay up, but live API/model calls should stop
+temporarily, for example to prevent accidental Groq usage during development.
+Run commands through AWS Console > Systems Manager > Run Command against EC2
+instance `i-04b155fafcc90042b`.
+
+Pause API traffic:
+
+```bash
+docker stop sidira-api
+```
+
+Resume API traffic:
+
+```bash
+docker start sidira-api
+```
+
+Expected behavior while paused:
+
+- `https://sidira.ai` and `https://app.sidira.ai` still load from Amplify.
+- API calls through `https://api.sidira.ai` fail because Caddy cannot reach the
+  stopped API container.
+- No Sidira request path can trigger provider calls while `sidira-api` is
+  stopped.
+
+Stronger options:
+
+- Stop EC2 instance `i-04b155fafcc90042b` from the EC2 console when the whole
+  backend host should be offline.
+- Rotate or revoke `/sidira/prod/GROQ_API_KEY` in Parameter Store when a key may
+  have been exposed outside AWS-managed secret storage.
+- Remove or blank `/sidira/prod/GROQ_API_KEY` and redeploy if the backend should
+  stay up without Groq-backed simulation capability.
+
 ## GitHub Metadata Checklist
 
 - Rename the GitHub Project title from Pythia to Sidira.
