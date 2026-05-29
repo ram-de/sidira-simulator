@@ -1,7 +1,7 @@
 ---
 type: session
 domain: phase-5a-postgres-wiring
-status: active
+status: closed
 started: 2026-05-29
 owner: ram-de
 ---
@@ -15,7 +15,7 @@ Implement #68 so the backend uses Postgres-backed repositories when `DATABASE_UR
 - [x] Start #68 on `codex/68-postgres-repo-wiring` and audit the current FastAPI dependency, repository, and background-task session boundaries.
 - [x] Implement Postgres-backed repo selection when `DATABASE_URL` is set, with InMemory fallback preserved when unset.
 - [x] Run focused and full verification, including Codex review/fix cycles.
-- [ ] Commit, push, and open the #68 PR.
+- [x] Commit, push, open, and merge the #68 PR.
 
 ## Completed
 - Created this Phase 5a session after closing the Phase 4.7 Sidira rename/deployment session.
@@ -27,11 +27,13 @@ Implement #68 so the backend uses Postgres-backed repositories when `DATABASE_UR
 - Wired the EC2 deploy helper to pass `/sidira/prod/DATABASE_URL` and `/sidira/prod/SIDIRA_AUTO_MIGRATE` into `/opt/sidira/api.env` when present.
 - Normalized provider-style Postgres URLs (`postgres://`, `postgresql://`, and `sslmode=` query params) to SQLAlchemy asyncpg-compatible URLs.
 - Verification: backend suite `390 passed, 11 skipped`; focused Postgres/migration/deploy tests `31 passed`; Docker Postgres integration smoke `1 passed`; frontend typecheck passed; ruff/black/diff-check passed; Codex review clean after fixes.
+- Opened PR #126 and merged it into `main` with squash commit `cfcff57`.
 
 ## Next Steps
-1. Commit and push the final #68 branch.
-2. Open a PR for #68 and link it with `Closes #68`.
-3. After merge/deploy, configure production Postgres through SSM Parameter Store rather than local AWS CLI.
+1. Configure production Postgres through SSM Parameter Store rather than local AWS CLI.
+2. Set `/sidira/prod/DATABASE_URL` as a secret value.
+3. Run one deployment with `/sidira/prod/SIDIRA_AUTO_MIGRATE=1`, then disable it unless intentionally running future migrations.
+4. Verify simulation list/detail/agents survive backend restart.
 
 ## Key Files
 - `backend/sidira_simulator/api/deps.py` -- repository/session dependency selection and background orchestrator factory.
@@ -42,11 +44,11 @@ Implement #68 so the backend uses Postgres-backed repositories when `DATABASE_UR
 - `backend/alembic/` -- existing migrations; optional auto-migration/warn path may touch this.
 
 ## Key Context
-- #68 is the next pre-customer hardening ticket after Phase 4.7.
-- Current production should keep `DATABASE_URL` unset until this branch is merged and deployed. After that, set `/sidira/prod/DATABASE_URL` through SSM Parameter Store and set `/sidira/prod/SIDIRA_AUTO_MIGRATE=1` only for the deployment intended to run Alembic.
+- #68 was the next pre-customer hardening ticket after Phase 4.7 and is now merged.
+- Current production can now receive `DATABASE_URL` after the merged code is deployed. Set `/sidira/prod/DATABASE_URL` through SSM Parameter Store and set `/sidira/prod/SIDIRA_AUTO_MIGRATE=1` only for the deployment intended to run Alembic.
 - Acceptance requires both paths: with `DATABASE_URL` unset, behavior remains unchanged; with Postgres enabled and migrations applied, simulation list/detail/agents survive process restart.
 - Background simulations run outside the original request lifecycle, so they must not reuse a request-scoped session.
 - User asked not to use local AWS CLI because it is configured for work. Any production AWS work should stay browser/SSM-console based unless the user explicitly changes that.
 
 ## For my cofounder
-Phase 4.7 is closed. #68 is implemented and verified on `codex/68-postgres-repo-wiring`; remaining work is PR creation/merge, then production database provisioning through the browser-based AWS flow.
+Phase 4.7 is closed. #68 is implemented, verified, and merged via PR #126. Remaining work is production database provisioning through the browser-based AWS flow.

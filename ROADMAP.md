@@ -1,6 +1,6 @@
 # Sidira — Overall Roadmap
 
-**Last updated:** 2026-05-28 (Phase 4.7 Sidira rename in progress)
+**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring shipped)
 
 The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + pythia-personas + pythia-crawler), not in markdown — see "Where to find what" below.
 
@@ -28,17 +28,18 @@ The Sidira product spans three repos. This document is the strategy map: phases,
 
 ---
 
-## Where we are today (2026-05-28)
+## Where we are today (2026-05-29)
 
 ✅ **Magic Moment Sprint complete** (Phases 2 + 3). A PM can submit a hypothesis through the UI, see agents react via real LLM calls, and get a confidence score + diagnosed weaknesses + refinement suggestions rendered live.
 ✅ **Phase 2.5 complete.** Population-size input, Hamilton allocation, identity seeds, score/weakness CIs, degradation guard, and population-aware frontend results are shipped.
 ✅ **Phase 4 agent chat foundations shipped.** PMs can chat with individual agents and persona groups, including arm-scoped group chat in A/B mode.
 ✅ **Phase 4.6 A/B experiment mode shipped.** Wizard toggle, paired treatment/control runner, paired-lift formula, and lift-first result UI are live.
-🚧 **Phase 4.7 Sidira rename in progress.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, and active Sidira docs/roadmap are merged. sidira.ai/domain metadata (#115) remains.
+✅ **Phase 4.7 Sidira rename + first production deployment shipped.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, active docs/roadmap, GitHub repo metadata, `sidira.ai`, Amplify, EC2/Caddy backend deployment, and SSM-based provider secret loading are live on `main`.
+✅ **Phase 5a #68 Postgres repo wiring shipped.** The backend can now use Postgres repositories when `DATABASE_URL` is configured, while keeping the InMemory fallback for no-DB local development and tests.
 
 What's **not yet real**:
 - **Real persona generation.** Demo uses a hand-built 6-persona fixture. pythia-personas can already generate packs; the simulator just hasn't consumed a real one yet.
-- **Persistence across restarts.** `InMemorySimulationRepo` resets on backend restart. Phase 5a (#68) un-stubs the Postgres wiring (schema + adapters already exist) — small standalone ticket, carved out of Phase 5 so it can ship before auth.
+- **Production database provisioning.** #68 is merged, but production still needs a managed Postgres URL stored in SSM, one migration-enabled deployment, and restart-survival verification before durable metadata is relied on.
 - **Multi-tenancy.** Everything is hardcoded to `customer_id = "demo"`. Phase 5.
 - **Crawler runs.** Feature Pack is still the hand-built Acme sample. crawler Phase 2 builds the Playwright walker.
 
@@ -57,8 +58,8 @@ What's **not yet real**:
 | 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | ✅ Simulator done |
 | 4.5 | Persona Builder UI (scaffolded) | — | — | 🚧 Scaffolded |
 | 4.6 | A/B experiment mode | — | — | ✅ Done |
-| **4.7** | **Sidira rename: product, config, package, docs, repo/domain metadata** | Repo/package names later | Repo/package names later | 🚧 In progress |
-| **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | 🔲 Pending |
+| **4.7** | **Sidira rename: product, config, package, docs, repo/domain metadata** | Repo/package names later | Repo/package names later | ✅ Done |
+| **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | ✅ Done |
 | 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
 | 7 | First customer (Lumen MVP) | First customer | First customer | 🔲 Pending |
@@ -71,7 +72,7 @@ What's **not yet real**:
 ## Critical path
 
 ```
-✅ Magic Moment (Phase 2+3) ──> ✅ Phase 2.5 (calibrated mix) ──> ✅ Phase 4/4.6 (chat + A/B) ──> 🚧 Phase 4.7 (Sidira rename) ──> Phase 5a (Postgres wiring, #68) ──> Phase 5 (auth+multi-tenancy) ──> Phase 7 (first customer)
+✅ Magic Moment (Phase 2+3) ──> ✅ Phase 2.5 (calibrated mix) ──> ✅ Phase 4/4.6 (chat + A/B) ──> ✅ Phase 4.7 (Sidira rename) ──> ✅ Phase 5a (Postgres wiring, #68) ──> Phase 5 (auth+multi-tenancy) ──> Phase 7 (first customer)
                                                                                                                        │
                                                                                                                        ▼
                                                                                                               Phase 8 → 9 → 10
@@ -86,18 +87,13 @@ What's **not yet real**:
 
 ## What's next
 
-**Phase 4.7 — Sidira rename.** The product is still pre-public, so we are finishing the naming cleanup now instead of carrying the old placeholder into first-customer setup.
+**Post-#68 production database setup.** #68 is merged, so the next operational step is to configure production Postgres through SSM and verify durable metadata in production.
 
 Current ticket order:
-- **#114 done:** active simulator docs and roadmap now read as Sidira while preserving historical session logs and compatibility fallbacks.
-- **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata after docs are coherent. The simulator repo is now `sidira-simulator`; producer repos remain `pythia-*`.
-
-Already merged in this phase:
-- **#111:** visible product surface and FastAPI display metadata.
-- **#113:** `SIDIRA_*` config namespace with `PYTHIA_*` fallbacks.
-- **#112:** backend package/import/CLI rename to `sidira_simulator` / `sidira-simulator`.
-
-Acceptance for the phase: a new teammate reads the active docs as Sidira end-to-end; local setup uses `SIDIRA_*` and `sidira_simulator`; sidira.ai/app/API origins are configured; any old-name references are explicitly historical, compatibility-only, or intentional producer repo/package names.
+- Configure managed Postgres and store `/sidira/prod/DATABASE_URL` outside git.
+- Run one deployment with `/sidira/prod/SIDIRA_AUTO_MIGRATE=1`, then disable it unless intentionally running future migrations.
+- Verify simulation list/detail/agents survive backend restart.
+- Keep #124 as low-priority proxy-auth hardening before broader public access.
 
 ---
 
@@ -195,16 +191,18 @@ Remaining:
 
 Dependencies: complete for the simulator/domain/deployment surface. `sidira.ai` is live on `main`.
 
-### Phase 5a — Postgres repo wiring 🔲 (carve-out — #68)
+### Phase 5a — Postgres repo wiring ✅ (carve-out — #68)
 
-Small standalone ticket carved out of Phase 5 so persistence can ship before auth lands. The schema (Alembic 001+002+003) and adapter classes (`PostgresSimulationRepo`, `PostgresAgentInstanceRepo`, `PostgresCustomerRepo`) already exist; only the FastAPI `AsyncSession` dependency wiring in `api/deps.py` is stubbed.
+Small standalone ticket carved out of Phase 5 so persistence could ship before auth lands. Shipped 2026-05-29 in PR #126.
 
-- Un-stubs `_repos()` to return Postgres-backed repos when `DATABASE_URL` is set.
-- `InMemorySimulationRepo` stays as the local-dev fallback when `DATABASE_URL` is unset.
-- Background-task session lifecycle (orchestrator runs outside request scope).
+- FastAPI dependencies now return Postgres-backed repos when `DATABASE_URL` is set.
+- `InMemorySimulationRepo` remains the local-dev fallback when `DATABASE_URL` is unset.
+- Background simulations use their own DB session lifecycle instead of a closed request-scoped session.
 - Optional `SIDIRA_AUTO_MIGRATE=1` flag for app-startup migration. Legacy
   `PYTHIA_AUTO_MIGRATE` remains the compatibility fallback during the rename.
-- ~1 day. Blocks Phase 7 (first customer requires a backend that survives restarts).
+- `agent_instances.materialization_index` preserves deterministic runner order in Postgres-backed agent lists.
+
+Production follow-up: configure managed Postgres through SSM, run one migration-enabled deployment, then verify list/detail/agent reloads across backend restart. This remains an operational setup step, not missing application wiring.
 
 ### Phase 5 — Auth + multi-tenancy 🔲
 
