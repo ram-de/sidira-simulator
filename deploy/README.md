@@ -28,13 +28,14 @@ sudo SIDIRA_DEPLOY_BRANCH=main ./deploy/ec2-api-deploy.sh
 
 The deploy helper writes `/opt/sidira/api.env`, pulls the selected branch, reads
 available `/sidira/prod/*` parameters through the instance role, builds the API
-image, and starts the API plus Caddy. Caddy and the backend require
-`X-Sidira-Internal-Key` for all API paths except `/health`; the Next.js
-same-origin proxy adds that header server-side. Missing optional provider keys
-are omitted from the env file; configure at least `/sidira/prod/GROQ_API_KEY`
-before expecting model-backed simulations. Do not set `/sidira/prod/DATABASE_URL`
-until the backend Postgres repository wiring lands; the current API uses
-in-memory repos and will fail fast if `DATABASE_URL` is present.
+image, and starts the API plus Caddy. Caddy terminates HTTPS and proxies to the
+backend; the FastAPI app requires `X-Sidira-Internal-Key` for all API paths
+except `/health`, and the Next.js same-origin proxy adds that header server-side.
+Missing optional provider keys are omitted from the env file; configure at least
+`/sidira/prod/GROQ_API_KEY` before expecting model-backed simulations. Do not set
+`/sidira/prod/DATABASE_URL` until the backend Postgres repository wiring lands;
+the current API uses in-memory repos and will fail fast if `DATABASE_URL` is
+present.
 
 If running manually from the repo root instead, create `/opt/sidira/api.env`
 with backend production environment variables, prepare the artifact tree for the
