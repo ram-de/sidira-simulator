@@ -5,6 +5,7 @@ Canonical Phase 4.7 hostnames:
 | Surface | Hostname | Purpose |
 |---|---|---|
 | Marketing/root | `sidira.ai` | Public entry point. Can redirect to the app while marketing is not live. |
+| Marketing alias | `www.sidira.ai` | Convenience alias; permanently redirects to `sidira.ai`. |
 | Frontend app | `app.sidira.ai` | Next.js customer-facing simulator. |
 | Backend API | `api.sidira.ai` | FastAPI service consumed by the frontend. |
 
@@ -14,6 +15,9 @@ Canonical Phase 4.7 hostnames:
   answers via Route 53.
 - `app.sidira.ai` is added to Amplify custom domains and now returns a
   CloudFront-backed DNS answer.
+- `www.sidira.ai` is added to Amplify custom domains and now returns a
+  CloudFront-backed DNS answer. The frontend middleware redirects it to
+  `https://sidira.ai`.
 - `api.sidira.ai` has no DNS answer yet.
 - Route 53 public hosted zone exists: `Z01279103CLJX7PS4TEFN`.
 - Namecheap registrar nameservers were updated to Route 53 Custom DNS on
@@ -26,7 +30,7 @@ Canonical Phase 4.7 hostnames:
   `https://codex-115-sidira-domain-metadata.dbzf69xeoypqa.amplifyapp.com`.
   Smoke check returned HTTP 200 and rendered the Sidira home page.
 - Amplify custom domain setup is available for `sidira.ai` with an Amplify
-  managed certificate. The root and `app` hostnames are both mapped to
+  managed certificate. The root, `app`, and `www` hostnames are mapped to
   `codex/115-sidira-domain-metadata`.
 - HTTPS smoke checks returned HTTP 200 for `https://app.sidira.ai` with normal
   resolution and for `https://sidira.ai` when pointed at the freshly resolved
@@ -59,7 +63,7 @@ Use this as the first production topology:
 | Surface | AWS service | Notes |
 |---|---|---|
 | DNS | Route 53 hosted zone for `sidira.ai` | Keep Namecheap as registrar; replace Namecheap nameservers with the four Route 53 nameservers. |
-| Frontend | AWS Amplify Hosting | Deploys `frontend/` from GitHub using the root `amplify.yml`. Add custom domains `sidira.ai` and `app.sidira.ai`. |
+| Frontend | AWS Amplify Hosting | Deploys `frontend/` from GitHub using the root `amplify.yml`. Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`. |
 | Backend | EC2 instance | Browser-console-friendly path with proper secret handling: attach an IAM instance profile, build `backend/Dockerfile` on the instance, and run `deploy/docker-compose.api.yml` behind Caddy for `api.sidira.ai`. |
 | Database | Neon Postgres for now | Keep the existing `DATABASE_URL`; move later only if AWS consolidation becomes valuable. |
 | Artifacts | Cloudflare R2 for now | Keep the existing artifact contract; switching storage is a separate migration. |
@@ -156,9 +160,10 @@ Amplify Hosting:
 - Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`. Done.
 - Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Done.
 - Let Amplify use the root `amplify.yml`. Done.
-- Add custom domains `sidira.ai` and `app.sidira.ai`; let Amplify create or show
-  the required DNS records in Route 53. Done; Amplify reports the custom domain
-  as available.
+- Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
+  Amplify create or show the required DNS records in Route 53. Done for root
+  and `app`; `www` was added as an alias and may briefly show update
+  propagation after the domain configuration save.
 
 Backend API EC2 VM:
 
@@ -184,12 +189,14 @@ Backend API EC2 VM:
 
 - Point `sidira.ai` at the chosen frontend/edge provider. Done via Amplify /
   CloudFront.
+- Point `www.sidira.ai` at the frontend and redirect it to `https://sidira.ai`.
+  Done via Amplify / CloudFront plus Next middleware.
 - Point `app.sidira.ai` at the Next.js deployment. Done via Amplify /
   CloudFront.
 - Point `api.sidira.ai` at the FastAPI deployment.
 - Enable provider-managed HTTPS certificates for all three names. Done for
-  `sidira.ai` and `app.sidira.ai` through Amplify managed certificates; still
-  needed for `api.sidira.ai`.
+  `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai` through Amplify managed
+  certificates; still needed for `api.sidira.ai`.
 - Verify `GET https://api.sidira.ai/health` returns `{"status":"ok"}`.
 - Verify the frontend can call the API without a CORS failure from `https://sidira.ai` and `https://app.sidira.ai`.
 
