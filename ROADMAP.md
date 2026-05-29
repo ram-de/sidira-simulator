@@ -177,7 +177,7 @@ Followups carved out of the dogfood:
 - #100 wizard cost preview vs backend cap.
 - Plumbing cleanup: delete `AB_MODE_DISABLED_UNTIL_LIFT` after soak.
 
-### Phase 4.7 — Sidira rename 🚧
+### Phase 4.7 — Sidira rename ✅
 
 Pre-public rename from the old placeholder to Sidira.
 
@@ -185,11 +185,15 @@ Done:
 - #111 visible product surface.
 - #113 `SIDIRA_*` config namespace with `PYTHIA_*` fallback compatibility.
 - #112 `sidira_simulator` backend package and `sidira-simulator` CLI.
+- #114 active docs/onboarding/architecture update.
+- #115/#120 domain, GitHub metadata, simulator repo rename, Amplify frontend, EC2/Caddy API baseline, and production deployment runbook.
+- #122/#125 production deployment follow-up fixes for Caddy/API and Amplify SSR proxy env wiring.
 
 Remaining:
-- #115 sidira.ai deployment/origins and GitHub metadata/repo-name decision.
+- #124 low-priority proxy-auth hardening before broader public access.
+- Producer repo/package renames for `pythia-personas` and `pythia-crawler` are intentionally not part of this phase; schedule explicitly if/when needed.
 
-Dependencies: #115 should run after #112/#113/#114 are merged so domain/repo metadata is not racing active code/docs. Repo names remain `pythia-*` until #115 explicitly changes them.
+Dependencies: complete for the simulator/domain/deployment surface. `sidira.ai` is live on `main`.
 
 ### Phase 5a — Postgres repo wiring 🔲 (carve-out — #68)
 

@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-4.7-sidira-rename
-status: active
+status: closed
 started: 2026-05-28
+closed: 2026-05-29
 owner: ram-de
 ---
 
@@ -12,7 +13,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] Production deployment switch -- set the internal API key in AWS SSM and Amplify, switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`, and verify live `sidira.ai`.
+(nothing; session closed)
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -144,11 +145,13 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Codex pre-merge review also found that the public `api.sidira.ai` surface would allow unauthenticated model-quota use. The #115 branch now adds a temporary internal API key gate in backend/Caddy and routes production browser calls through the Next same-origin `/api` proxy, which adds `X-Sidira-Internal-Key` server-side.
 - Final Codex review rerun was clean after staging the Next proxy route and updating production API-base docs.
 - PR #120 was opened and squash-merged to `main` as `11166ce` (`Configure Sidira domain and AWS deployment (#120)`). #115 is closed and the GitHub Project Status is Done.
+- Closed out follow-up deployment state on `main`: Caddy/API deployment fixes landed via #122, Amplify SSR proxy environment wiring landed via #125, and the production backend was redeployed from `main` through SSM Run Command `507f0f5e-6371-4726-afdf-aea95b90338b`.
+- Production internal API key wiring is complete: `/sidira/prod/SIDIRA_INTERNAL_API_KEY` exists in SSM Parameter Store, Amplify has the matching server-side `SIDIRA_INTERNAL_API_KEY`, Amplify has `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`, and production browser calls use the same-origin `/api` proxy.
+- Final production smoke checks passed: `https://sidira.ai/api/health` and `https://sidira.ai/api/models` return 200 through the Amplify proxy; direct `https://api.sidira.ai/models` remains gated; `https://sidira.ai/simulations/new` loads the live model picker.
+- Carved out #124 as a low-priority security/deployment hardening follow-up: move the temporary web-proxy shared secret off Amplify build/runtime artifacts before broader public access.
 
 ## Next Steps
-1. Create `/sidira/prod/SIDIRA_INTERNAL_API_KEY` as a SecureString, add the same value to Amplify as server-side `SIDIRA_INTERNAL_API_KEY`, set Amplify `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`, and leave production `NEXT_PUBLIC_API_BASE` unset.
-2. Switch Amplify and the EC2 deploy helper from `codex/115-sidira-domain-metadata` to `main`, then re-check apex/www/app/API hostnames.
-3. If additional providers are needed later, add `/sidira/prod/OPENAI_API_KEY` and `/sidira/prod/ANTHROPIC_API_KEY` as Parameter Store SecureString values, then rerun `deploy/ec2-api-deploy.sh`.
+- Session complete. Next product session is Phase 5a #68 Postgres repository wiring.
 
 ## Key Files
 - `frontend/app/layout.tsx` -- app metadata title/description.
@@ -228,6 +231,8 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Production is currently intentionally small: Amplify frontend + single `t4g.micro` EC2 backend. The filesystem artifact store is acceptable for this low-traffic development deployment, but the read/write artifact mount must be preserved until R2 is fully configured.
 - Pre-merge Codex review found deploy sharp edges: do not export `DATABASE_URL` until Postgres repository wiring lands, keep Compose container names stable for pause/resume docs, generate the fallback local credential key as URL-safe base64 32-byte material rather than hex, fail deploys on SSM/KMS access errors instead of blanking secrets, build before replacing live containers, and document artifact ownership for manual Compose runs.
 - #115 production hardening requires `/sidira/prod/SIDIRA_INTERNAL_API_KEY` in Parameter Store and the same value in Amplify as a server-side `SIDIRA_INTERNAL_API_KEY` variable. Production frontend should use the default same-origin `/api` proxy, not a public `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` browser call.
+- Phase 4.7 is complete for the simulator/domain/deployment surface. Producer repo/package renames for `pythia-personas` and `pythia-crawler` remain intentionally out of scope until explicitly scheduled.
+- #124 remains open as a later hardening task. It is not a Phase 4.7 blocker for the current low-traffic development deployment.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, #114, and #115 are merged. The simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the EC2/Caddy API baseline is live at `api.sidira.ai`, a repeatable EC2 deploy helper is merged on `main`, Groq model access is configured through Parameter Store, and #115 added a temporary internal API key gate plus Next `/api` proxy so public callers cannot hit model-backed API routes directly after the live deployment is switched to `main` with matching internal-key config. The app loads production capabilities and model picker; production smoke simulation `16cf2a8a-41b2-4350-a6b5-43bb5e58711d` completed successfully. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28 and closed 2026-05-29. #111, #113, #112, #114, and #115 are merged; #120/#122/#125 completed the production deployment fixes. The simulator repo is now `ram-de/sidira-simulator`. Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap. Amplify app `dbzf69xeoypqa` serves `main` at `sidira.ai`, `app.sidira.ai`, and `www.sidira.ai` with `www` redirecting to the apex. The Sidira favicon is live. The EC2/Caddy API baseline is live at `api.sidira.ai`, deployed from `main`, and model-backed browser calls go through the same-origin Amplify `/api` proxy with the temporary internal API key. Groq model access is configured through Parameter Store; production smoke simulation `16cf2a8a-41b2-4350-a6b5-43bb5e58711d` completed successfully. Use browser-only AWS operations; do not use local AWS CLI.

@@ -2,14 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-28 (Phase 4.7 Sidira rename in progress)
+**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring starting)
 
 ---
 
 ## What just shipped
 
-✅ **Phase 4.7 Sidira rename partial -- #111/#113/#112/#114 shipped 2026-05-28 (session `phase-4.7-sidira-rename`).**
-The pre-public product rename is now real in the app, backend code, and active docs. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`, kept a temporary `pythia-simulator` CLI compatibility alias, and stabilized a flaky bootstrap CI test that blocked the merge gate. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115 renamed the simulator GitHub repo to `sidira-simulator`; sidira.ai deployment/origin setup remains in progress.
+✅ **Phase 4.7 Sidira rename + first production deployment, SHIPPED 2026-05-29 (session `phase-4.7-sidira-rename`).**
+The pre-public product rename is now real in the app, backend code, active docs, GitHub repo metadata, and production domain. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115/#120 configured Route 53, Namecheap delegation, Amplify, `sidira.ai`, `www` redirect, `app.sidira.ai`, `api.sidira.ai`, EC2/Caddy backend deployment, Groq provider secret loading through SSM, and a temporary internal API key gate with the Next same-origin `/api` proxy. Follow-up fixes #122 and #125 moved production to `main` cleanly. `sidira.ai` now serves the app, model picker, capabilities, and API proxy; direct model-backed API access remains gated. #124 is the remaining low-priority hardening item before broader public access.
 
 ✅ **#103 -- model selection, SHIPPED 2026-05-27 (PR #105, commit `ea5440e`, session `model-selection`).**
 PMs can now pick the LLM provider/model that powers a simulation while preserving the Groq `llama-3.3-70b-versatile` default. Backend exposes `GET /models` filtered to configured providers, validates unknown/unavailable `model_id`s up front, persists the selected model on each simulation, and routes sim reactions, scoring, refinement, follow-up agent chat, persona-group collective fan-out, and synthesis through that same model. A/B mode uses one selected model for both arms so paired-lift math stays apples-to-apples. The wizard shows grouped Groq/Anthropic/OpenAI choices, and result pages show the model used while legacy rows with `NULL model_id` render as untracked instead of being mislabeled. Groq selection now includes GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, Llama 4 Scout, and the existing Llama defaults. Verification: backend 346 passed / 10 skipped, frontend typecheck clean, live `/models` + wizard rendering verified, Codex review clear.
@@ -78,11 +78,12 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Phase 4.7 — finish Sidira rename.**
+**Phase 5a -- start #68 Postgres repository wiring.**
 
 Current order:
-1. **#115 active next:** configure sidira.ai deployment/origins and GitHub metadata/repo-name decision now that active docs are coherent.
-2. Then resume the pre-customer hardening path: **Phase 5a #68** Postgres repo wiring so simulation history survives restarts before external demos.
+1. **#68 active next:** wire Postgres-backed repos behind FastAPI async session dependencies while preserving the InMemory fallback for local dev and tests.
+2. After #68: configure a production database only after the branch is merged and reviewed; do not set production `DATABASE_URL` before then.
+3. Keep #124 as a later hardening item for proxy auth before broader public access.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
