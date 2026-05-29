@@ -7,6 +7,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 PARAM_PREFIX="${SIDIRA_PARAM_PREFIX:-/sidira/prod}"
 ENV_FILE="${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}"
 LOCAL_CRED_KEY_FILE="${SIDIRA_LOCAL_CRED_KEY_FILE:-/opt/sidira/local_cred_key}"
+DEPLOY_KEY="${SIDIRA_DEPLOY_KEY:-/root/.ssh/sidira_deploy}"
 
 if ! command -v aws >/dev/null 2>&1; then
   echo "aws CLI is required on the EC2 instance to read ${PARAM_PREFIX} parameters" >&2
@@ -53,6 +54,10 @@ default_value() {
 if [[ ! -d "$REPO_DIR/.git" ]]; then
   echo "repo not found at ${REPO_DIR}; clone sidira-simulator there first" >&2
   exit 1
+fi
+
+if [[ -f "$DEPLOY_KEY" ]]; then
+  export GIT_SSH_COMMAND="ssh -i ${DEPLOY_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 fi
 
 cd "$REPO_DIR"
