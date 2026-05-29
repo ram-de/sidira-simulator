@@ -10,16 +10,19 @@ Canonical Phase 4.7 hostnames:
 
 ## Current Audit (2026-05-28)
 
-- `sidira.ai` resolves to `162.255.119.57`, but HTTPS does not currently answer on port 443.
+- `sidira.ai` has no A/AAAA answer yet after delegation moved to Route 53.
 - `app.sidira.ai` has no DNS answer yet.
 - `api.sidira.ai` has no DNS answer yet.
 - Route 53 public hosted zone exists: `Z01279103CLJX7PS4TEFN`.
 - Namecheap registrar nameservers were updated to Route 53 Custom DNS on
-  2026-05-28. Public `dig NS sidira.ai` still returned the previous Namecheap
-  delegation immediately after save, so propagation is pending.
+  2026-05-28. Public `dig NS sidira.ai` now returns the Route 53 delegation.
 - Route 53 assigned nameservers:
   `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
   `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
+- Amplify app exists: `sidira-simulator` / app ID `dbzf69xeoypqa`.
+- Temporary #115 branch deployment is live at
+  `https://codex-115-sidira-domain-metadata.dbzf69xeoypqa.amplifyapp.com`.
+  Smoke check returned HTTP 200 and rendered the Sidira home page.
 - GitHub Project #1 is titled Sidira.
 - The simulator repo is renamed to `ram-de/sidira-simulator`; local `origin` should point to `git@github.com-personal:ram-de/sidira-simulator.git`.
 - `pythia-personas` and `pythia-crawler` descriptions/homepages use Sidira metadata, but their repo/package names remain unchanged until producer rename work is explicitly scheduled.
@@ -129,18 +132,21 @@ Route 53:
   `ns-1394.awsdns-46.org`, `ns-844.awsdns-41.net`,
   `ns-1649.awsdns-14.co.uk`, `ns-474.awsdns-59.com`.
 - In Namecheap, set Domain > Nameservers to Custom DNS and paste the four Route
-  53 nameservers. Done 2026-05-28; propagation pending.
-- Expect DNS propagation to take minutes to hours; keep checking with
-  `dig NS sidira.ai`.
+  53 nameservers. Done 2026-05-28.
+- Verify DNS propagation with `dig NS sidira.ai`. Done; public delegation now
+  returns the Route 53 nameservers.
 
 Amplify Hosting:
 
-- Create an Amplify app from GitHub repo `ram-de/sidira-simulator`.
-- Select the branch to deploy (`main` for production).
-- Mark it as a monorepo app with app root `frontend`.
-- Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`.
-- Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`.
-- Let Amplify use the root `amplify.yml`.
+- Create an Amplify app from GitHub repo `ram-de/sidira-simulator`. Done:
+  app ID `dbzf69xeoypqa`.
+- Select the branch to deploy. Done for the temporary #115 deployment:
+  `codex/115-sidira-domain-metadata`. After #115 merges, connect or switch the
+  production branch to `main`.
+- Mark it as a monorepo app with app root `frontend`. Done.
+- Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`. Done.
+- Set `NEXT_PUBLIC_API_BASE=https://api.sidira.ai`. Done.
+- Let Amplify use the root `amplify.yml`. Done.
 - Add custom domains `sidira.ai` and `app.sidira.ai`; let Amplify create or show
   the required DNS records in Route 53.
 
