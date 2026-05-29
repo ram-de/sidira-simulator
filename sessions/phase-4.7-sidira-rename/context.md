@@ -12,7 +12,7 @@ owner: ram-de
 Rename Pythia to Sidira before public launch, starting with the user-visible simulator product surface and then progressing through config, package names, docs, cross-repo producers, and domain/project metadata.
 
 ## In Progress
-- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress. Remaining: provider secrets/model access, repeatable EC2 deploy script, production smoke with a real model, and switching deployed branch to `main` after PR merge.
+- [ ] #115 -- Configure sidira.ai deployment, origins, and project metadata. Project status: In Progress. Remaining: provider secrets/model access, production smoke with a real model, and switching deployed branch to `main` after PR merge.
 
 ## Completed
 - Created and pushed the Phase 4.7 session file on `main` (`85b8dcf`).
@@ -116,10 +116,15 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   errors.
 - Documented the AWS/domain deployment state in `docs/sidira-domain-runbook.md`
   and pushed branch commit `55b1bd3`.
+- Added repeatable EC2 deploy helper on the #115 branch in commit `384b474`
+  (`deploy/ec2-api-deploy.sh`). The script pulls the selected branch, reads
+  `/sidira/prod/*` parameters through the EC2 instance role, writes
+  `/opt/sidira/api.env`, mounts local artifacts at `/app/local-artifacts`, and
+  starts the API/Caddy containers.
 
 ## Next Steps
 1. Store provider keys, starting with `GROQ_API_KEY`, under `/sidira/prod/*` in AWS Parameter Store SecureString. Do not put secrets in chat or repo files.
-2. Replace the current manual `/opt/sidira/api.env` bootstrap with a repeatable EC2 deploy/start script that reads `/sidira/prod/*` parameters through the instance role.
+2. Re-run the EC2 deploy through `deploy/ec2-api-deploy.sh` after provider keys are configured.
 3. Run an end-to-end production smoke after provider keys are configured: model list should be non-empty and a small simulation should complete.
 4. Open/refresh PR for `codex/115-sidira-domain-metadata`, run Codex review, merge #115, then switch Amplify/backend deployment from `codex/115-sidira-domain-metadata` to `main`.
 
@@ -147,6 +152,8 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - `docs/sidira-domain-runbook.md` -- now also records the EC2 API baseline,
   deploy key, `api.sidira.ai` DNS/HTTPS state, current `streamly_sample`
   fixture, and missing provider-secret state.
+- `deploy/ec2-api-deploy.sh` -- EC2-side deploy helper that reads
+  `/sidira/prod/*` parameters and restarts API/Caddy.
 
 ## Key Context
 - Phase 4.7 plan: #110.
@@ -164,8 +171,8 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - #115 is partially complete: GitHub metadata, local deploy docs/env examples,
   Route 53 delegation, temporary Amplify branch deployment, Amplify custom
   domains, `www` canonical redirect, Sidira favicon, and first EC2/Caddy API
-  baseline are done. Provider secrets, repeatable deploy, and real-model
-  production smoke remain.
+  baseline are done. A repeatable EC2 deploy helper exists on the branch.
+  Provider secrets and real-model production smoke remain.
 - App Runner is not the right first backend choice for a new personal AWS account because AWS docs now say App Runner is no longer open to new customers.
 - User asked not to use local AWS CLI because it is configured for work; all AWS actions for this task should use the browser console / browser SSH unless the user explicitly says otherwise.
 - User approved the initial low-traffic AWS baseline cost estimate for Route 53
@@ -183,9 +190,12 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
   the EC2/Caddy API is live. `GET /health`, `GET /simulations`, and
   `GET /capabilities` succeed; `GET /models` returns an empty list because no
   provider API keys are configured yet.
+- As of branch commit `384b474`, #115 includes `deploy/ec2-api-deploy.sh`.
+  Next EC2 deployment should use the helper instead of hand-writing
+  `/opt/sidira/api.env`.
 - Current production data source is `streamly_sample`, not the local ignored
   food-delivery demo artifacts. Food-delivery artifacts need an explicit safe
   artifact path before production can use them.
 
 ## For my cofounder
-Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, and the first EC2/Caddy API baseline is live at `api.sidira.ai`. The app loads production capabilities, but simulations still need provider secrets and a repeatable EC2 deploy script before calling production complete. Use browser-only AWS operations; do not use local AWS CLI.
+Session opened 2026-05-28. #111, #113, #112, and #114 are merged. #115 is active on `codex/115-sidira-domain-metadata`: the simulator repo is now `ram-de/sidira-simulator`, Route 53 hosted zone `Z01279103CLJX7PS4TEFN` is delegated from Namecheap, Amplify app `dbzf69xeoypqa` serves the #115 branch, custom domains `sidira.ai` / `app.sidira.ai` / `www.sidira.ai` are mapped to the #115 branch, `www` redirects to the apex, the Sidira favicon is live, the first EC2/Caddy API baseline is live at `api.sidira.ai`, and a repeatable EC2 deploy helper is on the branch. The app loads production capabilities, but simulations still need provider secrets and a real-model smoke before calling production complete. Use browser-only AWS operations; do not use local AWS CLI.
