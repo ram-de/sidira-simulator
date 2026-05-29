@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sidira_simulator.adapters.db_models import (
@@ -33,6 +34,11 @@ async def _commit(session: AsyncSession) -> None:
         raise
 
 
+async def _release_read_transaction(session: AsyncSession) -> None:
+    if session.in_transaction() and not (session.new or session.dirty or session.deleted):
+        await session.rollback()
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Customer
 # ──────────────────────────────────────────────────────────────────────
@@ -47,10 +53,13 @@ class PostgresCustomerRepo:
         self._session = session
 
     async def ensure_exists(self, customer_id: str, name: str | None = None) -> None:
-        existing = await self._session.get(Customer, customer_id)
-        if existing is None:
-            self._session.add(Customer(id=customer_id, name=name or customer_id))
-            await _commit(self._session)
+        stmt = (
+            pg_insert(Customer)
+            .values(id=customer_id, name=name or customer_id)
+            .on_conflict_do_nothing(index_elements=[Customer.id])
+        )
+        await self._session.execute(stmt)
+        await _commit(self._session)
 
 
 class InMemoryCustomerRepo:
@@ -163,8 +172,11 @@ class PostgresSimulationRepo:
     async def get(self, sim_id: str, customer_id: str) -> dict[str, Any] | None:
         row = await self._session.get(Simulation, sim_id)
         if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
             return None
-        return _simulation_to_dict(row)
+        result = _simulation_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
 
     async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict[str, Any]]:
         stmt = (
@@ -174,7 +186,9 @@ class PostgresSimulationRepo:
             .limit(limit)
         )
         rows = (await self._session.execute(stmt)).scalars().all()
-        return [_simulation_to_dict(r) for r in rows]
+        result = [_simulation_to_dict(r) for r in rows]
+        await _release_read_transaction(self._session)
+        return result
 
 
 class InMemorySimulationRepo:
@@ -275,18 +289,31 @@ class PostgresAgentInstanceRepo:
         await _commit(self._session)
 
     async def list_for_simulation(self, sim_id: str, customer_id: str) -> list[dict[str, Any]]:
-        stmt = select(AgentInstance).where(
-            AgentInstance.simulation_id == sim_id,
-            AgentInstance.customer_id == customer_id,
+        stmt = (
+            select(AgentInstance)
+            .where(
+                AgentInstance.simulation_id == sim_id,
+                AgentInstance.customer_id == customer_id,
+            )
+            .order_by(
+                AgentInstance.materialization_index.asc().nulls_last(),
+                AgentInstance.created_at.asc(),
+                AgentInstance.id.asc(),
+            )
         )
         rows = (await self._session.execute(stmt)).scalars().all()
-        return [_agent_to_dict(r) for r in rows]
+        result = [_agent_to_dict(r) for r in rows]
+        await _release_read_transaction(self._session)
+        return result
 
     async def get(self, agent_id: str, customer_id: str) -> dict[str, Any] | None:
         row = await self._session.get(AgentInstance, agent_id)
         if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
             return None
-        return _agent_to_dict(row)
+        result = _agent_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
 
     async def touch(self, agent_id: str, customer_id: str) -> None:
         row = await self._session.get(AgentInstance, agent_id)
@@ -429,6 +456,7 @@ def _agent_to_dict(row: AgentInstance) -> dict[str, Any]:
         "created_at": row.created_at,
         "last_active_at": row.last_active_at,
         "message_count": row.message_count,
+        "materialization_index": row.materialization_index,
         "arm": row.arm,
     }
 

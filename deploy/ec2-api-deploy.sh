@@ -94,6 +94,8 @@ cred_mode="$(ssm_value SIDIRA_CRED_MODE)"
 local_artifacts="$(ssm_value SIDIRA_LOCAL_ARTIFACTS)"
 local_cred_key="$(ssm_value SIDIRA_LOCAL_CRED_KEY)"
 internal_api_key="$(ssm_value SIDIRA_INTERNAL_API_KEY)"
+database_url="$(ssm_value DATABASE_URL)"
+auto_migrate="$(ssm_value SIDIRA_AUTO_MIGRATE)"
 
 if [[ -z "$internal_api_key" || "$internal_api_key" == "None" ]]; then
   echo "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY; create a SecureString and set the same value as Amplify SIDIRA_INTERNAL_API_KEY" >&2
@@ -116,6 +118,8 @@ write_env SIDIRA_CRED_MODE "$(default_value "$cred_mode" "local")"
 write_env SIDIRA_LOCAL_CRED_KEY "$local_cred_key"
 write_env SIDIRA_LOCAL_ARTIFACTS "$(default_value "$local_artifacts" "/app/local-artifacts")"
 write_env SIDIRA_INTERNAL_API_KEY "$internal_api_key"
+write_env DATABASE_URL "$database_url"
+write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
 
 for key in \
   GROQ_API_KEY \

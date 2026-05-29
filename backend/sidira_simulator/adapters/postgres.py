@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 from typing import AsyncIterator
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -24,12 +25,40 @@ _engine: AsyncEngine | None = None
 _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
 
+def _normalize_database_url(raw: str) -> str:
+    """Normalize common provider URLs for SQLAlchemy's asyncpg dialect."""
+    parsed = urlsplit(raw)
+    scheme = parsed.scheme
+    if scheme in {"postgres", "postgresql"}:
+        scheme = "postgresql+asyncpg"
+
+    query_pairs: list[tuple[str, str]] = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if key == "sslmode":
+            query_pairs.append(("ssl", value))
+        else:
+            query_pairs.append((key, value))
+
+    return urlunsplit(
+        (
+            scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(query_pairs, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
 def database_url() -> str | None:
     """Resolve the configured Postgres URL, including legacy rename fallback."""
     raw = os.environ.get("DATABASE_URL")
     if raw is not None and raw.strip():
-        return raw
-    return resolve_sidira_env("DATABASE_URL")
+        return _normalize_database_url(raw)
+    resolved = resolve_sidira_env("DATABASE_URL")
+    if resolved is None:
+        return None
+    return _normalize_database_url(resolved)
 
 
 def database_configured() -> bool:

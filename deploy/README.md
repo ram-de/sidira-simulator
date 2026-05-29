@@ -32,10 +32,11 @@ image, and starts the API plus Caddy. Caddy terminates HTTPS and proxies to the
 backend; the FastAPI app requires `X-Sidira-Internal-Key` for all API paths
 except `/health`, and the Next.js same-origin proxy adds that header server-side.
 Missing optional provider keys are omitted from the env file; configure at least
-`/sidira/prod/GROQ_API_KEY` before expecting model-backed simulations. Do not set
-`/sidira/prod/DATABASE_URL` until the backend Postgres repository wiring lands;
-the current API uses in-memory repos and will fail fast if `DATABASE_URL` is
-present.
+`/sidira/prod/GROQ_API_KEY` before expecting model-backed simulations. After the
+Postgres repository wiring branch is merged and deployed, set
+`/sidira/prod/DATABASE_URL` as a SecureString and set
+`/sidira/prod/SIDIRA_AUTO_MIGRATE=1` only for the deployment that should run
+Alembic migrations.
 
 If running manually from the repo root instead, create `/opt/sidira/api.env`
 with backend production environment variables, prepare the artifact tree for the

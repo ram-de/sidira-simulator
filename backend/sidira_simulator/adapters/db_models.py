@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -102,6 +102,9 @@ class AgentInstance(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     message_count: Mapped[int] = mapped_column(default=0)
+    # Phase 5a #68: total materialization order within a simulation. This
+    # preserves the runner/allocation order when Postgres returns agent lists.
+    materialization_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Phase 4.6 #89: A/B mode arm tag. NULL = single-arm sim (today's
     # default; pre-#89 rows round-trip with NULL). "treatment" / "control"
     # for A/B sims. Persisted at materialization time and never changes

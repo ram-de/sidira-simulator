@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
 from sidira_simulator.adapters import postgres
 from sidira_simulator.adapters import migrations
+from sidira_simulator.adapters.db_models import AgentInstance
 from sidira_simulator.adapters.repositories import (
     InMemoryAgentFeedbackRepo,
     InMemoryAgentInstanceRepo,
@@ -28,6 +31,10 @@ from sidira_simulator.services.simulation_orchestrator import SimulationOrchestr
 class _FakeSession:
     def __init__(self) -> None:
         self.rolled_back = False
+        self.committed = False
+
+    async def commit(self) -> None:
+        self.committed = True
 
     async def rollback(self) -> None:
         self.rolled_back = True
@@ -89,6 +96,48 @@ def test_repo_factories_keep_in_memory_fallback_when_no_session(monkeypatch) -> 
     assert isinstance(deps.get_feedback_repo(None), InMemoryAgentFeedbackRepo)
 
 
+@pytest.mark.parametrize(
+    ("raw", "normalized"),
+    [
+        (
+            "postgresql://user:pass@example.invalid:5432/sidira",
+            "postgresql+asyncpg://user:pass@example.invalid:5432/sidira",
+        ),
+        (
+            "postgres://user:pass@example.invalid/sidira",
+            "postgresql+asyncpg://user:pass@example.invalid/sidira",
+        ),
+        (
+            "postgresql+asyncpg://user:pass@example.invalid/sidira?sslmode=require&connect_timeout=5",
+            "postgresql+asyncpg://user:pass@example.invalid/sidira?ssl=require&connect_timeout=5",
+        ),
+        (
+            "postgresql://user:pass@example.invalid/sidira?sslmode=disable",
+            "postgresql+asyncpg://user:pass@example.invalid/sidira?ssl=disable",
+        ),
+    ],
+)
+def test_database_url_normalizes_provider_connection_strings(
+    monkeypatch, raw: str, normalized: str
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", raw)
+
+    assert postgres.database_url() == normalized
+
+
+def test_database_url_normalizes_sidira_and_legacy_fallbacks(monkeypatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("SIDIRA_DATABASE_URL", "postgres://user:pass@example.invalid/sidira")
+    monkeypatch.delenv("PYTHIA_DATABASE_URL", raising=False)
+
+    assert postgres.database_url() == "postgresql+asyncpg://user:pass@example.invalid/sidira"
+
+    monkeypatch.delenv("SIDIRA_DATABASE_URL", raising=False)
+    monkeypatch.setenv("PYTHIA_DATABASE_URL", "postgresql://user:pass@example.invalid/legacy")
+
+    assert postgres.database_url() == "postgresql+asyncpg://user:pass@example.invalid/legacy"
+
+
 def test_repo_factories_use_postgres_repos_when_session_is_present(monkeypatch) -> None:
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://example.invalid/sidira")
     session = object()
@@ -96,6 +145,103 @@ def test_repo_factories_use_postgres_repos_when_session_is_present(monkeypatch) 
     assert isinstance(deps.get_customer_repo(session), PostgresCustomerRepo)
     assert isinstance(deps.get_simulation_repo(session), PostgresSimulationRepo)
     assert isinstance(deps.get_agent_repo(session), PostgresAgentInstanceRepo)
+
+
+class _StatementRecordingSession(_FakeSession):
+    def __init__(self, result: Any = None) -> None:
+        super().__init__()
+        self.statements: list[Any] = []
+        self._result = result
+        self.rollback_count = 0
+
+    async def execute(self, statement):
+        self.statements.append(statement)
+        return self._result
+
+    async def rollback(self) -> None:
+        await super().rollback()
+        self.rollback_count += 1
+
+    def in_transaction(self) -> bool:
+        return True
+
+    @property
+    def new(self):
+        return set()
+
+    @property
+    def dirty(self):
+        return set()
+
+    @property
+    def deleted(self):
+        return set()
+
+
+class _EmptyScalarResult:
+    def scalars(self):
+        return self
+
+    def all(self) -> list[Any]:
+        return []
+
+
+@pytest.mark.asyncio
+async def test_postgres_customer_ensure_exists_is_atomic() -> None:
+    session = _StatementRecordingSession()
+    repo = PostgresCustomerRepo(session)
+
+    await repo.ensure_exists("demo")
+
+    assert session.committed is True
+    sql = str(session.statements[0].compile(dialect=postgresql.dialect()))
+    assert "ON CONFLICT (id) DO NOTHING" in sql
+
+
+@pytest.mark.asyncio
+async def test_postgres_agent_listing_is_ordered_and_releases_read_transaction() -> None:
+    session = _StatementRecordingSession(_EmptyScalarResult())
+    repo = PostgresAgentInstanceRepo(session)
+
+    assert await repo.list_for_simulation("sim_1", "demo") == []
+
+    sql = str(session.statements[0].compile(dialect=postgresql.dialect()))
+    assert (
+        "ORDER BY agent_instances.materialization_index ASC NULLS LAST, "
+        "agent_instances.created_at ASC, agent_instances.id ASC"
+    ) in sql
+    assert session.rollback_count == 1
+
+
+@pytest.mark.asyncio
+async def test_postgres_agent_get_releases_read_transaction_after_materializing_row() -> None:
+    now = datetime.now(timezone.utc)
+    row = AgentInstance(
+        id="agent_1",
+        customer_id="demo",
+        simulation_id="sim_1",
+        persona_id="maya",
+        persona_pack_version="v1",
+        persona_name="Maya",
+        created_at=now,
+        last_active_at=now,
+        message_count=0,
+        materialization_index=0,
+        arm=None,
+    )
+    session = _StatementRecordingSession()
+
+    async def get(model, key):
+        return row
+
+    session.get = get  # type: ignore[method-assign]
+    repo = PostgresAgentInstanceRepo(session)
+
+    result = await repo.get("agent_1", "demo")
+
+    assert result is not None
+    assert result["id"] == "agent_1"
+    assert session.rollback_count == 1
 
 
 def test_startup_migrations_are_opt_in(monkeypatch) -> None:

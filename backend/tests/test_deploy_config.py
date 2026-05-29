@@ -22,10 +22,13 @@ def test_ec2_deploy_prepares_artifact_tree_for_container_user() -> None:
     assert "sudo chown -R 10001:10001 local-artifacts" in readme
 
 
-def test_ec2_deploy_does_not_export_unwired_database_url() -> None:
+def test_ec2_deploy_exports_database_runtime_settings() -> None:
     deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
 
-    assert "DATABASE_URL" not in deploy
+    assert 'database_url="$(ssm_value DATABASE_URL)"' in deploy
+    assert 'auto_migrate="$(ssm_value SIDIRA_AUTO_MIGRATE)"' in deploy
+    assert 'write_env DATABASE_URL "$database_url"' in deploy
+    assert 'write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"' in deploy
 
 
 def test_ec2_deploy_generates_backend_compatible_local_credential_key() -> None:
@@ -62,9 +65,9 @@ def test_public_api_is_gated_by_backend_internal_key() -> None:
 
     assert "reverse_proxy api:8000" in caddy
     assert "X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" not in caddy
-    assert "request.headers.get(\"x-sidira-internal-key\")" in app
-    assert "request.url.path == \"/health\"" in app
-    assert "JSONResponse({\"detail\": \"Not found\"}, status_code=404)" in app
+    assert 'request.headers.get("x-sidira-internal-key")' in app
+    assert 'request.url.path == "/health"' in app
+    assert 'JSONResponse({"detail": "Not found"}, status_code=404)' in app
     assert "SIDIRA_API_ENV_FILE" in compose
     assert "SIDIRA_INTERNAL_API_KEY" in deploy
     assert "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY" in deploy
@@ -93,10 +96,7 @@ def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
     assert 'test -n "$SIDIRA_INTERNAL_API_KEY"' in amplify
     assert "missing SIDIRA_API_BASE_INTERNAL" in amplify
     assert "missing SIDIRA_INTERNAL_API_KEY" in amplify
-    assert (
-        'printf "SIDIRA_API_BASE_INTERNAL=%s\\nSIDIRA_INTERNAL_API_KEY=%s\\n"'
-        in amplify
-    )
+    assert 'printf "SIDIRA_API_BASE_INTERNAL=%s\\nSIDIRA_INTERNAL_API_KEY=%s\\n"' in amplify
     assert "Production browser traffic should use the same-origin Next" in runbook
     assert "alpha-stage gateway-token workaround" in runbook
     assert "#124 tracks moving web proxy auth off" in runbook

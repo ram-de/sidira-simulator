@@ -257,7 +257,9 @@ class SimulationOrchestrator:
         )
 
         # Persist agent_instances rows using the records the runner exposed.
-        for record in getattr(self._runner, "_last_run_agent_records", []):
+        for materialization_index, record in enumerate(
+            getattr(self._runner, "_last_run_agent_records", [])
+        ):
             await self._agents.create(
                 {
                     "id": record.agent_id,
@@ -269,6 +271,7 @@ class SimulationOrchestrator:
                     "created_at": record.created_at,
                     "last_active_at": record.created_at,
                     "message_count": 0,
+                    "materialization_index": materialization_index,
                     "arm": record.arm,
                 }
             )
