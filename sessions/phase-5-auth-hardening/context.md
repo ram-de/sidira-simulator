@@ -12,7 +12,7 @@ owner: ram-de
 Close out the production Postgres bootstrap follow-up, redeploy the merged backend from `main`, and implement #124 so the web proxy no longer needs a backend gateway token in Amplify/Next deployment artifacts.
 
 ## In Progress
-- [ ] Land PR #130 and execute the post-merge production rollout.
+- [ ] Execute the post-merge #124 production rollout.
 
 ## Completed
 - PR #129 was squash-merged to `main` as `ad6f49ad231bd94b66878df86f06ed097ffc9e33`.
@@ -34,11 +34,14 @@ Close out the production Postgres bootstrap follow-up, redeploy the merged backe
 - Verification passed: `backend/.venv/bin/pytest tests/test_deploy_config.py -q`, `backend/.venv/bin/pytest tests/ -q` (392 passed, 11 skipped), `frontend npx tsc --noEmit`, `frontend npm run build` with `SIDIRA_API_BASE_INTERNAL=https://example.com/_proxy`, `git diff --check`, Docker Compose env-file hash preservation, and `docker run ... caddy validate --config /etc/caddy/Caddyfile`.
 - Final `/codex review --base main` passed clean with no correctness, security, or deployment findings.
 - Opened PR #130: https://github.com/ram-de/sidira-simulator/pull/130.
+- PR #130 was squash-merged to `main` as `1ebbcd14134f52d74b2fe63f38ef82ab2c17ae06`.
+- Issue #124 is closed as completed.
 
 ## Next Steps
-1. Merge PR #130 after the user approves landing it.
-2. After #124 merges, create SSM values `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER` and `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH`, update Amplify `SIDIRA_API_BASE_INTERNAL` to `https://api.sidira.ai/_sidira_web_proxy`, remove Amplify `SIDIRA_INTERNAL_API_KEY`, then redeploy backend and frontend.
-3. Verify `https://sidira.ai/simulations` works after Basic Auth and direct unauthenticated `https://api.sidira.ai/models` remains blocked.
+1. Create SSM values `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER` and `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH`.
+2. Update Amplify `SIDIRA_API_BASE_INTERNAL` to `https://api.sidira.ai/_sidira_web_proxy` and remove Amplify `SIDIRA_INTERNAL_API_KEY`.
+3. Redeploy the EC2 backend from `main`, then redeploy Amplify `main`.
+4. Verify `https://sidira.ai/simulations` works after Basic Auth and direct unauthenticated `https://api.sidira.ai/models` remains blocked.
 
 ## Key Files
 - `CONTEXT.md` -- sprint narrative and next-work pointer.
@@ -51,8 +54,8 @@ Close out the production Postgres bootstrap follow-up, redeploy the merged backe
 ## Key Context
 - User asked not to use local AWS CLI because it is configured for work. AWS production actions should use the browser console / SSM console unless explicitly changed.
 - Current direct backend protection is `SIDIRA_INTERNAL_API_KEY` enforced in FastAPI. `/health` remains public.
-- #124 removes the current weakness where Amplify/Next received the internal gateway token so the same-origin web proxy could add `X-Sidira-Internal-Key`.
-- Crawler work should wait until #124 is done unless there is a specific customer-product crawl to start.
+- #124 removed the code/config weakness where Amplify/Next received the internal gateway token so the same-origin web proxy could add `X-Sidira-Internal-Key`; rollout is still pending.
+- Crawler work should wait until the #124 production rollout is verified unless there is a specific customer-product crawl to start.
 
 ## For my cofounder
-Branch `codex/124-proxy-auth-hardening` starts after PR #129 merged. PR #130 contains the #124 fix. The #124 path keeps browser traffic on `/api`, removes the internal gateway token from Amplify/Next, and lets the EC2/Caddy runtime proxy validate the existing Basic auth header before adding the backend internal key server-side.
+PR #130 landed the #124 fix. The #124 path keeps browser traffic on `/api`, removes the internal gateway token from Amplify/Next, and lets the EC2/Caddy runtime proxy validate the existing Basic auth header before adding the backend internal key server-side. Production still needs the SSM/Amplify env updates and backend/frontend redeploy.
