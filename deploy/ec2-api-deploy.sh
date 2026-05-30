@@ -6,6 +6,7 @@ DEPLOY_BRANCH="${SIDIRA_DEPLOY_BRANCH:-main}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 PARAM_PREFIX="${SIDIRA_PARAM_PREFIX:-/sidira/prod}"
 ENV_FILE="${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}"
+COMPOSE_ENV_FILE="${SIDIRA_COMPOSE_ENV_FILE:-${ENV_FILE}.compose}"
 LOCAL_CRED_KEY_FILE="${SIDIRA_LOCAL_CRED_KEY_FILE:-/opt/sidira/local_cred_key}"
 DEPLOY_KEY="${SIDIRA_DEPLOY_KEY:-/root/.ssh/sidira_deploy}"
 CONTAINER_UID="${SIDIRA_CONTAINER_UID:-10001}"
@@ -56,7 +57,12 @@ write_env() {
   local key="$1"
   local value="$2"
   if [[ -n "$value" && "$value" != "None" ]]; then
-    printf '%s=%s\n' "$key" "$(sanitize_value "$value")" >> "$ENV_FILE"
+    local raw_value
+    local compose_value
+    raw_value="$(sanitize_value "$value")"
+    compose_value="${raw_value//\$/\$\$}"
+    printf '%s=%s\n' "$key" "$raw_value" >> "$ENV_FILE"
+    printf '%s=%s\n' "$key" "$compose_value" >> "$COMPOSE_ENV_FILE"
   fi
 }
 
@@ -84,8 +90,10 @@ git fetch origin "$DEPLOY_BRANCH"
 git checkout -B "$DEPLOY_BRANCH" FETCH_HEAD
 
 install -d -m 700 "$(dirname "$ENV_FILE")"
+install -d -m 700 "$(dirname "$COMPOSE_ENV_FILE")"
 umask 077
 : > "$ENV_FILE"
+: > "$COMPOSE_ENV_FILE"
 
 customer_id="$(ssm_value SIDIRA_CUSTOMER_ID)"
 cors_origins="$(ssm_value SIDIRA_CORS_ORIGINS)"
@@ -94,11 +102,23 @@ cred_mode="$(ssm_value SIDIRA_CRED_MODE)"
 local_artifacts="$(ssm_value SIDIRA_LOCAL_ARTIFACTS)"
 local_cred_key="$(ssm_value SIDIRA_LOCAL_CRED_KEY)"
 internal_api_key="$(ssm_value SIDIRA_INTERNAL_API_KEY)"
+web_proxy_basic_auth_user="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_USER)"
+web_proxy_basic_auth_hash="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_HASH)"
 database_url="$(ssm_value DATABASE_URL)"
 auto_migrate="$(ssm_value SIDIRA_AUTO_MIGRATE)"
 
 if [[ -z "$internal_api_key" || "$internal_api_key" == "None" ]]; then
-  echo "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY; create a SecureString and set the same value as Amplify SIDIRA_INTERNAL_API_KEY" >&2
+  echo "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY; create a SecureString for the backend gateway token" >&2
+  exit 1
+fi
+
+if [[ -z "$web_proxy_basic_auth_user" || "$web_proxy_basic_auth_user" == "None" ]]; then
+  echo "missing required ${PARAM_PREFIX}/SIDIRA_WEB_PROXY_BASIC_AUTH_USER; set it to the Amplify access-control username" >&2
+  exit 1
+fi
+
+if [[ -z "$web_proxy_basic_auth_hash" || "$web_proxy_basic_auth_hash" == "None" ]]; then
+  echo "missing required ${PARAM_PREFIX}/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH; store a Caddy-compatible bcrypt hash for the Amplify access-control password" >&2
   exit 1
 fi
 
@@ -118,6 +138,8 @@ write_env SIDIRA_CRED_MODE "$(default_value "$cred_mode" "local")"
 write_env SIDIRA_LOCAL_CRED_KEY "$local_cred_key"
 write_env SIDIRA_LOCAL_ARTIFACTS "$(default_value "$local_artifacts" "/app/local-artifacts")"
 write_env SIDIRA_INTERNAL_API_KEY "$internal_api_key"
+write_env SIDIRA_WEB_PROXY_BASIC_AUTH_USER "$web_proxy_basic_auth_user"
+write_env SIDIRA_WEB_PROXY_BASIC_AUTH_HASH "$web_proxy_basic_auth_hash"
 write_env DATABASE_URL "$database_url"
 write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
 
@@ -139,8 +161,10 @@ chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"
 chmod -R u+rwX,go+rX "$REPO_DIR/local-artifacts"
 
 if docker compose version >/dev/null 2>&1; then
-  docker compose -p sidira -f deploy/docker-compose.api.yml build
-  docker compose -p sidira -f deploy/docker-compose.api.yml up -d
+  SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
+    docker compose -p sidira -f deploy/docker-compose.api.yml build
+  SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
+    docker compose -p sidira -f deploy/docker-compose.api.yml up -d
 else
   docker network create sidira >/dev/null 2>&1 || true
   docker build -t sidira-api:latest backend

@@ -51,23 +51,25 @@ Canonical Phase 4.7 hostnames:
 - `GET https://api.sidira.ai/capabilities` returns the
   `streamly_sample` manifest, and `GET https://api.sidira.ai/simulations`
   returns `[]`.
-- `GET https://api.sidira.ai/models` returns Groq-backed models after
-  `/sidira/prod/GROQ_API_KEY` was added as an SSM `SecureString` and the API
-  was redeployed through the EC2 helper.
+- Model discovery returns Groq-backed models through the authenticated frontend
+  proxy path after `/sidira/prod/GROQ_API_KEY` was added as an SSM
+  `SecureString` and the API was redeployed through the EC2 helper. Direct
+  unauthenticated `https://api.sidira.ai/models` requests are rejected by the
+  backend gate.
 - Amplify global access control is enabled for `sidira.ai`, `www.sidira.ai`,
   and the preview branch. Unauthenticated browser requests return HTTP 401 with
   `WWW-Authenticate: Basic realm="Login"`.
 - Direct backend access is still gated by the internal API key middleware:
-  `/health` remains public, while non-health routes return 404 without the
-  `x-sidira-internal-key` header.
+  `/health` remains public, direct non-health routes return 404 without the
+  `x-sidira-internal-key` header, and browser `/api/*` traffic goes through the
+  Caddy runtime proxy path.
 
 ## Deploy Environment
 
 Frontend:
 
 ```bash
-SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai
-SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>
+SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy
 ```
 
 Backend:
@@ -147,15 +149,14 @@ so the server can use an IAM role to read only Sidira production secrets.
 
 Keep production secrets out of GitHub, Amplify public variables, user-data, PR
 bodies, and docs. Production browser traffic should use the same-origin Next
-`/api` proxy. Amplify receives the backend origin as a server-side variable
-(`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`) plus the temporary internal
-API key as a server-side secret (`SIDIRA_INTERNAL_API_KEY`). The Next build
-uses `frontend/next.config.js` to make those values available to server routes;
-do not expose either value through `NEXT_PUBLIC_*` config. This is an
-alpha-stage gateway-token workaround: Amplify/Next SSR env values can be
-readable to users with deployment artifact access. The real model-provider
-keys stay only on the backend host, and #124 tracks moving web proxy auth off
-build artifacts before broader access.
+`/api` proxy. Amplify receives only the non-secret runtime proxy base
+(`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`), so no
+backend gateway token is written into Amplify or Next artifacts. The Next proxy
+preserves the browser's Basic Auth `Authorization` header and forwards the
+request to the EC2/Caddy runtime proxy. Caddy validates that Basic Auth header
+using SSM-loaded runtime config, strips `Authorization`, and then adds
+`X-Sidira-Internal-Key` when proxying to FastAPI. The real model-provider keys
+stay only on the backend host.
 
 Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 
@@ -169,6 +170,8 @@ Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 /sidira/prod/R2_SECRET_ACCESS_KEY
 /sidira/prod/SIDIRA_LOCAL_CRED_KEY
 /sidira/prod/SIDIRA_INTERNAL_API_KEY
+/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER
+/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH
 /sidira/prod/DATABASE_URL
 /sidira/prod/SIDIRA_AUTO_MIGRATE
 ```
@@ -197,12 +200,21 @@ Current production bootstrap status:
   only for an intentional migration deployment, then immediately return it to
   `0` and redeploy so the runtime env file is refreshed.
 - `/sidira/prod/SIDIRA_INTERNAL_API_KEY` is required before deploying the
-  backend from `main`; set the same value in Amplify as the server-side
-  `SIDIRA_INTERNAL_API_KEY` environment variable.
+  backend from `main`; it stays on EC2 and is no longer configured in Amplify.
+- `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER` should match the Amplify
+  access-control username.
+- `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH` should be a Caddy-compatible
+  bcrypt hash for the Amplify access-control password. Generate it on a trusted
+  machine or the EC2 host with `caddy hash-password --plaintext '<password>'`
+  and store only the hash in SSM.
 - The EC2 deployment uses `/opt/sidira/api.env` generated on the instance by
   `deploy/ec2-api-deploy.sh`. The helper reads approved `/sidira/prod/*`
   parameters at deploy time and fails on access/KMS/region errors rather than
   restarting with a partially empty secret file.
+- When Docker Compose is available, the helper also writes
+  `/opt/sidira/api.env.compose` with `$` escaped for Compose interpolation, so
+  Caddy bcrypt hashes survive the Compose env-file path. The fallback
+  `docker run --env-file` path uses the raw `/opt/sidira/api.env`.
 
 ## Local vs Production Config
 
@@ -228,14 +240,15 @@ files:
 
 ```bash
 # Amplify server-side environment variables
-SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai
-SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>
+SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy
 
 # EC2/Docker environment variables
 SIDIRA_CUSTOMER_ID=streamly_sample
 SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai
 SIDIRA_LOCAL_ARTIFACTS=/app/local-artifacts
 SIDIRA_INTERNAL_API_KEY=<from Parameter Store SecureString>
+SIDIRA_WEB_PROXY_BASIC_AUTH_USER=<from Parameter Store SecureString>
+SIDIRA_WEB_PROXY_BASIC_AUTH_HASH=<from Parameter Store SecureString>
 GROQ_API_KEY=<from Parameter Store SecureString>
 ANTHROPIC_API_KEY=<optional>
 OPENAI_API_KEY=<optional>
@@ -268,14 +281,14 @@ Amplify Hosting:
 - Mark it as a monorepo app with app root `frontend`. Done.
 - Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`. Done.
 - Remove any production `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` setting so
-  browser traffic uses `/api`; set `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai`
-  and server-side `SIDIRA_INTERNAL_API_KEY=<same value as Parameter Store>`.
+  browser traffic uses `/api`; set
+  `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`.
 - Let Amplify use the root `amplify.yml`. Done. The build spec fails fast when
-  either proxy variable is missing, writes both into `frontend/.env.production`
-  before `next build`, and `frontend/next.config.js` passes them into the server
-  route bundle. Do not commit that generated file. Treat the proxy token as a
-  revocable alpha gateway token until #124 replaces this with runtime-secret
-  proxy auth.
+  the non-secret backend proxy base URL is missing and writes it into
+  `frontend/.env.production` before `next build`; `frontend/next.config.js`
+  serializes only that non-secret base into the server route bundle. Do not
+  commit the generated env file. Do not put `SIDIRA_INTERNAL_API_KEY` or model
+  provider secrets in Amplify.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
   Amplify create or show the required DNS records in Route 53. Done.
   `www.sidira.ai` redirects to the apex through the frontend middleware.
@@ -296,9 +309,11 @@ Backend API EC2 VM:
   `SHA256:Z5gu5BOLJL5nRyGl9YUdkJWSuiKyHxRxhk9MWrmUC8c` to
   `ram-de/sidira-simulator`. Done.
 - Create `/sidira/prod/SIDIRA_INTERNAL_API_KEY` as a Parameter Store
-  `SecureString`, and set the same value in Amplify as the server-side
-  `SIDIRA_INTERNAL_API_KEY` variable before switching the live deployment to
-  `main`.
+  `SecureString`. This stays on the EC2 host only.
+- Create `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER` and
+  `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH` as Parameter Store values for
+  the Caddy runtime proxy. The user should match Amplify access control; the
+  hash should be generated with `caddy hash-password --plaintext '<password>'`.
 - Clone `ram-de/sidira-simulator`, build `backend/Dockerfile`, and run
   `sidira-api` plus `sidira-caddy` Docker containers. Done.
 - Create `/opt/sidira/api.env` on the instance with the backend environment

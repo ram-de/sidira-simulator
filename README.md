@@ -82,20 +82,21 @@ runtime, but `DATABASE_URL` is the recommended local and deployment spelling.
 
 For deployment, the canonical Sidira hosts are `sidira.ai`, `app.sidira.ai`,
 and `api.sidira.ai`. Production browser calls use the same-origin `/api` proxy;
-set Amplify server-side `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai` and
-`SIDIRA_INTERNAL_API_KEY`, and set backend
+set Amplify server-side
+`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`, and keep
+backend gateway/model secrets only on the EC2 host through SSM-loaded runtime
+config. Set backend
 `SIDIRA_CORS_ORIGINS=https://sidira.ai,https://app.sidira.ai`. See
 `docs/sidira-domain-runbook.md` for the domain and metadata checklist.
 
 ## AWS deployment scaffold
 
 - `amplify.yml` builds the `frontend/` monorepo app in AWS Amplify Hosting and
-  validates then writes the server-side API proxy env vars into
-  `.env.production` before `next build`. `frontend/next.config.js` passes those
-  values to the server route bundle; they must not be exposed as `NEXT_PUBLIC_*`.
-  This is an alpha-stage gateway-token workaround for the web proxy, not a
-  long-term secret boundary; #124 tracks moving proxy auth to runtime secret
-  storage before broader access.
+  validates then writes the non-secret API proxy base into `.env.production`
+  before `next build`; `frontend/next.config.js` serializes only that non-secret
+  base into the server route bundle. The Next `/api` route forwards the browser
+  Basic Auth header to the EC2/Caddy runtime proxy, which adds backend gateway
+  auth server-side after validating access control.
 - `backend/Dockerfile` packages the FastAPI backend for the production Docker
   Compose API host or another Linux container host.
 - `deploy/docker-compose.api.yml` runs the API behind Caddy for a small

@@ -9,8 +9,7 @@ applications:
         build:
           commands:
             - 'test -n "$SIDIRA_API_BASE_INTERNAL" || { echo "missing SIDIRA_API_BASE_INTERNAL" >&2; exit 1; }'
-            - 'test -n "$SIDIRA_INTERNAL_API_KEY" || { echo "missing SIDIRA_INTERNAL_API_KEY" >&2; exit 1; }'
-            - 'printf "SIDIRA_API_BASE_INTERNAL=%s\nSIDIRA_INTERNAL_API_KEY=%s\n" "$SIDIRA_API_BASE_INTERNAL" "$SIDIRA_INTERNAL_API_KEY" >> .env.production'
+            - 'printf "SIDIRA_API_BASE_INTERNAL=%s\n" "$SIDIRA_API_BASE_INTERNAL" >> .env.production'
             - npm run build
       artifacts:
         baseDirectory: .next

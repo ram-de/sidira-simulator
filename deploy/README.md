@@ -17,8 +17,10 @@ Use this when avoiding a local AWS CLI profile:
    `/opt/sidira/repo`.
 7. Store production secrets as Parameter Store `SecureString` values under
    `/sidira/prod/*`; do not put them in GitHub, chat, or EC2 user-data. The
-   deploy requires `/sidira/prod/SIDIRA_INTERNAL_API_KEY`, and Amplify needs the
-   same value as a server-side `SIDIRA_INTERNAL_API_KEY` environment variable.
+   deploy requires `/sidira/prod/SIDIRA_INTERNAL_API_KEY`,
+   `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER`, and
+   `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH`. Amplify should only receive
+   the non-secret proxy base URL.
 8. Run the EC2 deploy helper:
 
 ```bash
@@ -30,7 +32,13 @@ The deploy helper writes `/opt/sidira/api.env`, pulls the selected branch, reads
 available `/sidira/prod/*` parameters through the instance role, builds the API
 image, and starts the API plus Caddy. Caddy terminates HTTPS and proxies to the
 backend; the FastAPI app requires `X-Sidira-Internal-Key` for all API paths
-except `/health`, and the Next.js same-origin proxy adds that header server-side.
+except `/health`. Browser traffic goes through the Next.js same-origin `/api`
+proxy, which forwards the browser Basic Auth header to Caddy. Caddy validates
+that header at runtime and only then adds `X-Sidira-Internal-Key` server-side.
+When Docker Compose is available, the helper also writes a Compose-safe
+`/opt/sidira/api.env.compose` file so bcrypt `$` characters are not interpreted
+as Compose variable expansion. The fallback `docker run --env-file` path keeps
+using the raw env file.
 Missing optional provider keys are omitted from the env file; configure at least
 `/sidira/prod/GROQ_API_KEY` before expecting model-backed simulations. #68 is
 merged, so durable metadata can now be enabled by setting
