@@ -90,9 +90,9 @@ What's **not yet real**:
 **Post-#68 production database setup.** #128 is complete: Neon is configured as the first alpha production Postgres provider, `/sidira/prod/DATABASE_URL` lives in SSM, Alembic is at `008 (head)`, and simulation detail/list/agents survived a backend redeploy smoke test.
 
 Current ticket order:
-- Merge PR #129 so the docs and Neon URL normalizer hardening are on `main`.
-- Keep #124 as low-priority proxy-auth hardening before broader public access.
-- Pick up Phase 5 auth/multi-tenancy work next.
+- Ship #124 so the web proxy no longer needs the backend gateway token in Amplify/Next deployment artifacts.
+- Pick up Phase 5 auth/multi-tenancy work next: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
+- Pick up crawler work after #124 unless a specific customer-product crawl becomes urgent first.
 
 ---
 

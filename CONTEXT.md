@@ -11,7 +11,7 @@
 ✅ **Phase 5a #68 Postgres repository wiring, SHIPPED 2026-05-29 (PR #126, commit `cfcff57`, session `phase-5a-postgres-wiring`).**
 The backend now selects Postgres-backed repositories when `DATABASE_URL` is configured, while preserving the no-database InMemory fallback for local development and fast tests. Request handlers use request-scoped async SQLAlchemy sessions; background simulation runs get fresh DB sessions so they can continue safely after the POST request returns. The deploy helper reads `/sidira/prod/DATABASE_URL` and `/sidira/prod/SIDIRA_AUTO_MIGRATE` from SSM when present, startup migrations are opt-in, and provider-style Postgres URLs are normalized for asyncpg. Agent materialization order is now persisted through `agent_instances.materialization_index`, so Postgres list/detail/agent reads remain deterministic. Verification: backend 390 passed / 11 skipped, focused DB/deploy suite 31 passed, Docker Postgres smoke 1 passed, frontend typecheck clean, Codex review clear.
 
-✅ **Phase 5a #128 production Postgres bootstrap, PASSED 2026-05-29 (PR #129 in progress, command `3b53c2e7-e9c3-4bd3-9e47-50fb68a2d7a2`).**
+✅ **Phase 5a #128 production Postgres bootstrap, SHIPPED 2026-05-29 (PR #129, commit `ad6f49a`, command `3b53c2e7-e9c3-4bd3-9e47-50fb68a2d7a2`).**
 Neon is the first alpha production Postgres provider. `/sidira/prod/DATABASE_URL` is stored as an SSM `SecureString`; `/sidira/prod/SIDIRA_AUTO_MIGRATE` was used for initial migration then returned to `0`. A Neon URL compatibility issue was found and fixed: provider URLs may include `channel_binding=require`, which asyncpg does not accept, so the live SSM value was sanitized and the backend normalizer now strips that param. Alembic upgraded production through `008 (head)`. Full production smoke created sim `4b7fe54e-66ae-4696-9de7-308d06f846e7`, completed one Groq-backed agent, verified detail/list/agents, redeployed the backend, then verified the same records still loaded from Postgres. Verification: backend 391 passed / 11 skipped, frontend typecheck clean, production smoke passed.
 
 ✅ **Phase 4.7 Sidira rename + first production deployment, SHIPPED 2026-05-29 (session `phase-4.7-sidira-rename`).**
@@ -87,9 +87,9 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 **Phase 5a -- production hardening after Postgres bootstrap.**
 
 Current order:
-1. Merge PR #129 so the docs and Neon URL normalizer hardening are on `main`.
-2. Keep #124 as a later hardening item for proxy auth before broader public access.
-3. Then pick up Phase 5 auth/multi-tenancy work.
+1. Ship #124 so the web proxy no longer needs the backend gateway token in Amplify/Next deployment artifacts.
+2. Then pick up Phase 5 auth/multi-tenancy work: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
+3. Pick up crawler work after #124 unless a specific customer-product crawl becomes urgent first.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)

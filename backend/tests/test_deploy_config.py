@@ -31,6 +31,17 @@ def test_ec2_deploy_exports_database_runtime_settings() -> None:
     assert 'write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"' in deploy
 
 
+def test_ec2_deploy_writes_compose_safe_env_file() -> None:
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert 'COMPOSE_ENV_FILE="${SIDIRA_COMPOSE_ENV_FILE:-${ENV_FILE}.compose}"' in deploy
+    assert 'compose_value="${raw_value//\\$/\\$\\$}"' in deploy
+    assert 'printf \'%s=%s\\n\' "$key" "$raw_value" >> "$ENV_FILE"' in deploy
+    assert 'printf \'%s=%s\\n\' "$key" "$compose_value" >> "$COMPOSE_ENV_FILE"' in deploy
+    assert 'SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \\' in deploy
+    assert '--env-file "$ENV_FILE"' in deploy
+
+
 def test_ec2_deploy_generates_backend_compatible_local_credential_key() -> None:
     deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
 
@@ -64,39 +75,51 @@ def test_public_api_is_gated_by_backend_internal_key() -> None:
     app = (REPO_ROOT / "backend" / "sidira_simulator" / "main.py").read_text()
 
     assert "reverse_proxy api:8000" in caddy
-    assert "X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" not in caddy
+    assert "@web_proxy path /_sidira_web_proxy/*" in caddy
+    assert "basic_auth" in caddy
+    assert "header_up -Authorization" in caddy
+    assert "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" in caddy
+    assert caddy.index("basic_auth") < caddy.index(
+        "header_up -Authorization"
+    ) < caddy.index(
+        "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}"
+    )
     assert 'request.headers.get("x-sidira-internal-key")' in app
     assert 'request.url.path == "/health"' in app
     assert 'JSONResponse({"detail": "Not found"}, status_code=404)' in app
     assert "SIDIRA_API_ENV_FILE" in compose
     assert "SIDIRA_INTERNAL_API_KEY" in deploy
-    assert "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY" in deploy
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH_USER" in deploy
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH_HASH" in deploy
     assert '--env-file "$ENV_FILE"' in deploy
 
 
-def test_frontend_uses_same_origin_proxy_for_internal_api_key() -> None:
+def test_frontend_uses_same_origin_proxy_without_internal_api_key() -> None:
     api_client = (REPO_ROOT / "frontend" / "lib" / "api.ts").read_text()
     route = (REPO_ROOT / "frontend" / "app" / "api" / "[...path]" / "route.ts").read_text()
     env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
     next_config = (REPO_ROOT / "frontend" / "next.config.js").read_text()
     runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
+    readme = (REPO_ROOT / "README.md").read_text()
+    onboarding = (REPO_ROOT / "ONBOARDING.md").read_text()
     amplify = (REPO_ROOT / "amplify.yml").read_text()
 
     assert 'process.env.NEXT_PUBLIC_API_BASE ?? "/api"' in api_client
     assert "process.env.SIDIRA_API_BASE_INTERNAL" in route
-    assert "process.env.SIDIRA_INTERNAL_API_KEY" in route
+    assert "process.env.SIDIRA_INTERNAL_API_KEY" not in route
+    assert "authorization" in route
     assert "SIDIRA_API_BASE_INTERNAL: process.env.SIDIRA_API_BASE_INTERNAL" in next_config
-    assert "SIDIRA_INTERNAL_API_KEY: process.env.SIDIRA_INTERNAL_API_KEY" in next_config
-    assert "X-Sidira-Internal-Key" in route
+    assert "SIDIRA_INTERNAL_API_KEY" not in next_config
+    assert "X-Sidira-Internal-Key" not in route
     assert "NEXT_PUBLIC_API_BASE=https://api.sidira.ai" not in env_example
-    assert "SIDIRA_INTERNAL_API_KEY=<same value as /sidira/prod/SIDIRA_INTERNAL_API_KEY>" in (
-        env_example
-    )
+    assert "SIDIRA_INTERNAL_API_KEY" not in env_example
     assert 'test -n "$SIDIRA_API_BASE_INTERNAL"' in amplify
-    assert 'test -n "$SIDIRA_INTERNAL_API_KEY"' in amplify
     assert "missing SIDIRA_API_BASE_INTERNAL" in amplify
-    assert "missing SIDIRA_INTERNAL_API_KEY" in amplify
-    assert 'printf "SIDIRA_API_BASE_INTERNAL=%s\\nSIDIRA_INTERNAL_API_KEY=%s\\n"' in amplify
+    assert "missing SIDIRA_INTERNAL_API_KEY" not in amplify
+    assert 'printf "SIDIRA_API_BASE_INTERNAL=%s\\n"' in amplify
     assert "Production browser traffic should use the same-origin Next" in runbook
-    assert "alpha-stage gateway-token workaround" in runbook
-    assert "#124 tracks moving web proxy auth off" in runbook
+    assert "backend gateway token" in runbook
+    assert "Amplify or Next artifacts" in runbook
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH_HASH" in runbook
+    assert "plus `SIDIRA_INTERNAL_API_KEY`" not in onboarding
+    assert "This is an alpha-stage gateway-token workaround" not in readme

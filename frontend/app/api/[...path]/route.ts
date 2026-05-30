@@ -5,12 +5,13 @@ export const runtime = "nodejs";
 
 const API_BASE_INTERNAL =
   process.env.SIDIRA_API_BASE_INTERNAL ?? "http://127.0.0.1:8000";
-const INTERNAL_API_KEY = process.env.SIDIRA_INTERNAL_API_KEY ?? "";
 
 function targetUrl(request: NextRequest, path: string[]): URL {
   const incoming = new URL(request.url);
   const suffix = path.map(encodeURIComponent).join("/");
-  return new URL(`/${suffix}${incoming.search}`, API_BASE_INTERNAL);
+  return new URL(
+    `${API_BASE_INTERNAL.replace(/\/$/, "")}/${suffix}${incoming.search}`,
+  );
 }
 
 async function proxy(
@@ -19,13 +20,12 @@ async function proxy(
 ) {
   const headers = new Headers();
   const accept = request.headers.get("accept");
+  const authorization = request.headers.get("authorization");
   const contentType = request.headers.get("content-type");
 
   if (accept) headers.set("accept", accept);
+  if (authorization) headers.set("authorization", authorization);
   if (contentType) headers.set("content-type", contentType);
-  if (INTERNAL_API_KEY) {
-    headers.set("X-Sidira-Internal-Key", INTERNAL_API_KEY);
-  }
 
   const body =
     request.method === "GET" || request.method === "HEAD"
