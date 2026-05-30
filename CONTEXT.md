@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring shipped)
+**Last updated:** 2026-05-29 (Phase 5a #128 production Postgres bootstrap in progress)
 
 ---
 
@@ -83,8 +83,10 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 **Phase 5a -- configure production Postgres after #68.**
 
+Progress on **#128**: Neon was chosen as the first alpha Postgres provider and a production Neon project was provisioned in AWS `us-east-1`. `/sidira/prod/DATABASE_URL` is stored as an SSM `SecureString`; `/sidira/prod/SIDIRA_AUTO_MIGRATE` was set to `1` for the first database-enabled deploy, the EC2 backend deploy succeeded, then `SIDIRA_AUTO_MIGRATE` was set back to `0` and the backend was redeployed. `https://api.sidira.ai/health` returns 200, direct non-health API routes return 404 without the internal key, and `sidira.ai` / `www.sidira.ai` remain behind Amplify Basic Auth. Remaining #128 acceptance: run a production simulation through the authenticated app and verify list/detail/agents survive a backend restart.
+
 Current order:
-1. **#128:** choose/provision managed Postgres (Neon recommended first; Supabase if we want its platform features soon; RDS only if AWS-native control matters now), store `/sidira/prod/DATABASE_URL`, run one `SIDIRA_AUTO_MIGRATE=1` deployment, then verify simulation list/detail/agents survive backend restart.
+1. **#128:** finish the production persistence smoke: create one simulation on `sidira.ai`, confirm it is stored through Postgres-backed repos, restart/redeploy the backend, then confirm list/detail/agents still load.
 2. Keep #124 as a later hardening item for proxy auth before broader public access.
 3. Then pick up Phase 5 auth/multi-tenancy work.
 

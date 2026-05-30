@@ -54,6 +54,12 @@ Canonical Phase 4.7 hostnames:
 - `GET https://api.sidira.ai/models` returns Groq-backed models after
   `/sidira/prod/GROQ_API_KEY` was added as an SSM `SecureString` and the API
   was redeployed through the EC2 helper.
+- Amplify global access control is enabled for `sidira.ai`, `www.sidira.ai`,
+  and the preview branch. Unauthenticated browser requests return HTTP 401 with
+  `WWW-Authenticate: Basic realm="Login"`.
+- Direct backend access is still gated by the internal API key middleware:
+  `/health` remains public, while non-health routes return 404 without the
+  `x-sidira-internal-key` header.
 
 ## Deploy Environment
 
@@ -101,9 +107,25 @@ the lowest-ops managed Postgres option:
 | Supabase | We expect to use its platform features later: Auth, Storage, Realtime, or auto APIs. | Supabase is not a Postgres replacement; it is managed Postgres plus backend platform services. More product surface than we need today. |
 | AWS RDS Postgres | We need AWS-native VPC/IAM/control-plane integration. | More AWS-native, but heavier and likely more expensive for the current alpha. |
 
-Recommendation: start with Neon unless we deliberately want Supabase Auth or
-Storage soon. RDS is a later upgrade path if AWS-native isolation/control becomes
-more important than low operational overhead.
+Decision: start with Neon unless we deliberately want Supabase Auth or Storage
+soon. RDS is a later upgrade path if AWS-native isolation/control becomes more
+important than low operational overhead.
+
+Current #128 bootstrap status:
+
+- Neon project `sidira-prod` exists in AWS `us-east-1` on the Free plan for the
+  current alpha footprint.
+- `/sidira/prod/DATABASE_URL` is configured in SSM Parameter Store as a
+  `SecureString`.
+- `/sidira/prod/SIDIRA_AUTO_MIGRATE` was set to `1` for the first
+  database-enabled backend deploy, then set back to `0`.
+- EC2 Run Command deployment `34b86c61-1323-4c77-87b8-3c53193fa6c2` succeeded
+  after disabling auto-migrate, so `/opt/sidira/api.env` has the safe steady-
+  state value.
+- `GET https://api.sidira.ai/health` returns 200 after the redeploy.
+- Remaining acceptance: create one authenticated production simulation, verify
+  list/detail/agents load, restart/redeploy the backend, then verify the same
+  records still load from Postgres.
 
 Do not use AWS App Runner for the first deployment unless the AWS account already
 has App Runner access. AWS now says App Runner is no longer open to new
@@ -159,6 +181,11 @@ Current production bootstrap status:
   SSM SecureString values through the AWS-managed SSM/KMS path.
 - `/sidira/prod/GROQ_API_KEY` is configured as a `SecureString`; optional
   Anthropic/OpenAI keys can be added later under the same prefix.
+- `/sidira/prod/DATABASE_URL` is configured as a `SecureString` for the Neon
+  production database.
+- `/sidira/prod/SIDIRA_AUTO_MIGRATE` should normally stay `0`; set it to `1`
+  only for an intentional migration deployment, then immediately return it to
+  `0` and redeploy so the runtime env file is refreshed.
 - `/sidira/prod/SIDIRA_INTERNAL_API_KEY` is required before deploying the
   backend from `main`; set the same value in Amplify as the server-side
   `SIDIRA_INTERNAL_API_KEY` environment variable.
