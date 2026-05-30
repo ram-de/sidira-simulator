@@ -117,15 +117,24 @@ Current #128 bootstrap status:
   current alpha footprint.
 - `/sidira/prod/DATABASE_URL` is configured in SSM Parameter Store as a
   `SecureString`.
+- The live SSM URL was sanitized to remove `channel_binding=require`; asyncpg
+  does not accept that provider query parameter. The backend URL normalizer also
+  strips it so future Neon copy/paste URLs do not break production startup or
+  migrations.
 - `/sidira/prod/SIDIRA_AUTO_MIGRATE` was set to `1` for the first
   database-enabled backend deploy, then set back to `0`.
 - EC2 Run Command deployment `34b86c61-1323-4c77-87b8-3c53193fa6c2` succeeded
   after disabling auto-migrate, so `/opt/sidira/api.env` has the safe steady-
   state value.
-- `GET https://api.sidira.ai/health` returns 200 after the redeploy.
-- Remaining acceptance: create one authenticated production simulation, verify
-  list/detail/agents load, restart/redeploy the backend, then verify the same
-  records still load from Postgres.
+- EC2 Run Command `e014adae-02ae-4af9-b7ce-43073c8eb219` refreshed the backend
+  env, ran Alembic upgrade, and confirmed production is at `008 (head)`.
+- Full persistence smoke passed via EC2 Run Command
+  `3b53c2e7-e9c3-4bd3-9e47-50fb68a2d7a2`: created production simulation
+  `4b7fe54e-66ae-4696-9de7-308d06f846e7`, observed it complete with one agent,
+  verified list/detail/agents, redeployed the backend, then verified the same
+  records still loaded from Postgres.
+- `GET https://api.sidira.ai/health` returns 200 after the redeploy, while
+  direct non-health routes still return 404 without the internal key.
 
 Do not use AWS App Runner for the first deployment unless the AWS account already
 has App Runner access. AWS now says App Runner is no longer open to new
@@ -182,7 +191,8 @@ Current production bootstrap status:
 - `/sidira/prod/GROQ_API_KEY` is configured as a `SecureString`; optional
   Anthropic/OpenAI keys can be added later under the same prefix.
 - `/sidira/prod/DATABASE_URL` is configured as a `SecureString` for the Neon
-  production database.
+  production database. If copying from Neon, remove `channel_binding=require`;
+  asyncpg does not accept it.
 - `/sidira/prod/SIDIRA_AUTO_MIGRATE` should normally stay `0`; set it to `1`
   only for an intentional migration deployment, then immediately return it to
   `0` and redeploy so the runtime env file is refreshed.

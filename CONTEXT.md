@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-29 (Phase 5a #128 production Postgres bootstrap in progress)
+**Last updated:** 2026-05-29 (Phase 5a #128 production Postgres smoke passed)
 
 ---
 
@@ -10,6 +10,9 @@
 
 ✅ **Phase 5a #68 Postgres repository wiring, SHIPPED 2026-05-29 (PR #126, commit `cfcff57`, session `phase-5a-postgres-wiring`).**
 The backend now selects Postgres-backed repositories when `DATABASE_URL` is configured, while preserving the no-database InMemory fallback for local development and fast tests. Request handlers use request-scoped async SQLAlchemy sessions; background simulation runs get fresh DB sessions so they can continue safely after the POST request returns. The deploy helper reads `/sidira/prod/DATABASE_URL` and `/sidira/prod/SIDIRA_AUTO_MIGRATE` from SSM when present, startup migrations are opt-in, and provider-style Postgres URLs are normalized for asyncpg. Agent materialization order is now persisted through `agent_instances.materialization_index`, so Postgres list/detail/agent reads remain deterministic. Verification: backend 390 passed / 11 skipped, focused DB/deploy suite 31 passed, Docker Postgres smoke 1 passed, frontend typecheck clean, Codex review clear.
+
+✅ **Phase 5a #128 production Postgres bootstrap, PASSED 2026-05-29 (PR #129 in progress, command `3b53c2e7-e9c3-4bd3-9e47-50fb68a2d7a2`).**
+Neon is the first alpha production Postgres provider. `/sidira/prod/DATABASE_URL` is stored as an SSM `SecureString`; `/sidira/prod/SIDIRA_AUTO_MIGRATE` was used for initial migration then returned to `0`. A Neon URL compatibility issue was found and fixed: provider URLs may include `channel_binding=require`, which asyncpg does not accept, so the live SSM value was sanitized and the backend normalizer now strips that param. Alembic upgraded production through `008 (head)`. Full production smoke created sim `4b7fe54e-66ae-4696-9de7-308d06f846e7`, completed one Groq-backed agent, verified detail/list/agents, redeployed the backend, then verified the same records still loaded from Postgres. Verification: backend 391 passed / 11 skipped, frontend typecheck clean, production smoke passed.
 
 ✅ **Phase 4.7 Sidira rename + first production deployment, SHIPPED 2026-05-29 (session `phase-4.7-sidira-rename`).**
 The pre-public product rename is now real in the app, backend code, active docs, GitHub repo metadata, and production domain. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115/#120 configured Route 53, Namecheap delegation, Amplify, `sidira.ai`, `www` redirect, `app.sidira.ai`, `api.sidira.ai`, EC2/Caddy backend deployment, Groq provider secret loading through SSM, and a temporary internal API key gate with the Next same-origin `/api` proxy. Follow-up fixes #122 and #125 moved production to `main` cleanly. `sidira.ai` now serves the app, model picker, capabilities, and API proxy; direct model-backed API access remains gated. #124 is the remaining low-priority hardening item before broader public access.
@@ -81,12 +84,10 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Phase 5a -- configure production Postgres after #68.**
-
-Progress on **#128**: Neon was chosen as the first alpha Postgres provider and a production Neon project was provisioned in AWS `us-east-1`. `/sidira/prod/DATABASE_URL` is stored as an SSM `SecureString`; `/sidira/prod/SIDIRA_AUTO_MIGRATE` was set to `1` for the first database-enabled deploy, the EC2 backend deploy succeeded, then `SIDIRA_AUTO_MIGRATE` was set back to `0` and the backend was redeployed. `https://api.sidira.ai/health` returns 200, direct non-health API routes return 404 without the internal key, and `sidira.ai` / `www.sidira.ai` remain behind Amplify Basic Auth. Remaining #128 acceptance: run a production simulation through the authenticated app and verify list/detail/agents survive a backend restart.
+**Phase 5a -- production hardening after Postgres bootstrap.**
 
 Current order:
-1. **#128:** finish the production persistence smoke: create one simulation on `sidira.ai`, confirm it is stored through Postgres-backed repos, restart/redeploy the backend, then confirm list/detail/agents still load.
+1. Merge PR #129 so the docs and Neon URL normalizer hardening are on `main`.
 2. Keep #124 as a later hardening item for proxy auth before broader public access.
 3. Then pick up Phase 5 auth/multi-tenancy work.
 

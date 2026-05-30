@@ -34,6 +34,8 @@ def _normalize_database_url(raw: str) -> str:
 
     query_pairs: list[tuple[str, str]] = []
     for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if key == "channel_binding":
+            continue
         if key == "sslmode":
             query_pairs.append(("ssl", value))
         else:

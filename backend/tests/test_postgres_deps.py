@@ -115,6 +115,10 @@ def test_repo_factories_keep_in_memory_fallback_when_no_session(monkeypatch) -> 
             "postgresql://user:pass@example.invalid/sidira?sslmode=disable",
             "postgresql+asyncpg://user:pass@example.invalid/sidira?ssl=disable",
         ),
+        (
+            "postgresql://user:pass@example.invalid/sidira?sslmode=require&channel_binding=require",
+            "postgresql+asyncpg://user:pass@example.invalid/sidira?ssl=require",
+        ),
     ],
 )
 def test_database_url_normalizes_provider_connection_strings(
