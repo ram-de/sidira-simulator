@@ -1,6 +1,6 @@
 # Sidira — Overall Roadmap
 
-**Last updated:** 2026-05-29 (Phase 5a #68 Postgres wiring shipped)
+**Last updated:** 2026-05-31 (#124/#131 production proxy-auth hardening shipped)
 
 The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + pythia-personas + pythia-crawler), not in markdown — see "Where to find what" below.
 
@@ -28,7 +28,7 @@ The Sidira product spans three repos. This document is the strategy map: phases,
 
 ---
 
-## Where we are today (2026-05-29)
+## Where we are today (2026-05-31)
 
 ✅ **Magic Moment Sprint complete** (Phases 2 + 3). A PM can submit a hypothesis through the UI, see agents react via real LLM calls, and get a confidence score + diagnosed weaknesses + refinement suggestions rendered live.
 ✅ **Phase 2.5 complete.** Population-size input, Hamilton allocation, identity seeds, score/weakness CIs, degradation guard, and population-aware frontend results are shipped.
@@ -36,10 +36,10 @@ The Sidira product spans three repos. This document is the strategy map: phases,
 ✅ **Phase 4.6 A/B experiment mode shipped.** Wizard toggle, paired treatment/control runner, paired-lift formula, and lift-first result UI are live.
 ✅ **Phase 4.7 Sidira rename + first production deployment shipped.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, active docs/roadmap, GitHub repo metadata, `sidira.ai`, Amplify, EC2/Caddy backend deployment, and SSM-based provider secret loading are live on `main`.
 ✅ **Phase 5a #68 Postgres repo wiring shipped.** The backend can now use Postgres repositories when `DATABASE_URL` is configured, while keeping the InMemory fallback for no-DB local development and tests.
+✅ **#124/#131 production proxy-auth hardening shipped.** Amplify/Next no longer receives the backend gateway token; Caddy validates web Basic Auth and injects the internal key server-side.
 
 What's **not yet real**:
 - **Real persona generation.** Demo uses a hand-built 6-persona fixture. pythia-personas can already generate packs; the simulator just hasn't consumed a real one yet.
-- **Production database provisioning.** #68 is merged, but production still needs a managed Postgres URL stored in SSM, one migration-enabled deployment, and restart-survival verification before durable metadata is relied on.
 - **Multi-tenancy.** Everything is hardcoded to `customer_id = "demo"`. Phase 5.
 - **Crawler runs.** Feature Pack is still the hand-built Acme sample. crawler Phase 2 builds the Playwright walker.
 
@@ -87,12 +87,12 @@ What's **not yet real**:
 
 ## What's next
 
-**Post-#68 production database setup.** #128 is complete: Neon is configured as the first alpha production Postgres provider, `/sidira/prod/DATABASE_URL` lives in SSM, Alembic is at `008 (head)`, and simulation detail/list/agents survived a backend redeploy smoke test.
+**Post-production-bootstrap next work.** #128 is complete: Neon is configured as the first alpha production Postgres provider, `/sidira/prod/DATABASE_URL` lives in SSM, Alembic is at `008 (head)`, and simulation detail/list/agents survived a backend redeploy smoke test. #124/#131 are also complete: Amplify/Next no longer receives the backend gateway token, and production is protected by Amplify access control plus the EC2/Caddy runtime proxy boundary.
 
 Current ticket order:
-- Ship #124 so the web proxy no longer needs the backend gateway token in Amplify/Next deployment artifacts.
-- Pick up Phase 5 auth/multi-tenancy work next: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
-- Pick up crawler work after #124 unless a specific customer-product crawl becomes urgent first.
+- Pick up Phase 5 auth/multi-tenancy work when broader access matters: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
+- Pick up crawler/product-pack work when the goal is customer-specific value: crawler Phase 2 Playwright walker + synthesis.
+- Keep Amplify access control enabled until real auth is in place.
 
 ---
 
@@ -183,9 +183,9 @@ Done:
 - #114 active docs/onboarding/architecture update.
 - #115/#120 domain, GitHub metadata, simulator repo rename, Amplify frontend, EC2/Caddy API baseline, and production deployment runbook.
 - #122/#125 production deployment follow-up fixes for Caddy/API and Amplify SSR proxy env wiring.
+- #124/#131 proxy-auth hardening: backend gateway token removed from Amplify/Next; Caddy validates web Basic Auth and injects the internal key server-side.
 
 Remaining:
-- #124 low-priority proxy-auth hardening before broader public access.
 - Producer repo/package renames for `pythia-personas` and `pythia-crawler` are intentionally not part of this phase; schedule explicitly if/when needed.
 
 Dependencies: complete for the simulator/domain/deployment surface. `sidira.ai` is live on `main`.

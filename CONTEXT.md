@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-29 (Phase 5a #128 production Postgres smoke passed)
+**Last updated:** 2026-05-31 (#124/#131 production proxy-auth hardening rolled out)
 
 ---
 
@@ -14,8 +14,11 @@ The backend now selects Postgres-backed repositories when `DATABASE_URL` is conf
 ✅ **Phase 5a #128 production Postgres bootstrap, SHIPPED 2026-05-29 (PR #129, commit `ad6f49a`, command `3b53c2e7-e9c3-4bd3-9e47-50fb68a2d7a2`).**
 Neon is the first alpha production Postgres provider. `/sidira/prod/DATABASE_URL` is stored as an SSM `SecureString`; `/sidira/prod/SIDIRA_AUTO_MIGRATE` was used for initial migration then returned to `0`. A Neon URL compatibility issue was found and fixed: provider URLs may include `channel_binding=require`, which asyncpg does not accept, so the live SSM value was sanitized and the backend normalizer now strips that param. Alembic upgraded production through `008 (head)`. Full production smoke created sim `4b7fe54e-66ae-4696-9de7-308d06f846e7`, completed one Groq-backed agent, verified detail/list/agents, redeployed the backend, then verified the same records still loaded from Postgres. Verification: backend 391 passed / 11 skipped, frontend typecheck clean, production smoke passed.
 
+✅ **#124/#131 production proxy-auth hardening, SHIPPED 2026-05-31 (PR #130 commit `1ebbcd1`, PR #131 commit `2e2e275`, session `phase-5-auth-hardening`).**
+The browser app now stays on same-origin `/api`, but Amplify/Next no longer receives the backend gateway token. The EC2/Caddy `_sidira_web_proxy` validates web Basic Auth from SSM-loaded user/hash and injects `X-Sidira-Internal-Key` server-side only after validation. Production rollout found that Amplify strips the browser `Authorization` header before SSR, so PR #131 added a server-side `SIDIRA_WEB_PROXY_BASIC_AUTH` fallback for the Next route. The active Basic Auth credential was rotated a second time after the first generated value appeared in a CloudShell error. Current verification: authenticated `https://sidira.ai/api/models` and `/api/simulations` return 200, unauthenticated `https://sidira.ai/` returns 401, and unauthenticated direct `https://api.sidira.ai/models` returns 404.
+
 ✅ **Phase 4.7 Sidira rename + first production deployment, SHIPPED 2026-05-29 (session `phase-4.7-sidira-rename`).**
-The pre-public product rename is now real in the app, backend code, active docs, GitHub repo metadata, and production domain. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115/#120 configured Route 53, Namecheap delegation, Amplify, `sidira.ai`, `www` redirect, `app.sidira.ai`, `api.sidira.ai`, EC2/Caddy backend deployment, Groq provider secret loading through SSM, and a temporary internal API key gate with the Next same-origin `/api` proxy. Follow-up fixes #122 and #125 moved production to `main` cleanly. `sidira.ai` now serves the app, model picker, capabilities, and API proxy; direct model-backed API access remains gated. #124 is the remaining low-priority hardening item before broader public access.
+The pre-public product rename is now real in the app, backend code, active docs, GitHub repo metadata, and production domain. #111 renamed the visible product surface and FastAPI display metadata to Sidira. #113 made `SIDIRA_*` the primary simulator config namespace while preserving `PYTHIA_*` compatibility fallbacks. #112 renamed the backend package/import/CLI surface to `sidira_simulator` / `sidira-simulator`. #114 updated active docs, roadmap, onboarding, and architecture language while preserving historical and compatibility-only old-name references. #115/#120 configured Route 53, Namecheap delegation, Amplify, `sidira.ai`, `www` redirect, `app.sidira.ai`, `api.sidira.ai`, EC2/Caddy backend deployment, Groq provider secret loading through SSM, and a temporary internal API key gate with the Next same-origin `/api` proxy. Follow-up fixes #122, #125, #124, and #131 moved production to `main` cleanly and removed backend gateway-token exposure from Amplify/Next. `sidira.ai` now serves the app behind Amplify access control; direct model-backed API access remains gated.
 
 ✅ **#103 -- model selection, SHIPPED 2026-05-27 (PR #105, commit `ea5440e`, session `model-selection`).**
 PMs can now pick the LLM provider/model that powers a simulation while preserving the Groq `llama-3.3-70b-versatile` default. Backend exposes `GET /models` filtered to configured providers, validates unknown/unavailable `model_id`s up front, persists the selected model on each simulation, and routes sim reactions, scoring, refinement, follow-up agent chat, persona-group collective fan-out, and synthesis through that same model. A/B mode uses one selected model for both arms so paired-lift math stays apples-to-apples. The wizard shows grouped Groq/Anthropic/OpenAI choices, and result pages show the model used while legacy rows with `NULL model_id` render as untracked instead of being mislabeled. Groq selection now includes GPT-OSS 120B, GPT-OSS 20B, Qwen3 32B, Llama 4 Scout, and the existing Llama defaults. Verification: backend 346 passed / 10 skipped, frontend typecheck clean, live `/models` + wizard rendering verified, Codex review clear.
@@ -84,12 +87,12 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Phase 5a -- production hardening after Postgres bootstrap.**
+**Post-production-bootstrap hardening.**
 
 Current order:
-1. Ship #124 so the web proxy no longer needs the backend gateway token in Amplify/Next deployment artifacts.
-2. Then pick up Phase 5 auth/multi-tenancy work: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
-3. Pick up crawler work after #124 unless a specific customer-product crawl becomes urgent first.
+1. Pick up Phase 5 auth/multi-tenancy work when broader access matters: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
+2. Pick up crawler/product-pack work when the goal is customer-specific value: Playwright walker + product-pack synthesis are still the biggest missing producer path.
+3. Keep Amplify access control enabled until real auth is in place; it is the current guardrail against casual public use and Groq token abuse.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
