@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 
 const API_BASE_INTERNAL =
   process.env.SIDIRA_API_BASE_INTERNAL ?? "http://127.0.0.1:8000";
+const WEB_PROXY_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim();
 
 function targetUrl(request: NextRequest, path: string[]): URL {
   const incoming = new URL(request.url);
@@ -20,7 +21,9 @@ async function proxy(
 ) {
   const headers = new Headers();
   const accept = request.headers.get("accept");
-  const authorization = request.headers.get("authorization");
+  const authorization =
+    request.headers.get("authorization") ??
+    (WEB_PROXY_BASIC_AUTH ? `Basic ${WEB_PROXY_BASIC_AUTH}` : null);
   const contentType = request.headers.get("content-type");
 
   if (accept) headers.set("accept", accept);

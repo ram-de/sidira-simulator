@@ -102,24 +102,35 @@ def test_frontend_uses_same_origin_proxy_without_internal_api_key() -> None:
     runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
     readme = (REPO_ROOT / "README.md").read_text()
     onboarding = (REPO_ROOT / "ONBOARDING.md").read_text()
+    deploy_readme = (REPO_ROOT / "deploy" / "README.md").read_text()
     amplify = (REPO_ROOT / "amplify.yml").read_text()
 
     assert 'process.env.NEXT_PUBLIC_API_BASE ?? "/api"' in api_client
     assert "process.env.SIDIRA_API_BASE_INTERNAL" in route
+    assert "process.env.SIDIRA_WEB_PROXY_BASIC_AUTH" in route
     assert "process.env.SIDIRA_INTERNAL_API_KEY" not in route
     assert "authorization" in route
     assert "SIDIRA_API_BASE_INTERNAL: process.env.SIDIRA_API_BASE_INTERNAL" in next_config
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH" not in next_config
     assert "SIDIRA_INTERNAL_API_KEY" not in next_config
     assert "X-Sidira-Internal-Key" not in route
     assert "NEXT_PUBLIC_API_BASE=https://api.sidira.ai" not in env_example
     assert "SIDIRA_INTERNAL_API_KEY" not in env_example
     assert 'test -n "$SIDIRA_API_BASE_INTERNAL"' in amplify
     assert "missing SIDIRA_API_BASE_INTERNAL" in amplify
+    assert "missing SIDIRA_WEB_PROXY_BASIC_AUTH" in amplify
     assert "missing SIDIRA_INTERNAL_API_KEY" not in amplify
     assert 'printf "SIDIRA_API_BASE_INTERNAL=%s\\n"' in amplify
+    assert 'printf "SIDIRA_WEB_PROXY_BASIC_AUTH=%s\\n"' in amplify
     assert "Production browser traffic should use the same-origin Next" in runbook
     assert "backend gateway token" in runbook
     assert "Amplify or Next artifacts" in runbook
     assert "SIDIRA_WEB_PROXY_BASIC_AUTH_HASH" in runbook
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH=<base64 username:password>" in readme
+    assert "when Amplify strips the browser" in readme
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH=<base64 username:password>" in onboarding
+    assert "backend gateway token in Amplify" in onboarding
+    assert "server-side web-proxy Basic Auth credential" in deploy_readme
+    assert "Amplify Hosting strips browser Basic Auth" in deploy_readme
     assert "plus `SIDIRA_INTERNAL_API_KEY`" not in onboarding
     assert "This is an alpha-stage gateway-token workaround" not in readme

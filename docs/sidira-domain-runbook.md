@@ -150,13 +150,16 @@ so the server can use an IAM role to read only Sidira production secrets.
 Keep production secrets out of GitHub, Amplify public variables, user-data, PR
 bodies, and docs. Production browser traffic should use the same-origin Next
 `/api` proxy. Amplify receives only the non-secret runtime proxy base
-(`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`), so no
-backend gateway token is written into Amplify or Next artifacts. The Next proxy
-preserves the browser's Basic Auth `Authorization` header and forwards the
-request to the EC2/Caddy runtime proxy. Caddy validates that Basic Auth header
-using SSM-loaded runtime config, strips `Authorization`, and then adds
-`X-Sidira-Internal-Key` when proxying to FastAPI. The real model-provider keys
-stay only on the backend host.
+(`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`) plus a
+server-side web-proxy Basic Auth credential
+(`SIDIRA_WEB_PROXY_BASIC_AUTH`, base64 of `username:password`). No backend gateway token
+is written into Amplify or Next artifacts. The Next proxy
+preserves an incoming `Authorization` header when present, but Amplify Hosting
+strips the browser Basic Auth header before the SSR route sees it, so production
+uses the server-side web-proxy credential when forwarding to EC2/Caddy. Caddy
+validates that Basic Auth credential using SSM-loaded runtime config, strips
+`Authorization`, and then adds `X-Sidira-Internal-Key` when proxying to FastAPI.
+The real model-provider keys stay only on the backend host.
 
 Store backend secrets under `/sidira/prod/*` in AWS-managed secret storage:
 
@@ -241,6 +244,7 @@ files:
 ```bash
 # Amplify server-side environment variables
 SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy
+SIDIRA_WEB_PROXY_BASIC_AUTH=<base64 sidira:<Amplify access-control password>>
 
 # EC2/Docker environment variables
 SIDIRA_CUSTOMER_ID=streamly_sample
@@ -282,13 +286,15 @@ Amplify Hosting:
 - Confirm environment variable `AMPLIFY_MONOREPO_APP_ROOT=frontend`. Done.
 - Remove any production `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` setting so
   browser traffic uses `/api`; set
-  `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`.
+  `SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy` and
+  `SIDIRA_WEB_PROXY_BASIC_AUTH` to base64 of the Amplify access-control
+  `username:password`.
 - Let Amplify use the root `amplify.yml`. Done. The build spec fails fast when
-  the non-secret backend proxy base URL is missing and writes it into
-  `frontend/.env.production` before `next build`; `frontend/next.config.js`
-  serializes only that non-secret base into the server route bundle. Do not
-  commit the generated env file. Do not put `SIDIRA_INTERNAL_API_KEY` or model
-  provider secrets in Amplify.
+  the backend proxy base URL or server-side web-proxy Basic Auth credential is
+  missing and writes them into `frontend/.env.production` before `next build`;
+  `frontend/next.config.js` serializes only the non-secret base into the server
+  route bundle. Do not commit the generated env file. Do not put
+  `SIDIRA_INTERNAL_API_KEY` or model provider secrets in Amplify.
 - Add custom domains `sidira.ai`, `www.sidira.ai`, and `app.sidira.ai`; let
   Amplify create or show the required DNS records in Route 53. Done.
   `www.sidira.ai` redirects to the apex through the frontend middleware.
