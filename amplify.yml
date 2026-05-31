@@ -9,7 +9,9 @@ applications:
         build:
           commands:
             - 'test -n "$SIDIRA_API_BASE_INTERNAL" || { echo "missing SIDIRA_API_BASE_INTERNAL" >&2; exit 1; }'
+            - 'test -n "$SIDIRA_WEB_PROXY_BASIC_AUTH" || { echo "missing SIDIRA_WEB_PROXY_BASIC_AUTH" >&2; exit 1; }'
             - 'printf "SIDIRA_API_BASE_INTERNAL=%s\n" "$SIDIRA_API_BASE_INTERNAL" >> .env.production'
+            - 'printf "SIDIRA_WEB_PROXY_BASIC_AUTH=%s\n" "$SIDIRA_WEB_PROXY_BASIC_AUTH" >> .env.production'
             - npm run build
       artifacts:
         baseDirectory: .next

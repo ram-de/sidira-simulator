@@ -114,10 +114,11 @@ npx tsc --noEmit            # should pass clean
 
 For production deploys, leave `NEXT_PUBLIC_API_BASE` unset so browser traffic
 uses the same-origin `/api` proxy. Set Amplify server-side
-`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy`. Do not put
-the backend gateway token in Amplify; Caddy adds it server-side after validating
-the browser Basic Auth header. Local development can leave the proxy default or
-use direct `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000`.
+`SIDIRA_API_BASE_INTERNAL=https://api.sidira.ai/_sidira_web_proxy` and
+`SIDIRA_WEB_PROXY_BASIC_AUTH=<base64 username:password>` for the EC2/Caddy web
+proxy. Do not put the backend gateway token in Amplify; Caddy adds it
+server-side after validating web-proxy Basic Auth. Local development can leave
+the proxy default or use direct `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000`.
 
 ---
 

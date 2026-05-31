@@ -19,8 +19,9 @@ Use this when avoiding a local AWS CLI profile:
    `/sidira/prod/*`; do not put them in GitHub, chat, or EC2 user-data. The
    deploy requires `/sidira/prod/SIDIRA_INTERNAL_API_KEY`,
    `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_USER`, and
-   `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH`. Amplify should only receive
-   the non-secret proxy base URL.
+   `/sidira/prod/SIDIRA_WEB_PROXY_BASIC_AUTH_HASH`. Amplify should receive the
+   non-secret proxy base URL plus a server-side web-proxy Basic Auth credential
+   matching the SSM user/hash; it must not receive backend gateway or model keys.
 8. Run the EC2 deploy helper:
 
 ```bash
@@ -33,8 +34,10 @@ available `/sidira/prod/*` parameters through the instance role, builds the API
 image, and starts the API plus Caddy. Caddy terminates HTTPS and proxies to the
 backend; the FastAPI app requires `X-Sidira-Internal-Key` for all API paths
 except `/health`. Browser traffic goes through the Next.js same-origin `/api`
-proxy, which forwards the browser Basic Auth header to Caddy. Caddy validates
-that header at runtime and only then adds `X-Sidira-Internal-Key` server-side.
+proxy. Amplify Hosting strips browser Basic Auth before the SSR route sees it,
+so the Next route uses the server-side web-proxy Basic Auth credential for the
+EC2/Caddy hop. Caddy validates that credential at runtime and only then adds
+`X-Sidira-Internal-Key` server-side.
 When Docker Compose is available, the helper also writes a Compose-safe
 `/opt/sidira/api.env.compose` file so bcrypt `$` characters are not interpreted
 as Compose variable expansion. The fallback `docker run --env-file` path keeps
