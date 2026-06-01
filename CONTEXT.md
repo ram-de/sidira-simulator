@@ -2,11 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-05-31 (#124/#131 production proxy-auth hardening rolled out)
+**Last updated:** 2026-06-01 (producer repo/package rename completed)
 
 ---
 
 ## What just shipped
+
+✅ **Producer repo/package rename, SHIPPED 2026-06-01 (sidira-crawler PR #5, sidira-personas PR #6).**
+The producer repos, Python packages, and CLIs are now `sidira-crawler` / `sidira_crawler` / `sidira-crawler` and `sidira-personas` / `sidira_personas` / `sidira-personas`. GitHub redirects exist from the old repo names, but local remotes and active docs should use `ram-de/sidira-crawler` and `ram-de/sidira-personas`.
 
 ✅ **Phase 5a #68 Postgres repository wiring, SHIPPED 2026-05-29 (PR #126, commit `cfcff57`, session `phase-5a-postgres-wiring`).**
 The backend now selects Postgres-backed repositories when `DATABASE_URL` is configured, while preserving the no-database InMemory fallback for local development and fast tests. Request handlers use request-scoped async SQLAlchemy sessions; background simulation runs get fresh DB sessions so they can continue safely after the POST request returns. The deploy helper reads `/sidira/prod/DATABASE_URL` and `/sidira/prod/SIDIRA_AUTO_MIGRATE` from SSM when present, startup migrations are opt-in, and provider-style Postgres URLs are normalized for asyncpg. Agent materialization order is now persisted through `agent_instances.materialization_index`, so Postgres list/detail/agent reads remain deterministic. Verification: backend 390 passed / 11 skipped, focused DB/deploy suite 31 passed, Docker Postgres smoke 1 passed, frontend typecheck clean, Codex review clear.

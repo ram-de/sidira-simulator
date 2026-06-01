@@ -720,7 +720,7 @@ export interface components {
         };
         /**
          * BehavioralSeedSchema
-         * @description Per-persona pools that identity_seed draws from (pythia-personas v1.1).
+         * @description Per-persona pools that identity_seed draws from (sidira-personas v1.1).
          *
          *     Ordered most-common-first so a uniform draw yields a realistic-ish
          *     distribution. Optional on Persona — v1.0 packs lack this field and the

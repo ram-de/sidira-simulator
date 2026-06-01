@@ -53,7 +53,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - #114 closed as completed and issue body tracking updated to `Status: Done`.
 - Moved #115 to In Progress in issue tracking.
 - Created #115 feature branch `codex/115-sidira-domain-metadata`.
-- Updated GitHub metadata outside the repo: Project #1 title is now Sidira; `pythia-simulator`, `pythia-personas`, and `pythia-crawler` repo descriptions/homepages now use Sidira and `https://sidira.ai`.
+- Updated GitHub metadata outside the repo: Project #1 title is now Sidira; `pythia-simulator`, `sidira-personas`, and `sidira-crawler` repo descriptions/homepages now use Sidira and `https://sidira.ai`.
 - Initial repo-name decision was to defer renames, then reversed before AWS setup because Amplify and deploy docs should bind to the final repo path.
 - Added first #115 local commit on the feature branch (`aba778c docs: add Sidira domain deployment runbook`) with frontend/backend deploy env examples and `docs/sidira-domain-runbook.md`.
 - DNS audit: `sidira.ai` resolves to `162.255.119.57` but HTTPS does not answer; `app.sidira.ai` and `api.sidira.ai` do not resolve yet.
@@ -63,7 +63,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Opened AWS Console via browser only. Route 53 currently shows zero hosted zones; paused before creating `sidira.ai` hosted zone because it is billable.
 - Renamed GitHub repo `ram-de/pythia-simulator` to `ram-de/sidira-simulator`; local `origin` now points at `git@github.com-personal:ram-de/sidira-simulator.git`.
 - Verified renamed remote contains `main` and `codex/115-sidira-domain-metadata`, then pushed commit `33f007c docs: record simulator repo rename`.
-- Kept producer repos as `pythia-personas` and `pythia-crawler` until their package/repo rename work is explicitly scheduled.
+- Follow-up producer repo/package renames are now complete: `sidira-personas` and `sidira-crawler`.
 - Locked AWS secret-handling decision: backend should be EC2-first, not Lightsail-first, so it can use an IAM instance profile to read `/sidira/prod/*` secrets from Parameter Store/Secrets Manager without storing AWS access keys on the VM. Amplify gets only public `NEXT_PUBLIC_API_BASE`.
 - Verification for the repo-rename docs passed: `git diff --check`, backend full suite (`363 passed, 10 skipped`), and frontend `npm run typecheck`.
 - Created Route 53 public hosted zone for `sidira.ai`: `Z01279103CLJX7PS4TEFN`. Expected cost approved before creation: about `$0.50/month` plus negligible DNS-query charges at this traffic level.
@@ -231,7 +231,7 @@ Rename Pythia to Sidira before public launch, starting with the user-visible sim
 - Production is currently intentionally small: Amplify frontend + single `t4g.micro` EC2 backend. The filesystem artifact store is acceptable for this low-traffic development deployment, but the read/write artifact mount must be preserved until R2 is fully configured.
 - Pre-merge Codex review found deploy sharp edges: do not export `DATABASE_URL` until Postgres repository wiring lands, keep Compose container names stable for pause/resume docs, generate the fallback local credential key as URL-safe base64 32-byte material rather than hex, fail deploys on SSM/KMS access errors instead of blanking secrets, build before replacing live containers, and document artifact ownership for manual Compose runs.
 - #115 production hardening requires `/sidira/prod/SIDIRA_INTERNAL_API_KEY` in Parameter Store and the same value in Amplify as a server-side `SIDIRA_INTERNAL_API_KEY` variable. Production frontend should use the default same-origin `/api` proxy, not a public `NEXT_PUBLIC_API_BASE=https://api.sidira.ai` browser call.
-- Phase 4.7 is complete for the simulator/domain/deployment surface. Producer repo/package renames for `pythia-personas` and `pythia-crawler` remain intentionally out of scope until explicitly scheduled.
+- Phase 4.7 is complete for the simulator/domain/deployment surface and producer repo/package naming surface.
 - #124 remains open as a later hardening task. It is not a Phase 4.7 blocker for the current low-traffic development deployment.
 
 ## For my cofounder

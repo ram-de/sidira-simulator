@@ -12,13 +12,13 @@ Sidira simulates how a customer's userbase would react to a proposed product cha
 
 Three repos:
 
-The product is Sidira. The customer-facing simulator repo is `sidira-simulator`; producer repos remain `pythia-personas` and `pythia-crawler` until their package/repo rename work is explicitly scheduled.
+The product is Sidira. The customer-facing simulator repo is `sidira-simulator`; producer repos are `sidira-personas` and `sidira-crawler`.
 
 | Repo | What it does |
 |---|---|
 | `sidira-simulator` | Customer-facing app (FE + BE + agent memory + the only UI). This repo. |
-| `pythia-personas` | Persona Pack producer (clusters real userbase data into archetypes with weights) |
-| `pythia-crawler` | Feature Pack producer (weekly Playwright crawl of customer's product → reverse PRD) |
+| `sidira-personas` | Persona Pack producer (clusters real userbase data into archetypes with weights) |
+| `sidira-crawler` | Feature Pack producer (weekly Playwright crawl of customer's product → reverse PRD) |
 
 The simulator is the integration point — strategy, roadmap, and team docs live here.
 
@@ -28,7 +28,7 @@ The simulator is the integration point — strategy, roadmap, and team docs live
 
 You need:
 
-- [ ] GitHub `ram-de` access — invite to `sidira-simulator`, `pythia-personas`, `pythia-crawler`, plus the [Sidira GitHub Project](https://github.com/users/ram-de/projects/)
+- [ ] GitHub `ram-de` access — invite to `sidira-simulator`, `sidira-personas`, `sidira-crawler`, plus the [Sidira GitHub Project](https://github.com/users/ram-de/projects/)
 - [ ] Groq API key — for LLM calls. Founder has one at `~/mirofish-ui/.env` they can share, or sign up at https://groq.com (free tier works for now)
 - [ ] (Optional, for Postgres work) Neon dev instance credentials — ask founder for the `DATABASE_URL`
 - [ ] (Optional, for Anthropic fallback) Anthropic API key
@@ -59,8 +59,8 @@ Verify by opening Claude Code in any directory and typing `/qa` — you should s
 ```bash
 mkdir -p ~/Projects && cd ~/Projects
 git clone git@github.com:ram-de/sidira-simulator.git
-git clone git@github.com:ram-de/pythia-personas.git
-git clone git@github.com:ram-de/pythia-crawler.git
+git clone git@github.com:ram-de/sidira-personas.git
+git clone git@github.com:ram-de/sidira-crawler.git
 ```
 
 If your SSH key isn't set up with GitHub, use HTTPS URLs instead (`https://github.com/ram-de/...`).
@@ -284,8 +284,8 @@ By end of week one you should have:
 | `AGENTS.md` | Conventions, skill usage | Once during onboarding, then reference |
 | `sessions/<active>/context.md` | Current working state | When picking up someone else's work |
 | GitHub Project | Open tickets | Daily |
-| `pythia-personas/MILESTONES.md` | Stub — ignore | Never |
-| `pythia-crawler/MILESTONES.md` | Stub — ignore | Never |
+| `sidira-personas/MILESTONES.md` | Stub — ignore | Never |
+| `sidira-crawler/MILESTONES.md` | Stub — ignore | Never |
 | `sidira-simulator/MILESTONES.md` | Stub — ignore | Never |
 | `sidira-simulator/docs/SEED_ISSUES.md` | One-time Project seed list | Never (historical) |
 

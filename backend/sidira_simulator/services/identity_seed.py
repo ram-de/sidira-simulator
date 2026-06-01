@@ -62,7 +62,7 @@ _DEFAULT_BEHAVIORAL_SEEDS = BehavioralSeedSchema(
 # _DEFAULT_BEHAVIORAL_SEEDS. The default pools are broad — they include
 # `tenure_band = "veteran (3y+)"`, which can land on a "New explorer (first
 # 60 days)" persona and produce a visibly contradictory agent. Until the
-# pythia-personas v1.1 work emits per-persona pools, this table constrains
+# sidira-personas v1.1 work emits per-persona pools, this table constrains
 # the demo personas to coherent draws. Each entry is a partial schema:
 # fields not listed here fall through to the default pool.
 #

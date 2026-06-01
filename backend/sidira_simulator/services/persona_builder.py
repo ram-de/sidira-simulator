@@ -1,9 +1,9 @@
-"""Persona Builder — orchestrates Snowflake → pythia-personas library → R2.
+"""Persona Builder — orchestrates Snowflake → sidira-personas library → R2.
 
 This is the simulator-side wrapper that the UI talks to. It hides the
 producer-library boundary: from the UI's point of view, you submit a build
 config and get back a draft pack; under the hood, this service loads creds,
-runs the Snowflake query, invokes the pythia-personas pipeline, and writes
+runs the Snowflake query, invokes the sidira-personas pipeline, and writes
 the result to R2 + Postgres.
 """
 
@@ -76,7 +76,7 @@ class PersonaBuilderService:
             "2. credentials.decrypt() → SnowflakeCreds (in-memory only)\n"
             "3. SnowflakeStore.run_query(config.source_query) → list of user-row dicts\n"
             "4. Apply column_mapping → per-group feature matrices\n"
-            "5. Call pythia_personas library: encoder → cluster → calibrate → compile_prompts\n"
+            "5. Call sidira_personas library: encoder → cluster → calibrate → compile_prompts\n"
             "6. Validate stability_score >= config.stability_threshold (else mark DRAFT_FAILED)\n"
             "7. Write to R2 at customers/<id>/personas/v_<N>/{persona_pack.json, manifest.json, prompts/*.md}\n"
             "8. Insert persona_pack_versions row (status=DRAFT) in Postgres\n"

@@ -1,13 +1,13 @@
 # Sidira — Overall Roadmap
 
-**Last updated:** 2026-05-31 (#124/#131 production proxy-auth hardening shipped)
+**Last updated:** 2026-06-01 (producer repos renamed to Sidira)
 
-The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + pythia-personas + pythia-crawler), not in markdown — see "Where to find what" below.
+The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + sidira-personas + sidira-crawler), not in markdown — see "Where to find what" below.
 
 | Repo | Role |
 |---|---|
-| [`pythia-personas`](https://github.com/ram-de/pythia-personas) | Persona Pack producer (clustering, weights, prompt compilation) |
-| [`pythia-crawler`](https://github.com/ram-de/pythia-crawler) | Feature Pack producer (weekly Playwright crawl → reverse PRD + Figma) |
+| [`sidira-personas`](https://github.com/ram-de/sidira-personas) | Persona Pack producer (clustering, weights, prompt compilation) |
+| [`sidira-crawler`](https://github.com/ram-de/sidira-crawler) | Feature Pack producer (weekly Playwright crawl → reverse PRD + Figma) |
 | [`sidira-simulator`](https://github.com/ram-de/sidira-simulator) | Customer-facing app (FE + BE + agent memory + single UI for all 3 producers) |
 
 ---
@@ -34,12 +34,12 @@ The Sidira product spans three repos. This document is the strategy map: phases,
 ✅ **Phase 2.5 complete.** Population-size input, Hamilton allocation, identity seeds, score/weakness CIs, degradation guard, and population-aware frontend results are shipped.
 ✅ **Phase 4 agent chat foundations shipped.** PMs can chat with individual agents and persona groups, including arm-scoped group chat in A/B mode.
 ✅ **Phase 4.6 A/B experiment mode shipped.** Wizard toggle, paired treatment/control runner, paired-lift formula, and lift-first result UI are live.
-✅ **Phase 4.7 Sidira rename + first production deployment shipped.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, active docs/roadmap, GitHub repo metadata, `sidira.ai`, Amplify, EC2/Caddy backend deployment, and SSM-based provider secret loading are live on `main`.
+✅ **Phase 4.7 Sidira rename + first production deployment shipped.** Visible product surface, `SIDIRA_*` config namespace, `sidira_simulator`, producer packages/repos, active docs/roadmap, GitHub repo metadata, `sidira.ai`, Amplify, EC2/Caddy backend deployment, and SSM-based provider secret loading are live on `main`.
 ✅ **Phase 5a #68 Postgres repo wiring shipped.** The backend can now use Postgres repositories when `DATABASE_URL` is configured, while keeping the InMemory fallback for no-DB local development and tests.
 ✅ **#124/#131 production proxy-auth hardening shipped.** Amplify/Next no longer receives the backend gateway token; Caddy validates web Basic Auth and injects the internal key server-side.
 
 What's **not yet real**:
-- **Real persona generation.** Demo uses a hand-built 6-persona fixture. pythia-personas can already generate packs; the simulator just hasn't consumed a real one yet.
+- **Real persona generation.** Demo uses a hand-built 6-persona fixture. sidira-personas can already generate packs; the simulator just hasn't consumed a real one yet.
 - **Multi-tenancy.** Everything is hardcoded to `customer_id = "demo"`. Phase 5.
 - **Crawler runs.** Feature Pack is still the hand-built Acme sample. crawler Phase 2 builds the Playwright walker.
 
@@ -47,7 +47,7 @@ What's **not yet real**:
 
 ## Cross-repo phase alignment
 
-| Phase | `sidira-simulator` | `pythia-personas` | `pythia-crawler` | Status |
+| Phase | `sidira-simulator` | `sidira-personas` | `sidira-crawler` | Status |
 |---|---|---|---|---|
 | 0 | Design | Architecture | Design | ✅ Done |
 | 1 | Scaffold | Adapter/Encoder/Cluster/Calibrate | Scaffold | ✅ Done |
@@ -58,7 +58,7 @@ What's **not yet real**:
 | 4 | Agent chat UI (the differentiator) | — | R2 wiring + diff | ✅ Simulator done |
 | 4.5 | Persona Builder UI (scaffolded) | — | — | 🚧 Scaffolded |
 | 4.6 | A/B experiment mode | — | — | ✅ Done |
-| **4.7** | **Sidira rename: product, config, package, docs, repo/domain metadata** | Repo/package names later | Repo/package names later | ✅ Done |
+| **4.7** | **Sidira rename: product, config, package, docs, repo/domain metadata** | Repo/package renamed | Repo/package renamed | ✅ Done |
 | **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | ✅ Done |
 | 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
@@ -149,7 +149,7 @@ Four patterns ported: `SimulationRunState` + JSONL event log; parallel agent exe
 
 **Acceptance:** 1000-population sim runs in <60s, produces score with 95% CI, weaknesses with CIs, 50 agents allocated in correct persona proportions (within ±1 rounding).
 
-**Dependencies:** none on other repos (per-cluster stats from pythia-personas v1.1 would improve variance but is optional).
+**Dependencies:** none on other repos (per-cluster stats from sidira-personas v1.1 would improve variance but is optional).
 
 **Risks:** Groq rate limits at higher sample sizes; UX of 50-agent agent list; CI method choice.
 
@@ -161,7 +161,7 @@ Shipped across the Phase 4 tickets: individual-agent chat, persona-group fan-out
 
 ### Phase 4.5 — Persona Builder UI 🔲 (scaffolded)
 
-7-step wizard scaffolded with stub bodies (`/personas/new`). Goal: PM connects Snowflake → maps columns to 7 feature groups → triggers a pythia-personas build → resulting pack appears in the simulator. Snowflake-only MVP; single-source builds; LLM-assisted column mapping.
+7-step wizard scaffolded with stub bodies (`/personas/new`). Goal: PM connects Snowflake → maps columns to 7 feature groups → triggers a sidira-personas build → resulting pack appears in the simulator. Snowflake-only MVP; single-source builds; LLM-assisted column mapping.
 
 ### Phase 4.6 — A/B experiment mode ✅
 
@@ -184,11 +184,9 @@ Done:
 - #115/#120 domain, GitHub metadata, simulator repo rename, Amplify frontend, EC2/Caddy API baseline, and production deployment runbook.
 - #122/#125 production deployment follow-up fixes for Caddy/API and Amplify SSR proxy env wiring.
 - #124/#131 proxy-auth hardening: backend gateway token removed from Amplify/Next; Caddy validates web Basic Auth and injects the internal key server-side.
+- Producer repo/package renames for `sidira-personas` and `sidira-crawler`.
 
-Remaining:
-- Producer repo/package renames for `pythia-personas` and `pythia-crawler` are intentionally not part of this phase; schedule explicitly if/when needed.
-
-Dependencies: complete for the simulator/domain/deployment surface. `sidira.ai` is live on `main`.
+Dependencies: complete for the simulator/domain/deployment surface and producer naming surface. `sidira.ai` is live on `main`.
 
 ### Phase 5a — Postgres repo wiring ✅ (carve-out — #68)
 

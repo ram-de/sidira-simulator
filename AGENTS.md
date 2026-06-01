@@ -17,13 +17,13 @@ If you only have time for one file: it's `CONTEXT.md`.
 
 ## The three repos
 
-The product name is Sidira. The customer-facing simulator repo is `sidira-simulator`; producer repos remain `pythia-personas` and `pythia-crawler` until their package/repo rename work is explicitly scheduled.
+The product name is Sidira. The customer-facing simulator repo is `sidira-simulator`; producer repos are `sidira-personas` and `sidira-crawler`.
 
 | Repo | Run from | Tests |
 |---|---|---|
 | `sidira-simulator` | `backend/` (uvicorn) + `frontend/` (next dev) | `pytest tests/` in backend; `npx tsc --noEmit` in frontend |
-| `pythia-personas` | Python library + CLI (`pythia-personas run`) | `pytest` |
-| `pythia-crawler` | Python library + CLI (`pythia-crawler run`) | `pytest` |
+| `sidira-personas` | Python library + CLI (`sidira-personas run`) | `pytest` |
+| `sidira-crawler` | Python library + CLI (`sidira-crawler run`) | `pytest` |
 
 The simulator imports personas and crawler as **libraries**, not over IPC. Artifact contract is filesystem-shaped under `local-artifacts/customers/{id}/...` in dev, R2 in prod.
 
@@ -100,7 +100,7 @@ A live example session lives at `sessions/persona-classifier/context.md` — tha
 ### PRs
 
 - One topic per PR. If it grows past ~500 lines, consider splitting.
-- **`/codex review` before merge. Every PR. No exceptions.** This is non-negotiable across all three Sidira repos (sidira-simulator, pythia-personas, pythia-crawler). Codex catches the class of bug self-review misses — silent failures, type/boundary issues, inconsistent error paths, off-by-one in stats code, drift between spec docstring and implementation. Previously this rule applied only to schema/scoring/agent-memory changes; the narrow version existed because Codex used to cost real money. It doesn't now. Run it everywhere.
+- **`/codex review` before merge. Every PR. No exceptions.** This is non-negotiable across all three Sidira repos (sidira-simulator, sidira-personas, sidira-crawler). Codex catches the class of bug self-review misses — silent failures, type/boundary issues, inconsistent error paths, off-by-one in stats code, drift between spec docstring and implementation. Previously this rule applied only to schema/scoring/agent-memory changes; the narrow version existed because Codex used to cost real money. It doesn't now. Run it everywhere.
   - If Codex flags `[P1]`: fix before merge. Re-run review until CLEAR.
   - If Codex flags `[P2]`: fix in the same PR if it's a 5-minute change; defer to a follow-up ticket otherwise, but call it out in the PR body.
   - If you're tempted to skip Codex on "trivial" changes (docs-only, one-line typo, tests-only): don't. The 30-second runtime is cheaper than the trust we lose when a "trivial" change breaks something.
@@ -146,7 +146,7 @@ When you pick up a ticket:
 ## Onboarding a new teammate (founder #2 or future #3)
 
 1. Accept GitHub invite to all 3 repos + the GitHub Project
-2. Clone `sidira-simulator`, `pythia-personas`, and `pythia-crawler` to `~/Projects/`
+2. Clone `sidira-simulator`, `sidira-personas`, and `sidira-crawler` to `~/Projects/`
 3. Install Claude Code + gstack: `cd ~/.claude/skills/gstack && ./setup`
 4. Copy `~/mirofish-ui/.env` (or get Groq key from 1Password) → `sidira-simulator/backend/.env`
 5. Set up Postgres (Neon dev instance) — DATABASE_URL in env

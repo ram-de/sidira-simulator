@@ -1,6 +1,6 @@
-"""Feature Pack schema — produced by pythia-crawler, consumed here.
+"""Feature Pack schema — produced by sidira-crawler, consumed here.
 
-Duplicated from pythia-crawler until pythia-schemas package lands.
+Duplicated from sidira-crawler until pythia-schemas package lands.
 """
 
 from __future__ import annotations

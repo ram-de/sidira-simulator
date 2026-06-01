@@ -1,6 +1,6 @@
-"""Persona Pack schema — produced by pythia-personas, consumed here.
+"""Persona Pack schema — produced by sidira-personas, consumed here.
 
-Duplicated from pythia-personas until the shared pythia-schemas package lands.
+Duplicated from sidira-personas until the shared pythia-schemas package lands.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ class WeightSchemes(BaseModel):
 
 
 class BehavioralSeedSchema(BaseModel):
-    """Per-persona pools that identity_seed draws from (pythia-personas v1.1).
+    """Per-persona pools that identity_seed draws from (sidira-personas v1.1).
 
     Ordered most-common-first so a uniform draw yields a realistic-ish
     distribution. Optional on Persona — v1.0 packs lack this field and the
