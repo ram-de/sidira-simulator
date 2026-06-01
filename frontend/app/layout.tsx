@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import TopNav from "@/components/TopNav";
+import { isPublicSiteHost } from "@/lib/site-hosts";
 
 export const metadata: Metadata = {
   title: "Sidira",
@@ -18,6 +20,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const host = headers().get("host");
+  const showProductNav = !isPublicSiteHost(host);
+
   return (
     <html lang="en">
       <body
@@ -29,8 +34,10 @@ export default function RootLayout({
           background: "#fff",
         }}
       >
-        <TopNav />
-        <div style={{ minHeight: "calc(100vh - 56px)" }}>{children}</div>
+        {showProductNav ? <TopNav /> : null}
+        <div style={{ minHeight: showProductNav ? "calc(100vh - 56px)" : "100vh" }}>
+          {children}
+        </div>
       </body>
     </html>
   );
