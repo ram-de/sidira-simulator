@@ -39,7 +39,7 @@ Canonical Phase 4.7 hostnames:
   for a short period.
 - GitHub Project #1 is titled Sidira.
 - The simulator repo is renamed to `ram-de/sidira-simulator`; local `origin` should point to `git@github.com-personal:ram-de/sidira-simulator.git`.
-- `pythia-personas` and `pythia-crawler` descriptions/homepages use Sidira metadata, but their repo/package names remain unchanged until producer rename work is explicitly scheduled.
+- `sidira-personas` and `sidira-crawler` descriptions/homepages, repo names, package names, and CLIs use Sidira naming.
 - Backend API baseline is live on EC2 instance `i-04b155fafcc90042b`
   (`sidira-api-prod`, `t4g.micro`, Elastic IP `32.194.187.147`) behind
   Caddy. `GET https://api.sidira.ai/health` returns
@@ -398,7 +398,7 @@ Stronger options:
 - Rename the GitHub Project title from Pythia to Sidira.
 - Update repo descriptions to use Sidira.
 - Simulator repo is renamed to `sidira-simulator`.
-- Producer repo names remain `pythia-personas` and `pythia-crawler` until their packages are renamed intentionally.
+- Producer repo names and packages are `sidira-personas` and `sidira-crawler`.
 
 ## Rollback Notes
 

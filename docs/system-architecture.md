@@ -54,7 +54,7 @@ Producers (persona pack, feature pack) write versioned artifacts to a shared obj
                   ┌──────────────┴────────────────┐
                   │                               │
         ┌─────────┴─────────┐         ┌───────────┴───────────┐
-        │  pythia-personas  │         │   pythia-crawler      │
+        │  sidira-personas  │         │   sidira-crawler      │
         │  Python package   │         │   Python + Playwright │
         │  + CLI/Docker     │         │   package + CLI/Docker│
         └───────────────────┘         └───────────────────────┘
@@ -71,8 +71,8 @@ Repo names below are the current GitHub/package names, not the product name.
 
 | Repo | Role | Stack |
 |---|---|---|
-| **`pythia-personas`** (exists) | Produces Persona Pack from a customer's user table | Python, scikit-learn, Snowflake/Datalake connector |
-| **`pythia-crawler`** (new) | Produces Feature Pack via weekly Playwright crawl | Python, Playwright, LLM (Anthropic/Groq) |
+| **`sidira-personas`** (exists) | Produces Persona Pack from a customer's user table | Python, scikit-learn, Snowflake/Datalake connector |
+| **`sidira-crawler`** (new) | Produces Feature Pack via weekly Playwright crawl | Python, Playwright, LLM (Anthropic/Groq) |
 | **`sidira-simulator`** | Customer-facing app: frontend + backend + workers | Next.js + Python/FastAPI |
 | **`pythia-schemas`** (new; rename to `sidira-schemas` in #115) | Shared Pydantic schemas (Persona Pack, Feature Pack, Simulation Result) | Python only; TS types generated from OpenAPI export |
 | Artifact store | Cloudflare R2 bucket | S3-compatible API, zero egress |
@@ -99,8 +99,8 @@ Frontend and backend live in one repo for MVP — same team, shared schemas, sin
 
 Each producer ships **two faces** from the same codebase:
 
-1. **Installable Python package** (`pip install pythia-crawler`) — backend workers import and call: `from pythia_crawler import run_crawl; run_crawl(customer_id=..., snapshot=...)`. No HTTP between simulator and producers.
-2. **Standalone CLI / Docker image** — for cron jobs, local dev, debugging. `pythia-crawler run --customer acme --snapshot 2026-W21`.
+1. **Installable Python package** (`pip install sidira-crawler`) — backend workers import and call: `from sidira_crawler import run_crawl; run_crawl(customer_id=..., snapshot=...)`. No HTTP between simulator and producers.
+2. **Standalone CLI / Docker image** — for cron jobs, local dev, debugging. `sidira-crawler run --customer acme --snapshot 2026-W21`.
 
 Both invocation paths converge on the same artifact contract: write versioned outputs to R2 at the canonical path. The simulator backend doesn't care which path produced the artifact.
 
@@ -171,7 +171,7 @@ The simulator backend is the only component that knows the **runtime composition
 
 | Event | Who triggers | Mechanism |
 |---|---|---|
-| New customer onboarding | Backend admin endpoint | Backend calls `pythia_personas.run(...)` + `pythia_crawler.run(...)` inline (MVP) or via queue (Phase 2) |
+| New customer onboarding | Backend admin endpoint | Backend calls `sidira_personas.run(...)` + `sidira_crawler.run(...)` inline (MVP) or via queue (Phase 2) |
 | Weekly feature pack refresh | Scheduled cron in producer | Producer runs standalone (no backend involvement) and writes to R2; backend picks up next read |
 | PM hits "Refresh feature pack" in UI | Backend on user action | Backend submits job → worker invokes crawler library → emits artifact → backend gets job-complete notification (poll or webhook) |
 | Quarterly persona recalibration | Scheduled cron in producer | Same as weekly — producer is autonomous |
@@ -322,8 +322,8 @@ The frontend has three top-level tabs:
 
 | Tab | Producer | Wizard |
 |---|---|---|
-| **Personas** | `pythia-personas` (imported as library) | 7-step: Connect → Source → Map → Preview → Configure → Build → Review + Promote |
-| **Product** | `pythia-crawler` (imported as library) | Future-phase wizard: Connect sandbox → Declare capabilities → Per-role test creds → Schedule → Crawl + Diff view |
+| **Personas** | `sidira-personas` (imported as library) | 7-step: Connect → Source → Map → Preview → Configure → Build → Review + Promote |
+| **Product** | `sidira-crawler` (imported as library) | Future-phase wizard: Connect sandbox → Declare capabilities → Per-role test creds → Schedule → Crawl + Diff view |
 | **Simulations** | The simulator itself | Hypothesis submit → live agent reactions → chat with each agent |
 
 All three are backed by the same simulator backend; each producer remains a separate repo + Python package but is invoked via the simulator's `services/*_builder.py` orchestrators. Customers never see the producer boundary.
@@ -402,7 +402,7 @@ This is the **identity-continuity guarantee applied at the population level** �
 | Postgres | **Neon** | Serverless, branchable, free tier |
 | Artifact store | **Cloudflare R2** | Zero egress, S3-compatible |
 | Auth | **Clerk** | Hosted |
-| LLM | **Groq (default) + Anthropic (fallback)** | Already configured in `pythia-personas`; same pattern in crawler + backend |
+| LLM | **Groq (default) + Anthropic (fallback)** | Already configured in `sidira-personas`; same pattern in crawler + backend |
 
 ---
 
@@ -412,8 +412,8 @@ Each repo has its own GitHub Actions pipeline:
 
 | Repo | Pipeline |
 |---|---|
-| `pythia-personas` | lint → unit tests → integration test (sample run) → publish package to private index |
-| `pythia-crawler` | lint → unit tests → Playwright smoke test → build Docker image → push to registry |
+| `sidira-personas` | lint → unit tests → integration test (sample run) → publish package to private index |
+| `sidira-crawler` | lint → unit tests → Playwright smoke test → build Docker image → push to registry |
 | `sidira-simulator/backend` | lint → unit tests → typecheck → build Docker → deploy to AWS staging on `main` |
 | `sidira-simulator/frontend` | lint → typecheck → Next.js build → Amplify preview on PR; promote to prod on tag |
 | `pythia-schemas` | lint → tests → publish to private package index → triggers downstream rebuilds |
@@ -440,7 +440,7 @@ Each repo has its own GitHub Actions pipeline:
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Three-repo split | `pythia-personas` / `pythia-crawler` / `sidira-simulator` | Different runtime profiles, security models, cadences; clean composition via artifact store |
+| Three-repo split | `sidira-personas` / `sidira-crawler` / `sidira-simulator` | Different runtime profiles, security models, cadences; clean composition via artifact store |
 | Artifact store | Cloudflare R2 | Zero egress for repeated reads by simulator, S3-compat for portability |
 | Backend language | Python (FastAPI) | Same language as producers → direct package imports, no IPC |
 | Frontend stack | Next.js + TypeScript | Dominant enterprise SaaS UI; types codegen'd from OpenAPI |

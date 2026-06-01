@@ -6,12 +6,12 @@ A PM submits a feature hypothesis (PRD + Figma). Sidira simulates how the custom
 
 ## Subsystems in the Sidira architecture
 
-The customer-facing simulator repo is now `sidira-simulator`; producer repos
-remain `pythia-*` until their package/repo rename work is explicitly scheduled.
+The customer-facing simulator repo is `sidira-simulator`; producer repos are
+`sidira-personas` and `sidira-crawler`.
 
 ```
-pythia-personas/      → Persona Pack
-pythia-crawler/       → Feature Pack
+sidira-personas/      → Persona Pack
+sidira-crawler/       → Feature Pack
                                        ↓ both consumed by ↓
                        sidira-simulator         ← this repo
                        (frontend + backend +

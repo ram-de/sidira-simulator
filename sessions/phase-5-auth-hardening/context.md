@@ -19,9 +19,9 @@ Close out the production Postgres bootstrap follow-up, redeploy the merged backe
 - PR #129 was squash-merged to `main` as `ad6f49ad231bd94b66878df86f06ed097ffc9e33`.
 - `origin/main` includes the Neon URL normalizer hardening and production Postgres bootstrap docs.
 - Production health was checked after the merge: `GET https://api.sidira.ai/health` returned 200.
-- #110 was reviewed: simulator/domain rename is done, but the parent issue still includes producer repo renames for `pythia-personas` and `pythia-crawler`, so it should not be closed as fully complete yet.
+- #110 was reviewed again after the producer repo/package rename follow-up; simulator/domain and producer repo rename scope are now complete.
 - Updated `CONTEXT.md` and `ROADMAP.md` so the next pointer moves from merging #129 to shipping #124.
-- Added a #110 GitHub comment noting that only producer-repo rename scope remains and the simulator/domain work is done.
+- Earlier #110 tracking noted producer repo rename scope remained after the simulator/domain work; that follow-up is now complete.
 - Redeployed the EC2 backend from `main` through AWS Console SSM Run Command `dce6ba0d-70be-4c99-a3e7-b7a6e9280552`.
 - Post-redeploy smoke: `GET https://api.sidira.ai/health` returned 200, direct `GET https://api.sidira.ai/models` remained gated with 404, and `https://sidira.ai` still returns the expected Amplify Basic Auth 401.
 - Started #124 on `codex/124-proxy-auth-hardening`.

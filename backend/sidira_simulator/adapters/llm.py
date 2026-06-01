@@ -1,4 +1,4 @@
-"""LLM client — Groq primary, Anthropic fallback. Mirrors pythia-personas + pythia-crawler.
+"""LLM client — Groq primary, Anthropic fallback. Mirrors sidira-personas + sidira-crawler.
 
 Exposes:
 - `chat(messages)` — plain text completion

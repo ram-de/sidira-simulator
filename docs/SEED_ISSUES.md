@@ -9,7 +9,7 @@ This file is the one-time seed list for the Sidira GitHub Project board. After b
 1. Go to https://github.com/users/ram-de/projects → New project → Board template
 2. Name: **Sidira**
 3. Visibility: Private (or Public if shipping in the open)
-4. Add the three repos as sources: `ram-de/pythia-simulator`, `ram-de/pythia-personas`, `ram-de/pythia-crawler`
+4. Add the three repos as sources: `ram-de/sidira-simulator`, `ram-de/sidira-personas`, `ram-de/sidira-crawler`
 5. Add custom fields:
    - **Phase** (single select): 2.5, 4, 4.5, 5, 6, 7, 8, 9, 10
    - **Component** (single select): backend, frontend, schema, infra, docs, eval
@@ -29,7 +29,7 @@ Copy-paste each block below into a new issue in the indicated repo. Set Phase / 
 ### Phase 2.5 — Weighted Population Sampling
 
 #### Issue: `feat(schema): replace persona_sample_size with population_size`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** schema
 **Body:**
@@ -50,7 +50,7 @@ Remove the existing `persona_sample_size` field. Update frontend wizard accordin
 ---
 
 #### Issue: `feat(services): population_sampler with largest-remainder allocation`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** backend
 **Body:**
@@ -66,7 +66,7 @@ Implement `services/population_sampler.py` that takes a `PersonaPack` and a `pop
 ---
 
 #### Issue: `feat(services): identity_seed for per-agent variance`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** backend
 **Body:**
@@ -78,7 +78,7 @@ Hybrid approach:
 
 `AgentInstance.identity_seed: dict` — frozen at creation (memory invariant: chat-time agent = simulation-time agent).
 
-**Open question (block this ticket on):** does per-persona attribute schema live in the pack (pythia-personas v1.1 emits it) or hand-rolled in simulator? Decide in brainstorm before writing code.
+**Open question (block this ticket on):** does per-persona attribute schema live in the pack (sidira-personas v1.1 emits it) or hand-rolled in simulator? Decide in brainstorm before writing code.
 
 **Acceptance:**
 - 50 agents within a persona produce 50 distinct identity_seeds
@@ -88,7 +88,7 @@ Hybrid approach:
 ---
 
 #### Issue: `feat(scoring): Wilson CIs on weakness frequencies, bootstrap on aggregate score`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** backend
 **Body:**
@@ -109,7 +109,7 @@ Schema updates:
 ---
 
 #### Issue: `fix(adapters): Groq rate-limit backoff with jitter`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** infra
 **Body:**
@@ -124,7 +124,7 @@ Add exponential backoff with jitter on 429 responses. Cap at 3 retries. Log retr
 ---
 
 #### Issue: `feat(scoring): degradation guard for >50% classification failures`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** backend
 **Body:**
@@ -140,7 +140,7 @@ Add: if `(failed_classifications / total_classifications) > 0.5`, prepend a `und
 ---
 
 #### Issue: `feat(ui): wizard — Sample size field → Population field`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** frontend
 **Body:**
@@ -156,7 +156,7 @@ Add a small "Sampled agents: 50" sub-line that updates as the user types populat
 ---
 
 #### Issue: `feat(ui): detail view — CI rendering on score + weakness bars`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** frontend
 **Body:**
@@ -176,7 +176,7 @@ Update `/simulations/[id]` to render:
 ### Carried forward from Magic Moment retro
 
 #### Issue: `infra: CORS prod allowlist via per-customer subdomain`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 5
 **Component:** infra
 **Body:**
@@ -192,7 +192,7 @@ Design before code: do we use a wildcard pattern (`*.pythia.app`)? A regex? An a
 ---
 
 #### Issue: `feat(memory): Postgres handover — retire InMemorySimulationRepo from prod path`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 5
 **Component:** backend
 **Body:**
@@ -207,7 +207,7 @@ Wire `PostgresSimulationRepo` as the prod path. Keep InMemory as the test-only p
 ---
 
 #### Issue: `feat(ui): agent chat surface — the defining feature`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 4
 **Component:** frontend
 **Body:**
@@ -227,7 +227,7 @@ The backend memory model (`AgentMemory` with frozen identity + frozen reaction +
 ---
 
 #### Issue: `chore(docs): rename _sample_personas to _top_personas_by_weight`
-**Repo:** pythia-simulator
+**Repo:** sidira-simulator
 **Phase:** 2.5
 **Component:** docs
 **Body:**
@@ -241,10 +241,10 @@ This becomes moot once `population_sampler.py` replaces it in Phase 2.5 — but 
 
 ---
 
-### pythia-personas — Round 2 enrichment
+### sidira-personas — Round 2 enrichment
 
 #### Issue: `feat(adapter): Round 2 source columns — Pricing PSM, loyalty, Hub Notifications`
-**Repo:** pythia-personas
+**Repo:** sidira-personas
 **Phase:** 2.5 (optional dependency)
 **Component:** backend
 **Body:**
@@ -262,7 +262,7 @@ Round 1 took stability from 0.439 → 0.670 via Round 1 enrichment. Round 2 cand
 ---
 
 #### Issue: `feat(schema): Persona Pack v1.1 with per-cluster stats`
-**Repo:** pythia-personas
+**Repo:** sidira-personas
 **Phase:** 2.5 (enables better simulator variance)
 **Component:** schema
 **Body:**
@@ -278,7 +278,7 @@ Today's pack emits centroid + name + description per persona. Phase 2.5 of simul
 ### Crawler — backlog (when first customer signs)
 
 #### Issue: `feat: Playwright walker (Phase 2)`
-**Repo:** pythia-crawler
+**Repo:** sidira-crawler
 **Phase:** 7 (first customer)
 **Component:** backend
 **Body:**

@@ -1,13 +1,13 @@
 ---
 name: pythia-session
-description: Project-scoped session state management for Pythia. Tracks in-progress work to <repo>/sessions/<domain>/context.md, committed alongside code so both founders see each other's state via git pull. Named pythia-session (not session) to avoid collision with employer-vault /session skills. Only invoked when explicitly called as /pythia-session.
+description: Project-scoped session state management for Sidira. Tracks in-progress work to <repo>/sessions/<domain>/context.md, committed alongside code so both founders see each other's state via git pull. Named pythia-session (not session) to avoid collision with employer-vault /session skills. Only invoked when explicitly called as /pythia-session.
 ---
 
-# /pythia-session — Pythia Project Session Skill
+# /pythia-session — Sidira Project Session Skill
 
 ## Overview
 
-Every active chunk of Pythia work (sprint, feature, design spike) gets a session file at:
+Every active chunk of Sidira work (sprint, feature, design spike) gets a session file at:
 
 ```
 <repo>/sessions/<domain>/context.md
@@ -21,11 +21,11 @@ This file is the source of truth for what is being worked on, what is done, and 
 
 ## Why "pythia-session" and not just "session"
 
-Other skills named `/session` may exist at user level (e.g., an employer's work-vault skill that writes to `~/vaults/work/sessions/`). Project-local skill resolution depends on cwd, and we never want Pythia work to accidentally land in an employer vault. The unambiguous name eliminates that risk.
+Other skills named `/session` may exist at user level (e.g., an employer's work-vault skill that writes to `~/vaults/work/sessions/`). Project-local skill resolution depends on cwd, and we never want Sidira work to accidentally land in an employer vault. The unambiguous name eliminates that risk.
 
 ## Cross-repo note
 
-This skill lives in the `pythia-simulator` repo but applies to all Pythia work. Run it from the `pythia-simulator` checkout. Session files always go in `pythia-simulator/sessions/`, even when the work touches `pythia-personas` or `pythia-crawler`.
+This skill lives in the `sidira-simulator` repo but applies to all Sidira work. Run it from the `sidira-simulator` checkout. Session files always go in `sidira-simulator/sessions/`, even when the work touches `sidira-personas` or `sidira-crawler`.
 
 ## GitHub context
 
@@ -37,7 +37,7 @@ When this skill is active, every GitHub MCP call against `ram-de/*` repos MUST g
 
 Apply this rule to: `create_pull_request`, `create_issue`, `update_issue`, `add_issue_comment`, `merge_pull_request`, `create_branch`, `push_files`, and any other write operation. Read operations (`get_pull_request`, `list_issues`, etc.) work on either server, but prefer `github_ramde` while inside a `/pythia-session` for consistency.
 
-**Outside of `/pythia-session` (e.g. operating on the founder's personal projects):** default back to the `github` server (rmkmar identity). The `github_ramde` server is scoped exclusively to the three Pythia repos by its PAT and should not be used elsewhere.
+**Outside of `/pythia-session` (e.g. operating on the founder's personal projects):** default back to the `github` server (rmkmar identity). The `github_ramde` server is scoped exclusively to the three Sidira repos by its PAT and should not be used elsewhere.
 
 If `mcp__github_ramde__*` tools are NOT in the tool list, fall back to the default `github` server and tell the user: "The `github_ramde` MCP server isn't configured yet — PR creation will fail with 422. Add it per the instructions in `.claude/skills/pythia-session/SKILL.md` § MCP identity routing, then restart Claude Code."
 
