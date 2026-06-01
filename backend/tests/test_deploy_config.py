@@ -134,3 +134,50 @@ def test_frontend_uses_same_origin_proxy_without_internal_api_key() -> None:
     assert "Amplify Hosting strips browser Basic Auth" in deploy_readme
     assert "plus `SIDIRA_INTERNAL_API_KEY`" not in onboarding
     assert "This is an alpha-stage gateway-token workaround" not in readme
+
+
+def test_frontend_splits_public_site_from_product_app_hosts() -> None:
+    middleware = (REPO_ROOT / "frontend" / "middleware.ts").read_text()
+    page = (REPO_ROOT / "frontend" / "app" / "page.tsx").read_text()
+    layout = (REPO_ROOT / "frontend" / "app" / "layout.tsx").read_text()
+    host_helpers = (REPO_ROOT / "frontend" / "lib" / "site-hosts.ts").read_text()
+    runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
+
+    assert 'PUBLIC_SITE_HOST = "sidira.ai"' in host_helpers
+    assert 'APP_HOST = "app.sidira.ai"' in host_helpers
+    assert 'WWW_HOST = "www.sidira.ai"' in host_helpers
+    assert "isPublicSiteHost(host)" in page
+    assert "PublicCompanyHome" in page
+    assert "ProductHome" in page
+    assert "shouldRedirectProductPathToApp(host, request.nextUrl.pathname)" in middleware
+    assert "redirectUrl.hostname = APP_HOST" in middleware
+    assert "showProductNav = !isPublicSiteHost(host)" in layout
+    assert "`sidira.ai` / `www.sidira.ai`" in runbook
+    assert "`app.sidira.ai`" in runbook
+
+
+def test_public_homepage_copy_does_not_disclose_internal_recipe() -> None:
+    page = (REPO_ROOT / "frontend" / "app" / "page.tsx").read_text()
+
+    assert "Validate product bets before you build" in page
+    assert "Request access" in page
+    assert "Sign in" in page
+    assert "reverse-Figma" not in page
+    assert "reverse_prd" not in page
+    assert "paired sampling" not in page
+    assert "confidence interval" not in page
+    assert "scoring formula" not in page
+
+
+def test_app_host_keeps_temporary_basic_auth_until_clerk_lands() -> None:
+    middleware = (REPO_ROOT / "frontend" / "middleware.ts").read_text()
+    env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
+    runbook = (REPO_ROOT / "docs" / "sidira-domain-runbook.md").read_text()
+
+    assert "TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH" in middleware
+    assert "isPublicSiteHost(host)" in middleware
+    assert "Authorization required" in middleware
+    assert '"www-authenticate": "Basic realm=\\"Sidira\\""' in middleware
+    assert "Amplify access control can be disabled" in runbook
+    assert "temporary app-host Basic Auth" in runbook
+    assert "SIDIRA_WEB_PROXY_BASIC_AUTH" in env_example

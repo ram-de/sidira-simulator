@@ -1,13 +1,24 @@
 # Sidira Domain and Metadata Runbook
 
-Canonical Phase 4.7 hostnames:
+Canonical hostnames:
 
 | Surface | Hostname | Purpose |
 |---|---|---|
-| Marketing/root | `sidira.ai` | Public entry point. Can redirect to the app while marketing is not live. |
-| Marketing alias | `www.sidira.ai` | Convenience alias; permanently redirects to `sidira.ai`. |
-| Frontend app | `app.sidira.ai` | Next.js customer-facing simulator. |
+| Public company site | `sidira.ai` / `www.sidira.ai` | Public entry point for positioning and access requests. `www` permanently redirects to `sidira.ai`. |
+| Product app | `app.sidira.ai` | Next.js customer-facing simulator. Phase 5 auth protects this host. |
 | Backend API | `api.sidira.ai` | FastAPI service consumed by the frontend. |
+
+`sidira.ai` should explain who Sidira is for and what outcome it delivers, but
+it should not disclose the implementation recipe: crawler internals, persona
+pack mechanics, scoring formulas, prompt details, customer schemas, or roadmap
+specifics stay out of the public company site. Product routes under
+`sidira.ai` redirect to `app.sidira.ai` so old links still reach the app.
+
+During the pre-Clerk Phase 5 slice, Amplify access control can be disabled only
+after this host split is deployed: `app.sidira.ai` keeps temporary app-host
+Basic Auth in Next middleware using `SIDIRA_WEB_PROXY_BASIC_AUTH`, while
+`sidira.ai` remains public. Remove that temporary app-host Basic Auth when Clerk
+protects the product app.
 
 ## Current Audit (2026-05-29)
 
