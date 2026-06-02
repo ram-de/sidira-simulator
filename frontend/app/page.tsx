@@ -65,45 +65,122 @@ function ProductHome() {
   );
 }
 
+// Design system tokens — DESIGN.md §4. Kept inline so this component is
+// self-contained and matches the inline-style convention used elsewhere in
+// the app. Update both this constant and DESIGN.md together if values change.
+const TOKENS = {
+  ink: "#0E1A2B",
+  inkMuted: "#4A5668",
+  paper: "#F4EFE6",
+  paperElevated: "#FAF6EE",
+  paperRecessed: "#EBE5D8",
+  rule: "#D6CFC0",
+  signal: "#C8FF3D",
+} as const;
+
+const FONT_SANS = "var(--font-sans), ui-sans-serif, sans-serif";
+const FONT_NARROW = "var(--font-narrow), 'Helvetica Neue Condensed', sans-serif";
+const FONT_SERIF = "var(--font-serif), Georgia, serif";
+const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
+
+function SidiraLockup({ height = 32 }: { height?: number }) {
+  // Inline SVG so stroke and text inherit currentColor. Geometry matches
+  // frontend/public/brand/sidira-lockup.svg per DESIGN.md §3.1.
+  return (
+    <svg
+      width={(height / 60) * 240}
+      height={height}
+      viewBox="0 0 240 60"
+      fill="none"
+      aria-label="Sidira"
+      style={{ display: "block" }}
+    >
+      <g
+        transform="translate(0 5) scale(0.5)"
+        stroke="currentColor"
+        strokeWidth={2.2}
+        strokeLinejoin="round"
+        fill="none"
+      >
+        <polygon points="84.641,70 50,90 50,63 61.260,56.5" />
+        <polygon points="50,90 15.359,70 38.740,56.5 50,63" />
+        <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5" />
+        <polygon points="15.359,30 50,10 50,37 38.740,43.5" />
+        <polygon points="50,10 84.641,30 61.260,43.5 50,37" />
+        <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5" />
+      </g>
+      <text
+        x={64}
+        y={44}
+        fontFamily={FONT_NARROW}
+        fontWeight={600}
+        fontSize={44}
+        letterSpacing={2.6}
+        fill="currentColor"
+      >
+        SIDIRA
+      </text>
+    </svg>
+  );
+}
+
+const STEPS = [
+  {
+    title: "Describe the bet",
+    body: "Capture the proposed product change and the audience it should move. Sidira reads PRDs and Figma the way your reviewers do.",
+  },
+  {
+    title: "Run the simulation",
+    body: "See where customer reactions cluster before the team commits build time. Every agent in the cohort can be interviewed afterwards.",
+  },
+  {
+    title: "Refine with evidence",
+    body: "Turn weak spots into sharper hypotheses for the next product review. Iterate before the build, not after the rollout.",
+  },
+];
+
 function PublicCompanyHome() {
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#f7f5ef",
-        color: "#171510",
+        background: TOKENS.paper,
+        color: TOKENS.ink,
+        fontFamily: FONT_SANS,
+        fontFeatureSettings: '"ss01" on',
+        WebkitFontSmoothing: "antialiased",
       }}
     >
+      {/* Top bar */}
       <header
         style={{
-          maxWidth: 1120,
+          maxWidth: 1280,
           margin: "0 auto",
-          padding: "28px 24px",
+          padding: "24px 32px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: 16,
+          gap: 24,
+          borderBottom: `0.75px solid ${TOKENS.rule}`,
         }}
       >
         <Link
           href="/"
-          style={{
-            color: "#171510",
-            fontSize: 20,
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
+          aria-label="Sidira home"
+          style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
         >
-          Sidira
+          <SidiraLockup height={28} />
         </Link>
-        <nav style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <nav style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <Link
             href="mailto:founders@sidira.ai?subject=Sidira%20access"
             style={{
-              color: "#171510",
-              fontSize: 14,
-              fontWeight: 600,
+              color: TOKENS.inkMuted,
+              fontFamily: FONT_SANS,
+              fontSize: 13,
+              fontWeight: 500,
               textDecoration: "none",
+              padding: "8px 4px",
             }}
           >
             Request access
@@ -111,13 +188,17 @@ function PublicCompanyHome() {
           <Link
             href="https://app.sidira.ai"
             style={{
-              background: "#171510",
-              borderRadius: 6,
-              color: "#fff",
-              fontSize: 14,
-              fontWeight: 650,
-              padding: "10px 14px",
+              background: TOKENS.ink,
+              border: `0.75px solid ${TOKENS.ink}`,
+              borderRadius: 4,
+              color: TOKENS.paper,
+              fontFamily: FONT_NARROW,
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              padding: "10px 16px",
               textDecoration: "none",
+              textTransform: "uppercase",
             }}
           >
             Sign in
@@ -125,137 +206,258 @@ function PublicCompanyHome() {
         </nav>
       </header>
 
+      {/* Hero */}
       <section
         style={{
-          maxWidth: 1120,
+          maxWidth: 1280,
           margin: "0 auto",
-          padding: "76px 24px 92px",
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.05fr) minmax(280px, 0.75fr)",
-          gap: 48,
-          alignItems: "center",
+          padding: "96px 32px 112px",
         }}
       >
-        <div>
-          <p
+        <p
+          style={{
+            color: TOKENS.inkMuted,
+            fontFamily: FONT_MONO,
+            fontFeatureSettings: '"tnum" on',
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            margin: "0 0 32px",
+            textTransform: "uppercase",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span
+            aria-hidden
             style={{
-              color: "#6a604f",
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: 0,
-              margin: "0 0 18px",
+              width: 6,
+              height: 6,
+              background: TOKENS.signal,
+              display: "inline-block",
+            }}
+          />
+          Private alpha · 2026
+        </p>
+        <h1
+          style={{
+            color: TOKENS.ink,
+            fontFamily: FONT_SERIF,
+            fontStyle: "italic",
+            fontWeight: 400,
+            fontSize: "clamp(48px, 7vw, 96px)",
+            lineHeight: 1.05,
+            letterSpacing: "-0.02em",
+            margin: 0,
+            maxWidth: "18ch",
+          }}
+        >
+          Validate product bets before you build.
+        </h1>
+        <p
+          style={{
+            color: TOKENS.inkMuted,
+            fontFamily: FONT_SANS,
+            fontSize: 18,
+            lineHeight: 1.55,
+            margin: "32px 0 0",
+            maxWidth: "60ch",
+          }}
+        >
+          Sidira pressure-tests product hypotheses against customer-grounded
+          personas. Read the cohort&rsquo;s reaction before the roadmap bet
+          becomes an engineering commitment.
+        </p>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginTop: 48,
+            flexWrap: "wrap",
+          }}
+        >
+          <Link
+            href="mailto:founders@sidira.ai?subject=Sidira%20access"
+            style={{
+              background: TOKENS.ink,
+              border: `0.75px solid ${TOKENS.ink}`,
+              borderRadius: 4,
+              color: TOKENS.paper,
+              fontFamily: FONT_NARROW,
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              padding: "14px 22px",
+              textDecoration: "none",
               textTransform: "uppercase",
             }}
           >
-            Private alpha for product teams
-          </p>
-          <h1
+            Request access
+          </Link>
+          <Link
+            href="https://app.sidira.ai"
             style={{
-              fontSize: 64,
-              lineHeight: 1,
-              letterSpacing: 0,
-              margin: 0,
-              maxWidth: 760,
+              background: "transparent",
+              border: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 4,
+              color: TOKENS.ink,
+              fontFamily: FONT_NARROW,
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              padding: "14px 22px",
+              textDecoration: "none",
+              textTransform: "uppercase",
             }}
           >
-            Validate product bets before you build.
-          </h1>
-          <p
-            style={{
-              color: "#4f493e",
-              fontSize: 20,
-              lineHeight: 1.55,
-              margin: "28px 0 0",
-              maxWidth: 660,
-            }}
-          >
-            Sidira helps product teams pressure-test hypotheses against
-            customer-grounded personas before roadmap bets turn into engineering
-            commitments.
-          </p>
-          <div style={{ display: "flex", gap: 12, marginTop: 34, flexWrap: "wrap" }}>
-            <Link
-              href="mailto:founders@sidira.ai?subject=Sidira%20access"
-              style={{
-                background: "#171510",
-                borderRadius: 6,
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 700,
-                padding: "13px 18px",
-                textDecoration: "none",
-              }}
-            >
-              Request access
-            </Link>
-            <Link
-              href="https://app.sidira.ai"
-              style={{
-                border: "1px solid #cfc6b4",
-                borderRadius: 6,
-                color: "#171510",
-                fontSize: 15,
-                fontWeight: 700,
-                padding: "12px 17px",
-                textDecoration: "none",
-              }}
-            >
-              Sign in
-            </Link>
-          </div>
+            Sign in
+          </Link>
         </div>
+      </section>
 
-        <aside
-          aria-label="Sidira workflow summary"
+      {/* How it works — three steps separated by hairlines, no colored circles */}
+      <section
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "0 32px 112px",
+        }}
+      >
+        <div
           style={{
-            background: "#fffdf8",
-            border: "1px solid #ded6c8",
-            borderRadius: 8,
-            boxShadow: "0 24px 60px rgba(58, 48, 32, 0.12)",
-            padding: 28,
+            display: "grid",
+            gridTemplateColumns: "200px 1fr",
+            gap: 32,
+            paddingBottom: 32,
           }}
         >
-          {[
-            ["1", "Describe the bet", "Capture the proposed product change and the audience it should move."],
-            ["2", "Run the simulation", "See where customer reactions cluster before the team commits build time."],
-            ["3", "Refine with evidence", "Turn weak spots into sharper hypotheses for the next product review."],
-          ].map(([step, title, body]) => (
-            <div
-              key={step}
+          <p
+            style={{
+              color: TOKENS.inkMuted,
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              margin: 0,
+              textTransform: "uppercase",
+            }}
+          >
+            How it works
+          </p>
+          <h2
+            style={{
+              color: TOKENS.ink,
+              fontFamily: FONT_SANS,
+              fontWeight: 500,
+              fontSize: 26,
+              letterSpacing: "-0.01em",
+              lineHeight: 1.25,
+              margin: 0,
+              maxWidth: "40ch",
+            }}
+          >
+            One instrument, three steps, no roadmap bet escaping unexamined.
+          </h2>
+        </div>
+
+        <ol
+          style={{
+            listStyle: "none",
+            margin: 0,
+            padding: 0,
+            borderTop: `0.75px solid ${TOKENS.rule}`,
+          }}
+        >
+          {STEPS.map((step, idx) => (
+            <li
+              key={step.title}
               style={{
-                borderBottom: step === "3" ? "none" : "1px solid #ebe4d7",
                 display: "grid",
-                gap: 14,
-                gridTemplateColumns: "34px 1fr",
-                padding: step === "1" ? "0 0 20px" : "20px 0",
+                gridTemplateColumns: "200px 1fr 1fr",
+                gap: 32,
+                padding: "32px 0",
+                borderBottom: `0.75px solid ${TOKENS.rule}`,
+                alignItems: "baseline",
               }}
             >
               <span
                 style={{
-                  alignItems: "center",
-                  background: "#e9f0ed",
-                  borderRadius: 6,
-                  color: "#235142",
-                  display: "flex",
+                  color: TOKENS.ink,
+                  fontFamily: FONT_MONO,
+                  fontFeatureSettings: '"tnum" on',
                   fontSize: 14,
-                  fontWeight: 800,
-                  height: 34,
-                  justifyContent: "center",
-                  width: 34,
+                  fontWeight: 500,
+                  letterSpacing: "0.04em",
                 }}
               >
-                {step}
+                {String(idx + 1).padStart(2, "0")} ·{" "}
+                <span style={{ color: TOKENS.inkMuted }}>step</span>
               </span>
-              <span>
-                <strong style={{ display: "block", fontSize: 17 }}>{title}</strong>
-                <span style={{ color: "#5e574b", display: "block", fontSize: 14, lineHeight: 1.5, marginTop: 5 }}>
-                  {body}
-                </span>
-              </span>
-            </div>
+              <h3
+                style={{
+                  color: TOKENS.ink,
+                  fontFamily: FONT_SANS,
+                  fontWeight: 500,
+                  fontSize: 20,
+                  letterSpacing: "-0.005em",
+                  lineHeight: 1.3,
+                  margin: 0,
+                }}
+              >
+                {step.title}
+              </h3>
+              <p
+                style={{
+                  color: TOKENS.inkMuted,
+                  fontFamily: FONT_SANS,
+                  fontSize: 15,
+                  lineHeight: 1.55,
+                  margin: 0,
+                }}
+              >
+                {step.body}
+              </p>
+            </li>
           ))}
-        </aside>
+        </ol>
       </section>
+
+      {/* Footer */}
+      <footer
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "32px 32px 64px",
+          borderTop: `0.75px solid ${TOKENS.rule}`,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            color: TOKENS.inkMuted,
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            letterSpacing: "0.04em",
+          }}
+        >
+          sidira · private alpha · 2026
+        </span>
+        <Link
+          href="mailto:founders@sidira.ai"
+          style={{
+            color: TOKENS.inkMuted,
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            letterSpacing: "0.04em",
+            textDecoration: "none",
+          }}
+        >
+          founders@sidira.ai
+        </Link>
+      </footer>
     </main>
   );
 }
