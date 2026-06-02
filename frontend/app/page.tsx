@@ -79,7 +79,7 @@ const TOKENS = {
 } as const;
 
 const FONT_SANS = "var(--font-sans), ui-sans-serif, sans-serif";
-const FONT_NARROW = "var(--font-narrow), 'Helvetica Neue Condensed', sans-serif";
+const FONT_NARROW = "var(--font-narrow), sans-serif";
 const FONT_SERIF = "var(--font-serif), Georgia, serif";
 const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
 
@@ -151,6 +151,16 @@ function PublicCompanyHome() {
         WebkitFontSmoothing: "antialiased",
       }}
     >
+      {/* Narrow-viewport collapse for the multi-column grids. Scoped via
+          classNames so the inline-style convention used elsewhere stays
+          intact. */}
+      <style>{`
+        @media (max-width: 768px) {
+          .sidira-public-section-head { grid-template-columns: 1fr !important; }
+          .sidira-public-step-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+        }
+      `}</style>
+
       {/* Top bar */}
       <header
         style={{
@@ -161,6 +171,7 @@ function PublicCompanyHome() {
           justifyContent: "space-between",
           alignItems: "center",
           gap: 24,
+          flexWrap: "wrap",
           borderBottom: `0.75px solid ${TOKENS.rule}`,
         }}
       >
@@ -324,6 +335,7 @@ function PublicCompanyHome() {
         }}
       >
         <div
+          className="sidira-public-section-head"
           style={{
             display: "grid",
             gridTemplateColumns: "200px 1fr",
@@ -370,6 +382,7 @@ function PublicCompanyHome() {
           {STEPS.map((step, idx) => (
             <li
               key={step.title}
+              className="sidira-public-step-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: "200px 1fr 1fr",
