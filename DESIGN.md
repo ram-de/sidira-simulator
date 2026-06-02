@@ -210,9 +210,9 @@ Saturation drops 15% on all non-signal, non-avira colors in dark mode.
 | Role | Production | Preview / fallback |
 | --- | --- | --- |
 | Wordmark | Söhne Schmal Halbfett (Klim) | Archivo Narrow SemiBold |
-| Display (in-app) | Söhne Halbfett (Klim) | Geist 600 |
-| Body | Söhne Buch | Geist 400 |
-| UI labels (small caps) | Söhne Kräftig | Geist 500, `letter-spacing: 0.16em`, uppercase |
+| Display (in-app) | Söhne Halbfett (Klim) | Hanken Grotesk 600 |
+| Body | Söhne Buch | Hanken Grotesk 400 |
+| UI labels (small caps) | Söhne Kräftig | Hanken Grotesk 500, `letter-spacing: 0.16em`, uppercase |
 | Data · numerals · timestamps · cohort IDs | Berkeley Mono Regular (Berkeley Graphics) | JetBrains Mono 500 |
 | Marketing hero only (1–2 lines/page max) | GT Sectra Fine Light Italic (Grilli Type) | Instrument Serif Italic |
 | Code blocks (docs, runbooks) | Berkeley Mono | JetBrains Mono |
