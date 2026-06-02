@@ -2,11 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-01 (producer repo/package rename completed)
+**Last updated:** 2026-06-02 (Phase 5 design system locked)
 
 ---
 
 ## What just shipped
+
+✅ **Phase 5 design system v0.1, SHIPPED 2026-06-02 (PR #134, squash `d57da0a`, session `phase-5-design-system`).**
+`DESIGN.md` at the repo root is now the canonical source of truth for every visual, UI, and brand decision. Locked: six-blade diaphragm mark (radius-13 hexagonal aperture, vertices at angles 30/90/150/210/270/330) + narrow uppercase `SIDIRA` wordmark in Söhne Schmal (Archivo Narrow preview); ink `#0E1A2B` / paper `#F4EFE6` / signal lime `#C8FF3D` / Avira rose `#D696C8` / Sid-blue `#2C5577`; Söhne + Berkeley Mono + GT Sectra Fine type stack; 2/4/8/12/16/24/32/48/64 spacing; settle-trace + aperture-close motion bets. Color architecture encodes the founder's kids' names (Sid = ink/structure, Avira = rose/vital, lime = brand-functional) so the family meaning lives in the system without exposing pink to buyers. Replaces the legacy teal/blue split-test favicon. Codex review: 2 rounds, 1 P1 + 2 P2s, all fixed. Follow-up tickets: #135 (bake into `sidira.ai` + `app.sidira.ai`), #136 (wire dual-color aperture-close animation into result page), #137 (legacy brand-file cleanup).
 
 ✅ **Producer repo/package rename, SHIPPED 2026-06-01 (sidira-crawler PR #5, sidira-personas PR #6).**
 The producer repos, Python packages, and CLIs are now `sidira-crawler` / `sidira_crawler` / `sidira-crawler` and `sidira-personas` / `sidira_personas` / `sidira-personas`. GitHub redirects exist from the old repo names, but local remotes and active docs should use `ram-de/sidira-crawler` and `ram-de/sidira-personas`.

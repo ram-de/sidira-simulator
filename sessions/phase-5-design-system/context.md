@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-5-design-system
-status: active
+status: closed
 started: 2026-06-02
+closed: 2026-06-02
 owner: ram-de
 ---
 
@@ -12,7 +13,7 @@ owner: ram-de
 Lock a complete design system for Sidira (DESIGN.md as source of truth) covering aesthetic, typography, color, spacing, motion, the wordmark, and the logomark — before sidira.ai's public homepage and `app.sidira.ai` get any more visual layer added. Output: production-ready `DESIGN.md` at repo root + canonical SVG assets in `frontend/public/brand/` + `frontend/app/icon.svg` favicon.
 
 ## In Progress
-- [ ] Write `DESIGN.md` to repo root, replace `frontend/app/icon.svg` + `frontend/public/brand/sidira-mark.svg`, add dual-color + lockup SVGs, update `CLAUDE.md` with design routing block, branch + PR via `github_ramde` MCP, /codex review.
+— session complete —
 
 ## Completed
 - [x] Drafted full design brief and locked memorable-thing: **"This looks like an instrument, not software."**
@@ -31,11 +32,10 @@ Lock a complete design system for Sidira (DESIGN.md as source of truth) covering
    3. Founder-mode lockup (cofounder page / about-Sidira / press kit / company-anniversary hero): dual-color version as the official frozen image.
 
 ## Next Steps
-1. (in progress) Branch `feat/phase-5-design-system`, write DESIGN.md, replace icon.svg, add dual-color + lockup SVGs, update CLAUDE.md, PR via github_ramde MCP.
-2. /codex review the PR.
-3. Address codex findings, merge.
-4. After merge: bake the locked mark into the public homepage at sidira.ai and the app.sidira.ai shell so PR #133's host split picks it up.
-5. Update the previously-rejected `/tmp/sidira-design-preview.html` showcase to use the new diaphragm + clean wordmark + dual-color animation (optional — DESIGN.md is the canonical source; preview is illustration only).
+— session complete — picked up under follow-up tickets:
+- #135 — bake DESIGN.md tokens + L2 lockup into the `sidira.ai` public homepage and `app.sidira.ai` shell
+- #136 — wire the aperture-close animation + dual-color held frame into the simulation result page
+- #137 — chore: prune or commit the legacy `sidira-logo-v2-*` / `v3-*` brand exploration files
 
 ## Key Files
 - `DESIGN.md` — TO BE CREATED at repo root (canonical source of truth)
