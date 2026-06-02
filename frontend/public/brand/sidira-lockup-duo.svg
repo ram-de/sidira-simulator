@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira — horizontal lockup (founder-mode)</title>
+  <desc id="desc">Founder-mode horizontal lockup: dual-color six-blade diaphragm (Sid-blue left, Avira-rose right) + SIDIRA narrow uppercase in ink. Used only on the cofounder, about, press, and anniversary surfaces. Default lockup everywhere else is sidira-lockup.svg.</desc>
+  <g transform="translate(0 5) scale(0.5)" stroke-width="2.2" stroke-linejoin="round" fill="none">
+    <g stroke="#2C5577">
+      <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+      <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+      <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    </g>
+    <g stroke="#D696C8">
+      <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+      <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+      <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+    </g>
+  </g>
+  <text x="64" y="44"
+        font-family="'Söhne Schmal Halbfett', 'Archivo Narrow', 'Roboto Condensed', 'Helvetica Neue Condensed', system-ui, sans-serif"
+        font-weight="600"
+        font-size="44"
+        letter-spacing="2.6"
+        fill="#0E1A2B">SIDIRA</text>
+</svg>
