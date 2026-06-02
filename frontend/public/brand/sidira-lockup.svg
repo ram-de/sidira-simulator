@@ -2,12 +2,12 @@
   <title id="title">Sidira — horizontal lockup</title>
   <desc id="desc">Primary horizontal lockup: six-blade diaphragm + SIDIRA narrow uppercase. Mark height = wordmark cap-height × 1.25. Mark-to-wordmark gap = mark width × 0.28. Stroke and text both use currentColor; consumer controls the ink. Production font: Söhne Schmal Halbfett. Preview fallback: Archivo Narrow SemiBold.</desc>
   <g transform="translate(0 5) scale(0.5)" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" fill="none">
-    <polygon points="84.64,30 84.64,70 63,62.5 63,37.5"/>
-    <polygon points="84.64,70 50,90 50,65 63,62.5"/>
-    <polygon points="50,90 15.36,70 37,62.5 50,65"/>
-    <polygon points="15.36,70 15.36,30 37,37.5 37,62.5"/>
-    <polygon points="15.36,30 50,10 50,35 37,37.5"/>
-    <polygon points="50,10 84.64,30 63,37.5 50,35"/>
+    <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+    <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+    <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+    <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+    <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
   </g>
   <text x="64" y="44"
         font-family="'Söhne Schmal Halbfett', 'Archivo Narrow', 'Roboto Condensed', 'Helvetica Neue Condensed', system-ui, sans-serif"

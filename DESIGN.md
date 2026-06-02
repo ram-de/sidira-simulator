@@ -27,26 +27,38 @@ heritage. Calibrated, measured, instrument-coded.
 | Center | `50, 50` |
 | Outer pivot radius | `40` |
 | Inner aperture radius | `13` |
+| Angle convention | clockwise from `+x` in SVG viewBox coordinates (y-down). `angle 0°` is the right horizontal; `angle 90°` is straight down. |
 | Outer pivot angles | `30°, 90°, 150°, 210°, 270°, 330°` |
-| Inner vertex angles | `0°, 60°, 120°, 180°, 240°, 300°` (offset 30° from pivots) |
-| Blade count | `6` (identical quadrilaterals rotated 60°) |
-| Blade construction | (outer pivot i) → (outer pivot i+1) → (inner vertex i+1) → (inner vertex i) |
+| Inner vertex angles | `30°, 90°, 150°, 210°, 270°, 330°` (same as outer pivots — they share angular positions, not offset) |
+| Blade count | `6` (identical quadrilaterals separated by 60°) |
+| Blade construction | (outer pivot i) → (outer pivot i+1) → (inner vertex i+1) → (inner vertex i). With matched angles, each blade is a clean radial wedge; its inner edge is one side of the regular hexagonal aperture. |
+| Inner hexagon | regular, edge length 13. The hexagon's flat edges face left and right; the points face top and bottom. |
 | Stroke | `currentColor`, no fill, `linejoin: round`, `linecap: butt` |
 
 ### 1.2 Stroke weight by render size
 
-Stroke is specified in viewBox units. SVG scales it linearly with output size,
-so heavier strokes are needed at small render sizes to survive rasterization.
+`sidira-mark.svg` ships with a neutral default stroke (`1.1` in viewBox units,
+sized for ~96 px output). When consuming it at other sizes, **override
+`stroke-width` at the usage site** — SVG scales stroke linearly with output
+size, so a fixed default would be too thin at 16 px and too heavy at 240 px+.
 
-| Render size | `stroke-width` (viewBox units) | Used for |
+| Render size | `stroke-width` (in the `viewBox 0 0 100 100` of `sidira-mark.svg`) | Used for |
 | --- | --- | --- |
-| 16 px | `6.0` | favicon |
+| 16 px | `6.0` | small favicon · inline icon |
 | 32 px | `3.5` | nav bar · in-app header |
 | 48 px | `2.25` | marketing nav · doc header |
-| 96 px | `1.2` | marketing hero |
+| 96 px | `1.2` (default) | marketing hero |
 | 240 px + | `0.7` | print · billboard · sign |
 
 Reproduction floor: **16 px digital, 8 mm print**.
+
+`frontend/app/icon.svg` is a **separate self-contained asset** for the favicon
+and app-icon use case (a paper-stroke mark on an ink-filled rounded-square
+ground, `viewBox 0 0 144 144`). Its stroke is fixed at `3.5` in viewBox units —
+calibrated to read across the 32 → 144 px size range that Next.js generates
+icons at. Browsers downscaling to 16 px will produce a thinner stroke; this is
+acceptable for the favicon trade-off. Do not import `icon.svg` as a reusable
+mark; use `sidira-mark.svg` with the stroke override above.
 
 ### 1.3 Color states
 

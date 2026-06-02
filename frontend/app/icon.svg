@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144" role="img" aria-labelledby="title desc">
   <title id="title">Sidira</title>
-  <desc id="desc">Sidira mark — six-blade diaphragm. Paper on ink for app-icon and home-screen contexts.</desc>
+  <desc id="desc">Sidira mark — six-blade diaphragm. Paper-stroke on ink-ground for app-icon and home-screen contexts. Geometry matches sidira-mark.svg; stroke is calibrated for 32–144px render sizes (the favicon + Next.js app-icon size range).</desc>
   <rect width="144" height="144" rx="32" fill="#0E1A2B"/>
   <g transform="translate(22 22)" stroke="#F4EFE6" stroke-width="3.5" stroke-linejoin="round" fill="none">
-    <polygon points="84.64,30 84.64,70 63,62.5 63,37.5"/>
-    <polygon points="84.64,70 50,90 50,65 63,62.5"/>
-    <polygon points="50,90 15.36,70 37,62.5 50,65"/>
-    <polygon points="15.36,70 15.36,30 37,37.5 37,62.5"/>
-    <polygon points="15.36,30 50,10 50,35 37,37.5"/>
-    <polygon points="50,10 84.64,30 63,37.5 50,35"/>
+    <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+    <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+    <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+    <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+    <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
   </g>
 </svg>
