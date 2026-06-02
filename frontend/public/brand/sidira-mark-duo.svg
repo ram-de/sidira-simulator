@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira mark — founder-mode (dual-color)</title>
+  <desc id="desc">Six-blade diaphragm with three Sid-blue (#2C5577) and three Avira-rose (#D696C8) blades. Used only on the cofounder / about / press / anniversary surfaces, and as the held frame inside the simulation-run animation. Default in every other context is sidira-mark.svg.</desc>
+  <g stroke-width="1.1" stroke-linejoin="round" fill="none">
+    <g stroke="#2C5577">
+      <polygon points="50,90 15.36,70 37,62.5 50,65"/>
+      <polygon points="15.36,70 15.36,30 37,37.5 37,62.5"/>
+      <polygon points="15.36,30 50,10 50,35 37,37.5"/>
+    </g>
+    <g stroke="#D696C8">
+      <polygon points="84.64,30 84.64,70 63,62.5 63,37.5"/>
+      <polygon points="84.64,70 50,90 50,65 63,62.5"/>
+      <polygon points="50,10 84.64,30 63,37.5 50,35"/>
+    </g>
+  </g>
+</svg>

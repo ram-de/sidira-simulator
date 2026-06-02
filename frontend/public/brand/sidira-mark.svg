@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira mark</title>
+  <desc id="desc">Six-blade diaphragm — overlapping triangular blades around a hexagonal aperture. Stroke uses currentColor so the consumer controls the ink. Recommended stroke-width by render size: 6 at 16px, 3.5 at 32px, 2.25 at 48px, 1.2 at 96px, 0.7 at 240px+.</desc>
+  <g stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" fill="none">
+    <polygon points="84.64,30 84.64,70 63,62.5 63,37.5"/>
+    <polygon points="84.64,70 50,90 50,65 63,62.5"/>
+    <polygon points="50,90 15.36,70 37,62.5 50,65"/>
+    <polygon points="15.36,70 15.36,30 37,37.5 37,62.5"/>
+    <polygon points="15.36,30 50,10 50,35 37,37.5"/>
+    <polygon points="50,10 84.64,30 63,37.5 50,35"/>
+  </g>
+</svg>

@@ -1,15 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144" role="img" aria-labelledby="title desc">
   <title id="title">Sidira</title>
-  <desc id="desc">Sidira split-test mark.</desc>
-  <rect width="144" height="144" rx="32" fill="#f4fafc"/>
-  <g transform="translate(23 29)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M20 43 C36 43 38 18 58 18" stroke="#14b8a6" stroke-width="10"/>
-    <path d="M20 43 C36 43 38 68 58 68" stroke="#2563eb" stroke-width="10"/>
-    <path d="M58 18 C76 18 76 43 94 43" stroke="#14b8a6" stroke-width="10"/>
-    <path d="M58 68 C76 68 76 43 94 43" stroke="#2563eb" stroke-width="10"/>
-    <circle cx="20" cy="43" r="10" fill="#07111f" stroke="#f4fafc" stroke-width="5"/>
-    <circle cx="58" cy="18" r="11" fill="#14b8a6" stroke="#f4fafc" stroke-width="5"/>
-    <circle cx="58" cy="68" r="11" fill="#2563eb" stroke="#f4fafc" stroke-width="5"/>
-    <circle cx="94" cy="43" r="11" fill="#07111f" stroke="#f4fafc" stroke-width="5"/>
+  <desc id="desc">Sidira mark — six-blade diaphragm. Paper on ink for app-icon and home-screen contexts.</desc>
+  <rect width="144" height="144" rx="32" fill="#0E1A2B"/>
+  <g transform="translate(22 22)" stroke="#F4EFE6" stroke-width="3.5" stroke-linejoin="round" fill="none">
+    <polygon points="84.64,30 84.64,70 63,62.5 63,37.5"/>
+    <polygon points="84.64,70 50,90 50,65 63,62.5"/>
+    <polygon points="50,90 15.36,70 37,62.5 50,65"/>
+    <polygon points="15.36,70 15.36,30 37,37.5 37,62.5"/>
+    <polygon points="15.36,30 50,10 50,35 37,37.5"/>
+    <polygon points="50,10 84.64,30 63,37.5 50,35"/>
   </g>
 </svg>
