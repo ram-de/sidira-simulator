@@ -1,8 +1,9 @@
 ---
 type: session
 domain: frontend_design-changes
-status: active
+status: closed
 started: 2026-06-02
+closed: 2026-06-02
 owner: ram-de
 ---
 
@@ -12,20 +13,18 @@ owner: ram-de
 Restyle the public homepage (rendered on the `sidira.ai` host) to the locked design system in `DESIGN.md`. Scope is the public site ONLY. Not in scope: `app.sidira.ai` shell (deferred), `/about` page (part of #135), in-product simulation-run animation (#136), legacy brand cleanup (#137).
 
 ## In Progress
-- [ ] Audit the current public-site rendering path (frontend/middleware.ts, lib/site-hosts.ts, app/page.tsx, components/TopNav.tsx) to understand what renders on `sidira.ai`.
+— session complete —
 
 ## Completed
-(nothing yet)
-
-## Next Steps
-1. Read the current public-homepage code (components rendered when host = `sidira.ai` per `frontend/lib/site-hosts.ts`).
-2. Add design tokens to Tailwind config — ink, paper(+elevated/recessed), rule, signal, avira, ink-muted, alert, warn, plus the 2/4/8/12/16/24/32/48/64 spacing scale.
-3. Load fonts via `next/font` — Geist (sans, body+display stand-in for Söhne), Archivo Narrow (narrow uppercase stand-in for Söhne Schmal), JetBrains Mono (data stand-in for Berkeley Mono), Instrument Serif (one editorial line stand-in for GT Sectra Fine).
-4. Replace any current TopNav lockup with `sidira-lockup.svg` (mark + SIDIRA narrow uppercase).
-5. Restyle the public homepage hero with one editorial-serif headline + Söhne-body subheading + ink/paper palette + hairline-rule dividers. No gradient buttons, no pill radii, no icon-grid sections.
-6. Verify the existing PR #133 regression tests for the public-site vs app-host content split still pass.
-7. `cd frontend && npm run typecheck && npm run build` clean.
-8. Branch `feat/frontend-design-public-site`, commit, PR via `github_ramde` MCP, /codex review, merge.
+- [x] Audited current public-site rendering — no Tailwind (inline styles throughout), `system-ui` was the body font (DESIGN.md §10 violation), three multi-column grids on the public page, locked regression-test strings noted.
+- [x] Wired four production fonts via `next/font/google` in `app/layout.tsx`: Hanken Grotesk (Söhne stand-in — Next 14.2 predates Geist), Archivo Narrow, Instrument Serif, JetBrains Mono. Exposed as CSS variables `--font-sans` / `--font-narrow` / `--font-serif` / `--font-mono`. Body font flipped from `system-ui` to `var(--font-sans)`. Body bg/color flipped to ink-on-paper.
+- [x] Rewrote `PublicCompanyHome` in `app/page.tsx`: inline `SidiraLockup` SVG component, editorial italic hero ("Validate product bets before you build."), Hanken Grotesk body, ink/paper CTAs (4px radius, no gradients), hairline-separated 3-step section with monumental mono numerals (no colored icon circles), mono footer. `ProductHome` untouched.
+- [x] Updated DESIGN.md §5.1 preview-fallback font: `Geist 600` → `Hanken Grotesk 600` to reflect actual shipped stand-in.
+- [x] Stripped `Helvetica Neue Condensed` from FONT_NARROW chain and from `sidira-lockup.svg` / `sidira-lockup-duo.svg` per DESIGN.md §10 refuse list (codex P2 fix).
+- [x] Added scoped `<style>` block + classNames on multi-column grids so phone-width viewports collapse to a single column (codex P2 fix). `flexWrap: 'wrap'` added to the top header.
+- [x] All regression tests passing: `pytest backend/tests/test_deploy_config.py` 12 passed (PR #133 host-split + public-copy + temp-Basic-Auth invariants preserved). `npm run typecheck` + `npm run build` clean.
+- [x] Codex review: 2 rounds, 2 P2s flagged + fixed, R2 clean.
+- [x] PR #138 squash-merged to `main` as commit `24eb992`.
 
 ## Key Files
 - `frontend/lib/site-hosts.ts` — host detection (public vs app)
@@ -82,4 +81,4 @@ See `DESIGN.md` at repo root (merged in PR #134). Quick reference for this sessi
 - Same-origin proxy auth (`SIDIRA_WEB_PROXY_BASIC_AUTH`) still gates internal API calls per the phase-5-auth-hardening work — should not affect the static public homepage.
 
 ## For my cofounder
-Working on applying the locked DESIGN.md system to the public homepage at `sidira.ai`. Scope is JUST the public site — not the app shell, not /about, not in-product animation. Those are issues #135/#136/#137. Building this on a feature branch `feat/frontend-design-public-site`, will PR via `github_ramde` MCP. After merge it'll be visible once Amplify global access control gets flipped per your phase-5-company-site session.
+Public homepage redesign shipped via PR #138 (squash `24eb992`). DESIGN.md system applied to the `sidira.ai`-host page: lockup, ink/paper palette, Hanken Grotesk + Instrument Serif + JetBrains Mono via `next/font/google`, hairline-separated workflow rows, no colored circles, no gradients, no pills. Responsive collapse below 768px. App shell, /about, and the in-product aperture-close animation remain on issues #135 / #136. Once the Amplify global access control flip on the `phase-5-company-site` session lands, the new public homepage is what visitors to `https://sidira.ai` will see.

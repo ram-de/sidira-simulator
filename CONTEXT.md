@@ -2,11 +2,14 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-02 (Phase 5 design system locked)
+**Last updated:** 2026-06-02 (public homepage restyled to DESIGN.md)
 
 ---
 
 ## What just shipped
+
+✅ **Public homepage restyled to DESIGN.md, SHIPPED 2026-06-02 (PR #138, squash `24eb992`, session `frontend_design-changes`).**
+The `sidira.ai`-host page rendered by `PublicCompanyHome` now uses the locked design system from #134: six-blade diaphragm lockup inline-SVG, editorial italic hero ("Validate product bets before you build."), Hanken Grotesk body via `next/font/google`, ink/paper palette, hairline-separated 3-step workflow with monumental mono numerals (no colored icon circles), mono footer. `app/layout.tsx` flips body font from `system-ui` (DESIGN.md §10 violation) to `var(--font-sans)`. Responsive collapse below 768px. PR #133 regression tests (host-split + public-copy + temp-Basic-Auth) preserved. Codex review: 2 rounds, 2 P2s fixed (Helvetica fallback removed everywhere; phone-width overflow fixed). First slice of #135; app shell and /about deferred. The live homepage becomes visible after the Amplify global-access-control flip in the `phase-5-company-site` session.
 
 ✅ **Phase 5 design system v0.1, SHIPPED 2026-06-02 (PR #134, squash `d57da0a`, session `phase-5-design-system`).**
 `DESIGN.md` at the repo root is now the canonical source of truth for every visual, UI, and brand decision. Locked: six-blade diaphragm mark (radius-13 hexagonal aperture, vertices at angles 30/90/150/210/270/330) + narrow uppercase `SIDIRA` wordmark in Söhne Schmal (Archivo Narrow preview); ink `#0E1A2B` / paper `#F4EFE6` / signal lime `#C8FF3D` / Avira rose `#D696C8` / Sid-blue `#2C5577`; Söhne + Berkeley Mono + GT Sectra Fine type stack; 2/4/8/12/16/24/32/48/64 spacing; settle-trace + aperture-close motion bets. Color architecture encodes the founder's kids' names (Sid = ink/structure, Avira = rose/vital, lime = brand-functional) so the family meaning lives in the system without exposing pink to buyers. Replaces the legacy teal/blue split-test favicon. Codex review: 2 rounds, 1 P1 + 2 P2s, all fixed. Follow-up tickets: #135 (bake into `sidira.ai` + `app.sidira.ai`), #136 (wire dual-color aperture-close animation into result page), #137 (legacy brand-file cleanup).
