@@ -47,7 +47,7 @@ size, so a fixed default would be too thin at 16 px and too heavy at 240 px+.
 | 16 px | `6.0` | small favicon · inline icon |
 | 32 px | `3.5` | nav bar · in-app header |
 | 48 px | `2.25` | marketing nav · doc header |
-| 96 px | `1.2` (default) | marketing hero |
+| 96 px | `1.1` (default — shipped value in `sidira-mark.svg`) | marketing hero |
 | 240 px + | `0.7` | print · billboard · sign |
 
 Reproduction floor: **16 px digital, 8 mm print**.
