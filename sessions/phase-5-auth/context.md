@@ -15,11 +15,14 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #31 — Clerk webhook → customer provisioning: code complete + reviewed, PR open (awaiting merge)
+- [ ] #31 — Clerk webhook → customer provisioning: code complete + reviewed, PR #152 open (awaiting merge)
 
 ## Completed
 
-### #31 — Clerk webhook → customer (tenant) provisioning (CODE COMPLETE — PR open)
+### #31 — Clerk webhook → customer (tenant) provisioning (CODE COMPLETE — PR #152 open)
+- PR: https://github.com/ram-de/sidira-simulator/pull/152 (branch
+  `worktree-phase-5-31-clerk-webhook`, opened via `gh` as `ram-de` —
+  `github_ramde` MCP server not configured this session).
 - **Tenancy model decision: customer = Clerk Organization** (one customer/tenant
   with many users). Webhook handles `organization.created` (NOT `user.created`).
   `customer.id == clerk org_id`: the gate's `_extract_customer_id` returns the raw
@@ -121,7 +124,7 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#31 PR open — awaiting review/merge.** After merge, the webhook provisions a
+1. **#31 PR #152 open — awaiting review/merge.** After merge, the webhook provisions a
    `customers` row per Clerk Organization. Configure `SIDIRA_CLERK_WEBHOOK_SECRET`
    in SSM + register the Clerk webhook endpoint (`organization.created`) to
    activate in prod (safe on its own — independent of the still-blocked session gate).
