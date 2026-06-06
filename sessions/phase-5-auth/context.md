@@ -11,15 +11,22 @@ owner: ram-de
 ## Goal
 Single umbrella session for all Phase 5 auth-related work: production proxy-auth
 hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenancy
-(#29, in PR #150) → and the downstream auth chain (#30 scoping audit, #31 signup,
+(#29, merged) → and the downstream auth chain (#30 scoping audit, #31 signup,
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #29 Clerk auth middleware — implementation complete, **PR #150 open**, awaiting merge.
+- [ ] (nothing actively in flight — #29 merged; pick the next ticket from Next Steps)
 
 ## Completed
 
-### #29 — Clerk SDK install + FastAPI auth middleware (PR #150)
+### #29 — Clerk SDK install + FastAPI auth middleware (MERGED — PR #150, `a45934f`)
+- PR #150 squash-merged to `main` as `a45934f`; **issue #29 auto-closed**.
+- Docs follow-up PR #151 merged (`58167ce`): aligned the session-commit rule
+  with worktree-session behavior (CLAUDE.md + pythia-session SKILL.md).
+- Gate verified locally with curl: gate ON → `/health` 200, `/models` 401 (no
+  token AND bogus token), `OPTIONS` bypasses (405 not 401); gate OFF → `/models`
+  200 (pass-through). Confirms the 401 is gate-produced and env-controlled.
+- Cleanup: removed all merged feature worktrees; `.claude/worktrees/` is empty.
 - Added `clerk-backend-api>=5.0` to `backend/pyproject.toml`.
 - New `backend/sidira_simulator/api/auth.py`: `clerk_configured()`,
   `authenticate(request) -> AuthState | None`, `_extract_customer_id(payload)`,
@@ -70,13 +77,19 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. Merge PR #150 (#29 Clerk middleware).
+1. **Pick the next ticket** from the chain #29 unblocked. Recommended order:
+   - **#31 — signup + initial customer record** (do first): until signup writes
+     the tenant claim, the gate's `customer_id` claim chain resolves to `None`
+     and every authenticated request 403s. This makes the gate actually usable.
+   - **#32 — frontend Clerk pages** (sign-in/up UI + Next middleware sends the
+     token): also one of the two prod-enablement blockers below.
+   - **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
+     by `customer_id`): can run in parallel, hardens the multi-tenancy the gate
+     now enforces.
 2. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
    Authorization instead of stripping it) and #32 (Next middleware must send the
    Clerk token). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship —
    flipping it on today would 401 all app traffic.
-3. Downstream Phase 5 auth chain unblocked by #29: #30 (scoping audit),
-   #31 (signup + initial customer record), #32 (frontend Clerk pages).
 
 ## Key Files
 - `backend/sidira_simulator/api/auth.py` — Clerk client + `authenticate()` + `clerk_configured()` (#29)
@@ -105,8 +118,9 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 ## For my cofounder
 This is now the single umbrella session for all Phase 5 auth work. #124/#131
 (proxy auth) are fully shipped and verified in prod. #29 (Clerk middleware) is
-done and in PR #150 — the gate is wired but **inert in prod by design** (secret
-unset). Before anyone enables it in production, both #149 (Caddy must forward
-Authorization instead of stripping it) and #32 (Next middleware must send the
-token) have to land, or the gate 401s all app traffic. The rest of the auth chain
-(#30/#31/#32) is unblocked.
+**merged** (PR #150, `a45934f`) and verified locally with curl — the gate is
+wired but **inert in prod by design** (secret unset). Before anyone enables it in
+production, both #149 (Caddy must forward Authorization instead of stripping it)
+and #32 (Next middleware must send the token) have to land, or the gate 401s all
+app traffic. Next ticket to start is **#31** (signup writes the tenant claim the
+gate reads — without it authenticated requests 403); #32 and #30 follow.
