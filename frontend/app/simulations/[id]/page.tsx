@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ApiError,
   getSimulation,
@@ -210,7 +210,9 @@ export default function SimulationDetailPage() {
 
   // Track when the sim transitions from running → terminal to drive the
   // 800ms aperture-close settle window (DESIGN.md §9.1 + §9.2).
-  useEffect(() => {
+  // useLayoutEffect fires before paint so markAnimating stays true on the
+  // terminal render — avoids a one-frame static flash before settle starts.
+  useLayoutEffect(() => {
     if (!sim) return;
     if (!isTerminalStatus(sim.status)) {
       hadRunning.current = true;
@@ -736,14 +738,14 @@ export default function SimulationDetailPage() {
         <section
           style={{
             ...cardStyle,
-            border: "1px solid #f5b5b5",
-            background: "#fdecec",
+            border: `0.75px solid ${TOKENS.alert}`,
+            background: TOKENS.paperRecessed,
           }}
         >
           <h2
             style={{
               fontSize: 18,
-              color: "#a30000",
+              color: TOKENS.alert,
               margin: 0,
               marginBottom: 8,
             }}
@@ -1041,11 +1043,11 @@ function LiftCard({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            background: "#fdecec",
-            border: "1px solid #f5b5b5",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
             borderRadius: 4,
             fontSize: 13,
-            color: "#a30000",
+            color: TOKENS.alert,
             lineHeight: 1.5,
           }}
         >
@@ -1064,11 +1066,11 @@ function LiftCard({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            background: "#fdecec",
-            border: "1px solid #f5b5b5",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
             borderRadius: 4,
             fontSize: 13,
-            color: "#a30000",
+            color: TOKENS.alert,
             lineHeight: 1.5,
           }}
         >
@@ -1184,7 +1186,7 @@ function PerArmDetailCard({
         style={{
           marginTop: 12,
           paddingTop: 12,
-          borderTop: "1px solid #e8e8e8",
+          borderTop: `0.75px solid ${TOKENS.rule}`,
           fontSize: 12,
           color: TOKENS.inkMuted,
           lineHeight: 1.5,
@@ -2325,16 +2327,19 @@ const APERTURE_STYLE = `
     40%, 60% { transform: rotate(-8deg) scale(0.86); }
   }
   @keyframes sidira-aperture-mono-fade {
-    0%, 30%, 70%, 100% { opacity: 1; }
-    45%, 55% { opacity: 0; }
+    0%, 38%, 62%, 100% { opacity: 1; }
+    44%, 56% { opacity: 0; }
   }
   @keyframes sidira-aperture-duo-fade {
-    0%, 30%, 70%, 100% { opacity: 0; }
-    45%, 55% { opacity: 1; }
+    0%, 38%, 62%, 100% { opacity: 0; }
+    44%, 56% { opacity: 1; }
   }
+  .sidira-aperture-spin { transition: transform 0.25s ease-out; }
+  .sidira-aperture-mono { transition: opacity 0.25s ease-out; }
+  .sidira-aperture-duo { transition: opacity 0.25s ease-out; }
   @media (prefers-reduced-motion: reduce) {
-    .sidira-aperture-spin { animation: none !important; transform: none !important; }
-    .sidira-aperture-mono { animation: none !important; opacity: 1 !important; }
+    .sidira-aperture-spin { animation: none !important; transform: none !important; transition: none !important; }
+    .sidira-aperture-mono { animation: none !important; opacity: 1 !important; transition: none !important; }
     .sidira-aperture-duo { display: none !important; }
   }
 `;
