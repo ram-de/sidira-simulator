@@ -76,34 +76,45 @@ The simulator is the main repo. You'll spend most of your time here.
 
 ```bash
 cd ~/Projects/sidira-simulator/backend
-python3 -m venv .venv
+
+# macOS ships Python 3.9 as `python3` — this project requires 3.11+.
+# Check first:
+python3 --version   # if < 3.11, use python3.11 explicitly (brew install python@3.11)
+
+python3.11 -m venv .venv    # use python3.11 explicitly on macOS
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Run the tests — should be green; current baseline is 363 passed / 10 skipped
+# Run the tests — should be green; current baseline is 395 passed / 11 skipped
 pytest tests/ -q
 ```
 
-Expected output is roughly `363 passed, 10 skipped`. If anything fails, check Python version (need 3.11+) and try `pip install -e ".[dev]" --force-reinstall`.
+Expected output is roughly `395 passed, 11 skipped`. If anything fails, try `pip install -e ".[dev]" --force-reinstall`.
 
 ### Environment variables
 
-Create `backend/.env` (it's gitignored):
+Copy the example and fill in your keys (file is gitignored):
 
 ```bash
-# Required
-GROQ_API_KEY=gsk_...                                  # from founder or signup
-SIDIRA_LOCAL_ARTIFACTS=/Users/<you>/Projects/sidira-simulator/local-artifacts
-
-# Optional
-ANTHROPIC_API_KEY=sk-ant-...                          # fallback when Groq 429s
-DATABASE_URL=postgresql://...                         # only if doing Phase 5 work; InMemory works for everything else
-SIDIRA_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000   # defaults are fine for dev
+cp .env.example .env
 ```
 
-Load them before running the backend with `uvicorn --env-file .env`, or export
-them in your shell. Legacy `PYTHIA_*` names still work during the rename, but
-new setup should use `SIDIRA_*`.
+Then open `.env` and set at minimum:
+
+```bash
+GROQ_API_KEY=gsk_...                                         # from founder or signup
+SIDIRA_LOCAL_ARTIFACTS=/Users/<you>/Projects/sidira-simulator/local-artifacts
+# use an absolute path — relative paths work but are fragile across working dirs
+```
+
+Optional extras:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...   # fallback when Groq 429s
+DATABASE_URL=postgresql://...  # only if doing Phase 5 work; InMemory works for everything else
+```
+
+`SIDIRA_CORS_ORIGINS` and other defaults in `.env.example` are fine for local dev. Legacy `PYTHIA_*` names still work during the rename, but new setup should use `SIDIRA_*`.
 
 ---
 
@@ -133,7 +144,7 @@ This is the smoke test: a hypothesis goes in, 6 agents react, score comes back. 
 ```bash
 cd ~/Projects/sidira-simulator/backend
 source .venv/bin/activate
-cp .env.example .env   # first run only; add GROQ_API_KEY to .env
+# .env should already exist from Step 4; if not: cp .env.example .env
 uvicorn sidira_simulator.main:app --host 127.0.0.1 --port 8000 --reload --env-file .env
 ```
 
@@ -256,6 +267,8 @@ The full version is in `AGENTS.md`. The 90% version:
 | "What was the design decision for X?" | Search `sessions/persona-classifier/context.md` and `ROADMAP.md` first |
 | "Why is the code shaped this way?" | `git log -- <file>` + read commit messages. We write detailed commit bodies for a reason. |
 | Tests fail and you don't know why | `pytest tests/ -v -x` to stop at first failure with full trace; check it's not an env-var issue |
+| `python3 -m venv` fails / wrong version | macOS ships Python 3.9 — use `python3.11` explicitly. Install with `brew install python@3.11` if missing. |
+| Tests fail with "No 'latest' personas pointer for customer 'demo'" | Run `git pull` — the demo fixture pack is committed; you just need to pull it. |
 | Frontend won't connect to backend | CORS — check backend log; verify `SIDIRA_CORS_ORIGINS` matches your frontend origin |
 | LLM calls fail with 429 | Groq rate limit — wait 60s, or fall back to Anthropic (set `ANTHROPIC_API_KEY`) |
 | Genuinely blocked | Drop a one-line note in your session file's "Next Steps" with `[BLOCKED]` prefix, `/pythia-session save`, then ping founder. They'll see the block context on pull. |
