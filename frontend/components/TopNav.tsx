@@ -30,7 +30,7 @@ export default function TopNav() {
         aria-label="Sidira home"
         style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
       >
-        <SidiraLockup height={32} />
+        <SidiraLockup height={28} />
       </Link>
       <nav style={{ display: "flex", gap: 16 }}>
         {TABS.map((tab) => {
@@ -43,7 +43,7 @@ export default function TopNav() {
                 textDecoration: "none",
                 color: active ? TOKENS.ink : TOKENS.inkMuted,
                 fontFamily: FONT_SANS,
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: active ? 600 : 500,
                 borderBottom: active ? `1.5px solid ${TOKENS.ink}` : "1.5px solid transparent",
                 paddingBottom: 4,

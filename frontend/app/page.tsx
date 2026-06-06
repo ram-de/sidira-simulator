@@ -38,9 +38,18 @@ export default function HomePage() {
 
 function ProductHome() {
   return (
-    <main style={{ maxWidth: 960, margin: "64px auto", padding: "0 24px" }}>
-      <h1 style={{ fontSize: 40, margin: 0, color: TOKENS.ink }}>Sidira</h1>
-      <p style={{ color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
+    <main
+      style={{
+        maxWidth: 960,
+        margin: "64px auto",
+        padding: "0 24px",
+        fontFamily: FONT_SANS,
+        WebkitFontSmoothing: "antialiased",
+        color: TOKENS.ink,
+      }}
+    >
+      <h1 style={{ fontFamily: FONT_SANS, fontSize: 40, fontWeight: 600, margin: 0, color: TOKENS.ink }}>Sidira</h1>
+      <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
         Validate product hypotheses before you build them.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
@@ -57,9 +66,9 @@ function ProductHome() {
               display: "block",
             }}
           >
-            <h3 style={{ marginTop: 0 }}>{card.title}</h3>
-            <p style={{ color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
-            <span style={{ color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
+            <h3 style={{ fontFamily: FONT_SANS, marginTop: 0 }}>{card.title}</h3>
+            <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
+            <span style={{ fontFamily: FONT_SANS, color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
           </Link>
         ))}
       </div>
