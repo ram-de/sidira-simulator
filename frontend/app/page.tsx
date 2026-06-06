@@ -85,7 +85,7 @@ const STEPS = [
 
 const APP_URL =
   process.env.NODE_ENV === "development"
-    ? "http://localhost:3000/simulations"
+    ? "http://127.0.0.1:3000/simulations"
     : "https://app.sidira.ai";
 
 function PublicCompanyHome() {
