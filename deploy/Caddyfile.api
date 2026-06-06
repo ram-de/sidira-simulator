@@ -8,6 +8,10 @@ api.sidira.ai {
 		}
 		uri strip_prefix /_sidira_web_proxy
 		reverse_proxy api:8000 {
+			# NOTE: stripping Authorization here blocks the backend Clerk auth
+			# gate (SIDIRA_CLERK_SECRET_KEY) from ever seeing a token on this
+			# path. Before enabling Clerk in prod, forward the Clerk credential
+			# through this proxy (and have the Next middleware send it, #32).
 			header_up -Authorization
 			header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}
 		}

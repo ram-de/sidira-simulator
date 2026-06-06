@@ -1,9 +1,9 @@
 """FastAPI dependencies — customer scope + orchestrator wiring.
 
-MVP: resolves customer_id from SIDIRA_CUSTOMER_ID env (default "demo") and uses
-in-memory repos. Phase 5 will swap the resolver to read from a Clerk session
-JWT; the JWT path will take precedence over the env, and the env will continue
-to act as the dev-time default.
+Resolves customer_id from the Clerk session (populated on ``request.state`` by
+the auth gate in ``main.py``) and uses in-memory repos when Postgres is not
+configured. The Clerk/JWT path takes precedence; the SIDIRA_CUSTOMER_ID env
+(default "demo") remains the dev-time / unauthenticated fallback.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Annotated, AsyncIterator
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
@@ -40,13 +40,17 @@ from sidira_simulator.services.simulation_orchestrator import (
 DEFAULT_CUSTOMER_ID = "demo"
 
 
-def current_customer_id() -> str:
+def current_customer_id(request: Request) -> str:
     """Resolve the customer for the current request.
 
-    MVP: read from SIDIRA_CUSTOMER_ID env var, fall back through legacy
-    PYTHIA_CUSTOMER_ID, then to "demo". Phase 5 will layer a Clerk JWT resolver
-    on top.
+    Prefers ``request.state.customer_id`` set by the Clerk auth gate from the
+    session token. Falls back to the SIDIRA_CUSTOMER_ID env var (with legacy
+    PYTHIA_CUSTOMER_ID fallback, then "demo") for local dev and the test suite,
+    where Clerk auth is disabled.
     """
+    from_session = getattr(request.state, "customer_id", None)
+    if from_session:
+        return str(from_session)
     customer_id = resolve_sidira_env("CUSTOMER_ID", DEFAULT_CUSTOMER_ID)
     assert customer_id is not None
     return customer_id
