@@ -20,7 +20,7 @@ export const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
 
 // fontFeatureSettings for tabular numerals — apply to all scores, CIs,
 // timestamps, deltas, cohort sizes per DESIGN.md §5.3.
-export const TNUM: React.CSSProperties = {
+export const TNUM: { fontVariantNumeric: string; fontFeatureSettings: string } = {
   fontVariantNumeric: "tabular-nums",
   fontFeatureSettings: '"tnum" on',
 };

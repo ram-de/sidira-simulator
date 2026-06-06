@@ -14,7 +14,7 @@ import {
   type Simulation,
 } from "@/lib/api";
 import { ThumbsControl } from "@/components/ThumbsControl";
-import { TOKENS, FONT_SANS } from "@/lib/design";
+import { TOKENS } from "@/lib/design";
 
 // sessionStorage key — drafts survive nav round-trips
 // (e.g. clicking through to /agents/[id] from a persona-group [label]

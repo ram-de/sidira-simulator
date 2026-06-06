@@ -117,6 +117,13 @@ export default function SimulationDetailPage() {
   const hadRunning = useRef(false);
   const [isSettling, setIsSettling] = useState(false);
 
+  // Reset settle state when the sim id changes so navigating from a running sim
+  // to an already-terminal sim doesn't spuriously fire the aperture-close animation.
+  useLayoutEffect(() => {
+    hadRunning.current = false;
+    setIsSettling(false);
+  }, [id]);
+
   // Initial fetch of the simulation.
   useEffect(() => {
     let cancelled = false;
@@ -300,7 +307,7 @@ export default function SimulationDetailPage() {
   if (!sim) {
     return (
       <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
-        <p style={{ color: "#a30000", fontSize: 14 }}>
+        <p style={{ color: TOKENS.alert, fontSize: 14 }}>
           {error ?? "Unable to load simulation."}
         </p>
       </main>
@@ -329,7 +336,7 @@ export default function SimulationDetailPage() {
           style={{
             border: `0.75px solid ${TOKENS.alert}`,
             background: TOKENS.paperRecessed,
-            color: "#a30000",
+            color: TOKENS.alert,
             borderRadius: 4,
             padding: "8px 12px",
             marginBottom: 16,
@@ -422,7 +429,7 @@ export default function SimulationDetailPage() {
             >
               agents reacting: {done} of {agentsTotal}
               {agentsFailed > 0 && (
-                <span style={{ color: "#a30000", marginLeft: 8 }}>
+                <span style={{ color: TOKENS.alert, marginLeft: 8 }}>
                   ({agentsFailed} failed)
                 </span>
               )}
@@ -757,7 +764,7 @@ export default function SimulationDetailPage() {
               fontFamily:
                 FONT_MONO,
               fontSize: 13,
-              color: "#a30000",
+              color: TOKENS.alert,
               whiteSpace: "pre-wrap",
             }}
           >
@@ -783,7 +790,7 @@ export default function SimulationDetailPage() {
             <div
               style={{
                 fontSize: 13,
-                color: "#a30000",
+                color: TOKENS.alert,
                 marginBottom: 12,
               }}
             >

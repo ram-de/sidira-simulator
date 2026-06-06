@@ -53,39 +53,6 @@ export default function AboutPage() {
         WebkitFontSmoothing: "antialiased",
       }}
     >
-      {/* Top bar — mirrors public homepage header */}
-      <header
-        style={{
-          maxWidth: 1280,
-          margin: "0 auto",
-          padding: "24px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: `0.75px solid ${TOKENS.rule}`,
-        }}
-      >
-        <Link
-          href="/"
-          aria-label="Sidira home"
-          style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
-        >
-          <SidiraLockupDuo height={36} />
-        </Link>
-        <Link
-          href="/"
-          style={{
-            color: TOKENS.inkMuted,
-            fontFamily: FONT_SANS,
-            fontSize: 13,
-            fontWeight: 500,
-            textDecoration: "none",
-          }}
-        >
-          ← Home
-        </Link>
-      </header>
-
       <article
         style={{
           maxWidth: 720,
@@ -93,6 +60,11 @@ export default function AboutPage() {
           padding: "80px 32px 120px",
         }}
       >
+        {/* Founder-mode duo lockup — DESIGN.md §4.4: dual-color mark only on cofounder/about surfaces */}
+        <div style={{ marginBottom: 40 }}>
+          <SidiraLockupDuo height={36} />
+        </div>
+
         {/* Editorial hero — one Instrument Serif moment per page */}
         <h1
           style={{

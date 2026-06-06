@@ -744,6 +744,8 @@ function ABModeSection({
                 fontSize: 11,
                 padding: "2px 8px",
                 borderRadius: 4,
+                // Temporary staging badge — purple intentional for "coming next" affordance,
+                // not a TOKENS color. Removed with issues #89/#90/#91.
                 background: "#f0e6ff",
                 color: "#5a2ca0",
                 fontWeight: 600,
