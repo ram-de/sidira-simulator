@@ -39,15 +39,18 @@ If anything's missing, stop here and ping the founder before proceeding.
 
 ## Step 2 — Install Claude Code + gstack (10 min)
 
-We use [gstack](https://github.com/ram-de/gstack-public) for the slash commands `/qa`, `/review`, `/retro`, `/plan-eng-review`, `/codex`. They are required to follow the team's workflow.
+We use [gstack](https://github.com/garrytan/gstack) for the slash commands `/qa`, `/review`, `/retro`, `/plan-eng-review`, `/codex`. They are required to follow the team's workflow.
 
 ```bash
 # 1. Install Claude Code (skip if you already have it)
 #    https://claude.com/claude-code
 
-# 2. Install gstack — one command, ~30 seconds
-git clone https://github.com/ram-de/gstack-public ~/.claude/skills/gstack
-cd ~/.claude/skills/gstack && ./setup
+# 2. Install bun (required by gstack setup)
+curl -fsSL https://bun.sh/install | bash
+
+# 3. Install gstack — one command, ~2 minutes
+git clone https://github.com/garrytan/gstack ~/.claude/skills/gstack
+PATH="$HOME/.bun/bin:$PATH" bash ~/.claude/skills/gstack/setup
 ```
 
 Verify by opening Claude Code in any directory and typing `/qa` — you should see the skill load. If it doesn't, re-run `./setup` and check `~/.claude/skills/gstack/` exists.
