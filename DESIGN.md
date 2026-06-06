@@ -367,7 +367,6 @@ These are never allowed to ship.
 | `frontend/public/brand/sidira-mark-duo.svg` | founder-mode dual-color mark |
 | `frontend/public/brand/sidira-lockup.svg` | primary horizontal lockup |
 | `frontend/public/brand/sidira-lockup-duo.svg` | founder-mode horizontal lockup |
-| `frontend/public/brand/sidira-logo*-v2-*` · `*-v3-*` | legacy exploration files (history; do not use) |
 
 When a new asset is needed, add it to `frontend/public/brand/` with a name that
 matches the convention (`sidira-<thing>[-<variant>].svg`) and add a row to the
