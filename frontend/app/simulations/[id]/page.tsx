@@ -114,6 +114,8 @@ export default function SimulationDetailPage() {
   // result_json.per_agent_analyses).
   const [agentMeta, setAgentMeta] = useState<AgentRow[] | null>(null);
   const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
+  const hadRunning = useRef(false);
+  const [isSettling, setIsSettling] = useState(false);
 
   // Initial fetch of the simulation.
   useEffect(() => {
@@ -206,6 +208,20 @@ export default function SimulationDetailPage() {
     };
   }, []);
 
+  // Track when the sim transitions from running → terminal to drive the
+  // 800ms aperture-close settle window (DESIGN.md §9.1 + §9.2).
+  useEffect(() => {
+    if (!sim) return;
+    if (!isTerminalStatus(sim.status)) {
+      hadRunning.current = true;
+    } else if (hadRunning.current) {
+      hadRunning.current = false;
+      setIsSettling(true);
+      const t = setTimeout(() => setIsSettling(false), 800);
+      return () => clearTimeout(t);
+    }
+  }, [sim?.status]);
+
   // Load the per-agent metadata once the simulation hits a terminal state.
   // Uses the lightweight /simulations/{id}/agents endpoint (one call returning
   // the persona-grouped summary) rather than fanning out N parallel /agents/{id}
@@ -292,6 +308,7 @@ export default function SimulationDetailPage() {
   const status = sim.status;
   const statusColor = STATUS_COLORS[status];
   const terminal = isTerminalStatus(status);
+  const markAnimating = !terminal || isSettling;
   const agentIds = sim.agent_instance_ids ?? [];
   const result = sim.result ?? null;
 
@@ -324,6 +341,7 @@ export default function SimulationDetailPage() {
 
       {/* Header */}
       <section style={cardStyle}>
+        <ApertureMark size={32} animating={markAnimating} />
         <div
           style={{
             fontSize: 11,
@@ -331,6 +349,7 @@ export default function SimulationDetailPage() {
             textTransform: "uppercase",
             letterSpacing: 0.8,
             marginBottom: 8,
+            marginTop: 12,
             fontFamily: FONT_MONO,
           }}
         >
@@ -381,15 +400,6 @@ export default function SimulationDetailPage() {
               marginBottom: 16,
             }}
           >
-            <span
-              style={{
-                display: "inline-block",
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: TOKENS.ink,
-              }}
-            />
             <h2 style={{ fontSize: 20, color: TOKENS.ink, margin: 0 }}>Running…</h2>
             {state?.phase && (
               <span style={{ color: TOKENS.inkMuted, fontSize: 13, fontFamily: FONT_MONO }}>
@@ -2302,5 +2312,94 @@ function Pill({ label, value }: { label: string; value: string }) {
       <span style={{ color: TOKENS.inkMuted, marginRight: 6 }}>{label}:</span>
       <span style={{ color: TOKENS.ink }}>{value}</span>
     </span>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Aperture-close animation — DESIGN.md §9.2
+// ───────────────────────────────────────────────────────────────────────
+
+const APERTURE_STYLE = `
+  @keyframes sidira-aperture-spin {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    40%, 60% { transform: rotate(-8deg) scale(0.86); }
+  }
+  @keyframes sidira-aperture-mono-fade {
+    0%, 30%, 70%, 100% { opacity: 1; }
+    45%, 55% { opacity: 0; }
+  }
+  @keyframes sidira-aperture-duo-fade {
+    0%, 30%, 70%, 100% { opacity: 0; }
+    45%, 55% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sidira-aperture-spin { animation: none !important; transform: none !important; }
+    .sidira-aperture-mono { animation: none !important; opacity: 1 !important; }
+    .sidira-aperture-duo { display: none !important; }
+  }
+`;
+
+function ApertureMark({ size = 32, animating }: { size?: number; animating: boolean }) {
+  return (
+    <div
+      aria-hidden
+      style={{ position: "relative", width: size, height: size, flexShrink: 0, color: TOKENS.ink }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: APERTURE_STYLE }} />
+      <div
+        className="sidira-aperture-spin"
+        style={{
+          position: "absolute",
+          inset: 0,
+          animation: animating ? "sidira-aperture-spin 3.4s ease-in-out infinite" : undefined,
+        }}
+      >
+        {/* Monochrome mark — visible at rest; fades out at the held frame */}
+        <div
+          className="sidira-aperture-mono"
+          style={{
+            position: "absolute",
+            inset: 0,
+            animation: animating ? "sidira-aperture-mono-fade 3.4s ease-in-out infinite" : undefined,
+          }}
+        >
+          <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
+            <g stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round">
+              <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+              <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+              <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+              <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+              <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+              <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+            </g>
+          </svg>
+        </div>
+        {/* Dual-color mark — visible only at the held frame (40%–60%) */}
+        <div
+          className="sidira-aperture-duo"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            animation: animating ? "sidira-aperture-duo-fade 3.4s ease-in-out infinite" : undefined,
+          }}
+        >
+          <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
+            <g strokeWidth="1.1" strokeLinejoin="round" fill="none">
+              <g stroke="#2C5577">
+                <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+                <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+                <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+              </g>
+              <g stroke="#D696C8">
+                <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+                <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+                <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
   );
 }

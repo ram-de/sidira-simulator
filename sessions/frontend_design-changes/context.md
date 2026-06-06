@@ -1,9 +1,9 @@
 ---
 type: session
 domain: frontend_design-changes
-status: closed
+status: active
 started: 2026-06-02
-closed: 2026-06-06
+reopened: 2026-06-06
 owner: ram-de
 ---
 
@@ -13,9 +13,13 @@ owner: ram-de
 Apply DESIGN.md to the entire frontend.
 - Phase 1 (public homepage, PR #138): complete.
 - Phase 2 & 3 (app.sidira.ai shell restyle + /about page, issue #135, PR #142): complete.
+- Phase 4 (in-product aperture-close animation, issue #136): in progress.
 
 ## In Progress
-— session complete —
+- [ ] Issue #136 — aperture-close animation on simulation result page
+  - [ ] `ApertureMark` component: two stacked SVGs (mono + duo), CSS keyframes, cross-fade at held frame (40%–60%), `prefers-reduced-motion` disables
+  - [ ] Wire into result page header — animates while `status` is non-terminal + 800ms settle after terminal
+  - [ ] Remove the small dot indicator from the running section (mark in header replaces it)
 
 ## Completed
 
