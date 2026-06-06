@@ -106,10 +106,9 @@ export default function AboutPage() {
             marginBottom: 40,
           }}
         >
-          Built from a name.
+          Precision before commitment.
         </h1>
 
-        {/* Name origin story — DESIGN.md §4 */}
         <p
           style={{
             fontSize: 18,
@@ -119,24 +118,10 @@ export default function AboutPage() {
             marginBottom: 24,
           }}
         >
-          Sidira is named after the founders&rsquo; kids — <strong>Sid</strong> and{" "}
-          <strong style={{ color: "#D696C8" }}>Avira</strong>. The two names collapse into one:
-          Sid + Avira → Sidira.
-        </p>
-
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.75,
-            color: TOKENS.inkMuted,
-            margin: 0,
-            marginBottom: 24,
-          }}
-        >
-          That etymology is encoded into the mark. The six-blade diaphragm is split into two
-          groups of three blades — Sid-blue on the left, Avira-rose on the right. At rest, the
-          mark is monochrome ink. Color appears only when the instrument is reading evidence:
-          during a simulation run, when the blades close and the dual-color held frame fires.
+          Product teams aren&rsquo;t short on hypotheses. They&rsquo;re short on answers that
+          arrive before the build commitment. Sidira pressure-tests a proposed change against
+          customer-grounded personas so the team knows where it lands before an engineering
+          sprint starts.
         </p>
 
         <p
@@ -148,9 +133,10 @@ export default function AboutPage() {
             marginBottom: 64,
           }}
         >
-          On buyer-facing surfaces, none of this is visible. The name just sounds right. But
-          for us it is a daily reminder that the instrument we&rsquo;re building has to be worth
-          the time it takes away from the people it&rsquo;s named after.
+          The six-blade diaphragm in the mark is the instrument metaphor made visual. At rest,
+          the aperture is monochrome ink&mdash;latent, uncommitted. Color appears only when the
+          blades close and the instrument reads signal: two groups of three blades, each a distinct
+          color, visible only during a live simulation run.
         </p>
 
         {/* Rose hairline above founder bios — DESIGN.md §4.4 */}
@@ -201,8 +187,8 @@ export default function AboutPage() {
                 }}
               >
                 Product and engineering. Previously building data infrastructure at scale.
-                Sidira started as a tool Ram wished existed every time a PM submitted a
-                hypothesis that didn&rsquo;t survive first contact with customers.
+                Started Sidira because the feedback loop from hypothesis to customer reaction
+                was too slow and too expensive to run before the build.
               </div>
             </div>
           </div>

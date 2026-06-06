@@ -24,11 +24,16 @@ Make `sidira.ai` / `www.sidira.ai` the public company site while keeping `app.si
 - [x] Added temporary app-host Basic Auth in Next middleware so Amplify access control can be disabled for the public apex before Clerk lands.
 - [x] Verified the dummy Basic Auth value is not baked into `.next`; generated middleware keeps a runtime `process.env.SIDIRA_WEB_PROXY_BASIC_AUTH` reference.
 - [x] Verification passed: new deploy/config tests, frontend typecheck, frontend production build, full backend suite, and `git diff --check`.
+- [x] PR #142: app shell + /about page (DESIGN.md system, SidiraLockup, design tokens, public homepage redesign). Codex gate: PASS.
+- [x] Dev ergonomics: `SIDIRA_PUBLIC_HOST=1` in `.env.local` to see public homepage at localhost. `APP_URL` const routes Sign in to `localhost:3000/simulations` in dev. "About" nav link added.
+- [x] `/about` page copy: replaced kids-naming story with product/instrument angle ("Precision before commitment."). Mark architecture paragraph kept, detached from naming origin.
 
 ## Next Steps
-1. Decide whether to ship this as its own small Phase 5 PR before Clerk.
-2. When browser tooling is available, visually check `sidira.ai` public home and `app.sidira.ai` product home on a live deploy/preview.
-3. Continue Phase 5 proper with Clerk middleware and tenant resolution.
+1. Merge PR #142 (codex gate passed).
+2. Issue #136: aperture-close animation (separate PR).
+3. Issue #137: prune legacy brand files (separate PR).
+4. When browser tooling is available, visually QA `sidira.ai` public home and `/about` on a live deploy/preview.
+5. Continue Phase 5 proper with Clerk middleware and tenant resolution.
 
 ## Key Files
 - `frontend/middleware.ts`

@@ -83,6 +83,11 @@ const STEPS = [
   },
 ];
 
+const APP_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000/simulations"
+    : "https://app.sidira.ai";
+
 function PublicCompanyHome() {
   return (
     <main
@@ -128,6 +133,19 @@ function PublicCompanyHome() {
         </Link>
         <nav style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <Link
+            href="/about"
+            style={{
+              color: TOKENS.inkMuted,
+              fontFamily: FONT_SANS,
+              fontSize: 13,
+              fontWeight: 500,
+              textDecoration: "none",
+              padding: "8px 4px",
+            }}
+          >
+            About
+          </Link>
+          <Link
             href="mailto:founders@sidira.ai?subject=Sidira%20access"
             style={{
               color: TOKENS.inkMuted,
@@ -141,7 +159,7 @@ function PublicCompanyHome() {
             Request access
           </Link>
           <Link
-            href="https://app.sidira.ai"
+            href={APP_URL}
             style={{
               background: TOKENS.ink,
               border: `0.75px solid ${TOKENS.ink}`,
@@ -250,7 +268,7 @@ function PublicCompanyHome() {
             Request access
           </Link>
           <Link
-            href="https://app.sidira.ai"
+            href={APP_URL}
             style={{
               background: "transparent",
               border: `0.75px solid ${TOKENS.rule}`,
