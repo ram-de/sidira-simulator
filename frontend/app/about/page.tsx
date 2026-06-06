@@ -115,7 +115,7 @@ export default function AboutPage() {
             lineHeight: 1.7,
             color: TOKENS.ink,
             margin: 0,
-            marginBottom: 24,
+            marginBottom: 64,
           }}
         >
           Product teams aren&rsquo;t short on hypotheses. They&rsquo;re short on answers that
@@ -124,22 +124,8 @@ export default function AboutPage() {
           sprint starts.
         </p>
 
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.75,
-            color: TOKENS.inkMuted,
-            margin: 0,
-            marginBottom: 64,
-          }}
-        >
-          The six-blade diaphragm in the mark is the instrument metaphor made visual. At rest,
-          the aperture is monochrome ink&mdash;latent, uncommitted. Color appears only when the
-          blades close and the instrument reads signal: two groups of three blades, each a distinct
-          color, visible only during a live simulation run.
-        </p>
 
-      </article>
+</article>
     </main>
   );
 }
