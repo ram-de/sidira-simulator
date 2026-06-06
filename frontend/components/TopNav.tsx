@@ -43,8 +43,8 @@ export default function TopNav() {
                 textDecoration: "none",
                 color: active ? TOKENS.ink : TOKENS.inkMuted,
                 fontFamily: FONT_SANS,
-                fontSize: 13,
-                fontWeight: active ? 600 : 400,
+                fontSize: 14,
+                fontWeight: active ? 600 : 500,
                 borderBottom: active ? `1.5px solid ${TOKENS.ink}` : "1.5px solid transparent",
                 paddingBottom: 4,
               }}
