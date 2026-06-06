@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from sidira_simulator import __version__
 from sidira_simulator.adapters.migrations import run_startup_migrations
+from sidira_simulator.api import auth
 from sidira_simulator.api import (
     agents,
     capabilities,
@@ -52,6 +53,32 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Middlewares run outermost-first in reverse registration order, so the
+    # Clerk gate (registered first) runs *inside* the internal-key gate: in
+    # prod the Caddy proxy must clear the internal-key network boundary before
+    # we spend a token verification. Both must pass for protected routes.
+    @app.middleware("http")
+    async def clerk_auth_gate(request: Request, call_next):
+        if (
+            not auth.clerk_configured()
+            or request.url.path == "/health"
+            or request.method == "OPTIONS"
+        ):
+            return await call_next(request)
+        state = auth.authenticate(request)
+        if state is None:
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+        if state.customer_id is None:
+            # Authenticated but the session carries no tenant claim. We must NOT
+            # fall through here: current_customer_id() would then resolve the
+            # SIDIRA_CUSTOMER_ID / "demo" env default and silently grant this
+            # user the fallback tenant. Reject instead — a Clerk-gated request
+            # only proceeds once it resolves to a concrete customer.
+            return JSONResponse({"detail": "No tenant for user"}, status_code=403)
+        request.state.user_id = state.user_id
+        request.state.customer_id = state.customer_id
+        return await call_next(request)
 
     @app.middleware("http")
     async def internal_api_key_gate(request: Request, call_next):

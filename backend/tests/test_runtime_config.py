@@ -4,10 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fastapi import Request
+
 from sidira_simulator.adapters.r2 import LocalArtifactStore, get_store
 from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.main import _cors_origins
 from sidira_simulator.services.runtime_config import resolve_sidira_env
+
+
+def _request_without_session() -> Request:
+    """A bare request whose state carries no Clerk-resolved customer_id."""
+    return Request({"type": "http", "headers": []})
 
 
 def _clear_product_env(monkeypatch, suffix: str) -> None:
@@ -57,7 +64,7 @@ def test_current_customer_id_uses_sidira_namespace(monkeypatch) -> None:
     _clear_product_env(monkeypatch, "CUSTOMER_ID")
     monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "streamly_sample")
 
-    assert current_customer_id() == "streamly_sample"
+    assert current_customer_id(_request_without_session()) == "streamly_sample"
 
 
 def test_cors_origins_fall_back_to_pythia_namespace(monkeypatch) -> None:
