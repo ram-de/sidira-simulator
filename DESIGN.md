@@ -66,13 +66,12 @@ The mark has three sanctioned color states. Anything else is wrong.
 
 | State | When it appears | Color |
 | --- | --- | --- |
-| **Static default** | nav · favicon · app icon · social avatar · business card · screenshots · everywhere not listed below | monochrome `ink` (`#0E1A2B`) |
+| **Static default** | product nav · in-app UI · business card · screenshots · everywhere not listed below | monochrome `ink` (`#0E1A2B`) |
 | **Animated (running)** | inside the product while a simulation is being computed, while a confidence trace is settling, during persona-group fan-out | cycles monochrome → dual-color → monochrome via the aperture-close animation (§9) |
-| **Founder-mode (frozen)** | the cofounder page · `/about` · press kit · company anniversary hero · investor decks page-one only | dual-color (3 Sid-blue blades + 3 Avira-rose blades), static |
+| **Brand-mode (frozen)** | favicon · app icon · public site (`sidira.ai`) · `/about` · press kit · social avatar · company anniversary hero · investor decks page-one only | dual-color (3 Sid-blue blades + 3 Avira-rose blades) on paper ground (`#F4EFE6`), static |
 
-The default is monochrome. The dual-color is reserved. Do not use the
-dual-color version on the dashboard, on the marketing home, on the pricing
-page, in the nav, or as a favicon. Buyer-facing surfaces stay monochrome.
+The default is monochrome inside the product. The dual-color brand-mode is used on all public/brand surfaces and the favicon. Do not use the
+dual-color version on the in-app dashboard, in the product nav, or in the product shell. Buyer-facing product UI stays monochrome.
 
 ### 1.4 Clear space
 
@@ -86,7 +85,7 @@ the only thing allowed there.
 | --- | --- |
 | `frontend/public/brand/sidira-mark.svg` | canonical monochrome mark, `currentColor` stroke |
 | `frontend/public/brand/sidira-mark-duo.svg` | founder-mode dual-color (Sid-blue + Avira-rose) |
-| `frontend/app/icon.svg` | favicon / app-icon (paper mark on ink ground, `rx: 32`) |
+| `frontend/app/icon.svg` | favicon / app-icon (duo-color mark on paper ground, `rx: 32`) |
 
 ---
 
