@@ -3,19 +3,20 @@
 # Fires via PreCompact hook; always exits 0 (non-blocking).
 # Reads JSON event payload from stdin but does not need its contents.
 #
-# Works correctly whether Claude Code is running in the main checkout
-# or in a git worktree (.claude/worktrees/*).
+# Worktree sessions: commit session file directly to the feature branch.
+# The session file lands on main when the PR merges — no branch-hop needed.
+#
+# Main-checkout sessions (no worktree): use the branch-hop dance to commit
+# on main immediately so the cofounder sees it on next git pull.
 
 REPO=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 SCRIPT="$REPO/.claude/skills/pythia-session/scripts/session_state.py"
 [[ -f "$SCRIPT" ]] || exit 0
 
-# Detect worktree: resolve the main repo working tree so we can do
-# branch operations there. git rev-parse --git-common-dir returns:
-#   /main/.git                         (main checkout)
-#   /main/.git/worktrees/<name>        (a worktree)
+# Detect worktree via git-common-dir.
+# In a worktree: .git/worktrees/<name>  →  strip to get main repo root.
 GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
-GIT_COMMON=$(cd "$REPO" && cd "$GIT_COMMON" && pwd -P)  # canonicalise relative path
+GIT_COMMON=$(cd "$REPO" && cd "$GIT_COMMON" && pwd -P)
 
 if [[ "$GIT_COMMON" == *"/.git/worktrees/"* ]]; then
   MAIN_REPO="${GIT_COMMON%%/.git/worktrees/*}"
@@ -25,45 +26,40 @@ else
   IN_WORKTREE=0
 fi
 
-# Find exactly one active session. session_state.py uses git rev-parse
-# internally, which resolves to $REPO (may be a worktree). That is fine —
-# it reads the session files from $REPO/sessions/, which contains the
-# edited (uncommitted) version we want to save.
+# Find exactly one active session (status: active in frontmatter).
 DOMAIN=$(python3 "$SCRIPT" active 2>/dev/null) || exit 0
 
 SESSION_FILE="sessions/$DOMAIN/context.md"
+[[ -f "$REPO/$SESSION_FILE" ]] || exit 0
 
-# The authoritative (possibly edited) copy is in $REPO (the worktree or
-# main checkout where Claude is actually running).
-SRC="$REPO/$SESSION_FILE"
-DST="$MAIN_REPO/$SESSION_FILE"
-[[ -f "$SRC" ]] || exit 0
-
-# If we're in a worktree, propagate the worktree's edited session file to
-# the main repo working tree before committing, so the commit goes on main.
+# ── WORKTREE PATH ─────────────────────────────────────────────────────────────
+# Commit session file directly to the feature branch in the worktree.
+# No branch-hop: the file lands on main when the PR merges.
 if [[ "$IN_WORKTREE" -eq 1 ]]; then
-  # Skip if the worktree's file matches main repo's committed version exactly.
-  COMMITTED=$(git -C "$MAIN_REPO" show "HEAD:$SESSION_FILE" 2>/dev/null)
-  CURRENT_CONTENT=$(cat "$SRC")
-  if [[ "$COMMITTED" == "$CURRENT_CONTENT" ]]; then
+  if git -C "$REPO" diff --quiet HEAD -- "$SESSION_FILE" 2>/dev/null && \
+     git -C "$REPO" diff --cached --quiet -- "$SESSION_FILE" 2>/dev/null; then
     exit 0
   fi
-  # Copy worktree's version into the main repo working tree.
-  mkdir -p "$(dirname "$DST")"
-  cp "$SRC" "$DST"
-else
-  # Running in main checkout: check for uncommitted changes the normal way.
-  if git -C "$MAIN_REPO" diff --quiet HEAD -- "$SESSION_FILE" 2>/dev/null && \
-     git -C "$MAIN_REPO" diff --cached --quiet -- "$SESSION_FILE" 2>/dev/null; then
-    exit 0
+  git -C "$REPO" add "$SESSION_FILE" 2>/dev/null || true
+  if ! git -C "$REPO" diff --cached --quiet -- "$SESSION_FILE" 2>/dev/null; then
+    git -C "$REPO" commit -m "session: $DOMAIN — auto-save (pre-compact)" 2>/dev/null || true
+    # Push to the remote feature branch so the cofounder can see it.
+    git -C "$REPO" push origin HEAD 2>/dev/null || true
   fi
+  exit 0
+fi
+
+# ── MAIN-CHECKOUT PATH ────────────────────────────────────────────────────────
+# Branch-hop dance: commit session file on main so the cofounder sees it
+# immediately on git pull. Only needed when working in the main checkout.
+if git -C "$MAIN_REPO" diff --quiet HEAD -- "$SESSION_FILE" 2>/dev/null && \
+   git -C "$MAIN_REPO" diff --cached --quiet -- "$SESSION_FILE" 2>/dev/null; then
+  exit 0
 fi
 
 CURRENT_BRANCH=$(git -C "$MAIN_REPO" branch --show-current 2>/dev/null)
 
-# Branch-hop dance on the MAIN repo (only needed when not in a worktree,
-# since in a worktree $MAIN_REPO is always on main).
-if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" && "$IN_WORKTREE" -eq 0 ]]; then
+if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" ]]; then
   git -C "$MAIN_REPO" stash push -m "pre-compact-session-save" -- "sessions/" 2>/dev/null || exit 0
   git -C "$MAIN_REPO" checkout main 2>/dev/null || { git -C "$MAIN_REPO" stash pop 2>/dev/null; exit 0; }
   git -C "$MAIN_REPO" pull --rebase origin main 2>/dev/null || true
@@ -76,8 +72,7 @@ if ! git -C "$MAIN_REPO" diff --cached --quiet -- "$SESSION_FILE" 2>/dev/null; t
     git -C "$MAIN_REPO" push origin main 2>/dev/null || true
 fi
 
-# Return to original branch in main repo (non-worktree branch-hop only).
-if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" && "$IN_WORKTREE" -eq 0 ]]; then
+if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" ]]; then
   git -C "$MAIN_REPO" checkout "$CURRENT_BRANCH" 2>/dev/null || true
   git -C "$MAIN_REPO" checkout origin/main -- "$SESSION_FILE" 2>/dev/null || true
 fi

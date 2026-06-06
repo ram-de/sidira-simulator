@@ -19,7 +19,10 @@ This file is the source of truth for what is being worked on, what is done, and 
 
 **Do NOT invoke this skill unless the user explicitly calls `/pythia-session`.** It does not auto-activate.
 
-**Auto-save on compaction:** The repo's `PreCompact` hook (`.claude/hooks/pre-compact-save-session.sh`) automatically saves the active session to `main` before any context compaction (auto or manual). This fires at ~80% context usage (20% remaining). You don't need to call `/pythia-session save` before `/compact` — it happens automatically. The hook is a no-op if no session is active or the session file has no uncommitted changes.
+**Auto-save on compaction:** The repo's `PreCompact` hook (`.claude/hooks/pre-compact-save-session.sh`) automatically saves the active session before any context compaction (auto or manual). This fires at ~80% context usage (20% remaining). You don't need to call `/pythia-session save` before `/compact` — it happens automatically. The hook is a no-op if no session is active or the session file has no uncommitted changes.
+
+- **Worktree sessions** (the normal case for feature work): the session file is committed directly to the feature branch. It lands on `main` when the PR merges. No branch-hop needed, no conflict risk.
+- **Main-checkout sessions** (rare): the branch-hop dance commits the session file to `main` immediately so the cofounder sees it on `git pull`.
 
 ## Why "pythia-session" and not just "session"
 
@@ -125,15 +128,13 @@ Mark the session as done. Roll lasting decisions / shipped artifacts into `CONTE
 
 ---
 
-## Session updates land on main
+## Where session updates land
 
-**Session file commits always go on `main`, never on a feature branch.** The file itself is just a working-tree artifact — you can edit it on any branch during work — but every `/pythia-session save` (and the close commit) must hop to `main` first via the dance in `/pythia-session save` above.
+**Worktree sessions (normal case):** commit the session file directly to the feature branch. The file lands on `main` when the PR merges. This avoids the PR #64 conflict class entirely — `main` never has a diverged copy mid-session. The `/pythia-session save` branch-hop is skipped automatically when running inside a worktree.
 
-The reason: code goes through PRs (audit trail, codex review, conflict isolation) but the session file is conversation state — both founders need to see it land immediately, and gating it behind a PR defeats the point. Committing it on a feature branch AND on main creates a guaranteed merge conflict every time the PR merges (we hit this on PR #64). Single-source-of-truth on main avoids that whole class of friction.
+**Main-checkout sessions (rare):** the branch-hop dance from `/pythia-session save` still applies — commit on `main` immediately so the cofounder sees it on `git pull`. Don't commit the session file on the feature branch AND on main; that's the PR #64 conflict pattern.
 
-**If you're mid-edit on a feature branch and want to save:** the `save` subcommand handles the hop automatically. Don't `git add` the session file on the feature branch yourself.
-
-**If a stray session-file diff is sitting on a feature branch at PR-merge time:** discard it before merging. The version on main is authoritative.
+**The PR #64 lesson:** conflicts happen when the session file is committed on BOTH `main` (via save) AND a feature branch (via in-flight edits). The fix is a single source of truth per session type: branch-only for worktree sessions, main-only for main-checkout sessions.
 
 ---
 
