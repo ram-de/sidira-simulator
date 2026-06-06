@@ -19,6 +19,8 @@ This file is the source of truth for what is being worked on, what is done, and 
 
 **Do NOT invoke this skill unless the user explicitly calls `/pythia-session`.** It does not auto-activate.
 
+**Auto-save on compaction:** The repo's `PreCompact` hook (`.claude/hooks/pre-compact-save-session.sh`) automatically saves the active session to `main` before any context compaction (auto or manual). This fires at ~80% context usage (20% remaining). You don't need to call `/pythia-session save` before `/compact` — it happens automatically. The hook is a no-op if no session is active or the session file has no uncommitted changes.
+
 ## Why "pythia-session" and not just "session"
 
 Other skills named `/session` may exist at user level (e.g., an employer's work-vault skill that writes to `~/vaults/work/sessions/`). Project-local skill resolution depends on cwd, and we never want Sidira work to accidentally land in an employer vault. The unambiguous name eliminates that risk.

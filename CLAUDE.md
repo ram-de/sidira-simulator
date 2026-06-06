@@ -42,6 +42,25 @@ This project is indexed by GitNexus as **sidira-simulator** (4282 symbols, 7467 
 
 <!-- gitnexus:end -->
 
+## Worktree Rule
+
+All PR and feature branch work MUST be done through an isolated worktree.
+
+### Always Do
+
+- **MUST call `EnterWorktree` before starting any branch or PR work.** Never edit code on a named branch in the main checkout — always get a fresh worktree first.
+- After the PR is merged (or abandoned), call `ExitWorktree` to clean up.
+- The only exception is session file commits (`/pythia-session save`) — those are committed directly on `main` via the branch-hop dance, never through a worktree.
+
+### Never Do
+
+- NEVER make code edits on a feature branch in the main checkout.
+- NEVER commit code changes (non-session) directly to `main`.
+
+### Why
+
+Worktrees give each PR an isolated filesystem, preventing stale state, accidental cross-contamination between branches, and the "wrong branch" class of errors. The `bgIsolation: worktree` setting in `.claude/settings.json` enforces this for background agents automatically; the rule above extends it to foreground sessions.
+
 ## Design System
 
 `DESIGN.md` at the repo root is the canonical source of truth for every
