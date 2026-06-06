@@ -106,108 +106,26 @@ export default function AboutPage() {
             marginBottom: 40,
           }}
         >
-          Built from a name.
+          Precision before commitment.
         </h1>
 
-        {/* Name origin story — DESIGN.md §4 */}
         <p
           style={{
             fontSize: 18,
             lineHeight: 1.7,
             color: TOKENS.ink,
             margin: 0,
-            marginBottom: 24,
-          }}
-        >
-          Sidira is named after the founders&rsquo; kids — <strong>Sid</strong> and{" "}
-          <strong style={{ color: "#D696C8" }}>Avira</strong>. The two names collapse into one:
-          Sid + Avira → Sidira.
-        </p>
-
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.75,
-            color: TOKENS.inkMuted,
-            margin: 0,
-            marginBottom: 24,
-          }}
-        >
-          That etymology is encoded into the mark. The six-blade diaphragm is split into two
-          groups of three blades — Sid-blue on the left, Avira-rose on the right. At rest, the
-          mark is monochrome ink. Color appears only when the instrument is reading evidence:
-          during a simulation run, when the blades close and the dual-color held frame fires.
-        </p>
-
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.75,
-            color: TOKENS.inkMuted,
-            margin: 0,
             marginBottom: 64,
           }}
         >
-          On buyer-facing surfaces, none of this is visible. The name just sounds right. But
-          for us it is a daily reminder that the instrument we&rsquo;re building has to be worth
-          the time it takes away from the people it&rsquo;s named after.
+          Product teams aren&rsquo;t short on hypotheses. They&rsquo;re short on answers that
+          arrive before the build commitment. Sidira pressure-tests a proposed change against
+          customer-grounded personas so the team knows where it lands before an engineering
+          sprint starts.
         </p>
 
-        {/* Rose hairline above founder bios — DESIGN.md §4.4 */}
-        <div
-          style={{
-            borderTop: `0.75px solid ${TOKENS.avira}`,
-            paddingTop: 40,
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: FONT_SANS,
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 1.2,
-              color: TOKENS.inkMuted,
-              margin: 0,
-              marginBottom: 32,
-            }}
-          >
-            Founders
-          </h2>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 40,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  color: TOKENS.ink,
-                  marginBottom: 4,
-                }}
-              >
-                Ram De
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: TOKENS.inkMuted,
-                  lineHeight: 1.6,
-                }}
-              >
-                Product and engineering. Previously building data infrastructure at scale.
-                Sidira started as a tool Ram wished existed every time a PM submitted a
-                hypothesis that didn&rsquo;t survive first contact with customers.
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>
+</article>
     </main>
   );
 }

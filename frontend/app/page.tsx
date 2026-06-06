@@ -38,9 +38,18 @@ export default function HomePage() {
 
 function ProductHome() {
   return (
-    <main style={{ maxWidth: 960, margin: "64px auto", padding: "0 24px" }}>
-      <h1 style={{ fontSize: 40, margin: 0, color: TOKENS.ink }}>Sidira</h1>
-      <p style={{ color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
+    <main
+      style={{
+        maxWidth: 960,
+        margin: "64px auto",
+        padding: "0 24px",
+        fontFamily: FONT_SANS,
+        WebkitFontSmoothing: "antialiased",
+        color: TOKENS.ink,
+      }}
+    >
+      <h1 style={{ fontFamily: FONT_NARROW, fontSize: 40, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", margin: 0, color: TOKENS.ink }}>Sidira</h1>
+      <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
         Validate product hypotheses before you build them.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
@@ -57,9 +66,9 @@ function ProductHome() {
               display: "block",
             }}
           >
-            <h3 style={{ marginTop: 0 }}>{card.title}</h3>
-            <p style={{ color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
-            <span style={{ color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
+            <h3 style={{ fontFamily: FONT_SANS, marginTop: 0 }}>{card.title}</h3>
+            <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
+            <span style={{ fontFamily: FONT_SANS, color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
           </Link>
         ))}
       </div>
@@ -82,6 +91,11 @@ const STEPS = [
     body: "Turn weak spots into sharper hypotheses for the next product review. Iterate before the build, not after the rollout.",
   },
 ];
+
+const APP_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:3000/simulations"
+    : "https://app.sidira.ai";
 
 function PublicCompanyHome() {
   return (
@@ -128,11 +142,24 @@ function PublicCompanyHome() {
         </Link>
         <nav style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <Link
+            href="/about"
+            style={{
+              color: TOKENS.inkMuted,
+              fontFamily: FONT_SANS,
+              fontSize: 16,
+              fontWeight: 500,
+              textDecoration: "none",
+              padding: "8px 4px",
+            }}
+          >
+            About
+          </Link>
+          <Link
             href="mailto:founders@sidira.ai?subject=Sidira%20access"
             style={{
               color: TOKENS.inkMuted,
               fontFamily: FONT_SANS,
-              fontSize: 13,
+              fontSize: 16,
               fontWeight: 500,
               textDecoration: "none",
               padding: "8px 4px",
@@ -141,7 +168,7 @@ function PublicCompanyHome() {
             Request access
           </Link>
           <Link
-            href="https://app.sidira.ai"
+            href={APP_URL}
             style={{
               background: TOKENS.ink,
               border: `0.75px solid ${TOKENS.ink}`,
@@ -250,7 +277,7 @@ function PublicCompanyHome() {
             Request access
           </Link>
           <Link
-            href="https://app.sidira.ai"
+            href={APP_URL}
             style={{
               background: "transparent",
               border: `0.75px solid ${TOKENS.rule}`,

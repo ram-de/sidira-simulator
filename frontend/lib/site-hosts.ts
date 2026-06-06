@@ -15,7 +15,15 @@ export function normalizeHost(host: string | null): string {
 }
 
 export function isPublicSiteHost(host: string | null): boolean {
-  return normalizeHost(host) === PUBLIC_SITE_HOST;
+  const normalized = normalizeHost(host);
+  if (
+    process.env.NODE_ENV === "development" &&
+    normalized === "localhost" &&
+    process.env.SIDIRA_PUBLIC_HOST === "1"
+  ) {
+    return true;
+  }
+  return normalized === PUBLIC_SITE_HOST || normalized === WWW_HOST;
 }
 
 export function isWwwHost(host: string | null): boolean {
