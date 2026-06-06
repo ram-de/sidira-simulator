@@ -139,60 +139,6 @@ export default function AboutPage() {
           color, visible only during a live simulation run.
         </p>
 
-        {/* Rose hairline above founder bios — DESIGN.md §4.4 */}
-        <div
-          style={{
-            borderTop: `0.75px solid ${TOKENS.avira}`,
-            paddingTop: 40,
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: FONT_SANS,
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 1.2,
-              color: TOKENS.inkMuted,
-              margin: 0,
-              marginBottom: 32,
-            }}
-          >
-            Founders
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 40,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  color: TOKENS.ink,
-                  marginBottom: 4,
-                }}
-              >
-                Ram De
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: TOKENS.inkMuted,
-                  lineHeight: 1.6,
-                }}
-              >
-                Product and engineering. Previously building data infrastructure at scale.
-                Started Sidira because the feedback loop from hypothesis to customer reaction
-                was too slow and too expensive to run before the build.
-              </div>
-            </div>
-          </div>
-        </div>
       </article>
     </main>
   );
