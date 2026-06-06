@@ -1,22 +1,19 @@
 ---
 type: session
 domain: frontend_design-changes
-status: active
+status: closed
 started: 2026-06-02
-reopened: 2026-06-06
+closed: 2026-06-06
 owner: ram-de
 ---
 
 # Session: frontend_design-changes — apply DESIGN.md to the full product
 
 ## Goal
-Apply DESIGN.md to the entire frontend.
-- Phase 1 (public homepage, PR #138): complete.
-- Phase 2 & 3 (app.sidira.ai shell restyle + /about page, issue #135, PR #142): complete.
-- Phase 4 (in-product aperture-close animation, issue #136): in progress.
+Apply DESIGN.md to the entire frontend across all phases (1–5). Complete.
 
 ## In Progress
-- [ ] Issue #136 PR — awaiting review / merge
+(nothing — session complete)
 
 ## Completed
 
@@ -107,15 +104,14 @@ See `DESIGN.md` at repo root (merged in PR #134). Quick reference for this sessi
 - "Made by humans" / "Powered by AI" footer badges
 - Stock photo / abstract blobs / mesh patterns / AI shimmer
 
-### Out of scope (deferred, see linked issues)
-- `app.sidira.ai` shell restyle — issue #135 phase 2
-- `/about` page with founder-mode dual-color lockup — issue #135 phase 3
-- In-product aperture-close animation on the result page — issue #136
-- Legacy brand-file cleanup — issue #137
+### Phase 5 — legacy brand file cleanup (issue #137, PR #148, merged 2026-06-06)
+- [x] Verified `frontend/public/brand/` already contained only the four canonical SVGs (files were never committed).
+- [x] Removed stale `sidira-logo*-v2-*` / `*-v3-*` row from DESIGN.md §11 file-reference table.
+- [x] PR #148 squash-merged as `332639c`.
 
 ### Production constraints
 - The `sidira.ai` host currently sits behind Amplify global access control (temporary) until that's flipped off per the phase-5-company-site session. This redesign work can land on `main` without that flip; the visual change shows up once Amplify access control is disabled.
 - Same-origin proxy auth (`SIDIRA_WEB_PROXY_BASIC_AUTH`) still gates internal API calls per the phase-5-auth-hardening work — should not affect the static public homepage.
 
 ## For my cofounder
-Public homepage redesign shipped via PR #138 (squash `24eb992`). DESIGN.md system applied to the `sidira.ai`-host page: lockup, ink/paper palette, Hanken Grotesk + Instrument Serif + JetBrains Mono via `next/font/google`, hairline-separated workflow rows, no colored circles, no gradients, no pills. Responsive collapse below 768px. App shell, /about, and the in-product aperture-close animation remain on issues #135 / #136. Once the Amplify global access control flip on the `phase-5-company-site` session lands, the new public homepage is what visitors to `https://sidira.ai` will see.
+Design system rollout complete across all 5 phases (PRs #138, #142, #147, #148). Every frontend page now imports from `lib/design.ts` (TOKENS, FONT_*, TNUM) — no inline hex or raw font strings. The aperture-close animation fires on running→terminal sim transitions; cold loads get the static mark. `frontend/public/brand/` contains only the four canonical SVGs. If you add a new page, import TOKENS from `@/lib/design` and check DESIGN.md §10 before shipping.
