@@ -16,6 +16,7 @@ import {
   type SimulationLimitsResponse,
   type SimulationRequest,
 } from "@/lib/api";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
 export default function NewSimulationPage() {
   const router = useRouter();
@@ -331,13 +332,13 @@ export default function NewSimulationPage() {
   return (
     <main style={{ maxWidth: 720, margin: "48px auto", padding: "0 24px" }}>
       <h1>Run a simulation</h1>
-      <p style={{ color: "#555" }}>
+      <p style={{ color: TOKENS.inkMuted }}>
         Pick a capability, describe the change you want to test, and a sample of
         personas will react to it.
       </p>
 
       {loadingCaps && (
-        <div style={{ marginTop: 24, color: "#666", fontSize: 14 }}>
+        <div style={{ marginTop: 24, color: TOKENS.inkMuted, fontSize: 14 }}>
           Loading capabilities...
         </div>
       )}
@@ -449,7 +450,7 @@ export default function NewSimulationPage() {
             )}
           </div>
           {limitsError && (
-            <div style={{ ...helperStyle, color: "#8a5a00", marginTop: 4 }}>
+            <div style={{ ...helperStyle, color: TOKENS.inkMuted, marginTop: 4 }}>
               {limitsError} Reload after the backend is reachable.
             </div>
           )}
@@ -596,10 +597,10 @@ function ModelSelectorSection({
           style={{
             ...helperStyle,
             padding: "8px 12px",
-            border: "1px solid #f0d68c",
+            border: `0.75px solid ${TOKENS.warn}`,
             borderRadius: 4,
-            background: "#fff8e6",
-            color: "#8a5a00",
+            background: TOKENS.paperRecessed,
+            color: TOKENS.inkMuted,
           }}
         >
           {error} The backend will use its configured default.
@@ -616,10 +617,10 @@ function ModelSelectorSection({
           style={{
             ...helperStyle,
             padding: "8px 12px",
-            border: "1px solid #f0d68c",
+            border: `0.75px solid ${TOKENS.warn}`,
             borderRadius: 4,
-            background: "#fff8e6",
-            color: "#8a5a00",
+            background: TOKENS.paperRecessed,
+            color: TOKENS.inkMuted,
           }}
         >
           No provider API keys are configured. Submitting without a model
@@ -720,7 +721,7 @@ function ABModeSection({
           alignItems: "center",
           gap: 8,
           fontSize: 14,
-          color: disabled ? "#999" : "#333",
+          color: disabled ? TOKENS.inkMuted : TOKENS.ink,
           cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
@@ -733,7 +734,7 @@ function ABModeSection({
         />
         <span>
           Run as an A/B simulation (treatment vs control){" "}
-          <span style={{ color: "#888", fontWeight: 400 }}>
+          <span style={{ color: TOKENS.inkMuted, fontWeight: 400 }}>
             — predicts a lift, costs ~2×
           </span>
           {stagedRolloutNote && (
@@ -742,7 +743,7 @@ function ABModeSection({
                 marginLeft: 8,
                 fontSize: 11,
                 padding: "2px 8px",
-                borderRadius: 999,
+                borderRadius: 4,
                 background: "#f0e6ff",
                 color: "#5a2ca0",
                 fontWeight: 600,
@@ -801,7 +802,7 @@ function ABModeSection({
             </>
           )}
           {capError && (
-            <div style={{ marginTop: 6, color: "#8a5a00" }}>
+            <div style={{ marginTop: 6, color: TOKENS.inkMuted }}>
               {capError} Reload after the backend is reachable.
             </div>
           )}
@@ -816,11 +817,11 @@ function ABModeSection({
             marginTop: 10,
             marginLeft: 24,
             padding: "10px 12px",
-            background: "#fff7e6",
-            border: "1px solid #f0d090",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.warn}`,
             borderRadius: 6,
             fontSize: 13,
-            color: "#664500",
+            color: TOKENS.ink,
           }}
         >
           <input
@@ -857,7 +858,7 @@ function parsePositiveInt(raw: string): number | null {
 const inputStyle: React.CSSProperties = {
   padding: "10px 12px",
   borderRadius: 6,
-  border: "1px solid #ddd",
+  border: `0.75px solid ${TOKENS.rule}`,
   width: "100%",
   fontSize: 14,
   boxSizing: "border-box",
@@ -872,7 +873,7 @@ const labelStyle: React.CSSProperties = {
 
 const helperStyle: React.CSSProperties = {
   marginTop: 6,
-  color: "#666",
+  color: TOKENS.inkMuted,
   fontSize: 13,
 };
 
@@ -882,9 +883,9 @@ const fieldGroup: React.CSSProperties = {
 };
 
 const primaryBtnStyle: React.CSSProperties = {
-  background: "#111",
-  color: "#fff",
-  border: "1px solid #111",
+  background: TOKENS.ink,
+  color: TOKENS.paper,
+  border: `0.75px solid ${TOKENS.ink}`,
   borderRadius: 6,
   padding: "10px 16px",
   fontWeight: 500,
@@ -894,7 +895,7 @@ const primaryBtnStyle: React.CSSProperties = {
 
 const toggleBtnStyle: React.CSSProperties = {
   background: "transparent",
-  color: "#111",
+  color: TOKENS.ink,
   border: "none",
   padding: 0,
   fontWeight: 500,
@@ -908,21 +909,21 @@ const toggleBtnStyle: React.CSSProperties = {
 const errorBannerStyle: React.CSSProperties = {
   marginTop: 24,
   padding: "12px 16px",
-  background: "#fef2f2",
-  border: "1px solid #fecaca",
+  background: TOKENS.paperRecessed,
+  border: `0.75px solid ${TOKENS.alert}`,
   borderRadius: 6,
-  color: "#991b1b",
+  color: TOKENS.alert,
   fontSize: 14,
 };
 
 const emptyStateStyle: React.CSSProperties = {
   marginTop: 24,
   padding: 16,
-  background: "#fafafa",
+  background: TOKENS.paperElevated,
   borderRadius: 6,
-  color: "#666",
+  color: TOKENS.inkMuted,
   fontSize: 14,
-  border: "1px solid #eee",
+  border: `0.75px solid ${TOKENS.rule}`,
 };
 
 // Phase 5 #101 — Persona filter section.
@@ -949,7 +950,7 @@ function PersonaFilterSection({
 }) {
   if (loading) {
     return (
-      <div style={{ marginTop: 16, fontSize: 13, color: "#888" }}>
+      <div style={{ marginTop: 16, fontSize: 13, color: TOKENS.inkMuted }}>
         Loading personas…
       </div>
     );
@@ -964,9 +965,9 @@ function PersonaFilterSection({
           marginTop: 16,
           padding: "8px 12px",
           fontSize: 13,
-          color: "#a86b00",
-          background: "#fff8e6",
-          border: "1px solid #f0d68c",
+          color: TOKENS.inkMuted,
+          background: TOKENS.paperRecessed,
+          border: `0.75px solid ${TOKENS.warn}`,
           borderRadius: 4,
         }}
       >
@@ -996,7 +997,7 @@ function PersonaFilterSection({
       <label style={labelStyle}>
         Persona filter (optional)
       </label>
-      <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
+      <div style={{ fontSize: 13, color: TOKENS.inkMuted, marginBottom: 8 }}>
         Run only against selected personas. Defaults to all{" "}
         {personas.length} personas in pack <code>{packVersion}</code>. When
         narrowed, the simulator re-weights the selected personas and
@@ -1018,7 +1019,7 @@ function PersonaFilterSection({
           style={{
             background: "transparent",
             border: "none",
-            color: allChecked ? "#aaa" : "#1d4ed8",
+            color: allChecked ? TOKENS.inkMuted : TOKENS.ink,
             cursor: allChecked ? "default" : "pointer",
             padding: 0,
             textDecoration: "underline",
@@ -1034,7 +1035,7 @@ function PersonaFilterSection({
           style={{
             background: "transparent",
             border: "none",
-            color: noneChecked ? "#aaa" : "#1d4ed8",
+            color: noneChecked ? TOKENS.inkMuted : TOKENS.ink,
             cursor: noneChecked ? "default" : "pointer",
             padding: 0,
             textDecoration: "underline",
@@ -1049,7 +1050,7 @@ function PersonaFilterSection({
           listStyle: "none",
           padding: 0,
           margin: 0,
-          border: "1px solid #eee",
+          border: `0.75px solid ${TOKENS.rule}`,
           borderRadius: 6,
         }}
       >
@@ -1060,7 +1061,7 @@ function PersonaFilterSection({
               key={p.id}
               style={{
                 padding: "8px 12px",
-                borderTop: i === 0 ? "none" : "1px solid #f3f3f3",
+                borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
               }}
             >
               <label
@@ -1070,7 +1071,7 @@ function PersonaFilterSection({
                   gap: 10,
                   cursor: disabled ? "not-allowed" : "pointer",
                   fontSize: 14,
-                  color: "#111",
+                  color: TOKENS.ink,
                 }}
               >
                 <input
@@ -1083,7 +1084,7 @@ function PersonaFilterSection({
                 <span
                   style={{
                     fontSize: 12,
-                    color: "#888",
+                    color: TOKENS.inkMuted,
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -1095,12 +1096,12 @@ function PersonaFilterSection({
         })}
       </ul>
       {noneChecked && (
-        <div style={{ marginTop: 6, fontSize: 13, color: "#a30000" }}>
+        <div style={{ marginTop: 6, fontSize: 13, color: TOKENS.alert }}>
           Select at least one persona — empty filter is rejected.
         </div>
       )}
       {!allChecked && !noneChecked && (
-        <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+        <div style={{ marginTop: 6, fontSize: 12, color: TOKENS.inkMuted }}>
           Filtered: {selected.size} of {personas.length} personas. Full
           population_size will be allocated across the selected cohort.
         </div>

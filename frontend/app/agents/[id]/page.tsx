@@ -14,6 +14,7 @@ import {
   type Simulation,
 } from "@/lib/api";
 import { ThumbsControl } from "@/components/ThumbsControl";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
 // sessionStorage key — drafts survive nav round-trips
 // (e.g. clicking through to /agents/[id] from a persona-group [label]
@@ -230,7 +231,7 @@ export default function AgentChatPage() {
   if (notFound) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
           <strong>Agent not found.</strong>
         </div>
       </main>
@@ -239,7 +240,7 @@ export default function AgentChatPage() {
   if (loadError) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
           <strong>Failed to load agent:</strong> {loadError}
         </div>
       </main>
@@ -248,7 +249,7 @@ export default function AgentChatPage() {
   if (!agent) {
     return (
       <main style={pageStyle}>
-        <div style={{ color: "#666", fontSize: 14 }}>Loading agent…</div>
+        <div style={{ color: TOKENS.inkMuted, fontSize: 14 }}>Loading agent…</div>
       </main>
     );
   }
@@ -277,13 +278,13 @@ export default function AgentChatPage() {
       >
         <Link
           href={`/simulations/${agent.metadata.simulation_id}`}
-          style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
+          style={{ color: TOKENS.ink, textDecoration: "none", fontSize: 13 }}
         >
           ← back to simulation
         </Link>
         <Link
           href={personaGroupHref}
-          style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
+          style={{ color: TOKENS.ink, textDecoration: "none", fontSize: 13 }}
         >
           ← back to {persona} ({personaGroupLabel})
         </Link>
@@ -295,10 +296,10 @@ export default function AgentChatPage() {
         aria-label="Agent identity"
       >
         <div style={labelStyle}>Persona</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: "#111" }}>
+        <div style={{ fontSize: 20, fontWeight: 600, color: TOKENS.ink }}>
           {persona}
         </div>
-        <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: TOKENS.inkMuted, marginTop: 2 }}>
           {agent.metadata.persona_id} · pack {agent.metadata.persona_pack_version}
         </div>
         {seed && (
@@ -328,13 +329,13 @@ export default function AgentChatPage() {
         {hypothesisProse && (
           <>
             <div style={labelStyle}>Hypothesis under test</div>
-            <div style={{ fontSize: 14, color: "#333", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: TOKENS.ink, lineHeight: 1.5 }}>
               {hypothesisProse}
             </div>
             <div
               style={{
                 margin: "16px 0 8px 0",
-                borderTop: "1px solid #eee",
+                borderTop: `0.75px solid ${TOKENS.rule}`,
               }}
             />
           </>
@@ -343,7 +344,7 @@ export default function AgentChatPage() {
         <div
           style={{
             fontSize: 14,
-            color: "#222",
+            color: TOKENS.ink,
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
           }}
@@ -365,7 +366,7 @@ export default function AgentChatPage() {
           }}
         >
         {(agent.conversation ?? []).length === 0 ? (
-          <div style={{ fontSize: 14, color: "#888", padding: "8px 0" }}>
+          <div style={{ fontSize: 14, color: TOKENS.inkMuted, padding: "8px 0" }}>
             No follow-ups yet. Ask a question below to start.
           </div>
         ) : (
@@ -375,7 +376,7 @@ export default function AgentChatPage() {
                 key={`${turn.created_at}-${i}`}
                 style={{
                   padding: "10px 0",
-                  borderTop: i === 0 ? "none" : "1px solid #f0f0f0",
+                  borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
                 }}
               >
                 <div
@@ -429,7 +430,7 @@ export default function AgentChatPage() {
                 <div
                   style={{
                     fontSize: 14,
-                    color: "#222",
+                    color: TOKENS.ink,
                     lineHeight: 1.55,
                     whiteSpace: "pre-wrap",
                   }}
@@ -456,8 +457,8 @@ export default function AgentChatPage() {
             aria-live="polite"
             style={{
               fontSize: 13,
-              color: "#a30000",
-              background: "#fdecec",
+              color: TOKENS.alert,
+              background: TOKENS.paperRecessed,
               padding: "8px 12px",
               borderRadius: 4,
               marginBottom: 8,
@@ -483,7 +484,7 @@ export default function AgentChatPage() {
             width: "100%",
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #ddd",
+            border: `0.75px solid ${TOKENS.rule}`,
             fontFamily: "inherit",
             fontSize: 14,
             resize: "vertical",
@@ -502,9 +503,9 @@ export default function AgentChatPage() {
             onClick={() => void handleSend()}
             disabled={sending || !draft.trim()}
             style={{
-              background: "#111",
-              color: "#fff",
-              border: "1px solid #111",
+              background: TOKENS.ink,
+              color: TOKENS.paper,
+              border: `0.75px solid ${TOKENS.ink}`,
               borderRadius: 6,
               padding: "8px 16px",
               fontSize: 14,
@@ -530,8 +531,8 @@ function SeedRow({
 }) {
   return (
     <>
-      <span style={{ color: "#888" }}>{label}</span>
-      <span style={{ color: "#222" }}>{value || "—"}</span>
+      <span style={{ color: TOKENS.inkMuted }}>{label}</span>
+      <span style={{ color: TOKENS.ink }}>{value || "—"}</span>
     </>
   );
 }
@@ -543,16 +544,16 @@ const pageStyle: React.CSSProperties = {
 };
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid #eee",
-  borderRadius: 8,
+  border: `0.75px solid ${TOKENS.rule}`,
+  borderRadius: 4,
   padding: 20,
   marginBottom: 16,
-  background: "#fff",
+  background: TOKENS.paperElevated,
 };
 
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: "#888",
+  color: TOKENS.inkMuted,
   textTransform: "uppercase",
   letterSpacing: 0.5,
   marginBottom: 6,

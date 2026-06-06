@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
 const STEPS = [
   { id: 1, label: "Connect", description: "Snowflake credentials" },
@@ -16,9 +17,9 @@ export default function NewPersonaPackPage() {
   const [step, setStep] = useState(1);
 
   return (
-    <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
+    <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
       <h1>New persona pack</h1>
-      <p style={{ color: "#555" }}>
+      <p style={{ color: TOKENS.inkMuted }}>
         Walk through 7 steps to build a versioned persona pack from your Snowflake data.
       </p>
 
@@ -27,16 +28,17 @@ export default function NewPersonaPackPage() {
       <section
         style={{
           marginTop: 32,
-          border: "1px solid #eee",
-          borderRadius: 8,
+          border: `0.75px solid ${TOKENS.rule}`,
+          borderRadius: 4,
           padding: 24,
           minHeight: 280,
+          background: TOKENS.paperElevated,
         }}
       >
         <h2 style={{ marginTop: 0 }}>
           Step {step}: {STEPS[step - 1].label}
         </h2>
-        <p style={{ color: "#666" }}>{STEPS[step - 1].description}</p>
+        <p style={{ color: TOKENS.inkMuted }}>{STEPS[step - 1].description}</p>
 
         <StepBody step={step} />
 
@@ -73,11 +75,11 @@ function Stepper({ current }: { current: number }) {
             style={{
               flex: 1,
               padding: "10px 12px",
-              borderRadius: 6,
-              border: "1px solid " + (active ? "#111" : "#ddd"),
-              background: done ? "#f4f4f4" : "#fff",
+              borderRadius: 4,
+              border: `0.75px solid ${active ? TOKENS.ink : TOKENS.rule}`,
+              background: done ? TOKENS.paperRecessed : TOKENS.paperElevated,
               fontSize: 13,
-              color: active ? "#111" : "#666",
+              color: active ? TOKENS.ink : TOKENS.inkMuted,
               fontWeight: active ? 600 : 400,
             }}
           >
@@ -133,9 +135,9 @@ function Stub({ message }: { message: string }) {
       style={{
         marginTop: 24,
         padding: 16,
-        background: "#fafafa",
-        borderRadius: 6,
-        color: "#666",
+        background: TOKENS.paperElevated,
+        borderRadius: 4,
+        color: TOKENS.inkMuted,
         fontSize: 14,
         lineHeight: 1.6,
       }}
@@ -148,10 +150,10 @@ function Stub({ message }: { message: string }) {
 function navBtn(disabled: boolean, primary = false): React.CSSProperties {
   return {
     padding: "8px 16px",
-    borderRadius: 6,
-    border: primary ? "1px solid #111" : "1px solid #ddd",
-    background: disabled ? "#f4f4f4" : primary ? "#111" : "#fff",
-    color: disabled ? "#aaa" : primary ? "#fff" : "#111",
+    borderRadius: 4,
+    border: `0.75px solid ${primary ? TOKENS.ink : TOKENS.rule}`,
+    background: disabled ? TOKENS.paperRecessed : primary ? TOKENS.ink : TOKENS.paperElevated,
+    color: disabled ? TOKENS.inkMuted : primary ? TOKENS.paper : TOKENS.ink,
     cursor: disabled ? "not-allowed" : "pointer",
     fontWeight: 500,
   };

@@ -53,6 +53,16 @@ Apply DESIGN.md to the entire frontend.
 - [x] Removed the small dot indicator from the running section (mark in header is canonical).
 - [x] Build clean: `tsc --noEmit` zero errors, `next build` 12/12 pages.
 
+### Phase 4 expansion — full frontend token migration (same PR #147)
+- [x] Design audit of all frontend pages revealed 5 unmigrated pages still using raw hex colors and oversized border-radius.
+- [x] `frontend/app/personas/[id]/page.tsx` — rewritten with TOKENS/FONT_SANS (was 15-line placeholder).
+- [x] `frontend/app/personas/new/page.tsx` — full token migration: TOKENS import, all raw hex → tokens, borderRadius 8→4, navBtn() uses tokens.
+- [x] `frontend/app/agents/[id]/page.tsx` — full token migration: TOKENS import, cardStyle/labelStyle → tokens, all inline hex → tokens, borderRadius 8→4, send button ink/paper.
+- [x] `frontend/app/simulations/new/page.tsx` — full token migration: TOKENS import, all style constants → tokens, borderRadius 999→4 on AB "Coming next" badge, warn token on model/persona filter warnings.
+- [x] `frontend/app/simulations/[id]/personas/[persona_id]/page.tsx` — full token migration: TOKENS import, cardStyle/labelStyle → tokens, arm badge pill borderRadius 999→4 (DESIGN.md §10 refuse list), all inline hex → tokens.
+- [x] `tsc --noEmit` zero errors across all 5 migrated pages.
+- [x] Semantic chat-role colors preserved: #1d4ed8 PM, #0a7d3a agent, #b08d00 synthesis — functional indicators, not brand colors.
+
 ## Key Files
 - `frontend/lib/site-hosts.ts` — host detection (public vs app)
 - `frontend/middleware.ts` — host routing + temp Basic Auth
