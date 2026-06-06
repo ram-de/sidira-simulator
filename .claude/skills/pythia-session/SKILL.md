@@ -75,13 +75,25 @@ Resume a session from a prior context.
 
 ### `/pythia-session save [<domain>]`
 
-Commit and push the current session state so the other founder sees it. **Session commits always land on `main`, never on a feature branch** — see "Session updates land on main" below for why.
+Commit and push the current session state so the other founder sees it. **Where the commit lands depends on whether you're in a worktree** — worktree sessions commit to the feature branch, main-checkout sessions branch-hop to `main`. See "Where session updates land" below for the full rationale.
 
 **Steps:**
 1. If `<domain>` given: use it as the commit message context
 2. If no domain given: resolve active session (same as resume) to get domain; if none found, use "context update"
-3. Capture the current branch: `CURRENT=$(git branch --show-current)`
-4. If `CURRENT != main`: do the branch-hop dance:
+3. Detect whether you're in a worktree (the `PreCompact` hook uses the same check):
+   ```bash
+   [ "$(git rev-parse --git-common-dir)" != "$(git rev-parse --git-dir)" ] && echo worktree || echo main-checkout
+   ```
+
+**Worktree session (normal case for feature work) — commit directly to the feature branch, NO branch-hop:**
+```bash
+git add sessions/ && git commit -m "session: <domain> — save" && git push origin "$(git branch --show-current)"
+```
+The session file rides the PR and lands on `main` when it merges. Tell the user: "Session committed to the feature branch — it'll land on `main` when the PR merges." Done — skip the dance below.
+
+**Main-checkout session (rare) — branch-hop so the file lands on `main` immediately:**
+1. Capture the current branch: `CURRENT=$(git branch --show-current)`
+2. If `CURRENT != main`: do the branch-hop dance:
    ```bash
    # Stash only the session file (leave code changes alone on the feature branch)
    git stash push -m "pythia-session-save" sessions/
@@ -92,18 +104,18 @@ Commit and push the current session state so the other founder sees it. **Sessio
    git checkout --theirs sessions/<domain>/context.md
    git add sessions/<domain>/context.md
    ```
-5. On `main`, commit + push:
+3. On `main`, commit + push:
    ```bash
    git add sessions/ && git commit -m "session: <domain> — save" && git push origin main
    ```
-6. If push fails due to diverged history: `git pull --rebase && git push origin main`
-7. If we hopped from a feature branch: `git checkout "$CURRENT"`. The session file on the feature branch is now a stale duplicate of what's on main — discard any leftover diff on that branch so the next merge doesn't conflict:
+4. If push fails due to diverged history: `git pull --rebase && git push origin main`
+5. If we hopped from a feature branch: `git checkout "$CURRENT"`. The session file on the feature branch is now a stale duplicate of what's on main — discard any leftover diff on that branch so the next merge doesn't conflict:
    ```bash
    git checkout origin/main -- sessions/<domain>/context.md
    ```
-8. Tell the user: "Session pushed to main. Cofounder will see this on next `git pull`."
+6. Tell the user: "Session pushed to main. Cofounder will see this on next `git pull`."
 
-**Why the dance:** if the session file lives on both `main` (via `/pythia-session save`) and a feature branch (via in-flight edits), merging the PR creates a conflict every time both sides have moved. Keeping session commits exclusively on `main` removes that whole class of conflict. We learned this the hard way during PR #64.
+**Why two paths:** the PR #64 conflict happens only when the session file lives on BOTH `main` (via save) AND a feature branch (via in-flight edits) and both sides move. The fix is a single source of truth per session type: branch-only for worktree sessions (lands on main at merge), main-only for main-checkout sessions (the branch-hop dance).
 
 ### `/pythia-session list`
 

@@ -50,7 +50,7 @@ All PR and feature branch work MUST be done through an isolated worktree.
 
 - **MUST call `EnterWorktree` before starting any branch or PR work.** Never edit code on a named branch in the main checkout — always get a fresh worktree first.
 - After the PR is merged (or abandoned), call `ExitWorktree` to clean up.
-- The only exception is session file commits (`/pythia-session save`) — those are committed directly on `main` via the branch-hop dance, never through a worktree.
+- Session file commits (`/pythia-session save`) are the one kind of commit that may land on a feature branch: a **worktree session** commits its session file directly to the feature branch, where it rides the PR and lands on `main` at merge. Only a **main-checkout session** (rare) uses the branch-hop dance to commit directly on `main`.
 
 ### Never Do
 
