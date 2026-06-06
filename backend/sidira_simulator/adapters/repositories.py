@@ -45,19 +45,36 @@ async def _release_read_transaction(session: AsyncSession) -> None:
 
 
 class CustomerRepo(Protocol):
-    async def ensure_exists(self, customer_id: str, name: str | None = None) -> None: ...
+    async def ensure_exists(
+        self, customer_id: str, name: str | None = None, clerk_org_id: str | None = None
+    ) -> None: ...
 
 
 class PostgresCustomerRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def ensure_exists(self, customer_id: str, name: str | None = None) -> None:
-        stmt = (
-            pg_insert(Customer)
-            .values(id=customer_id, name=name or customer_id)
-            .on_conflict_do_nothing(index_elements=[Customer.id])
+    async def ensure_exists(
+        self, customer_id: str, name: str | None = None, clerk_org_id: str | None = None
+    ) -> None:
+        insert = pg_insert(Customer).values(
+            id=customer_id, name=name or customer_id, clerk_org_id=clerk_org_id
         )
+        # Only the Clerk webhook carries a clerk_org_id; the simulation path never
+        # does. Use that as the discriminator: webhook deliveries backfill the
+        # org name + clerk_org_id onto a row a prior simulation may have created
+        # with placeholder values (the signup-then-act race), while the
+        # orchestrator's bare ensure_exists keeps plain DO NOTHING semantics.
+        if clerk_org_id is not None:
+            stmt = insert.on_conflict_do_update(
+                index_elements=[Customer.id],
+                set_={
+                    "name": insert.excluded.name,
+                    "clerk_org_id": insert.excluded.clerk_org_id,
+                },
+            )
+        else:
+            stmt = insert.on_conflict_do_nothing(index_elements=[Customer.id])
         await self._session.execute(stmt)
         await _commit(self._session)
 
@@ -66,8 +83,22 @@ class InMemoryCustomerRepo:
     def __init__(self) -> None:
         self._customers: dict[str, dict[str, Any]] = {}
 
-    async def ensure_exists(self, customer_id: str, name: str | None = None) -> None:
-        self._customers.setdefault(customer_id, {"id": customer_id, "name": name or customer_id})
+    async def ensure_exists(
+        self, customer_id: str, name: str | None = None, clerk_org_id: str | None = None
+    ) -> None:
+        existing = self._customers.get(customer_id)
+        if existing is None:
+            self._customers[customer_id] = {
+                "id": customer_id,
+                "name": name or customer_id,
+                "clerk_org_id": clerk_org_id,
+            }
+        elif clerk_org_id is not None:
+            # Webhook delivery backfills profile fields onto a row a prior
+            # simulation created with placeholders; mirrors the Postgres
+            # on_conflict_do_update path above.
+            existing["name"] = name or customer_id
+            existing["clerk_org_id"] = clerk_org_id
 
 
 # ──────────────────────────────────────────────────────────────────────

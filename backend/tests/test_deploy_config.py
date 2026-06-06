@@ -79,13 +79,16 @@ def test_public_api_is_gated_by_backend_internal_key() -> None:
     assert "basic_auth" in caddy
     assert "header_up -Authorization" in caddy
     assert "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" in caddy
-    assert caddy.index("basic_auth") < caddy.index(
-        "header_up -Authorization"
-    ) < caddy.index(
-        "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}"
+    assert (
+        caddy.index("basic_auth")
+        < caddy.index("header_up -Authorization")
+        < caddy.index("header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}")
     )
     assert 'request.headers.get("x-sidira-internal-key")' in app
-    assert 'request.url.path == "/health"' in app
+    # /health (and the signature-verified Clerk webhook) bypass the gates via the
+    # _PUBLIC_PATHS allowlist.
+    assert "request.url.path in _PUBLIC_PATHS" in app
+    assert '"/health"' in app
     assert 'JSONResponse({"detail": "Not found"}, status_code=404)' in app
     assert "SIDIRA_API_ENV_FILE" in compose
     assert "SIDIRA_INTERNAL_API_KEY" in deploy

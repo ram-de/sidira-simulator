@@ -15,9 +15,53 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] (nothing actively in flight — #29 merged; pick the next ticket from Next Steps)
+- [ ] #31 — Clerk webhook → customer provisioning: code complete + reviewed, PR open (awaiting merge)
 
 ## Completed
+
+### #31 — Clerk webhook → customer (tenant) provisioning (CODE COMPLETE — PR open)
+- **Tenancy model decision: customer = Clerk Organization** (one customer/tenant
+  with many users). Webhook handles `organization.created` (NOT `user.created`).
+  `customer.id == clerk org_id`: the gate's `_extract_customer_id` returns the raw
+  `org_id` session claim directly as the tenant key (no DB lookup), and `org_id`
+  is the R2 prefix root (`customers/{id}/…`), so global uniqueness prevents prefix
+  conflicts.
+- New `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk`:
+  returns **503** when `SIDIRA_CLERK_WEBHOOK_SECRET` unset (refuses to act on
+  unverifiable deliveries); Svix-verifies every delivery (**401** on bad sig,
+  via `except (WebhookVerificationError, ValueError)` so malformed base64 can't
+  500); on `organization.created` → `ensure_exists(org_id, name, clerk_org_id=org_id)`
+  → **200** `{status: ok, customer_id}`; **400** if org id missing; **200**
+  `{status: ignored}` for other events. Public path: signature IS the auth.
+- Webhook signing secret is **independent of the session gate** — `auth.py`
+  adds `clerk_webhook_secret()` (reads `CLERK_WEBHOOK_SECRET`), distinct from
+  `CLERK_SECRET_KEY`. Safe to enable in prod alone (endpoint never sees app
+  traffic), unlike the session gate which is still blocked on #149 + #32.
+- `main.py`: `_PUBLIC_PATHS = frozenset({"/health", "/webhooks/clerk"})`; both
+  gates now check `request.url.path in _PUBLIC_PATHS` so the webhook bypasses the
+  session + internal-key gates. Registered `webhooks.router`.
+- `repositories.py` `ensure_exists` gained optional `clerk_org_id` (Protocol +
+  Postgres + InMemory), backward-compatible.
+- **Codex P2 fixed (signup-then-act race):** if a signed-in org hit
+  `POST /simulations` before the async `organization.created` landed, the
+  orchestrator created a placeholder row (`name == org id`, `clerk_org_id` NULL)
+  and the webhook's `ON CONFLICT DO NOTHING` then no-op'd, leaving the record
+  unpopulated. Fix: webhook calls now `on_conflict_do_update` the profile fields,
+  discriminated on `clerk_org_id IS NOT NULL` (only the webhook passes it), so
+  the orchestrator path keeps exact `DO NOTHING` semantics. Mirrored in InMemory.
+  Codex re-review: "No actionable bugs found … race appears resolved."
+- No new migration: `clerk_org_id` column already exists in `001_initial.py`.
+- Added `svix>=1.40` to `backend/pyproject.toml`.
+- Tests: new `backend/tests/test_clerk_webhook.py` (8 — secret/sig/provision/
+  backfill/idempotency/missing-id/ignored/gate-bypass); +2 repo tests in
+  `test_postgres_deps.py` (DO UPDATE SQL + InMemory backfill-then-resist-clobber);
+  `test_deploy_config.py` asserts `_PUBLIC_PATHS`.
+- Deploy: `ec2-api-deploy.sh` reads + `write_env`s `SIDIRA_CLERK_WEBHOOK_SECRET`
+  (unset → endpoint 503s). Documented in `backend/.env.example`.
+- Verification: **416 passed / 11 skipped**; ruff + black clean; deploy `bash -n`
+  OK. `/codex review` run twice (1 P2 found → fixed → clean).
+- GitNexus MCP not connected this session — impact analysis on `ensure_exists`
+  done manually (2 callers, optional param, LOW risk, backward-compatible).
 
 ### #29 — Clerk SDK install + FastAPI auth middleware (MERGED — PR #150, `a45934f`)
 - PR #150 squash-merged to `main` as `a45934f`; **issue #29 auto-closed**.
@@ -77,12 +121,14 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **Pick the next ticket** from the chain #29 unblocked. Recommended order:
-   - **#31 — signup + initial customer record** (do first): until signup writes
-     the tenant claim, the gate's `customer_id` claim chain resolves to `None`
-     and every authenticated request 403s. This makes the gate actually usable.
+1. **#31 PR open — awaiting review/merge.** After merge, the webhook provisions a
+   `customers` row per Clerk Organization. Configure `SIDIRA_CLERK_WEBHOOK_SECRET`
+   in SSM + register the Clerk webhook endpoint (`organization.created`) to
+   activate in prod (safe on its own — independent of the still-blocked session gate).
+2. **Pick the next ticket** from the chain #29 unblocked:
    - **#32 — frontend Clerk pages** (sign-in/up UI + Next middleware sends the
-     token): also one of the two prod-enablement blockers below.
+     token): one of the two prod-enablement blockers below. With #31 landed,
+     signup now writes the org → tenant record the gate reads.
    - **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
      by `customer_id`): can run in parallel, hardens the multi-tenancy the gate
      now enforces.
@@ -92,8 +138,10 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
    flipping it on today would 401 all app traffic.
 
 ## Key Files
-- `backend/sidira_simulator/api/auth.py` — Clerk client + `authenticate()` + `clerk_configured()` (#29)
-- `backend/sidira_simulator/main.py` — `clerk_auth_gate` middleware (401/403)
+- `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk` org→customer provisioning (#31)
+- `backend/sidira_simulator/api/auth.py` — Clerk client + `authenticate()` + `clerk_configured()` (#29) + `clerk_webhook_secret()` (#31)
+- `backend/sidira_simulator/adapters/repositories.py` — `ensure_exists(clerk_org_id)` + conflict-backfill (#31)
+- `backend/sidira_simulator/main.py` — `clerk_auth_gate` middleware (401/403) + `_PUBLIC_PATHS` allowlist (#31)
 - `backend/sidira_simulator/api/deps.py` — `current_customer_id` reads `request.state` first
 - `backend/tests/test_auth_middleware.py` — gate tests (#29)
 - `deploy/Caddyfile.api`, `deploy/ec2-api-deploy.sh` — EC2 runtime proxy + SSM secret loading
@@ -122,5 +170,9 @@ This is now the single umbrella session for all Phase 5 auth work. #124/#131
 wired but **inert in prod by design** (secret unset). Before anyone enables it in
 production, both #149 (Caddy must forward Authorization instead of stripping it)
 and #32 (Next middleware must send the token) have to land, or the gate 401s all
-app traffic. Next ticket to start is **#31** (signup writes the tenant claim the
-gate reads — without it authenticated requests 403); #32 and #30 follow.
+app traffic. **#31 is now code-complete with a PR open** — the
+`POST /webhooks/clerk` endpoint provisions one customer per Clerk Organization
+(customer = tenant with many users) from `organization.created`, signature-verified
+via Svix, and is safe to enable in prod on its own (independent of the still-blocked
+session gate). Next tickets are **#32** (frontend Clerk pages — also a gate
+prod-enablement blocker) and **#30** (customer-scoping audit, parallel).

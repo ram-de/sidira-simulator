@@ -203,6 +203,34 @@ async def test_postgres_customer_ensure_exists_is_atomic() -> None:
 
 
 @pytest.mark.asyncio
+async def test_postgres_customer_ensure_exists_backfills_clerk_fields_on_conflict() -> None:
+    # A webhook delivery carries clerk_org_id, so the conflict path must UPDATE
+    # the profile fields (closing the signup-then-act race) rather than skip.
+    session = _StatementRecordingSession()
+    repo = PostgresCustomerRepo(session)
+
+    await repo.ensure_exists("org_x", name="Acme", clerk_org_id="org_x")
+
+    assert session.committed is True
+    sql = str(session.statements[0].compile(dialect=postgresql.dialect()))
+    assert "ON CONFLICT (id) DO UPDATE" in sql
+    assert "clerk_org_id" in sql
+
+
+@pytest.mark.asyncio
+async def test_in_memory_customer_ensure_exists_backfills_then_resists_clobber() -> None:
+    repo = InMemoryCustomerRepo()
+    # Orchestrator creates a placeholder row first (no clerk_org_id).
+    await repo.ensure_exists("org_x")
+    # Webhook backfills the org name + clerk_org_id.
+    await repo.ensure_exists("org_x", name="Acme", clerk_org_id="org_x")
+    assert repo._customers["org_x"] == {"id": "org_x", "name": "Acme", "clerk_org_id": "org_x"}
+    # A later bare ensure_exists (orchestrator path) must NOT clobber the name.
+    await repo.ensure_exists("org_x", name="org_x")
+    assert repo._customers["org_x"]["name"] == "Acme"
+
+
+@pytest.mark.asyncio
 async def test_postgres_agent_listing_is_ordered_and_releases_read_transaction() -> None:
     session = _StatementRecordingSession(_EmptyScalarResult())
     repo = PostgresAgentInstanceRepo(session)
@@ -279,7 +307,9 @@ class _RecordingRepo:
     name: str
     calls: list[str]
 
-    async def ensure_exists(self, customer_id: str, name: str | None = None) -> None:
+    async def ensure_exists(
+        self, customer_id: str, name: str | None = None, clerk_org_id: str | None = None
+    ) -> None:
         self.calls.append(f"{self.name}.ensure_exists")
 
     async def create(self, **kwargs: Any) -> None:

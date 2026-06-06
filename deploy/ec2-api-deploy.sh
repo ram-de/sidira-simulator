@@ -104,6 +104,7 @@ local_cred_key="$(ssm_value SIDIRA_LOCAL_CRED_KEY)"
 internal_api_key="$(ssm_value SIDIRA_INTERNAL_API_KEY)"
 clerk_secret_key="$(ssm_value SIDIRA_CLERK_SECRET_KEY)"
 clerk_authorized_parties="$(ssm_value SIDIRA_CLERK_AUTHORIZED_PARTIES)"
+clerk_webhook_secret="$(ssm_value SIDIRA_CLERK_WEBHOOK_SECRET)"
 web_proxy_basic_auth_user="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_USER)"
 web_proxy_basic_auth_hash="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_HASH)"
 database_url="$(ssm_value DATABASE_URL)"
@@ -144,6 +145,11 @@ write_env SIDIRA_INTERNAL_API_KEY "$internal_api_key"
 # empty values), preserving the pre-auth deploy behavior.
 write_env SIDIRA_CLERK_SECRET_KEY "$clerk_secret_key"
 write_env SIDIRA_CLERK_AUTHORIZED_PARTIES "$clerk_authorized_parties"
+# Clerk webhook signing secret (whsec_…). Independent of the session gate above:
+# /webhooks/clerk is signature-verified and safe to enable in prod on its own,
+# since it never sees app traffic. Unset -> the endpoint 503s (refuses to act on
+# unverifiable deliveries); write_env skips empty values.
+write_env SIDIRA_CLERK_WEBHOOK_SECRET "$clerk_webhook_secret"
 write_env SIDIRA_WEB_PROXY_BASIC_AUTH_USER "$web_proxy_basic_auth_user"
 write_env SIDIRA_WEB_PROXY_BASIC_AUTH_HASH "$web_proxy_basic_auth_hash"
 write_env DATABASE_URL "$database_url"
