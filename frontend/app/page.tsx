@@ -48,7 +48,7 @@ function ProductHome() {
         color: TOKENS.ink,
       }}
     >
-      <h1 style={{ fontFamily: FONT_SANS, fontSize: 40, fontWeight: 600, margin: 0, color: TOKENS.ink }}>Sidira</h1>
+      <h1 style={{ fontFamily: FONT_NARROW, fontSize: 40, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", margin: 0, color: TOKENS.ink }}>Sidira</h1>
       <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
         Validate product hypotheses before you build them.
       </p>
