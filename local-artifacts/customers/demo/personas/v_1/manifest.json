@@ -1,0 +1,26 @@
+{
+  "version": "v_1",
+  "customer_id": "demo",
+  "generated_at": "2026-05-01T18:00:00Z",
+  "schema_version": "1.0",
+  "stability_score": 0.82,
+  "persona_count": 6,
+  "persona_ids": [
+    "maya_late_night_premium",
+    "dom_promo_driven_restaurant",
+    "priya_grocery_stockup",
+    "lex_new_explorer",
+    "jordan_lapsing_disengaged",
+    "sam_speed_pragmatist"
+  ],
+  "build_metadata": {
+    "source": "hand-built fixture for demo (food delivery vertical)",
+    "llm_provider": "n/a — hand-authored",
+    "calibration_status": "uncalibrated",
+    "weight_dimensions": {
+      "head_count": "fraction of active user base",
+      "order_weighted": "fraction of weekly orders placed",
+      "revenue_weighted": "fraction of GMV"
+    }
+  }
+}

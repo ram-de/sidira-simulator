@@ -1,0 +1,133 @@
+{
+  "screens": [
+    {
+      "id": "home",
+      "name": "Home",
+      "role": null,
+      "components": [
+        {
+          "id": "home.order_again_rail",
+          "role": "carousel",
+          "text": "Order again",
+          "visible_to_roles": ["member", "premium_member"],
+          "states": [
+            {"name": "default", "text": "Order again"},
+            {"name": "empty", "text": "Your recent orders will appear here"}
+          ]
+        },
+        {
+          "id": "home.order_again_tile",
+          "role": "card",
+          "text": "Restaurant logo, order summary, days since order, Reorder button",
+          "visible_to_roles": ["member", "premium_member"],
+          "states": [
+            {"name": "default"},
+            {"name": "restaurant_closed", "text": "Closed now"},
+            {"name": "loading"}
+          ]
+        },
+        {
+          "id": "home.sign_in_cta",
+          "role": "card",
+          "text": "Sign in to reorder your favorites.",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default", "text": "Sign in to reorder your favorites."}
+          ]
+        },
+        {
+          "id": "home.dashpass_badge",
+          "role": "chip",
+          "text": "Free delivery",
+          "visible_to_roles": ["premium_member"],
+          "states": [
+            {"name": "default", "text": "Free delivery"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cart",
+      "name": "Cart",
+      "role": null,
+      "components": [
+        {
+          "id": "cart.item_list",
+          "role": "list",
+          "text": "Pre-filled items from previous order",
+          "visible_to_roles": ["member", "premium_member"],
+          "states": [
+            {"name": "default"},
+            {"name": "item_unavailable", "text": "{n} items unavailable — removed from cart."}
+          ]
+        },
+        {
+          "id": "cart.price_change_banner",
+          "role": "banner",
+          "text": "Prices have changed since your last order.",
+          "visible_to_roles": ["member", "premium_member"],
+          "states": [
+            {"name": "default", "text": "Prices have changed since your last order."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "auth_login",
+      "name": "Sign In",
+      "role": "guest",
+      "components": [
+        {
+          "id": "auth.email_field",
+          "role": "input",
+          "text": "Email",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "auth.password_field",
+          "role": "input",
+          "text": "Password",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "tap home.sign_in_cta",
+      "from_screen": "home",
+      "to_screen": "auth_login",
+      "role_gated": ["guest"]
+    },
+    {
+      "trigger": "tap home.order_again_tile Reorder button",
+      "from_screen": "home",
+      "to_screen": "cart",
+      "role_gated": ["member", "premium_member"]
+    },
+    {
+      "trigger": "tap home.order_again_tile (restaurant closed)",
+      "from_screen": "home",
+      "to_screen": "home",
+      "role_gated": ["member", "premium_member"]
+    },
+    {
+      "trigger": "successful login from reorder CTA",
+      "from_screen": "auth_login",
+      "to_screen": "home",
+      "role_gated": ["guest"]
+    },
+    {
+      "trigger": "tap cart Go to checkout",
+      "from_screen": "cart",
+      "to_screen": "checkout",
+      "role_gated": ["member", "premium_member"]
+    }
+  ]
+}

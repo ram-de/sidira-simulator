@@ -1,0 +1,161 @@
+{
+  "version": "v_1",
+  "customer_id": "demo",
+  "generated_at": "2026-05-01T18:00:00Z",
+  "schema_version": "1.0",
+  "stability_score": 0.82,
+  "personas": [
+    {
+      "id": "maya_late_night_premium",
+      "name": "Late-night premium orderer",
+      "description": "A 29-year-old DashPass subscriber who orders 4-5 times per week, predominantly after 9 PM. She works long hours and treats food delivery as a stress-free dinner ritual, not a convenience trade-off. She has a narrow set of trusted restaurants — 3 or 4 she cycles through weekly — and almost never browses the full catalog. She pays the DashPass fee without blinking; zero-delivery-fee is a given she no longer consciously appreciates. Her biggest friction is rebuilding her order from scratch after a restaurant menu changes slightly. A one-tap reorder from her home screen would save her 90 seconds she doesn't have at 10 PM.",
+      "jtbd": "Get me back to my usual order from my usual restaurant with zero decisions.",
+      "behavioral_snapshot": {
+        "weekly_orders": 4.4,
+        "subscription_tier": "dashpass",
+        "avg_order_hour": 21.6,
+        "restaurant_repeat_rate": 0.82,
+        "avg_reorder_rate": 0.71,
+        "cart_rebuild_friction_score": 0.78,
+        "lifestage": "Engaged Heavy"
+      },
+      "centroid_features": {
+        "order_frequency_z": 1.62,
+        "loyalty_concentration_z": 1.78,
+        "reorder_propensity_z": 1.45,
+        "browse_dependency_z": -1.33
+      }
+    },
+    {
+      "id": "dom_promo_driven_restaurant",
+      "name": "Promo-driven restaurant orderer",
+      "description": "A 34-year-old who orders 2-3 times per week, primarily from restaurants with active discounts or 'free item' promotions. Not a DashPass subscriber — evaluates delivery fee + discount per order. Rarely reorders; the promo is the draw, not the restaurant loyalty. Has a well-trained 'deals' filter he applies before even seeing the menu. A one-tap reorder doesn't solve his problem because the promo is usually gone by the time he'd reorder. He does use the checkout flow heavily — tends to compare 2-3 restaurants before committing.",
+      "jtbd": "Find the best deal available right now and get the food without hidden fees.",
+      "behavioral_snapshot": {
+        "weekly_orders": 2.3,
+        "subscription_tier": "none",
+        "promo_attach_rate": 0.81,
+        "restaurant_repeat_rate": 0.29,
+        "avg_reorder_rate": 0.14,
+        "avg_restaurants_browsed_per_session": 2.8,
+        "lifestage": "Engaged Light"
+      },
+      "centroid_features": {
+        "promo_sensitivity_z": 2.04,
+        "browse_intensity_z": 1.41,
+        "reorder_propensity_z": -1.62,
+        "subscription_propensity_z": -1.34
+      }
+    },
+    {
+      "id": "priya_grocery_stockup",
+      "name": "Grocery stock-up orderer",
+      "description": "A 41-year-old who uses the app primarily for grocery and household item delivery — not restaurant orders. Places 1-2 large orders per week, almost always Saturday morning. The cart is complex: 15-25 items, mixing fresh produce, pantry staples, and cleaning supplies. She has a strong mental model of what she needs and dislikes the app pushing restaurant suggestions on the grocery home rail. Substitutions frustrate her most — when an item is out, the auto-substitute is often wrong and she has to edit post-delivery. Reorder is useful to her but at the grocery level ('reorder my weekly shop'), not the item level.",
+      "jtbd": "Get my weekly groceries delivered reliably on Saturday morning without substitution surprises.",
+      "behavioral_snapshot": {
+        "weekly_orders": 1.8,
+        "subscription_tier": "dashpass",
+        "avg_items_per_cart": 18.4,
+        "grocery_share_of_orders": 0.88,
+        "saturday_order_share": 0.72,
+        "substitution_rejection_rate": 0.61,
+        "lifestage": "Engaged Grocery"
+      },
+      "centroid_features": {
+        "cart_complexity_z": 2.11,
+        "grocery_vertical_z": 1.94,
+        "schedule_regularity_z": 1.58,
+        "substitution_friction_z": 1.44
+      }
+    },
+    {
+      "id": "lex_new_explorer",
+      "name": "New user explorer",
+      "description": "A 23-year-old who installed the app 11 days ago and has completed 4 orders, all from different restaurants. Still building their mental model of the app — has explored the 'cuisine' filter twice, checked the tracking screen on every order, and left feedback (stars) on 3 out of 4 deliveries. Highly sensitive to first-order friction: a confusing checkout state or a missing promo code field nearly caused abandonment on order 2. Strongly influenced by 'popular' and 'top-rated' social signals. No strong reorder behavior yet — they're still in discovery mode.",
+      "jtbd": "Figure out which restaurants are worth ordering from and build a reliable go-to list.",
+      "behavioral_snapshot": {
+        "total_orders": 4,
+        "days_since_signup": 11,
+        "subscription_tier": "none",
+        "restaurant_repeat_rate": 0.0,
+        "cuisine_filter_uses": 2,
+        "feedback_submission_rate": 0.75,
+        "lifestage": "New / Explorer"
+      },
+      "centroid_features": {
+        "tenure_z": -1.88,
+        "exploration_intensity_z": 1.71,
+        "reorder_propensity_z": -1.94,
+        "social_signal_sensitivity_z": 1.52
+      }
+    },
+    {
+      "id": "jordan_lapsing_disengaged",
+      "name": "Lapsing disengaged user",
+      "description": "A 38-year-old who ordered 8-10 times per month six months ago but has placed only 1 order in the last 30 days. No clear precipitating event — prices crept up, a competing app ran a sign-up promo, and the habit just faded. Still has the app; gets push notifications but rarely opens them. Not a DashPass subscriber since the subscription lapsed two months ago. Unlikely to reorder even if prompted — the activation energy to remember why they liked the app in the first place is too high. Price sensitivity is the main lever.",
+      "jtbd": "Honestly, I'd need a strong reason to go back to ordering regularly.",
+      "behavioral_snapshot": {
+        "orders_last_30d": 1,
+        "orders_peak_month": 9.4,
+        "subscription_tier": "none",
+        "days_since_dashpass_lapse": 61,
+        "push_open_rate_30d": 0.06,
+        "price_sensitivity_score": 0.81,
+        "lifestage": "Lapsing At Risk"
+      },
+      "centroid_features": {
+        "order_frequency_z": -1.71,
+        "recency_z": -1.62,
+        "price_sensitivity_z": 1.78,
+        "reachability_z": -1.44
+      }
+    },
+    {
+      "id": "sam_speed_pragmatist",
+      "name": "Speed-first pragmatist",
+      "description": "A 31-year-old who places 3-4 orders per week, always from restaurants with under 30-minute estimated delivery. Never browses; goes straight to search, types a cuisine or dish, filters by ETA, and orders the first result that has >4 stars and no minimum above $12. Has abandoned the checkout flow twice when the total exceeded expectations at the confirmation step. A DashPass subscriber, but primarily for the delivery fee savings on quick orders — would cancel if the benefit didn't materially cut the total. Reorder works for him but only for the same-day use case ('I ordered from here Tuesday, it was fast, I want it again now').",
+      "jtbd": "Get good food from somewhere fast — I don't want to spend more than 2 minutes deciding.",
+      "behavioral_snapshot": {
+        "weekly_orders": 3.6,
+        "subscription_tier": "dashpass",
+        "avg_eta_filter_used": 0.91,
+        "avg_search_to_checkout_seconds": 94,
+        "checkout_abandonment_rate": 0.18,
+        "restaurant_repeat_rate": 0.51,
+        "lifestage": "Engaged Efficient"
+      },
+      "centroid_features": {
+        "speed_sensitivity_z": 2.08,
+        "browse_dependency_z": -1.54,
+        "checkout_friction_sensitivity_z": 1.38,
+        "order_frequency_z": 1.11
+      }
+    }
+  ],
+  "weights": {
+    "head_count": {
+      "maya_late_night_premium": 0.19,
+      "dom_promo_driven_restaurant": 0.21,
+      "priya_grocery_stockup": 0.14,
+      "lex_new_explorer": 0.09,
+      "jordan_lapsing_disengaged": 0.17,
+      "sam_speed_pragmatist": 0.20
+    },
+    "order_weighted": {
+      "maya_late_night_premium": 0.28,
+      "dom_promo_driven_restaurant": 0.19,
+      "priya_grocery_stockup": 0.11,
+      "lex_new_explorer": 0.03,
+      "jordan_lapsing_disengaged": 0.04,
+      "sam_speed_pragmatist": 0.35
+    },
+    "revenue_weighted": {
+      "maya_late_night_premium": 0.26,
+      "dom_promo_driven_restaurant": 0.15,
+      "priya_grocery_stockup": 0.18,
+      "lex_new_explorer": 0.04,
+      "jordan_lapsing_disengaged": 0.06,
+      "sam_speed_pragmatist": 0.31
+    }
+  }
+}

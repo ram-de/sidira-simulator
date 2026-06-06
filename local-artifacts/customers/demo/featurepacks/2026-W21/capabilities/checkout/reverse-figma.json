@@ -1,0 +1,170 @@
+{
+  "screens": [
+    {
+      "id": "checkout",
+      "name": "Checkout",
+      "role": null,
+      "components": [
+        {
+          "id": "checkout.address_section",
+          "role": "form_section",
+          "text": "Delivery address",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default"},
+            {"name": "out_of_zone", "text": "We don't deliver to this address from this restaurant."}
+          ]
+        },
+        {
+          "id": "checkout.payment_section",
+          "role": "form_section",
+          "text": "Payment",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default"},
+            {"name": "declined", "text": "Your payment didn't go through. Please check your card details."}
+          ]
+        },
+        {
+          "id": "checkout.promo_code_field",
+          "role": "input",
+          "text": "Promo code",
+          "visible_to_roles": ["member", "premium_member"],
+          "states": [
+            {"name": "collapsed"},
+            {"name": "expanded"},
+            {"name": "invalid", "text": "Code not valid or already used."},
+            {"name": "applied", "text": "Promo applied!"}
+          ]
+        },
+        {
+          "id": "checkout.fee_breakdown",
+          "role": "table",
+          "text": "Subtotal, delivery fee, service fee, taxes, tip",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default"},
+            {"name": "dashpass_applied", "text": "Delivery: $0.00 (DashPass)"}
+          ]
+        },
+        {
+          "id": "checkout.dashpass_zero_delivery_chip",
+          "role": "chip",
+          "text": "DashPass: $0 delivery",
+          "visible_to_roles": ["premium_member"],
+          "states": [
+            {"name": "default", "text": "DashPass: $0 delivery"}
+          ]
+        },
+        {
+          "id": "checkout.place_order_button",
+          "role": "button",
+          "text": "Place order",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default", "text": "Place order"},
+            {"name": "loading", "text": "Placing order…"},
+            {"name": "error"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "order_confirmation",
+      "name": "Order Confirmation",
+      "role": null,
+      "components": [
+        {
+          "id": "confirmation.order_id",
+          "role": "text",
+          "text": "Order #XXXXXX confirmed",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "confirmation.eta",
+          "role": "text",
+          "text": "Arriving in {eta_minutes} minutes",
+          "visible_to_roles": ["guest", "member", "premium_member"],
+          "states": [
+            {"name": "default"}
+          ]
+        },
+        {
+          "id": "confirmation.dashpass_savings",
+          "role": "chip",
+          "text": "You saved $X.XX with DashPass",
+          "visible_to_roles": ["premium_member"],
+          "states": [
+            {"name": "default"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guest_checkout_entry",
+      "name": "Guest Checkout Entry",
+      "role": "guest",
+      "components": [
+        {
+          "id": "guest_checkout.signin_prompt",
+          "role": "banner",
+          "text": "Sign in for faster checkout",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default", "text": "Sign in for faster checkout"}
+          ]
+        },
+        {
+          "id": "guest_checkout.email_field",
+          "role": "input",
+          "text": "Email for order updates",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "tap checkout.place_order_button (guest path)",
+      "from_screen": "checkout",
+      "to_screen": "order_confirmation",
+      "role_gated": ["guest"]
+    },
+    {
+      "trigger": "tap checkout.place_order_button (member path)",
+      "from_screen": "checkout",
+      "to_screen": "order_confirmation",
+      "role_gated": ["member"]
+    },
+    {
+      "trigger": "tap checkout.place_order_button (premium path)",
+      "from_screen": "checkout",
+      "to_screen": "order_confirmation",
+      "role_gated": ["premium_member"]
+    },
+    {
+      "trigger": "payment declined",
+      "from_screen": "checkout",
+      "to_screen": "checkout",
+      "role_gated": null
+    },
+    {
+      "trigger": "address out of zone",
+      "from_screen": "checkout",
+      "to_screen": "checkout",
+      "role_gated": null
+    },
+    {
+      "trigger": "tap guest_checkout sign in link",
+      "from_screen": "guest_checkout_entry",
+      "to_screen": "auth_login",
+      "role_gated": ["guest"]
+    }
+  ]
+}
