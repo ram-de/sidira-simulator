@@ -1,9 +1,9 @@
 ---
 type: session
 domain: frontend_design-changes
-status: closed
+status: active
 started: 2026-06-02
-closed: 2026-06-06
+reopened: 2026-06-06
 owner: ram-de
 ---
 
@@ -13,9 +13,10 @@ owner: ram-de
 Apply DESIGN.md to the entire frontend.
 - Phase 1 (public homepage, PR #138): complete.
 - Phase 2 & 3 (app.sidira.ai shell restyle + /about page, issue #135, PR #142): complete.
+- Phase 4 (in-product aperture-close animation, issue #136): in progress.
 
 ## In Progress
-— session complete —
+- [ ] Issue #136 PR — awaiting review / merge
 
 ## Completed
 
@@ -30,7 +31,7 @@ Apply DESIGN.md to the entire frontend.
 - [x] Codex review: 2 rounds, 2 P2s flagged + fixed, R2 clean.
 - [x] PR #138 squash-merged to `main` as commit `24eb992`.
 
-### Phase 2 & 3 — app shell + /about page (PR #142, open 2026-06-06)
+### Phase 2 & 3 — app shell + /about page (PR #142, merged 2026-06-06)
 - [x] Extracted `frontend/lib/design.ts` — shared TOKENS, FONT_*, TNUM constants. All app pages import from here; no more inline redefinition.
 - [x] Extracted `frontend/components/SidiraLockup.tsx` — primary horizontal lockup SVG (mark + SIDIRA wordmark, height prop, currentColor). Used in TopNav and public page.
 - [x] TopNav: SidiraLockup at 32px, `paperElevated` bg, 0.75px `rule` hairline border, ink/inkMuted links, 1.5px ink active underline.
@@ -39,7 +40,28 @@ Apply DESIGN.md to the entire frontend.
 - [x] Simulation detail page (`/simulations/[id]`): comprehensive sweep — purged all `borderRadius: 999` pills, FONT_MONO + TNUM on lift/score/CI/frequency, rule hairline borders, paper tokens on banners, ink progress bar.
 - [x] `/about` page: `SidiraLockupDuo` with 3 Sid-blue (#2C5577) + 3 Avira-rose (#D696C8) blades per DESIGN.md §4.4; Instrument Serif italic h1; name-origin story; 0.75px Avira-rose hairline above founder bios.
 - [x] Build clean: `tsc --noEmit` zero errors, `next build` 11/11 pages, `pytest test_deploy_config` 12 passed.
-- [x] PR #142 open at https://github.com/ram-de/sidira-simulator/pull/142.
+- [x] PR #142 merged.
+
+### Phase 4 — aperture-close animation (issue #136, PR open 2026-06-06)
+- [x] `ApertureMark` component: two stacked inline SVGs (monochrome + duo), CSS keyframes (`sidira-aperture-spin` / `sidira-aperture-mono-fade` / `sidira-aperture-duo-fade`), `<style>` tag injected once per render.
+- [x] Rotation/scale: `rotate(-8deg) scale(0.86)` at 40–60% held frame, `ease-in-out` easing, 3.4s period.
+- [x] Cross-fade: monochrome fades out, duo fades in at the held frame. Dual-color only visible during the held frame.
+- [x] Settle window: 800ms timer fires when sim transitions non-terminal → terminal. Mark keeps animating during settle; goes static+monochrome after.
+- [x] Cold-load: if page opens on a completed sim, `hadRunning` ref is false → mark is static from load.
+- [x] `prefers-reduced-motion`: CSS media query sets `animation: none`, hides duo layer.
+- [x] Zero JS-driven animation, pure CSS keyframes.
+- [x] Removed the small dot indicator from the running section (mark in header is canonical).
+- [x] Build clean: `tsc --noEmit` zero errors, `next build` 12/12 pages.
+
+### Phase 4 expansion — full frontend token migration (same PR #147)
+- [x] Design audit of all frontend pages revealed 5 unmigrated pages still using raw hex colors and oversized border-radius.
+- [x] `frontend/app/personas/[id]/page.tsx` — rewritten with TOKENS/FONT_SANS (was 15-line placeholder).
+- [x] `frontend/app/personas/new/page.tsx` — full token migration: TOKENS import, all raw hex → tokens, borderRadius 8→4, navBtn() uses tokens.
+- [x] `frontend/app/agents/[id]/page.tsx` — full token migration: TOKENS import, cardStyle/labelStyle → tokens, all inline hex → tokens, borderRadius 8→4, send button ink/paper.
+- [x] `frontend/app/simulations/new/page.tsx` — full token migration: TOKENS import, all style constants → tokens, borderRadius 999→4 on AB "Coming next" badge, warn token on model/persona filter warnings.
+- [x] `frontend/app/simulations/[id]/personas/[persona_id]/page.tsx` — full token migration: TOKENS import, cardStyle/labelStyle → tokens, arm badge pill borderRadius 999→4 (DESIGN.md §10 refuse list), all inline hex → tokens.
+- [x] `tsc --noEmit` zero errors across all 5 migrated pages.
+- [x] Semantic chat-role colors preserved: #1d4ed8 PM, #0a7d3a agent, #b08d00 synthesis — functional indicators, not brand colors.
 
 ## Key Files
 - `frontend/lib/site-hosts.ts` — host detection (public vs app)

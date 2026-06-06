@@ -20,6 +20,7 @@ import {
   type UnavailableAgent,
 } from "@/lib/api";
 import { ThumbsControl } from "@/components/ThumbsControl";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
 // Phase 4 #55 + collective mode (PR #82): persona-group chat surface.
 // Spec: docs/agent-chat-ui-spec.md Surface 2 — two modes share one composer.
@@ -277,7 +278,7 @@ export default function PersonaGroupChatPage() {
   if (invalidArm) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
           <strong>Unknown persona-group chat arm.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
@@ -293,7 +294,7 @@ export default function PersonaGroupChatPage() {
   if (notFound) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
           <strong>Persona group not found.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
@@ -308,7 +309,7 @@ export default function PersonaGroupChatPage() {
   if (loadError) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: "#a30000", background: "#fdecec" }}>
+        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
           <strong>Failed to load:</strong> {loadError}
         </div>
       </main>
@@ -317,7 +318,7 @@ export default function PersonaGroupChatPage() {
   if (!sim || !personaName) {
     return (
       <main style={pageStyle}>
-        <div style={{ color: "#666", fontSize: 14 }}>Loading persona group…</div>
+        <div style={{ color: TOKENS.inkMuted, fontSize: 14 }}>Loading persona group…</div>
       </main>
     );
   }
@@ -330,7 +331,7 @@ export default function PersonaGroupChatPage() {
       <div style={{ marginBottom: 16 }}>
         <Link
           href={`/simulations/${simId}`}
-          style={{ color: "#1d4ed8", textDecoration: "none", fontSize: 13 }}
+          style={{ color: TOKENS.ink, textDecoration: "none", fontSize: 13 }}
         >
           ← back to simulation
         </Link>
@@ -341,9 +342,9 @@ export default function PersonaGroupChatPage() {
         aria-label="Persona group identity"
       >
         <div style={labelStyle}>Persona group</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: "#111" }}>
+        <div style={{ fontSize: 20, fontWeight: 600, color: TOKENS.ink }}>
           {personaName}{" "}
-          <span style={{ fontSize: 14, color: "#888", fontWeight: 400 }}>
+          <span style={{ fontSize: 14, color: TOKENS.inkMuted, fontWeight: 400 }}>
             (n={n})
           </span>
           {armLabel && (
@@ -351,10 +352,10 @@ export default function PersonaGroupChatPage() {
               style={{
                 marginLeft: 8,
                 fontSize: 12,
-                color: arm === "treatment" ? "#1d4ed8" : "#555",
-                background: arm === "treatment" ? "#eff6ff" : "#f5f5f5",
-                border: "1px solid #e5e7eb",
-                borderRadius: 999,
+                color: arm === "treatment" ? TOKENS.ink : TOKENS.inkMuted,
+                background: arm === "treatment" ? TOKENS.paperElevated : TOKENS.paperRecessed,
+                border: `0.75px solid ${TOKENS.rule}`,
+                borderRadius: 4,
                 padding: "2px 8px",
                 verticalAlign: "middle",
               }}
@@ -363,7 +364,7 @@ export default function PersonaGroupChatPage() {
             </span>
           )}
         </div>
-        <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: TOKENS.inkMuted, marginTop: 2 }}>
           {personaId}
         </div>
         {hypothesisProse && (
@@ -371,7 +372,7 @@ export default function PersonaGroupChatPage() {
             <div style={{ ...labelStyle, marginTop: 14 }}>
               Hypothesis under test
             </div>
-            <div style={{ fontSize: 14, color: "#333", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14, color: TOKENS.ink, lineHeight: 1.5 }}>
               {hypothesisProse}
             </div>
           </>
@@ -388,7 +389,7 @@ export default function PersonaGroupChatPage() {
           }}
         >
           {turns.length === 0 ? (
-            <div style={{ fontSize: 14, color: "#888", padding: "8px 0" }}>
+            <div style={{ fontSize: 14, color: TOKENS.inkMuted, padding: "8px 0" }}>
               No questions yet. Ask the group something below — the default
               answer is the collective voice of the persona (with inline
               links to drill into any agent). Switch to <em>individual
@@ -414,7 +415,7 @@ export default function PersonaGroupChatPage() {
                     key={`${turn.created_at}-${i}`}
                     style={{
                       padding: "12px 0",
-                      borderTop: i === 0 ? "none" : "1px solid #f0f0f0",
+                      borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
                     }}
                   >
                     {turn.role === "pm" ? (
@@ -451,8 +452,8 @@ export default function PersonaGroupChatPage() {
             aria-live="polite"
             style={{
               fontSize: 13,
-              color: "#a30000",
-              background: "#fdecec",
+              color: TOKENS.alert,
+              background: TOKENS.paperRecessed,
               padding: "8px 12px",
               borderRadius: 4,
               marginBottom: 8,
@@ -466,8 +467,8 @@ export default function PersonaGroupChatPage() {
             aria-live="polite"
             style={{
               fontSize: 13,
-              color: "#a86b00",
-              background: "#fff7e6",
+              color: TOKENS.inkMuted,
+              background: TOKENS.paperRecessed,
               padding: "8px 12px",
               borderRadius: 4,
               marginBottom: 8,
@@ -498,7 +499,7 @@ export default function PersonaGroupChatPage() {
             width: "100%",
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #ddd",
+            border: `0.75px solid ${TOKENS.rule}`,
             fontFamily: "inherit",
             fontSize: 14,
             resize: "vertical",
@@ -517,9 +518,9 @@ export default function PersonaGroupChatPage() {
             onClick={() => void handleSend()}
             disabled={sending || !draft.trim()}
             style={{
-              background: "#111",
-              color: "#fff",
-              border: "1px solid #111",
+              background: TOKENS.ink,
+              color: TOKENS.paper,
+              border: `0.75px solid ${TOKENS.ink}`,
               borderRadius: 6,
               padding: "8px 16px",
               fontSize: 14,
@@ -566,13 +567,13 @@ function ModeToggle({
         alignItems: "center",
         gap: 6,
         fontSize: 12,
-        color: "#555",
+        color: TOKENS.inkMuted,
       }}
     >
       <legend
         style={{
           padding: 0,
-          color: "#888",
+          color: TOKENS.inkMuted,
           fontSize: 12,
           marginRight: 6,
         }}
@@ -625,9 +626,9 @@ function ModeRadio({
         display: "inline-flex",
         alignItems: "center",
         gap: 4,
-        background: checked ? "#111" : "transparent",
-        color: checked ? "#fff" : "#444",
-        border: "1px solid #ddd",
+        background: checked ? TOKENS.ink : "transparent",
+        color: checked ? TOKENS.paper : TOKENS.inkMuted,
+        border: `0.75px solid ${TOKENS.rule}`,
         borderRadius: 14,
         padding: "2px 10px",
         fontSize: 12,
@@ -790,7 +791,7 @@ function SynthesisTurn({
               key={slot.agent_id}
               style={{
                 padding: "8px 0",
-                borderTop: "1px dashed #f0f0f0",
+                borderTop: `1px dashed ${TOKENS.rule}`,
               }}
             >
               <div
@@ -812,7 +813,7 @@ function SynthesisTurn({
                 >
                   {slot.agent_label}
                 </span>
-                <span style={{ fontSize: 11, color: "#aaa" }}>
+                <span style={{ fontSize: 11, color: TOKENS.inkMuted }}>
                   · {personaName}
                 </span>
                 <span style={{ flex: 1 }} />
@@ -822,7 +823,7 @@ function SynthesisTurn({
                     aria-label={`Open individual chat with ${slot.agent_label}`}
                     style={{
                       fontSize: 12,
-                      color: "#1d4ed8",
+                      color: TOKENS.ink,
                       textDecoration: "none",
                     }}
                   >
@@ -836,8 +837,8 @@ function SynthesisTurn({
                 <div
                   style={{
                     fontSize: 13,
-                    color: "#a30000",
-                    background: "#fdecec",
+                    color: TOKENS.alert,
+                    background: TOKENS.paperRecessed,
                     padding: "6px 10px",
                     borderRadius: 4,
                   }}
@@ -890,7 +891,7 @@ function RenderWithCitations({
           key={`cite-${n}-${label}`}
           href={`/agents/${agentId}`}
           style={{
-            color: "#1d4ed8",
+            color: TOKENS.ink,
             textDecoration: "underline",
             fontWeight: 500,
           }}
@@ -951,16 +952,16 @@ const pageStyle: React.CSSProperties = {
 };
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid #eee",
-  borderRadius: 8,
+  border: `0.75px solid ${TOKENS.rule}`,
+  borderRadius: 4,
   padding: 20,
   marginBottom: 16,
-  background: "#fff",
+  background: TOKENS.paperElevated,
 };
 
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: "#888",
+  color: TOKENS.inkMuted,
   textTransform: "uppercase",
   letterSpacing: 0.5,
   marginBottom: 6,
@@ -996,7 +997,7 @@ const synthesisLabelStyle: React.CSSProperties = {
 
 const turnBodyStyle: React.CSSProperties = {
   fontSize: 14,
-  color: "#222",
+  color: TOKENS.ink,
   lineHeight: 1.55,
   whiteSpace: "pre-wrap",
 };

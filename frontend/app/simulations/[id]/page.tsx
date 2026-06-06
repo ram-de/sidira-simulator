@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ApiError,
   getSimulation,
@@ -114,6 +114,15 @@ export default function SimulationDetailPage() {
   // result_json.per_agent_analyses).
   const [agentMeta, setAgentMeta] = useState<AgentRow[] | null>(null);
   const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
+  const hadRunning = useRef(false);
+  const [isSettling, setIsSettling] = useState(false);
+
+  // Reset settle state when the sim id changes so navigating from a running sim
+  // to an already-terminal sim doesn't spuriously fire the aperture-close animation.
+  useLayoutEffect(() => {
+    hadRunning.current = false;
+    setIsSettling(false);
+  }, [id]);
 
   // Initial fetch of the simulation.
   useEffect(() => {
@@ -206,6 +215,22 @@ export default function SimulationDetailPage() {
     };
   }, []);
 
+  // Track when the sim transitions from running → terminal to drive the
+  // 800ms aperture-close settle window (DESIGN.md §9.1 + §9.2).
+  // useLayoutEffect fires before paint so markAnimating stays true on the
+  // terminal render — avoids a one-frame static flash before settle starts.
+  useLayoutEffect(() => {
+    if (!sim) return;
+    if (!isTerminalStatus(sim.status)) {
+      hadRunning.current = true;
+    } else if (hadRunning.current) {
+      hadRunning.current = false;
+      setIsSettling(true);
+      const t = setTimeout(() => setIsSettling(false), 800);
+      return () => clearTimeout(t);
+    }
+  }, [sim?.status]);
+
   // Load the per-agent metadata once the simulation hits a terminal state.
   // Uses the lightweight /simulations/{id}/agents endpoint (one call returning
   // the persona-grouped summary) rather than fanning out N parallel /agents/{id}
@@ -282,7 +307,7 @@ export default function SimulationDetailPage() {
   if (!sim) {
     return (
       <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
-        <p style={{ color: "#a30000", fontSize: 14 }}>
+        <p style={{ color: TOKENS.alert, fontSize: 14 }}>
           {error ?? "Unable to load simulation."}
         </p>
       </main>
@@ -292,6 +317,7 @@ export default function SimulationDetailPage() {
   const status = sim.status;
   const statusColor = STATUS_COLORS[status];
   const terminal = isTerminalStatus(status);
+  const markAnimating = !terminal || isSettling;
   const agentIds = sim.agent_instance_ids ?? [];
   const result = sim.result ?? null;
 
@@ -310,7 +336,7 @@ export default function SimulationDetailPage() {
           style={{
             border: `0.75px solid ${TOKENS.alert}`,
             background: TOKENS.paperRecessed,
-            color: "#a30000",
+            color: TOKENS.alert,
             borderRadius: 4,
             padding: "8px 12px",
             marginBottom: 16,
@@ -324,6 +350,7 @@ export default function SimulationDetailPage() {
 
       {/* Header */}
       <section style={cardStyle}>
+        <ApertureMark size={32} animating={markAnimating} />
         <div
           style={{
             fontSize: 11,
@@ -331,6 +358,7 @@ export default function SimulationDetailPage() {
             textTransform: "uppercase",
             letterSpacing: 0.8,
             marginBottom: 8,
+            marginTop: 12,
             fontFamily: FONT_MONO,
           }}
         >
@@ -381,15 +409,6 @@ export default function SimulationDetailPage() {
               marginBottom: 16,
             }}
           >
-            <span
-              style={{
-                display: "inline-block",
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: TOKENS.ink,
-              }}
-            />
             <h2 style={{ fontSize: 20, color: TOKENS.ink, margin: 0 }}>Running…</h2>
             {state?.phase && (
               <span style={{ color: TOKENS.inkMuted, fontSize: 13, fontFamily: FONT_MONO }}>
@@ -410,7 +429,7 @@ export default function SimulationDetailPage() {
             >
               agents reacting: {done} of {agentsTotal}
               {agentsFailed > 0 && (
-                <span style={{ color: "#a30000", marginLeft: 8 }}>
+                <span style={{ color: TOKENS.alert, marginLeft: 8 }}>
                   ({agentsFailed} failed)
                 </span>
               )}
@@ -726,14 +745,14 @@ export default function SimulationDetailPage() {
         <section
           style={{
             ...cardStyle,
-            border: "1px solid #f5b5b5",
-            background: "#fdecec",
+            border: `0.75px solid ${TOKENS.alert}`,
+            background: TOKENS.paperRecessed,
           }}
         >
           <h2
             style={{
               fontSize: 18,
-              color: "#a30000",
+              color: TOKENS.alert,
               margin: 0,
               marginBottom: 8,
             }}
@@ -745,7 +764,7 @@ export default function SimulationDetailPage() {
               fontFamily:
                 FONT_MONO,
               fontSize: 13,
-              color: "#a30000",
+              color: TOKENS.alert,
               whiteSpace: "pre-wrap",
             }}
           >
@@ -771,7 +790,7 @@ export default function SimulationDetailPage() {
             <div
               style={{
                 fontSize: 13,
-                color: "#a30000",
+                color: TOKENS.alert,
                 marginBottom: 12,
               }}
             >
@@ -1031,11 +1050,11 @@ function LiftCard({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            background: "#fdecec",
-            border: "1px solid #f5b5b5",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
             borderRadius: 4,
             fontSize: 13,
-            color: "#a30000",
+            color: TOKENS.alert,
             lineHeight: 1.5,
           }}
         >
@@ -1054,11 +1073,11 @@ function LiftCard({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            background: "#fdecec",
-            border: "1px solid #f5b5b5",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
             borderRadius: 4,
             fontSize: 13,
-            color: "#a30000",
+            color: TOKENS.alert,
             lineHeight: 1.5,
           }}
         >
@@ -1174,7 +1193,7 @@ function PerArmDetailCard({
         style={{
           marginTop: 12,
           paddingTop: 12,
-          borderTop: "1px solid #e8e8e8",
+          borderTop: `0.75px solid ${TOKENS.rule}`,
           fontSize: 12,
           color: TOKENS.inkMuted,
           lineHeight: 1.5,
@@ -2302,5 +2321,97 @@ function Pill({ label, value }: { label: string; value: string }) {
       <span style={{ color: TOKENS.inkMuted, marginRight: 6 }}>{label}:</span>
       <span style={{ color: TOKENS.ink }}>{value}</span>
     </span>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Aperture-close animation — DESIGN.md §9.2
+// ───────────────────────────────────────────────────────────────────────
+
+const APERTURE_STYLE = `
+  @keyframes sidira-aperture-spin {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    40%, 60% { transform: rotate(-8deg) scale(0.86); }
+  }
+  @keyframes sidira-aperture-mono-fade {
+    0%, 38%, 62%, 100% { opacity: 1; }
+    44%, 56% { opacity: 0; }
+  }
+  @keyframes sidira-aperture-duo-fade {
+    0%, 38%, 62%, 100% { opacity: 0; }
+    44%, 56% { opacity: 1; }
+  }
+  .sidira-aperture-spin { transition: transform 0.25s ease-out; }
+  .sidira-aperture-mono { transition: opacity 0.25s ease-out; }
+  .sidira-aperture-duo { transition: opacity 0.25s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .sidira-aperture-spin { animation: none !important; transform: none !important; transition: none !important; }
+    .sidira-aperture-mono { animation: none !important; opacity: 1 !important; transition: none !important; }
+    .sidira-aperture-duo { display: none !important; }
+  }
+`;
+
+function ApertureMark({ size = 32, animating }: { size?: number; animating: boolean }) {
+  return (
+    <div
+      aria-hidden
+      style={{ position: "relative", width: size, height: size, flexShrink: 0, color: TOKENS.ink }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: APERTURE_STYLE }} />
+      <div
+        className="sidira-aperture-spin"
+        style={{
+          position: "absolute",
+          inset: 0,
+          animation: animating ? "sidira-aperture-spin 3.4s ease-in-out infinite" : undefined,
+        }}
+      >
+        {/* Monochrome mark — visible at rest; fades out at the held frame */}
+        <div
+          className="sidira-aperture-mono"
+          style={{
+            position: "absolute",
+            inset: 0,
+            animation: animating ? "sidira-aperture-mono-fade 3.4s ease-in-out infinite" : undefined,
+          }}
+        >
+          <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
+            <g stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round">
+              <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+              <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+              <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+              <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+              <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+              <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+            </g>
+          </svg>
+        </div>
+        {/* Dual-color mark — visible only at the held frame (40%–60%) */}
+        <div
+          className="sidira-aperture-duo"
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            animation: animating ? "sidira-aperture-duo-fade 3.4s ease-in-out infinite" : undefined,
+          }}
+        >
+          <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
+            <g strokeWidth="1.1" strokeLinejoin="round" fill="none">
+              <g stroke="#2C5577">
+                <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+                <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+                <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+              </g>
+              <g stroke="#D696C8">
+                <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+                <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+                <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
   );
 }
