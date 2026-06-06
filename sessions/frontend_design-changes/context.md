@@ -1,9 +1,10 @@
 ---
 type: session
 domain: frontend_design-changes
-status: active
+status: closed
 started: 2026-06-02
 reopened: 2026-06-06
+closed: 2026-06-06
 owner: ram-de
 ---
 
@@ -16,7 +17,7 @@ Apply DESIGN.md to the entire frontend.
 - Phase 4 (in-product aperture-close animation, issue #136): in progress.
 
 ## In Progress
-- [ ] Issue #136 PR — awaiting review / merge
+- [x] Issue #136 PR — merged 2026-06-06 as commit 5da50de
 
 ## Completed
 
