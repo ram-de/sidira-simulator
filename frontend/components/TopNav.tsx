@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import SidiraLockup from "@/components/SidiraLockup";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
 const TABS = [
   { href: "/personas", label: "Personas" },
@@ -15,16 +17,20 @@ export default function TopNav() {
   return (
     <header
       style={{
-        borderBottom: "1px solid #eee",
-        background: "#fafafa",
+        borderBottom: `0.75px solid ${TOKENS.rule}`,
+        background: TOKENS.paperElevated,
         padding: "12px 24px",
         display: "flex",
         alignItems: "center",
         gap: 24,
       }}
     >
-      <Link href="/" style={{ fontWeight: 600, fontSize: 18, textDecoration: "none", color: "#111" }}>
-        Sidira
+      <Link
+        href="/"
+        aria-label="Sidira home"
+        style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
+      >
+        <SidiraLockup height={32} />
       </Link>
       <nav style={{ display: "flex", gap: 16 }}>
         {TABS.map((tab) => {
@@ -35,9 +41,11 @@ export default function TopNav() {
               href={tab.href}
               style={{
                 textDecoration: "none",
-                color: active ? "#111" : "#666",
+                color: active ? TOKENS.ink : TOKENS.inkMuted,
+                fontFamily: FONT_SANS,
+                fontSize: 13,
                 fontWeight: active ? 600 : 400,
-                borderBottom: active ? "2px solid #111" : "2px solid transparent",
+                borderBottom: active ? `1.5px solid ${TOKENS.ink}` : "1.5px solid transparent",
                 paddingBottom: 4,
               }}
             >

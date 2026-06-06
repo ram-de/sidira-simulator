@@ -2,6 +2,8 @@ import Link from "next/link";
 import { headers } from "next/headers";
 
 import { isPublicSiteHost } from "@/lib/site-hosts";
+import SidiraLockup from "@/components/SidiraLockup";
+import { TOKENS, FONT_SANS, FONT_NARROW, FONT_SERIF, FONT_MONO } from "@/lib/design";
 
 const CARDS = [
   {
@@ -37,8 +39,8 @@ export default function HomePage() {
 function ProductHome() {
   return (
     <main style={{ maxWidth: 960, margin: "64px auto", padding: "0 24px" }}>
-      <h1 style={{ fontSize: 40, margin: 0 }}>Sidira</h1>
-      <p style={{ color: "#555", marginTop: 8, marginBottom: 48 }}>
+      <h1 style={{ fontSize: 40, margin: 0, color: TOKENS.ink }}>Sidira</h1>
+      <p style={{ color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
         Validate product hypotheses before you build them.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
@@ -47,17 +49,17 @@ function ProductHome() {
             key={card.href}
             href={card.href}
             style={{
-              border: "1px solid #eee",
-              borderRadius: 8,
+              border: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 4,
               padding: 20,
               textDecoration: "none",
-              color: "#111",
+              color: TOKENS.ink,
               display: "block",
             }}
           >
             <h3 style={{ marginTop: 0 }}>{card.title}</h3>
-            <p style={{ color: "#555", fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
-            <span style={{ color: "#111", fontWeight: 500 }}>{card.cta} →</span>
+            <p style={{ color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
+            <span style={{ color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
           </Link>
         ))}
       </div>
@@ -65,64 +67,6 @@ function ProductHome() {
   );
 }
 
-// Design system tokens — DESIGN.md §4. Kept inline so this component is
-// self-contained and matches the inline-style convention used elsewhere in
-// the app. Update both this constant and DESIGN.md together if values change.
-const TOKENS = {
-  ink: "#0E1A2B",
-  inkMuted: "#4A5668",
-  paper: "#F4EFE6",
-  paperElevated: "#FAF6EE",
-  paperRecessed: "#EBE5D8",
-  rule: "#D6CFC0",
-  signal: "#C8FF3D",
-} as const;
-
-const FONT_SANS = "var(--font-sans), ui-sans-serif, sans-serif";
-const FONT_NARROW = "var(--font-narrow), sans-serif";
-const FONT_SERIF = "var(--font-serif), Georgia, serif";
-const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
-
-function SidiraLockup({ height = 32 }: { height?: number }) {
-  // Inline SVG so stroke and text inherit currentColor. Geometry matches
-  // frontend/public/brand/sidira-lockup.svg per DESIGN.md §3.1.
-  return (
-    <svg
-      width={(height / 60) * 240}
-      height={height}
-      viewBox="0 0 240 60"
-      fill="none"
-      aria-label="Sidira"
-      style={{ display: "block" }}
-    >
-      <g
-        transform="translate(0 5) scale(0.5)"
-        stroke="currentColor"
-        strokeWidth={2.2}
-        strokeLinejoin="round"
-        fill="none"
-      >
-        <polygon points="84.641,70 50,90 50,63 61.260,56.5" />
-        <polygon points="50,90 15.359,70 38.740,56.5 50,63" />
-        <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5" />
-        <polygon points="15.359,30 50,10 50,37 38.740,43.5" />
-        <polygon points="50,10 84.641,30 61.260,43.5 50,37" />
-        <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5" />
-      </g>
-      <text
-        x={64}
-        y={44}
-        fontFamily={FONT_NARROW}
-        fontWeight={600}
-        fontSize={44}
-        letterSpacing={2.6}
-        fill="currentColor"
-      >
-        SIDIRA
-      </text>
-    </svg>
-  );
-}
 
 const STEPS = [
   {
