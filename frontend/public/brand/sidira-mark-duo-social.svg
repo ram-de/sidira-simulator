@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -15 130 130" role="img" aria-label="Sidira" fill="none">
+  <!-- Paper background — safe for circular crop on LinkedIn / Twitter / X -->
+  <rect x="-15" y="-15" width="130" height="130" fill="#F4EFE6"/>
+  <g stroke-width="2" stroke-linejoin="round" fill="none">
+    <g stroke="#2C5577">
+      <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+      <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+      <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    </g>
+    <g stroke="#D696C8">
+      <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+      <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+      <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+    </g>
+  </g>
+</svg>
