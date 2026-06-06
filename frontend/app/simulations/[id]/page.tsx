@@ -14,9 +14,10 @@ import {
   type SimulationRunState,
   type SimulationStatus,
 } from "@/lib/api";
+import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 
 const STATUS_COLORS: Record<SimulationStatus, { bg: string; fg: string }> = {
-  pending: { bg: "#eee", fg: "#555" },
+  pending: { bg: TOKENS.paperRecessed, fg: TOKENS.inkMuted },
   running: { bg: "#e6f0ff", fg: "#1d4ed8" },
   complete: { bg: "#e7f6ec", fg: "#0a7d3a" },
   failed: { bg: "#fdecec", fg: "#a30000" },
@@ -89,10 +90,11 @@ function describeEvent(ev: RunEvent): string {
 }
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid #eee",
-  borderRadius: 8,
+  border: `0.75px solid ${TOKENS.rule}`,
+  borderRadius: 4,
   padding: 24,
   marginBottom: 24,
+  fontFamily: FONT_SANS,
 };
 
 export default function SimulationDetailPage() {
@@ -251,8 +253,8 @@ export default function SimulationDetailPage() {
 
   if (!loaded) {
     return (
-      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
-        <p style={{ textAlign: "center", color: "#555", fontSize: 16 }}>
+      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
+        <p style={{ textAlign: "center", color: TOKENS.inkMuted, fontSize: 16 }}>
           Loading simulation...
         </p>
       </main>
@@ -261,15 +263,15 @@ export default function SimulationDetailPage() {
 
   if (notFound) {
     return (
-      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
-        <h1 style={{ fontSize: 22, color: "#111", marginBottom: 12 }}>
+      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
+        <h1 style={{ fontSize: 22, color: TOKENS.ink, marginBottom: 12 }}>
           Simulation not found
         </h1>
-        <p style={{ color: "#555", fontSize: 16 }}>
+        <p style={{ color: TOKENS.inkMuted, fontSize: 16 }}>
           We couldn't find a simulation with id <code>{id}</code>.
         </p>
         <p style={{ marginTop: 16 }}>
-          <Link href="/simulations" style={{ color: "#1d4ed8" }}>
+          <Link href="/simulations" style={{ color: TOKENS.ink }}>
             ← Back to simulations
           </Link>
         </p>
@@ -279,7 +281,7 @@ export default function SimulationDetailPage() {
 
   if (!sim) {
     return (
-      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
+      <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
         <p style={{ color: "#a30000", fontSize: 14 }}>
           {error ?? "Unable to load simulation."}
         </p>
@@ -306,13 +308,14 @@ export default function SimulationDetailPage() {
       {error && (
         <div
           style={{
-            border: "1px solid #f5b5b5",
-            background: "#fdecec",
+            border: `0.75px solid ${TOKENS.alert}`,
+            background: TOKENS.paperRecessed,
             color: "#a30000",
-            borderRadius: 6,
+            borderRadius: 4,
             padding: "8px 12px",
             marginBottom: 16,
             fontSize: 13,
+            fontFamily: FONT_SANS,
           }}
         >
           {error}
@@ -323,11 +326,12 @@ export default function SimulationDetailPage() {
       <section style={cardStyle}>
         <div
           style={{
-            fontSize: 13,
-            color: "#888",
+            fontSize: 11,
+            color: TOKENS.inkMuted,
             textTransform: "uppercase",
-            letterSpacing: 0.5,
+            letterSpacing: 0.8,
             marginBottom: 8,
+            fontFamily: FONT_MONO,
           }}
         >
           Simulation
@@ -336,7 +340,7 @@ export default function SimulationDetailPage() {
           style={{
             fontSize: 22,
             lineHeight: 1.35,
-            color: "#111",
+            color: TOKENS.ink,
             margin: 0,
             marginBottom: 16,
             fontWeight: 600,
@@ -350,14 +354,15 @@ export default function SimulationDetailPage() {
           <Pill label="features" value={sim.feature_pack_version} />
           <span
             style={{
-              fontSize: 13,
-              padding: "4px 10px",
-              borderRadius: 999,
+              fontSize: 11,
+              padding: "3px 8px",
+              borderRadius: 4,
               background: statusColor.bg,
               color: statusColor.fg,
               fontWeight: 600,
               textTransform: "uppercase",
-              letterSpacing: 0.5,
+              letterSpacing: 0.8,
+              fontFamily: FONT_MONO,
             }}
           >
             {status}
@@ -379,15 +384,15 @@ export default function SimulationDetailPage() {
             <span
               style={{
                 display: "inline-block",
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 borderRadius: "50%",
-                background: "#1d4ed8",
+                background: TOKENS.ink,
               }}
             />
-            <h2 style={{ fontSize: 20, color: "#111", margin: 0 }}>Running…</h2>
+            <h2 style={{ fontSize: 20, color: TOKENS.ink, margin: 0 }}>Running…</h2>
             {state?.phase && (
-              <span style={{ color: "#888", fontSize: 13 }}>
+              <span style={{ color: TOKENS.inkMuted, fontSize: 13, fontFamily: FONT_MONO }}>
                 phase: {state.phase}
               </span>
             )}
@@ -396,9 +401,11 @@ export default function SimulationDetailPage() {
           <div style={{ marginBottom: 16 }}>
             <div
               style={{
-                fontSize: 14,
-                color: "#555",
+                fontSize: 13,
+                color: TOKENS.inkMuted,
                 marginBottom: 6,
+                fontFamily: FONT_MONO,
+                ...TNUM,
               }}
             >
               agents reacting: {done} of {agentsTotal}
@@ -410,9 +417,9 @@ export default function SimulationDetailPage() {
             </div>
             <div
               style={{
-                height: 8,
-                background: "#eee",
-                borderRadius: 4,
+                height: 4,
+                background: TOKENS.paperRecessed,
+                borderRadius: 2,
                 overflow: "hidden",
               }}
             >
@@ -420,7 +427,7 @@ export default function SimulationDetailPage() {
                 style={{
                   height: "100%",
                   width: `${progressPct}%`,
-                  background: "#1d4ed8",
+                  background: TOKENS.ink,
                   transition: "width 200ms ease",
                 }}
               />
@@ -430,17 +437,18 @@ export default function SimulationDetailPage() {
           <div>
             <div
               style={{
-                fontSize: 13,
-                color: "#888",
+                fontSize: 11,
+                color: TOKENS.inkMuted,
                 textTransform: "uppercase",
-                letterSpacing: 0.5,
+                letterSpacing: 0.8,
                 marginBottom: 8,
+                fontFamily: FONT_MONO,
               }}
             >
               Recent events
             </div>
             {recent.length === 0 ? (
-              <div style={{ color: "#888", fontSize: 14 }}>
+              <div style={{ color: TOKENS.inkMuted, fontSize: 14 }}>
                 Waiting for first event…
               </div>
             ) : (
@@ -449,12 +457,11 @@ export default function SimulationDetailPage() {
                   listStyle: "none",
                   padding: 12,
                   margin: 0,
-                  background: "#fafafa",
-                  borderRadius: 6,
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                  background: TOKENS.paperElevated,
+                  borderRadius: 4,
+                  fontFamily: FONT_MONO,
                   fontSize: 13,
-                  color: "#111",
+                  color: TOKENS.ink,
                 }}
               >
                 {recent.map((ev, i) => (
@@ -492,12 +499,12 @@ export default function SimulationDetailPage() {
               style={{
                 ...cardStyle,
                 padding: "12px 16px",
-                background: "#f7f8fb",
-                color: "#444",
+                background: TOKENS.paperElevated,
+                color: TOKENS.inkMuted,
                 fontSize: 14,
               }}
             >
-              <strong style={{ color: "#111" }}>Population:</strong>{" "}
+              <strong style={{ color: TOKENS.ink }}>Population:</strong>{" "}
               {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
               {sim.sampled_agent_count ?? "—"} agent
               {sim.sampled_agent_count === 1 ? "" : "s"}
@@ -535,11 +542,12 @@ export default function SimulationDetailPage() {
             <section style={cardStyle}>
               <div
                 style={{
-                  fontSize: 13,
-                  color: "#888",
+                  fontSize: 11,
+                  color: TOKENS.inkMuted,
                   textTransform: "uppercase",
-                  letterSpacing: 0.5,
+                  letterSpacing: 0.8,
                   marginBottom: 8,
+                  fontFamily: FONT_MONO,
                 }}
               >
                 Confidence score
@@ -551,6 +559,8 @@ export default function SimulationDetailPage() {
                     fontWeight: 700,
                     lineHeight: 1,
                     color: scoreColor(result.confidence_score),
+                    fontFamily: FONT_MONO,
+                    ...TNUM,
                   }}
                 >
                   {Math.round(result.confidence_score)}
@@ -563,7 +573,7 @@ export default function SimulationDetailPage() {
                       sampledAgentCount={sim?.sampled_agent_count ?? null}
                     />
                   )}
-                  <div style={{ fontSize: 14, color: "#555", maxWidth: 480 }}>
+                  <div style={{ fontSize: 14, color: TOKENS.inkMuted, maxWidth: 480 }}>
                     &ge;80 = validated; below = needs refinement.
                   </div>
                 </div>
@@ -590,7 +600,7 @@ export default function SimulationDetailPage() {
               <h2
                 style={{
                   fontSize: 20,
-                  color: "#111",
+                  color: TOKENS.ink,
                   margin: 0,
                   marginBottom: 16,
                 }}
@@ -614,7 +624,7 @@ export default function SimulationDetailPage() {
                       key={idx}
                       style={{
                         padding: "12px 0",
-                        borderTop: idx === 0 ? "none" : "1px solid #eee",
+                        borderTop: idx === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
                       }}
                     >
                       <div
@@ -633,7 +643,7 @@ export default function SimulationDetailPage() {
                             gap: 6,
                             fontSize: 15,
                             fontWeight: 600,
-                            color: "#111",
+                            color: TOKENS.ink,
                             minWidth: 0,
                           }}
                         >
@@ -644,7 +654,7 @@ export default function SimulationDetailPage() {
                           <div
                             style={{
                               fontSize: 13,
-                              color: "#444",
+                              color: TOKENS.inkMuted,
                               fontVariantNumeric: "tabular-nums",
                             }}
                           >
@@ -664,7 +674,7 @@ export default function SimulationDetailPage() {
                       <div
                         style={{
                           fontSize: 14,
-                          color: "#333",
+                          color: TOKENS.ink,
                           marginTop: hasFreq ? 8 : 0,
                           lineHeight: 1.5,
                         }}
@@ -684,7 +694,7 @@ export default function SimulationDetailPage() {
                 <h2
                   style={{
                     fontSize: 20,
-                    color: "#111",
+                    color: TOKENS.ink,
                     margin: 0,
                     marginBottom: 16,
                   }}
@@ -695,7 +705,7 @@ export default function SimulationDetailPage() {
                   style={{
                     paddingLeft: 24,
                     margin: 0,
-                    color: "#111",
+                    color: TOKENS.ink,
                     fontSize: 15,
                     lineHeight: 1.6,
                   }}
@@ -733,7 +743,7 @@ export default function SimulationDetailPage() {
           <div
             style={{
               fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                FONT_MONO,
               fontSize: 13,
               color: "#a30000",
               whiteSpace: "pre-wrap",
@@ -750,7 +760,7 @@ export default function SimulationDetailPage() {
           <h2
             style={{
               fontSize: 20,
-              color: "#111",
+              color: TOKENS.ink,
               margin: 0,
               marginBottom: 16,
             }}
@@ -770,7 +780,7 @@ export default function SimulationDetailPage() {
             </div>
           )}
           {agentMeta == null && !agentMetaError && (
-            <div style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: TOKENS.inkMuted, marginBottom: 12 }}>
               Loading persona breakdown for {agentIds.length} agent
               {agentIds.length === 1 ? "" : "s"}…
             </div>
@@ -784,19 +794,19 @@ export default function SimulationDetailPage() {
                   key={aid}
                   style={{
                     padding: "8px 0",
-                    borderTop: i === 0 ? "none" : "1px solid #eee",
+                    borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
                     fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+                      FONT_MONO,
                     fontSize: 14,
                   }}
                 >
                   <Link
                     href={`/agents/${aid}`}
-                    style={{ color: "#1d4ed8", textDecoration: "none" }}
+                    style={{ color: TOKENS.ink, textDecoration: "underline", textDecorationColor: TOKENS.rule }}
                   >
                     {aid.slice(0, 8)}
                   </Link>
-                  <span style={{ color: "#888", marginLeft: 8, fontSize: 12 }}>
+                  <span style={{ color: TOKENS.inkMuted, marginLeft: 8, fontSize: 12 }}>
                     {aid}
                   </span>
                 </li>
@@ -821,12 +831,12 @@ function ModelBanner({ modelId }: { modelId: string | null }) {
       style={{
         ...cardStyle,
         padding: "12px 16px",
-        background: "#f8f7fb",
-        color: "#444",
+        background: TOKENS.paperElevated,
+        color: TOKENS.inkMuted,
         fontSize: 14,
       }}
     >
-      <strong style={{ color: "#111" }}>Model:</strong> {body}
+      <strong style={{ color: TOKENS.ink }}>Model:</strong> {body}
     </section>
   );
 }
@@ -859,13 +869,13 @@ function CohortBanner({
       style={{
         ...cardStyle,
         padding: "12px 16px",
-        background: "#fff8e6",
-        border: "1px solid #f0d68c",
-        color: "#664c00",
+        background: TOKENS.paperRecessed,
+        border: `0.75px solid ${TOKENS.warn}`,
+        color: TOKENS.ink,
         fontSize: 14,
       }}
     >
-      <strong style={{ color: "#664c00" }}>Persona-filtered run:</strong>{" "}
+      <strong style={{ color: TOKENS.ink }}>Persona-filtered run:</strong>{" "}
       this simulation was scoped to {selectedIds.length} persona
       {selectedIds.length === 1 ? "" : "s"}: {names.join(", ")}.
       {" "}Lift / scores are for the selected cohort, not the full
@@ -900,7 +910,7 @@ function LiftCard({
     lift == null
       ? "#888"
       : Math.abs(lift) < 0.5
-        ? "#555"
+        ? TOKENS.inkMuted
         : lift > 0
           ? "#0a7d3a"
           : "#a30000";
@@ -925,13 +935,13 @@ function LiftCard({
         ...cardStyle,
         // Slight emphasis vs neighbouring cards — this is the headline number
         // in A/B mode.
-        borderColor: "#d0d7e2",
+        borderColor: TOKENS.rule,
       }}
     >
       <div
         style={{
           fontSize: 13,
-          color: "#888",
+          color: TOKENS.inkMuted,
           textTransform: "uppercase",
           letterSpacing: 0.5,
           marginBottom: 4,
@@ -942,7 +952,7 @@ function LiftCard({
       <div
         style={{
           fontSize: 13,
-          color: "#555",
+          color: TOKENS.inkMuted,
           marginBottom: 12,
           maxWidth: 640,
           lineHeight: 1.5,
@@ -960,7 +970,8 @@ function LiftCard({
             fontWeight: 700,
             lineHeight: 1,
             color,
-            fontVariantNumeric: "tabular-nums",
+            fontFamily: FONT_MONO,
+            ...TNUM,
           }}
           aria-label={
             lift == null
@@ -982,7 +993,7 @@ function LiftCard({
             <div
               style={{
                 fontSize: 14,
-                color: "#444",
+                color: TOKENS.inkMuted,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
@@ -992,9 +1003,9 @@ function LiftCard({
             </div>
           )}
           {liftCi && ciNarrow && (
-            <div style={{ fontSize: 14, color: "#444" }}>Narrow interval</div>
+            <div style={{ fontSize: 14, color: TOKENS.inkMuted }}>Narrow interval</div>
           )}
-          <div style={{ fontSize: 14, color: "#555", maxWidth: 520 }}>
+          <div style={{ fontSize: 14, color: TOKENS.inkMuted, maxWidth: 520 }}>
             Same 0–100 scale as the single-arm confidence score (so −20 here
             means treatment lands ~20 confidence-points worse than the current
             product). Paired bootstrap over per-agent sentiment deltas.
@@ -1022,7 +1033,7 @@ function LiftCard({
             padding: "10px 12px",
             background: "#fdecec",
             border: "1px solid #f5b5b5",
-            borderRadius: 6,
+            borderRadius: 4,
             fontSize: 13,
             color: "#a30000",
             lineHeight: 1.5,
@@ -1045,7 +1056,7 @@ function LiftCard({
             padding: "10px 12px",
             background: "#fdecec",
             border: "1px solid #f5b5b5",
-            borderRadius: 6,
+            borderRadius: 4,
             fontSize: 13,
             color: "#a30000",
             lineHeight: 1.5,
@@ -1069,9 +1080,9 @@ function LiftCard({
           style={{
             marginTop: 12,
             paddingTop: 12,
-            borderTop: "1px solid #eee",
+            borderTop: `0.75px solid ${TOKENS.rule}`,
             fontSize: 12,
-            color: "#888",
+            color: TOKENS.inkMuted,
             lineHeight: 1.5,
           }}
         >
@@ -1109,13 +1120,13 @@ function PerArmDetailCard({
       style={{
         ...cardStyle,
         padding: "16px 18px",
-        background: "#fafafa",
+        background: TOKENS.paperElevated,
       }}
     >
       <div
         style={{
           fontSize: 13,
-          color: "#666",
+          color: TOKENS.inkMuted,
           textTransform: "uppercase",
           letterSpacing: 0,
           marginBottom: 6,
@@ -1126,7 +1137,7 @@ function PerArmDetailCard({
       <div
         style={{
           fontSize: 13,
-          color: "#555",
+          color: TOKENS.inkMuted,
           lineHeight: 1.5,
           maxWidth: 760,
           marginBottom: 14,
@@ -1165,7 +1176,7 @@ function PerArmDetailCard({
           paddingTop: 12,
           borderTop: "1px solid #e8e8e8",
           fontSize: 12,
-          color: "#777",
+          color: TOKENS.inkMuted,
           lineHeight: 1.5,
         }}
       >
@@ -1198,7 +1209,7 @@ function ArmScoreTile({
       <div
         style={{
           fontSize: 12,
-          color: "#777",
+          color: TOKENS.inkMuted,
           marginBottom: 6,
         }}
       >
@@ -1210,8 +1221,9 @@ function ArmScoreTile({
             fontSize: 28,
             lineHeight: 1,
             fontWeight: 700,
-            color: score == null ? "#888" : scoreColor(score),
-            fontVariantNumeric: "tabular-nums",
+            color: score == null ? TOKENS.inkMuted : scoreColor(score),
+            fontFamily: FONT_MONO,
+            ...TNUM,
           }}
         >
           {score == null ? "n/a" : Math.round(score)}
@@ -1228,7 +1240,7 @@ function ArmScoreTile({
         style={{
           marginTop: 8,
           fontSize: 12,
-          color: "#777",
+          color: TOKENS.inkMuted,
           lineHeight: 1.4,
         }}
       >
@@ -1293,7 +1305,7 @@ function ConfidenceIntervalLabel({
       <div
         style={{
           fontSize: 14,
-          color: "#444",
+          color: TOKENS.inkMuted,
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -1306,7 +1318,7 @@ function ConfidenceIntervalLabel({
     <div
       style={{
         fontSize: 14,
-        color: "#444",
+        color: TOKENS.inkMuted,
         fontVariantNumeric: "tabular-nums",
       }}
     >
@@ -1342,7 +1354,7 @@ function ScoreCiBar({
         style={{
           position: "relative",
           height: 12,
-          background: "#eee",
+          background: TOKENS.paperRecessed,
           borderRadius: 6,
           // overflow:hidden so the marker can't escape the track at edges
           // (codex P2 round 1: 2px marker centered on left:0% or left:100%
@@ -1379,7 +1391,7 @@ function ScoreCiBar({
           display: "flex",
           justifyContent: "space-between",
           fontSize: 11,
-          color: "#888",
+          color: TOKENS.inkMuted,
           marginTop: 4,
           fontVariantNumeric: "tabular-nums",
         }}
@@ -1416,7 +1428,7 @@ function WeaknessFrequencyBar({
       style={{
         position: "relative",
         height: 10,
-        background: "#f1f1f1",
+        background: TOKENS.paperRecessed,
         borderRadius: 5,
         overflow: "hidden",
       }}
@@ -1545,7 +1557,7 @@ function PersonaGroupRow({
     <li
       style={{
         padding: "12px 0",
-        borderTop: isFirst ? "none" : "1px solid #eee",
+        borderTop: isFirst ? "none" : `0.75px solid ${TOKENS.rule}`,
       }}
     >
       <div
@@ -1581,7 +1593,7 @@ function PersonaGroupRow({
           aria-hidden
           style={{
             fontSize: 12,
-            color: "#888",
+            color: TOKENS.inkMuted,
             width: 12,
             display: "inline-block",
             flex: "0 0 auto",
@@ -1593,7 +1605,7 @@ function PersonaGroupRow({
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: "#111",
+            color: TOKENS.ink,
             flex: "0 1 auto",
             minWidth: 0,
             overflow: "hidden",
@@ -1603,7 +1615,7 @@ function PersonaGroupRow({
         >
           {personaName}
         </span>
-        <span style={{ fontSize: 14, color: "#444", flex: "0 0 auto" }}>
+        <span style={{ fontSize: 14, color: TOKENS.inkMuted, flex: "0 0 auto" }}>
           &times; {agents.length} agent{agents.length === 1 ? "" : "s"}
         </span>
         {isAbMode ? (
@@ -1619,7 +1631,7 @@ function PersonaGroupRow({
               aria-hidden
               style={{
                 fontSize: 11,
-                color: "#888",
+                color: TOKENS.inkMuted,
                 fontWeight: 600,
               }}
               title="Treatment arm"
@@ -1634,7 +1646,7 @@ function PersonaGroupRow({
               aria-hidden
               style={{
                 fontSize: 11,
-                color: "#888",
+                color: TOKENS.inkMuted,
                 fontWeight: 600,
                 marginLeft: 4,
               }}
@@ -1656,10 +1668,10 @@ function PersonaGroupRow({
         <span
           style={{
             fontSize: 12,
-            color: "#aaa",
+            color: TOKENS.inkMuted,
             marginLeft: "auto",
             fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+              FONT_MONO,
             minWidth: 0,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -1700,7 +1712,7 @@ function PersonaGroupRow({
           aria-label={`Open persona-group chat with ${personaName}`}
           style={{
             fontSize: 13,
-            color: "#1d4ed8",
+            color: TOKENS.ink,
             textDecoration: "none",
             flex: "0 0 auto",
             whiteSpace: "nowrap",
@@ -1762,11 +1774,11 @@ function ArmChatPill({
   const style = {
     fontSize: 12,
     textDecoration: "none",
-    border: `1px solid ${isTreatment ? "#dbeafe" : "#e5e7eb"}`,
-    borderRadius: 999,
+    border: `0.75px solid ${TOKENS.rule}`,
+    borderRadius: 4,
     padding: "2px 7px",
-    background: isTreatment ? "#eff6ff" : "#f9fafb",
-    color: isTreatment ? "#1d4ed8" : "#374151",
+    background: isTreatment ? TOKENS.paperRecessed : TOKENS.paperElevated,
+    color: TOKENS.ink,
   };
 
   if (!enabled) {
@@ -1776,8 +1788,8 @@ function ArmChatPill({
         title={`No ${armName} agents are available for this persona in the completed run.`}
         style={{
           ...style,
-          color: "#aaa",
-          background: "#f7f7f7",
+          color: TOKENS.inkMuted,
+          background: TOKENS.paperRecessed,
           cursor: "not-allowed",
         }}
       >
@@ -1820,10 +1832,9 @@ function AgentLi({ agent: a }: { agent: AgentRow }) {
         <Link
           href={`/agents/${a.agent_id}`}
           style={{
-            color: "#1d4ed8",
+            color: TOKENS.ink,
             textDecoration: "none",
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, monospace",
+            fontFamily: FONT_MONO,
             flex: "0 0 auto",
           }}
         >
@@ -1839,7 +1850,7 @@ function AgentLi({ agent: a }: { agent: AgentRow }) {
           aria-label={`Open individual chat with ${a.agent_id}`}
           style={{
             fontSize: 12,
-            color: "#1d4ed8",
+            color: TOKENS.ink,
             textDecoration: "none",
             flex: "0 0 auto",
             whiteSpace: "nowrap",
@@ -1866,7 +1877,7 @@ function ArmAgentSubList({
         <div
           style={{
             fontSize: 11,
-            color: "#888",
+            color: TOKENS.inkMuted,
             textTransform: "uppercase",
             letterSpacing: 0.5,
             fontWeight: 600,
@@ -1874,7 +1885,7 @@ function ArmAgentSubList({
         >
           {label}
         </div>
-        <div style={{ fontSize: 12, color: "#aaa", paddingTop: 4 }}>
+        <div style={{ fontSize: 12, color: TOKENS.inkMuted, paddingTop: 4 }}>
           — no agents in this arm —
         </div>
       </div>
@@ -1889,16 +1900,16 @@ function ArmAgentSubList({
           alignItems: "center",
           gap: 8,
           fontSize: 11,
-          color: "#888",
+          color: TOKENS.inkMuted,
           textTransform: "uppercase",
           letterSpacing: 0.5,
           fontWeight: 600,
           padding: "4px 0",
-          borderBottom: "1px solid #eee",
+          borderBottom: `0.75px solid ${TOKENS.rule}`,
         }}
       >
         <span>{label}</span>
-        <span style={{ color: "#aaa", fontWeight: 400 }}>
+        <span style={{ color: TOKENS.inkMuted, fontWeight: 400 }}>
           ({agents.length} agent{agents.length === 1 ? "" : "s"})
         </span>
         <span style={{ marginLeft: "auto" }}>
@@ -1934,12 +1945,12 @@ function SentimentChip({
         aria-label="Sentiment not yet available"
         style={{
           fontSize: 12,
-          color: "#aaa",
+          color: TOKENS.inkMuted,
           flex: "0 0 auto",
           padding: "2px 8px",
-          borderRadius: 999,
-          background: "#f5f5f5",
-          border: "1px solid #eee",
+          borderRadius: 4,
+          background: TOKENS.paperRecessed,
+          border: `0.75px solid ${TOKENS.rule}`,
         }}
       >
         —
@@ -1965,7 +1976,7 @@ function SentimentChip({
       bgR: 241,
       bgG: 241,
       bgB: 241,
-      fg: "#555",
+      fg: TOKENS.inkMuted,
       border: "#d4d4d4",
       glyph: "~",
     },
@@ -1991,7 +2002,7 @@ function SentimentChip({
         color: p.fg,
         flex: "0 0 auto",
         padding: "2px 8px",
-        borderRadius: 999,
+        borderRadius: 4,
         background: `rgba(${p.bgR}, ${p.bgG}, ${p.bgB}, ${bgAlpha})`,
         // Codex #84 round-2 P2: opaque border (was an 8-digit hex alpha
         // `${p.fg}22` which kept the border ~13% opacity even after the
@@ -2042,7 +2053,7 @@ function TopQuoteLine({
         margin: 0,
         cursor: "pointer",
         fontSize: 13,
-        color: "#666",
+        color: TOKENS.inkMuted,
         lineHeight: 1.5,
         whiteSpace: expanded ? "normal" : "nowrap",
         overflow: "hidden",
@@ -2054,25 +2065,25 @@ function TopQuoteLine({
           aria-label={`${armLabel} arm`}
           style={{
             fontSize: 10,
-            color: "#888",
+            color: TOKENS.inkMuted,
             textTransform: "uppercase",
             letterSpacing: 0.5,
             fontWeight: 600,
             marginRight: 8,
             padding: "1px 6px",
-            background: "#f0f0f0",
-            border: "1px solid #e0e0e0",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.rule}`,
             borderRadius: 4,
           }}
         >
           {armLabel}
         </span>
       )}
-      <span aria-hidden style={{ color: "#bbb", marginRight: 6 }}>
+      <span aria-hidden style={{ color: TOKENS.inkMuted, marginRight: 6 }}>
         “
       </span>
       {text}
-      <span aria-hidden style={{ color: "#bbb", marginLeft: 4 }}>
+      <span aria-hidden style={{ color: TOKENS.inkMuted, marginLeft: 4 }}>
         ”
       </span>
     </button>
@@ -2194,10 +2205,10 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
         aria-expanded={open}
         title={open ? "Hide definition" : "Show definition"}
         style={{
-          background: open ? "#1d4ed8" : "transparent",
-          color: open ? "#fff" : "#1d4ed8",
-          border: open ? "1px solid #1d4ed8" : "1px solid #c7d8ff",
-          borderRadius: 999,
+          background: open ? TOKENS.ink : "transparent",
+          color: open ? TOKENS.paper : TOKENS.ink,
+          border: `0.75px solid ${open ? TOKENS.ink : TOKENS.rule}`,
+          borderRadius: 4,
           width: 18,
           height: 18,
           padding: 0,
@@ -2224,10 +2235,10 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
             zIndex: 20,
             width: 320,
             maxWidth: "85vw",
-            background: "#fff",
-            border: "1px solid #d6e0ff",
-            borderRadius: 8,
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+            background: TOKENS.paperElevated,
+            border: `0.75px solid ${TOKENS.rule}`,
+            borderRadius: 6,
+            boxShadow: "0 4px 16px rgba(14, 26, 43, 0.08)",
             padding: 14,
           }}
         >
@@ -2235,7 +2246,7 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#111",
+              color: TOKENS.ink,
               marginBottom: 6,
             }}
           >
@@ -2244,7 +2255,7 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
           <div
             style={{
               fontSize: 13,
-              color: "#444",
+              color: TOKENS.inkMuted,
               lineHeight: 1.55,
               fontWeight: 400,
             }}
@@ -2261,7 +2272,7 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
               right: 6,
               background: "transparent",
               border: "none",
-              color: "#888",
+              color: TOKENS.inkMuted,
               fontSize: 16,
               lineHeight: 1,
               cursor: "pointer",
@@ -2282,14 +2293,14 @@ function Pill({ label, value }: { label: string; value: string }) {
       style={{
         fontSize: 13,
         padding: "4px 10px",
-        borderRadius: 999,
-        background: "#fafafa",
-        border: "1px solid #eee",
-        color: "#555",
+        borderRadius: 4,
+        background: TOKENS.paperElevated,
+        border: `0.75px solid ${TOKENS.rule}`,
+        color: TOKENS.inkMuted,
       }}
     >
-      <span style={{ color: "#888", marginRight: 6 }}>{label}:</span>
-      <span style={{ color: "#111" }}>{value}</span>
+      <span style={{ color: TOKENS.inkMuted, marginRight: 6 }}>{label}:</span>
+      <span style={{ color: TOKENS.ink }}>{value}</span>
     </span>
   );
 }

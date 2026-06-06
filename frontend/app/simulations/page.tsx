@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { listSimulations, type SimulationListItem } from "@/lib/api";
+import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: "#888",
+  pending: TOKENS.inkMuted,
   running: "#1d4ed8",
-  complete: "#15803d",
-  failed: "#b91c1c",
+  complete: "#0a7d3a",
+  failed: "#a30000",
 };
 
 function formatRelative(iso: string): string {
@@ -34,24 +35,25 @@ export default function SimulationsIndexPage() {
   }, []);
 
   return (
-    <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
+    <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Simulations</h1>
+        <h1 style={{ color: TOKENS.ink }}>Simulations</h1>
         <Link
           href="/simulations/new"
           style={{
-            background: "#111",
-            color: "#fff",
+            background: TOKENS.ink,
+            color: TOKENS.paper,
             padding: "8px 14px",
-            borderRadius: 6,
+            borderRadius: 4,
             textDecoration: "none",
             fontWeight: 500,
+            fontSize: 13,
           }}
         >
           + New simulation
         </Link>
       </div>
-      <p style={{ color: "#555" }}>
+      <p style={{ color: TOKENS.inkMuted }}>
         Submit a hypothesis. Sidira samples your latest persona pack, runs reactions against your
         latest feature pack, and returns a confidence score plus diagnosed weaknesses. Then chat
         with each agent that participated.
@@ -62,10 +64,10 @@ export default function SimulationsIndexPage() {
           style={{
             marginTop: 24,
             padding: 12,
-            border: "1px solid #fca5a5",
-            background: "#fef2f2",
-            borderRadius: 6,
-            color: "#991b1b",
+            border: `0.75px solid ${TOKENS.alert}`,
+            background: TOKENS.paperRecessed,
+            borderRadius: 4,
+            color: "#a30000",
           }}
         >
           Failed to load simulations: {error}
@@ -73,7 +75,7 @@ export default function SimulationsIndexPage() {
       )}
 
       {rows === null && !error && (
-        <p style={{ marginTop: 24, color: "#888" }}>Loading…</p>
+        <p style={{ marginTop: 24, color: TOKENS.inkMuted }}>Loading…</p>
       )}
 
       {rows !== null && rows.length === 0 && (
@@ -81,9 +83,9 @@ export default function SimulationsIndexPage() {
           style={{
             marginTop: 24,
             padding: 24,
-            border: "1px dashed #d4d4d8",
-            borderRadius: 6,
-            color: "#666",
+            border: `0.75px dashed ${TOKENS.rule}`,
+            borderRadius: 4,
+            color: TOKENS.inkMuted,
             textAlign: "center",
           }}
         >
@@ -94,7 +96,7 @@ export default function SimulationsIndexPage() {
       {rows !== null && rows.length > 0 && (
         <table style={{ marginTop: 24, width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #e4e4e7", fontSize: 13, color: "#52525b" }}>
+            <tr style={{ textAlign: "left", borderBottom: `0.75px solid ${TOKENS.rule}`, fontSize: 13, color: TOKENS.inkMuted }}>
               <th style={{ padding: "10px 8px", fontWeight: 500 }}>Hypothesis</th>
               <th style={{ padding: "10px 8px", fontWeight: 500, width: 110 }}>Capability</th>
               <th style={{ padding: "10px 8px", fontWeight: 500, width: 100 }}>Status</th>
@@ -104,33 +106,35 @@ export default function SimulationsIndexPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} style={{ borderBottom: "1px solid #f4f4f5" }}>
+              <tr key={row.id} style={{ borderBottom: `0.75px solid ${TOKENS.rule}` }}>
                 <td style={{ padding: "12px 8px" }}>
                   <Link
                     href={`/simulations/${row.id}`}
-                    style={{ color: "#111", textDecoration: "none", fontWeight: 500 }}
+                    style={{ color: TOKENS.ink, textDecoration: "none", fontWeight: 500 }}
                   >
-                    {row.hypothesis_prose || <em style={{ color: "#888" }}>(no prose)</em>}
+                    {row.hypothesis_prose || <em style={{ color: TOKENS.inkMuted }}>(no prose)</em>}
                   </Link>
                 </td>
-                <td style={{ padding: "12px 8px", color: "#52525b", fontSize: 14 }}>{row.capability_name}</td>
+                <td style={{ padding: "12px 8px", color: TOKENS.inkMuted, fontSize: 14 }}>{row.capability_name}</td>
                 <td style={{ padding: "12px 8px" }}>
                   <span
                     style={{
-                      color: STATUS_COLOR[row.status] ?? "#000",
+                      color: STATUS_COLOR[row.status] ?? TOKENS.ink,
                       fontWeight: 600,
                       fontSize: 12,
                       textTransform: "uppercase",
                       letterSpacing: 0.4,
+                      fontFamily: FONT_MONO,
+                      ...TNUM,
                     }}
                   >
                     {row.status}
                   </span>
                 </td>
-                <td style={{ padding: "12px 8px", textAlign: "right", fontWeight: 500 }}>
+                <td style={{ padding: "12px 8px", textAlign: "right", fontWeight: 500, fontFamily: FONT_MONO, ...TNUM }}>
                   {row.confidence_score !== null ? Math.round(row.confidence_score) : "—"}
                 </td>
-                <td style={{ padding: "12px 8px", color: "#71717a", fontSize: 13 }}>
+                <td style={{ padding: "12px 8px", color: TOKENS.inkMuted, fontSize: 13, fontFamily: FONT_MONO, ...TNUM }}>
                   {formatRelative(row.created_at)}
                 </td>
               </tr>

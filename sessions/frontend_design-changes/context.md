@@ -3,19 +3,23 @@ type: session
 domain: frontend_design-changes
 status: closed
 started: 2026-06-02
-closed: 2026-06-02
+closed: 2026-06-06
 owner: ram-de
 ---
 
-# Session: frontend_design-changes — apply DESIGN.md to the public site
+# Session: frontend_design-changes — apply DESIGN.md to the full product
 
 ## Goal
-Restyle the public homepage (rendered on the `sidira.ai` host) to the locked design system in `DESIGN.md`. Scope is the public site ONLY. Not in scope: `app.sidira.ai` shell (deferred), `/about` page (part of #135), in-product simulation-run animation (#136), legacy brand cleanup (#137).
+Apply DESIGN.md to the entire frontend.
+- Phase 1 (public homepage, PR #138): complete.
+- Phase 2 & 3 (app.sidira.ai shell restyle + /about page, issue #135, PR #142): complete.
 
 ## In Progress
 — session complete —
 
 ## Completed
+
+### Phase 1 — public homepage (PR #138, merged 2026-06-02)
 - [x] Audited current public-site rendering — no Tailwind (inline styles throughout), `system-ui` was the body font (DESIGN.md §10 violation), three multi-column grids on the public page, locked regression-test strings noted.
 - [x] Wired four production fonts via `next/font/google` in `app/layout.tsx`: Hanken Grotesk (Söhne stand-in — Next 14.2 predates Geist), Archivo Narrow, Instrument Serif, JetBrains Mono. Exposed as CSS variables `--font-sans` / `--font-narrow` / `--font-serif` / `--font-mono`. Body font flipped from `system-ui` to `var(--font-sans)`. Body bg/color flipped to ink-on-paper.
 - [x] Rewrote `PublicCompanyHome` in `app/page.tsx`: inline `SidiraLockup` SVG component, editorial italic hero ("Validate product bets before you build."), Hanken Grotesk body, ink/paper CTAs (4px radius, no gradients), hairline-separated 3-step section with monumental mono numerals (no colored icon circles), mono footer. `ProductHome` untouched.
@@ -25,6 +29,17 @@ Restyle the public homepage (rendered on the `sidira.ai` host) to the locked des
 - [x] All regression tests passing: `pytest backend/tests/test_deploy_config.py` 12 passed (PR #133 host-split + public-copy + temp-Basic-Auth invariants preserved). `npm run typecheck` + `npm run build` clean.
 - [x] Codex review: 2 rounds, 2 P2s flagged + fixed, R2 clean.
 - [x] PR #138 squash-merged to `main` as commit `24eb992`.
+
+### Phase 2 & 3 — app shell + /about page (PR #142, open 2026-06-06)
+- [x] Extracted `frontend/lib/design.ts` — shared TOKENS, FONT_*, TNUM constants. All app pages import from here; no more inline redefinition.
+- [x] Extracted `frontend/components/SidiraLockup.tsx` — primary horizontal lockup SVG (mark + SIDIRA wordmark, height prop, currentColor). Used in TopNav and public page.
+- [x] TopNav: SidiraLockup at 32px, `paperElevated` bg, 0.75px `rule` hairline border, ink/inkMuted links, 1.5px ink active underline.
+- [x] Simulations index: design token pass — ink/paper colors, 0.75px rule borders, 4px radius, FONT_MONO + TNUM on score/status/timestamp columns.
+- [x] Personas + Product pages: design token pass.
+- [x] Simulation detail page (`/simulations/[id]`): comprehensive sweep — purged all `borderRadius: 999` pills, FONT_MONO + TNUM on lift/score/CI/frequency, rule hairline borders, paper tokens on banners, ink progress bar.
+- [x] `/about` page: `SidiraLockupDuo` with 3 Sid-blue (#2C5577) + 3 Avira-rose (#D696C8) blades per DESIGN.md §4.4; Instrument Serif italic h1; name-origin story; 0.75px Avira-rose hairline above founder bios.
+- [x] Build clean: `tsc --noEmit` zero errors, `next build` 11/11 pages, `pytest test_deploy_config` 12 passed.
+- [x] PR #142 open at https://github.com/ram-de/sidira-simulator/pull/142.
 
 ## Key Files
 - `frontend/lib/site-hosts.ts` — host detection (public vs app)
