@@ -1,5 +1,20 @@
 {
+  "worktree": {
+    "bgIsolation": "worktree"
+  },
+  "autoCompactEnabled": true,
+  "autoCompactWindow": 160000,
   "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-compact-save-session.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",
