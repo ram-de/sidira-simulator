@@ -43,6 +43,17 @@ def clerk_configured() -> bool:
     return clerk_secret() is not None
 
 
+def clerk_webhook_secret() -> str | None:
+    """Clerk webhook signing secret (``whsec_…``), or ``None`` when unset.
+
+    Distinct from :func:`clerk_secret`: the session gate validates browser JWTs
+    with the backend API secret, while the ``/webhooks/clerk`` endpoint validates
+    Svix-signed server-to-server deliveries with this signing secret. When unset
+    the webhook cannot verify a delivery and refuses to process it.
+    """
+    return resolve_sidira_env("CLERK_WEBHOOK_SECRET")
+
+
 def _authorized_parties() -> list[str] | None:
     raw = resolve_sidira_env("CLERK_AUTHORIZED_PARTIES")
     if raw is None:

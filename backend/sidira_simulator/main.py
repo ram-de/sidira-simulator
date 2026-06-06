@@ -21,8 +21,15 @@ from sidira_simulator.api import (
     persona_packs,
     personas,
     simulations,
+    webhooks,
 )
 from sidira_simulator.services.runtime_config import resolve_sidira_env
+
+# Paths that bypass BOTH auth gates. `/health` is the public liveness probe;
+# `/webhooks/clerk` is Clerk's server-to-server delivery — it can't carry a
+# browser session token or the internal key, so it self-authenticates via the
+# Svix signature instead (see api/webhooks.py).
+_PUBLIC_PATHS = frozenset({"/health", "/webhooks/clerk"})
 
 
 def _cors_origins() -> list[str]:
@@ -62,7 +69,7 @@ def create_app() -> FastAPI:
     async def clerk_auth_gate(request: Request, call_next):
         if (
             not auth.clerk_configured()
-            or request.url.path == "/health"
+            or request.url.path in _PUBLIC_PATHS
             or request.method == "OPTIONS"
         ):
             return await call_next(request)
@@ -83,7 +90,7 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def internal_api_key_gate(request: Request, call_next):
         expected = resolve_sidira_env("INTERNAL_API_KEY")
-        if not expected or request.url.path == "/health" or request.method == "OPTIONS":
+        if not expected or request.url.path in _PUBLIC_PATHS or request.method == "OPTIONS":
             return await call_next(request)
         if request.headers.get("x-sidira-internal-key") != expected:
             return JSONResponse({"detail": "Not found"}, status_code=404)
@@ -105,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(persona_builds.router)
     app.include_router(persona_packs.router)
     app.include_router(personas.router)
+    app.include_router(webhooks.router)
 
     return app
 
