@@ -146,7 +146,7 @@ function PublicCompanyHome() {
             style={{
               color: TOKENS.inkMuted,
               fontFamily: FONT_SANS,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 500,
               textDecoration: "none",
               padding: "8px 4px",
@@ -159,7 +159,7 @@ function PublicCompanyHome() {
             style={{
               color: TOKENS.inkMuted,
               fontFamily: FONT_SANS,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 500,
               textDecoration: "none",
               padding: "8px 4px",
