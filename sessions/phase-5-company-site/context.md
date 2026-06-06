@@ -26,14 +26,17 @@ Make `sidira.ai` / `www.sidira.ai` the public company site while keeping `app.si
 - [x] Verification passed: new deploy/config tests, frontend typecheck, frontend production build, full backend suite, and `git diff --check`.
 - [x] PR #142: app shell + /about page (DESIGN.md system, SidiraLockup, design tokens, public homepage redesign). Codex gate: PASS.
 - [x] Dev ergonomics: `SIDIRA_PUBLIC_HOST=1` in `.env.local` to see public homepage at localhost. `APP_URL` const routes Sign in to `localhost:3000/simulations` in dev. "About" nav link added.
-- [x] `/about` page copy: replaced kids-naming story with product/instrument angle ("Precision before commitment."). Mark architecture paragraph kept, detached from naming origin.
+- [x] `/about` page copy: replaced kids-naming story with product/instrument angle ("Precision before commitment."). Mark architecture and founders sections removed.
+- [x] Dev ergonomics: 127.0.0.1 APP_URL bypass (localhost + SIDIRA_PUBLIC_HOST was redirecting Sign in to app.sidira.ai via middleware).
+- [x] ProductHome font: FONT_SANS on main wrapper + FONT_NARROW/uppercase for Sidira h1 to match lockup.
+- [x] Nav font sizes aligned: TopNav and public homepage both at 16px/500.
+- [x] Pushed to remote; PR #142 updated.
 
 ## Next Steps
-1. Merge PR #142 (codex gate passed).
+1. Merge PR #142.
 2. Issue #136: aperture-close animation (separate PR).
 3. Issue #137: prune legacy brand files (separate PR).
-4. When browser tooling is available, visually QA `sidira.ai` public home and `/about` on a live deploy/preview.
-5. Continue Phase 5 proper with Clerk middleware and tenant resolution.
+4. Continue Phase 5 proper with Clerk middleware and tenant resolution.
 
 ## Key Files
 - `frontend/middleware.ts`
