@@ -1,46 +1,6 @@
 import Link from "next/link";
-import { TOKENS, FONT_SANS, FONT_NARROW, FONT_SERIF } from "@/lib/design";
-
-// Inline duo lockup — three Sid-blue blades + three Avira-rose blades.
-// Geometry matches frontend/public/brand/sidira-lockup-duo.svg per DESIGN.md §3.1.
-// Used ONLY on the about / cofounder page. Never in the nav or favicon.
-function SidiraLockupDuo({ height = 48 }: { height?: number }) {
-  return (
-    <svg
-      width={(height / 60) * 240}
-      height={height}
-      viewBox="0 0 240 60"
-      fill="none"
-      role="img"
-      aria-label="Sidira — founder mode"
-      style={{ display: "block" }}
-    >
-      <g transform="translate(0 5) scale(0.5)" strokeWidth={2.2} strokeLinejoin="round" fill="none">
-        <g stroke="#2C5577">
-          <polygon points="50,90 15.359,70 38.740,56.5 50,63" />
-          <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5" />
-          <polygon points="15.359,30 50,10 50,37 38.740,43.5" />
-        </g>
-        <g stroke="#D696C8">
-          <polygon points="84.641,70 50,90 50,63 61.260,56.5" />
-          <polygon points="50,10 84.641,30 61.260,43.5 50,37" />
-          <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5" />
-        </g>
-      </g>
-      <text
-        x={64}
-        y={44}
-        fontFamily={FONT_NARROW}
-        fontWeight={600}
-        fontSize={44}
-        letterSpacing={2.6}
-        fill={TOKENS.ink}
-      >
-        SIDIRA
-      </text>
-    </svg>
-  );
-}
+import { TOKENS, FONT_SANS, FONT_SERIF } from "@/lib/design";
+import SidiraLockupDuo from "@/components/SidiraLockupDuo";
 
 export default function AboutPage() {
   return (

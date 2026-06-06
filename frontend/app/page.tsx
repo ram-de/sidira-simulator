@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import { isPublicSiteHost } from "@/lib/site-hosts";
 import SidiraLockup from "@/components/SidiraLockup";
+import SidiraLockupDuo from "@/components/SidiraLockupDuo";
 import { TOKENS, FONT_SANS, FONT_NARROW, FONT_SERIF, FONT_MONO } from "@/lib/design";
 
 const CARDS = [
@@ -138,7 +139,7 @@ function PublicCompanyHome() {
           aria-label="Sidira home"
           style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
         >
-          <SidiraLockup height={28} />
+          <SidiraLockupDuo height={36} />
         </Link>
         <nav style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <Link
