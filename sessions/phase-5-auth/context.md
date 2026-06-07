@@ -166,13 +166,22 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
      Bash tool shell lacks it on PATH. Run `export PATH="$HOME/.npm-global/bin:$PATH"`
      (or call the absolute path) before `codex review --base main`.
 2. **PR #154 open** — `fix-precompact-worktree-detect`:
-   https://github.com/ram-de/sidira-simulator/pull/154. Spun off from a codex P2
-   found during #32: the PreCompact autosave hook misdetected worktrees
-   (`--git-common-dir` never contains `/.git/worktrees/`), so autosave silently
-   no-op'd in worktrees. Fixed to compare `--git-dir` vs `--git-common-dir`.
-   Independent of #153; merge either order. Worktree
+   https://github.com/ram-de/sidira-simulator/pull/154. Now covers THREE
+   PreCompact-autosave fixes (codex clean, final pass): (a) worktree
+   mis-detection (`--git-common-dir` never contains `/.git/worktrees/`) → compare
+   `--git-dir` vs `--git-common-dir`; (b) **multi-session** — the hook bailed on
+   `session_state.py active` non-zero exit, so with 0 OR >1 active sessions
+   autosave silently no-op'd (this is why autosave never fired — three sessions
+   were left `active`). Now saves every active+dirty session in one commit;
+   (c) **codex P1** — bare `git commit` committed the whole index → now a pathspec
+   partial commit so unrelated staged work is never swept in. SKILL.md autosave
+   note updated to match. Independent of #153; merge either order. Worktree
    `fix-precompact-worktree-detect` kept on disk until #154 merges, then
    `git worktree remove`.
+   - Root-cause cleanup landed on #153's branch (commit 09a640d): closed two
+     stale `status: active` sessions (`first_task`, `phase-5-company-site`) so
+     `active` resolves to the single `phase-5-auth` again — autosave works even
+     before #154 lands.
 3. **PR #155 open** — `worktree-skill-drop-github-ramde-mcp`:
    https://github.com/ram-de/sidira-simulator/pull/155. Removed the unused
    `github_ramde` MCP server from `pythia-session/SKILL.md`; the identity rule
