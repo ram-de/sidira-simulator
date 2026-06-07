@@ -189,6 +189,29 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
    `sidira.ai` **domain/DNS** in the Production instance (CNAMEs for Clerk's frontend
    API) and put the `pk_live_`/`sk_live_` keys into the **Amplify** frontend env. These
    only light up sign-in/up, which is gated behind #149 anyway — so sequence with #149.
+   **[PAUSED 2026-06-07 — decision pending before any action.]** Analysis done this
+   session: adding `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` to Amplify is a **hard prod auth
+   cutover**, not additive — `frontend/middleware.ts` ends with
+   `clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware`, so the publishable key
+   swaps the temporary Basic-Auth gate for Clerk sign-in the instant it deploys.
+   Prerequisites/gotchas captured for resume:
+   - **Domain/DNS first:** `pk_live_`/`sk_live_` are domain-bound — must add + verify
+     CNAMEs in Clerk → Configure → Domains (Clerk frontend API on `clerk.app.sidira.ai`
+     or similar) BEFORE the keys work.
+   - **Both keys together in Amplify:** `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (pk_live) +
+     `CLERK_SECRET_KEY` (sk_live) — Next `clerkMiddleware`/`auth()` needs the secret
+     server-side. This is the **frontend** secret, SEPARATE from the backend's
+     `SIDIRA_CLERK_SECRET_KEY` on EC2 (which stays unset; that's the #149-blocked one).
+   - **Lockout risk:** Clerk replaces the Basic-Auth gate; with invite-only now on, the
+     founder must have a Clerk account on the Production instance first (create org +
+     self-invite, confirm sign-in) or risk locking out of the prod app.
+   - **Not tenant-scoped until #149:** signed-in users' API calls still hit the backend
+     default tenant (`streamly_sample`) via the Basic-Auth proxy hop — org isolation is
+     not end-to-end until #149. Reversible (remove key + redeploy).
+   - **Decision to make on resume:** (a) stage safely (domain/DNS + self-invite, NO
+     Amplify keys, flip later with #149); (b) full cutover now (accept default-tenant
+     state, reversible, OK since no real customers); or (c) do #149 first for a coherent
+     end-to-end flip. Was about to ask; user paused.
 4. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
    by `customer_id`). Not started — needs explicit go-ahead. Can run in parallel.
 5. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
@@ -226,6 +249,27 @@ PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
   configured for the user's day job).
 - GitNexus MCP not connected during #29 — impact analysis done manually (MEDIUM,
   backward-compatible).
+- **Onboarding evolution (intended path): invite-only → capped self-serve →
+  per-org SSO.** Same Clerk org=customer model the whole way; only the "door"
+  tightens/loosens per customer size. (1) *Now:* invite-only (Clerk Restrictions)
+  for design partners — no stranger can provision a tenant. (2) *Launch:* open
+  self-serve, but gated by email verification + bot protection + a free-tier
+  **usage cap** (LLM agents run on our API keys, so open signup without a cap =
+  strangers spending our money). Signup gate decides *who's in the door*; tenant
+  isolation (#30) + usage limits decide *what they can do inside*. (3) *Enterprise:*
+  Clerk supports per-org **SSO (SAML/OIDC) + SCIM + verified domains** — turn on
+  per-tenant, customer's Okta/Azure AD governs access, zero self-signup. No rebuild
+  at any stage — just stricter doors as customers grow.
+- **Production Clerk is now in invite-only beta posture (set 2026-06-07):**
+  (1) Sign-ups restricted to invitation-only (Protect → Restrictions) — no random
+  internet account creation. (2) "Allow user-created organizations" = OFF
+  (Organizations → Settings) — only the founder provisions each customer's org from
+  the dashboard, which still fires `organization.created` → provisions the
+  `customers` row; invited users then join that org. Implication for #32: invited
+  users won't hit the frontend `<CreateOrganization>` step (they join a pre-made
+  org) — correct invite-only behavior, no breakage since the frontend isn't live in
+  Amplify yet. To open self-serve later: reverse both toggles + add email
+  verification + bot protection + free-tier usage cap.
 
 ## For my cofounder
 This is now the single umbrella session for all Phase 5 auth work. #124/#131
