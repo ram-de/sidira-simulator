@@ -15,14 +15,48 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #31 — Clerk webhook → customer provisioning: code complete + reviewed, PR #152 open (awaiting merge)
+- [ ] #32 — **PR #153 OPEN** (awaiting merge):
+  https://github.com/ram-de/sidira-simulator/pull/153. Frontend Clerk auth pages +
+  env-gated middleware route protection + org-on-signup. Scope: **Option 1**
+  (UI + middleware + org-creation + pack-based redirect); backend token-forwarding
+  through the Caddy proxy DEFERRED to #149. Build + typecheck + 13 deploy-config
+  tests green. Opened via `gh` CLI as `ram-de` (`github_ramde` MCP server still
+  not configured this session — documented fallback).
+  **Codex gate (now run):** the earlier "Codex CLI not installed" was a FALSE
+  NEGATIVE — codex IS installed at `~/.npm-global/bin/codex` (v0.137.0); the
+  non-interactive Bash tool shell just doesn't source `~/.zshrc`, so that dir is
+  off-PATH. Invoke via absolute path or `export PATH="$HOME/.npm-global/bin:$PATH"`.
+  First `codex review --base main` found a **P1 auth bypass** (fixed, see below);
+  a second pass confirmed the P1 gone and surfaced a pre-existing P2 in the
+  PreCompact hook (out of #32 scope — see Next Steps).
+  - **P1 FIXED in this PR:** Clerk-path middleware omitted `/api`, so once Clerk
+    is enabled an unauthenticated `/api/*` call passed through and the same-origin
+    proxy (`app/api/[...path]/route.ts`) stapled on the server's Basic Auth
+    credential → backend reachable without a session (a regression: pre-Clerk
+    `basicAuthMiddleware` gated `/api` too). Fix: `clerkAuthMiddleware` now gates
+    `/api`+`/trpc` on a Clerk `userId`, returning a plain **401** (`apiAuthChallenge`,
+    no `www-authenticate`) instead of a sign-in redirect. Test extended to assert
+    the `/api` gate. Re-ran typecheck + keyless build + 13 tests + codex — all green.
+  Worktree `phase-5-32-clerk-frontend`.
+  - Files: `frontend/lib/clerk.ts` (gating + appearance + URLs);
+    `frontend/middleware.ts` (clerkMiddleware composed with host redirects, falls
+    back to Basic-Auth `basicAuthMiddleware` when unconfigured);
+    `frontend/app/layout.tsx` (conditional `<ClerkProvider>`);
+    `frontend/app/sign-in/[[...sign-in]]`, `sign-up/[[...sign-up]]`, `sso-callback`
+    pages (all `clerkEnabled()`-gated; sso-callback ensures an org via
+    `<CreateOrganization>` then routes by `getActivePersonas()` — empty →
+    `/personas/new`, else `/`); `components/AuthShell.tsx`, `AuthUnavailable.tsx`,
+    `AuthControls.tsx` (UserButton + OrganizationSwitcher in TopNav);
+    `frontend/.env.example` (Clerk keys + Organizations-required note);
+    new test `test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback`.
+  - `@clerk/nextjs` pinned to **v6** (`^6.39.5`); v7 needs Next 15+ (stack is Next 14).
 
 ## Completed
 
-### #31 — Clerk webhook → customer (tenant) provisioning (CODE COMPLETE — PR #152 open)
-- PR: https://github.com/ram-de/sidira-simulator/pull/152 (branch
-  `worktree-phase-5-31-clerk-webhook`, opened via `gh` as `ram-de` —
-  `github_ramde` MCP server not configured this session).
+### #31 — Clerk webhook → customer (tenant) provisioning (MERGED — PR #152, `415042a`)
+- PR #152 squash-merged to `main` as `415042a`; **issue #31 auto-closed**.
+- Opened + merged via `gh` CLI as `ram-de` (`github_ramde` MCP server not
+  configured this session — used the documented `gh` fallback).
 - **Tenancy model decision: customer = Clerk Organization** (one customer/tenant
   with many users). Webhook handles `organization.created` (NOT `user.created`).
   `customer.id == clerk org_id`: the gate's `_extract_customer_id` returns the raw
@@ -124,21 +158,45 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#31 PR #152 open — awaiting review/merge.** After merge, the webhook provisions a
-   `customers` row per Clerk Organization. Configure `SIDIRA_CLERK_WEBHOOK_SECRET`
-   in SSM + register the Clerk webhook endpoint (`organization.created`) to
-   activate in prod (safe on its own — independent of the still-blocked session gate).
-2. **Pick the next ticket** from the chain #29 unblocked:
-   - **#32 — frontend Clerk pages** (sign-in/up UI + Next middleware sends the
-     token): one of the two prod-enablement blockers below. With #31 landed,
-     signup now writes the org → tenant record the gate reads.
-   - **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
-     by `customer_id`): can run in parallel, hardens the multi-tenancy the gate
-     now enforces.
-2. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
+1. **#32 — PR #153 open, awaiting merge/review. Codex gate PASSED** (P1 auth
+   bypass found + fixed in-PR; clean re-run). On merge, `ExitWorktree` the
+   `phase-5-32-clerk-frontend` worktree. Then in the Clerk dashboard, enable the
+   **Organizations** feature (config, not code) so signup can create an org.
+   - Codex CLI fix for the env: it IS installed at `~/.npm-global/bin/codex`; the
+     Bash tool shell lacks it on PATH. Run `export PATH="$HOME/.npm-global/bin:$PATH"`
+     (or call the absolute path) before `codex review --base main`.
+2. **PR #154 open** — `fix-precompact-worktree-detect`:
+   https://github.com/ram-de/sidira-simulator/pull/154. Now covers THREE
+   PreCompact-autosave fixes (codex clean, final pass): (a) worktree
+   mis-detection (`--git-common-dir` never contains `/.git/worktrees/`) → compare
+   `--git-dir` vs `--git-common-dir`; (b) **multi-session** — the hook bailed on
+   `session_state.py active` non-zero exit, so with 0 OR >1 active sessions
+   autosave silently no-op'd (this is why autosave never fired — three sessions
+   were left `active`). Now saves every active+dirty session in one commit;
+   (c) **codex P1** — bare `git commit` committed the whole index → now a pathspec
+   partial commit so unrelated staged work is never swept in. SKILL.md autosave
+   note updated to match. Independent of #153; merge either order. Worktree
+   `fix-precompact-worktree-detect` kept on disk until #154 merges, then
+   `git worktree remove`.
+   - Root-cause cleanup landed on #153's branch (commit 09a640d): closed two
+     stale `status: active` sessions (`first_task`, `phase-5-company-site`) so
+     `active` resolves to the single `phase-5-auth` again — autosave works even
+     before #154 lands.
+3. **PR #155 open** — `worktree-skill-drop-github-ramde-mcp`:
+   https://github.com/ram-de/sidira-simulator/pull/155. Removed the unused
+   `github_ramde` MCP server from `pythia-session/SKILL.md`; the identity rule
+   now points at the `gh` CLI (act as `ram-de`, never `rmkmar`). Doc-only,
+   codex clean. Worktree kept until merge, then `git worktree remove`.
+2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
+   the Clerk webhook endpoint (`organization.created`) to activate provisioning in
+   prod (safe on its own — independent of the still-blocked session gate).
+3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes by
+   `customer_id`): can run in parallel after #32.
+4. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
    Authorization instead of stripping it) and #32 (Next middleware must send the
-   Clerk token). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship —
-   flipping it on today would 401 all app traffic.
+   Clerk token — #32 ships the UI/middleware; the proxy token hop is deferred to
+   #149). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship — flipping
+   it on today would 401 all app traffic.
 
 ## Key Files
 - `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk` org→customer provisioning (#31)
@@ -173,9 +231,11 @@ This is now the single umbrella session for all Phase 5 auth work. #124/#131
 wired but **inert in prod by design** (secret unset). Before anyone enables it in
 production, both #149 (Caddy must forward Authorization instead of stripping it)
 and #32 (Next middleware must send the token) have to land, or the gate 401s all
-app traffic. **#31 is now code-complete with a PR open** — the
-`POST /webhooks/clerk` endpoint provisions one customer per Clerk Organization
-(customer = tenant with many users) from `organization.created`, signature-verified
-via Svix, and is safe to enable in prod on its own (independent of the still-blocked
-session gate). Next tickets are **#32** (frontend Clerk pages — also a gate
-prod-enablement blocker) and **#30** (customer-scoping audit, parallel).
+app traffic. **#31 is MERGED** (PR #152, `415042a`) — the `POST /webhooks/clerk` endpoint
+provisions one customer per Clerk Organization (customer = tenant with many users)
+from `organization.created`, signature-verified via Svix, safe to enable in prod on
+its own. **#32 is now in flight** (worktree `phase-5-32-clerk-frontend`): frontend
+Clerk pages + env-gated middleware route protection + org-creation at signup (so
+#31's webhook fires) + pack-based post-signup redirect. Scope is Option 1 — backend
+token-forwarding through the Caddy proxy is deferred to **#149** (the one remaining
+prod-enablement blocker after #32). #30 (customer-scoping audit) is next, parallel.

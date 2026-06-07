@@ -1,8 +1,9 @@
 ---
 type: session
 domain: first_task
-status: active
+status: closed
 started: 2026-05-22
+closed: 2026-06-06
 owner: rmkmar
 ---
 
@@ -12,7 +13,7 @@ owner: rmkmar
 Walk through the Pythia onboarding flow (ONBOARDING.md) and pick up enough context to take on a first real ticket.
 
 ## In Progress
-- [ ] Pick a starter ticket and spin up a dedicated session for it
+(none — session complete)
 
 ## Completed
 - Steps 1–5: env already provisioned (gstack installed, 3 repos cloned, backend venv + .env present, frontend node_modules present, Python 3.11.5, Node 23)
@@ -21,11 +22,10 @@ Walk through the Pythia onboarding flow (ONBOARDING.md) and pick up enough conte
 - Step 7: Read CONTEXT.md, ROADMAP.md, AGENTS.md
 - Step 8: session model understood (this skill, committed to git)
 - Step 9 (scout): pulled all 30 open issues on `ram-de/pythia-simulator`
+- Onboarding complete; subsequent work moved into dedicated per-feature sessions (Phase 4 through Phase 5 auth).
 
 ## Next Steps
-1. Decide between recommended starter tickets (see Key Context)
-2. Once chosen: assign self on the issue, move Project board → In progress, `git checkout -b <branch>`, open a new `/pythia-session new <slug>`
-3. (Optional but recommended for muscle memory) Run the Magic Moment locally (Step 6) — submit a hypothesis end-to-end before writing any code
+— session complete (onboarding done; superseded by feature-specific sessions)
 
 ## Key Files
 - `ONBOARDING.md`, `CONTEXT.md`, `ROADMAP.md`, `AGENTS.md` — read

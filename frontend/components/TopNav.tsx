@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AuthControls from "@/components/AuthControls";
 import SidiraLockup from "@/components/SidiraLockup";
 import { TOKENS, FONT_SANS } from "@/lib/design";
 
@@ -54,6 +55,7 @@ export default function TopNav() {
           );
         })}
       </nav>
+      <AuthControls />
     </header>
   );
 }
