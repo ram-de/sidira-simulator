@@ -173,6 +173,11 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
    Independent of #153; merge either order. Worktree
    `fix-precompact-worktree-detect` kept on disk until #154 merges, then
    `git worktree remove`.
+3. **PR #155 open** — `worktree-skill-drop-github-ramde-mcp`:
+   https://github.com/ram-de/sidira-simulator/pull/155. Removed the unused
+   `github_ramde` MCP server from `pythia-session/SKILL.md`; the identity rule
+   now points at the `gh` CLI (act as `ram-de`, never `rmkmar`). Doc-only,
+   codex clean. Worktree kept until merge, then `git worktree remove`.
 2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
    the Clerk webhook endpoint (`organization.created`) to activate provisioning in
    prod (safe on its own — independent of the still-blocked session gate).
