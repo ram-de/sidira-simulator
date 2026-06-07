@@ -32,7 +32,10 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   `sudo SIDIRA_DEPLOY_BRANCH=main /opt/sidira/repo/deploy/ec2-api-deploy.sh`.
   Verified: `grep -c SIDIRA_CLERK_WEBHOOK_SECRET /opt/sidira/api.env` → 1; unsigned
   `POST https://api.sidira.ai/webhooks/clerk` → **401** (secret loaded, rejecting).
-  Remaining one-click confirm: Clerk **"Send test"** → expect **200**.
+  **E2E CONFIRMED:** Clerk "Send example" `organization.created` → **Succeeded (200)**
+  (msg `msg_3EoMZuWCv332kFbJS…`, 2026-06-07 06:55) — signature verified + customer
+  provisioned. NB: the sample event used a placeholder org id, so it created a TEST
+  customer row in the prod DB — delete or ignore as test data.
   - **Gotcha encountered:** first deploy ran *before* the SSM param existed → read
     empty → `write_env` skips empty values (script line 59) → endpoint 503'd. Fix
     was just to create the param then re-run the deploy (no code change).
