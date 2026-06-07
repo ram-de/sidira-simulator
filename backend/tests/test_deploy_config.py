@@ -204,6 +204,14 @@ def test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback() -> Non
     assert "clerkMiddleware" in middleware
     assert "clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware" in middleware
 
+    # The same-origin /api proxy staples on the server's Basic Auth credential,
+    # so the Clerk path must gate /api on a session too — otherwise enabling
+    # Clerk would regress /api from gated (pre-Clerk) to open. Returns 401 for
+    # API callers rather than redirecting to the sign-in page.
+    assert 'isApiRoute = createRouteMatcher' in middleware
+    assert '"/api(.*)"' in middleware
+    assert "apiAuthChallenge" in middleware
+
     # ClerkProvider wraps the tree only when configured.
     assert "ClerkProvider" in layout
     assert "clerkEnabled() ? (" in layout

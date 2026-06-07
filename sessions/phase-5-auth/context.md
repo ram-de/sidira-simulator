@@ -21,10 +21,22 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   (UI + middleware + org-creation + pack-based redirect); backend token-forwarding
   through the Caddy proxy DEFERRED to #149. Build + typecheck + 13 deploy-config
   tests green. Opened via `gh` CLI as `ram-de` (`github_ramde` MCP server still
-  not configured this session — documented fallback). **Caveat:** Codex CLI is not
-  installed in this environment, so the `/codex review` gate could not run —
-  substituted a manual diff self-review (clean); recommended to the user that they
-  run `/codex review` before merge if the CLI is available elsewhere.
+  not configured this session — documented fallback).
+  **Codex gate (now run):** the earlier "Codex CLI not installed" was a FALSE
+  NEGATIVE — codex IS installed at `~/.npm-global/bin/codex` (v0.137.0); the
+  non-interactive Bash tool shell just doesn't source `~/.zshrc`, so that dir is
+  off-PATH. Invoke via absolute path or `export PATH="$HOME/.npm-global/bin:$PATH"`.
+  First `codex review --base main` found a **P1 auth bypass** (fixed, see below);
+  a second pass confirmed the P1 gone and surfaced a pre-existing P2 in the
+  PreCompact hook (out of #32 scope — see Next Steps).
+  - **P1 FIXED in this PR:** Clerk-path middleware omitted `/api`, so once Clerk
+    is enabled an unauthenticated `/api/*` call passed through and the same-origin
+    proxy (`app/api/[...path]/route.ts`) stapled on the server's Basic Auth
+    credential → backend reachable without a session (a regression: pre-Clerk
+    `basicAuthMiddleware` gated `/api` too). Fix: `clerkAuthMiddleware` now gates
+    `/api`+`/trpc` on a Clerk `userId`, returning a plain **401** (`apiAuthChallenge`,
+    no `www-authenticate`) instead of a sign-in redirect. Test extended to assert
+    the `/api` gate. Re-ran typecheck + keyless build + 13 tests + codex — all green.
   Worktree `phase-5-32-clerk-frontend`.
   - Files: `frontend/lib/clerk.ts` (gating + appearance + URLs);
     `frontend/middleware.ts` (clerkMiddleware composed with host redirects, falls
