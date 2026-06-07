@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-5-company-site
-status: active
+status: closed
 started: 2026-06-01
+closed: 2026-06-06
 owner: ram-de
 ---
 
@@ -39,10 +40,10 @@ Make `sidira.ai` / `www.sidira.ai` the public company site while keeping `app.si
 - [x] Merged PRs: #142 (app shell + about page), #143 (squash-merge fix), #144 (duo lockup public surfaces), #145 (duo favicon + social SVG).
 
 ## Next Steps
-1. Export `sidira-mark-duo-social.svg` as a 400×400 PNG for Twitter/X profile picture upload (browser console script or cloudconvert.com).
-2. Issue #136: aperture-close animation (separate PR, not started).
-3. Issue #137: prune legacy brand files (separate PR, not started).
-4. Continue Phase 5 proper with Clerk middleware and tenant resolution.
+— session complete. Remaining/handed-off items:
+- #136 (aperture-close animation, PR #147) and #137 (prune legacy brand files, PR #148) shipped 2026-06-06.
+- Phase 5 auth (Clerk middleware + tenant resolution) continues in the `phase-5-auth` session.
+- Optional manual chore (not blocking): export `sidira-mark-duo-social.svg` to a 400×400 PNG for the Twitter/X avatar.
 
 ## Key Files
 - `frontend/middleware.ts`
