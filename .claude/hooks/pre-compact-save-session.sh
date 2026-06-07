@@ -13,13 +13,20 @@ REPO=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 SCRIPT="$REPO/.claude/skills/pythia-session/scripts/session_state.py"
 [[ -f "$SCRIPT" ]] || exit 0
 
-# Detect worktree via git-common-dir.
-# In a worktree: .git/worktrees/<name>  →  strip to get main repo root.
+# Detect a linked worktree by comparing the two git dirs (same test the
+# /pythia-session save flow uses). In a linked worktree, --git-dir is the
+# per-worktree .git/worktrees/<name>, while --git-common-dir is always the main
+# repo's .git — so they differ only in a worktree. (Checking --git-common-dir
+# for "/.git/worktrees/" never matches, because the common dir is by definition
+# the shared .git, not the per-worktree dir.)
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+GIT_DIR=$(cd "$REPO" && cd "$GIT_DIR" && pwd -P)
 GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
 GIT_COMMON=$(cd "$REPO" && cd "$GIT_COMMON" && pwd -P)
 
-if [[ "$GIT_COMMON" == *"/.git/worktrees/"* ]]; then
-  MAIN_REPO="${GIT_COMMON%%/.git/worktrees/*}"
+if [[ "$GIT_DIR" != "$GIT_COMMON" ]]; then
+  # Linked worktree: --git-common-dir is <main-repo>/.git.
+  MAIN_REPO="${GIT_COMMON%/.git}"
   IN_WORKTREE=1
 else
   MAIN_REPO="$REPO"
