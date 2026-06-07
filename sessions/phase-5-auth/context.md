@@ -158,11 +158,21 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#32 — PR #153 open, awaiting merge/review.** Optional: run `/codex review`
-   against the branch where the Codex CLI is installed (it is NOT installed in this
-   worktree's environment). On merge, `ExitWorktree` the `phase-5-32-clerk-frontend`
-   worktree. Then in the Clerk dashboard, enable the **Organizations** feature
-   (config, not code) so signup can create an org.
+1. **#32 — PR #153 open, awaiting merge/review. Codex gate PASSED** (P1 auth
+   bypass found + fixed in-PR; clean re-run). On merge, `ExitWorktree` the
+   `phase-5-32-clerk-frontend` worktree. Then in the Clerk dashboard, enable the
+   **Organizations** feature (config, not code) so signup can create an org.
+   - Codex CLI fix for the env: it IS installed at `~/.npm-global/bin/codex`; the
+     Bash tool shell lacks it on PATH. Run `export PATH="$HOME/.npm-global/bin:$PATH"`
+     (or call the absolute path) before `codex review --base main`.
+2. **PR #154 open** — `fix-precompact-worktree-detect`:
+   https://github.com/ram-de/sidira-simulator/pull/154. Spun off from a codex P2
+   found during #32: the PreCompact autosave hook misdetected worktrees
+   (`--git-common-dir` never contains `/.git/worktrees/`), so autosave silently
+   no-op'd in worktrees. Fixed to compare `--git-dir` vs `--git-common-dir`.
+   Independent of #153; merge either order. Worktree
+   `fix-precompact-worktree-detect` kept on disk until #154 merges, then
+   `git worktree remove`.
 2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
    the Clerk webhook endpoint (`organization.created`) to activate provisioning in
    prod (safe on its own — independent of the still-blocked session gate).
