@@ -15,12 +15,25 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #32 — frontend Clerk auth pages (sign-in/up/sso-callback) + env-gated
-  middleware route protection + org-on-signup so #31's webhook fires. Scope
-  decision: **Option 1** (UI + middleware + org-creation + pack-based redirect);
-  backend token-forwarding through the Caddy proxy is DEFERRED to #149 (the
-  `Authorization` header can't carry both the Basic-Auth-to-Caddy hop and a Clerk
-  Bearer; that header redesign belongs in #149). Worktree `phase-5-32-clerk-frontend`.
+- [ ] #32 — implementation COMPLETE, opening PR. Frontend Clerk auth pages +
+  env-gated middleware route protection + org-on-signup. Scope: **Option 1**
+  (UI + middleware + org-creation + pack-based redirect); backend token-forwarding
+  through the Caddy proxy DEFERRED to #149. Build + typecheck + 13 deploy-config
+  tests green. **Caveat:** Codex CLI is not installed in this environment, so the
+  `/codex review` gate could not run — substituted a manual diff self-review (clean);
+  flagged to the user. Worktree `phase-5-32-clerk-frontend`.
+  - Files: `frontend/lib/clerk.ts` (gating + appearance + URLs);
+    `frontend/middleware.ts` (clerkMiddleware composed with host redirects, falls
+    back to Basic-Auth `basicAuthMiddleware` when unconfigured);
+    `frontend/app/layout.tsx` (conditional `<ClerkProvider>`);
+    `frontend/app/sign-in/[[...sign-in]]`, `sign-up/[[...sign-up]]`, `sso-callback`
+    pages (all `clerkEnabled()`-gated; sso-callback ensures an org via
+    `<CreateOrganization>` then routes by `getActivePersonas()` — empty →
+    `/personas/new`, else `/`); `components/AuthShell.tsx`, `AuthUnavailable.tsx`,
+    `AuthControls.tsx` (UserButton + OrganizationSwitcher in TopNav);
+    `frontend/.env.example` (Clerk keys + Organizations-required note);
+    new test `test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback`.
+  - `@clerk/nextjs` pinned to **v6** (`^6.39.5`); v7 needs Next 15+ (stack is Next 14).
 
 ## Completed
 

@@ -184,3 +184,40 @@ def test_app_host_keeps_temporary_basic_auth_until_clerk_lands() -> None:
     assert "Amplify access control can be disabled" in runbook
     assert "temporary app-host Basic Auth" in runbook
     assert "SIDIRA_WEB_PROXY_BASIC_AUTH" in env_example
+
+
+def test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback() -> None:
+    # #32: Clerk auth pages + middleware land, but stay gated on the publishable
+    # key so the build is green and the temporary Basic-Auth fallback above keeps
+    # working until the keys are configured in each environment.
+    middleware = (REPO_ROOT / "frontend" / "middleware.ts").read_text()
+    layout = (REPO_ROOT / "frontend" / "app" / "layout.tsx").read_text()
+    clerk_lib = (REPO_ROOT / "frontend" / "lib" / "clerk.ts").read_text()
+    env_example = (REPO_ROOT / "frontend" / ".env.example").read_text()
+
+    # The key drives the gate everywhere (server middleware + client bundles).
+    assert "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" in clerk_lib
+    assert "clerkEnabled = " in clerk_lib
+
+    # Middleware swaps to Clerk only when configured; otherwise the Basic-Auth
+    # fallback (asserted in the test above) remains the default export.
+    assert "clerkMiddleware" in middleware
+    assert "clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware" in middleware
+
+    # ClerkProvider wraps the tree only when configured.
+    assert "ClerkProvider" in layout
+    assert "clerkEnabled() ? (" in layout
+
+    # The auth pages exist and are themselves gated for keyless builds.
+    for route in ("sign-in/[[...sign-in]]", "sign-up/[[...sign-up]]", "sso-callback"):
+        page = (REPO_ROOT / "frontend" / "app" / route / "page.tsx").read_text()
+        assert "clerkEnabled()" in page
+
+    # Onboarding creates an org so #31's organization.created webhook fires.
+    callback = (REPO_ROOT / "frontend" / "app" / "sso-callback" / "page.tsx").read_text()
+    assert "CreateOrganization" in callback
+
+    # Env example documents both keys and the required Organizations feature.
+    assert "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=" in env_example
+    assert "CLERK_SECRET_KEY=" in env_example
+    assert "Organizations" in env_example

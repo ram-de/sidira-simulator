@@ -6,9 +6,11 @@ import {
   Instrument_Serif,
   JetBrains_Mono,
 } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 
 import TopNav from "@/components/TopNav";
 import { isPublicSiteHost } from "@/lib/site-hosts";
+import { clerkEnabled, clerkAppearance } from "@/lib/clerk";
 
 // Production fonts per DESIGN.md §5.1 ship as licensed faces (Söhne, Söhne
 // Schmal, Berkeley Mono, GT Sectra Fine). These four free Google Fonts are
@@ -70,7 +72,7 @@ export default function RootLayout({
     fontMono.variable,
   ].join(" ");
 
-  return (
+  const tree = (
     <html lang="en" className={fontClass}>
       <body
         style={{
@@ -86,5 +88,14 @@ export default function RootLayout({
         </div>
       </body>
     </html>
+  );
+
+  // Wrap in ClerkProvider only when Clerk is configured. Without the publishable
+  // key the prebuilt components would throw during render/SSR, so the unconfigured
+  // build renders the pre-Clerk tree unchanged (see lib/clerk.ts).
+  return clerkEnabled() ? (
+    <ClerkProvider appearance={clerkAppearance}>{tree}</ClerkProvider>
+  ) : (
+    tree
   );
 }
