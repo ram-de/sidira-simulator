@@ -76,13 +76,14 @@ COMMIT_MSG="session: $DOMAIN_LIST — auto-save (pre-compact)"
 # ── WORKTREE PATH ─────────────────────────────────────────────────────────────
 # Commit session file(s) directly to the feature branch in the worktree.
 # No branch-hop: the file lands on main when the PR merges.
+#
+# Commit with an explicit pathspec (a partial commit) so the autosave captures
+# ONLY the session files — never any unrelated code the user happened to have
+# staged when compaction fired. Other staged/unstaged work is left untouched.
 if [[ "$IN_WORKTREE" -eq 1 ]]; then
-  git -C "$REPO" add "${DIRTY_FILES[@]}" 2>/dev/null || true
-  if ! git -C "$REPO" diff --cached --quiet -- "${DIRTY_FILES[@]}" 2>/dev/null; then
-    git -C "$REPO" commit -m "$COMMIT_MSG" 2>/dev/null || true
-    # Push to the remote feature branch so the cofounder can see it.
-    git -C "$REPO" push origin HEAD 2>/dev/null || true
-  fi
+  git -C "$REPO" commit -m "$COMMIT_MSG" -- "${DIRTY_FILES[@]}" 2>/dev/null || true
+  # Push to the remote feature branch so the cofounder can see it.
+  git -C "$REPO" push origin HEAD 2>/dev/null || true
   exit 0
 fi
 
@@ -98,11 +99,10 @@ if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" ]]; then
   git -C "$MAIN_REPO" stash pop 2>/dev/null || exit 0
 fi
 
-git -C "$MAIN_REPO" add "${DIRTY_FILES[@]}" 2>/dev/null || true
-if ! git -C "$MAIN_REPO" diff --cached --quiet -- "${DIRTY_FILES[@]}" 2>/dev/null; then
-  git -C "$MAIN_REPO" commit -m "$COMMIT_MSG" 2>/dev/null && \
-    git -C "$MAIN_REPO" push origin main 2>/dev/null || true
-fi
+# Partial commit (explicit pathspec) so only the session files are committed,
+# never unrelated staged work.
+git -C "$MAIN_REPO" commit -m "$COMMIT_MSG" -- "${DIRTY_FILES[@]}" 2>/dev/null && \
+  git -C "$MAIN_REPO" push origin main 2>/dev/null || true
 
 if [[ -n "$CURRENT_BRANCH" && "$CURRENT_BRANCH" != "main" ]]; then
   git -C "$MAIN_REPO" checkout "$CURRENT_BRANCH" 2>/dev/null || true
