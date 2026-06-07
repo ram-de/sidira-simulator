@@ -15,13 +15,17 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #32 — implementation COMPLETE, opening PR. Frontend Clerk auth pages +
+- [ ] #32 — **PR #153 OPEN** (awaiting merge):
+  https://github.com/ram-de/sidira-simulator/pull/153. Frontend Clerk auth pages +
   env-gated middleware route protection + org-on-signup. Scope: **Option 1**
   (UI + middleware + org-creation + pack-based redirect); backend token-forwarding
   through the Caddy proxy DEFERRED to #149. Build + typecheck + 13 deploy-config
-  tests green. **Caveat:** Codex CLI is not installed in this environment, so the
-  `/codex review` gate could not run — substituted a manual diff self-review (clean);
-  flagged to the user. Worktree `phase-5-32-clerk-frontend`.
+  tests green. Opened via `gh` CLI as `ram-de` (`github_ramde` MCP server still
+  not configured this session — documented fallback). **Caveat:** Codex CLI is not
+  installed in this environment, so the `/codex review` gate could not run —
+  substituted a manual diff self-review (clean); recommended to the user that they
+  run `/codex review` before merge if the CLI is available elsewhere.
+  Worktree `phase-5-32-clerk-frontend`.
   - Files: `frontend/lib/clerk.ts` (gating + appearance + URLs);
     `frontend/middleware.ts` (clerkMiddleware composed with host redirects, falls
     back to Basic-Auth `basicAuthMiddleware` when unconfigured);
@@ -142,15 +146,11 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#32 in flight (this worktree).** Build: `@clerk/nextjs`, env-gated
-   `ClerkProvider` in `layout.tsx`, `clerkMiddleware` in `middleware.ts`
-   (redirect unauth → `/sign-in`, keep host redirects + Basic-Auth fallback when
-   Clerk unconfigured), `/sign-in` + `/sign-up` + `/sso-callback` pages
-   (DESIGN.md-styled), programmatic org creation in `/sso-callback` so #31's
-   `organization.created` webhook fires, pack-based post-signup redirect
-   (`GET /personas` empty → `/personas/new`, else `/`). Update the
-   `test_app_host_keeps_temporary_basic_auth_until_clerk_lands` frontend test for
-   the env-gated coexistence. Leave a `// #149:` seam for token-forwarding.
+1. **#32 — PR #153 open, awaiting merge/review.** Optional: run `/codex review`
+   against the branch where the Codex CLI is installed (it is NOT installed in this
+   worktree's environment). On merge, `ExitWorktree` the `phase-5-32-clerk-frontend`
+   worktree. Then in the Clerk dashboard, enable the **Organizations** feature
+   (config, not code) so signup can create an org.
 2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
    the Clerk webhook endpoint (`organization.created`) to activate provisioning in
    prod (safe on its own — independent of the still-blocked session gate).
