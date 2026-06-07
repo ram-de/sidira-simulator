@@ -158,45 +158,28 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#32 — PR #153 open, awaiting merge/review. Codex gate PASSED** (P1 auth
-   bypass found + fixed in-PR; clean re-run). On merge, `ExitWorktree` the
-   `phase-5-32-clerk-frontend` worktree. Then in the Clerk dashboard, enable the
-   **Organizations** feature (config, not code) so signup can create an org.
-   - Codex CLI fix for the env: it IS installed at `~/.npm-global/bin/codex`; the
-     Bash tool shell lacks it on PATH. Run `export PATH="$HOME/.npm-global/bin:$PATH"`
-     (or call the absolute path) before `codex review --base main`.
-2. **PR #154 open** — `fix-precompact-worktree-detect`:
-   https://github.com/ram-de/sidira-simulator/pull/154. Now covers THREE
-   PreCompact-autosave fixes (codex clean, final pass): (a) worktree
-   mis-detection (`--git-common-dir` never contains `/.git/worktrees/`) → compare
-   `--git-dir` vs `--git-common-dir`; (b) **multi-session** — the hook bailed on
-   `session_state.py active` non-zero exit, so with 0 OR >1 active sessions
-   autosave silently no-op'd (this is why autosave never fired — three sessions
-   were left `active`). Now saves every active+dirty session in one commit;
-   (c) **codex P1** — bare `git commit` committed the whole index → now a pathspec
-   partial commit so unrelated staged work is never swept in. SKILL.md autosave
-   note updated to match. Independent of #153; merge either order. Worktree
-   `fix-precompact-worktree-detect` kept on disk until #154 merges, then
-   `git worktree remove`.
-   - Root-cause cleanup landed on #153's branch (commit 09a640d): closed two
-     stale `status: active` sessions (`first_task`, `phase-5-company-site`) so
-     `active` resolves to the single `phase-5-auth` again — autosave works even
-     before #154 lands.
-3. **PR #155 open** — `worktree-skill-drop-github-ramde-mcp`:
-   https://github.com/ram-de/sidira-simulator/pull/155. Removed the unused
-   `github_ramde` MCP server from `pythia-session/SKILL.md`; the identity rule
-   now points at the `gh` CLI (act as `ram-de`, never `rmkmar`). Doc-only,
-   codex clean. Worktree kept until merge, then `git worktree remove`.
-2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
-   the Clerk webhook endpoint (`organization.created`) to activate provisioning in
-   prod (safe on its own — independent of the still-blocked session gate).
-3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes by
-   `customer_id`): can run in parallel after #32.
-4. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
-   Authorization instead of stripping it) and #32 (Next middleware must send the
-   Clerk token — #32 ships the UI/middleware; the proxy token hop is deferred to
-   #149). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship — flipping
-   it on today would 401 all app traffic.
+
+**#153 (#32 Clerk frontend), #154 (PreCompact hook), #155 (skill cleanup) all
+MERGED to `main` 2026-06-07** (squash: `f958bff`, `1b291d3`, `8bf763a`). All
+three worktrees removed; local + remote feature branches deleted. Remaining work:
+
+1. **Enable Clerk Organizations** (dashboard config, not code) so signup can
+   create an org — required before the #31 webhook can provision a customer.
+2. **Activate the #31 webhook in prod:** configure `SIDIRA_CLERK_WEBHOOK_SECRET`
+   in SSM + register the Clerk webhook endpoint (`organization.created`) →
+   provisioning goes live. Safe on its own — independent of the still-blocked
+   session gate. (`ec2-api-deploy.sh` already reads + `write_env`s the secret.)
+3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
+   by `customer_id`). Not started — needs explicit go-ahead. Can run in parallel.
+4. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
+   must forward Authorization instead of stripping it) and the proxy token hop
+   (Next middleware must send the Clerk token; #32 shipped the UI/middleware but
+   the token-forwarding hop was deferred to #149). Do NOT set
+   `SIDIRA_CLERK_SECRET_KEY` in prod until both ship — flipping it on today would
+   401 all app traffic.
+
+Codex CLI note: installed at `~/.npm-global/bin/codex` but off the Bash-tool
+PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
 
 ## Key Files
 - `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk` org→customer provisioning (#31)
