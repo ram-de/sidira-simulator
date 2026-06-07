@@ -36,15 +36,13 @@ This skill lives in the `sidira-simulator` repo but applies to all Sidira work. 
 
 The Pythia repos use `git@github.com-personal:ram-de/<repo>.git` remotes (in the founder's local dev environment) or `git@github.com:ram-de/<repo>.git` (default). All sessions assume this context — no need to re-confirm.
 
-### MCP identity routing (HARD RULE)
+### GitHub identity (HARD RULE)
 
-When this skill is active, every GitHub MCP call against `ram-de/*` repos MUST go through the `github_ramde` MCP server (i.e. tools named `mcp__github_ramde__*`), NOT the default `github` server. The default `github` server is authenticated as the founder's personal `rmkmar` identity, which is NOT a collaborator on `ram-de/*` and cannot create PRs there — `mcp__github__create_pull_request` against `ram-de/*` returns `422 "must be a collaborator"`. The `github_ramde` server is authenticated as `ram-de` directly (the repo owner) and has full PR/issue/branch permissions.
+When this skill is active, every GitHub write operation against `ram-de/*` repos MUST act as the `ram-de` identity (the repo owner). Do NOT use the founder's personal `rmkmar` identity: it is NOT a collaborator on `ram-de/*` and cannot create PRs there — write calls return `422 "must be a collaborator"`.
 
-Apply this rule to: `create_pull_request`, `create_issue`, `update_issue`, `add_issue_comment`, `merge_pull_request`, `create_branch`, `push_files`, and any other write operation. Read operations (`get_pull_request`, `list_issues`, etc.) work on either server, but prefer `github_ramde` while inside a `/pythia-session` for consistency.
+Use the `gh` CLI, which is authenticated as `ram-de`. Confirm before any write with `gh auth status` (expect `Active account: true` for `ram-de`). Apply this rule to all writes: `gh pr create`, `gh issue create`, `gh issue comment`, `gh pr merge`, `gh pr comment`, branch pushes, and any other write operation. Read operations are unaffected.
 
-**Outside of `/pythia-session` (e.g. operating on the founder's personal projects):** default back to the `github` server (rmkmar identity). The `github_ramde` server is scoped exclusively to the three Sidira repos by its PAT and should not be used elsewhere.
-
-If `mcp__github_ramde__*` tools are NOT in the tool list, fall back to the default `github` server and tell the user: "The `github_ramde` MCP server isn't configured yet — PR creation will fail with 422. Add it per the instructions in `.claude/skills/pythia-session/SKILL.md` § MCP identity routing, then restart Claude Code."
+**Outside of `/pythia-session` (e.g. operating on the founder's personal projects):** the `ram-de` identity is scoped exclusively to the three Sidira repos and should not be used elsewhere.
 
 ---
 
