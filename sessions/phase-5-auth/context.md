@@ -15,14 +15,19 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #31 — Clerk webhook → customer provisioning: code complete + reviewed, PR #152 open (awaiting merge)
+- [ ] #32 — frontend Clerk auth pages (sign-in/up/sso-callback) + env-gated
+  middleware route protection + org-on-signup so #31's webhook fires. Scope
+  decision: **Option 1** (UI + middleware + org-creation + pack-based redirect);
+  backend token-forwarding through the Caddy proxy is DEFERRED to #149 (the
+  `Authorization` header can't carry both the Basic-Auth-to-Caddy hop and a Clerk
+  Bearer; that header redesign belongs in #149). Worktree `phase-5-32-clerk-frontend`.
 
 ## Completed
 
-### #31 — Clerk webhook → customer (tenant) provisioning (CODE COMPLETE — PR #152 open)
-- PR: https://github.com/ram-de/sidira-simulator/pull/152 (branch
-  `worktree-phase-5-31-clerk-webhook`, opened via `gh` as `ram-de` —
-  `github_ramde` MCP server not configured this session).
+### #31 — Clerk webhook → customer (tenant) provisioning (MERGED — PR #152, `415042a`)
+- PR #152 squash-merged to `main` as `415042a`; **issue #31 auto-closed**.
+- Opened + merged via `gh` CLI as `ram-de` (`github_ramde` MCP server not
+  configured this session — used the documented `gh` fallback).
 - **Tenancy model decision: customer = Clerk Organization** (one customer/tenant
   with many users). Webhook handles `organization.created` (NOT `user.created`).
   `customer.id == clerk org_id`: the gate's `_extract_customer_id` returns the raw
@@ -124,21 +129,25 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   into CloudShell output — treat as compromised).
 
 ## Next Steps
-1. **#31 PR #152 open — awaiting review/merge.** After merge, the webhook provisions a
-   `customers` row per Clerk Organization. Configure `SIDIRA_CLERK_WEBHOOK_SECRET`
-   in SSM + register the Clerk webhook endpoint (`organization.created`) to
-   activate in prod (safe on its own — independent of the still-blocked session gate).
-2. **Pick the next ticket** from the chain #29 unblocked:
-   - **#32 — frontend Clerk pages** (sign-in/up UI + Next middleware sends the
-     token): one of the two prod-enablement blockers below. With #31 landed,
-     signup now writes the org → tenant record the gate reads.
-   - **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
-     by `customer_id`): can run in parallel, hardens the multi-tenancy the gate
-     now enforces.
-2. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
+1. **#32 in flight (this worktree).** Build: `@clerk/nextjs`, env-gated
+   `ClerkProvider` in `layout.tsx`, `clerkMiddleware` in `middleware.ts`
+   (redirect unauth → `/sign-in`, keep host redirects + Basic-Auth fallback when
+   Clerk unconfigured), `/sign-in` + `/sign-up` + `/sso-callback` pages
+   (DESIGN.md-styled), programmatic org creation in `/sso-callback` so #31's
+   `organization.created` webhook fires, pack-based post-signup redirect
+   (`GET /personas` empty → `/personas/new`, else `/`). Update the
+   `test_app_host_keeps_temporary_basic_auth_until_clerk_lands` frontend test for
+   the env-gated coexistence. Leave a `// #149:` seam for token-forwarding.
+2. **After #31 merged:** configure `SIDIRA_CLERK_WEBHOOK_SECRET` in SSM + register
+   the Clerk webhook endpoint (`organization.created`) to activate provisioning in
+   prod (safe on its own — independent of the still-blocked session gate).
+3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes by
+   `customer_id`): can run in parallel after #32.
+4. **Prod-enablement of the Clerk gate is BLOCKED** on #149 (Caddy must forward
    Authorization instead of stripping it) and #32 (Next middleware must send the
-   Clerk token). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship —
-   flipping it on today would 401 all app traffic.
+   Clerk token — #32 ships the UI/middleware; the proxy token hop is deferred to
+   #149). Do NOT set `SIDIRA_CLERK_SECRET_KEY` in prod until both ship — flipping
+   it on today would 401 all app traffic.
 
 ## Key Files
 - `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk` org→customer provisioning (#31)
@@ -173,9 +182,11 @@ This is now the single umbrella session for all Phase 5 auth work. #124/#131
 wired but **inert in prod by design** (secret unset). Before anyone enables it in
 production, both #149 (Caddy must forward Authorization instead of stripping it)
 and #32 (Next middleware must send the token) have to land, or the gate 401s all
-app traffic. **#31 is now code-complete with a PR open** — the
-`POST /webhooks/clerk` endpoint provisions one customer per Clerk Organization
-(customer = tenant with many users) from `organization.created`, signature-verified
-via Svix, and is safe to enable in prod on its own (independent of the still-blocked
-session gate). Next tickets are **#32** (frontend Clerk pages — also a gate
-prod-enablement blocker) and **#30** (customer-scoping audit, parallel).
+app traffic. **#31 is MERGED** (PR #152, `415042a`) — the `POST /webhooks/clerk` endpoint
+provisions one customer per Clerk Organization (customer = tenant with many users)
+from `organization.created`, signature-verified via Svix, safe to enable in prod on
+its own. **#32 is now in flight** (worktree `phase-5-32-clerk-frontend`): frontend
+Clerk pages + env-gated middleware route protection + org-creation at signup (so
+#31's webhook fires) + pack-based post-signup redirect. Scope is Option 1 — backend
+token-forwarding through the Caddy proxy is deferred to **#149** (the one remaining
+prod-enablement blocker after #32). #30 (customer-scoping audit) is next, parallel.
