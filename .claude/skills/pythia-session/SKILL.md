@@ -19,7 +19,7 @@ This file is the source of truth for what is being worked on, what is done, and 
 
 **Do NOT invoke this skill unless the user explicitly calls `/pythia-session`.** It does not auto-activate.
 
-**Auto-save on compaction:** The repo's `PreCompact` hook (`.claude/hooks/pre-compact-save-session.sh`) automatically saves the active session before any context compaction (auto or manual). This fires at ~80% context usage (20% remaining). You don't need to call `/pythia-session save` before `/compact` — it happens automatically. The hook is a no-op if no session is active or the session file has no uncommitted changes.
+**Auto-save on compaction:** The repo's `PreCompact` hook (`.claude/hooks/pre-compact-save-session.sh`) automatically saves **every active session that has uncommitted changes** before any context compaction (auto or manual), so you don't need to call `/pythia-session save` before `/compact`. A PreCompact hook runs non-interactively, so it can't ask which session to keep when several are open — it saves them all (one commit). When the trigger fires is controlled by Claude Code's `autoCompactWindow` in `.claude/settings.json` (this repo sets a small window for frequent, lean compactions), not a fixed percentage. The hook is a no-op if no session is active, or if no active session has uncommitted changes.
 
 - **Worktree sessions** (the normal case for feature work): the session file is committed directly to the feature branch. It lands on `main` when the PR merges. No branch-hop needed, no conflict risk.
 - **Main-checkout sessions** (rare): the branch-hop dance commits the session file to `main` immediately so the cofounder sees it on `git pull`.
