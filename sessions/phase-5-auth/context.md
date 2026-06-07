@@ -15,12 +15,37 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] **Item 1 — Enable Clerk Organizations** (Clerk dashboard, no code): in flight,
-  awaiting founder execution in the dashboard. Runbook prepared (see Next Steps).
-- [ ] **Item 2 — Activate #31 webhook in prod** (AWS SSM + Clerk dashboard, no code):
-  in flight, awaiting founder execution. Endpoint is `https://api.sidira.ai/webhooks/clerk`
-  (Caddy catch-all, no basic-auth; FastAPI `_PUBLIC_PATHS` exempts it). Deploy script
-  already loads `/sidira/prod/SIDIRA_CLERK_WEBHOOK_SECRET`. Runbook prepared (see Next Steps).
+- [x] **Item 1 — Enable Clerk Organizations** — DONE on the **Development** instance
+  (app `app_3EoIE8Rsl9TGEOJ1wHuXD4zxcVz`). Organizations enabled; **Membership
+  required = Standard** (every user must belong to ≥1 org → always resolves to an
+  `org_id`/tenant, aligning with the backend 403-on-tenantless gate); **Allow
+  user-created organizations = on**; **Create first organization automatically =
+  off** (app drives creation via `<CreateOrganization>`); org-limit-per-user
+  Unlimited (capping to 1 was optional, skipped); members-per-org default = 5
+  (raise later if customer teams exceed 5). **TODO when going live:** repeat this
+  config on the **Production** instance (separate settings + `pk_live_`/`sk_live_`).
+- [x] **Item 2 — Activate #31 webhook in prod** — backend VERIFIED LIVE 2026-06-07.
+  Clerk webhook endpoint registered (`organization.created`) on the **Development**
+  Clerk instance pointing at `https://api.sidira.ai/webhooks/clerk`; signing secret
+  stored as SecureString `/sidira/prod/SIDIRA_CLERK_WEBHOOK_SECRET` (value starts
+  `whsec_`, us-east-1) and deployed to EC2 `i-04b155fafcc90042b` via
+  `sudo SIDIRA_DEPLOY_BRANCH=main /opt/sidira/repo/deploy/ec2-api-deploy.sh`.
+  Verified: `grep -c SIDIRA_CLERK_WEBHOOK_SECRET /opt/sidira/api.env` → 1; unsigned
+  `POST https://api.sidira.ai/webhooks/clerk` → **401** (secret loaded, rejecting).
+  Remaining one-click confirm: Clerk **"Send test"** → expect **200**.
+  - **Gotcha encountered:** first deploy ran *before* the SSM param existed → read
+    empty → `write_env` skips empty values (script line 59) → endpoint 503'd. Fix
+    was just to create the param then re-run the deploy (no code change).
+  - **Reachability note:** host-local `curl localhost:8000` returns `000` — port
+    8000 is exposed only on the Docker network (Caddy reaches `api:8000`), NOT
+    published to the host. Always test through `https://api.sidira.ai/...`.
+  - **⚠️ PROD-INSTANCE FOLLOW-UP:** the webhook is wired from the **Development**
+    Clerk instance → prod backend. When the **Production** Clerk instance is set up
+    (domain + `pk_live_`/`sk_live_`), register its OWN webhook endpoint and overwrite
+    the SSM secret with the Production instance's `whsec_` (the backend verifies a
+    single secret, so a Production-instance delivery signed with a different secret
+    would 401). Until then, dev-instance `organization.created` events provision
+    rows in the prod DB — fine for testing, but treat any resulting customers as test data.
 
 ## Completed
 
@@ -155,34 +180,23 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 MERGED to `main` 2026-06-07** (squash: `f958bff`, `1b291d3`, `8bf763a`). All
 three worktrees removed; local + remote feature branches deleted. Remaining work:
 
-**Items 1 & 2 are manual dashboard/console actions (Clerk dashboard + AWS Console/SSM)
-— the founder executes these; Claude cannot click them. Runbooks below; both verified
-code-side ready (deploy script loads the secret, webhook URL is public).**
+**Items 1 & 2 DONE on the Development Clerk instance + prod backend, 2026-06-07**
+(Organizations enabled; webhook live, backend verified 401 on unsigned POST). The
+remaining work is the Production Clerk instance + the still-blocked session gate:
 
-1. **Enable Clerk Organizations** (Clerk dashboard, not code) so signup can
-   create an org — required before the #31 webhook can provision a customer.
-   **Runbook:** Clerk dashboard → **Organizations** → toggle **Enable Organizations** on.
-   Recommended settings: allow users to create orgs (so `<CreateOrganization>` on the
-   sso-callback page works), and (optionally) limit each user to one org for the
-   one-customer-per-org tenancy model. Verify a test signup lands on the org-creation
-   step and a row appears once the webhook (item 2) is live.
+1. ✅ **Enable Clerk Organizations** — DONE on Development instance (see In Progress
+   for the exact toggles). **Repeat on the Production instance when it's set up.**
+2. ✅ **Activate the #31 webhook** — DONE, backend verified live (see In Progress).
+   One-click confirm left: Clerk **"Send test"** → 200. **Production follow-up:**
+   register a webhook on the Production Clerk instance and overwrite the SSM secret
+   with that instance's `whsec_` (single-secret backend → cross-instance deliveries 401).
 
-2. **Activate the #31 webhook in prod** — two parts, both manual:
-   a. **AWS SSM:** create SecureString `/sidira/prod/SIDIRA_CLERK_WEBHOOK_SECRET`
-      with the Clerk signing secret (`whsec_…`) via the **AWS Console** (prod actions
-      use Console/SSM, not local CLI). Then re-run `deploy/ec2-api-deploy.sh` on the
-      EC2 host so it `write_env`s the value (until then the endpoint returns **503**).
-   b. **Clerk dashboard → Webhooks → Add Endpoint:** URL
-      `https://api.sidira.ai/webhooks/clerk` (public — Caddy catch-all, no basic-auth;
-      FastAPI `_PUBLIC_PATHS` exempts it from both gates). Subscribe to
-      **`organization.created`**. Copy the generated signing secret into step (a).
-   **Verify:** Clerk "Send test" → expect **200** `{status: ok|ignored}`; a real
-   `organization.created` provisions a `customers` row keyed by `org_id`. Bad sig → 401,
-   secret unset → 503. Safe on its own — independent of the still-blocked session gate.
-
-3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
+3. **Set up the Production Clerk instance** (NEW, prerequisite for go-live): add the
+   `sidira.ai` domain in Clerk → DNS records → `pk_live_`/`sk_live_`; then repeat the
+   Organizations config (item 1) and webhook registration (item 2) against it.
+4. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
    by `customer_id`). Not started — needs explicit go-ahead. Can run in parallel.
-4. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
+5. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
    must forward Authorization instead of stripping it) and the proxy token hop
    (Next middleware must send the Clerk token; #32 shipped the UI/middleware but
    the token-forwarding hop was deferred to #149). Do NOT set
