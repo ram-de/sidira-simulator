@@ -15,43 +15,35 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] #32 — **PR #153 OPEN** (awaiting merge):
-  https://github.com/ram-de/sidira-simulator/pull/153. Frontend Clerk auth pages +
-  env-gated middleware route protection + org-on-signup. Scope: **Option 1**
-  (UI + middleware + org-creation + pack-based redirect); backend token-forwarding
-  through the Caddy proxy DEFERRED to #149. Build + typecheck + 13 deploy-config
-  tests green. Opened via `gh` CLI as `ram-de` (`github_ramde` MCP server still
-  not configured this session — documented fallback).
-  **Codex gate (now run):** the earlier "Codex CLI not installed" was a FALSE
-  NEGATIVE — codex IS installed at `~/.npm-global/bin/codex` (v0.137.0); the
-  non-interactive Bash tool shell just doesn't source `~/.zshrc`, so that dir is
-  off-PATH. Invoke via absolute path or `export PATH="$HOME/.npm-global/bin:$PATH"`.
-  First `codex review --base main` found a **P1 auth bypass** (fixed, see below);
-  a second pass confirmed the P1 gone and surfaced a pre-existing P2 in the
-  PreCompact hook (out of #32 scope — see Next Steps).
-  - **P1 FIXED in this PR:** Clerk-path middleware omitted `/api`, so once Clerk
-    is enabled an unauthenticated `/api/*` call passed through and the same-origin
-    proxy (`app/api/[...path]/route.ts`) stapled on the server's Basic Auth
-    credential → backend reachable without a session (a regression: pre-Clerk
-    `basicAuthMiddleware` gated `/api` too). Fix: `clerkAuthMiddleware` now gates
-    `/api`+`/trpc` on a Clerk `userId`, returning a plain **401** (`apiAuthChallenge`,
-    no `www-authenticate`) instead of a sign-in redirect. Test extended to assert
-    the `/api` gate. Re-ran typecheck + keyless build + 13 tests + codex — all green.
-  Worktree `phase-5-32-clerk-frontend`.
-  - Files: `frontend/lib/clerk.ts` (gating + appearance + URLs);
-    `frontend/middleware.ts` (clerkMiddleware composed with host redirects, falls
-    back to Basic-Auth `basicAuthMiddleware` when unconfigured);
-    `frontend/app/layout.tsx` (conditional `<ClerkProvider>`);
-    `frontend/app/sign-in/[[...sign-in]]`, `sign-up/[[...sign-up]]`, `sso-callback`
-    pages (all `clerkEnabled()`-gated; sso-callback ensures an org via
-    `<CreateOrganization>` then routes by `getActivePersonas()` — empty →
-    `/personas/new`, else `/`); `components/AuthShell.tsx`, `AuthUnavailable.tsx`,
-    `AuthControls.tsx` (UserButton + OrganizationSwitcher in TopNav);
-    `frontend/.env.example` (Clerk keys + Organizations-required note);
-    new test `test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback`.
-  - `@clerk/nextjs` pinned to **v6** (`^6.39.5`); v7 needs Next 15+ (stack is Next 14).
+- [ ] **Item 1 — Enable Clerk Organizations** (Clerk dashboard, no code): in flight,
+  awaiting founder execution in the dashboard. Runbook prepared (see Next Steps).
+- [ ] **Item 2 — Activate #31 webhook in prod** (AWS SSM + Clerk dashboard, no code):
+  in flight, awaiting founder execution. Endpoint is `https://api.sidira.ai/webhooks/clerk`
+  (Caddy catch-all, no basic-auth; FastAPI `_PUBLIC_PATHS` exempts it). Deploy script
+  already loads `/sidira/prod/SIDIRA_CLERK_WEBHOOK_SECRET`. Runbook prepared (see Next Steps).
 
 ## Completed
+
+### #32 — Frontend Clerk auth pages + env-gated route protection (MERGED — PR #153, `f958bff`)
+- PR #153 squash-merged to `main` 2026-06-07 as `f958bff`; **issue #32 auto-closed**.
+  Worktree `phase-5-32-clerk-frontend` removed. Opened/merged via `gh` as `ram-de`.
+- Scope **Option 1**: UI + middleware route protection + org-creation at signup +
+  pack-based post-signup redirect. Backend token-forwarding through the Caddy proxy
+  DEFERRED to **#149** (the remaining prod-enablement blocker for the session gate).
+- **Codex P1 FIXED in-PR (auth bypass):** Clerk-path middleware omitted `/api`, so once
+  Clerk is enabled an unauthenticated `/api/*` call passed through and the same-origin
+  proxy stapled the server's Basic Auth credential → backend reachable without a session.
+  Fix: `clerkAuthMiddleware` gates `/api`+`/trpc` on a Clerk `userId`, returning a plain
+  **401** (`apiAuthChallenge`, no `www-authenticate`). Test extended to assert the gate.
+- Files: `frontend/lib/clerk.ts` (gating + appearance + URLs); `frontend/middleware.ts`
+  (clerkMiddleware composed with host redirects, falls back to Basic-Auth when unconfigured);
+  `frontend/app/layout.tsx` (conditional `<ClerkProvider>`); `sign-in`/`sign-up`/`sso-callback`
+  pages (all `clerkEnabled()`-gated; sso-callback ensures an org via `<CreateOrganization>`
+  then routes by `getActivePersonas()` — empty → `/personas/new`, else `/`);
+  `components/AuthShell.tsx`, `AuthUnavailable.tsx`, `AuthControls.tsx` (UserButton +
+  OrganizationSwitcher in TopNav); `frontend/.env.example`; new env-gating test.
+- `@clerk/nextjs` pinned to **v6** (`^6.39.5`); v7 needs Next 15+ (stack is Next 14).
+- Verification: build + typecheck + 13 deploy-config tests green; codex clean (P1 → fixed → clean).
 
 ### #31 — Clerk webhook → customer (tenant) provisioning (MERGED — PR #152, `415042a`)
 - PR #152 squash-merged to `main` as `415042a`; **issue #31 auto-closed**.
@@ -163,12 +155,31 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 MERGED to `main` 2026-06-07** (squash: `f958bff`, `1b291d3`, `8bf763a`). All
 three worktrees removed; local + remote feature branches deleted. Remaining work:
 
-1. **Enable Clerk Organizations** (dashboard config, not code) so signup can
+**Items 1 & 2 are manual dashboard/console actions (Clerk dashboard + AWS Console/SSM)
+— the founder executes these; Claude cannot click them. Runbooks below; both verified
+code-side ready (deploy script loads the secret, webhook URL is public).**
+
+1. **Enable Clerk Organizations** (Clerk dashboard, not code) so signup can
    create an org — required before the #31 webhook can provision a customer.
-2. **Activate the #31 webhook in prod:** configure `SIDIRA_CLERK_WEBHOOK_SECRET`
-   in SSM + register the Clerk webhook endpoint (`organization.created`) →
-   provisioning goes live. Safe on its own — independent of the still-blocked
-   session gate. (`ec2-api-deploy.sh` already reads + `write_env`s the secret.)
+   **Runbook:** Clerk dashboard → **Organizations** → toggle **Enable Organizations** on.
+   Recommended settings: allow users to create orgs (so `<CreateOrganization>` on the
+   sso-callback page works), and (optionally) limit each user to one org for the
+   one-customer-per-org tenancy model. Verify a test signup lands on the org-creation
+   step and a row appears once the webhook (item 2) is live.
+
+2. **Activate the #31 webhook in prod** — two parts, both manual:
+   a. **AWS SSM:** create SecureString `/sidira/prod/SIDIRA_CLERK_WEBHOOK_SECRET`
+      with the Clerk signing secret (`whsec_…`) via the **AWS Console** (prod actions
+      use Console/SSM, not local CLI). Then re-run `deploy/ec2-api-deploy.sh` on the
+      EC2 host so it `write_env`s the value (until then the endpoint returns **503**).
+   b. **Clerk dashboard → Webhooks → Add Endpoint:** URL
+      `https://api.sidira.ai/webhooks/clerk` (public — Caddy catch-all, no basic-auth;
+      FastAPI `_PUBLIC_PATHS` exempts it from both gates). Subscribe to
+      **`organization.created`**. Copy the generated signing secret into step (a).
+   **Verify:** Clerk "Send test" → expect **200** `{status: ok|ignored}`; a real
+   `organization.created` provisions a `customers` row keyed by `org_id`. Bad sig → 401,
+   secret unset → 503. Safe on its own — independent of the still-blocked session gate.
+
 3. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
    by `customer_id`). Not started — needs explicit go-ahead. Can run in parallel.
 4. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
