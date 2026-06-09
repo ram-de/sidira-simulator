@@ -13,6 +13,7 @@ owner: ram-de
 Lock a complete design system for Sidira (DESIGN.md as source of truth) covering aesthetic, typography, color, spacing, motion, the wordmark, and the logomark — before sidira.ai's public homepage and `app.sidira.ai` get any more visual layer added. Output: production-ready `DESIGN.md` at repo root + canonical SVG assets in `frontend/public/brand/` + `frontend/app/icon.svg` favicon.
 
 ## In Progress
+- [ ] Founder decision on the design rework proposal — see `sessions/phase-5-design-system/rework-proposal-2026-06-09.md` ("paper bench, glass display"); preview at `/tmp/sidira-rework-proposal.html`. No DESIGN.md changes made yet.
 - [ ] Decide which improvement tracks from the 2026-06-09 design evaluation to turn into tickets/PRs
 
 ## Design evaluation (2026-06-09) — five-lens audit results
@@ -32,6 +33,8 @@ Five parallel skill-lens audits (impeccable, design-taste/frontend-design, desig
 Agent IDs (resumable): impeccable a6961f68f29b48596 · taste a4764505d6d0afafd · motion a2c82fd7c71df6ff5 · uiux a5d0e87486f0461d5 · vision a4ffc7f968a61fbc1
 
 Layout preview built: `/tmp/sidira-instrument-panel-preview.html` (ephemeral, decision support) — three-zone result page with target nav (Objectives·Hypotheses·Rollouts·Calibration·Library), CAL readout in chrome, HYP-117 breadcrumb, mono telemetry strip, 800ms lime settle trace + CI-band marker sweep, weakness register table, persona inspector rail with sentiment counts + pinned quote + provenance block.
+
+Paper temperature board built: `/tmp/sidira-paper-temperature-board.html` (ephemeral) — same panel switchable across A `#F4EFE6` (current spec, tungsten), B `#F5F2EB` (cooled half-step), C `#F8F6F2` (near-neutral), each with derived elevated/recessed/rule tones; adds the missing surface layering (recessed wells under CI band, frequency-bar tracks, quote block; denser weakness register + persona list). Built after Ram asked whether the spec paper reads as "old paper cutting". **Open decision: lock a paper value — any change away from A requires DESIGN.md + `lib/design.ts` updated together in the same PR.**
 
 ## Completed
 - [x] Drafted full design brief and locked memorable-thing: **"This looks like an instrument, not software."**
