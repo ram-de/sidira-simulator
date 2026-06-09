@@ -13,7 +13,25 @@ owner: ram-de
 Lock a complete design system for Sidira (DESIGN.md as source of truth) covering aesthetic, typography, color, spacing, motion, the wordmark, and the logomark — before sidira.ai's public homepage and `app.sidira.ai` get any more visual layer added. Output: production-ready `DESIGN.md` at repo root + canonical SVG assets in `frontend/public/brand/` + `frontend/app/icon.svg` favicon.
 
 ## In Progress
-- [ ] Full design evaluation of the Sidira product (all design skills as lenses) — goal: more professional + cool, scaled to the long-term vision (product decision intelligence layer: OKR in → hypotheses → PRDs → simulation → staged rollout)
+- [ ] Decide which improvement tracks from the 2026-06-09 design evaluation to turn into tickets/PRs
+
+## Design evaluation (2026-06-09) — five-lens audit results
+
+Five parallel skill-lens audits (impeccable, design-taste/frontend-design, design-motion-principles, ui-ux-pro-max, vision-readiness IA). Converged verdict: **brand shell A-, product instrument panel C-**. The design system is distinctive on paper but only half-executed in the product. Top converged findings:
+
+1. **Settle trace (§9.1) not implemented** — confidence score/lift are static spans; `isSettling` plumbing exists (simulations/[id]/page.tsx:118-232) but nothing settles. Flagged by every lens as the single highest-leverage fix.
+2. **Shadow palette** — ~20 off-token hex values (#1d4ed8 blue ×10, #0a7d3a green ×7, #a30000 red ×7, ambers) carry all semantic UI; signal lime used exactly once (marketing dot — itself a §4.1 misuse). DESIGN.md has no `success` token — spec gap that caused the drift.
+3. **Refuse-list violations shipped**: ThumbsControl pill radius 999 + 👍/👎 emoji, purple staging badge in wizard (simulations/new ~749), 💬 emoji affordances, colored side-stripe callouts, radius-6 inputs everywhere (spec: 2).
+4. **§7 three-zone instrument layout unbuilt** — every app page is a centered 720–960px card stack ("SaaS document" posture the system forbids).
+5. **No global stylesheet** (all inline styles) → zero hover/focus states, no §9.3 80ms layer, no dark mode (§4.5 has zero code), ~1 media query total. Architectural root cause.
+6. **Marketing declares the thesis, doesn't execute it** — no motion, no product specimen, Instrument Serif italic fallback on cream = canonical AI-slop look; page skeleton is the YC template; undersells the moonshot (reads as point tool, not decision layer).
+7. **Internal jargon leaks**: personas pages render backend route names/stubs; /product shows roadmap placeholder text to alpha users.
+8. **DESIGN.md self-contradiction**: §1.3 says duo mark on favicon/public-site; §4.4 + CLAUDE.md forbid it. icon.svg + homepage nav currently duo. Must be resolved before brand fixes land.
+9. **Vision IA**: target nav Objectives · Hypotheses · Rollouts · Calibration · Library; hypothesis becomes the durable entity (simulations demoted to evidence); 4-stage shippable migration starting with building the three-zone posture. Design-system gaps to spec before then: success token, two-trace prediction-vs-actual vocabulary (ink dashed = predicted, lime solid = actual), §9.1 exclusivity amendment for register screens, PRD-document typography, HYP-117-style designators, calibration readout in chrome.
+
+Agent IDs (resumable): impeccable a6961f68f29b48596 · taste a4764505d6d0afafd · motion a2c82fd7c71df6ff5 · uiux a5d0e87486f0461d5 · vision a4ffc7f968a61fbc1
+
+Layout preview built: `/tmp/sidira-instrument-panel-preview.html` (ephemeral, decision support) — three-zone result page with target nav (Objectives·Hypotheses·Rollouts·Calibration·Library), CAL readout in chrome, HYP-117 breadcrumb, mono telemetry strip, 800ms lime settle trace + CI-band marker sweep, weakness register table, persona inspector rail with sentiment counts + pinned quote + provenance block.
 
 ## Completed
 - [x] Drafted full design brief and locked memorable-thing: **"This looks like an instrument, not software."**
