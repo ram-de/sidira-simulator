@@ -13,7 +13,7 @@ owner: ram-de
 Lock a complete design system for Sidira (DESIGN.md as source of truth) covering aesthetic, typography, color, spacing, motion, the wordmark, and the logomark — before sidira.ai's public homepage and `app.sidira.ai` get any more visual layer added. Output: production-ready `DESIGN.md` at repo root + canonical SVG assets in `frontend/public/brand/` + `frontend/app/icon.svg` favicon.
 
 ## In Progress
-- [ ] Founder decision on the design rework proposal — see `sessions/phase-5-design-system/rework-proposal-2026-06-09.md` ("paper bench, glass display"); preview at `/tmp/sidira-rework-proposal.html`. No DESIGN.md changes made yet.
+- [ ] Founder decision on the design rework proposal — see `sessions/phase-5-design-system/rework-proposal-2026-06-09.md` ("paper bench, glass display"); preview at `/tmp/sidira-rework-proposal.html`. No DESIGN.md changes made yet. **Codex consult (2026-06-09, session `019eaeb6-0c81-70a0-b94f-5454727b3a70` in `.context/codex-session-id`): "approve with changes, not as-is"** — confirmed all four screenshot critiques; biggest gap = *decision* calibration (no visible decision rule/threshold/loss model behind "DECISIVE · SHIP CANDIDATE"); also: keep warm paper `#F4EFE6` unless cooling is proven in real product screens (not just the temperature board); engineers under-served (provenance/repro too buried); VPs under-served (no cost-of-being-wrong framing); no calibrated/Brier/isotonic UI until backend computes it.
 - [ ] Decide which improvement tracks from the 2026-06-09 design evaluation to turn into tickets/PRs
 
 ## Design evaluation (2026-06-09) — five-lens audit results
