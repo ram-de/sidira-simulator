@@ -1,9 +1,9 @@
 ---
 type: session
 domain: phase-5-design-system
-status: closed
+status: active
 started: 2026-06-02
-closed: 2026-06-02
+reopened: 2026-06-09
 owner: ram-de
 ---
 
@@ -13,7 +13,7 @@ owner: ram-de
 Lock a complete design system for Sidira (DESIGN.md as source of truth) covering aesthetic, typography, color, spacing, motion, the wordmark, and the logomark — before sidira.ai's public homepage and `app.sidira.ai` get any more visual layer added. Output: production-ready `DESIGN.md` at repo root + canonical SVG assets in `frontend/public/brand/` + `frontend/app/icon.svg` favicon.
 
 ## In Progress
-— session complete —
+- [ ] Full design evaluation of the Sidira product (all design skills as lenses) — goal: more professional + cool, scaled to the long-term vision (product decision intelligence layer: OKR in → hypotheses → PRDs → simulation → staged rollout)
 
 ## Completed
 - [x] Drafted full design brief and locked memorable-thing: **"This looks like an instrument, not software."**
@@ -32,10 +32,9 @@ Lock a complete design system for Sidira (DESIGN.md as source of truth) covering
    3. Founder-mode lockup (cofounder page / about-Sidira / press kit / company-anniversary hero): dual-color version as the official frozen image.
 
 ## Next Steps
-— session complete — picked up under follow-up tickets:
-- #135 — bake DESIGN.md tokens + L2 lockup into the `sidira.ai` public homepage and `app.sidira.ai` shell
-- #136 — wire the aperture-close animation + dual-color held frame into the simulation result page
-- #137 — chore: prune or commit the legacy `sidira-logo-v2-*` / `v3-*` brand exploration files
+1. Scope the new design work (session reopened 2026-06-09)
+
+(Original follow-up tickets all shipped: #135 homepage/app-shell tokens, #136 aperture-close animation — PR #147, #137 legacy brand-file cleanup — PR #148, merged 2026-06-06.)
 
 ## Key Files
 - `DESIGN.md` — TO BE CREATED at repo root (canonical source of truth)
