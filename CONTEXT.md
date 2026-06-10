@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-10 (Phase 6.5 opportunity engine direction decided — post-crawler, #173)
+**Last updated:** 2026-06-10 (mock-Streamly first customer decided — crawler chain unblocked)
 
 ---
 
@@ -105,7 +105,7 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 **Phase 5 auth is DONE (see "What just shipped") — production is Clerk-gated, invite-only beta.**
 
 Current order:
-1. Crawler/product-pack work — Playwright walker + product-pack synthesis are still the biggest missing producer path; new design-partner orgs currently have only the one-click Streamly sample to play with.
+1. **Crawler chain, UNBLOCKED 2026-06-10 (founder decision): build a mock Streamly product and treat it as our first customer.** sidira-crawler #1's "wait for a real customer" blocker is superseded. We build a small Netflix-style streaming web app (the "Streamly sandbox") as a crawl target. Critical constraint: the mock is designed **independently, as if we were building Streamly for real** — explicitly NOT reverse-engineered from the existing `streamly_sample` pack fixtures — so the walker + pack synthesizer get tested against a product that doesn't already conform to their expected output. It should be deliberately walker-hostile/realistic (different UI stack than our frontend, cookie banner, client-side routing, lazy loading, modals), with login-form auth and seeded role users (guest/member/premium) and flows a few hops deep — i.e., exactly what the #171 crawl-setup window collects. Sequence: mock app → crawler #1 walker MVP → crawler #2 walk-the-mock → crawler #3 pack synthesis → simulator #171 remainder (live trigger, progress, promote) → #173 Stage 0. Next step: lock the architecture via `/plan-eng-review`, then draft the tickets in sidira-crawler.
 2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
 3. **After crawler: Phase 6.5 opportunity engine Stage 0 (#173)** — "product decision intelligence layer" direction decided 2026-06-10 (session `ideation-decision-intelligence`, CLOSED): PM/VP describes OKRs → Sidira generates data-receipted hypotheses from personas + crawled feature pack + past sims → simulates top-k → ranked bet portfolio. On-demand only for now. Full spec in ROADMAP.md § Phase 6.5 and #173.
 
