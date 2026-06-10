@@ -210,7 +210,9 @@ def test_agent_feedback_concurrent_thumbs_all_persisted(client) -> None:
     async def _run() -> None:
         await asyncio.gather(*[_hit(i % 2 == 0) for i in range(n)])
 
-    asyncio.get_event_loop().run_until_complete(_run())
+    # asyncio.run (not get_event_loop) — the legacy form raises on 3.11+
+    # whenever an earlier pytest-asyncio test has unset the thread's loop.
+    asyncio.run(_run())
 
     # Read raw events from the feedback log to verify all were persisted.
     from sidira_simulator.adapters.r2 import LocalArtifactStore

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from sidira_simulator.adapters.feature_stores import ColumnProfile
+from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.services.column_mapper import MappingSuggestion
 
 router = APIRouter(prefix="/feature-stores", tags=["feature-stores"])
@@ -55,7 +56,9 @@ class SuggestMappingRequest(BaseModel):
 
 
 @router.post("", response_model=ConnectionSummary, status_code=201)
-async def create_connection(payload: SnowflakeConnectionRequest) -> ConnectionSummary:
+async def create_connection(
+    payload: SnowflakeConnectionRequest, customer_id: str = Depends(current_customer_id)
+) -> ConnectionSummary:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — encrypt + persist connection row, return sanitized summary",
@@ -63,12 +66,16 @@ async def create_connection(payload: SnowflakeConnectionRequest) -> ConnectionSu
 
 
 @router.get("", response_model=list[ConnectionSummary])
-async def list_connections() -> list[ConnectionSummary]:
+async def list_connections(
+    customer_id: str = Depends(current_customer_id),
+) -> list[ConnectionSummary]:
     raise HTTPException(status_code=501, detail="Phase 4.5 — read from Postgres scoped to customer")
 
 
 @router.post("/{connection_id}/test", status_code=204)
-async def test_connection(connection_id: str) -> None:
+async def test_connection(
+    connection_id: str, customer_id: str = Depends(current_customer_id)
+) -> None:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — decrypt creds, run SnowflakeStore.test_connection, 204 on success",
@@ -76,7 +83,11 @@ async def test_connection(connection_id: str) -> None:
 
 
 @router.post("/{connection_id}/preview", response_model=PreviewResponse)
-async def preview(connection_id: str, payload: PreviewRequest) -> PreviewResponse:
+async def preview(
+    connection_id: str,
+    payload: PreviewRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> PreviewResponse:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — preview a table or SQL with row count + column profile",
@@ -84,7 +95,11 @@ async def preview(connection_id: str, payload: PreviewRequest) -> PreviewRespons
 
 
 @router.post("/{connection_id}/suggest-mapping", response_model=MappingSuggestion)
-async def suggest_mapping(connection_id: str, payload: SuggestMappingRequest) -> MappingSuggestion:
+async def suggest_mapping(
+    connection_id: str,
+    payload: SuggestMappingRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> MappingSuggestion:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — call services/column_mapper.suggest_mapping with the provided columns",

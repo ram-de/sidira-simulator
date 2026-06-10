@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.schemas.persona import PersonaPack
 
 router = APIRouter(prefix="/persona-packs", tags=["persona-packs"])
@@ -33,7 +34,7 @@ class PackSummary(BaseModel):
 
 
 @router.get("", response_model=list[PackSummary])
-async def list_packs() -> list[PackSummary]:
+async def list_packs(customer_id: str = Depends(current_customer_id)) -> list[PackSummary]:
     """List all pack versions for the customer, newest first."""
     raise HTTPException(
         status_code=501,
@@ -42,7 +43,7 @@ async def list_packs() -> list[PackSummary]:
 
 
 @router.get("/{pack_id}", response_model=PersonaPack)
-async def get_pack(pack_id: str) -> PersonaPack:
+async def get_pack(pack_id: str, customer_id: str = Depends(current_customer_id)) -> PersonaPack:
     """Full pack contents including persona descriptions, weights, stability."""
     raise HTTPException(
         status_code=501,
@@ -51,7 +52,9 @@ async def get_pack(pack_id: str) -> PersonaPack:
 
 
 @router.post("/{pack_id}/promote", response_model=PackSummary)
-async def promote_pack(pack_id: str) -> PackSummary:
+async def promote_pack(
+    pack_id: str, customer_id: str = Depends(current_customer_id)
+) -> PackSummary:
     """Atomically update the customer's `latest` pointer to this pack version."""
     raise HTTPException(
         status_code=501,

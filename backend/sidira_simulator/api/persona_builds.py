@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.services.persona_builder import BuildConfig
 
 router = APIRouter(prefix="/persona-builds", tags=["persona-builds"])
@@ -34,7 +35,9 @@ class BuildSummary(BaseModel):
 
 
 @router.post("", response_model=BuildSummary, status_code=202)
-async def create_build(payload: BuildConfig) -> BuildSummary:
+async def create_build(
+    payload: BuildConfig, customer_id: str = Depends(current_customer_id)
+) -> BuildSummary:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — insert persona_build_runs row, submit JobRunner task, return 202 + build_id",
@@ -42,7 +45,7 @@ async def create_build(payload: BuildConfig) -> BuildSummary:
 
 
 @router.get("/{build_id}", response_model=BuildSummary)
-async def get_build(build_id: str) -> BuildSummary:
+async def get_build(build_id: str, customer_id: str = Depends(current_customer_id)) -> BuildSummary:
     raise HTTPException(
         status_code=501,
         detail="Phase 4.5 — read row from Postgres + state.json from R2",
@@ -50,5 +53,7 @@ async def get_build(build_id: str) -> BuildSummary:
 
 
 @router.get("", response_model=list[BuildSummary])
-async def list_builds() -> list[BuildSummary]:
+async def list_builds(
+    customer_id: str = Depends(current_customer_id),
+) -> list[BuildSummary]:
     raise HTTPException(status_code=501, detail="Phase 4.5 — list builds scoped to customer")

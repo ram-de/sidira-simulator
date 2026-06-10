@@ -208,12 +208,34 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
    - **Not tenant-scoped until #149:** signed-in users' API calls still hit the backend
      default tenant (`streamly_sample`) via the Basic-Auth proxy hop — org isolation is
      not end-to-end until #149. Reversible (remove key + redeploy).
-   - **Decision to make on resume:** (a) stage safely (domain/DNS + self-invite, NO
-     Amplify keys, flip later with #149); (b) full cutover now (accept default-tenant
-     state, reversible, OK since no real customers); or (c) do #149 first for a coherent
-     end-to-end flip. Was about to ask; user paused.
-4. **#30 — customer-scoping leak audit** (backend; verify every endpoint scopes
-   by `customer_id`). Not started — needs explicit go-ahead. Can run in parallel.
+   - **DECIDED 2026-06-09: (a) stage safely.** Verify Clerk domain/DNS + create
+     founder org/account (self-invite, confirm hosted sign-in) — NO Amplify keys yet;
+     the Amplify flip happens later together with #149 as one coherent cutover.
+4. **#30 — customer-scoping leak audit** — **AUDIT COMPLETE 2026-06-09, NO LIVE
+   LEAKS** (founder go-ahead given; ran in parallel with the staged cutover prep).
+   Deliverable PR in flight from worktree `phase-5-30-scoping-audit`:
+   - **Findings:** every live route threads `Depends(current_customer_id)` into
+     repo/store calls; both Postgres + InMemory repo implementations filter every
+     get/list/touch/update on `customer_id`; all R2 keys embed
+     `customers/{customer_id}/…` (agent memory, feedback.jsonl, run state, events).
+     `models.py`/`config.py` are tenant-agnostic by design. The only unscoped
+     routers were the three **Phase 4.5 501 stubs** (`persona_packs`,
+     `persona_builds`, `feature_stores`) — not live leaks; no hotfix issues needed
+     per #30 acceptance.
+   - **Deliverable:** new `backend/tests/test_customer_isolation.py` — the
+     cross-customer isolation matrix (SimulationRepo, AgentInstanceRepo,
+     AgentFeedbackRepo, AgentMemory, FeedbackLog, RunStateStore) plus
+     `test_every_route_resolves_the_tenant`, a route-walking regression guard:
+     every route must depend on `current_customer_id` or sit on an explicit
+     commented allowlist (`/health`, `/webhooks/clerk`, `/models`,
+     `/config/limits`). The 3 stub routers got the dependency added now so future
+     implementers inherit the wiring.
+   - **Drive-by fix:** `test_feedback_api.py` concurrent-thumbs test used legacy
+     `asyncio.get_event_loop().run_until_complete(...)` which raises on 3.11+ once
+     any earlier pytest-asyncio test unsets the loop — switched to `asyncio.run()`.
+   - Verification: 425 passed / 11 skipped; ruff + black clean. GitNexus MCP not
+     connected — manual impact analysis (stub handlers have no in-code callers;
+     LOW risk).
 5. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
    must forward Authorization instead of stripping it) and the proxy token hop
    (Next middleware must send the Clerk token; #32 shipped the UI/middleware but
@@ -285,4 +307,8 @@ its own. **#32 is now in flight** (worktree `phase-5-32-clerk-frontend`): fronte
 Clerk pages + env-gated middleware route protection + org-creation at signup (so
 #31's webhook fires) + pack-based post-signup redirect. Scope is Option 1 — backend
 token-forwarding through the Caddy proxy is deferred to **#149** (the one remaining
-prod-enablement blocker after #32). #30 (customer-scoping audit) is next, parallel.
+prod-enablement blocker after #32). **#30 audit is DONE — no live leaks found**; the
+PR (isolation test matrix + route-scoping regression guard + scoping deps on the
+Phase 4.5 stub routers) is in flight from worktree `phase-5-30-scoping-audit`.
+Cutover decision made 2026-06-09: stage safely (Clerk DNS + founder self-invite
+now, Amplify keys later with #149).
