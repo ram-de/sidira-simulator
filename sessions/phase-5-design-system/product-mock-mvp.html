@@ -1558,6 +1558,17 @@
           </dl>
           <a class="card-link" href="#">REVERSE PRD →</a>
         </div>
+        <div class="card ghost">
+          <div class="card-head"><span class="card-name">New snapshot</span><span class="chip muted">GENERATED — NEVER AUTHORED</span></div>
+          <dl>
+            <dt>Source</dt><dd>CRAWL OF THE AS-BUILT PRODUCT</dd>
+            <dt>Versioning</dt><dd>LATEST POINTER FLIPS AFTER A CLEAN CRAWL</dd>
+            <dt class="mvp-only">Today</dt><dd class="mvp-only">PROVISIONED AT ONBOARDING — RE-CRAWL IS AN OPS ACTION</dd>
+            <dt class="future-only">Cadence</dt><dd class="future-only">WEEKLY PLAYWRIGHT CRAWL · ON-DEMAND</dd>
+          </dl>
+          <a class="card-link mvp-only" href="#" title="Feature packs are written by the crawler, not by hand">WHY NO EDITOR? — IT'S THE CONTROL ARM</a>
+          <a class="card-link future-only" href="#">REQUEST RE-CRAWL →</a>
+        </div>
       </div>
     </section>
     <section>
@@ -1635,7 +1646,7 @@
             <dt class="mvp-only">Today</dt><dd class="mvp-only">LIVES INSIDE THE HYPOTHESIS — WIZARD · 02 SUBJECT</dd>
             <dt class="future-only">Output</dt><dd class="future-only">VERSIONED · REUSABLE ACROSS HYPOTHESES</dd>
           </dl>
-          <a class="card-link" href="#" data-goto="wizard"><span class="mvp-only">AUTHOR IN WIZARD →</span><span class="future-only">NEW STIMULUS →</span></a>
+          <a class="card-link" href="#" data-goto="wizard" data-author-stim><span class="mvp-only">AUTHOR IN WIZARD →</span><span class="future-only">NEW STIMULUS →</span></a>
         </div>
       </div>
     </section>
@@ -1857,13 +1868,14 @@
   var stimSelect = document.getElementById("stimSelect");
   var stimAuthor = document.getElementById("stimAuthor");
   var manifestStim = document.getElementById("manifestStim");
-  stimSelect.addEventListener("change", function () {
+  function syncStimAuthor() {
     var isNew = stimSelect.value.indexOf("+") === 0;
     stimAuthor.classList.toggle("open", isNew);
     manifestStim.textContent = isNew
       ? "sample-workspace-v2 · NEW · 2 ARMS"
       : stimSelect.value.split(" · ")[0] + " · 2 ARMS";
-  });
+  }
+  stimSelect.addEventListener("change", syncStimAuthor);
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -1912,6 +1924,13 @@
     el.addEventListener("click", function (e) {
       e.preventDefault(); e.stopPropagation();
       showPage(el.getAttribute("data-goto"));
+      // Deep link: Library's "Author in wizard →" lands with the stimulus
+      // authoring panel already disclosed, not on a blank form.
+      if (el.hasAttribute("data-author-stim")) {
+        stimSelect.selectedIndex = stimSelect.options.length - 1;
+        syncStimAuthor();
+        stimAuthor.scrollIntoView({ block: "center" });
+      }
     });
   });
 
