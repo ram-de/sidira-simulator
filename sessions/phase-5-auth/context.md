@@ -15,7 +15,27 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-- [ ] **#149 — forward Clerk credential through prod proxy + Next token hop**
+(nothing — #149 closed 2026-06-10; the Phase 5 production cutover is complete)
+
+## Completed
+
+### #149 — Clerk prod cutover + token hop (CLOSED 2026-06-10 — flip executed & verified)
+- [x] **PROD FLIP EXECUTED + VERIFIED 2026-06-10** (Codex-driven, runbook
+  § Clerk Production Cutover). Frontend: Clerk key pair set in Amplify
+  (app `dbzf69xeoypqa`), Deployment 74 SUCCEED — Basic Auth gate replaced by
+  Clerk sign-in. Backend: SSM SecureString
+  `/sidira/prod/SIDIRA_CLERK_SECRET_KEY` + String
+  `/sidira/prod/SIDIRA_CLERK_AUTHORIZED_PARTIES`
+  (`https://sidira.ai,https://app.sidira.ai`) created in us-east-1; EC2
+  redeploy via SSM Run Command on `i-04b155fafcc90042b` → Success (command
+  `465f2267-9146-45e5-984f-72bdfa4d1c24`). Verified end-to-end: signed-in
+  session loads app home + Simulations and `app.sidira.ai/api/models` returns
+  models JSON through the full token path; signed-out `sidira.ai/api/models`
+  → 401 (Clerk headers, no Basic challenge); direct `api.sidira.ai/models` →
+  404 (internal-key gate unchanged); `/health` → 200. **Backend Clerk gate +
+  per-request multi-tenancy are now LIVE in production.** Issue #149 closed
+  with the verification record.
+- [x] **#149 — forward Clerk credential through prod proxy + Next token hop**
   — **PR #158 MERGED to `main` 2026-06-09 as `a917c49`** (worktree removed,
   remote branch deleted). Code side DONE; only the prod flip remains. Design:
   Clerk token rides `X-Sidira-Clerk-Authorization` (the `Authorization` slot
@@ -37,8 +57,8 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   fast). Also fixed `test_public_api_is_gated_by_backend_internal_key`, which
   was failing on `main` since #158's two-branch Caddyfile split (stale global
   ordering assertion → per-branch invariants). Suite 430 passed; codex round 1
-  findings (2 test-strength gaps) addressed. **The flip is now UNBLOCKED** —
-  re-run the Codex flip prompt; Step 0b will pass.
+  findings (2 test-strength gaps) addressed. Flip executed 2026-06-10 — see
+  the flip entry above.
 - [x] **Item 1 — Enable Clerk Organizations** — DONE on the **Production** instance
   (app `app_3EoIE8Rsl9TGEOJ1wHuXD4zxcVz`, instance `ins_3EoIQrcTqt9VuPdpSVAwEW2QZ3k`,
   `pk_live_`/`sk_live_` keys — confirmed by founder). Organizations enabled;
@@ -68,9 +88,7 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
     published to the host. Always test through `https://api.sidira.ai/...`.
   - Webhook is wired **Production Clerk instance → prod backend** (no dev/prod split).
 
-## Completed
-
-### Auth-provider portability insurance — docs + invariant pins (this PR)
+### Auth-provider portability insurance — docs + invariant pins (MERGED — PR #160, `86bac39`)
 - Founder asked for "external_id column insurance" against a future Clerk →
   WorkOS (or similar) swap. Scope discovery: **the mapping column already
   exists** — `customers.clerk_org_id` (unique, nullable) has been in the schema
@@ -287,8 +305,9 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
      yet in Clerk (cert issuance and email sending are both gated on verify).
      **Sanity check CONFIRMED 2026-06-09: founder verified the Clerk webhook
      log is clean (200 Succeeded on the real org events) — `customers` row
-     provisioned.** Staged cutover steps 1+2 fully closed. Step 3 holds — no
-     Amplify keys until #149, which is now the active work item.
+     provisioned.** Staged cutover steps 1+2 fully closed. Step 3 (the hard
+     Amplify cutover) **EXECUTED 2026-06-10** together with the backend flip —
+     see the #149 flip entry under Completed. ✅ Fully done.
 4. **#30 — customer-scoping leak audit** — **AUDIT COMPLETE 2026-06-09, NO LIVE
    LEAKS** (founder go-ahead given; ran in parallel with the staged cutover prep).
    **PR #157 MERGED to `main` as `f346760`; issue #30 auto-closed.** Worktree
@@ -318,12 +337,12 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
      customer_id predicate; stub-row tests prove cross-customer get/update/touch
      reject without committing. GitNexus MCP not connected — manual impact
      analysis (stub handlers have no in-code callers; LOW risk).
-5. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
-   must forward Authorization instead of stripping it) and the proxy token hop
-   (Next middleware must send the Clerk token; #32 shipped the UI/middleware but
-   the token-forwarding hop was deferred to #149). Do NOT set
-   `SIDIRA_CLERK_SECRET_KEY` in prod until both ship — flipping it on today would
-   401 all app traffic.
+5. ✅ **Prod Clerk session gate is LIVE (2026-06-10).** The former blocker
+   shipped (#158 token hop + #159 Amplify env passthrough) and the flip was
+   executed both sides: Amplify Clerk keys (Deployment 74) +
+   `/sidira/prod/SIDIRA_CLERK_SECRET_KEY` & `SIDIRA_CLERK_AUTHORIZED_PARTIES`
+   in SSM + EC2 redeploy. Verified end-to-end signed-in and signed-out — see
+   the #149 flip entry under Completed. Issue #149 CLOSED.
 
 Codex CLI note: installed at `~/.npm-global/bin/codex` but off the Bash-tool
 PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
@@ -376,6 +395,16 @@ PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
   verification + bot protection + free-tier usage cap.
 
 ## For my cofounder
+**2026-06-10: THE PHASE 5 CUTOVER IS DONE.** Production now runs Clerk
+sign-in end-to-end: frontend (Amplify Deployment 74, Basic Auth retired),
+proxy token hop (#158), backend session gate + per-request multi-tenancy
+(`SIDIRA_CLERK_SECRET_KEY` live on EC2). Issue #149 closed with the full
+verification record; flip details in the Completed section. The app is in
+invite-only beta posture — invite users via ORGANIZATION invitations (not
+instance-level). Also new: `docs/auth-provider-portability.md` (PR #160) —
+read it before touching tenant resolution, the Clerk webhook, or the
+`customers` schema. Everything below this line is the historical trail.
+
 This is now the single umbrella session for all Phase 5 auth work. #124/#131
 (proxy auth) are fully shipped and verified in prod. #29 (Clerk middleware) is
 **merged** (PR #150, `a45934f`) and verified locally with curl — the gate is
