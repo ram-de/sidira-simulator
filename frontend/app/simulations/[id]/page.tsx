@@ -201,7 +201,9 @@ const PAGE_STYLE = `
 .simd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
 .simd-glassgrid { display: grid; grid-template-columns: 1.4fr 1fr; }
 .simd-tele { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-.simd-qbtn:hover { background: ${TOKENS.ink}; color: ${TOKENS.paper}; }
+/* !important: the link sets color inline, which would otherwise win and
+   leave ink-on-ink text while the hover background is applied. */
+.simd-qbtn:hover { background: ${TOKENS.ink}; color: ${TOKENS.paper} !important; }
 @media (max-width: 1023px) { .simd-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 859px) {
   .simd-glassgrid { grid-template-columns: 1fr; }
