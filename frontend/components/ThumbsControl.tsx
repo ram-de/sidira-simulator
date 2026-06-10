@@ -1,8 +1,14 @@
 "use client";
 
-// Phase 4 #56 — shared 👍/👎 calibration thumbs.
-// Tri-state: True = 👍, False = 👎, null = no thumb. Clicking the
-// currently-active thumb toggles it OFF (third state).
+// Phase 4 #56 — shared calibration feedback control.
+// Tri-state: True = "+" (realistic / useful), False = "−" (off /
+// unrealistic), null = no rating. Clicking the currently-active chip
+// toggles it OFF (third state).
+//
+// R2 #170 restyle: typographic +/− glyphs on radius-2 mono chips per
+// DESIGN.md §8.5 (sentiment is ink-weight data, never emoji, never
+// alert-red) and §10 (no border-radius: 9999px pills, no emoji
+// affordances). Behavior, props, and aria contract are unchanged.
 //
 // Optimistic UX: the parent passes `flag` + an async `onSet`. The
 // control applies the change locally on click, then awaits the server.
@@ -11,7 +17,7 @@
 
 import { useState } from "react";
 
-import { TOKENS } from "@/lib/design";
+import { FONT_MONO, TOKENS } from "@/lib/design";
 
 export function ThumbsControl({
   flag,
@@ -65,7 +71,7 @@ export function ThumbsControl({
       style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
     >
       <ThumbButton
-        label="👍"
+        label="+"
         ariaLabel="Realistic / useful"
         active={upActive}
         disabled={busy}
@@ -73,7 +79,7 @@ export function ThumbsControl({
         onClick={() => setNext(upActive ? null : true)}
       />
       <ThumbButton
-        label="👎"
+        label="−"
         ariaLabel="Off / unrealistic"
         active={downActive}
         disabled={busy}
@@ -120,16 +126,21 @@ function ThumbButton({
       disabled={disabled}
       onClick={onClick}
       style={{
+        // Active is ink-weight, not color-coded — sentiment polarity never
+        // gets a semantic color (DESIGN.md §8.5; negative is never alert).
         background: active ? TOKENS.paperRecessed : "transparent",
         border: active ? `1px solid ${TOKENS.ink}` : `1px solid ${TOKENS.rule}`,
-        borderRadius: 999,
-        padding: `2px ${size <= 14 ? 6 : 8}px`,
-        fontSize: size,
-        lineHeight: 1,
+        color: active ? TOKENS.ink : TOKENS.inkMuted,
+        borderRadius: 2,
+        padding: "2px 7px",
+        fontFamily: FONT_MONO,
+        // The `size` prop historically sized 14px-ish emoji; mono glyph
+        // chips read right a step smaller, floored at the 10px type floor.
+        fontSize: Math.max(10, Math.round(size * 0.8)),
+        lineHeight: 1.4,
         cursor: disabled ? "wait" : "pointer",
         opacity: disabled ? 0.6 : 1,
-        // Native emoji rendering varies wildly across platforms; clamp
-        // the line-box so the buttons stay the same height.
+        transition: "border-color 80ms ease-out, color 80ms ease-out",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",

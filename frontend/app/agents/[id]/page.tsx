@@ -14,7 +14,7 @@ import {
   type Simulation,
 } from "@/lib/api";
 import { ThumbsControl } from "@/components/ThumbsControl";
-import { TOKENS } from "@/lib/design";
+import { FONT_MONO, TNUM, TOKENS } from "@/lib/design";
 
 // sessionStorage key — drafts survive nav round-trips
 // (e.g. clicking through to /agents/[id] from a persona-group [label]
@@ -22,10 +22,16 @@ import { TOKENS } from "@/lib/design";
 const draftKey = (agentId: string) => `pythia.agentDraft.${agentId}`;
 
 // Phase 4 #53: individual-agent chat surface.
-// Spec layout (docs/agent-chat-ui-spec.md "Surface 3"):
-//   1. Identity card — pinned, top. Persona name + identity_seed key fields.
-//   2. Hypothesis prose + initial reaction — pinned. Both in view together.
-//   3. Conversation log — scrollable; auto-scrolls on new turn.
+// R2 #170 evidentiary restyle (DESIGN.md §7.4 "evidentiary but human"):
+//   1. Header strip — persona name + HYP/RUN designators linking back to
+//      the run (the hypothesis lives on the simulation page).
+//   2. Rooms rail — paper-elevated, selected-row inset marker; rooms are
+//      the surfaces that exist today (arm-scoped persona group chats +
+//      this 1:1). The rail also carries the identity.md-frozen seed and
+//      the provenance grid (§8.7).
+//   3. Thread — sys-line in sentence-case body font (mono for designators
+//      only); every message carries mono provenance meta + actions
+//      (transcripts are evidence).
 //   4. Composer — bottom, enter-to-send, multi-line via shift+enter.
 // Identity-continuity guarantee is enforced server-side; the UI just renders.
 
@@ -105,9 +111,9 @@ export default function AgentChatPage() {
 
   // Auto-scroll to the newest turn whenever the conversation grows.
   // Codex #53 P2: scroll WITHIN the bounded conversation container, not the
-  // document, so the sticky identity card above stays in place and the new
-  // turn doesn't get covered by it. `block: "nearest"` is the safety belt
-  // for browsers that fall back to document-level scrolling.
+  // document, so the header above stays in place and the new turn doesn't
+  // get covered by it. `block: "nearest"` is the safety belt for browsers
+  // that fall back to document-level scrolling.
   const conversationLen = agent?.conversation?.length ?? 0;
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({
@@ -231,7 +237,7 @@ export default function AgentChatPage() {
   if (notFound) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
+        <div style={{ ...errorCardStyle }}>
           <strong>Agent not found.</strong>
         </div>
       </main>
@@ -240,7 +246,7 @@ export default function AgentChatPage() {
   if (loadError) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
+        <div style={{ ...errorCardStyle }}>
           <strong>Failed to load agent:</strong> {loadError}
         </div>
       </main>
@@ -249,7 +255,7 @@ export default function AgentChatPage() {
   if (!agent) {
     return (
       <main style={pageStyle}>
-        <div style={{ color: TOKENS.inkMuted, fontSize: 14 }}>Loading agent…</div>
+        <div style={{ fontSize: 14, color: TOKENS.inkMuted }}>Loading agent…</div>
       </main>
     );
   }
@@ -261,266 +267,323 @@ export default function AgentChatPage() {
     agent.metadata.arm === "treatment" || agent.metadata.arm === "control"
       ? agent.metadata.arm
       : null;
-  const personaGroupHref = `/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}${
-    groupArm ? `?arm=${groupArm}` : ""
-  }`;
-  const personaGroupLabel = groupArm ? `${groupArm} group chat` : "group chat";
+  const personaGroupBase = `/simulations/${agent.metadata.simulation_id}/personas/${agent.metadata.persona_id}`;
+  const personaGroupHref = `${personaGroupBase}${groupArm ? `?arm=${groupArm}` : ""}`;
+
+  const simId = agent.metadata.simulation_id;
+  const simHref = `/simulations/${simId}`;
+  // Honest designators: there is no run-number sequence in the data — the
+  // run designator IS the simulation id (truncated for the strip, full id
+  // on the title attribute). Same for the agent id in the provenance grid.
+  const runDesignator = `RUN ${simId.slice(0, 8)}`;
+  const conversation = agent.conversation ?? [];
 
   return (
     <main style={pageStyle}>
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          marginBottom: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <Link
-          href={`/simulations/${agent.metadata.simulation_id}`}
-          style={{ color: TOKENS.ink, textDecoration: "none", fontSize: 13 }}
-        >
-          ← back to simulation
-        </Link>
-        <Link
-          href={personaGroupHref}
-          style={{ color: TOKENS.ink, textDecoration: "none", fontSize: 13 }}
-        >
-          ← back to {persona} ({personaGroupLabel})
-        </Link>
-      </div>
+      {/* Header strip — links back to the hypothesis + run */}
+      <header style={pageStripStyle}>
+        <h1 style={pageTitleStyle}>{persona}</h1>
+        <span style={pageSubStyle}>
+          {sim?.hypothesis?.capability_name && (
+            <>
+              <Link href={simHref} style={subLinkStyle} title="Open the hypothesis">
+                HYP · {sim.hypothesis.capability_name.toUpperCase()}
+              </Link>
+              {" · "}
+            </>
+          )}
+          <Link href={simHref} style={subLinkStyle} title={simId}>
+            {runDesignator}
+          </Link>
+          {" · 1:1 INTERROGATION"}
+        </span>
+        <span style={pageTagStyle}>TRANSCRIPTS ARE EVIDENCE</span>
+      </header>
 
-      {/* Identity card (pinned to top via sticky) */}
-      <section
-        style={{ ...cardStyle, position: "sticky", top: 12, zIndex: 2 }}
-        aria-label="Agent identity"
-      >
-        <div style={labelStyle}>Persona</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: TOKENS.ink }}>
-          {persona}
-        </div>
-        <div style={{ fontSize: 12, color: TOKENS.inkMuted, marginTop: 2 }}>
-          {agent.metadata.persona_id} · pack {agent.metadata.persona_pack_version}
-        </div>
-        {seed && (
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "12px 0 0 0",
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-              columnGap: 12,
-              rowGap: 4,
-              fontSize: 13,
-            }}
-          >
-            <SeedRow label="Age" value={seed.age_band} />
-            <SeedRow label="Locale" value={seed.locale_band} />
-            <SeedRow label="Tenure" value={seed.tenure_band} />
-            <SeedRow label="Currently" value={seed.current_state} />
-            <SeedRow label="Recent gripe" value={seed.recent_gripe} />
-          </ul>
-        )}
-      </section>
-
-      {/* Hypothesis + initial reaction */}
-      <section style={cardStyle} aria-label="Hypothesis and initial reaction">
-        {hypothesisProse && (
-          <>
-            <div style={labelStyle}>Hypothesis under test</div>
-            <div style={{ fontSize: 14, color: TOKENS.ink, lineHeight: 1.5 }}>
-              {hypothesisProse}
-            </div>
-            <div
-              style={{
-                margin: "16px 0 8px 0",
-                borderTop: `0.75px solid ${TOKENS.rule}`,
-              }}
-            />
-          </>
-        )}
-        <div style={labelStyle}>Initial reaction</div>
-        <div
-          style={{
-            fontSize: 14,
-            color: TOKENS.ink,
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {agent.initial_reaction}
-        </div>
-      </section>
-
-      {/* Conversation — bounded scroll so the sticky identity card above
-          doesn't cover newly-appended turns (codex #53 P2). */}
-      <section style={cardStyle} aria-label="Conversation">
-        <div style={labelStyle}>Conversation</div>
-        <div
-          style={{
-            maxHeight: "50vh",
-            overflowY: "auto",
-            // Light inset so the scroll edge isn't flush with the section border.
-            padding: "0 4px",
-          }}
-        >
-        {(agent.conversation ?? []).length === 0 ? (
-          <div style={{ fontSize: 14, color: TOKENS.inkMuted, padding: "8px 0" }}>
-            No follow-ups yet. Ask a question below to start.
+      {/* Hypothesis under test — record, on paper */}
+      {hypothesisProse && (
+        <section style={hypothesisStripStyle} aria-label="Hypothesis under test">
+          <div style={labelStyle}>Hypothesis under test</div>
+          <div style={{ fontSize: 14, color: TOKENS.ink, lineHeight: 1.5, maxWidth: "72ch" }}>
+            {hypothesisProse}
           </div>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {(agent.conversation ?? []).map((turn, i) => (
-              <li
-                key={`${turn.created_at}-${i}`}
-                style={{
-                  padding: "10px 0",
-                  borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
-                }}
+        </section>
+      )}
+
+      <div style={chatPanelStyle}>
+        {/* Rooms rail — the chat surfaces that exist today */}
+        <aside style={roomsRailStyle} aria-label="Rooms">
+          <div style={railHeadStyle}>
+            <span style={labelStyle}>Rooms</span>
+          </div>
+          {groupArm ? (
+            <>
+              <Link
+                href={`${personaGroupBase}?arm=treatment`}
+                style={roomRowStyle}
+                title={`${persona} group chat — treatment arm`}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 11,
-                      // Role designators are ink-weight, not color-coded —
-                      // semantic colors are reserved for outcomes (§4.3).
-                      color: turn.role === "pm" ? TOKENS.ink : TOKENS.inkMuted,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {turn.role === "pm" ? "You" : persona}
-                  </span>
-                  <span style={{ flex: 1 }} />
-                  {/* #56: calibration thumbs only on agent replies. PM
-                      turns are the PM's own writing — no calibration
-                      target. */}
-                  {turn.role === "agent" && (
-                    <ThumbsControl
-                      ariaLabel="Was this reply realistic?"
-                      flag={turn.realistic_flag ?? null}
-                      onSet={async (next) => {
-                        await sendAgentTurnFeedback(agentId, i, next);
-                        // Update the local turn so a subsequent toggle
-                        // reads the new server-confirmed state.
-                        setAgent((current) =>
-                          current
-                            ? {
-                                ...current,
-                                conversation: (current.conversation ?? []).map(
-                                  (t, idx) =>
-                                    idx === i
-                                      ? { ...t, realistic_flag: next }
-                                      : t,
-                                ),
-                              }
-                            : current,
-                        );
-                      }}
-                    />
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: TOKENS.ink,
-                    lineHeight: 1.55,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {turn.content}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div ref={conversationEndRef} />
-        </div>
-      </section>
-
-      {/* Composer */}
-      <section style={cardStyle} aria-label="Send a message">
-        {sendError && (
-          <div
-            // Use aria-live="polite" alone, not role="alert" + aria-live —
-            // role="alert" already implies assertive live-region behavior;
-            // pairing them is contradictory. Polite is correct here: a
-            // failed send isn't urgent enough to interrupt the user's
-            // current narration (codex #53 round-2 nit).
-            aria-live="polite"
-            style={{
-              fontSize: 13,
-              color: TOKENS.alert,
-              background: TOKENS.paperRecessed,
-              padding: "8px 12px",
-              borderRadius: 4,
-              marginBottom: 8,
-            }}
-          >
-            {sendError}
+                <span style={roomNameStyle}>Arm · treatment</span>
+                <span style={roomMetaStyle}>GROUP</span>
+              </Link>
+              <Link
+                href={`${personaGroupBase}?arm=control`}
+                style={roomRowStyle}
+                title={`${persona} group chat — control arm`}
+              >
+                <span style={roomNameStyle}>Arm · control</span>
+                <span style={roomMetaStyle}>GROUP</span>
+              </Link>
+            </>
+          ) : (
+            <Link
+              href={personaGroupHref}
+              style={roomRowStyle}
+              title={`${persona} group chat`}
+            >
+              <span style={roomNameStyle}>Cohort · {persona}</span>
+              <span style={roomMetaStyle}>GROUP</span>
+            </Link>
+          )}
+          <div style={roomRowSelectedStyle} aria-current="page">
+            <span style={{ ...roomNameStyle, fontWeight: 600 }}>1:1 · {persona}</span>
+            <span style={{ ...roomMetaStyle, ...TNUM }}>TURN {conversationLen}</span>
           </div>
-        )}
-        <textarea
-          ref={composerRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={sending}
-          rows={3}
-          placeholder={
-            sending
-              ? "Sending…"
-              : "Ask a follow-up… (Enter to send, Shift+Enter for newline)"
-          }
-          aria-label="Message to the agent"
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 6,
-            border: `0.75px solid ${TOKENS.rule}`,
-            fontFamily: "inherit",
-            fontSize: 14,
-            resize: "vertical",
-            boxSizing: "border-box",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginTop: 8,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => void handleSend()}
-            disabled={sending || !draft.trim()}
-            style={{
-              background: TOKENS.ink,
-              color: TOKENS.paper,
-              border: `0.75px solid ${TOKENS.ink}`,
-              borderRadius: 6,
-              padding: "8px 16px",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: sending || !draft.trim() ? "not-allowed" : "pointer",
-              opacity: sending || !draft.trim() ? 0.5 : 1,
-            }}
-          >
-            {sending ? "Sending…" : "Send"}
-          </button>
+
+          {/* identity.md — the slice frozen at materialization */}
+          {seed && (
+            <div style={identitySectionStyle} aria-label="Frozen identity seed">
+              <span style={{ ...labelStyle, display: "block", marginBottom: 8 }}>
+                identity.md — frozen
+              </span>
+              <dl style={seedGridStyle}>
+                <SeedRow label="Age" value={seed.age_band} />
+                <SeedRow label="Locale" value={seed.locale_band} />
+                <SeedRow label="Tenure" value={seed.tenure_band} />
+                <SeedRow label="Currently" value={seed.current_state} />
+                <SeedRow label="Recent gripe" value={seed.recent_gripe} />
+              </dl>
+            </div>
+          )}
+
+          {/* Provenance grid — §8.7 */}
+          <dl style={provenanceStyle} aria-label="Provenance">
+            <dt style={provDtStyle}>Run</dt>
+            <dd style={provDdStyle}>
+              <Link href={simHref} style={provLinkStyle} title={simId}>
+                {runDesignator}
+              </Link>
+            </dd>
+            <dt style={provDtStyle}>Agent</dt>
+            <dd style={provDdStyle} title={agent.metadata.id}>
+              {agent.metadata.id.slice(0, 8)}
+            </dd>
+            <dt style={provDtStyle}>Pack</dt>
+            <dd style={provDdStyle}>{agent.metadata.persona_pack_version}</dd>
+            <dt style={provDtStyle}>Arm</dt>
+            <dd style={provDdStyle}>{groupArm ? groupArm.toUpperCase() : "—"}</dd>
+            <dt style={provDtStyle}>Seed</dt>
+            <dd style={{ ...provDdStyle, ...TNUM }}>
+              {sim?.run_seed != null ? String(sim.run_seed) : "—"}
+            </dd>
+            <dt style={provDtStyle}>Model</dt>
+            <dd style={provDdStyle}>{sim?.model_id ?? "—"}</dd>
+            <dt style={provDtStyle}>Frozen</dt>
+            <dd style={{ ...provDdStyle, ...TNUM }}>
+              {fmtDate(agent.metadata.created_at)}
+            </dd>
+          </dl>
+        </aside>
+
+        {/* Thread */}
+        <div style={chatThreadStyle}>
+          <div style={chatScrollStyle}>
+            {/* Sys-line: sentence-case body font; mono for designators only */}
+            <div style={sysLineStyle}>
+              {groupArm ? (
+                <>
+                  1:1 room opened from{" "}
+                  <span style={sysMonoStyle}>{runDesignator}</span> · arm-scoped —
+                  this agent saw the {groupArm} arm only.
+                </>
+              ) : (
+                <>
+                  1:1 room opened from{" "}
+                  <span style={sysMonoStyle}>{runDesignator}</span> — this agent
+                  retains its run memory.
+                </>
+              )}
+            </div>
+
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {/* Initial reaction — the agent's first turn, evidence like
+                  every other. Timestamp = materialization (metadata.created_at);
+                  the turn itself carries no timestamp field. */}
+              <li style={msgAgentStyle}>
+                <div style={msgMetaStyle}>
+                  <span style={msgWhoAgentStyle}>{persona.toUpperCase()}</span>
+                  <span style={armTagStyle}>INITIAL REACTION</span>
+                  {groupArm && (
+                    <span style={armTagStyle}>{groupArm.toUpperCase()}</span>
+                  )}
+                  <span style={TNUM}>{fmtTime(agent.metadata.created_at)}</span>
+                </div>
+                <div style={msgBodyAgentStyle}>{agent.initial_reaction}</div>
+                <MsgActions simHref={simHref} runDesignator={runDesignator} />
+              </li>
+
+              {conversation.length === 0 ? (
+                <li style={{ fontSize: 13.5, color: TOKENS.inkMuted, padding: "8px 0" }}>
+                  No follow-ups yet. Ask a question below to start.
+                </li>
+              ) : (
+                conversation.map((turn, i) =>
+                  turn.role === "pm" ? (
+                    <li key={`${turn.created_at}-${i}`} style={msgPmStyle}>
+                      <div style={{ ...msgMetaStyle, justifyContent: "flex-end" }}>
+                        <span style={msgWhoPmStyle}>YOU · PM</span>
+                        <span style={TNUM}>{fmtTime(turn.created_at)}</span>
+                      </div>
+                      <div style={msgBodyPmStyle}>{turn.content}</div>
+                    </li>
+                  ) : (
+                    <li key={`${turn.created_at}-${i}`} style={msgAgentStyle}>
+                      <div style={msgMetaStyle}>
+                        {/* Role designators are ink-weight, not color-coded —
+                            semantic colors are reserved for outcomes (§4.3). */}
+                        <span style={msgWhoAgentStyle}>{persona.toUpperCase()}</span>
+                        {groupArm && (
+                          <span style={armTagStyle}>{groupArm.toUpperCase()}</span>
+                        )}
+                        <span style={TNUM}>{fmtTime(turn.created_at)}</span>
+                        <span style={{ flex: 1 }} />
+                        {/* #56: calibration feedback only on agent replies. PM
+                            turns are the PM's own writing — no calibration
+                            target. */}
+                        {turn.role === "agent" && (
+                          <ThumbsControl
+                            ariaLabel="Was this reply realistic?"
+                            flag={turn.realistic_flag ?? null}
+                            onSet={async (next) => {
+                              await sendAgentTurnFeedback(agentId, i, next);
+                              // Update the local turn so a subsequent toggle
+                              // reads the new server-confirmed state.
+                              setAgent((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      conversation: (
+                                        current.conversation ?? []
+                                      ).map((t, idx) =>
+                                        idx === i
+                                          ? { ...t, realistic_flag: next }
+                                          : t,
+                                      ),
+                                    }
+                                  : current,
+                              );
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div style={msgBodyAgentStyle}>{turn.content}</div>
+                      <MsgActions
+                        simHref={simHref}
+                        runDesignator={runDesignator}
+                      />
+                    </li>
+                  ),
+                )
+              )}
+            </ul>
+
+            {/* Honest in-flight state — text, never a spinner (§8.6) */}
+            {sending && (
+              <div style={typingStyle}>{persona.toUpperCase()} COMPOSING</div>
+            )}
+            <div ref={conversationEndRef} />
+          </div>
+
+          {/* Composer */}
+          {sendError && (
+            <div
+              // Use aria-live="polite" alone, not role="alert" + aria-live —
+              // role="alert" already implies assertive live-region behavior;
+              // pairing them is contradictory. Polite is correct here: a
+              // failed send isn't urgent enough to interrupt the user's
+              // current narration (codex #53 round-2 nit).
+              aria-live="polite"
+              style={{
+                fontSize: 13,
+                color: TOKENS.alert,
+                background: TOKENS.paperRecessed,
+                padding: "8px 16px",
+                borderTop: `1px solid ${TOKENS.rule}`,
+              }}
+            >
+              {sendError}
+            </div>
+          )}
+          <div style={chatInputStyle}>
+            <textarea
+              ref={composerRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={sending}
+              rows={2}
+              placeholder={
+                sending
+                  ? "Sending…"
+                  : `Ask ${persona}… (Enter to send, Shift+Enter for newline)`
+              }
+              aria-label="Message to the agent"
+              style={composerStyle}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={sending || !draft.trim()}
+              style={{
+                ...sendButtonStyle,
+                cursor: sending || !draft.trim() ? "not-allowed" : "pointer",
+                opacity: sending || !draft.trim() ? 0.5 : 1,
+              }}
+            >
+              {sending ? "Sending…" : "Send"}
+            </button>
+          </div>
         </div>
-      </section>
+      </div>
     </main>
+  );
+}
+
+// Per-message actions — transcripts are evidence. VIEW RUN READING links to
+// the real reading; PIN TO DECISION RECORD is the evidentiary affordance,
+// disabled until the decision record exists in the backend (no pin API yet —
+// an enabled control would be a broken promise).
+function MsgActions({
+  simHref,
+  runDesignator,
+}: {
+  simHref: string;
+  runDesignator: string;
+}) {
+  return (
+    <div style={msgActionsStyle}>
+      <button
+        type="button"
+        disabled
+        title="Pinning lands with the decision record — not yet available"
+        style={pinDisabledStyle}
+      >
+        PIN TO DECISION RECORD
+      </button>
+      <Link href={simHref} style={msgActionLinkStyle}>
+        VIEW {runDesignator} READING
+      </Link>
+    </div>
   );
 }
 
@@ -531,33 +594,371 @@ function SeedRow({
   label: string;
   value: string | null | undefined;
 }) {
+  // Seed values are persona context prose, not machine designators —
+  // body font, sentence case (§5.4).
   return (
     <>
-      <span style={{ color: TOKENS.inkMuted }}>{label}</span>
-      <span style={{ color: TOKENS.ink }}>{value || "—"}</span>
+      <dt style={seedDtStyle}>{label}</dt>
+      <dd style={seedDdStyle}>{value || "—"}</dd>
     </>
   );
 }
 
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.toISOString().slice(11, 19)}Z`;
+}
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────
+
 const pageStyle: React.CSSProperties = {
-  maxWidth: 720,
-  margin: "32px auto 64px",
+  maxWidth: 1080,
+  margin: "24px auto 64px",
   padding: "0 24px",
 };
 
-const cardStyle: React.CSSProperties = {
-  border: `0.75px solid ${TOKENS.rule}`,
-  borderRadius: 4,
-  padding: 20,
-  marginBottom: 16,
-  background: TOKENS.paperElevated,
+const pageStripStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: 16,
+  flexWrap: "wrap",
+  padding: "0 0 14px",
+  borderBottom: `1px solid ${TOKENS.rule}`,
+};
+
+const pageTitleStyle: React.CSSProperties = {
+  fontSize: 20,
+  fontWeight: 600,
+  letterSpacing: "-0.01em",
+  color: TOKENS.ink,
+  margin: 0,
+};
+
+const pageSubStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 11,
+  color: TOKENS.inkMuted,
+  letterSpacing: "0.06em",
+};
+
+const subLinkStyle: React.CSSProperties = {
+  color: TOKENS.inkMuted,
+  textDecoration: "none",
+  borderBottom: `1px dotted ${TOKENS.inkMuted}`,
+};
+
+const pageTagStyle: React.CSSProperties = {
+  marginLeft: "auto",
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: "0.08em",
+  color: TOKENS.inkMuted,
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 2,
+  padding: "3px 8px",
+  whiteSpace: "nowrap",
+};
+
+const hypothesisStripStyle: React.CSSProperties = {
+  padding: "14px 0",
+  borderBottom: `1px solid ${TOKENS.rule}`,
 };
 
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: TOKENS.inkMuted,
+  fontWeight: 500,
+  letterSpacing: "0.16em",
   textTransform: "uppercase",
-  letterSpacing: 0.5,
+  color: TOKENS.inkMuted,
   marginBottom: 6,
-  fontWeight: 600,
+};
+
+const chatPanelStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  marginTop: 16,
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 4,
+  background: TOKENS.paper,
+  overflow: "hidden",
+};
+
+const roomsRailStyle: React.CSSProperties = {
+  flex: "1 0 248px",
+  maxWidth: "100%",
+  display: "flex",
+  flexDirection: "column",
+  borderRight: `1px solid ${TOKENS.rule}`,
+  background: TOKENS.paperElevated,
+  boxShadow: "inset -1px 0 0 rgba(255, 255, 255, 0.55)",
+};
+
+const railHeadStyle: React.CSSProperties = {
+  padding: "14px 18px 10px",
+  borderBottom: `1px solid ${TOKENS.rule}`,
+};
+
+const roomRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "baseline",
+  gap: 10,
+  padding: "11px 18px",
+  borderBottom: `1px solid ${TOKENS.rule}`,
+  textDecoration: "none",
+  transition: "background 80ms ease-out",
+};
+
+const roomRowSelectedStyle: React.CSSProperties = {
+  ...roomRowStyle,
+  background: TOKENS.paperRecessed,
+  boxShadow: `inset 2px 0 0 ${TOKENS.ink}`,
+};
+
+const roomNameStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: TOKENS.ink,
+  flex: 1,
+};
+
+const roomMetaStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10.5,
+  color: TOKENS.inkMuted,
+  letterSpacing: "0.04em",
+};
+
+const identitySectionStyle: React.CSSProperties = {
+  padding: "14px 18px 16px",
+};
+
+const seedGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "auto 1fr",
+  gap: "4px 14px",
+  margin: 0,
+};
+
+const seedDtStyle: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: TOKENS.inkMuted,
+  paddingTop: 2,
+};
+
+const seedDdStyle: React.CSSProperties = {
+  fontSize: 12.5,
+  lineHeight: 1.45,
+  color: TOKENS.ink,
+  margin: 0,
+};
+
+const provenanceStyle: React.CSSProperties = {
+  marginTop: "auto",
+  marginBottom: 0,
+  padding: "14px 18px 16px",
+  borderTop: `1px solid ${TOKENS.rule}`,
+  display: "grid",
+  gridTemplateColumns: "auto 1fr",
+  gap: "3px 16px",
+};
+
+const provDtStyle: React.CSSProperties = {
+  fontSize: 11,
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  color: TOKENS.inkMuted,
+  paddingTop: 1,
+};
+
+const provDdStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 12,
+  color: TOKENS.ink,
+  margin: 0,
+};
+
+const provLinkStyle: React.CSSProperties = {
+  color: TOKENS.ink,
+  textDecoration: "none",
+  borderBottom: `1px dotted ${TOKENS.inkMuted}`,
+};
+
+const chatThreadStyle: React.CSSProperties = {
+  flex: "999 1 480px",
+  minWidth: 0,
+  display: "flex",
+  flexDirection: "column",
+};
+
+const chatScrollStyle: React.CSSProperties = {
+  flex: 1,
+  maxHeight: "56vh",
+  minHeight: 280,
+  overflowY: "auto",
+  padding: "20px 24px",
+};
+
+const sysLineStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: TOKENS.inkMuted,
+  textAlign: "center",
+  padding: "4px 0 18px",
+};
+
+const sysMonoStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 11,
+  letterSpacing: "0.04em",
+};
+
+const msgMetaStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10.5,
+  color: TOKENS.inkMuted,
+  letterSpacing: "0.05em",
+  marginBottom: 4,
+  display: "flex",
+  alignItems: "baseline",
+  gap: 8,
+};
+
+// Role designators are ink-weight, never color (§4.3): pm = ink,
+// agent = inkMuted, distinguished by weight.
+const msgWhoPmStyle: React.CSSProperties = {
+  color: TOKENS.ink,
+  fontWeight: 500,
+};
+
+const msgWhoAgentStyle: React.CSSProperties = {
+  color: TOKENS.inkMuted,
+  fontWeight: 500,
+};
+
+const armTagStyle: React.CSSProperties = {
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 2,
+  padding: "1px 5px",
+  fontSize: 9.5,
+};
+
+const msgAgentStyle: React.CSSProperties = {
+  maxWidth: "64ch",
+  marginBottom: 18,
+};
+
+const msgPmStyle: React.CSSProperties = {
+  maxWidth: "64ch",
+  marginBottom: 18,
+  marginLeft: "auto",
+};
+
+const msgBodyAgentStyle: React.CSSProperties = {
+  fontSize: 13.5,
+  lineHeight: 1.5,
+  color: TOKENS.ink,
+  whiteSpace: "pre-wrap",
+  borderLeft: `1px solid ${TOKENS.rule}`,
+  paddingLeft: 12,
+};
+
+const msgBodyPmStyle: React.CSSProperties = {
+  fontSize: 13.5,
+  lineHeight: 1.5,
+  color: TOKENS.ink,
+  whiteSpace: "pre-wrap",
+  background: TOKENS.paperElevated,
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 2,
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.55)",
+  padding: "9px 12px",
+};
+
+const msgActionsStyle: React.CSSProperties = {
+  marginTop: 5,
+  display: "flex",
+  gap: 12,
+  alignItems: "baseline",
+};
+
+const msgActionLinkStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: "0.04em",
+  color: TOKENS.inkMuted,
+  textDecoration: "none",
+  borderBottom: `1px dotted ${TOKENS.inkMuted}`,
+};
+
+const pinDisabledStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: "0.04em",
+  color: TOKENS.inkMuted,
+  background: "none",
+  border: "none",
+  borderBottom: `1px dotted ${TOKENS.rule}`,
+  padding: 0,
+  opacity: 0.5,
+  cursor: "not-allowed",
+};
+
+const typingStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10.5,
+  color: TOKENS.inkMuted,
+  letterSpacing: "0.06em",
+  paddingBottom: 8,
+};
+
+const chatInputStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 10,
+  padding: "14px 24px",
+  borderTop: `1px solid ${TOKENS.rule}`,
+  background: TOKENS.paper,
+  alignItems: "flex-end",
+};
+
+const composerStyle: React.CSSProperties = {
+  flex: 1,
+  fontFamily: "inherit",
+  fontSize: 14,
+  color: TOKENS.ink,
+  background: TOKENS.paperElevated,
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 2,
+  padding: "8px 11px",
+  lineHeight: 1.45,
+  resize: "vertical",
+  minHeight: 40,
+  boxSizing: "border-box",
+};
+
+const sendButtonStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  whiteSpace: "nowrap",
+  background: TOKENS.ink,
+  color: TOKENS.paper,
+  border: `1px solid ${TOKENS.ink}`,
+  borderRadius: 2,
+  padding: "8px 16px",
+};
+
+const errorCardStyle: React.CSSProperties = {
+  border: `1px solid ${TOKENS.rule}`,
+  borderRadius: 4,
+  padding: 20,
+  color: TOKENS.alert,
+  background: TOKENS.paperRecessed,
+  fontSize: 14,
 };
