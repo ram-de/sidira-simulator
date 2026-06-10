@@ -53,7 +53,9 @@ Paper temperature board built: `/tmp/sidira-paper-temperature-board.html` (ephem
    3. Founder-mode lockup (cofounder page / about-Sidira / press kit / company-anniversary hero): dual-color version as the official frozen image.
 
 ## Next Steps
-1. Scope the new design work (session reopened 2026-06-09)
+1. **Ticket filed: #156** — "Design rework R2: finalize 'Paper bench, glass display'" carries the full continuation context (artifacts, locked decisions, open decisions, 3-PR plan, process rules). Work continues from there.
+2. Founder approves R2 (proposal doc + `rework-preview-r2.html`) → PR 1: DESIGN.md rewrite + `lib/design.ts` tokens (via EnterWorktree). DESIGN.md remains UNTOUCHED until then.
+3. Then PR 2 (globals.css token sweep + success token) and PR 3 (result page → instrument panel).
 
 (Original follow-up tickets all shipped: #135 homepage/app-shell tokens, #136 aperture-close animation — PR #147, #137 legacy brand-file cleanup — PR #148, merged 2026-06-06.)
 
