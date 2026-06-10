@@ -106,6 +106,13 @@ A live example session lives at `sessions/persona-classifier/context.md` — tha
   - If you're tempted to skip Codex on "trivial" changes (docs-only, one-line typo, tests-only): don't. The 30-second runtime is cheaper than the trust we lose when a "trivial" change breaks something.
 - Squash on merge unless the commits are individually meaningful (rare).
 
+### Deploys
+
+- **Frontend:** AWS Amplify auto-builds on every push to `main`. Nothing to do.
+- **Backend (api.sidira.ai): manual, and easy to forget.** A merged PR that touches `backend/` is NOT live until someone redeploys the EC2 API. Forgetting looks like a `404 {"detail":"Not Found"}` banner in the live app on the new routes while old ones still work.
+- The agent-executable runbook is **`deploy/REDEPLOY.md`** — staleness check, the `SIDIRA_AUTO_MIGRATE` decision when the PR added an Alembic migration, the SSM deploy command, and verification. Point codex (or any agent) at it: `codex exec "Read deploy/REDEPLOY.md and execute the backend redeploy for api.sidira.ai."`
+- **Agents: after a backend-touching PR merges, prompt the user to redeploy** with the command above as part of the wrap-up. Don't silently end the session with prod stale.
+
 ---
 
 ## How we plan and track

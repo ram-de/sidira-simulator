@@ -61,6 +61,22 @@ All PR and feature branch work MUST be done through an isolated worktree.
 
 Worktrees give each PR an isolated filesystem, preventing stale state, accidental cross-contamination between branches, and the "wrong branch" class of errors. The `bgIsolation: worktree` setting in `.claude/settings.json` enforces this for background agents automatically; the rule above extends it to foreground sessions.
 
+## Backend Deploys Are Manual
+
+api.sidira.ai does NOT auto-deploy; only the Amplify frontend rebuilds on push
+to `main`. **After any merge to `main` that touches `backend/`, prompt the user
+to redeploy the backend** — otherwise the live app 404s on the new routes while
+prod silently serves the previous build. Include this in the merge wrap-up:
+
+```
+~/.npm-global/bin/codex exec "Read deploy/REDEPLOY.md in this repo and execute the backend redeploy for api.sidira.ai. If a step needs the AWS console, walk me through it."
+```
+
+`deploy/REDEPLOY.md` is the agent-executable runbook (staleness check,
+`SIDIRA_AUTO_MIGRATE` decision for Alembic migrations, SSM deploy command,
+verification). If the merged PR added a migration, say so explicitly in the
+reminder — that changes the runbook's step 2.
+
 ## Design System
 
 `DESIGN.md` at the repo root is the canonical source of truth for every
