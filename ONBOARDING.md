@@ -299,6 +299,7 @@ By end of week one you should have:
 | `ROADMAP.md` | Strategy, phases, locked decisions | Weekly or before starting a phase |
 | `AGENTS.md` | Conventions, skill usage | Once during onboarding, then reference |
 | `sessions/<active>/context.md` | Current working state | When picking up someone else's work |
+| `docs/auth-provider-portability.md` | Why Clerk, every Clerk seam, the swap-insurance contract | Before touching tenant resolution, the Clerk webhook, or the `customers` schema |
 | GitHub Project | Open tickets | Daily |
 | `sidira-personas/MILESTONES.md` | Stub — ignore | Never |
 | `sidira-crawler/MILESTONES.md` | Stub — ignore | Never |

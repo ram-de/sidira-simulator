@@ -12,6 +12,10 @@ session carries the ``org_id`` claim, the auth gate resolves it to a concrete
 tenant (see :func:`sidira_simulator.api.auth._extract_customer_id`). The customer
 id is the Clerk org id itself, which is also the R2 prefix root
 (``customers/<org_id>/…``), so a globally-unique org id can never collide.
+That equality is a value coincidence, not a semantic dependency: ``id`` is
+permanent and opaque, and ``clerk_org_id`` (persisted alongside) is the
+provider mapping column an auth-provider swap would resolve against. See
+docs/auth-provider-portability.md for the full contract.
 """
 
 from __future__ import annotations
