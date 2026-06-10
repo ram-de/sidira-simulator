@@ -96,33 +96,31 @@ function StepBody({ step }: { step: number }) {
   switch (step) {
     case 1:
       return (
-        <Stub
-          message="Snowflake credentials form: account, user, password, warehouse, role, database, schema. POST /feature-stores."
-        />
+        <Stub message="Connect your Snowflake account — account, user, warehouse, role, database, and schema." />
       );
     case 2:
       return (
-        <Stub message="Table picker (browse schemas) OR SQL textarea. Hits POST /feature-stores/{id}/preview." />
+        <Stub message="Pick a table from your schemas, or paste SQL that defines the population to model." />
       );
     case 3:
       return (
-        <Stub message="7 feature groups on the left, your columns on the right. LLM suggestions pre-filled via POST /feature-stores/{id}/suggest-mapping." />
+        <Stub message="Map your columns onto the seven feature groups, with LLM-suggested matches pre-filled for review." />
       );
     case 4:
       return (
-        <Stub message="Row count, NULL coverage per column, distribution skews (e.g. 88% Active in the DoorDash sample). Sanity-check before committing compute." />
+        <Stub message="Sanity-check row count, null coverage per column, and distribution skews before committing compute." />
       );
     case 5:
       return (
-        <Stub message="k (or auto), stability threshold (default 0.65), LLM provider (Groq / Anthropic), weight schemes (head_count / order_weighted / revenue_weighted)." />
+        <Stub message="Choose the cluster count (or let it auto-select), the stability threshold, the weighting scheme, and the model that names personas." />
       );
     case 6:
       return (
-        <Stub message="Streams JobRun events: 'Encoding 10K users', 'Clustering k=7', 'Naming P03 via Groq', stability score updating live." />
+        <Stub message="Watch the build land step by step — encoding users, clustering, naming personas — with the stability score updating as it goes." />
       );
     case 7:
       return (
-        <Stub message="Resulting personas with names, descriptions, JTBD, behavioral snapshots, stability score. CTA: Promote to latest." />
+        <Stub message="Review the resulting personas — names, descriptions, jobs-to-be-done, behavioral snapshots — and promote the pack to active." />
       );
     default:
       return null;
@@ -142,7 +140,7 @@ function Stub({ message }: { message: string }) {
         lineHeight: 1.6,
       }}
     >
-      <strong>Phase 4.5 placeholder.</strong> {message}
+      <strong>This step isn&apos;t wired up yet.</strong> {message}
     </div>
   );
 }
