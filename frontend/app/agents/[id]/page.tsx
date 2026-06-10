@@ -390,7 +390,9 @@ export default function AgentChatPage() {
                   <span
                     style={{
                       fontSize: 11,
-                      color: turn.role === "pm" ? "#1d4ed8" : "#0a7d3a",
+                      // Role designators are ink-weight, not color-coded —
+                      // semantic colors are reserved for outcomes (§4.3).
+                      color: turn.role === "pm" ? TOKENS.ink : TOKENS.inkMuted,
                       textTransform: "uppercase",
                       letterSpacing: 0.5,
                       fontWeight: 600,

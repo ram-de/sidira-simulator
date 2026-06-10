@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { isPublicSiteHost } from "@/lib/site-hosts";
 import SidiraLockup from "@/components/SidiraLockup";
 import SidiraLockupDuo from "@/components/SidiraLockupDuo";
-import { TOKENS, FONT_SANS, FONT_NARROW, FONT_SERIF, FONT_MONO } from "@/lib/design";
+import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO } from "@/lib/design";
 
 const CARDS = [
   {
@@ -222,15 +222,17 @@ function PublicCompanyHome() {
           />
           Private alpha · 2026
         </p>
+        {/* Marketing display — DESIGN.md §5.1: narrow grotesk SemiBold,
+            uppercase, 64–96px. No serif anywhere in R2. */}
         <h1
           style={{
             color: TOKENS.ink,
-            fontFamily: FONT_SERIF,
-            fontStyle: "italic",
-            fontWeight: 400,
+            fontFamily: FONT_NARROW,
+            fontWeight: 600,
+            textTransform: "uppercase",
             fontSize: "clamp(48px, 7vw, 96px)",
-            lineHeight: 1.05,
-            letterSpacing: "-0.02em",
+            lineHeight: 1.1,
+            letterSpacing: "0.01em",
             margin: 0,
             maxWidth: "18ch",
           }}

@@ -22,11 +22,12 @@ export const TOKENS = {
 
 export const FONT_SANS = "var(--font-sans), ui-sans-serif, sans-serif";
 export const FONT_NARROW = "var(--font-narrow), sans-serif";
-/** @deprecated R2 drops the serif entirely (DESIGN.md §5.1 — no serif anywhere;
- * marketing display is the narrow grotesk at hero sizes). Existing consumers
- * are migrated in the #164 token sweep; remove this export there. */
-export const FONT_SERIF = "var(--font-serif), Georgia, serif";
 export const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
+
+// Motion curves — DESIGN.md §9.3. Mechanical curve for telemetry wipes and
+// tab underlines; settle curve for the aperture-close commit beat (800ms).
+export const EASE_MECH = "cubic-bezier(0.32, 0.72, 0, 1)";
+export const EASE_SETTLE = "cubic-bezier(0.34, 1.1, 0.64, 1)";
 
 // fontFeatureSettings for tabular numerals — apply to all scores, CIs,
 // timestamps, deltas, cohort sizes per DESIGN.md §5.3.

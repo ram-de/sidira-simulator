@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TOKENS, FONT_SANS, FONT_SERIF } from "@/lib/design";
+import { TOKENS, FONT_SANS, FONT_NARROW } from "@/lib/design";
 import SidiraLockupDuo from "@/components/SidiraLockupDuo";
 
 export default function AboutPage() {
@@ -25,14 +25,16 @@ export default function AboutPage() {
           <SidiraLockupDuo height={36} />
         </div>
 
-        {/* Editorial hero — one Instrument Serif moment per page */}
+        {/* Marketing display — DESIGN.md §5.1: narrow grotesk SemiBold,
+            uppercase. No serif anywhere in R2. */}
         <h1
           style={{
-            fontFamily: FONT_SERIF,
-            fontStyle: "italic",
+            fontFamily: FONT_NARROW,
             fontSize: 48,
-            fontWeight: 400,
-            lineHeight: 1.15,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.01em",
+            lineHeight: 1.1,
             color: TOKENS.ink,
             margin: 0,
             marginBottom: 40,

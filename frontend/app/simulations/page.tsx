@@ -7,9 +7,11 @@ import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 
 const STATUS_COLOR: Record<string, string> = {
   pending: TOKENS.inkMuted,
-  running: "#1d4ed8",
-  complete: "#0a7d3a",
-  failed: "#a30000",
+  // Running is a live state, not a semantic outcome — it reads as ink; the
+  // sanctioned live treatment is the §9.5 lime carrier, never lime text.
+  running: TOKENS.ink,
+  complete: TOKENS.success,
+  failed: TOKENS.alert,
 };
 
 function formatRelative(iso: string): string {
@@ -67,7 +69,7 @@ export default function SimulationsIndexPage() {
             border: `0.75px solid ${TOKENS.alert}`,
             background: TOKENS.paperRecessed,
             borderRadius: 4,
-            color: "#a30000",
+            color: TOKENS.alert,
           }}
         >
           Failed to load simulations: {error}

@@ -11,6 +11,8 @@
 
 import { useState } from "react";
 
+import { TOKENS } from "@/lib/design";
+
 export function ThumbsControl({
   flag,
   onSet,
@@ -83,7 +85,7 @@ export function ThumbsControl({
           aria-live="polite"
           style={{
             fontSize: 11,
-            color: "#a30000",
+            color: TOKENS.alert,
             marginLeft: 4,
           }}
           title={err}
@@ -118,8 +120,8 @@ function ThumbButton({
       disabled={disabled}
       onClick={onClick}
       style={{
-        background: active ? "#e6f0ff" : "transparent",
-        border: active ? "1px solid #1d4ed8" : "1px solid #e4e4e4",
+        background: active ? TOKENS.paperRecessed : "transparent",
+        border: active ? `1px solid ${TOKENS.ink}` : `1px solid ${TOKENS.rule}`,
         borderRadius: 999,
         padding: `2px ${size <= 14 ? 6 : 8}px`,
         fontSize: size,

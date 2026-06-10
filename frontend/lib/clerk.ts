@@ -4,7 +4,7 @@
 // secret land). When the key is absent we render the pre-Clerk surfaces and the
 // middleware keeps the temporary Basic-Auth fallback. This mirrors the backend's
 // env-gated Clerk middleware (#29).
-import { TOKENS, FONT_SANS, FONT_NARROW } from "@/lib/design";
+import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO } from "@/lib/design";
 
 // NEXT_PUBLIC_* is inlined at build into both server and client bundles, so this
 // reads correctly from middleware (server) and the auth pages (client) alike.
@@ -51,6 +51,27 @@ export const clerkAppearance = {
     },
     formFieldInput: {
       borderWidth: "2px",
+    },
+    // Workbench chrome (R2 mock): the org switcher renders as the workspace
+    // chip — mono 11px, 1px rule border, radius 2 — and the user button as
+    // the 26px square avatar.
+    organizationSwitcherTrigger: {
+      fontFamily: FONT_MONO,
+      fontSize: "11px",
+      color: TOKENS.ink,
+      border: `1px solid ${TOKENS.rule}`,
+      borderRadius: "2px",
+      padding: "4px 10px",
+      transition: "border-color 80ms ease-out",
+      "&:hover": {
+        borderColor: TOKENS.inkMuted,
+        backgroundColor: "transparent",
+      },
+    },
+    userButtonAvatarBox: {
+      width: "26px",
+      height: "26px",
+      borderRadius: "2px",
     },
   },
 } as const;

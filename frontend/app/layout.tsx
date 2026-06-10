@@ -1,27 +1,22 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import {
-  Archivo_Narrow,
-  Hanken_Grotesk,
-  Instrument_Serif,
-  JetBrains_Mono,
-} from "next/font/google";
+import { Archivo, Archivo_Narrow, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import TopNav from "@/components/TopNav";
 import { isPublicSiteHost } from "@/lib/site-hosts";
 import { clerkEnabled, clerkAppearance } from "@/lib/clerk";
+import { TOKENS, FONT_SANS } from "@/lib/design";
 
-// Production fonts per DESIGN.md §5.1 ship as licensed faces (Söhne, Söhne
-// Schmal, Berkeley Mono, GT Sectra Fine). These four free Google Fonts are
-// the documented preview stand-ins until the licensed faces are wired in.
-// Hanken Grotesk is the closest Söhne substitute that ships with Next 14.2's
-// bundled Google Fonts list.
-const fontSans = Hanken_Grotesk({
+// MVP ships the fallback column of DESIGN.md §5.1 as production: Archivo
+// (body 400 / display 600 / UI labels 500), Archivo Narrow (wordmark +
+// marketing display), JetBrains Mono (data). No serif anywhere — R2 dropped
+// GT Sectra and its stand-in entirely.
+const fontSans = Archivo({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const fontNarrow = Archivo_Narrow({
@@ -29,14 +24,6 @@ const fontNarrow = Archivo_Narrow({
   variable: "--font-narrow",
   display: "swap",
   weight: ["400", "500", "600", "700"],
-});
-
-const fontSerif = Instrument_Serif({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-  weight: "400",
-  style: ["normal", "italic"],
 });
 
 const fontMono = JetBrains_Mono({
@@ -68,7 +55,6 @@ export default function RootLayout({
   const fontClass = [
     fontSans.variable,
     fontNarrow.variable,
-    fontSerif.variable,
     fontMono.variable,
   ].join(" ");
 
@@ -77,9 +63,9 @@ export default function RootLayout({
       <body
         style={{
           margin: 0,
-          fontFamily: "var(--font-sans), ui-sans-serif, sans-serif",
-          color: "#0E1A2B",
-          background: "#F4EFE6",
+          fontFamily: FONT_SANS,
+          color: TOKENS.ink,
+          background: TOKENS.paper,
         }}
       >
         {showProductNav ? <TopNav /> : null}

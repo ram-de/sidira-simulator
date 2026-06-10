@@ -761,10 +761,11 @@ function ABModeSection({
                 fontSize: 11,
                 padding: "2px 8px",
                 borderRadius: 4,
-                // Temporary staging badge — purple intentional for "coming next" affordance,
-                // not a TOKENS color. Removed with issues #89/#90/#91.
-                background: "#f0e6ff",
-                color: "#5a2ca0",
+                // Temporary staging badge, removed with issues #89/#90/#91.
+                // Recessed-paper treatment — purple is off the R2 palette
+                // (DESIGN.md §10 refuse list).
+                background: TOKENS.paperRecessed,
+                color: TOKENS.inkMuted,
                 fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: 0.5,
@@ -780,7 +781,7 @@ function ABModeSection({
           style={{
             ...helperStyle,
             marginLeft: 24,
-            color: "#5a2ca0",
+            color: TOKENS.inkMuted,
           }}
         >
           A/B execution runs end-to-end now (#89), but the result page
@@ -1028,7 +1029,7 @@ function PersonaFilterSection({
           gap: 12,
           fontSize: 12,
           marginBottom: 8,
-          color: "#1d4ed8",
+          color: TOKENS.ink,
         }}
       >
         <button

@@ -16,17 +16,23 @@ import {
 } from "@/lib/api";
 import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 
+// Recessed-paper chips differentiated by fg only — tinted backgrounds are off
+// the R2 palette. Running reads as ink (live = §9.5 lime carrier, never lime
+// or invented-blue text).
 const STATUS_COLORS: Record<SimulationStatus, { bg: string; fg: string }> = {
   pending: { bg: TOKENS.paperRecessed, fg: TOKENS.inkMuted },
-  running: { bg: "#e6f0ff", fg: "#1d4ed8" },
-  complete: { bg: "#e7f6ec", fg: "#0a7d3a" },
-  failed: { bg: "#fdecec", fg: "#a30000" },
+  running: { bg: TOKENS.paperRecessed, fg: TOKENS.ink },
+  complete: { bg: TOKENS.paperRecessed, fg: TOKENS.success },
+  failed: { bg: TOKENS.paperRecessed, fg: TOKENS.alert },
 };
 
+// Only the extremes get semantic color; mid-range scores read as muted ink.
+// TOKENS.warn (#D9A300) is ~2:1 contrast on paper — accent-only, never text
+// (codex review on #164).
 function scoreColor(score: number): string {
-  if (score >= 80) return "#0a7d3a";
-  if (score >= 60) return "#a86b00";
-  return "#a30000";
+  if (score >= 80) return TOKENS.success;
+  if (score >= 60) return TOKENS.inkMuted;
+  return TOKENS.alert;
 }
 
 function formatCategory(cat: string): string {
@@ -927,12 +933,12 @@ function LiftCard({
   const magnitude = lift == null ? null : Math.abs(lift);
   const color =
     lift == null
-      ? "#888"
+      ? TOKENS.inkMuted
       : Math.abs(lift) < 0.5
         ? TOKENS.inkMuted
         : lift > 0
-          ? "#0a7d3a"
-          : "#a30000";
+          ? TOKENS.success
+          : TOKENS.alert;
   const ciNarrow =
     liftCi != null && Math.abs(liftCi[1] - liftCi[0]) < _CI_COLLAPSE_THRESHOLD;
   const ciCrossesZero =
@@ -1036,7 +1042,7 @@ function LiftCard({
             <div
               style={{
                 fontSize: 13,
-                color: "#a86b00",
+                color: TOKENS.inkMuted,
                 marginTop: 2,
               }}
             >
@@ -1389,7 +1395,8 @@ function ScoreCiBar({
               width: `${Math.max(0, hi - lo)}%`,
               top: 0,
               bottom: 0,
-              background: "rgba(29, 78, 216, 0.25)",
+              // CI band — TOKENS.ink at 25%.
+              background: `${TOKENS.ink}40`,
             }}
           />
         )}
@@ -1459,7 +1466,8 @@ function WeaknessFrequencyBar({
           width: `${Math.max(0, hiPct - loPct)}%`,
           top: 0,
           bottom: 0,
-          background: "rgba(168, 107, 0, 0.35)",
+          // CI band — TOKENS.warn at 35%.
+          background: `${TOKENS.warn}59`,
         }}
       />
       <div
@@ -1469,7 +1477,7 @@ function WeaknessFrequencyBar({
           top: 0,
           bottom: 0,
           width: 2,
-          background: "#a86b00",
+          background: TOKENS.warn,
           transform: "translateX(-1px)",
         }}
       />
@@ -1836,7 +1844,7 @@ function AgentLi({ agent: a }: { agent: AgentRow }) {
     <li
       style={{
         padding: "8px 0",
-        borderTop: "1px dashed #f0f0f0",
+        borderTop: `1px dashed ${TOKENS.rule}`,
         listStyle: "none",
       }}
     >
@@ -1982,29 +1990,33 @@ function SentimentChip({
   // applied to the BACKGROUND only, not to the whole chip — fading text
   // along with the background hurt WCAG contrast on low-confidence
   // states.
+  // R2 sweep: all three chips sit on recessed paper (235,229,216 =
+  // TOKENS.paperRecessed) with a rule border; the fg + glyph carry the
+  // signal. Negative is ink-muted, never alert-red — DESIGN.md §8.5: a
+  // persona disliking a feature is information, not an emergency.
   const palette = {
     positive: {
-      bgR: 231,
-      bgG: 246,
-      bgB: 236,
-      fg: "#0a7d3a",
-      border: "#b4d9bf",
+      bgR: 235,
+      bgG: 229,
+      bgB: 216,
+      fg: TOKENS.success,
+      border: TOKENS.rule,
       glyph: "+",
     },
     neutral: {
-      bgR: 241,
-      bgG: 241,
-      bgB: 241,
+      bgR: 235,
+      bgG: 229,
+      bgB: 216,
       fg: TOKENS.inkMuted,
-      border: "#d4d4d4",
+      border: TOKENS.rule,
       glyph: "~",
     },
     negative: {
-      bgR: 253,
-      bgG: 236,
-      bgB: 236,
-      fg: "#a30000",
-      border: "#d9a3a3",
+      bgR: 235,
+      bgG: 229,
+      bgB: 216,
+      fg: TOKENS.inkMuted,
+      border: TOKENS.rule,
       glyph: "−",
     },
   } as const;
