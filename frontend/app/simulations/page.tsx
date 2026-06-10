@@ -95,9 +95,10 @@ function StateChip({
 }
 
 // Row designator — machine-derived, mono, ink-weight only (§4.3). Built from
-// the real simulation id (first 4 hex chars), never a synthesized sequence.
+// the real simulation id (first 8 hex chars — 4 makes same-page collisions
+// plausible at 50 rows), never a synthesized sequence.
 function designator(id: string): string {
-  return `HYP-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
+  return `HYP-${id.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }
 
 // Timestamps render as dates in mono (§5.4) — the register is a record.
