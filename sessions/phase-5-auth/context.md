@@ -16,7 +16,8 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 
 ## In Progress
 - [ ] **#149 — forward Clerk credential through prod proxy + Next token hop**
-  — **PR #158 OPEN 2026-06-09** (worktree `phase-5-149-token-hop`). Design:
+  — **PR #158 MERGED to `main` 2026-06-09 as `a917c49`** (worktree removed,
+  remote branch deleted). Code side DONE; only the prod flip remains. Design:
   Clerk token rides `X-Sidira-Clerk-Authorization` (the `Authorization` slot
   holds the hop Basic credential consumed by Caddy `basic_auth`); Caddy
   promotes it to `Authorization` upstream and never leaks the Basic credential
