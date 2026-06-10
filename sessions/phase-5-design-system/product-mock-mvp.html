@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIDIRA — Product Mock · MVP Surfaces + Moonshot Expansion Slots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Archivo+Narrow:wght@600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F4EFE6;
+    --paper-elevated: #FAF6EE;
+    --paper-recessed: #EBE5D8;
+    --rule: rgba(14, 26, 43, 0.16);
+    --glass: #0A1421;
+    --glass-rule: rgba(244, 239, 230, 0.08);
+    --glass-text: #F4EFE6;
+    --glass-muted: rgba(244, 239, 230, 0.55);
+    --ink: #0E1A2B;
+    --ink-muted: #4A5668;
+    --signal: #C8FF3D;
+    --alert: #E84A2C;
+    --warn: #D9A300;
+    --success: #2F6B3F;
+    --font-body: "Archivo", sans-serif;
+    --font-narrow: "Archivo Narrow", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+    --ease-settle: cubic-bezier(.34, 1.1, .64, 1);
+    --ease-mech: cubic-bezier(.32, .72, 0, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: var(--font-body); font-size: 14px; line-height: 1.4;
+    font-feature-settings: "tnum" on;
+  }
+  a { color: var(--ink); text-decoration: none; transition: color 80ms ease-out, border-color 80ms ease-out; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mono { font-family: var(--font-mono); }
+  .label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-muted);
+  }
+
+  /* MVP ↔ moonshot mode: expansion slots swap between honest MVP state and the
+     future state they're reserved for. Mock chrome only — the product ships MVP. */
+  .future-only { display: none !important; }
+  body.moonshot .future-only { display: revert !important; }
+  body.moonshot .mvp-only { display: none !important; }
+
+  /* ── mock chrome (not product UI) ─────────────────── */
+  .board-chrome {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--ink); color: #F4EFE6;
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 24px; font-family: var(--font-mono); font-size: 11px;
+  }
+  .board-chrome .title { letter-spacing: 0.1em; }
+  .board-chrome .keyhint { color: #8a93a3; }
+  .chrome-actions { display: flex; gap: 8px; margin-left: auto; }
+  .chrome-btn {
+    font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+    background: none; color: #F4EFE6; border: 1px solid #4A5668; border-radius: 2px;
+    padding: 5px 12px; transition: border-color 80ms ease-out;
+  }
+  .chrome-btn:hover { border-color: #F4EFE6; }
+  .chrome-btn.on { border-color: var(--signal); color: var(--signal); }
+
+  /* ── nav ─────────────────────────────────────────── */
+  nav {
+    height: 56px; display: flex; align-items: center; gap: 32px;
+    padding: 0 24px; border-bottom: 1px solid var(--rule); background: var(--paper);
+  }
+  .lockup { display: flex; align-items: center; gap: 11px; }
+  .lockup svg { display: block; }
+  .wordmark {
+    font-family: var(--font-narrow); font-weight: 600; font-size: 16px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .nav-tabs { display: flex; gap: 24px; flex: 1; }
+  .nav-tabs a {
+    font-size: 13px; color: var(--ink-muted); padding: 18px 0 16px;
+    border-bottom: 2px solid transparent;
+  }
+  .nav-tabs a:hover { color: var(--ink); }
+  .nav-tabs a.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .cmdk {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);
+    border: 1px solid var(--rule); border-radius: 2px; padding: 3px 8px;
+  }
+  .workspace-chip {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 2px; padding: 4px 10px;
+    cursor: pointer; transition: border-color 80ms ease-out;
+  }
+  .workspace-chip:hover { border-color: var(--ink-muted); }
+  .workspace-chip .org { font-weight: 500; }
+  .workspace-chip .sep { color: var(--ink-muted); margin: 0 4px; }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 2px; background: var(--ink); color: var(--paper);
+    font-family: var(--font-mono); font-size: 10px; display: flex; align-items: center;
+    justify-content: center; letter-spacing: 0.05em; cursor: pointer;
+  }
+  .cal-readout {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);
+    border: 1px solid var(--rule); border-radius: 2px; padding: 4px 10px;
+    cursor: pointer; transition: border-color 80ms ease-out;
+  }
+  .cal-readout:hover { border-color: var(--ink-muted); }
+  .cal-readout b { color: var(--ink); font-weight: 500; }
+
+  /* ── zone 1: commitment strip ────────────────────── */
+  .zone-hypothesis { padding: 14px 24px 0; border-bottom: 1px solid var(--rule); background: var(--paper); }
+  .strip-top { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+  .breadcrumb {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);
+    display: flex; align-items: center; gap: 8px; flex: 1;
+  }
+  .breadcrumb a:hover { color: var(--ink); text-decoration: underline; }
+  .breadcrumb .sep { color: var(--rule); }
+
+  /* lineage rail — ships day 1; later stages exist before the product can reach
+     them. The IA carries the moonshot even while MVP only fills stage 2. */
+  .lineage { display: flex; align-items: center; gap: 0; font-family: var(--font-mono); font-size: 10.5px; }
+  .stage { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); white-space: nowrap; }
+  .stage + .stage::before { content: ""; display: inline-block; width: 18px; height: 1px; background: var(--rule); margin: 0 8px; }
+  .stage-dot { width: 7px; height: 7px; border-radius: 1px; border: 1px solid var(--ink-muted); }
+  .stage.done { color: var(--ink); }
+  .stage.done .stage-dot { background: var(--ink); border-color: var(--ink); }
+  .stage.current { color: var(--ink); font-weight: 500; }
+  .stage.current .stage-dot { border-color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--paper), inset 0 0 0 4px var(--ink); }
+  .stage.unreachable { opacity: 0.45; }
+  .stage-count { margin-left: 14px; color: var(--ink-muted); }
+
+  .hyp-row { display: flex; align-items: center; gap: 16px; }
+  .hyp-statement { font-size: 16px; font-weight: 600; line-height: 1.25; flex: 1; }
+  .verdict {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+    border: 1px solid var(--ink); border-radius: 2px; padding: 4px 10px; white-space: nowrap;
+  }
+  .primary-action {
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 2px;
+    padding: 7px 14px; cursor: pointer; transition: background 80ms ease-out;
+  }
+  .primary-action:hover { background: #1d2c42; }
+  .primary-action:active { transform: translateY(1px); }
+  .secondary-action {
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    background: none; color: var(--ink); border: 1px solid var(--rule); border-radius: 2px;
+    padding: 7px 14px; cursor: pointer; transition: border-color 80ms ease-out;
+  }
+  .secondary-action:hover { border-color: var(--ink); }
+  .secondary-action:active { transform: translateY(1px); }
+
+  .verdict-why {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+    color: var(--ink-muted); margin-top: 7px;
+  }
+  .verdict-why b { color: var(--ink); font-weight: 500; }
+
+  .telemetry {
+    margin-top: 12px; display: grid; grid-template-columns: repeat(6, auto); gap: 0;
+    border-top: 1px solid var(--rule);
+    clip-path: inset(0 0 0 0);
+  }
+  .telemetry.pre { clip-path: inset(0 100% 0 0); }
+  .tele-cell { padding: 10px 24px 12px 0; }
+  .tele-cell + .tele-cell { padding-left: 24px; border-left: 1px solid var(--rule); }
+  .tele-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 2px; }
+  .tele-value { font-family: var(--font-mono); font-size: 13px; }
+  .status-value { position: relative; display: inline-block; }
+  body.running .status-value::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 2px;
+    background: var(--signal); animation: carrier 3.4s ease-in-out infinite;
+  }
+  @keyframes carrier { 0%,100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+  /* ── zones 2 + 3 ─────────────────────────────────── */
+  .panel { display: flex; }
+  .zone-evidence { flex: 1; min-width: 0; padding: 24px; }
+  .zone-inspector {
+    width: 340px; flex-shrink: 0; border-left: 1px solid var(--rule);
+    background: var(--paper-elevated);
+    box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.55);
+    display: flex; flex-direction: column;
+  }
+
+  /* ── the glass display ───────────────────────────── */
+  .glass {
+    background: var(--glass); color: var(--glass-text);
+    border: 1px solid var(--glass-rule); border-radius: 4px;
+    padding: 24px 28px 0;
+  }
+  .glass-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0; }
+  .readout { padding-bottom: 20px; min-width: 0; }
+  .readout + .readout { border-left: 1px solid var(--glass-rule); padding-left: 28px; }
+  .readout-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+  .glass-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--glass-muted);
+  }
+  .info-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+    background: none; border: none; color: var(--glass-muted); cursor: pointer;
+    border-bottom: 1px dotted var(--glass-muted); padding: 0 0 1px;
+    transition: color 80ms ease-out, border-color 80ms ease-out;
+  }
+  .info-btn:hover { color: var(--glass-text); border-color: var(--glass-text); }
+
+  .trace-wrap { position: relative; height: 90px; }
+  .trace-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .trace-under { stroke: var(--signal); stroke-width: 5; opacity: 0.18; fill: none; }
+  .trace-main { stroke: var(--signal); stroke-width: 1.5; fill: none; }
+  .trace-baseline { stroke: rgba(244, 239, 230, 0.3); stroke-width: 1; fill: none; opacity: 0; }
+  .trace-ref { stroke: rgba(244, 239, 230, 0.18); stroke-width: 1; stroke-dasharray: 4 4; }
+  body.running .trace-under, body.running .trace-main { opacity: 0; }
+  body.running .trace-baseline { opacity: 1; }
+  .trace-axis {
+    display: flex; justify-content: space-between; margin-top: 4px;
+    font-family: var(--font-mono); font-size: 10px; color: var(--glass-muted);
+    letter-spacing: 0.06em;
+  }
+
+  .glass-numeral {
+    font-family: var(--font-mono); font-weight: 400; line-height: 1;
+    opacity: 0; transition: opacity 120ms ease-out;
+  }
+  .glass-numeral.settled { opacity: 1; }
+  .glass-numeral.big { font-size: 84px; }
+  .glass-numeral.mid { font-size: 44px; margin: 18px 0 8px; }
+  .glass-numeral .unit { font-size: 18px; color: var(--glass-muted); margin-left: 6px; }
+  .glass-caption { font-family: var(--font-mono); font-size: 11px; color: var(--glass-muted); }
+  .readout-note { font-size: 13px; color: var(--glass-muted); margin-top: 10px; max-width: 320px; line-height: 1.45; }
+
+  .score-row { display: flex; align-items: flex-end; gap: 36px; margin: 10px 0 6px; }
+  .decision-rule {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 14px;
+    padding-bottom: 10px; max-width: 320px;
+    opacity: 0; transition: opacity 120ms ease-out;
+  }
+  .decision-rule.settled { opacity: 1; }
+  .decision-rule dt {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--glass-muted); padding-top: 2px;
+  }
+  .decision-rule dd { font-family: var(--font-mono); font-size: 11px; color: var(--glass-text); line-height: 1.5; }
+  body.running .decision-rule { opacity: 0; }
+
+  .axis-wrap { position: relative; }
+  .axis-label-row { position: relative; height: 14px; }
+  .axis-label-row span {
+    position: absolute; transform: translateX(-50%); white-space: nowrap;
+    font-family: var(--font-mono); font-size: 10px; color: var(--glass-muted);
+    letter-spacing: 0.06em;
+  }
+  .axis-label-row span.edge-l { transform: none; }
+  .axis-label-row span.edge-r { transform: translateX(-100%); }
+  .fade-label { opacity: 0; transition: opacity 120ms ease-out; }
+  .fade-label.on { opacity: 1; }
+
+  .ci-svg { display: block; width: 100%; height: 32px; margin-top: 2px; overflow: visible; }
+  .ci-axis-line { stroke: rgba(244, 239, 230, 0.22); stroke-width: 1; }
+  .ci-tick { stroke: rgba(244, 239, 230, 0.22); stroke-width: 1; }
+  .ci-thr { stroke: rgba(244, 239, 230, 0.45); stroke-width: 1; stroke-dasharray: 3 3; }
+  .ci-band {
+    fill: #F4EFE6; opacity: 0.13;
+    transform: scaleX(0); transform-box: fill-box; transform-origin: 53.8% 50%;
+    transition: transform 220ms var(--ease-mech);
+  }
+  .ci-band.open { transform: scaleX(1); }
+  .ci-marker-g {
+    transform: translateX(0); transform-box: view-box;
+    transition: transform 800ms var(--ease-settle);
+  }
+  .ci-marker-g.landed { transform: translateX(78%); }
+  .ci-marker { stroke: var(--signal); stroke-width: 2.5; }
+  body.running .ci-band, body.running .ci-marker { opacity: 0; }
+
+  .pd-svg { display: block; width: 100%; height: 56px; overflow: visible; }
+  .pd-axis { stroke: rgba(244, 239, 230, 0.22); stroke-width: 1; }
+  .pd-axis-tick { stroke: rgba(244, 239, 230, 0.22); stroke-width: 1; }
+  .pd-control { stroke: rgba(244, 239, 230, 0.6); stroke-width: 2; }
+  .pd-digest { stroke: var(--signal); stroke-width: 2.5; }
+  .pd-band {
+    fill: #F4EFE6; opacity: 0.13;
+    transform: scaleX(0); transform-box: fill-box; transform-origin: 0% 50%;
+    transition: transform 220ms var(--ease-mech);
+  }
+  .pd-band.open { transform: scaleX(1); }
+  .pd-tick-g {
+    transform: translateX(0); transform-box: view-box;
+    transition: transform 800ms var(--ease-settle);
+  }
+  .pd-tick-g.landed { transform: translateX(31%); }
+  body.running .pd-mark { opacity: 0; }
+
+  body.running.live .trace-under { opacity: 0.18; }
+  body.running.live .trace-main { opacity: 1; }
+  body.running.live .trace-baseline { opacity: 0; }
+
+  .glass-footer {
+    display: flex; align-items: center; gap: 28px;
+    border-top: 1px solid var(--glass-rule);
+    padding: 12px 0; margin-top: 2px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--glass-muted);
+  }
+  .seed-strip { display: flex; align-items: center; gap: 8px; }
+  .seed-strip svg { display: block; }
+  .seed-tick { stroke: rgba(244, 239, 230, 0.45); stroke-width: 1.5; }
+  .glass-footer .spacer { flex: 1; }
+
+  .method-card {
+    display: none; margin-top: 12px; max-width: 760px;
+    background: var(--paper-elevated); border: 1px solid var(--rule); border-radius: 4px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    padding: 14px 16px; font-size: 13px; line-height: 1.55;
+  }
+  .method-card.open { display: block; }
+  .method-card .mono { font-size: 12px; }
+  .method-card p + p { margin-top: 8px; }
+
+  /* ── weakness register + refinement queue ────────── */
+  .register { margin-top: 32px; }
+  .register > .label { display: block; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; font-family: var(--font-mono); font-size: 11px; font-weight: 400;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted);
+    padding: 10px 16px 6px 0; border-bottom: 1px solid var(--rule);
+  }
+  td { padding: 9px 16px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  tbody tr { transition: background 80ms ease-out; cursor: pointer; }
+  tbody tr:hover { background: var(--paper-recessed); }
+  tbody tr:active { transform: translateY(1px); }
+  td.num { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; text-align: right; }
+  th.num { text-align: right; }
+  .bar { display: inline-block; height: 2px; background: var(--ink); vertical-align: 3px; margin-right: 10px; }
+  .sev { font-family: var(--font-mono); font-size: 11px; }
+  .sev-high { color: var(--alert); }
+  .sev-med { color: var(--warn); }
+  .sev-low { color: var(--ink-muted); }
+  .mitigation { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+  .gate { display: block; margin-top: 3px; color: var(--ink); font-weight: 500; letter-spacing: 0.08em; }
+  .reg-row { opacity: 1; transform: translateY(0); transition: opacity 180ms var(--ease-mech), transform 180ms var(--ease-mech); }
+  .reg-row.pre { opacity: 0; transform: translateY(4px); }
+  .empty-row td {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);
+    letter-spacing: 0.06em; padding: 22px 0; text-align: center;
+  }
+  body:not(.running) #registerBody .empty-row { display: none; }
+  body.running .reg-row { display: none; }
+
+  .queue-btn {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--rule); border-radius: 2px;
+    color: var(--ink); padding: 4px 10px; cursor: pointer;
+    transition: border-color 80ms ease-out;
+  }
+  .queue-btn:hover { border-color: var(--ink); }
+  .queue-btn:active { transform: translateY(1px); }
+
+  .replay {
+    margin-top: 20px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+    background: none; border: 1px solid var(--rule); border-radius: 2px;
+    color: var(--ink-muted); padding: 6px 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: border-color 80ms ease-out, color 80ms ease-out;
+  }
+  .replay:hover { border-color: var(--ink); color: var(--ink); }
+  .replay:active { transform: translateY(1px); }
+  .replay:disabled { opacity: 0.4; cursor: not-allowed; }
+  .replay .glyph { display: inline-block; }
+  .replay .glyph.spin { transition: transform 800ms var(--ease-settle); transform: rotate(-360deg); }
+
+  /* ── zone 3: inspector ───────────────────────────── */
+  .inspector-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--rule); }
+  .inspector-body { transition: opacity 220ms ease-out; }
+  .inspector-body.pre { opacity: 0; }
+  body.running .inspector-body { opacity: 0.45; }
+  .persona-row {
+    display: flex; align-items: baseline; gap: 12px; padding: 10px 20px;
+    border-bottom: 1px solid var(--rule); cursor: pointer; transition: background 80ms ease-out;
+  }
+  .persona-row:hover { background: var(--paper-recessed); }
+  .persona-row.selected { background: var(--paper-recessed); box-shadow: inset 2px 0 0 var(--ink); }
+  .persona-id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); width: 32px; }
+  .persona-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .sentiment { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+  .sentiment .pos { color: var(--ink); }
+  .sentiment .neu { color: var(--ink-muted); }
+  .sentiment .neg { color: var(--ink-muted); }
+  .inspector-detail { padding: 16px 20px; flex: 1; }
+  .quote-well {
+    background: var(--paper-recessed); border-radius: 2px; padding: 12px 14px;
+    box-shadow: inset 0 1px 2px rgba(14, 26, 43, 0.07);
+    margin-bottom: 8px;
+  }
+  blockquote { font-size: 13px; line-height: 1.5; border-left: 1px solid var(--ink-muted); padding-left: 12px; }
+  .quote-meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); margin: 8px 0 16px; }
+  .quote-meta a { border-bottom: 1px dotted var(--ink-muted); }
+  .quote-meta a:hover { color: var(--ink); border-color: var(--ink); }
+  .inspector-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .inspector-actions a {
+    font-size: 13px; font-weight: 500; border: 1px solid var(--rule); border-radius: 2px;
+    padding: 8px 12px; background: var(--paper); transition: border-color 80ms ease-out;
+  }
+  .inspector-actions a:hover { border-color: var(--ink); }
+  .inspector-actions a:active { transform: translateY(1px); }
+
+  .provenance {
+    padding: 14px 20px 16px; border-top: 1px solid var(--rule);
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 16px;
+  }
+  .provenance dt { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); padding-top: 1px; }
+  .provenance dd { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+  .provenance dd a { border-bottom: 1px dotted var(--ink-muted); }
+  .provenance dd a:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* §9.5 aperture loop + commit beat (demo — duo-in-nav needs DESIGN.md carve-out) */
+  #navMark .iris { opacity: 0; transform-origin: 50px 50px; transform-box: view-box; }
+  body.running #navMark .iris { opacity: 1; animation: irisBreath 3.4s ease-in-out infinite; }
+  @keyframes irisBreath {
+    0%, 100% { transform: scale(1); opacity: 0.35; }
+    50% { transform: scale(0.4); opacity: 1; }
+  }
+  #navMark path { transition: stroke 300ms ease-out, transform 500ms cubic-bezier(.32,.72,0,1); }
+  body.commit #navMark .iris { opacity: 1; transform: scale(0.06); animation: none; }
+  body.commit #navMark .blade-l path { stroke: #2C5577; }
+  body.commit #navMark .blade-r path { stroke: #D696C8; }
+
+  /* ── pages ───────────────────────────────────────── */
+  .page { display: none; }
+  .page.on { display: block; animation: pageIn 120ms ease-out; }
+  @keyframes pageIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .page-strip {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--rule);
+    display: flex; align-items: baseline; gap: 16px;
+  }
+  .page-strip h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-strip .sub { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.06em; }
+  .page-strip .right { margin-left: auto; }
+  .page-tag {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+    color: var(--ink-muted); border: 1px solid var(--rule); border-radius: 2px;
+    padding: 3px 8px; white-space: nowrap;
+  }
+  .page-body { padding: 24px; }
+  .page-body section + section { margin-top: 32px; }
+  .page-body .label { display: block; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+
+  .carrier-live { position: relative; }
+  .carrier-live::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 2px;
+    background: var(--signal); animation: carrier 3.4s ease-in-out infinite;
+  }
+
+  .live-strip {
+    margin: 20px 24px 0; background: var(--glass); color: var(--glass-text);
+    border: 1px solid var(--glass-rule); border-radius: 4px;
+    padding: 13px 18px; display: flex; align-items: baseline; gap: 24px;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .live-strip .spacer { flex: 1; }
+  .live-strip a { color: var(--glass-muted); border-bottom: 1px dotted var(--glass-muted); }
+  .live-strip a:hover { color: var(--glass-text); border-color: var(--glass-text); }
+
+  .chip {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+    border: 1px solid var(--ink); border-radius: 2px; padding: 2px 7px; white-space: nowrap;
+  }
+  .chip.muted { border-color: var(--rule); color: var(--ink-muted); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; margin-top: 14px; }
+  .card {
+    background: var(--paper-elevated); border: 1px solid var(--rule); border-radius: 4px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); padding: 16px;
+    cursor: pointer; transition: border-color 80ms ease-out;
+  }
+  .card:hover { border-color: var(--ink-muted); }
+  .card:active { transform: translateY(1px); }
+  .card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .card-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; }
+  .card dt { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); padding-top: 2px; }
+  .card dd { font-family: var(--font-mono); font-size: 11.5px; }
+  .card-link { display: inline-block; margin-top: 12px; font-size: 12.5px; font-weight: 500; border-bottom: 1px dotted var(--ink-muted); }
+  .card-link:hover { border-color: var(--ink); }
+  .card.ghost { border-style: dashed; box-shadow: none; background: var(--paper); }
+
+  .cal-svg { display: block; width: 100%; height: 150px; overflow: visible; }
+  .cal-diag { stroke: rgba(244, 239, 230, 0.25); stroke-width: 1; stroke-dasharray: 4 4; }
+  .cal-dot { fill: var(--signal); }
+
+  /* ── expansion slots: honest empty states for surfaces the MVP can't fill yet.
+        Paper + ink + static text. Never synthetic data, never skeletons. ── */
+  .slot {
+    max-width: 720px; margin-top: 14px;
+    border: 1px dashed var(--rule); border-radius: 4px; padding: 20px 22px;
+  }
+  .slot .slot-state {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em;
+    color: var(--ink); margin-bottom: 10px;
+  }
+  .slot p { font-size: 13.5px; line-height: 1.55; color: var(--ink-muted); max-width: 58ch; }
+  .slot p + p { margin-top: 8px; }
+  .slot p b { color: var(--ink); font-weight: 500; }
+  .slot .slot-spec { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin-top: 14px; }
+  .slot .slot-spec dt { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); padding-top: 2px; }
+  .slot .slot-spec dd { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); }
+
+  /* ── new-hypothesis wizard (MVP-shipped flow) ────── */
+  .form-wrap { max-width: 760px; }
+  .field { margin-top: 20px; }
+  .field > .label { display: block; border: none; padding-bottom: 6px; }
+  .field-hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.04em; margin-top: 5px; }
+  input[type="text"], textarea, select {
+    width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--ink);
+    background: var(--paper-recessed); border: 1px solid var(--rule); border-radius: 2px;
+    box-shadow: inset 0 1px 2px rgba(14, 26, 43, 0.07);
+    padding: 9px 11px; transition: border-color 80ms ease-out;
+  }
+  textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--ink); }
+  select { appearance: none; font-family: var(--font-mono); font-size: 13px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+  .seg button {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em;
+    background: var(--paper); color: var(--ink-muted); border: none; cursor: pointer;
+    padding: 7px 14px; transition: background 80ms ease-out, color 80ms ease-out;
+  }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+
+  .pf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pf-chip {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; cursor: pointer;
+    border: 1px solid var(--rule); border-radius: 2px; padding: 4px 9px; color: var(--ink-muted);
+    background: var(--paper); transition: border-color 80ms ease-out, color 80ms ease-out;
+  }
+  .pf-chip:hover { border-color: var(--ink-muted); }
+  .pf-chip.on { border-color: var(--ink); color: var(--ink); background: var(--paper-recessed); }
+  .form-foot {
+    display: flex; align-items: center; gap: 16px; margin-top: 28px;
+    border-top: 1px solid var(--rule); padding-top: 18px;
+  }
+  .form-foot .est { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.06em; }
+
+  /* ── agent chat (the differentiator, MVP-shipped) ── */
+  .chat-panel { display: flex; min-height: 520px; }
+  .chat-rooms {
+    width: 264px; flex-shrink: 0; border-right: 1px solid var(--rule);
+    background: var(--paper-elevated);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.55);
+  }
+  .room-row {
+    display: flex; align-items: baseline; gap: 10px; padding: 11px 18px;
+    border-bottom: 1px solid var(--rule); cursor: pointer; transition: background 80ms ease-out;
+  }
+  .room-row:hover { background: var(--paper-recessed); }
+  .room-row.selected { background: var(--paper-recessed); box-shadow: inset 2px 0 0 var(--ink); }
+  .room-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .room-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); }
+  .chat-thread { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .chat-scroll { flex: 1; padding: 20px 24px; overflow-y: auto; }
+  .sys-line {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted);
+    letter-spacing: 0.06em; text-align: center; padding: 4px 0 18px;
+  }
+  .msg { max-width: 64ch; margin-bottom: 18px; }
+  .msg-meta {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted);
+    letter-spacing: 0.05em; margin-bottom: 4px; display: flex; align-items: baseline; gap: 8px;
+  }
+  .msg-meta .who { color: var(--ink); font-weight: 500; }
+  .msg-meta .arm-tag { border: 1px solid var(--rule); border-radius: 2px; padding: 1px 5px; font-size: 9.5px; }
+  .msg-body { font-size: 13.5px; line-height: 1.5; }
+  .msg.agent .msg-body { border-left: 1px solid var(--rule); padding-left: 12px; }
+  .msg.pm { margin-left: auto; }
+  .msg.pm .msg-body {
+    background: var(--paper-elevated); border: 1px solid var(--rule); border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); padding: 9px 12px;
+  }
+  .msg.pm .msg-meta { justify-content: flex-end; }
+  .msg-actions { margin-top: 5px; font-family: var(--font-mono); font-size: 10px; }
+  .msg-actions a { color: var(--ink-muted); border-bottom: 1px dotted var(--ink-muted); margin-right: 12px; }
+  .msg-actions a:hover { color: var(--ink); border-color: var(--ink); }
+  .typing { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.06em; }
+  .chat-input {
+    display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .chat-input input { flex: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .telemetry.pre { clip-path: inset(0 0 0 0); }
+    .carrier-live::after { animation: none; }
+    .glass-numeral, .decision-rule, .inspector-body.pre { opacity: 1; transition: none; }
+    .reg-row.pre { opacity: 1; transform: none; transition: none; }
+    .ci-band, .pd-band { transform: scaleX(1); transition: none; }
+    .ci-marker-g { transform: translateX(78%); transition: none; }
+    .pd-tick-g { transform: translateX(31%); transition: none; }
+    .fade-label { opacity: 1; transition: none; }
+    .status-value::after { animation: none; }
+    body.running #navMark .iris { animation: none; opacity: 0.5; }
+  }
+  @media (max-width: 1080px) {
+    .panel { flex-direction: column; }
+    .zone-inspector { width: 100%; border-left: none; border-top: 1px solid var(--rule); }
+    .glass-grid { grid-template-columns: 1fr; }
+    .readout + .readout { border-left: none; border-top: 1px solid var(--glass-rule); padding-left: 0; padding-top: 20px; }
+    .telemetry { grid-template-columns: repeat(3, auto); }
+    .tele-cell:nth-child(4) { padding-left: 0; border-left: none; }
+    .lineage { display: none; }
+    .score-row { flex-wrap: wrap; gap: 20px; }
+    .chat-rooms { display: none; }
+    .field-row, .field-row-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- mock chrome — not product UI -->
+<div class="board-chrome">
+  <span class="title">SIDIRA PRODUCT MOCK · MVP SURFACES + EXPANSION SLOTS</span>
+  <span class="keyhint">TABS = FULL PRODUCT · ▶ PLAYS A RUN · MOONSHOT TOGGLE FILLS THE EXPANSION SLOTS</span>
+  <div class="chrome-actions">
+    <button class="chrome-btn" id="runDemo" type="button">▶ RUN SIMULATION</button>
+    <button class="chrome-btn" id="replayChrome" type="button">REPLAY SETTLE ↻</button>
+    <button class="chrome-btn" id="runToggle" type="button">VIEW RUNNING STATE</button>
+    <button class="chrome-btn" id="modeToggle" type="button">VIEW MOONSHOT STATE</button>
+  </div>
+</div>
+
+<nav>
+  <a class="lockup" href="#" aria-label="Sidira">
+    <svg id="navMark" width="28" height="28" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round" aria-hidden="true">
+      <g class="blade-r">
+        <path d="M84.64 70 L50 90 L50 63 L61.26 56.5 Z"/>
+        <path d="M50 10 L84.64 30 L61.26 43.5 L50 37 Z"/>
+        <path d="M84.64 30 L84.64 70 L61.26 56.5 L61.26 43.5 Z"/>
+      </g>
+      <g class="blade-l">
+        <path d="M50 90 L15.36 70 L38.74 56.5 L50 63 Z"/>
+        <path d="M15.36 70 L15.36 30 L38.74 43.5 L38.74 56.5 Z"/>
+        <path d="M15.36 30 L50 10 L50 37 L38.74 43.5 Z"/>
+      </g>
+      <path class="iris" d="M50 37 L61.26 43.5 L61.26 56.5 L50 63 L38.74 56.5 L38.74 43.5 Z"/>
+    </svg>
+    <span class="wordmark">Sidira</span>
+  </a>
+  <div class="nav-tabs">
+    <a href="#" data-page="objectives">Objectives</a>
+    <a href="#" class="active" data-page="hyplist">Hypotheses</a>
+    <a href="#" data-page="rollouts">Rollouts</a>
+    <a href="#" data-page="calibration">Calibration</a>
+    <a href="#" data-page="library">Library</a>
+  </div>
+  <span class="cmdk">⌘K</span>
+  <a class="cal-readout" href="#" data-goto="calibration" title="Calibration ledger">
+    <span class="mvp-only">CAL <b>—</b> · n=0</span>
+    <span class="future-only">CAL <b>0.81</b> · n=142</span>
+  </a>
+  <a class="workspace-chip" href="#"><span class="org">LUMEN</span><span class="sep">/</span>WS-01</a>
+  <span class="avatar" title="Signed in via Clerk — per-customer workspace isolation">RD</span>
+</nav>
+
+<!-- ════════ HYPOTHESIS DETAIL — the instrument panel (MVP core) ════════ -->
+<div class="page on" id="page-hypdetail" data-tab="hyplist">
+<header class="zone-hypothesis">
+  <div class="strip-top">
+    <div class="breadcrumb">
+      <span class="future-only"><a href="#" data-goto="objectives">OBJ-04 INCREASE DAU +10%</a><span class="sep">/</span></span>
+      <a href="#" data-goto="hyplist">HYP-117</a><span class="sep">/</span>
+      <span>RUN-3</span>
+    </div>
+    <div class="lineage mvp-only" aria-label="Pipeline stage 2 of 4 — rollout grading lands in Phase 9">
+      <span class="stage done"><span class="stage-dot"></span>SIMULATED</span>
+      <span class="stage current"><span class="stage-dot"></span>DECISION</span>
+      <span class="stage unreachable" title="Phase 9"><span class="stage-dot"></span>ROLLOUT</span>
+      <span class="stage unreachable" title="Phase 9"><span class="stage-dot"></span>GRADED</span>
+      <span class="stage-count">STAGE 2/4</span>
+    </div>
+    <div class="lineage future-only" aria-label="Pipeline stage 3 of 5">
+      <span class="stage done"><span class="stage-dot"></span>SIMULATED</span>
+      <span class="stage done"><span class="stage-dot"></span>VALIDATED</span>
+      <span class="stage current"><span class="stage-dot"></span>PRD</span>
+      <span class="stage"><span class="stage-dot"></span>ROLLOUT</span>
+      <span class="stage"><span class="stage-dot"></span>GRADED</span>
+      <span class="stage-count">STAGE 3/5</span>
+    </div>
+  </div>
+  <div class="hyp-row">
+    <h1 class="hyp-statement">Weekly digest email with personalized usage insights will lift 7-day return rate for dormant SMB admins.</h1>
+    <span class="verdict" id="verdictChip">DECISIVE · SHIP CANDIDATE</span>
+    <button class="primary-action" type="button">Open decision record →</button>
+  </div>
+  <div class="verdict-why" id="verdictWhy">DECISIVE — P̂ <b>0.78</b> ≥ THRESHOLD 0.70 (POLICY DR-1) · EXPECTED LIFT <b>+6.2 PTS</b> · SHIP GATED ON: CONSOLIDATED DIGEST + ZERO-USAGE SUPPRESSION<span class="mvp-only"> · RAW AGREEMENT — UNCALIBRATED (LEDGER EMPTY)</span></div>
+  <div class="telemetry" id="telemetry">
+    <div class="tele-cell"><div class="tele-label">Model</div><div class="tele-value">gpt-5.2</div></div>
+    <div class="tele-cell"><div class="tele-label">Readings</div><div class="tele-value">240 <span style="color:var(--ink-muted)">(48 personas × 5 seeds)</span></div></div>
+    <div class="tele-cell"><div class="tele-label">Arms</div><div class="tele-value">digest / control</div></div>
+    <div class="tele-cell"><div class="tele-label">Population</div><div class="tele-value">1,000 · HAMILTON</div></div>
+    <div class="tele-cell"><div class="tele-label">Pack</div><div class="tele-value">smb-core v4</div></div>
+    <div class="tele-cell"><div class="tele-label">Status</div><div class="tele-value"><span class="status-value" id="statusValue">COMPLETE · 4m12s</span></div></div>
+  </div>
+</header>
+
+<div class="panel">
+  <main class="zone-evidence">
+
+    <section class="glass" aria-label="Instrument display">
+      <div class="glass-grid">
+        <div class="readout">
+          <div class="readout-head">
+            <span class="glass-label"><span class="mvp-only">Simulation agreement — running estimate</span><span class="future-only">Calibrated confidence — running estimate</span></span>
+            <button class="info-btn" id="methodBtn" type="button" aria-expanded="false">how computed</button>
+          </div>
+          <div class="trace-wrap">
+            <svg viewBox="0 0 420 90" preserveAspectRatio="none" aria-label="Running estimate of P(digest beats control), converging to 0.78 over 240 readings">
+              <line class="trace-ref" x1="0" y1="69" x2="420" y2="69"><title>reference 0.50</title></line>
+              <path class="trace-baseline" d="M0 78 L420 78"/>
+              <path class="trace-under settle-path" id="confUnder" d=""/>
+              <path class="trace-main settle-path" id="confMain" d=""/>
+            </svg>
+          </div>
+          <div class="trace-axis"><span>0</span><span>READINGS</span><span>240</span></div>
+          <div class="score-row">
+            <div class="glass-numeral big" id="scoreNumeral">0.78</div>
+            <dl class="decision-rule" id="decisionRule">
+              <dt>Threshold</dt><dd>0.70 · POLICY DR-1</dd>
+              <dt>Margin</dt><dd>+0.08 ABOVE THRESHOLD</dd>
+              <dt>Rule</dt><dd>SHIP IF P̂ ≥ 0.70 AND EVERY HIGH RISK HAS A NAMED MITIGATION</dd>
+            </dl>
+          </div>
+          <div class="axis-wrap" style="margin-top:12px">
+            <div class="axis-label-row"><span style="left:70%">THR 0.70</span></div>
+            <svg class="ci-svg" viewBox="0 0 420 32" preserveAspectRatio="none" aria-label="95% confidence interval 0.71 to 0.84, decision threshold 0.70">
+              <line class="ci-axis-line" x1="0" y1="16" x2="420" y2="16"/>
+              <line class="ci-tick" x1="0" y1="11" x2="0" y2="21"/>
+              <line class="ci-tick" x1="105" y1="11" x2="105" y2="21"/>
+              <line class="ci-tick" x1="210" y1="11" x2="210" y2="21"/>
+              <line class="ci-tick" x1="315" y1="11" x2="315" y2="21"/>
+              <line class="ci-tick" x1="420" y1="11" x2="420" y2="21"/>
+              <line class="ci-thr" x1="294" y1="2" x2="294" y2="30"/>
+              <rect class="ci-band" id="ciBand" x="298.2" y="13" width="54.6" height="6"/>
+              <g class="ci-marker-g" id="ciMarker"><line class="ci-marker" x1="0" y1="6" x2="0" y2="26"/></g>
+            </svg>
+            <div class="axis-label-row"><span class="edge-l" style="left:0">0</span><span style="left:25%">0.25</span><span style="left:50%">0.50</span><span style="left:75%">0.75</span><span class="edge-r" style="left:100%">1.00</span></div>
+          </div>
+          <div class="glass-caption" style="margin-top:6px">95% CI [0.71, 0.84] — LOWER BOUND CLEARS THRESHOLD 0.70 · DECISIVE</div>
+        </div>
+        <div class="readout">
+          <div class="readout-head"><span class="glass-label">Paired lift · digest − control</span></div>
+          <div class="axis-wrap">
+            <div class="axis-label-row"><span class="fade-label pd-mark" id="liftLabel" style="left:73%; color: var(--glass-text)">DIGEST 24.6</span></div>
+            <svg class="pd-svg" viewBox="0 0 260 56" preserveAspectRatio="none" aria-label="Paired difference: control 18.4%, digest 24.6%, lift +6.2 points, 95% CI +2.9 to +9.4">
+              <rect class="pd-band pd-mark" id="liftBand" x="146.9" y="32" width="84.5" height="8"/>
+              <line class="pd-axis" x1="0" y1="36" x2="260" y2="36"/>
+              <line class="pd-axis-tick" x1="0" y1="31" x2="0" y2="41"/>
+              <line class="pd-axis-tick" x1="65" y1="31" x2="65" y2="41"/>
+              <line class="pd-axis-tick" x1="130" y1="31" x2="130" y2="41"/>
+              <line class="pd-axis-tick" x1="195" y1="31" x2="195" y2="41"/>
+              <line class="pd-axis-tick" x1="260" y1="31" x2="260" y2="41"/>
+              <line class="pd-control pd-mark" x1="109.2" y1="6" x2="109.2" y2="48"/>
+              <g class="pd-tick-g pd-mark" id="liftTick">
+                <line class="pd-digest" x1="109.2" y1="6" x2="109.2" y2="48"/>
+              </g>
+            </svg>
+            <div class="axis-label-row"><span class="edge-l" style="left:0">10%</span><span class="pd-mark" style="left:42%">CONTROL 18.4</span><span class="edge-r" style="left:100%">30%</span></div>
+          </div>
+          <div class="glass-numeral mid" id="liftNumeral">+6.2<span class="unit">pts</span></div>
+          <div class="glass-caption">7-DAY RETURN RATE · 95% CI [+2.9, +9.4] · POSITIVE IN 71% OF PAIRED READINGS</div>
+          <p class="readout-note">Effect concentrated in P02 and P05; flat for enterprise-adjacent P09.</p>
+        </div>
+      </div>
+      <div class="glass-footer">
+        <span>n = 240 READINGS · 48 PERSONAS · 5 SEEDS</span>
+        <span class="seed-strip" title="Per-seed estimates of the headline probability">
+          <svg width="46" height="14" viewBox="0 0 46 14" aria-hidden="true">
+            <line class="seed-tick" x1="4" y1="3" x2="4" y2="11"/>
+            <line class="seed-tick" x1="14" y1="5" x2="14" y2="11"/>
+            <line class="seed-tick" x1="23" y1="2" x2="23" y2="11"/>
+            <line class="seed-tick" x1="32" y1="4" x2="32" y2="11"/>
+            <line class="seed-tick" x1="42" y1="3" x2="42" y2="11"/>
+          </svg>
+          SEED VARIANCE σ = 0.021
+        </span>
+        <span class="spacer"></span>
+        <span class="mvp-only">UNGRADED — CALIBRATION LEDGER EMPTY · <a href="#" data-goto="calibration" style="color:var(--glass-muted); border-bottom:1px dotted var(--glass-muted)">WHY →</a></span>
+        <span class="future-only">GRADED AGAINST CAL LEDGER n=142</span>
+      </div>
+    </section>
+
+    <div class="method-card" id="methodCard">
+      <p><strong>How this number is computed.</strong> 0.78 is the share of paired readings in which the
+      digest arm beats control on 7-day return rate — <span class="mvp-only">a <b>raw simulation
+      agreement</b>, not yet a calibrated probability. Calibration requires graded outcomes (simulated
+      predictions scored against live rollouts), and this workspace's ledger is empty
+      (<span class="mono">n = 0</span>).</span><span class="future-only">mapped through an isotonic
+      calibration curve fitted to <span class="mono">142</span> graded predictions
+      (<span class="mono">Brier 0.11</span>).</span> Readings are paired by persona and seed; population
+      weights use Hamilton (largest-remainder) allocation across the 48-persona pack. The interval is a
+      bootstrap over personas — the unit of replication; seeds are repeated measures, not independent
+      samples. The seed-variance strip beside n shows the five per-seed estimates (<span class="mono">σ = 0.021</span>).</p>
+      <p><strong>How the verdict is decided.</strong> Decision policy <span class="mono">DR-1</span>:
+      SHIP CANDIDATE when P̂ ≥ <span class="mono">0.70</span> and every HIGH-severity weakness
+      carries a named mitigation in the decision record. The threshold is set per workspace by the owning
+      team, not by Sidira.</p>
+    </div>
+
+    <section class="register">
+      <span class="label">Weakness register</span>
+      <table>
+        <thead>
+          <tr><th style="width:90px">Severity</th><th>Finding</th><th style="width:230px">Mitigation</th><th class="num" style="width:170px">Frequency</th><th class="num" style="width:100px">95% CI</th></tr>
+        </thead>
+        <tbody id="registerBody">
+          <tr class="empty-row"><td colspan="5">REGISTER PENDING — FINDINGS PRINT AS READINGS COMPLETE</td></tr>
+          <tr class="reg-row">
+            <td class="sev sev-high">HIGH</td>
+            <td>Digest perceived as noise if usage was zero that week — unsubscribe risk</td>
+            <td class="mitigation">ZERO-USAGE SUPPRESSION<span class="gate">GATES SHIP</span></td>
+            <td class="num"><span class="bar" style="width:70px"></span>32%</td>
+            <td class="num">[24, 41]</td>
+          </tr>
+          <tr class="reg-row">
+            <td class="sev sev-high">HIGH</td>
+            <td>Admins with multiple workspaces expect one consolidated digest, not per-workspace sends</td>
+            <td class="mitigation">CONSOLIDATED DIGEST<span class="gate">GATES SHIP</span></td>
+            <td class="num"><span class="bar" style="width:59px"></span>27%</td>
+            <td class="num">[20, 35]</td>
+          </tr>
+          <tr class="reg-row">
+            <td class="sev sev-med">MED</td>
+            <td>Insights feel generic without team-level breakdown</td>
+            <td class="mitigation">FOLLOW-UP HYP-121</td>
+            <td class="num"><span class="bar" style="width:42px"></span>19%</td>
+            <td class="num">[13, 27]</td>
+          </tr>
+          <tr class="reg-row">
+            <td class="sev sev-med">MED</td>
+            <td>Opt-out friction reads as dark pattern to privacy-sensitive segment</td>
+            <td class="mitigation">ONE-CLICK UNSUB IN V1</td>
+            <td class="num"><span class="bar" style="width:31px"></span>14%</td>
+            <td class="num">[9, 21]</td>
+          </tr>
+          <tr class="reg-row">
+            <td class="sev sev-low">LOW</td>
+            <td>Send-time sensitivity: Monday morning reads as workload, not value</td>
+            <td class="mitigation">ACCEPTED</td>
+            <td class="num"><span class="bar" style="width:20px"></span>9%</td>
+            <td class="num">[5, 15]</td>
+          </tr>
+          <tr class="reg-row">
+            <td class="sev sev-low">LOW</td>
+            <td>Subject-line "insights" undersells; "what changed" framing tests stronger</td>
+            <td class="mitigation">COPY TWEAK IN V1</td>
+            <td class="num"><span class="bar" style="width:13px"></span>6%</td>
+            <td class="num">[3, 11]</td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="replay" id="replayBtn" type="button"><span class="glyph" id="replayGlyph">↻</span> RE-RUN READING</button>
+    </section>
+
+    <section class="register">
+      <span class="label">Refinement queue — suggested by this reading</span>
+      <table>
+        <thead>
+          <tr><th>Suggested refinement</th><th style="width:280px">Derived from</th><th style="width:140px">Action</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:500">Add team-level insight breakdown to the digest body</td>
+            <td class="mitigation">MED FINDING · "INSIGHTS FEEL GENERIC" · 19%</td>
+            <td><span class="chip muted">QUEUED · HYP-121</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:500">Reframe subject line from "insights" to "what changed"</td>
+            <td class="mitigation">LOW FINDING · SUBJECT-LINE COPY · 6%</td>
+            <td><button class="queue-btn" type="button">QUEUE AS HYPOTHESIS →</button></td>
+          </tr>
+          <tr>
+            <td style="font-weight:500">Restrict first send to admins with ≥1 active location</td>
+            <td class="mitigation">HIGH FINDING · ZERO-USAGE NOISE · 32%</td>
+            <td><button class="queue-btn" type="button">QUEUE AS HYPOTHESIS →</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <aside class="zone-inspector">
+    <div class="inspector-head">
+      <span class="label">Cohort</span>
+    </div>
+    <div class="inspector-body" id="inspectorBody">
+      <div class="persona-list">
+        <div class="persona-row selected" data-goto="chat">
+          <span class="persona-id">P02</span>
+          <span class="persona-name">Overloaded office admin</span>
+          <span class="sentiment"><span class="pos">+14</span> <span class="neu">~4</span> <span class="neg">−2</span></span>
+        </div>
+        <div class="persona-row" data-goto="chat">
+          <span class="persona-id">P05</span>
+          <span class="persona-name">Data-curious owner-operator</span>
+          <span class="sentiment"><span class="pos">+11</span> <span class="neu">~6</span> <span class="neg">−3</span></span>
+        </div>
+        <div class="persona-row" data-goto="chat">
+          <span class="persona-id">P07</span>
+          <span class="persona-name">Seasonal franchise manager</span>
+          <span class="sentiment"><span class="pos">+8</span> <span class="neu">~7</span> <span class="neg">−4</span></span>
+        </div>
+        <div class="persona-row" data-goto="chat">
+          <span class="persona-id">P09</span>
+          <span class="persona-name">Enterprise-adjacent IT lead</span>
+          <span class="sentiment"><span class="pos">+5</span> <span class="neu">~9</span> <span class="neg">−6</span></span>
+        </div>
+        <div class="persona-row" data-goto="chat">
+          <span class="persona-id">P11</span>
+          <span class="persona-name">Privacy-first solo operator</span>
+          <span class="sentiment"><span class="pos">+3</span> <span class="neu">~8</span> <span class="neg">−7</span></span>
+        </div>
+      </div>
+      <div class="inspector-detail">
+        <div class="quote-well">
+          <blockquote>"If it tells me which of my five locations went quiet this week, I'd actually open it. If it's another 'your stats!' email, it's deleted before coffee."</blockquote>
+        </div>
+        <div class="quote-meta">AGENT P02-A07 · TURN 3 · <a href="#">RUN-3 TRANSCRIPT →</a></div>
+        <div class="inspector-actions">
+          <a href="#" data-goto="chat">Interrogate this cohort →</a>
+          <a href="#" data-goto="chat">Open 1:1 with P02-A07 →</a>
+          <a href="#">Pin quote to decision record</a>
+        </div>
+      </div>
+    </div>
+    <dl class="provenance">
+      <dt>Run</dt><dd>RUN-3 · 2026-06-09 14:02Z</dd>
+      <dt>Pack</dt><dd>smb-core v4 · digest-v2</dd>
+      <dt>Product</dt><dd>lumen-app 2026-06-01 · FROZEN SLICE</dd>
+      <dt>Model</dt><dd>gpt-5.2</dd>
+      <dt>Seed</dt><dd>8841 (reproducible)</dd>
+      <dt>Graded</dt><dd><span class="mvp-only">NOT YET — LEDGER EMPTY (PHASE 9)</span><span class="future-only">CAL ledger n=142 · Brier 0.11</span></dd>
+      <dt>Artifacts</dt><dd><a href="#">readings.csv</a> · <a href="#">transcripts</a> · <a href="#">API →</a></dd>
+    </dl>
+  </aside>
+</div>
+</div><!-- /page-hypdetail -->
+
+<!-- ════════ HYPOTHESES — the working list (MVP core) ════════ -->
+<div class="page" id="page-hyplist" data-tab="hyplist">
+  <header class="page-strip">
+    <h1>Hypotheses</h1>
+    <span class="sub">WORKSPACE LUMEN · 6 HYPOTHESES · THRESHOLD 0.70 · POLICY DR-1</span>
+    <span class="right page-tag">A VERDICT WITHOUT ITS POLICY NEVER RENDERS</span>
+    <button class="primary-action" style="margin-left:16px" type="button" data-goto="wizard">New hypothesis →</button>
+  </header>
+  <div class="page-body">
+    <section>
+      <span class="label">Hypothesis register</span>
+      <table>
+        <thead>
+          <tr><th style="width:80px">ID</th><th>Hypothesis</th><th class="num" style="width:130px">P̂(beat control)</th><th class="num" style="width:110px">95% CI</th><th style="width:250px">Verdict</th><th style="width:160px">Last run</th></tr>
+        </thead>
+        <tbody>
+          <tr data-goto="hypdetail">
+            <td class="mono" style="font-size:12px">HYP-117</td>
+            <td style="font-weight:500">Weekly digest email with personalized usage insights lifts dormant-admin return</td>
+            <td class="num">0.78</td>
+            <td class="num">[0.71, 0.84]</td>
+            <td><span class="chip">DECISIVE · SHIP CANDIDATE</span></td>
+            <td class="mitigation">RUN-3 · 2026-06-09</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-122</td>
+            <td style="font-weight:500">Re-ordering onboarding checklist to surface integrations first lifts setup completion</td>
+            <td class="num"><span class="carrier-live">0.64</span></td>
+            <td class="num">—</td>
+            <td><span class="chip muted">READING · 96/240</span></td>
+            <td class="mitigation">RUN-1 · LIVE</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-119</td>
+            <td style="font-weight:500">Push re-engagement for 14-day dormant users lifts weekly return</td>
+            <td class="num">0.61</td>
+            <td class="num">[0.52, 0.71]</td>
+            <td><span class="chip muted">DIRECTIONAL · EXTEND OR REDESIGN</span></td>
+            <td class="mitigation">RUN-2 · 2026-06-05</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-114</td>
+            <td style="font-weight:500">Social-proof strip on pricing page lifts trial starts</td>
+            <td class="num">0.57</td>
+            <td class="num">[0.41, 0.74]</td>
+            <td><span class="chip muted">UNDERPOWERED · CI SPANS THRESHOLD</span></td>
+            <td class="mitigation">RUN-1 · 2026-06-02</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-109</td>
+            <td style="font-weight:500">In-app changelog popover on login lifts feature adoption</td>
+            <td class="num">0.22</td>
+            <td class="num">[0.15, 0.31]</td>
+            <td><span class="chip">DECISIVE · DO NOT SHIP</span></td>
+            <td class="mitigation">RUN-2 · 2026-05-28</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-121</td>
+            <td style="font-weight:500">Team-level insight breakdown in digest deepens engagement</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td><span class="chip muted">QUEUED — FROM HYP-117 REGISTER</span></td>
+            <td class="mitigation">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<!-- ════════ NEW HYPOTHESIS — the shipped wizard, instrument posture ════════ -->
+<div class="page" id="page-wizard" data-tab="hyplist">
+  <header class="page-strip">
+    <h1>New hypothesis</h1>
+    <span class="sub">HYP-123 · WORKSPACE LUMEN</span>
+    <span class="right page-tag">READINGS ARE PAIRED BY PERSONA + SEED</span>
+  </header>
+  <div class="page-body">
+    <div class="form-wrap">
+      <div class="field">
+        <span class="label">Hypothesis statement</span>
+        <textarea rows="2">Surfacing the integrations step first in onboarding will lift day-7 setup completion for new admins.</textarea>
+        <div class="field-hint">STATE IT AS A FALSIFIABLE PREDICTION — THE VERDICT PRINTS AGAINST POLICY DR-1 (THRESHOLD 0.70)</div>
+      </div>
+
+      <div class="field field-row">
+        <div>
+          <span class="label">Capability under test</span>
+          <select><option>onboarding-checklist — lumen-app 2026-06-01</option><option>weekly-digest</option><option>usage-dashboard</option></select>
+          <div class="field-hint">FROM FEATURE PACK · REVERSE PRD + 6 SCREENS ATTACH TO EVERY AGENT'S CONTEXT</div>
+        </div>
+        <div>
+          <span class="label">Stimulus</span>
+          <select><option>onboarding-checklist-v1 — FLOW · 2 ARMS</option><option>digest-v2 — EMAIL · 2 ARMS</option><option>+ NEW STIMULUS…</option></select>
+          <div class="field-hint">THE ARTIFACT AGENTS REACT TO · MANAGED IN LIBRARY</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label">Mode</span><br>
+        <span class="seg">
+          <button type="button">SINGLE ARM</button>
+          <button type="button" class="on">A/B — TREATMENT VS CONTROL</button>
+        </span>
+        <div class="field-hint">A/B PAIRS EVERY READING: SAME PERSONA, SAME SEED, BOTH ARMS · LIFT = PAIRED DIFFERENCE</div>
+      </div>
+
+      <div class="field">
+        <span class="label">Persona pack + filter</span>
+        <select><option>smb-core v4 — 48 PERSONAS · GRADED USE ONLY</option><option>enterprise-it v2 — 36 PERSONAS</option></select>
+        <div class="pf-chips">
+          <span class="pf-chip on">P02 OFFICE ADMIN</span>
+          <span class="pf-chip on">P05 OWNER-OPERATOR</span>
+          <span class="pf-chip on">P07 FRANCHISE MGR</span>
+          <span class="pf-chip on">P09 IT LEAD</span>
+          <span class="pf-chip on">P11 PRIVACY-FIRST</span>
+          <span class="pf-chip">P01 BOOKKEEPER</span>
+          <span class="pf-chip">P03 NIGHT-SHIFT OPS</span>
+          <span class="pf-chip">+ 41 MORE…</span>
+        </div>
+        <div class="field-hint">5 OF 48 SELECTED — WEIGHTS RENORMALIZED VIA HAMILTON ALLOCATION OVER THE SUBSET</div>
+      </div>
+
+      <div class="field field-row-3">
+        <div>
+          <span class="label">Population</span>
+          <input type="text" value="1,000">
+          <div class="field-hint">ALLOCATED ACROSS SELECTED PERSONAS BY PACK WEIGHTS</div>
+        </div>
+        <div>
+          <span class="label">Seeds</span>
+          <select><option>5 — DEFAULT</option><option>3</option><option>10</option></select>
+          <div class="field-hint">IDENTITY SEEDS — REPEATED MEASURES PER PERSONA</div>
+        </div>
+        <div>
+          <span class="label">Model</span>
+          <select><option>gpt-5.2 — OPENAI</option><option>claude-fable-5 — ANTHROPIC</option><option>llama-4-70b — GROQ</option></select>
+          <div class="field-hint">PROVIDER + MODEL SELECTABLE PER RUN</div>
+        </div>
+      </div>
+
+      <div class="form-foot">
+        <button class="primary-action" type="button" data-goto="hypdetail">Begin reading →</button>
+        <button class="secondary-action" type="button" data-goto="hyplist">Save draft</button>
+        <span class="est">EST. 4–6 MIN · 240 PAIRED READINGS · THE TRACE PLOTS AS BATCHES LAND — NO SPINNERS</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ AGENT CHAT — the differentiator (MVP core) ════════ -->
+<div class="page" id="page-chat" data-tab="hyplist">
+  <header class="page-strip">
+    <h1>Cohort interrogation</h1>
+    <span class="sub"><a href="#" data-goto="hyplist" style="border-bottom:1px dotted var(--ink-muted)">HYP-117</a> · <a href="#" data-goto="hypdetail" style="border-bottom:1px dotted var(--ink-muted)">RUN-3</a> · AGENTS RETAIN RUN MEMORY</span>
+    <span class="right page-tag">TRANSCRIPTS ARE EVIDENCE — PINNABLE TO THE DECISION RECORD</span>
+  </header>
+  <div class="chat-panel">
+    <aside class="chat-rooms">
+      <div class="inspector-head"><span class="label">Rooms</span></div>
+      <div class="room-row">
+        <span class="room-name">Cohort — all</span>
+        <span class="room-meta">48 AGENTS</span>
+      </div>
+      <div class="room-row selected">
+        <span class="room-name">Arm · digest</span>
+        <span class="room-meta">24 AGENTS</span>
+      </div>
+      <div class="room-row">
+        <span class="room-name">Arm · control</span>
+        <span class="room-meta">24 AGENTS</span>
+      </div>
+      <div class="room-row">
+        <span class="room-name">1:1 · P02-A07</span>
+        <span class="room-meta">TURN 6</span>
+      </div>
+      <dl class="provenance" style="margin-top:auto">
+        <dt>Context</dt><dd>identity.md FROZEN AT RUN-3</dd>
+        <dt>Slice</dt><dd>lumen-app 2026-06-01</dd>
+        <dt>Memory</dt><dd>PERSISTS ACROSS SESSIONS</dd>
+      </dl>
+    </aside>
+    <div class="chat-thread">
+      <div class="chat-scroll">
+        <div class="sys-line">ROOM OPENED FROM RUN-3 · ARM-SCOPED: AGENTS IN THIS ROOM SAW THE DIGEST ARM ONLY</div>
+        <div class="msg pm">
+          <div class="msg-meta"><span class="who">YOU · PM</span><span>14:21:40Z</span></div>
+          <div class="msg-body">Several of you said you'd open the digest if it flagged which location went quiet. What would make you act on it the same day, not just open it?</div>
+        </div>
+        <div class="msg agent">
+          <div class="msg-meta"><span class="who">P02-A07 · OVERLOADED OFFICE ADMIN</span><span class="arm-tag">DIGEST</span><span>14:22:08Z</span></div>
+          <div class="msg-body">A button. If the email says "Riverside went quiet" and there's one click that shows me Riverside's last two weeks, I'll do it between meetings. If I have to log in and find the report myself, it waits until Friday — and Friday never comes.</div>
+          <div class="msg-actions"><a href="#">PIN TO DECISION RECORD</a><a href="#">VIEW RUN-3 READING</a></div>
+        </div>
+        <div class="msg agent">
+          <div class="msg-meta"><span class="who">P05-A12 · DATA-CURIOUS OWNER-OPERATOR</span><span class="arm-tag">DIGEST</span><span>14:22:31Z</span></div>
+          <div class="msg-body">Same-day action needs a comparison, not a number. "Quiet vs your usual Tuesday" gets me moving. A bare count makes me think "huh" and close the tab.</div>
+          <div class="msg-actions"><a href="#">PIN TO DECISION RECORD</a><a href="#">VIEW RUN-3 READING</a></div>
+        </div>
+        <div class="msg agent">
+          <div class="msg-meta"><span class="who">P11-A03 · PRIVACY-FIRST SOLO OPERATOR</span><span class="arm-tag">DIGEST</span><span>14:23:02Z</span></div>
+          <div class="msg-body">Honestly? Knowing exactly what's being tracked to produce this. If the digest arrives before I've been told what it watches, my same-day action is finding the unsubscribe link.</div>
+          <div class="msg-actions"><a href="#">PIN TO DECISION RECORD</a><a href="#">VIEW RUN-3 READING</a></div>
+        </div>
+        <div class="typing"><span class="carrier-live">P07-A09 COMPOSING</span></div>
+      </div>
+      <div class="chat-input">
+        <input type="text" placeholder="Ask the digest arm…">
+        <button class="primary-action" type="button">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ OBJECTIVES — expansion slot (Phase 8) ════════ -->
+<div class="page" id="page-objectives" data-tab="objectives">
+  <header class="page-strip">
+    <h1>Objectives</h1>
+    <span class="sub mvp-only">EVIDENCE POSTURE PER GOAL</span>
+    <span class="sub future-only">H2 2026 · 4 ACTIVE · EVIDENCE POSTURE PER GOAL</span>
+    <span class="right page-tag mvp-only">EXPANSION SLOT — PHASE 8</span>
+    <span class="right page-tag future-only">DECISIONS GATED BY POLICY DR-1</span>
+  </header>
+  <div class="live-strip future-only">
+    <span class="glass-label">Now reading</span>
+    <span>HYP-122 · ONBOARDING CHECKLIST RE-ORDER · <span class="carrier-live">RUN-1 · 96/240 READINGS</span> · P̂ 0.64 AND MOVING</span>
+    <span class="spacer"></span>
+    <a href="#" data-goto="hyplist">OPEN →</a>
+  </div>
+  <div class="page-body">
+    <section class="mvp-only">
+      <span class="label">No objectives yet</span>
+      <div class="slot">
+        <div class="slot-state">EMPTY — HYPOTHESES CURRENTLY STAND ALONE</div>
+        <p>This page is reserved. When the refinement loop lands (<b>Phase 8</b>), every hypothesis
+        attaches to a goal, and this register becomes the VP's home: <b>evidence posture per
+        objective</b> — verdict counts, the next decision date, and the owner — rolled up from the
+        hypothesis register you already use.</p>
+        <p>Nothing renders here until objectives are real entities. No sample rows, no preview data —
+        the instrument doesn't print readings it didn't take.</p>
+        <dl class="slot-spec">
+          <dt>Will show</dt><dd>GOAL · TARGET METRIC · DECISIVE/DIRECTIONAL/UNDERPOWERED COUNTS · NEXT DECISION</dd>
+          <dt>Fed by</dt><dd>HYPOTHESIS VERDICTS (ALREADY PRINTED TODAY)</dd>
+          <dt>Unlocks</dt><dd>DRAFT-FROM-GOAL: STATE THE OKR, SIDIRA PROPOSES THE HYPOTHESIS SLATE</dd>
+        </dl>
+      </div>
+    </section>
+    <section class="future-only">
+      <span class="label">Objective register</span>
+      <table>
+        <thead>
+          <tr><th style="width:80px">ID</th><th>Objective</th><th style="width:170px">Target metric</th><th style="width:330px">Hypothesis evidence</th><th class="num" style="width:130px">Next decision</th><th style="width:110px">Owner</th></tr>
+        </thead>
+        <tbody>
+          <tr data-goto="hyplist">
+            <td class="mono" style="font-size:12px">OBJ-04</td>
+            <td style="font-weight:500">Increase DAU +10%</td>
+            <td class="mitigation">7-DAY RETURN RATE</td>
+            <td class="mitigation">2 DECISIVE · 1 DIRECTIONAL · 1 UNDERPOWERED · <span class="carrier-live" style="color:var(--ink)">1 RUNNING</span> · 1 QUEUED</td>
+            <td class="num">2026-06-12</td>
+            <td class="mitigation">A. RIVERA</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">OBJ-05</td>
+            <td style="font-weight:500">Reduce logo churn −2 pts</td>
+            <td class="mitigation">90-DAY LOGO CHURN</td>
+            <td class="mitigation">1 DECISIVE · 2 QUEUED</td>
+            <td class="num">2026-06-26</td>
+            <td class="mitigation">M. CHEN</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">OBJ-07</td>
+            <td style="font-weight:500">Lift activation 40% → 55%</td>
+            <td class="mitigation">DAY-7 SETUP COMPLETE</td>
+            <td class="mitigation">1 DIRECTIONAL · 1 UNDERPOWERED — NO SHIP CANDIDATE YET</td>
+            <td class="num">2026-07-03</td>
+            <td class="mitigation">A. RIVERA</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">OBJ-08</td>
+            <td style="font-weight:500">Expand seats per account +1.5</td>
+            <td class="mitigation">SEATS / ACCOUNT</td>
+            <td class="mitigation">NO HYPOTHESES YET — DRAFT FROM GOAL →</td>
+            <td class="num">—</td>
+            <td class="mitigation">S. OKAFOR</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<!-- ════════ ROLLOUTS — expansion slot (Phase 9) ════════ -->
+<div class="page" id="page-rollouts" data-tab="rollouts">
+  <header class="page-strip">
+    <h1>Rollouts</h1>
+    <span class="sub">LIVE OUTCOME VS SIMULATED PREDICTION — EVERY SHIP GRADES THE INSTRUMENT</span>
+    <span class="right page-tag mvp-only">EXPANSION SLOT — PHASE 9</span>
+    <span class="right page-tag future-only">HALT RULE: LIVE LOWER BOUND &lt; 0 → AUTO-PAUSE</span>
+  </header>
+  <div class="page-body">
+    <section class="mvp-only">
+      <span class="label">Sim-only mode</span>
+      <div class="slot">
+        <div class="slot-state">NO LIVE ROLLOUTS CONNECTED</div>
+        <p>Today Sidira reads simulations; it does not yet watch what you ship. When rollout tracking
+        lands (<b>Phase 9</b>), a ship decision <b>freezes its prediction</b> — the simulated lift and
+        CI become immutable — and this page compares them against observed lift at each rollout stage
+        (5% → 25% → 50% → 100%).</p>
+        <p>Two things make that honest: the prediction cannot be revised after live data starts, and
+        every completed stage <b>grades into the calibration ledger</b> — which is what eventually turns
+        raw simulation agreement into calibrated confidence.</p>
+        <dl class="slot-spec">
+          <dt>Will show</dt><dd>SIM LIFT VS LIVE LIFT PER STAGE · WITHIN/OUTSIDE CI GRADE · HALT RULE</dd>
+          <dt>Feeds</dt><dd>CALIBRATION LEDGER — EVERY GRADE, HIT OR MISS</dd>
+          <dt>Requires</dt><dd>METRICS CONNECTION TO YOUR ROLLOUT TOOLING</dd>
+        </dl>
+      </div>
+    </section>
+    <section class="glass future-only" aria-label="Live vs simulated comparison">
+      <div class="glass-grid">
+        <div class="readout">
+          <div class="readout-head"><span class="glass-label">R-21 · digest email (HYP-117) — simulated</span></div>
+          <div class="glass-numeral mid settled" style="opacity:1">+6.2<span class="unit">pts</span></div>
+          <div class="glass-caption">PREDICTED 7-DAY RETURN LIFT · 95% CI [+2.9, +9.4] · RUN-3</div>
+          <p class="readout-note">Prediction frozen at ship decision. It cannot be revised after live data starts — that's what makes the grade honest.</p>
+        </div>
+        <div class="readout">
+          <div class="readout-head">
+            <span class="glass-label">Live · stage 25%</span>
+            <span class="carrier-live" style="font-family:var(--font-mono); font-size:11px; color:var(--glass-muted)">MEASURING</span>
+          </div>
+          <div class="glass-numeral mid settled" style="opacity:1">+5.4<span class="unit">pts</span></div>
+          <div class="glass-caption">OBSERVED · 95% CI [+3.1, +7.7] · n = 4,120 ADMINS · DAY 11 OF 14</div>
+          <p class="readout-note">Within the simulated interval — tracking. Grades into the calibration ledger when the stage completes.</p>
+        </div>
+      </div>
+      <div class="glass-footer">
+        <span>STAGES</span>
+        <span>5% — GRADED +4.9</span>
+        <span class="carrier-live">25% — LIVE</span>
+        <span>50% — NOT REACHED</span>
+        <span>100% — NOT REACHED</span>
+        <span class="spacer"></span>
+        <span>DECISION RECORD <a href="#" style="color:var(--glass-muted); border-bottom:1px dotted var(--glass-muted)">DR-117 →</a></span>
+      </div>
+    </section>
+    <section class="future-only">
+      <span class="label">Rollout register</span>
+      <table>
+        <thead>
+          <tr><th style="width:70px">ID</th><th>Hypothesis</th><th class="num" style="width:100px">Sim lift</th><th class="num" style="width:110px">Live lift</th><th style="width:200px">Grade</th><th style="width:210px">Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono" style="font-size:12px">R-21</td>
+            <td style="font-weight:500">HYP-117 · Weekly digest email</td>
+            <td class="num">+6.2</td>
+            <td class="num">+5.4 @25%</td>
+            <td class="mitigation">WITHIN CI — TRACKING</td>
+            <td class="mitigation"><span class="carrier-live" style="color:var(--ink)">LIVE · STAGE 25%</span></td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">R-19</td>
+            <td style="font-weight:500">HYP-103 · Inline help revamp</td>
+            <td class="num">+1.4</td>
+            <td class="num">+1.1</td>
+            <td class="mitigation">WITHIN CI</td>
+            <td class="mitigation">GRADED → LEDGER · 2026-05-30</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">R-17</td>
+            <td style="font-weight:500">HYP-98 · Weekly report push</td>
+            <td class="num">+3.0</td>
+            <td class="num">+0.4</td>
+            <td class="sev sev-high">OUTSIDE CI — MISS</td>
+            <td class="mitigation">GRADED → PACK v3→v4 RETRAIN</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">R-16</td>
+            <td style="font-weight:500">HYP-91 · Import wizard rebuild</td>
+            <td class="num">+2.2</td>
+            <td class="num">+2.6</td>
+            <td class="mitigation">WITHIN CI</td>
+            <td class="mitigation">GRADED → LEDGER · 2026-05-02</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<!-- ════════ CALIBRATION — expansion slot (Phase 9); never synthetic ════════ -->
+<div class="page" id="page-calibration" data-tab="calibration">
+  <header class="page-strip">
+    <h1>Calibration</h1>
+    <span class="sub mvp-only">0 GRADED PREDICTIONS</span>
+    <span class="sub future-only">142 GRADED PREDICTIONS · BRIER 0.11 · PACK smb-core v4</span>
+    <span class="right page-tag">GATED — RENDERS ONLY FROM GRADED OUTCOMES, NEVER SYNTHETIC</span>
+  </header>
+  <div class="page-body">
+    <section class="mvp-only">
+      <span class="label">Ledger empty</span>
+      <div class="slot">
+        <div class="slot-state">UNCALIBRATED — 0 GRADED PREDICTIONS</div>
+        <p>Every headline number in this workspace is <b>raw simulation agreement</b>, and it is labeled
+        that way wherever it appears. Calibrated confidence requires this ledger: simulated predictions
+        scored against live rollout outcomes, one grade per completed rollout stage.</p>
+        <p>The first grade arrives when the first shipped hypothesis completes a rollout stage
+        (<b>Phase 9</b>). From then on, the reliability diagram below draws only from graded outcomes —
+        this page will never render a synthetic curve, and the chrome readout (CAL —) stays honest
+        until there is something to read.</p>
+        <dl class="slot-spec">
+          <dt>Will show</dt><dd>RELIABILITY DIAGRAM · BRIER SCORE · CI COVERAGE · PER-PACK TREND</dd>
+          <dt>Unlocks</dt><dd>CALIBRATED CONFIDENCE ON EVERY VERDICT · "DECISIVE" WITH A CITED LEDGER</dd>
+          <dt>Caveat</dt><dd>NO-SHIP PREDICTIONS STAY UNGRADED — NO LIVE COUNTERFACTUAL</dd>
+        </dl>
+      </div>
+      <table style="margin-top:24px">
+        <thead>
+          <tr><th style="width:90px">HYP</th><th style="width:200px">Predicted</th><th style="width:140px">Observed</th><th class="num" style="width:100px">Error</th><th style="width:220px">Grade</th><th class="num" style="width:120px">Date</th></tr>
+        </thead>
+        <tbody>
+          <tr class="empty-row" style="display:table-row"><td colspan="6">LEDGER EMPTY — GRADES PRINT WHEN ROLLOUT STAGES COMPLETE</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="glass future-only" aria-label="Calibration ledger readouts">
+      <div class="glass-grid">
+        <div class="readout">
+          <div class="readout-head"><span class="glass-label">Reliability — predicted vs observed</span></div>
+          <div class="axis-wrap">
+            <div class="axis-label-row"><span class="edge-l" style="left:0">OBSERVED FREQUENCY ↑</span></div>
+            <svg class="cal-svg" viewBox="0 0 320 160" preserveAspectRatio="none" aria-label="Reliability diagram: 8 bins of predicted probability vs observed frequency, close to the diagonal, slightly overconfident above 0.75">
+              <line class="cal-diag" x1="0" y1="160" x2="320" y2="0"/>
+              <rect class="cal-dot" x="46" y="124.4" width="4" height="4"/>
+              <rect class="cal-dot" x="78" y="122.8" width="4" height="4"/>
+              <rect class="cal-dot" x="110" y="110" width="4" height="4"/>
+              <rect class="cal-dot" x="142" y="92.4" width="4" height="4"/>
+              <rect class="cal-dot" x="174" y="65.2" width="4" height="4"/>
+              <rect class="cal-dot" x="206" y="60.4" width="4" height="4"/>
+              <rect class="cal-dot" x="238" y="42.8" width="4" height="4"/>
+              <rect class="cal-dot" x="270" y="31.6" width="4" height="4"/>
+            </svg>
+            <div class="axis-label-row"><span class="edge-l" style="left:0">PREDICTED 0</span><span style="left:50%">0.50</span><span class="edge-r" style="left:100%">1.00</span></div>
+          </div>
+          <div class="glass-caption" style="margin-top:6px">8 BINS · DASHED = PERFECT CALIBRATION · ABOVE 0.75 RUNS ~0.05 OVERCONFIDENT</div>
+        </div>
+        <div class="readout">
+          <div class="readout-head"><span class="glass-label">Ledger health</span></div>
+          <div class="glass-numeral mid settled" style="opacity:1">0.81</div>
+          <div class="glass-caption">CAL SCORE · BRIER 0.11 · n = 142</div>
+          <dl class="decision-rule settled" style="opacity:1; margin-top:16px">
+            <dt>Trend</dt><dd>BRIER 0.16 → 0.11 SINCE PACK v3 → v4</dd>
+            <dt>Coverage</dt><dd>95% CI CONTAINED THE LIVE OUTCOME IN 91% OF GRADES</dd>
+            <dt>Caveat</dt><dd>NO-SHIP PREDICTIONS UNGRADED — NO LIVE COUNTERFACTUAL</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="glass-footer">
+        <span>EVERY DECISIVE VERDICT CITES THIS LEDGER</span>
+        <span class="spacer"></span>
+        <span>EXPORT <a href="#" style="color:var(--glass-muted); border-bottom:1px dotted var(--glass-muted)">ledger.csv</a></span>
+      </div>
+    </section>
+    <section class="future-only">
+      <span class="label">Grade log</span>
+      <table>
+        <thead>
+          <tr><th style="width:90px">HYP</th><th style="width:200px">Predicted</th><th style="width:140px">Observed</th><th class="num" style="width:100px">Error</th><th style="width:220px">Grade</th><th class="num" style="width:120px">Date</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-103</td>
+            <td class="num" style="text-align:left">P 0.74 · LIFT +1.4</td>
+            <td class="num" style="text-align:left">LIFT +1.1</td>
+            <td class="num">−0.3 PTS</td>
+            <td class="mitigation">WITHIN CI</td>
+            <td class="num">2026-05-30</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-98</td>
+            <td class="num" style="text-align:left">P 0.81 · LIFT +3.0</td>
+            <td class="num" style="text-align:left">LIFT +0.4</td>
+            <td class="num">−2.6 PTS</td>
+            <td class="sev sev-high">OUTSIDE CI — MISS</td>
+            <td class="num">2026-05-12</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-91</td>
+            <td class="num" style="text-align:left">P 0.76 · LIFT +2.2</td>
+            <td class="num" style="text-align:left">LIFT +2.6</td>
+            <td class="num">+0.4 PTS</td>
+            <td class="mitigation">WITHIN CI</td>
+            <td class="num">2026-05-02</td>
+          </tr>
+          <tr>
+            <td class="mono" style="font-size:12px">HYP-87</td>
+            <td class="num" style="text-align:left">P 0.29 · NO SHIP</td>
+            <td class="num" style="text-align:left">NOT SHIPPED</td>
+            <td class="num">—</td>
+            <td class="mitigation">UNGRADED — NO COUNTERFACTUAL</td>
+            <td class="num">2026-04-28</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<!-- ════════ LIBRARY — the instrument's consumables (MVP core) ════════ -->
+<div class="page" id="page-library" data-tab="library">
+  <header class="page-strip">
+    <h1>Library</h1>
+    <span class="sub">FEATURE PACK + PERSONA PACKS + STIMULI</span>
+    <span class="right page-tag">UNVALIDATED PACKS CANNOT PRINT DECISIVE VERDICTS</span>
+  </header>
+  <div class="page-body">
+    <section>
+      <span class="label">Feature pack — as-built product</span>
+      <div class="cards">
+        <div class="card">
+          <div class="card-head"><span class="card-name">lumen-app</span><span class="chip">SNAPSHOT 2026-06-01</span></div>
+          <dl>
+            <dt>Capabilities</dt><dd>12 — EACH WITH REVERSE PRD + REVERSE FIGMA</dd>
+            <dt>Source</dt><dd><span class="mvp-only">MANUAL SNAPSHOT · AUTO-CRAWL PENDING</span><span class="future-only">WEEKLY PLAYWRIGHT CRAWL · 2026-06-01</span></dd>
+            <dt>Schema</dt><dd>v1.0</dd>
+            <dt>Used in</dt><dd>43 RUNS (SLICE FROZEN PER RUN)</dd>
+          </dl>
+          <a class="card-link" href="#">OPEN PACK →</a>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-name">onboarding-checklist</span><span class="chip muted">CAPABILITY</span></div>
+          <dl>
+            <dt>Surfaces</dt><dd>WEB APP · FIRST-RUN</dd>
+            <dt>Roles</dt><dd>ADMIN</dd>
+            <dt>Implicit metric</dt><dd>DAY-7 SETUP COMPLETE</dd>
+            <dt>Artifacts</dt><dd>REVERSE PRD · 6 SCREENS · 9 TRANSITIONS</dd>
+          </dl>
+          <a class="card-link" href="#">REVERSE PRD →</a>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-name">weekly-digest</span><span class="chip muted">CAPABILITY</span></div>
+          <dl>
+            <dt>Surfaces</dt><dd>EMAIL · SETTINGS</dd>
+            <dt>Roles</dt><dd>ADMIN · MEMBER</dd>
+            <dt>Implicit metric</dt><dd>DIGEST OPEN RATE</dd>
+            <dt>Artifacts</dt><dd>REVERSE PRD · 6 SCREENS · 9 TRANSITIONS</dd>
+          </dl>
+          <a class="card-link" href="#">REVERSE PRD →</a>
+        </div>
+      </div>
+    </section>
+    <section>
+      <span class="label">Persona packs</span>
+      <div class="cards">
+        <div class="card">
+          <div class="card-head"><span class="card-name">smb-core</span><span class="chip">v4</span></div>
+          <dl>
+            <dt>Personas</dt><dd>48</dd>
+            <dt>Sourced</dt><dd>2,310 INTERVIEW SNIPPETS + USAGE TELEMETRY</dd>
+            <dt>Refreshed</dt><dd>2026-05-28</dd>
+            <dt>Used in</dt><dd>31 RUNS</dd>
+            <dt>Graded</dt><dd><span class="mvp-only">UNGRADED — LEDGER EMPTY (PHASE 9)</span><span class="future-only">BRIER 0.11 · n=142</span></dd>
+          </dl>
+          <a class="card-link" href="#">OPEN PACK →</a>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-name">enterprise-it</span><span class="chip">v2</span></div>
+          <dl>
+            <dt>Personas</dt><dd>36</dd>
+            <dt>Sourced</dt><dd>1,140 SUPPORT TICKETS + 14 SME INTERVIEWS</dd>
+            <dt>Refreshed</dt><dd>2026-04-19</dd>
+            <dt>Used in</dt><dd>12 RUNS</dd>
+            <dt>Graded</dt><dd><span class="mvp-only">UNGRADED — LEDGER EMPTY (PHASE 9)</span><span class="future-only">BRIER 0.14 · n=38</span></dd>
+          </dl>
+          <a class="card-link" href="#">OPEN PACK →</a>
+        </div>
+        <div class="card ghost">
+          <div class="card-head"><span class="card-name">Build a new pack</span><span class="chip muted">BUILDER · BETA</span></div>
+          <dl>
+            <dt>Source</dt><dd>SNOWFLAKE → COLUMN MAP → CLUSTER → COMPILE</dd>
+            <dt>Steps</dt><dd>7 — LLM-ASSISTED COLUMN MAPPING</dd>
+            <dt>Output</dt><dd>VERSIONED PACK · ELIGIBLE AFTER VALIDATION</dd>
+          </dl>
+          <a class="card-link" href="#">CONNECT SNOWFLAKE →</a>
+        </div>
+      </div>
+    </section>
+    <section>
+      <span class="label">Stimuli</span>
+      <div class="cards">
+        <div class="card">
+          <div class="card-head"><span class="card-name">digest-v2</span><span class="chip muted">EMAIL</span></div>
+          <dl>
+            <dt>Arms</dt><dd>2 — DIGEST / CONTROL</dd>
+            <dt>Used in</dt><dd>HYP-117 · RUN-3</dd>
+            <dt>Owner</dt><dd>A. RIVERA</dd>
+          </dl>
+          <a class="card-link" href="#">OPEN STIMULUS →</a>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-name">onboarding-checklist-v1</span><span class="chip muted">FLOW</span></div>
+          <dl>
+            <dt>Arms</dt><dd>2 — RE-ORDERED / CURRENT</dd>
+            <dt>Used in</dt><dd><span class="carrier-live">HYP-122 · RUNNING</span></dd>
+            <dt>Owner</dt><dd>M. CHEN</dd>
+          </dl>
+          <a class="card-link" href="#">OPEN STIMULUS →</a>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-name">pricing-social-proof-v3</span><span class="chip muted">PAGE</span></div>
+          <dl>
+            <dt>Arms</dt><dd>3 — LOGOS / QUOTES / CONTROL</dd>
+            <dt>Used in</dt><dd>HYP-114 (UNDERPOWERED — REVISION QUEUED)</dd>
+            <dt>Owner</dt><dd>A. RIVERA</dd>
+          </dl>
+          <a class="card-link" href="#">OPEN STIMULUS →</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var telemetry = document.getElementById("telemetry");
+  var scoreNumeral = document.getElementById("scoreNumeral");
+  var liftNumeral = document.getElementById("liftNumeral");
+  var decisionRule = document.getElementById("decisionRule");
+  var ciBand = document.getElementById("ciBand");
+  var ciMarker = document.getElementById("ciMarker");
+  var liftBand = document.getElementById("liftBand");
+  var liftTick = document.getElementById("liftTick");
+  var liftLabel = document.getElementById("liftLabel");
+  var inspectorBody = document.getElementById("inspectorBody");
+  var regRows = Array.prototype.slice.call(document.querySelectorAll(".reg-row"));
+  var replayGlyph = document.getElementById("replayGlyph");
+  var timers = [];
+
+  // The confidence trace IS the data: running estimate of P(digest > control),
+  // printed every ~8 readings from the run log. In product this array comes from
+  // the backend; the trace is never a decorative shape.
+  var confSeries = [
+    0.50, 0.55, 0.44, 0.62, 0.58, 0.69, 0.64, 0.71, 0.66, 0.73,
+    0.70, 0.75, 0.72, 0.76, 0.735, 0.77, 0.745, 0.775, 0.755, 0.78,
+    0.765, 0.782, 0.770, 0.785, 0.775, 0.780, 0.777, 0.781, 0.780
+  ];
+  function confPathD() {
+    var n = confSeries.length - 1;
+    return confSeries.map(function (est, i) {
+      var x = (i * 420 / n).toFixed(1);
+      var y = (85 - (est - 0.40) * 160).toFixed(1);
+      return (i ? "L" : "M") + x + " " + y;
+    }).join(" ");
+  }
+  var confD = confPathD();
+  document.getElementById("confUnder").setAttribute("d", confD);
+  document.getElementById("confMain").setAttribute("d", confD);
+
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+
+  function prepTrace(path) {
+    var len = path.getTotalLength();
+    path.style.transition = "none";
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+  }
+  function drawTrace(path) {
+    path.style.transition = "stroke-dashoffset 800ms cubic-bezier(.34, 1.1, .64, 1)";
+    path.style.strokeDashoffset = "0";
+  }
+
+  // Reading choreography — one clock, ≤1300ms total (§9.4).
+  function settle() {
+    if (document.body.classList.contains("running")) return;
+    clearTimers();
+    var tracePaths = Array.prototype.slice.call(document.querySelectorAll(".settle-path"));
+    if (reduced) {
+      scoreNumeral.classList.add("settled");
+      liftNumeral.classList.add("settled");
+      decisionRule.classList.add("settled");
+      ciBand.classList.add("open");
+      liftBand.classList.add("open");
+      ciMarker.classList.add("landed");
+      liftTick.classList.add("landed");
+      liftLabel.classList.add("on");
+      return;
+    }
+    telemetry.classList.add("pre");
+    scoreNumeral.classList.remove("settled");
+    liftNumeral.classList.remove("settled");
+    decisionRule.classList.remove("settled");
+    ciBand.classList.remove("open");
+    liftBand.classList.remove("open");
+    ciMarker.classList.remove("landed");
+    ciMarker.style.transition = "none";
+    liftTick.classList.remove("landed");
+    liftTick.style.transition = "none";
+    liftLabel.classList.remove("on");
+    inspectorBody.classList.add("pre");
+    regRows.forEach(function (r) { r.classList.add("pre"); });
+    tracePaths.forEach(prepTrace);
+    void document.body.offsetWidth; // commit reset frame
+
+    telemetry.style.transition = "clip-path 240ms cubic-bezier(.32,.72,0,1)";
+    telemetry.classList.remove("pre");
+    at(120, function () {
+      tracePaths.forEach(drawTrace);
+      ciMarker.style.transition = "transform 800ms cubic-bezier(.34, 1.1, .64, 1)";
+      ciMarker.classList.add("landed");
+    });
+    at(280, function () {
+      liftTick.style.transition = "transform 800ms cubic-bezier(.34, 1.1, .64, 1)";
+      liftTick.classList.add("landed");
+    });
+    at(800, function () {
+      scoreNumeral.classList.add("settled");
+      decisionRule.classList.add("settled");
+    });
+    at(940, function () {
+      ciBand.classList.add("open");
+      liftBand.classList.add("open");
+      liftLabel.classList.add("on");
+    });
+    at(960, function () {
+      liftNumeral.classList.add("settled");
+      inspectorBody.classList.remove("pre");
+      regRows.forEach(function (r, i) {
+        at(i * 30, function () { r.classList.remove("pre"); });
+      });
+    });
+  }
+
+  function replay() {
+    if (document.body.classList.contains("running")) return;
+    showPage("hypdetail");
+    replayGlyph.classList.remove("spin");
+    void replayGlyph.offsetWidth;
+    replayGlyph.classList.add("spin");
+    settle();
+  }
+
+  var runToggle = document.getElementById("runToggle");
+  var statusValue = document.getElementById("statusValue");
+  var verdictChip = document.getElementById("verdictChip");
+  var verdictWhy = document.getElementById("verdictWhy");
+  var verdictWhyDone = verdictWhy.innerHTML;
+  var replayBtn = document.getElementById("replayBtn");
+  function setRunning(on) {
+    document.body.classList.toggle("running", on);
+    runToggle.classList.toggle("on", on);
+    runToggle.textContent = on ? "VIEW COMPLETED READING" : "VIEW RUNNING STATE";
+    statusValue.textContent = on ? "RUNNING · 1m38s" : "COMPLETE · 4m12s";
+    verdictChip.textContent = on ? "READING IN PROGRESS" : "DECISIVE · SHIP CANDIDATE";
+    verdictWhy.innerHTML = on
+      ? "READING IN PROGRESS — VERDICT PRINTS AGAINST POLICY DR-1 (THRESHOLD 0.70) WHEN THE ESTIMATE STABILIZES"
+      : verdictWhyDone;
+    replayBtn.disabled = on;
+    scoreNumeral.textContent = on ? "—. ——" : "0.78";
+    if (on) {
+      clearTimers();
+      scoreNumeral.classList.add("settled");
+      liftNumeral.classList.remove("settled");
+    } else {
+      settle();
+    }
+  }
+  runToggle.addEventListener("click", function () { setRunning(!document.body.classList.contains("running")); });
+
+  // §9.7 live plotting: the trace IS the progress indicator. Each tick is a
+  // reading batch landing — in product this is event-driven, never time-based.
+  var runDemoBtn = document.getElementById("runDemo");
+  var confUnderEl = document.getElementById("confUnder");
+  var confMainEl = document.getElementById("confMain");
+  var demoTimer = null;
+  function partialPathD(k) {
+    var n = confSeries.length - 1;
+    return confSeries.slice(0, k + 1).map(function (est, i) {
+      var x = (i * 420 / n).toFixed(1);
+      var y = (85 - (est - 0.40) * 160).toFixed(1);
+      return (i ? "L" : "M") + x + " " + y;
+    }).join(" ");
+  }
+  function runDemo() {
+    if (demoTimer) return;
+    if (reduced) { setRunning(false); return; }
+    showPage("hypdetail");
+    setRunning(true);
+    document.body.classList.add("live");
+    runDemoBtn.disabled = true;
+    runToggle.disabled = true;
+    [confUnderEl, confMainEl].forEach(function (p) {
+      p.style.transition = "none";
+      p.style.strokeDasharray = "none";
+      p.style.strokeDashoffset = "0";
+      p.setAttribute("d", partialPathD(0));
+    });
+    statusValue.textContent = "RUNNING · 0/240 READINGS";
+    var k = 0;
+    demoTimer = setInterval(function () {
+      k++;
+      var d = partialPathD(k);
+      confUnderEl.setAttribute("d", d);
+      confMainEl.setAttribute("d", d);
+      statusValue.textContent = "RUNNING · " + Math.round(k * 240 / (confSeries.length - 1)) + "/240 READINGS";
+      if (k >= confSeries.length - 1) {
+        clearInterval(demoTimer);
+        demoTimer = null;
+        setTimeout(function () {
+          document.body.classList.add("commit");
+          setTimeout(function () {
+            document.body.classList.remove("commit");
+            document.body.classList.remove("live");
+            runToggle.disabled = false;
+            runDemoBtn.disabled = false;
+            setRunning(false);
+          }, 900);
+        }, 400);
+      }
+    }, 280);
+  }
+  runDemoBtn.addEventListener("click", runDemo);
+
+  document.getElementById("replayChrome").addEventListener("click", replay);
+  replayBtn.addEventListener("click", replay);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "r" || e.key === "R") replay();
+  });
+
+  var methodBtn = document.getElementById("methodBtn");
+  var methodCard = document.getElementById("methodCard");
+  methodBtn.addEventListener("click", function () {
+    var open = methodCard.classList.toggle("open");
+    methodBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  // MVP ↔ moonshot: expansion slots swap between honest empty states and the
+  // future surfaces they're reserved for. Mock chrome only.
+  var modeToggle = document.getElementById("modeToggle");
+  modeToggle.addEventListener("click", function () {
+    var on = document.body.classList.toggle("moonshot");
+    modeToggle.classList.toggle("on", on);
+    modeToggle.textContent = on ? "VIEW MVP STATE" : "VIEW MOONSHOT STATE";
+  });
+
+  // page navigation: tabs swap pages (§9.3 — 120ms crossfade)
+  function showPage(name) {
+    document.querySelectorAll(".page").forEach(function (p) {
+      p.classList.toggle("on", p.id === "page-" + name);
+    });
+    var tab = document.getElementById("page-" + name).getAttribute("data-tab");
+    document.querySelectorAll(".nav-tabs a[data-page]").forEach(function (a) {
+      a.classList.toggle("active", a.getAttribute("data-page") === tab);
+    });
+    if (name === "hypdetail" && !document.body.classList.contains("running")) {
+      requestAnimationFrame(function () { settle(); });
+    }
+  }
+  document.querySelectorAll(".nav-tabs a[data-page]").forEach(function (a) {
+    a.addEventListener("click", function (e) { e.preventDefault(); showPage(a.getAttribute("data-page")); });
+  });
+  document.querySelectorAll("[data-goto]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      showPage(el.getAttribute("data-goto"));
+    });
+  });
+
+  settle();
+</script>
+
+</body>
+</html>
