@@ -178,13 +178,23 @@ export default function LibraryPage() {
 
 async function deriveStimuli(): Promise<DerivedStimulus[]> {
   const list = await listSimulations(50);
+  // Detail fan-out stays bounded to the newest rows, but grouping runs over
+  // the full fetched list so duplicate recent runs can't crowd out older
+  // distinct stimuli (codex P2).
   const recent = list.slice(0, STIMULUS_DETAIL_FAN_OUT);
-  const details = await Promise.allSettled(recent.map((row) => getSimulation(row.id)));
+  const settledDetails = await Promise.allSettled(
+    recent.map((row) => getSimulation(row.id)),
+  );
+  const detailById = new Map(
+    recent.map((row, i) => {
+      const settled = settledDetails[i];
+      return [row.id, settled.status === "fulfilled" ? settled.value : null] as const;
+    }),
+  );
 
   const byKey = new Map<string, DerivedStimulus>();
-  recent.forEach((row, i) => {
-    const settled = details[i];
-    const detail = settled.status === "fulfilled" ? settled.value : null;
+  list.forEach((row) => {
+    const detail = detailById.get(row.id) ?? null;
     const prose = (detail?.hypothesis.prose ?? row.hypothesis_prose).trim();
     const capability = detail?.hypothesis.capability_name ?? row.capability_name;
     const key = `${capability}::${prose}`;
