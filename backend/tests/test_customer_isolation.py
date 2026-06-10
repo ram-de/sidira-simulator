@@ -19,12 +19,16 @@ from pathlib import Path
 
 import pytest
 from fastapi.routing import APIRoute
+from sqlalchemy.dialects import postgresql
 
+from sidira_simulator.adapters.db_models import AgentInstance, Simulation
 from sidira_simulator.adapters.r2 import LocalArtifactStore
 from sidira_simulator.adapters.repositories import (
     InMemoryAgentFeedbackRepo,
     InMemoryAgentInstanceRepo,
     InMemorySimulationRepo,
+    PostgresAgentInstanceRepo,
+    PostgresSimulationRepo,
 )
 from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.main import app
@@ -126,7 +130,127 @@ async def test_agent_feedback_rows_carry_customer_id() -> None:
         turn_index=0,
         realistic_flag=True,
     )
+    # Non-empty first — an `all()` over zero rows would pass vacuously.
+    assert len(repo._feedback) == 1
     assert all(row["customer_id"] == CUST_A for row in repo._feedback)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Postgres repos — the production tenant boundary. SQL-shape tests assert
+# the customer predicate is in the emitted query; the get/touch/update
+# paths (Python-side check after session.get) are exercised with a stub
+# row owned by customer A.
+# ──────────────────────────────────────────────────────────────────────
+
+
+class _RecordingSession:
+    """Minimal AsyncSession stand-in: records statements, stubs `get`."""
+
+    def __init__(self, result=None, row=None) -> None:
+        self.statements: list = []
+        self._result = result
+        self._row = row
+        self.committed = False
+
+    async def execute(self, statement):
+        self.statements.append(statement)
+        return self._result
+
+    async def get(self, model, key):
+        return self._row
+
+    async def commit(self) -> None:
+        self.committed = True
+
+    async def rollback(self) -> None:
+        pass
+
+    def in_transaction(self) -> bool:
+        return True
+
+    @property
+    def new(self):
+        return set()
+
+    @property
+    def dirty(self):
+        return set()
+
+    @property
+    def deleted(self):
+        return set()
+
+
+class _EmptyScalarResult:
+    def scalars(self):
+        return self
+
+    def all(self) -> list:
+        return []
+
+
+def _compiled_sql(statement) -> str:
+    return str(statement.compile(dialect=postgresql.dialect()))
+
+
+@pytest.mark.asyncio
+async def test_postgres_simulation_list_recent_has_customer_predicate() -> None:
+    """The emitted SQL must filter simulations on customer_id."""
+    session = _RecordingSession(result=_EmptyScalarResult())
+    repo = PostgresSimulationRepo(session)
+
+    await repo.list_recent(CUST_B)
+
+    assert "simulations.customer_id =" in _compiled_sql(session.statements[0])
+
+
+@pytest.mark.asyncio
+async def test_postgres_simulation_get_and_update_enforce_customer() -> None:
+    """A row owned by A is invisible/immutable through B's repo calls."""
+    row = Simulation(id="sim-iso-1", customer_id=CUST_A, status="pending")
+    session = _RecordingSession(row=row)
+    repo = PostgresSimulationRepo(session)
+
+    assert await repo.get("sim-iso-1", CUST_B) is None
+    with pytest.raises(KeyError):
+        await repo.update_status("sim-iso-1", CUST_B, "complete")
+    assert session.committed is False
+    assert row.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_postgres_agent_list_has_customer_predicate() -> None:
+    """The emitted SQL must filter agent_instances on customer_id."""
+    session = _RecordingSession(result=_EmptyScalarResult())
+    repo = PostgresAgentInstanceRepo(session)
+
+    await repo.list_for_simulation("sim-iso-1", CUST_B)
+
+    assert "agent_instances.customer_id =" in _compiled_sql(session.statements[0])
+
+
+@pytest.mark.asyncio
+async def test_postgres_agent_get_and_touch_enforce_customer() -> None:
+    """A's agent row is invisible/untouchable through B's repo calls."""
+    row = AgentInstance(
+        id="agent-iso-1",
+        customer_id=CUST_A,
+        simulation_id="sim-iso-1",
+        persona_id="p_test",
+        persona_pack_version="v_1",
+        persona_name="Test Persona",
+        created_at=NOW,
+        last_active_at=NOW,
+        message_count=0,
+    )
+    session = _RecordingSession(row=row)
+    repo = PostgresAgentInstanceRepo(session)
+
+    assert await repo.get("agent-iso-1", CUST_B) is None
+    with pytest.raises(KeyError):
+        await repo.touch("agent-iso-1", CUST_B)
+    assert session.committed is False
+    assert row.message_count == 0
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -221,6 +345,16 @@ TENANT_AGNOSTIC_ROUTES = {
     ("GET", "/config/limits"),
 }
 
+# Non-APIRoute mounts FastAPI registers itself (docs/openapi). Anything else
+# (WebSocketRoute, Mount, raw Starlette Route) can't be checked for the
+# current_customer_id dependency, so it must be deliberately listed here.
+FRAMEWORK_ROUTE_PATHS = {
+    "/openapi.json",
+    "/docs",
+    "/docs/oauth2-redirect",
+    "/redoc",
+}
+
 
 def _depends_on_customer_id(dependant) -> bool:
     if dependant.call is current_customer_id:
@@ -236,15 +370,24 @@ def test_every_route_resolves_the_tenant() -> None:
     cross-customer leak.
     """
     unscoped: list[str] = []
+    unverifiable: list[str] = []
     for route in app.routes:
         if not isinstance(route, APIRoute):
-            continue  # docs / openapi / static routes
+            # WebSocket routes, mounts, and raw Starlette routes have no
+            # dependant we can inspect — they must be explicitly known.
+            if getattr(route, "path", None) not in FRAMEWORK_ROUTE_PATHS:
+                unverifiable.append(f"{type(route).__name__} {getattr(route, 'path', route)}")
+            continue
         for method in route.methods - {"HEAD", "OPTIONS"}:
             if (method, route.path) in TENANT_AGNOSTIC_ROUTES:
                 continue
             if not _depends_on_customer_id(route.dependant):
                 unscoped.append(f"{method} {route.path}")
 
+    assert not unverifiable, (
+        "Non-APIRoute routes the guard cannot inspect for tenant scoping "
+        f"(scope them by hand, then add to FRAMEWORK_ROUTE_PATHS): {sorted(unverifiable)}"
+    )
     assert not unscoped, (
         "Routes without current_customer_id dependency (add scoping, or "
         f"allowlist in TENANT_AGNOSTIC_ROUTES with a comment): {sorted(unscoped)}"
