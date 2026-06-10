@@ -94,6 +94,24 @@ export const getSimulationLimits = () =>
 export const getActivePersonas = () =>
   apiGet<ActivePersonasResponse>("/personas");
 
+// Sample-workspace seeding (sessions/sample-workspace): clone the Streamly
+// sample persona + feature packs into the caller's own tenant. Backend 409s
+// if the workspace already has data. Inline type — same codegen caveat as
+// CreateSimulationResponse.
+export interface SampleWorkspaceResponse {
+  source: string;
+  persona_pack_version: string;
+  persona_count: number;
+  feature_pack_version: string;
+  capabilities: string[];
+}
+
+export const generateSampleWorkspace = () =>
+  apiPost<Record<string, never>, SampleWorkspaceResponse>(
+    "/sample-workspace",
+    {},
+  );
+
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);
 

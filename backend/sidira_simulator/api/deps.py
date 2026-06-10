@@ -20,6 +20,7 @@ from sidira_simulator.adapters.postgres import (
     database_configured,
     get_sessionmaker,
 )
+from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
@@ -104,6 +105,12 @@ def get_agent_repo(session: RepositorySession = None) -> AgentInstanceRepo:
 
 def get_feedback_repo(session: RepositorySession = None) -> AgentFeedbackRepo:
     return _repos(session)[3]
+
+
+def get_artifact_store() -> ArtifactStore:
+    """Raw artifact store, for routes that copy artifacts rather than load
+    them through a typed loader (e.g. the sample-workspace clone)."""
+    return get_store()
 
 
 def get_persona_loader() -> PersonaPackLoader:

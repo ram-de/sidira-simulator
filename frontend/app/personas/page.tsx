@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TOKENS, FONT_SANS } from "@/lib/design";
+import SampleWorkspaceCard from "@/components/SampleWorkspaceCard";
 
 export default function PersonasIndexPage() {
   return (
@@ -32,6 +33,10 @@ export default function PersonasIndexPage() {
           (Empty state. Backend route <code>GET /persona-packs</code> not yet wired — Phase 4.5.)
         </p>
       </section>
+
+      {/* sessions/sample-workspace: probes GET /personas and renders only
+          when this tenant has no Persona Pack yet. */}
+      <SampleWorkspaceCard detectEmpty />
     </main>
   );
 }
