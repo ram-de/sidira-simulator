@@ -211,9 +211,30 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
    - **DECIDED 2026-06-09: (a) stage safely.** Verify Clerk domain/DNS + create
      founder org/account (self-invite, confirm hosted sign-in) — NO Amplify keys yet;
      the Amplify flip happens later together with #149 as one coherent cutover.
+   - **Staged-cutover runbook (founder-in-browser, safe to do anytime — nothing
+     here changes prod traffic):**
+     1. *Verify the production domain:* Clerk Dashboard → Production instance
+        (`ins_3EoIQrcTqt9VuPdpSVAwEW2QZ3k`) → **Configure → Domains** → set
+        `sidira.ai` as the production domain. Clerk shows the required DNS
+        records (frontend API CNAME like `clerk.sidira.ai`, plus
+        `accounts.`/`clkmail.`/DKIM ones). Add each CNAME wherever sidira.ai
+        DNS is hosted (Route 53), then wait for all checks in the Clerk Domains
+        page to turn green. `pk_live_`/`sk_live_` keys don't work until this
+        verifies.
+     2. *Create the founder's org + account (lockout insurance):* Dashboard →
+        **Organizations → Create organization** (e.g. "Sidira") — this fires
+        `organization.created` → the live #31 webhook provisions the `customers`
+        row (verify: 200 in the webhook log). Then **Users → Invitations →
+        invite your own email**; accept the invite and sign in via Clerk's
+        hosted Account Portal (`accounts.sidira.ai` once DNS verifies) to
+        confirm the production sign-in flow works end-to-end.
+     3. *Stop there.* Do NOT add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` /
+        `CLERK_SECRET_KEY` to Amplify — that's the hard cutover, deferred to
+        ship together with #149.
 4. **#30 — customer-scoping leak audit** — **AUDIT COMPLETE 2026-06-09, NO LIVE
    LEAKS** (founder go-ahead given; ran in parallel with the staged cutover prep).
-   Deliverable PR in flight from worktree `phase-5-30-scoping-audit`:
+   **PR #157 MERGED to `main` as `f346760`; issue #30 auto-closed.** Worktree
+   removed; remote branch deleted.
    - **Findings:** every live route threads `Depends(current_customer_id)` into
      repo/store calls; both Postgres + InMemory repo implementations filter every
      get/list/touch/update on `customer_id`; all R2 keys embed
@@ -310,8 +331,8 @@ its own. **#32 is now in flight** (worktree `phase-5-32-clerk-frontend`): fronte
 Clerk pages + env-gated middleware route protection + org-creation at signup (so
 #31's webhook fires) + pack-based post-signup redirect. Scope is Option 1 — backend
 token-forwarding through the Caddy proxy is deferred to **#149** (the one remaining
-prod-enablement blocker after #32). **#30 audit is DONE — no live leaks found**; the
-PR (isolation test matrix + route-scoping regression guard + scoping deps on the
-Phase 4.5 stub routers) is in flight from worktree `phase-5-30-scoping-audit`.
+prod-enablement blocker after #32). **#30 is DONE and MERGED (PR #157, `f346760`)
+— no live leaks found**; the isolation test matrix + route-scoping regression
+guard now run in CI, and the Phase 4.5 stub routers carry the scoping dependency.
 Cutover decision made 2026-06-09: stage safely (Clerk DNS + founder self-invite
-now, Amplify keys later with #149).
+now, Amplify keys later with #149) — step-by-step runbook is in Next Steps item 3.
