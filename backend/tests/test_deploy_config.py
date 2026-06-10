@@ -79,10 +79,29 @@ def test_public_api_is_gated_by_backend_internal_key() -> None:
     assert "basic_auth" in caddy
     assert "header_up -Authorization" in caddy
     assert "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}" in caddy
+    # Two web-proxy branches since #149: the Clerk branch (matched first) promotes
+    # the carrier token into Authorization and drops the carrier; the tokenless
+    # branch strips Authorization. Both hop-auth before attaching the internal key.
+    clerk_start = caddy.index("handle @web_proxy_clerk {")
+    tokenless_start = caddy.index("handle @web_proxy {")
+    assert clerk_start < tokenless_start
+    clerk_branch = caddy[clerk_start:tokenless_start]
+    tokenless_branch = caddy[tokenless_start:]
+    for branch in (clerk_branch, tokenless_branch):
+        assert branch.index("basic_auth") < branch.index(
+            "header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}"
+        )
     assert (
-        caddy.index("basic_auth")
-        < caddy.index("header_up -Authorization")
-        < caddy.index("header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}")
+        "header_up Authorization {http.request.header.X-Sidira-Clerk-Authorization}" in clerk_branch
+    )
+    assert "header_up -X-Sidira-Clerk-Authorization" in clerk_branch
+    assert (
+        tokenless_branch.index("basic_auth")
+        < tokenless_branch.index("header_up -Authorization")
+        < tokenless_branch.index("header_up X-Sidira-Internal-Key {$SIDIRA_INTERNAL_API_KEY}")
+    )
+    assert "header_up -Authorization" not in clerk_branch.replace(
+        "header_up -X-Sidira-Clerk-Authorization", ""
     )
     assert 'request.headers.get("x-sidira-internal-key")' in app
     # /health (and the signature-verified Clerk webhook) bypass the gates via the
@@ -137,6 +156,34 @@ def test_frontend_uses_same_origin_proxy_without_internal_api_key() -> None:
     assert "Amplify Hosting strips browser Basic Auth" in deploy_readme
     assert "plus `SIDIRA_INTERNAL_API_KEY`" not in onboarding
     assert "This is an alpha-stage gateway-token workaround" not in readme
+
+
+def test_amplify_passes_clerk_env_to_next_build() -> None:
+    amplify = (REPO_ROOT / "amplify.yml").read_text()
+
+    # Amplify exposes console env vars to the build only — the Next runtime
+    # never sees them — so the spec must persist both Clerk vars into
+    # .env.production for the #149 cutover to actually take effect.
+    assert 'printf "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=%s\\n"' in amplify
+    assert 'printf "CLERK_SECRET_KEY=%s\\n"' in amplify
+    # Both writes stay optional (pre-cutover and preview builds run keyless)…
+    assert 'test -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || printf' in amplify
+    assert 'test -z "$CLERK_SECRET_KEY" || printf' in amplify
+    # …but a half-set pair builds a broken auth path and must fail the build —
+    # pin the full guard including `exit 1`, not just the error message.
+    publishable_guard = (
+        'test -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || test -n "$CLERK_SECRET_KEY" || '
+        '{ echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY set but CLERK_SECRET_KEY missing" >&2; exit 1; }'
+    )
+    secret_guard = (
+        'test -z "$CLERK_SECRET_KEY" || test -n "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || '
+        '{ echo "CLERK_SECRET_KEY set but NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY missing" >&2; exit 1; }'
+    )
+    assert publishable_guard in amplify
+    assert secret_guard in amplify
+    # Guards and writes must run before the Next build consumes .env.production.
+    assert amplify.index(publishable_guard) < amplify.index("npm run build")
+    assert amplify.index('printf "CLERK_SECRET_KEY=%s\\n"') < amplify.index("npm run build")
 
 
 def test_frontend_splits_public_site_from_product_app_hosts() -> None:
@@ -208,7 +255,7 @@ def test_frontend_clerk_auth_is_env_gated_alongside_basic_auth_fallback() -> Non
     # so the Clerk path must gate /api on a session too — otherwise enabling
     # Clerk would regress /api from gated (pre-Clerk) to open. Returns 401 for
     # API callers rather than redirecting to the sign-in page.
-    assert 'isApiRoute = createRouteMatcher' in middleware
+    assert "isApiRoute = createRouteMatcher" in middleware
     assert '"/api(.*)"' in middleware
     assert "apiAuthChallenge" in middleware
 

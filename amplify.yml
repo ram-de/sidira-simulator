@@ -12,6 +12,14 @@ applications:
             - 'test -n "$SIDIRA_WEB_PROXY_BASIC_AUTH" || { echo "missing SIDIRA_WEB_PROXY_BASIC_AUTH" >&2; exit 1; }'
             - 'printf "SIDIRA_API_BASE_INTERNAL=%s\n" "$SIDIRA_API_BASE_INTERNAL" >> .env.production'
             - 'printf "SIDIRA_WEB_PROXY_BASIC_AUTH=%s\n" "$SIDIRA_WEB_PROXY_BASIC_AUTH" >> .env.production'
+            # Clerk (#149 cutover): optional pre-cutover, but a half-set pair builds a
+            # broken auth path (middleware on, server-side auth() dead), so fail fast.
+            # Amplify exposes console env vars to the build only — the Next runtime
+            # compute never sees them — so they must be written into .env.production.
+            - 'test -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || test -n "$CLERK_SECRET_KEY" || { echo "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY set but CLERK_SECRET_KEY missing" >&2; exit 1; }'
+            - 'test -z "$CLERK_SECRET_KEY" || test -n "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || { echo "CLERK_SECRET_KEY set but NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY missing" >&2; exit 1; }'
+            - 'test -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" || printf "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=%s\n" "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" >> .env.production'
+            - 'test -z "$CLERK_SECRET_KEY" || printf "CLERK_SECRET_KEY=%s\n" "$CLERK_SECRET_KEY" >> .env.production'
             - npm run build
       artifacts:
         baseDirectory: .next
