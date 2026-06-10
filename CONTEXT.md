@@ -2,11 +2,17 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-02 (public homepage restyled to DESIGN.md)
+**Last updated:** 2026-06-09 (Phase 5 auth/multi-tenancy cutover complete; session `phase-5-auth` closed)
 
 ---
 
 ## What just shipped
+
+✅ **PHASE 5 AUTH + MULTI-TENANCY, FULLY LIVE IN PROD 2026-06-10 (umbrella session `phase-5-auth`, CLOSED).**
+Production now runs Clerk sign-in end-to-end: Amplify frontend (Deployment 74) serves Clerk auth pages (#32, PR #153) instead of the temporary Basic-Auth gate; the Caddy proxy forwards the Clerk token via the `X-Sidira-Clerk-Authorization` hop (#149, PRs #158/#159); the backend session gate + per-request multi-tenancy (#29, PR #150) are active (`SIDIRA_CLERK_SECRET_KEY` live on EC2). Tenancy model: **customer = Clerk Organization** — the `organization.created` webhook provisions the `customers` row (#31, PR #152, live + E2E-confirmed). #30 scoping audit found NO live leaks and left a route-walking regression guard + cross-customer isolation matrix in CI (PR #157). Auth-provider portability contract documented in `docs/auth-provider-portability.md` (PR #160). Prod posture: **invite-only beta** — invite users via ORGANIZATION invitations, not instance-level. Verified end-to-end signed-in/signed-out; issue #149 closed with the verification record.
+
+✅ **One-click sample workspace seeding, SHIPPED 2026-06-09 (PR #161, squash `0c21916`, session `sample-workspace`).**
+New orgs land in an empty workspace post-cutover; `POST /sample-workspace` clones the Streamly fixture (6 personas, 2 capabilities) into the caller's own tenant prefix, strictly button-triggered from the wizard/personas empty states. Source hardcoded server-side (tenant isolation), 409 no-clobber, pointers-last + marker-based retry recovery over the CAS-less ArtifactStore protocol. 13 tests; codex 2 rounds, all findings fixed.
 
 ✅ **Public homepage restyled to DESIGN.md, SHIPPED 2026-06-02 (PR #138, squash `24eb992`, session `frontend_design-changes`).**
 The `sidira.ai`-host page rendered by `PublicCompanyHome` now uses the locked design system from #134: six-blade diaphragm lockup inline-SVG, editorial italic hero ("Validate product bets before you build."), Hanken Grotesk body via `next/font/google`, ink/paper palette, hairline-separated 3-step workflow with monumental mono numerals (no colored icon circles), mono footer. `app/layout.tsx` flips body font from `system-ui` (DESIGN.md §10 violation) to `var(--font-sans)`. Responsive collapse below 768px. PR #133 regression tests (host-split + public-copy + temp-Basic-Auth) preserved. Codex review: 2 rounds, 2 P2s fixed (Helvetica fallback removed everywhere; phone-width overflow fixed). First slice of #135; app shell and /about deferred. The live homepage becomes visible after the Amplify global-access-control flip in the `phase-5-company-site` session.
@@ -96,12 +102,12 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 
 ## What's next
 
-**Post-production-bootstrap hardening.**
+**Phase 5 auth is DONE (see "What just shipped") — production is Clerk-gated, invite-only beta.**
 
 Current order:
-1. Pick up Phase 5 auth/multi-tenancy work when broader access matters: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
-2. Pick up crawler/product-pack work when the goal is customer-specific value: Playwright walker + product-pack synthesis are still the biggest missing producer path.
-3. Keep Amplify access control enabled until real auth is in place; it is the current guardrail against casual public use and Groq token abuse.
+1. Crawler/product-pack work — Playwright walker + product-pack synthesis are still the biggest missing producer path; new design-partner orgs currently have only the one-click Streamly sample to play with.
+2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
+3. Optional prod-DB debris cleanup: pre-cutover sims under the `streamly_sample` tenant + the webhook-test customer row — SQL in `sessions/phase-5-auth/context.md` § Post-cutover data cleanup.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
@@ -130,6 +136,11 @@ From Phase 2.5:
 7. **The browser test catches what `tsc --noEmit` + `next build` can't.** Phase 2.5 frontend compiled clean, codex passed three rounds, but the first live click revealed that `/agents/{id}` is 501-stubbed (Phase 4 work) so the persona-grouped table was just hitting its fallback path. CI gates verify shape; only the click verifies the wired-up flow. Bake "open the browser and click the thing" into the PR boundary, not after merge.
 8. **Recommend the lightweight summary endpoint over N+1 fan-out, *before* you ship N+1.** Codex round 1 explicitly flagged the `Promise.all(getAgent)` pattern as "the right fix if this ever bottlenecks is a `/simulations/{id}/agents` summary endpoint." It bottlenecked on round zero (a 501) — the endpoint should have shipped with #51 from the start. Trust codex's "right fix" framing, don't defer "if this ever."
 9. **Stale duplicate tickets accumulate fast under solo velocity.** #3 and #4 were re-scoped into #57 and #58 mid-phase and silently left open. Re-audit the GitHub Project at every phase boundary; closing stale tickets is part of "closing the phase."
+
+From Phase 5:
+
+10. **Amplify console env vars reach the BUILD only — the Next runtime compute never sees them.** `amplify.yml` writes a curated `frontend/.env.production`; any server-side secret not written there is a silent runtime no-op (`CLERK_SECRET_KEY` nearly shipped that way — caught in flip pre-flight, PR #159). Every new runtime env var must be added to `amplify.yml`, not just the console.
+11. **Classify every prod config change as additive vs. hard cutover before touching it.** Adding `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` looked additive but was a hard auth cutover (middleware switches gates on its presence). The staged plan — DNS + founder account first, keys last, lockout insurance before the flip — is what made the actual flip a non-event.
 
 ---
 

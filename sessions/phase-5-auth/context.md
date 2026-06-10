@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-5-auth
-status: active
+status: closed
 started: 2026-05-30
+closed: 2026-06-09
 owner: ram-de
 ---
 
@@ -15,7 +16,8 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
-(nothing — #149 closed 2026-06-10; the Phase 5 production cutover is complete)
+(nothing — session closed 2026-06-09; #149 closed and the Phase 5 production
+cutover is complete and verified)
 
 ## Completed
 
@@ -233,7 +235,7 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   credential rotated twice; active credential is the second rotation (first leaked
   into CloudShell output — treat as compromised).
 
-## Next Steps
+### Production go-live trail (former Next Steps items 1–5 — ALL ✅ DONE)
 
 **#153 (#32 Clerk frontend), #154 (PreCompact hook), #155 (skill cleanup) all
 MERGED to `main` 2026-06-07** (squash: `f958bff`, `1b291d3`, `8bf763a`). All
@@ -347,6 +349,33 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
 Codex CLI note: installed at `~/.npm-global/bin/codex` but off the Bash-tool
 PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
 
+### Post-cutover data cleanup (decided at close, 2026-06-09)
+Founder decision: **ignore the pre-cutover sims; delete them when convenient.**
+Two pieces of debris in the prod DB (Neon — founder-in-browser, SQL editor):
+
+1. **Orphaned pre-cutover sims** — everything created under the default tenant
+   `streamly_sample` before per-request tenancy went live. FKs cascade
+   (`simulations` → `agent_instances` → `agent_feedback`), so one statement:
+   ```sql
+   -- inspect first
+   SELECT id, status, created_at FROM simulations WHERE customer_id = 'streamly_sample';
+   DELETE FROM simulations WHERE customer_id = 'streamly_sample';
+   ```
+   Optionally also `DELETE FROM customers WHERE id = 'streamly_sample';` — the
+   row is unused post-cutover (no request resolves to that tenant anymore).
+   ⚠️ Do NOT touch the **R2** `customers/streamly_sample/` prefix — it is the
+   live source for the one-click sample-workspace seeding (PR #161).
+2. **Webhook test customer row** — created 2026-06-07 by Clerk's "Send example"
+   `organization.created` (placeholder org id, name like "Acme Inc"):
+   ```sql
+   -- find it (the placeholder org id stands out next to the real orgs)
+   SELECT id, clerk_org_id, name, created_at FROM customers ORDER BY created_at;
+   DELETE FROM customers WHERE id = '<placeholder-org-id-from-select>';
+   ```
+
+## Next Steps
+— session complete (closed 2026-06-09)
+
 ## Key Files
 - `backend/sidira_simulator/api/webhooks.py` — `POST /webhooks/clerk` org→customer provisioning (#31)
 - `backend/sidira_simulator/api/auth.py` — Clerk client + `authenticate()` + `clerk_configured()` (#29) + `clerk_webhook_secret()` (#31)
@@ -395,6 +424,9 @@ PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
   verification + bot protection + free-tier usage cap.
 
 ## For my cofounder
+**Session CLOSED 2026-06-09 — Phase 5 is fully shipped.** Only loose end is
+optional prod-DB debris cleanup (SQL under "Post-cutover data cleanup" above).
+
 **2026-06-10: THE PHASE 5 CUTOVER IS DONE.** Production now runs Clerk
 sign-in end-to-end: frontend (Amplify Deployment 74, Basic Auth retired),
 proxy token hop (#158), backend session gate + per-request multi-tenancy
