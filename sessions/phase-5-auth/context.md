@@ -233,9 +233,12 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
    - **Drive-by fix:** `test_feedback_api.py` concurrent-thumbs test used legacy
      `asyncio.get_event_loop().run_until_complete(...)` which raises on 3.11+ once
      any earlier pytest-asyncio test unsets the loop — switched to `asyncio.run()`.
-   - Verification: 425 passed / 11 skipped; ruff + black clean. GitNexus MCP not
-     connected — manual impact analysis (stub handlers have no in-code callers;
-     LOW risk).
+   - Verification: 429 passed / 11 skipped; ruff + black clean. `/codex review`
+     run twice (round 1: P2 no-Postgres-coverage + 2 P3s → all fixed → round 2
+     clean). Postgres repos now covered too: SQL-shape tests assert the
+     customer_id predicate; stub-row tests prove cross-customer get/update/touch
+     reject without committing. GitNexus MCP not connected — manual impact
+     analysis (stub handlers have no in-code callers; LOW risk).
 5. **Prod-enablement of the Clerk session gate is still BLOCKED** on #149 (Caddy
    must forward Authorization instead of stripping it) and the proxy token hop
    (Next middleware must send the Clerk token; #32 shipped the UI/middleware but
