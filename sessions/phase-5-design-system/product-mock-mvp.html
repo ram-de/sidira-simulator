@@ -66,6 +66,7 @@
   }
   .chrome-btn:hover { border-color: #F4EFE6; }
   .chrome-btn.on { border-color: var(--signal); color: var(--signal); }
+  body.present .board-chrome { display: none; }
 
   /* ── nav ─────────────────────────────────────────── */
   nav {
@@ -570,10 +571,8 @@
   .room-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); }
   .chat-thread { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .chat-scroll { flex: 1; padding: 20px 24px; overflow-y: auto; }
-  .sys-line {
-    font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted);
-    letter-spacing: 0.06em; text-align: center; padding: 4px 0 18px;
-  }
+  .sys-line { font-size: 12px; color: var(--ink-muted); text-align: center; padding: 4px 0 18px; }
+  .sys-line .mono { font-size: 11px; }
   .msg { max-width: 64ch; margin-bottom: 18px; }
   .msg-meta {
     font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted);
@@ -636,6 +635,7 @@
     <button class="chrome-btn" id="replayChrome" type="button">REPLAY SETTLE ↻</button>
     <button class="chrome-btn" id="runToggle" type="button">VIEW RUNNING STATE</button>
     <button class="chrome-btn" id="modeToggle" type="button">VIEW MOONSHOT STATE</button>
+    <button class="chrome-btn" id="presentToggle" type="button" title="Hide this review bar — press P to bring it back">PRESENT — P TOGGLES</button>
   </div>
 </div>
 
@@ -693,10 +693,10 @@
   </div>
   <div class="hyp-row">
     <h1 class="hyp-statement">Weekly digest email with personalized usage insights will lift 7-day return rate for dormant SMB admins.</h1>
-    <span class="verdict" id="verdictChip">DECISIVE · SHIP CANDIDATE</span>
+    <span class="verdict" id="verdictChip"><span class="mvp-only">HIGH SIM AGREEMENT · SHIP CANDIDATE</span><span class="future-only">DECISIVE · SHIP CANDIDATE</span></span>
     <button class="primary-action" type="button">Open decision record →</button>
   </div>
-  <div class="verdict-why" id="verdictWhy">DECISIVE — P̂ <b>0.78</b> ≥ THRESHOLD 0.70 (POLICY DR-1) · EXPECTED LIFT <b>+6.2 PTS</b> · SHIP GATED ON: CONSOLIDATED DIGEST + ZERO-USAGE SUPPRESSION<span class="mvp-only"> · RAW AGREEMENT — UNCALIBRATED (LEDGER EMPTY)</span></div>
+  <div class="verdict-why" id="verdictWhy"><span class="mvp-only">HIGH SIM AGREEMENT</span><span class="future-only">DECISIVE</span> — P̂ <b>0.78</b> ≥ THRESHOLD 0.70 (POLICY DR-1) · EXPECTED LIFT <b>+6.2 PTS</b> · SHIP GATED ON: CONSOLIDATED DIGEST + ZERO-USAGE SUPPRESSION<span class="mvp-only"> · UNCALIBRATED — LEDGER EMPTY</span></div>
   <div class="telemetry" id="telemetry">
     <div class="tele-cell"><div class="tele-label">Model</div><div class="tele-value">gpt-5.2</div></div>
     <div class="tele-cell"><div class="tele-label">Readings</div><div class="tele-value">240 <span style="color:var(--ink-muted)">(48 personas × 5 seeds)</span></div></div>
@@ -749,7 +749,7 @@
             </svg>
             <div class="axis-label-row"><span class="edge-l" style="left:0">0</span><span style="left:25%">0.25</span><span style="left:50%">0.50</span><span style="left:75%">0.75</span><span class="edge-r" style="left:100%">1.00</span></div>
           </div>
-          <div class="glass-caption" style="margin-top:6px">95% CI [0.71, 0.84] — LOWER BOUND CLEARS THRESHOLD 0.70 · DECISIVE</div>
+          <div class="glass-caption" style="margin-top:6px">95% CI [0.71, 0.84] — LOWER BOUND CLEARS THRESHOLD 0.70 · <span class="mvp-only">HIGH SIM AGREEMENT</span><span class="future-only">DECISIVE</span></div>
         </div>
         <div class="readout">
           <div class="readout-head"><span class="glass-label">Paired lift · digest − control</span></div>
@@ -970,7 +970,7 @@
             <td style="font-weight:500">Weekly digest email with personalized usage insights lifts dormant-admin return</td>
             <td class="num">0.78</td>
             <td class="num">[0.71, 0.84]</td>
-            <td><span class="chip">DECISIVE · SHIP CANDIDATE</span></td>
+            <td><span class="chip"><span class="mvp-only">HIGH SIM AGREEMENT · SHIP CANDIDATE</span><span class="future-only">DECISIVE · SHIP CANDIDATE</span></span></td>
             <td class="mitigation">RUN-3 · 2026-06-09</td>
           </tr>
           <tr>
@@ -1002,7 +1002,7 @@
             <td style="font-weight:500">In-app changelog popover on login lifts feature adoption</td>
             <td class="num">0.22</td>
             <td class="num">[0.15, 0.31]</td>
-            <td><span class="chip">DECISIVE · DO NOT SHIP</span></td>
+            <td><span class="chip"><span class="mvp-only">HIGH SIM AGREEMENT · DO NOT SHIP</span><span class="future-only">DECISIVE · DO NOT SHIP</span></span></td>
             <td class="mitigation">RUN-2 · 2026-05-28</td>
           </tr>
           <tr>
@@ -1156,7 +1156,7 @@
     </aside>
     <div class="chat-thread">
       <div class="chat-scroll">
-        <div class="sys-line">ROOM OPENED FROM RUN-3 · ARM-SCOPED: AGENTS IN THIS ROOM SAW THE DIGEST ARM ONLY</div>
+        <div class="sys-line">Room opened from <span class="mono">RUN-3</span> · arm-scoped — agents in this room saw the digest arm only.</div>
         <div class="msg pm">
           <div class="msg-meta"><span class="who">YOU · PM</span><span>14:21:40Z</span></div>
           <div class="msg-body">Several of you said you'd open the digest if it flagged which location went quiet. What would make you act on it the same day, not just open it?</div>
@@ -1487,7 +1487,7 @@
   <header class="page-strip">
     <h1>Library</h1>
     <span class="sub">FEATURE PACK + PERSONA PACKS + STIMULI</span>
-    <span class="right page-tag">UNVALIDATED PACKS CANNOT PRINT DECISIVE VERDICTS</span>
+    <span class="right page-tag"><span class="mvp-only">UNVALIDATED PACKS CANNOT PRINT SHIP CANDIDATES</span><span class="future-only">UNVALIDATED PACKS CANNOT PRINT DECISIVE VERDICTS</span></span>
   </header>
   <div class="page-body">
     <section>
@@ -1721,13 +1721,14 @@
   var verdictChip = document.getElementById("verdictChip");
   var verdictWhy = document.getElementById("verdictWhy");
   var verdictWhyDone = verdictWhy.innerHTML;
+  var verdictChipDone = verdictChip.innerHTML;
   var replayBtn = document.getElementById("replayBtn");
   function setRunning(on) {
     document.body.classList.toggle("running", on);
     runToggle.classList.toggle("on", on);
     runToggle.textContent = on ? "VIEW COMPLETED READING" : "VIEW RUNNING STATE";
     statusValue.textContent = on ? "RUNNING · 1m38s" : "COMPLETE · 4m12s";
-    verdictChip.textContent = on ? "READING IN PROGRESS" : "DECISIVE · SHIP CANDIDATE";
+    verdictChip.innerHTML = on ? "READING IN PROGRESS" : verdictChipDone;
     verdictWhy.innerHTML = on
       ? "READING IN PROGRESS — VERDICT PRINTS AGAINST POLICY DR-1 (THRESHOLD 0.70) WHEN THE ESTIMATE STABILIZES"
       : verdictWhyDone;
@@ -1799,8 +1800,16 @@
 
   document.getElementById("replayChrome").addEventListener("click", replay);
   replayBtn.addEventListener("click", replay);
+  // present mode: hide the review chrome so the theme is judged as product, not
+  // prototype board. P toggles it back.
+  var presentToggle = document.getElementById("presentToggle");
+  function togglePresent() { document.body.classList.toggle("present"); }
+  presentToggle.addEventListener("click", togglePresent);
+
   document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
     if (e.key === "r" || e.key === "R") replay();
+    if (e.key === "p" || e.key === "P") togglePresent();
   });
 
   var methodBtn = document.getElementById("methodBtn");
