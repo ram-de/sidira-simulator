@@ -363,6 +363,44 @@ Backend API EC2 VM:
   `https://sidira.ai/simulations/new`; capabilities load and no console errors
   were observed.
 
+## Clerk Production Cutover (#149)
+
+The token path shipped with #149: the Next `/api` proxy attaches the signed-in
+user's Clerk session token as `X-Sidira-Clerk-Authorization`, and
+`deploy/Caddyfile.api` promotes it to `Authorization` on the
+`_sidira_web_proxy` path after the hop Basic Auth passes. The backend gate
+(`SIDIRA_CLERK_SECRET_KEY`) then validates it per request. Everything below is
+inert until the env flips — flip BOTH sides in one sitting, frontend first:
+
+Prerequisites (all done as of 2026-06-09): Clerk production domain verified
+(`clerk.sidira.ai` + `accounts.sidira.ai` certs live), founder org created,
+`organization.created` webhook confirmed 200, users invited via organization
+invitations and signed up.
+
+1. Amplify (Hosting > Environment variables, app `dbzf69xeoypqa`): add
+   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_live_…`) and `CLERK_SECRET_KEY`
+   (`sk_live_…`) from Clerk > Configure > API keys (Production instance). Note
+   this `CLERK_SECRET_KEY` is the FRONTEND server-side secret — separate from
+   the backend's `SIDIRA_CLERK_SECRET_KEY` below. Redeploy the branch. This
+   swaps the temporary Basic-Auth gate for Clerk sign-in the moment it goes
+   live (`frontend/middleware.ts`); confirm you can sign in at `sidira.ai`
+   before proceeding.
+2. Parameter Store (us-east-1): create SecureString
+   `/sidira/prod/SIDIRA_CLERK_SECRET_KEY` (same `sk_live_…` value) and String
+   `/sidira/prod/SIDIRA_CLERK_AUTHORIZED_PARTIES`
+   (`https://sidira.ai,https://app.sidira.ai`).
+3. EC2 (SSM Run Command, instance `i-04b155fafcc90042b`):
+   `sudo SIDIRA_DEPLOY_BRANCH=main /opt/sidira/repo/deploy/ec2-api-deploy.sh`
+   — the deploy script already propagates both Clerk vars from SSM.
+4. Verify end-to-end: signed-in browser session loads dashboard data (200s
+   through `/api`); signed-out `curl https://sidira.ai/api/models` → 401;
+   direct `curl https://api.sidira.ai/models` → 404 (internal-key gate,
+   unchanged); `https://api.sidira.ai/health` → 200 (public).
+5. Rollback: delete the two Amplify vars + redeploy (frontend back to Basic
+   Auth), and blank `/sidira/prod/SIDIRA_CLERK_SECRET_KEY` + rerun the deploy
+   script (backend gate back to pass-through). The two halves are independent
+   rollbacks, but leaving only the backend half on 401s all app traffic.
+
 ## Pause Or Resume Backend
 
 Use this when the frontend can stay up, but live API/model calls should stop
