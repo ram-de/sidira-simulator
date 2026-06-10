@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-09 (Phase 5 auth/multi-tenancy cutover complete; session `phase-5-auth` closed)
+**Last updated:** 2026-06-09 (Phase 5 closed; sample-workspace live in prod; pre-cutover DB debris deleted)
 
 ---
 
@@ -11,8 +11,8 @@
 ✅ **PHASE 5 AUTH + MULTI-TENANCY, FULLY LIVE IN PROD 2026-06-10 (umbrella session `phase-5-auth`, CLOSED).**
 Production now runs Clerk sign-in end-to-end: Amplify frontend (Deployment 74) serves Clerk auth pages (#32, PR #153) instead of the temporary Basic-Auth gate; the Caddy proxy forwards the Clerk token via the `X-Sidira-Clerk-Authorization` hop (#149, PRs #158/#159); the backend session gate + per-request multi-tenancy (#29, PR #150) are active (`SIDIRA_CLERK_SECRET_KEY` live on EC2). Tenancy model: **customer = Clerk Organization** — the `organization.created` webhook provisions the `customers` row (#31, PR #152, live + E2E-confirmed). #30 scoping audit found NO live leaks and left a route-walking regression guard + cross-customer isolation matrix in CI (PR #157). Auth-provider portability contract documented in `docs/auth-provider-portability.md` (PR #160). Prod posture: **invite-only beta** — invite users via ORGANIZATION invitations, not instance-level. Verified end-to-end signed-in/signed-out; issue #149 closed with the verification record.
 
-✅ **One-click sample workspace seeding, SHIPPED 2026-06-09 (PR #161, squash `0c21916`, session `sample-workspace`).**
-New orgs land in an empty workspace post-cutover; `POST /sample-workspace` clones the Streamly fixture (6 personas, 2 capabilities) into the caller's own tenant prefix, strictly button-triggered from the wizard/personas empty states. Source hardcoded server-side (tenant isolation), 409 no-clobber, pointers-last + marker-based retry recovery over the CAS-less ArtifactStore protocol. 13 tests; codex 2 rounds, all findings fixed.
+✅ **One-click sample workspace seeding, SHIPPED + LIVE IN PROD 2026-06-09 (PR #161, squash `0c21916`, session `sample-workspace`, CLOSED).**
+New orgs land in an empty workspace post-cutover; `POST /sample-workspace` clones the Streamly fixture (6 personas, 2 capabilities) into the caller's own tenant prefix, strictly button-triggered from the wizard/personas empty states. Source hardcoded server-side (tenant isolation), 409 no-clobber, pointers-last + marker-based retry recovery over the CAS-less ArtifactStore protocol. 13 tests; codex 2 rounds, all findings fixed. Deployed both sides (Amplify + EC2) and verified on a real empty org. ⚠️ R2 `customers/streamly_sample/` is the live clone source — never delete. Same day: pre-cutover sims under the legacy `streamly_sample` tenant and the webhook-test customer row were deleted from prod Neon (via codex/psql).
 
 ✅ **Public homepage restyled to DESIGN.md, SHIPPED 2026-06-02 (PR #138, squash `24eb992`, session `frontend_design-changes`).**
 The `sidira.ai`-host page rendered by `PublicCompanyHome` now uses the locked design system from #134: six-blade diaphragm lockup inline-SVG, editorial italic hero ("Validate product bets before you build."), Hanken Grotesk body via `next/font/google`, ink/paper palette, hairline-separated 3-step workflow with monumental mono numerals (no colored icon circles), mono footer. `app/layout.tsx` flips body font from `system-ui` (DESIGN.md §10 violation) to `var(--font-sans)`. Responsive collapse below 768px. PR #133 regression tests (host-split + public-copy + temp-Basic-Auth) preserved. Codex review: 2 rounds, 2 P2s fixed (Helvetica fallback removed everywhere; phone-width overflow fixed). First slice of #135; app shell and /about deferred. The live homepage becomes visible after the Amplify global-access-control flip in the `phase-5-company-site` session.
@@ -107,7 +107,6 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 Current order:
 1. Crawler/product-pack work — Playwright walker + product-pack synthesis are still the biggest missing producer path; new design-partner orgs currently have only the one-click Streamly sample to play with.
 2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
-3. Optional prod-DB debris cleanup: pre-cutover sims under the `streamly_sample` tenant + the webhook-test customer row — SQL in `sessions/phase-5-auth/context.md` § Post-cutover data cleanup.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)

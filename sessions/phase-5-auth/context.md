@@ -349,9 +349,9 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
 Codex CLI note: installed at `~/.npm-global/bin/codex` but off the Bash-tool
 PATH — run `export PATH="$HOME/.npm-global/bin:$PATH"` before `codex review`.
 
-### Post-cutover data cleanup (decided at close, 2026-06-09)
-Founder decision: **ignore the pre-cutover sims; delete them when convenient.**
-Two pieces of debris in the prod DB (Neon — founder-in-browser, SQL editor):
+### Post-cutover data cleanup (✅ EXECUTED 2026-06-09 via codex + psql)
+Both deletions ran against prod Neon and verified clean. SQL kept below for
+the record:
 
 1. **Orphaned pre-cutover sims** — everything created under the default tenant
    `streamly_sample` before per-request tenancy went live. FKs cascade
@@ -424,8 +424,9 @@ Two pieces of debris in the prod DB (Neon — founder-in-browser, SQL editor):
   verification + bot protection + free-tier usage cap.
 
 ## For my cofounder
-**Session CLOSED 2026-06-09 — Phase 5 is fully shipped.** Only loose end is
-optional prod-DB debris cleanup (SQL under "Post-cutover data cleanup" above).
+**Session CLOSED 2026-06-09 — Phase 5 is fully shipped, zero loose ends.**
+Prod-DB debris cleanup (pre-cutover sims + webhook-test customer row) was
+executed via codex the same day; record under "Post-cutover data cleanup".
 
 **2026-06-10: THE PHASE 5 CUTOVER IS DONE.** Production now runs Clerk
 sign-in end-to-end: frontend (Amplify Deployment 74, Basic Auth retired),
