@@ -1568,7 +1568,7 @@
             <dt class="future-only">Cadence</dt><dd class="future-only">WEEKLY PLAYWRIGHT CRAWL · ON-DEMAND</dd>
           </dl>
           <a class="card-link mvp-only" href="#" title="Feature packs are written by the crawler, not by hand">WHY NO EDITOR? — IT'S THE CONTROL ARM</a>
-          <a class="card-link future-only" href="#">CRAWL SETUP + RE-CRAWL →</a>
+          <a class="card-link future-only" href="#" data-goto="crawler">CRAWL SETUP + RE-CRAWL →</a>
         </div>
       </div>
     </section>
@@ -1651,6 +1651,101 @@
         </div>
       </div>
     </section>
+  </div>
+</div>
+
+<!-- ════════ FEATURE PACK CRAWL SETUP — future surface (#171, Phase 7) ════════ -->
+<div class="page" id="page-crawler" data-tab="library">
+  <header class="page-strip">
+    <h1>Feature pack — crawl setup</h1>
+    <span class="sub"><a href="#" data-goto="library" style="border-bottom:1px dotted var(--ink-muted)">LIBRARY</a> · LUMEN-APP · SNAPSHOT 2026-W24 DRAFT</span>
+    <span class="right page-tag">GENERATED — NEVER AUTHORED · THE PACK IS THE CONTROL ARM</span>
+  </header>
+  <div class="panel">
+    <main class="zone-evidence">
+      <div class="form-wrap">
+        <section class="wsec">
+          <span class="label">01 · Capabilities</span>
+          <div class="field">
+            <div class="pf-chips" style="margin-top:0">
+              <span class="pf-chip on">ONBOARDING-CHECKLIST</span>
+              <span class="pf-chip on">WEEKLY-DIGEST</span>
+              <span class="pf-chip on">USAGE-DASHBOARD</span>
+              <span class="pf-chip on">BILLING-SETTINGS</span>
+              <span class="pf-chip on">TEAM-INVITES</span>
+              <span class="pf-chip">+ ADD CAPABILITY</span>
+            </div>
+            <div class="field-hint">5–10 priority capabilities by name — the walker writes a reverse PRD and reverse-Figma spec for each.</div>
+          </div>
+        </section>
+        <section class="wsec">
+          <span class="label">02 · Entry points</span>
+          <div class="field field-row">
+            <div>
+              <span class="sublabel">onboarding-checklist</span>
+              <input type="text" value="https://app.lumen.dev/welcome">
+            </div>
+            <div>
+              <span class="sublabel">weekly-digest</span>
+              <input type="text" value="https://app.lumen.dev/settings/digest">
+            </div>
+          </div>
+          <div class="field-hint">1–3 URLs per capability. The walker authenticates, enters here, and walks each flow about 3 hops deep.</div>
+        </section>
+        <section class="wsec">
+          <span class="label">03 · Access</span>
+          <div class="field">
+            <span class="sublabel">Sandbox tenant</span>
+            <input type="text" value="https://sandbox.lumen.dev">
+            <div class="field-hint">Staging or sandbox only — the walker never touches production data.</div>
+          </div>
+          <div class="field field-row">
+            <div>
+              <span class="sublabel">Admin test user</span>
+              <input type="text" value="crawler-admin@lumen.dev">
+            </div>
+            <div>
+              <span class="sublabel">Member test user</span>
+              <input type="text" value="crawler-member@lumen.dev">
+            </div>
+          </div>
+          <div class="field-hint">One test login per role — role gating is captured in the reverse-Figma spec. Allowlist the walker's egress IPs first.</div>
+        </section>
+        <section class="wsec">
+          <span class="label">04 · Run</span>
+          <div class="field field-row">
+            <div>
+              <span class="sublabel">Cadence</span>
+              <select><option>WEEKLY · MONDAY 04:00 UTC</option><option>ON-DEMAND ONLY</option></select>
+            </div>
+            <div>
+              <span class="sublabel">Walk depth</span>
+              <select><option>3 HOPS · DEFAULT</option><option>2 HOPS</option><option>4 HOPS</option></select>
+            </div>
+          </div>
+          <div class="field-hint">Each crawl produces a new versioned snapshot and a diff against the prior one. Promotion to latest is gated on the diff review — running sims keep their frozen slice either way.</div>
+        </section>
+      </div>
+    </main>
+    <aside class="zone-inspector">
+      <div class="inspector-head"><span class="label">Crawl manifest</span></div>
+      <dl class="provenance" style="border-top:none; flex:1; align-content:start">
+        <dt>Customer</dt><dd>LUMEN-APP</dd>
+        <dt>Snapshot</dt><dd>2026-W24 · DRAFT</dd>
+        <dt>Capabilities</dt><dd>5</dd>
+        <dt>Entry points</dt><dd>9</dd>
+        <dt>Roles</dt><dd>ADMIN · MEMBER</dd>
+        <dt>Depth</dt><dd>3 HOPS</dd>
+        <dt>Diff vs</dt><dd>SNAPSHOT 2026-06-01</dd>
+        <dt>Promote</dt><dd>GATED — REVIEW DIFF FIRST</dd>
+        <dt>Latest</dt><dd>FLIPS ON PROMOTE</dd>
+      </dl>
+      <div class="manifest-foot">
+        <button class="primary-action" type="button" data-goto="library">Start crawl →</button>
+        <button class="secondary-action" type="button" data-goto="library">Save setup</button>
+        <div class="est">WALKED CAPABILITIES PRINT AS THE CRAWLER LANDS THEM. NO SPINNERS.</div>
+      </div>
+    </aside>
   </div>
 </div>
 
@@ -1902,6 +1997,7 @@
       var current = document.querySelector(".page.on");
       var tab = current ? current.getAttribute("data-tab") : "";
       if (tab === "objectives" || tab === "rollouts" || tab === "calibration") showPage("hyplist");
+      if (current && current.id === "page-crawler") showPage("library");
     }
   });
 
