@@ -185,13 +185,18 @@ const glassLabelStyle: React.CSSProperties = {
 // polling stops at terminal status).
 const PAGE_STYLE = `
 @keyframes simd-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-@keyframes simd-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* #185: dasharray lives in the keyframes, NOT the class. Browsers compute
+   pathLength + non-scaling-stroke + dasharray inconsistently, so a lingering
+   dasharray paints the settled line as disconnected dashes. Scoped to the
+   animation it reverts to none at the end (no fill-forwards), and
+   reduced-motion users (animation: none) never see it at all. */
+@keyframes simd-draw { from { stroke-dasharray: 1; stroke-dashoffset: 1; } to { stroke-dasharray: 1; stroke-dashoffset: 0; } }
 @keyframes simd-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes simd-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes simd-scalex { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes simd-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 .simd-wipe { animation: simd-wipe 240ms ${EASE_MECH} backwards; }
-.simd-draw { stroke-dasharray: 1; animation: simd-draw 800ms ${EASE_SETTLE} 120ms backwards; }
+.simd-draw { animation: simd-draw 800ms ${EASE_SETTLE} 120ms backwards; }
 .simd-num { animation: simd-fade 120ms ease-out 800ms backwards; }
 .simd-band { transform-box: fill-box; transform-origin: left center; animation: simd-scalex 220ms ${EASE_MECH} 940ms backwards; }
 .simd-lift { animation: simd-fade 800ms ${EASE_SETTLE} 280ms backwards; }
@@ -1306,6 +1311,16 @@ function GlassPanelComplete({
             flatFullWidth
             readingsLabel={`${nReadings}`}
           />
+          {/* #185: a flat full-width line drawn from a single reading must
+              say so — otherwise it reads as N identical readings. Only
+              mid-run readings (x < 1) give the trace a real shape; a page
+              opened after completion still harvests the terminal
+              score.updated event into livePoints at x = 1 (codex P2). */}
+          {!livePoints.some((p) => p.x < 1) && (
+            <div style={{ ...glassLabelStyle, fontSize: 9, marginTop: 18 }}>
+              FLAT LINE = FINAL READING ONLY — NO MID-RUN TRACE WITNESSED
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 20 }}>
             <div
               className="simd-num"
