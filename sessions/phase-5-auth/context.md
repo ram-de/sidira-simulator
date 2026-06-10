@@ -224,13 +224,26 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
      2. *Create the founder's org + account (lockout insurance):* Dashboard →
         **Organizations → Create organization** (e.g. "Sidira") — this fires
         `organization.created` → the live #31 webhook provisions the `customers`
-        row (verify: 200 in the webhook log). Then **Users → Invitations →
-        invite your own email**; accept the invite and sign in via Clerk's
-        hosted Account Portal (`accounts.sidira.ai` once DNS verifies) to
-        confirm the production sign-in flow works end-to-end.
+        row (verify: 200 in the webhook log). Then invite via **ORGANIZATION
+        invitation** (Organizations → org → Members → Invite member — NOT
+        instance-level Users → Invitations: with membership-required +
+        user-created-orgs OFF, an org-less user is stranded); accept the invite
+        and sign in via Clerk's hosted Account Portal (`accounts.sidira.ai`
+        once DNS verifies) to confirm the production sign-in flow end-to-end.
      3. *Stop there.* Do NOT add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` /
         `CLERK_SECRET_KEY` to Amplify — that's the hard cutover, deferred to
         ship together with #149.
+   - **STEPS 1–2 DONE 2026-06-09 (founder-in-browser).** All 5 CNAMEs added in
+     Route 53 and verified in Clerk; TLS certs issued and confirmed by probe
+     (`clerk.sidira.ai` frontend API → HTTP 200; `accounts.sidira.ai` serves a
+     valid Google Trust Services cert — curl 403 on it is Clerk bot protection,
+     browser works). Founder org created; users invited via org invitations,
+     accepted, and **completed signup**. Two hiccups en route, same root cause:
+     no invite email + portal unreachable = domain verification hadn't been run
+     yet in Clerk (cert issuance and email sending are both gated on verify).
+     Remaining sanity check: Clerk webhook log shows 200 Succeeded for the real
+     `organization.created` / membership events, and the backend `customers`
+     row exists. Step 3 holds — no Amplify keys until #149.
 4. **#30 — customer-scoping leak audit** — **AUDIT COMPLETE 2026-06-09, NO LIVE
    LEAKS** (founder go-ahead given; ran in parallel with the staged cutover prep).
    **PR #157 MERGED to `main` as `f346760`; issue #30 auto-closed.** Worktree
