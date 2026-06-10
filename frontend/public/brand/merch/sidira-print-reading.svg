@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira apparel print · the reading (lime + paper, dark garments only)</title>
+  <desc id="desc">Chest/back print for glass-dark garments (#0A1421 blackout navy). A settle-trace reading as a record: signal-lime trace with its 18%-opacity phosphor underdraw, labeled readings axis with the 0.70 decision threshold marked, settled numeral in mono tabular, honest specimen provenance. Two inks: signal lime (#C8FF3D) and paper (#F4EFE6). Never printed on light garments (lime requires the dark ground, §4.1). Convert text to outlines before production.</desc>
+
+  <text x="40" y="56" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="16" letter-spacing="2" fill="#F4EFE6" fill-opacity="0.55">SIM AGREEMENT · RAW · UNCALIBRATED</text>
+
+  <text x="40" y="160" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="96" fill="#F4EFE6">0.78</text>
+
+  <!-- decision threshold on the axis (§8.4) -->
+  <line x1="40" y1="268" x2="600" y2="268" stroke="#F4EFE6" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <text x="612" y="273" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="14"
+        fill="#F4EFE6" fill-opacity="0.55">0.70</text>
+
+  <!-- settle trace · phosphor underdraw first, then the trace -->
+  <path d="M40,310 C60,308 75,290 95,272 C115,254 130,230 155,226 C180,222 190,250 215,256 C240,262 250,240 275,240 C300,240 315,251 340,248.5 C365,246 380,247 405,247 L585,247"
+        stroke="#C8FF3D" stroke-width="13.5" stroke-opacity="0.18" stroke-linecap="round"/>
+  <path d="M40,310 C60,308 75,290 95,272 C115,254 130,230 155,226 C180,222 190,250 215,256 C240,262 250,240 275,240 C300,240 315,251 340,248.5 C365,246 380,247 405,247 L585,247"
+        stroke="#C8FF3D" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="585" cy="247" r="4" fill="#C8FF3D"/>
+
+  <!-- readings axis · real ticks, mono scale numerals -->
+  <line x1="40" y1="320" x2="600" y2="320" stroke="#F4EFE6" stroke-opacity="0.25" stroke-width="1.5"/>
+  <g stroke="#F4EFE6" stroke-opacity="0.55" stroke-width="1.5">
+    <line x1="40" y1="320" x2="40" y2="326"/>
+    <line x1="180" y1="320" x2="180" y2="326"/>
+    <line x1="320" y1="320" x2="320" y2="326"/>
+    <line x1="460" y1="320" x2="460" y2="326"/>
+    <line x1="600" y1="320" x2="600" y2="326"/>
+  </g>
+  <text x="40" y="342" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="12"
+        fill="#F4EFE6" fill-opacity="0.55">0</text>
+  <text x="320" y="342" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="12"
+        text-anchor="middle" fill="#F4EFE6" fill-opacity="0.55">120</text>
+  <text x="600" y="342" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="12"
+        text-anchor="end" fill="#F4EFE6" fill-opacity="0.55">240</text>
+
+  <text x="40" y="390" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="400"
+        font-size="14" letter-spacing="0.5" fill="#F4EFE6" fill-opacity="0.55">240 READINGS · 48 PERSONAS · 5 SEEDS · SPECIMEN-001</text>
+  <text x="720" y="390" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="18" letter-spacing="1.5" text-anchor="end" fill="#F4EFE6">SIDIRA</text>
+</svg>

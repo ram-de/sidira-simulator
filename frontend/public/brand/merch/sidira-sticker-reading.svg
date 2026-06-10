@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira sticker · reading (lime trace on glass)</title>
+  <desc id="desc">Rectangular sticker, 84 × 30 mm, radius 4. Glass ground (#0A1421) with a signal-lime settle trace (#C8FF3D) carrying its 18%-opacity phosphor underdraw (§4.1), a labeled readings axis with the 0.70 decision threshold marked (§8.4), and honest provenance: the reading is a labeled specimen, not a live value. Text converts to outlines before production. The outer rounded rect is the cut path.</desc>
+  <!-- cut path = outer rect -->
+  <rect x="0.5" y="0.5" width="279" height="99" rx="4" fill="#0A1421" stroke="rgba(244,239,230,0.08)" stroke-width="1"/>
+
+  <!-- settled numeral · mono tabular -->
+  <text x="16" y="48" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="26" fill="#F4EFE6">0.78</text>
+  <text x="16" y="63" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="6" letter-spacing="0.8" fill="rgba(244,239,230,0.55)">SIM AGREEMENT · RAW</text>
+  <text x="16" y="72" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="6" letter-spacing="0.8" fill="rgba(244,239,230,0.55)">UNCALIBRATED</text>
+  <text x="16" y="84" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="400"
+        font-size="5" letter-spacing="0.5" fill="rgba(244,239,230,0.45)">240 READINGS · 48 PERSONAS</text>
+  <text x="16" y="91" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="400"
+        font-size="5" letter-spacing="0.5" fill="rgba(244,239,230,0.45)">5 SEEDS · SPECIMEN-001</text>
+
+  <!-- decision threshold on the axis (§8.4) -->
+  <line x1="112" y1="51.2" x2="252" y2="51.2" stroke="rgba(244,239,230,0.35)" stroke-width="0.5" stroke-dasharray="2 2"/>
+  <text x="255" y="53.2" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="5.5"
+        fill="rgba(244,239,230,0.55)">0.70</text>
+
+  <!-- settle trace · phosphor underdraw first (5px / 18%), then the trace -->
+  <path d="M112,66 C118,65 122,58 127,52 C132,46 136,39.5 141,38.5 C146,37.5 149,44 154,45.5 C159,47 162,41.5 167,41.5 C172,41.5 176,44.2 181,43.6 C186,43 190,43 196,43 L250,43"
+        stroke="#C8FF3D" stroke-width="5" stroke-opacity="0.18" stroke-linecap="round"/>
+  <path d="M112,66 C118,65 122,58 127,52 C132,46 136,39.5 141,38.5 C146,37.5 149,44 154,45.5 C159,47 162,41.5 167,41.5 C172,41.5 176,44.2 181,43.6 C186,43 190,43 196,43 L250,43"
+        stroke="#C8FF3D" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="250" cy="43" r="1.6" fill="#C8FF3D"/>
+
+  <!-- readings axis · real ticks, mono scale numerals -->
+  <line x1="112" y1="72" x2="252" y2="72" stroke="rgba(244,239,230,0.25)" stroke-width="0.5"/>
+  <g stroke="rgba(244,239,230,0.55)" stroke-width="0.6">
+    <line x1="112" y1="72" x2="112" y2="75"/>
+    <line x1="147" y1="72" x2="147" y2="75"/>
+    <line x1="182" y1="72" x2="182" y2="75"/>
+    <line x1="217" y1="72" x2="217" y2="75"/>
+    <line x1="252" y1="72" x2="252" y2="75"/>
+  </g>
+  <text x="112" y="82" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="5.5"
+        fill="rgba(244,239,230,0.55)">0</text>
+  <text x="252" y="82" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="5.5"
+        text-anchor="end" fill="rgba(244,239,230,0.55)">240</text>
+
+  <!-- wordmark -->
+  <text x="252" y="92" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="6.5" letter-spacing="1" text-anchor="end" fill="#F4EFE6">SIDIRA</text>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 720" role="img" aria-labelledby="title desc" fill="none" color="#0E1A2B">
+  <title id="title">Sidira apparel print · the decision rule (single color)</title>
+  <desc id="desc">Back print, ~30 cm tall. The §8.1 decision-rule primitive at garment scale: narrow-grotesk words, mono measurement, policy microline, lockup. Single-color print via currentColor: ink (#0E1A2B) on paper garments, paper (#F4EFE6) on glass-dark garments. Convert text to outlines before production.</desc>
+
+  <!-- mark -->
+  <g transform="translate(40 30) scale(0.64)" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none">
+    <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+    <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+    <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+    <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+    <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+  </g>
+
+  <text x="40" y="196" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="92" letter-spacing="1.5" fill="currentColor">SHIP IF</text>
+  <text x="40" y="300" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="700"
+        font-size="84" fill="currentColor">P ≥ 0.70</text>
+
+  <line x1="40" y1="340" x2="560" y2="340" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5"/>
+
+  <text x="40" y="400" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="44" letter-spacing="1" fill="currentColor">AND EVERY HIGH RISK</text>
+  <text x="40" y="452" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="44" letter-spacing="1" fill="currentColor">HAS A NAMED MITIGATION</text>
+
+  <text x="40" y="520" font-family="'JetBrains Mono', ui-monospace, monospace" font-weight="500"
+        font-size="15" letter-spacing="1" fill="currentColor" fill-opacity="0.7">THRESHOLD 0.70 · POLICY DR-1 · MARGIN +0.08</text>
+
+  <!-- lockup, §3 proportions -->
+  <g transform="translate(40 612) scale(0.46)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" fill="none">
+    <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+    <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+    <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+    <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+    <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+  </g>
+  <text x="100" y="649" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+        font-size="40" letter-spacing="2.4" fill="currentColor">SIDIRA</text>
+</svg>
