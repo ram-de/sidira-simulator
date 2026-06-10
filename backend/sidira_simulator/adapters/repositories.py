@@ -14,13 +14,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
+    CrawlConfig,
     Customer,
     Simulation,
 )
@@ -450,8 +451,73 @@ class InMemoryAgentFeedbackRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# CrawlConfig (#171)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class CrawlConfigRepo(Protocol):
+    async def get(self, customer_id: str) -> dict[str, Any] | None: ...
+
+    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class PostgresCrawlConfigRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, customer_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(CrawlConfig, customer_id)
+        result = _crawl_config_to_dict(row) if row is not None else None
+        await _release_read_transaction(self._session)
+        return result
+
+    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]:
+        stmt = (
+            pg_insert(CrawlConfig)
+            .values(customer_id=customer_id, config_json=config_json)
+            .on_conflict_do_update(
+                index_elements=[CrawlConfig.customer_id],
+                set_={"config_json": config_json, "updated_at": func.now()},
+            )
+        )
+        await self._session.execute(stmt)
+        await _commit(self._session)
+        row = await self._session.get(CrawlConfig, customer_id)
+        assert row is not None
+        result = _crawl_config_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryCrawlConfigRepo:
+    def __init__(self) -> None:
+        self._configs: dict[str, dict[str, Any]] = {}
+
+    async def get(self, customer_id: str) -> dict[str, Any] | None:
+        row = self._configs.get(customer_id)
+        return dict(row) if row is not None else None
+
+    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]:
+        row = {
+            "customer_id": customer_id,
+            "config_json": config_json,
+            "updated_at": datetime.now(timezone.utc),
+        }
+        self._configs[customer_id] = row
+        return dict(row)
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _crawl_config_to_dict(row: CrawlConfig) -> dict[str, Any]:
+    return {
+        "customer_id": row.customer_id,
+        "config_json": row.config_json,
+        "updated_at": row.updated_at,
+    }
 
 
 def _simulation_to_dict(row: Simulation) -> dict[str, Any]:
@@ -500,6 +566,16 @@ _in_memory_customers: InMemoryCustomerRepo | None = None
 _in_memory_simulations: InMemorySimulationRepo | None = None
 _in_memory_agents: InMemoryAgentInstanceRepo | None = None
 _in_memory_feedback: InMemoryAgentFeedbackRepo | None = None
+_in_memory_crawl_configs: InMemoryCrawlConfigRepo | None = None
+
+
+def get_in_memory_crawl_config_repo() -> InMemoryCrawlConfigRepo:
+    """Process-wide in-memory crawl-config repo (kept separate from the
+    4-tuple in get_in_memory_repos so existing callers stay untouched)."""
+    global _in_memory_crawl_configs
+    if _in_memory_crawl_configs is None:
+        _in_memory_crawl_configs = InMemoryCrawlConfigRepo()
+    return _in_memory_crawl_configs
 
 
 def get_in_memory_repos() -> tuple[

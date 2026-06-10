@@ -288,9 +288,10 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
           />
           <CardNote>
             The as-built pack is the control arm — hand-editing it would corrupt every
-            reading. Crawl setup isn&apos;t available yet.
+            reading. Configure what the walker crawls; the crawl itself waits on the
+            walker.
           </CardNote>
-          <DeadDesignator>CRAWL SETUP + RE-CRAWL</DeadDesignator>
+          <CardLink href="/personas/crawl-setup">CRAWL SETUP + RE-CRAWL →</CardLink>
         </Card>
       </CardGrid>
     </Section>
@@ -597,25 +598,6 @@ function CardLink({ href, children }: { href: string; children: React.ReactNode 
     >
       {children}
     </Link>
-  );
-}
-
-// A designator-styled reference to a surface that has no live route yet
-// (#171 crawl setup). Deliberately not a link — nothing fake to click.
-function DeadDesignator({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        marginTop: 12,
-        fontFamily: FONT_MONO,
-        fontSize: 11,
-        letterSpacing: "0.06em",
-        color: TOKENS.inkMuted,
-      }}
-    >
-      {children}
-    </span>
   );
 }
 

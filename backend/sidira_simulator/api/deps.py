@@ -24,12 +24,15 @@ from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
+    CrawlConfigRepo,
     CustomerRepo,
     PostgresAgentFeedbackRepo,
     PostgresAgentInstanceRepo,
+    PostgresCrawlConfigRepo,
     PostgresCustomerRepo,
     PostgresSimulationRepo,
     SimulationRepo,
+    get_in_memory_crawl_config_repo,
     get_in_memory_repos,
 )
 from sidira_simulator.services.runtime_config import resolve_sidira_env
@@ -105,6 +108,12 @@ def get_agent_repo(session: RepositorySession = None) -> AgentInstanceRepo:
 
 def get_feedback_repo(session: RepositorySession = None) -> AgentFeedbackRepo:
     return _repos(session)[3]
+
+
+def get_crawl_config_repo(session: RepositorySession = None) -> CrawlConfigRepo:
+    if session is None:
+        return get_in_memory_crawl_config_repo()
+    return PostgresCrawlConfigRepo(session)
 
 
 def get_artifact_store() -> ArtifactStore:
