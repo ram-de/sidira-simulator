@@ -90,11 +90,15 @@ git -C /opt/sidira/repo log -1 --oneline
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 
 # The new route(s) exist — lists every path the running API serves
-docker exec sidira-api python -c "import urllib.request, json; print('\n'.join(sorted(json.load(urllib.request.urlopen('http://localhost:8000/openapi.json'))['paths'])))"
+docker exec sidira-api python -c "import urllib.request, json, os; req = urllib.request.Request('http://localhost:8000/openapi.json', headers={'X-Sidira-Internal-Key': os.environ.get('SIDIRA_INTERNAL_API_KEY', '')}); print('\n'.join(sorted(json.load(urllib.request.urlopen(req))['paths'])))"
 ```
 
 (The API container only exposes port 8000 on the internal Docker network, hence
-`docker exec` rather than curl from the host.)
+`docker exec` rather than curl from the host. The `X-Sidira-Internal-Key`
+header is required even from localhost — the `internal_api_key_gate`
+middleware answers 404 to any request without it, deliberately
+indistinguishable from a missing route — so the command reads the key from the
+container's own environment.)
 
 Finally, reload the affected page on https://app.sidira.ai — the 404 banner
 should be gone.
