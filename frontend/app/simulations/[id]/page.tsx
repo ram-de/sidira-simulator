@@ -11,10 +11,25 @@ import {
   listSimulationAgents,
   type RunEvent,
   type Simulation,
+  type SimulationResult,
   type SimulationRunState,
   type SimulationStatus,
 } from "@/lib/api";
-import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
+import {
+  TOKENS,
+  FONT_SANS,
+  FONT_NARROW,
+  FONT_MONO,
+  EASE_MECH,
+  EASE_SETTLE,
+  TNUM,
+} from "@/lib/design";
+
+// ───────────────────────────────────────────────────────────────────────
+// Instrument panel — DESIGN.md §7/§8/§9 (R2 PR 4, #166).
+// Paper = the static record (hypothesis, registers, provenance);
+// glass = live computed readings only (agreement trace, CI axis, lift).
+// ───────────────────────────────────────────────────────────────────────
 
 // Recessed-paper chips differentiated by fg only — tinted backgrounds are off
 // the R2 palette. Running reads as ink (live = §9.5 lime carrier, never lime
@@ -95,6 +110,50 @@ function describeEvent(ev: RunEvent): string {
   return `[${formatTime(ev.at)}] ${ev.type}${suffix}`;
 }
 
+// The backend does not return a decision policy or threshold — this constant
+// is the page's DISPLAY RUBRIC, codifying the shipped "≥80 = validated" copy
+// as an explicit decision rule (DESIGN.md §8.1: a verdict never appears
+// without the policy that produced it). Disclosed as a display rubric in the
+// method card and the provenance rail; flagged as a data gap in #166.
+const DECISION_POLICY = {
+  id: "DR-1",
+  threshold: 80,
+  rule: "SHIP CANDIDATE IF AGREEMENT ≥ 80 / 100",
+} as const;
+
+// Same base the API client uses (lib/api.ts keeps it private) — only for the
+// provenance rail's raw-artifact links. Not a new API call: these are the
+// exact endpoints this page already reads, exposed as inspectable JSON.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
+
+// One accumulated point per poll tick — DESIGN.md §9.7: the trace IS the
+// progress indicator; points are event-driven (no per-point tween).
+type TracePoint = { x: number; y: number };
+
+// Verdict lexicon — MVP states only (DESIGN.md §8.1). "DECISIVE" is reserved
+// for calibrated readings and MUST NOT appear while the ledger is empty.
+function verdictFor(
+  status: SimulationStatus,
+  result: SimulationResult | null,
+): { label: string; fg: string } {
+  if (status === "failed")
+    return { label: "RUN FAILED — NO VERDICT", fg: TOKENS.alert };
+  if (status !== "complete" || !result)
+    return { label: "READING IN PROGRESS", fg: TOKENS.inkMuted };
+  const underpowered = (result.weaknesses ?? []).some(
+    (w) => w.category === "underpowered_design",
+  );
+  if (underpowered)
+    return { label: "UNDERPOWERED — TREAT AS DIRECTIONAL", fg: TOKENS.inkMuted };
+  const s = result.confidence_score;
+  if (s >= DECISION_POLICY.threshold)
+    return { label: "HIGH SIM AGREEMENT · SHIP CANDIDATE", fg: TOKENS.success };
+  if (s >= 60)
+    return { label: "DIRECTIONAL — BELOW SHIP THRESHOLD", fg: TOKENS.inkMuted };
+  // Codex P3 (#166): a sub-60 score IS low agreement — say so.
+  return { label: "LOW SIM AGREEMENT · DO NOT SHIP", fg: TOKENS.alert };
+}
+
 const cardStyle: React.CSSProperties = {
   border: `0.75px solid ${TOKENS.rule}`,
   borderRadius: 4,
@@ -102,6 +161,59 @@ const cardStyle: React.CSSProperties = {
   marginBottom: 24,
   fontFamily: FONT_SANS,
 };
+
+const monoLabelStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: 0.8,
+  textTransform: "uppercase",
+  color: TOKENS.inkMuted,
+};
+
+const glassLabelStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: 0.8,
+  textTransform: "uppercase",
+  color: TOKENS.glassMuted,
+};
+
+// §9.4 reading choreography. Every class animates FROM a hidden state with
+// `backwards` fill, so the element's resting CSS is the settled end frame —
+// prefers-reduced-motion simply removes the animations and the panel renders
+// fully settled. Fires once per data arrival (the result DOM mounts once;
+// polling stops at terminal status).
+const PAGE_STYLE = `
+@keyframes simd-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes simd-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes simd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes simd-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes simd-scalex { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes simd-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.simd-wipe { animation: simd-wipe 240ms ${EASE_MECH} backwards; }
+.simd-draw { stroke-dasharray: 1; animation: simd-draw 800ms ${EASE_SETTLE} 120ms backwards; }
+.simd-num { animation: simd-fade 120ms ease-out 800ms backwards; }
+.simd-band { transform-box: fill-box; transform-origin: left center; animation: simd-scalex 220ms ${EASE_MECH} 940ms backwards; }
+.simd-lift { animation: simd-fade 800ms ${EASE_SETTLE} 280ms backwards; }
+.simd-row { animation: simd-rise 180ms ${EASE_MECH} backwards; }
+.simd-late { animation: simd-fade 220ms ease-out 960ms backwards; }
+.simd-carrier { animation: simd-pulse 3.4s ease-in-out infinite; }
+.simd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.simd-glassgrid { display: grid; grid-template-columns: 1.4fr 1fr; }
+.simd-tele { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+/* !important: the link sets color inline, which would otherwise win and
+   leave ink-on-ink text while the hover background is applied. */
+.simd-qbtn:hover { background: ${TOKENS.ink}; color: ${TOKENS.paper} !important; }
+@media (max-width: 1023px) { .simd-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 859px) {
+  .simd-glassgrid { grid-template-columns: 1fr; }
+  .simd-tele { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .simd-wipe, .simd-draw, .simd-num, .simd-band, .simd-lift, .simd-row, .simd-late { animation: none !important; }
+  .simd-carrier { animation: none !important; opacity: 1 !important; }
+}
+`;
 
 export default function SimulationDetailPage() {
   const params = useParams<{ id: string }>();
@@ -122,12 +234,26 @@ export default function SimulationDetailPage() {
   const [agentMetaError, setAgentMetaError] = useState<string | null>(null);
   const hadRunning = useRef(false);
   const [isSettling, setIsSettling] = useState(false);
+  // §9.7 live plotting: one accumulated point per observed score reading.
+  // The backend exposes no time series; this is the only honest source of a
+  // trace — readings the page actually witnessed while polling. Score
+  // sources: partial_score (forward-compatible — today's runner never sets
+  // it mid-run) and `score.updated` events in the recent-events window
+  // (codex P2 on #166). Progress ticks accumulate independently so the
+  // instrument shows readings arriving even before any score exists.
+  const [livePoints, setLivePoints] = useState<TracePoint[]>([]);
+  const [liveTicks, setLiveTicks] = useState<number[]>([]);
+  // Inspector rail selection — null = first persona group.
+  const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
 
   // Reset settle state when the sim id changes so navigating from a running sim
   // to an already-terminal sim doesn't spuriously fire the aperture-close animation.
   useLayoutEffect(() => {
     hadRunning.current = false;
     setIsSettling(false);
+    setLivePoints([]);
+    setLiveTicks([]);
+    setSelectedPersona(null);
   }, [id]);
 
   // Initial fetch of the simulation.
@@ -221,6 +347,40 @@ export default function SimulationDetailPage() {
     };
   }, []);
 
+  // Accumulate live trace data from poll ticks (§9.7). Event-driven: each
+  // observation appends; no interpolation, no per-point tween.
+  //
+  // Codex P2 (#166): today's runner only emits a score via the
+  // `score.updated` event (at scoring end) — `partial_score` is never set
+  // mid-run. So the trace harvests BOTH sources, and progress ticks
+  // accumulate from completion counts alone so the glass shows readings
+  // arriving even while no score reading exists yet.
+  useEffect(() => {
+    if (!state) return;
+    const total = state.agents_total ?? 0;
+    if (total <= 0) return;
+    const done = (state.agents_complete ?? 0) + (state.agents_failed ?? 0);
+    const x = Math.min(1, done / total);
+    if (done > 0) {
+      setLiveTicks((ts) => (ts[ts.length - 1] === x ? ts : [...ts, x]));
+    }
+    let score: number | null = state.partial_score ?? null;
+    if (score == null) {
+      for (const ev of state.recent_events ?? []) {
+        if (ev.type !== "score.updated") continue;
+        const s = ev.payload?.score;
+        if (typeof s === "number" && Number.isFinite(s)) score = s;
+      }
+    }
+    if (score == null) return;
+    const y = score;
+    setLivePoints((pts) => {
+      const last = pts[pts.length - 1];
+      if (last && last.x === x && last.y === y) return pts;
+      return [...pts, { x, y }];
+    });
+  }, [state]);
+
   // Track when the sim transitions from running → terminal to drive the
   // 800ms aperture-close settle window (DESIGN.md §9.1 + §9.2).
   // useLayoutEffect fires before paint so markAnimating stays true on the
@@ -285,8 +445,9 @@ export default function SimulationDetailPage() {
   if (!loaded) {
     return (
       <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
-        <p style={{ textAlign: "center", color: TOKENS.inkMuted, fontSize: 16 }}>
-          Loading simulation...
+        {/* Honest pending text — no spinner (DESIGN.md §10). */}
+        <p style={{ textAlign: "center", color: TOKENS.inkMuted, fontSize: 14, fontFamily: FONT_MONO, letterSpacing: 0.5 }}>
+          LOADING SIMULATION&hellip;
         </p>
       </main>
     );
@@ -295,11 +456,11 @@ export default function SimulationDetailPage() {
   if (notFound) {
     return (
       <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
-        <h1 style={{ fontSize: 22, color: TOKENS.ink, marginBottom: 12 }}>
+        <h1 style={{ fontSize: 22, color: TOKENS.ink, marginBottom: 12, fontFamily: FONT_NARROW }}>
           Simulation not found
         </h1>
         <p style={{ color: TOKENS.inkMuted, fontSize: 16 }}>
-          We couldn't find a simulation with id <code>{id}</code>.
+          No simulation exists with id <code style={{ fontFamily: FONT_MONO }}>{id}</code>.
         </p>
         <p style={{ marginTop: 16 }}>
           <Link href="/simulations" style={{ color: TOKENS.ink }}>
@@ -326,17 +487,46 @@ export default function SimulationDetailPage() {
   const markAnimating = !terminal || isSettling;
   const agentIds = sim.agent_instance_ids ?? [];
   const result = sim.result ?? null;
+  const completeResult = status === "complete" ? result : null;
+  const hasLift = sim.arm_split != null;
 
   const agentsTotal = state?.agents_total ?? 0;
   const agentsComplete = state?.agents_complete ?? 0;
   const agentsFailed = state?.agents_failed ?? 0;
   const done = agentsComplete + agentsFailed;
-  const progressPct =
-    agentsTotal > 0 ? Math.min(100, Math.round((done / agentsTotal) * 100)) : 0;
-  const recent = (state?.recent_events ?? []).slice(-5).reverse();
+  const recent = (state?.recent_events ?? []).slice(-6).reverse();
+
+  const verdict = verdictFor(status, result);
+  const personaGroups = agentMeta != null ? groupAgents(agentMeta) : null;
+  const personaCount = personaGroups != null ? personaGroups.length : null;
+  const model = modelDisplay(sim.model_id ?? null);
+
+  const whyLine = (() => {
+    if (status === "failed")
+      return "WHY: RUN TERMINATED BEFORE A READING SETTLED — POLICY DR-1 NOT EVALUATED";
+    if (!completeResult)
+      return `WHY: VERDICT PRINTS WHEN THE READING SETTLES — POLICY ${DECISION_POLICY.id} APPLIES AT THRESHOLD ${DECISION_POLICY.threshold}`;
+    const s = completeResult.confidence_score;
+    const cmp = s >= DECISION_POLICY.threshold ? "≥" : "<";
+    const w = (completeResult.weaknesses ?? []).length;
+    return `WHY: AGREEMENT ${s.toFixed(1)} ${cmp} THRESHOLD ${DECISION_POLICY.threshold} (POLICY ${DECISION_POLICY.id}) · ${w} WEAKNESS FINDING${w === 1 ? "" : "S"} · RAW SIM READING — UNCALIBRATED (LEDGER EMPTY)`;
+  })();
+
+  const armsLabel = (() => {
+    if (sim.arm_split == null) return "SINGLE";
+    const t = Math.round((sim.arm_split.treatment_fraction ?? 0.5) * 100);
+    return `A/B ${t}/${100 - t}`;
+  })();
+
+  const readingsLabel = terminal
+    ? `${agentIds.length}`
+    : agentsTotal > 0
+      ? `${done} OF ${agentsTotal}`
+      : "—";
 
   return (
-    <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px" }}>
+    <main style={{ maxWidth: 1320, margin: "32px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
+      <style dangerouslySetInnerHTML={{ __html: PAGE_STYLE }} />
       {error && (
         <div
           style={{
@@ -354,520 +544,1707 @@ export default function SimulationDetailPage() {
         </div>
       )}
 
-      {/* Header */}
-      <section style={cardStyle}>
-        <ApertureMark size={32} animating={markAnimating} />
-        <div
-          style={{
-            fontSize: 11,
-            color: TOKENS.inkMuted,
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-            marginBottom: 8,
-            marginTop: 12,
-            fontFamily: FONT_MONO,
-          }}
-        >
-          Simulation
-        </div>
-        <h1
-          style={{
-            fontSize: 22,
-            lineHeight: 1.35,
-            color: TOKENS.ink,
-            margin: 0,
-            marginBottom: 16,
-            fontWeight: 600,
-          }}
-        >
-          {sim.hypothesis.prose}
-        </h1>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Pill label="capability" value={sim.hypothesis.capability_name} />
-          <Pill label="personas" value={sim.persona_pack_version} />
-          <Pill label="features" value={sim.feature_pack_version} />
-          <span
-            style={{
-              fontSize: 11,
-              padding: "3px 8px",
-              borderRadius: 4,
-              background: statusColor.bg,
-              color: statusColor.fg,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              fontFamily: FONT_MONO,
-            }}
-          >
-            {status}
-          </span>
-        </div>
-      </section>
-
-      {/* Live progress (while not terminal) */}
-      {!terminal && (
-        <section style={cardStyle}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 16,
-            }}
-          >
-            <h2 style={{ fontSize: 20, color: TOKENS.ink, margin: 0 }}>Running…</h2>
-            {state?.phase && (
-              <span style={{ color: TOKENS.inkMuted, fontSize: 13, fontFamily: FONT_MONO }}>
-                phase: {state.phase}
-              </span>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                fontSize: 13,
-                color: TOKENS.inkMuted,
-                marginBottom: 6,
-                fontFamily: FONT_MONO,
-                ...TNUM,
-              }}
-            >
-              agents reacting: {done} of {agentsTotal}
-              {agentsFailed > 0 && (
-                <span style={{ color: TOKENS.alert, marginLeft: 8 }}>
-                  ({agentsFailed} failed)
-                </span>
-              )}
+      <div className="simd-grid">
+        {/* ── Evidence column ─────────────────────────────────────────── */}
+        <div style={{ minWidth: 0 }}>
+          {/* Zone 1 — hypothesis header strip (§7.2) */}
+          <section style={{ ...cardStyle, paddingBottom: 20 }}>
+            <div style={{ ...monoLabelStyle, marginBottom: 12 }}>
+              <Link href="/simulations" style={{ color: TOKENS.inkMuted, textDecoration: "none" }}>
+                SIMULATIONS
+              </Link>
+              {" / "}
+              <span style={{ color: TOKENS.ink }}>SIM-{sim.id.slice(0, 8).toUpperCase()}</span>
             </div>
+
+            {/* Lineage rail — SIMULATED → DECISION only. No live-outcome
+                stage exists yet (ledger empty); inventing one would be
+                synthetic lineage. */}
             <div
               style={{
-                height: 4,
-                background: TOKENS.paperRecessed,
-                borderRadius: 2,
-                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                ...monoLabelStyle,
+                marginBottom: 16,
               }}
             >
-              <div
+              <span
+                aria-hidden
                 style={{
-                  height: "100%",
-                  width: `${progressPct}%`,
-                  background: TOKENS.ink,
-                  transition: "width 200ms ease",
+                  width: 6,
+                  height: 6,
+                  background: status === "failed" ? TOKENS.alert : TOKENS.ink,
+                  display: "inline-block",
                 }}
               />
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: TOKENS.inkMuted,
-                textTransform: "uppercase",
-                letterSpacing: 0.8,
-                marginBottom: 8,
-                fontFamily: FONT_MONO,
-              }}
-            >
-              Recent events
-            </div>
-            {recent.length === 0 ? (
-              <div style={{ color: TOKENS.inkMuted, fontSize: 14 }}>
-                Waiting for first event…
-              </div>
-            ) : (
-              <ul
+              <span style={{ color: TOKENS.ink }}>SIMULATED</span>
+              <span
+                aria-hidden
+                style={{ width: 32, height: 0.75, background: TOKENS.rule, display: "inline-block" }}
+              />
+              <span
+                aria-hidden
                 style={{
-                  listStyle: "none",
-                  padding: 12,
-                  margin: 0,
-                  background: TOKENS.paperElevated,
-                  borderRadius: 4,
-                  fontFamily: FONT_MONO,
-                  fontSize: 13,
-                  color: TOKENS.ink,
+                  width: 6,
+                  height: 6,
+                  display: "inline-block",
+                  background: status === "complete" ? TOKENS.ink : "transparent",
+                  border: `0.75px solid ${status === "complete" ? TOKENS.ink : TOKENS.inkMuted}`,
                 }}
-              >
-                {recent.map((ev, i) => (
-                  <li key={`${ev.at}-${i}`} style={{ padding: "2px 0" }}>
-                    {describeEvent(ev)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      )}
+              />
+              <span style={{ color: status === "complete" ? TOKENS.ink : TOKENS.inkMuted }}>
+                DECISION
+              </span>
+              <span style={{ color: TOKENS.inkMuted }}>· NO LIVE OUTCOMES IN THIS LINEAGE</span>
+            </div>
 
-      {/* Result (complete) */}
-      {status === "complete" && result && (
-        <>
-          <ModelBanner modelId={sim?.model_id ?? null} />
-
-          {/* Phase 5 #101: cohort banner. Renders only when the PM submitted
-              a persona filter (sim.selected_personas != null). Lists N of M
-              with persona names so a PM revisiting the page in two weeks
-              remembers they filtered. Names come from agentMeta (already
-              loaded on terminal status); falls back to IDs if agentMeta
-              hasn't joined yet. */}
-          {sim?.selected_personas != null && (
-            <CohortBanner
-              selectedIds={sim.selected_personas}
-              agentMeta={agentMeta}
-            />
-          )}
-
-          {(sim?.population_size != null ||
-            sim?.sampled_agent_count != null) && (
-            <section
-              style={{
-                ...cardStyle,
-                padding: "12px 16px",
-                background: TOKENS.paperElevated,
-                color: TOKENS.inkMuted,
-                fontSize: 14,
-              }}
-            >
-              <strong style={{ color: TOKENS.ink }}>Population:</strong>{" "}
-              {sim.population_size?.toLocaleString() ?? "—"} (sampled:{" "}
-              {sim.sampled_agent_count ?? "—"} agent
-              {sim.sampled_agent_count === 1 ? "" : "s"}
-              {sim.arm_split != null && sim.sampled_agent_count != null
-                ? ` per arm — ${2 * sim.sampled_agent_count} total across treatment + control,`
-                : ""}
-              {" "}in proportion to persona weights)
-            </section>
-          )}
-
-          {/* Phase 4.6 #91 A/B UI gate.
-              Codex R1-P2: lift=null alone collapses "single-arm" and "A/B
-              with no matched pairs" together. First fix was to key off
-              `lift_paired_n != null`.
-              Codex R4-P2: if A/B fully fails (zero successful agents),
-              SimulationRunner._score returns the generic placeholder with
-              NO lift_paired_n at all — that misclassifies as single-arm
-              again. The request-level field `sim.arm_split` is the ground
-              truth for "user asked for A/B," independent of whether the
-              backend produced any per-arm data. Gate everything off that;
-              LiftCard handles all three result-shape variants internally
-              (good lift, paired_n=0, paired_n=null). */}
-          {sim.arm_split != null && (
-            <LiftCard
-              lift={result.lift ?? null}
-              liftCi={result.lift_ci ?? null}
-              pairedN={result.lift_paired_n ?? null}
-              unpairedTreatment={result.lift_unpaired_treatment ?? 0}
-              unpairedControl={result.lift_unpaired_control ?? 0}
-              sentimentFailureDrops={result.lift_sentiment_failure_drops ?? 0}
-            />
-          )}
-
-          {sim.arm_split == null ? (
-            <section style={cardStyle}>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: TOKENS.inkMuted,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginBottom: 8,
-                  fontFamily: FONT_MONO,
-                }}
-              >
-                Confidence score
-              </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+              <ApertureMark size={32} animating={markAnimating} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h1
+                  style={{
+                    fontSize: 24,
+                    lineHeight: 1.3,
+                    color: TOKENS.ink,
+                    margin: 0,
+                    marginBottom: 10,
+                    fontWeight: 600,
+                    fontFamily: FONT_NARROW,
+                  }}
+                >
+                  {sim.hypothesis.prose}
+                </h1>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {/* Decision-rule primitive (§8.1): verdict chip never
+                      renders without its policy designator. */}
+                  <span
+                    style={{
+                      fontFamily: FONT_MONO,
+                      fontSize: 11,
+                      letterSpacing: 0.6,
+                      padding: "3px 8px",
+                      borderRadius: 2,
+                      background: TOKENS.paperRecessed,
+                      border: `0.75px solid ${TOKENS.rule}`,
+                      color: verdict.fg,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {verdict.label}
+                  </span>
+                  <span style={{ ...monoLabelStyle }}>POLICY {DECISION_POLICY.id}</span>
+                </div>
                 <div
                   style={{
-                    fontSize: 64,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    color: scoreColor(result.confidence_score),
-                    fontFamily: FONT_MONO,
+                    ...monoLabelStyle,
+                    marginTop: 8,
+                    letterSpacing: 0.5,
+                    lineHeight: 1.6,
+                    textTransform: "none",
                     ...TNUM,
                   }}
                 >
-                  {Math.round(result.confidence_score)}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {result.confidence_score_ci && (
-                    <ConfidenceIntervalLabel
-                      ciLow={result.confidence_score_ci[0]}
-                      ciHigh={result.confidence_score_ci[1]}
-                      sampledAgentCount={sim?.sampled_agent_count ?? null}
-                    />
-                  )}
-                  <div style={{ fontSize: 14, color: TOKENS.inkMuted, maxWidth: 480 }}>
-                    &ge;80 = validated; below = needs refinement.
-                  </div>
+                  {whyLine}
                 </div>
               </div>
-              {result.confidence_score_ci && (
-                <ScoreCiBar
-                  score={result.confidence_score}
-                  ciLow={result.confidence_score_ci[0]}
-                  ciHigh={result.confidence_score_ci[1]}
-                />
-              )}
+            </div>
+
+            {/* Telemetry strip — wipes in (§9.4, 0–240ms). */}
+            <div
+              className="simd-tele simd-wipe"
+              style={{
+                marginTop: 20,
+                paddingTop: 14,
+                borderTop: `0.75px solid ${TOKENS.rule}`,
+              }}
+            >
+              <TeleCell label="MODEL" value={model ? model.label : "—"} />
+              <TeleCell label="CAPABILITY" value={sim.hypothesis.capability_name} />
+              <TeleCell label="READINGS" value={readingsLabel} />
+              <TeleCell label="ARMS" value={armsLabel} />
+              <TeleCell
+                label="POPULATION"
+                value={
+                  sim.population_size != null
+                    ? `${sim.population_size.toLocaleString()} · HAMILTON`
+                    : "—"
+                }
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...monoLabelStyle, marginBottom: 4 }}>STATUS</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: statusColor.fg,
+                    fontFamily: FONT_MONO,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                    display: "inline-block",
+                  }}
+                >
+                  {status}
+                  {/* §9.5 live carrier — 2px lime underline, 3.4s breathe.
+                      The only resting lime on this page; carrier, not text. */}
+                  {status === "running" && (
+                    <span
+                      aria-hidden
+                      className="simd-carrier"
+                      style={{ display: "block", height: 2, background: TOKENS.signal, marginTop: 3 }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Failure card */}
+          {status === "failed" && (
+            <section
+              style={{
+                ...cardStyle,
+                border: `0.75px solid ${TOKENS.alert}`,
+                background: TOKENS.paperRecessed,
+              }}
+            >
+              <h2 style={{ fontSize: 18, color: TOKENS.alert, margin: 0, marginBottom: 8, fontFamily: FONT_NARROW }}>
+                Simulation failed
+              </h2>
+              <div
+                style={{
+                  fontFamily: FONT_MONO,
+                  fontSize: 13,
+                  color: TOKENS.alert,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {state?.error ?? "Unknown error."}
+              </div>
             </section>
-          ) : (
-            <PerArmDetailCard
-              treatmentScore={result.treatment_score ?? result.confidence_score}
-              treatmentCi={result.confidence_score_ci ?? null}
-              controlScore={result.control_score ?? null}
-              sampledAgentCount={sim?.sampled_agent_count ?? null}
+          )}
+
+          {/* Zone 2 — glass instrument (live readings only, §4.2). */}
+          {completeResult != null && (
+            <GlassPanelComplete
+              sim={sim}
+              result={completeResult}
+              livePoints={livePoints}
+              personaCount={personaCount}
+            />
+          )}
+          {!terminal && (
+            <GlassPanelLive
+              livePoints={livePoints}
+              liveTicks={liveTicks}
+              done={done}
+              total={agentsTotal}
+              failed={agentsFailed}
             />
           )}
 
-          {result.weaknesses && result.weaknesses.length > 0 && (
+          {/* Run log — honest event feed; the trace above is the progress
+              indicator (§9.7 — no progress bar, no spinner). */}
+          {!terminal && (
             <section style={cardStyle}>
-              <h2
-                style={{
-                  fontSize: 20,
-                  color: TOKENS.ink,
-                  margin: 0,
-                  marginBottom: 16,
-                }}
-              >
-                Weaknesses
-              </h2>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {result.weaknesses.map((w, idx) => {
-                  // `w.supporting_agent_ids` is intentionally NOT surfaced as a
-                  // count here — the backend caps it at 5 (it's a sample for a
-                  // future click-to-expand interaction, not an accurate count).
-                  // The `N/M agents flagged this` line in `w.summary` is the
-                  // truthful count. See #69 for the prior "5 agents flagged
-                  // this" footer that was always literally 5 and misled PMs.
-                  const hasFreq =
-                    w.frequency != null &&
-                    w.ci_low != null &&
-                    w.ci_high != null;
-                  return (
-                    <li
-                      key={idx}
-                      style={{
-                        padding: "12px 0",
-                        borderTop: idx === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "baseline",
-                          justifyContent: "space-between",
-                          gap: 16,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 15,
-                            fontWeight: 600,
-                            color: TOKENS.ink,
-                            minWidth: 0,
-                          }}
-                        >
-                          {formatCategory(w.category)}
-                          <WeaknessCategoryInfo category={w.category} />
-                        </div>
-                        {hasFreq && (
-                          <div
-                            style={{
-                              fontSize: 13,
-                              color: TOKENS.inkMuted,
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {(w.frequency! * 100).toFixed(0)}% [
-                            {(w.ci_low! * 100).toFixed(0)}&ndash;
-                            {(w.ci_high! * 100).toFixed(0)}%]
-                          </div>
-                        )}
-                      </div>
-                      {hasFreq && (
-                        <WeaknessFrequencyBar
-                          frequency={w.frequency!}
-                          ciLow={w.ci_low!}
-                          ciHigh={w.ci_high!}
-                        />
-                      )}
-                      <div
-                        style={{
-                          fontSize: 14,
-                          color: TOKENS.ink,
-                          marginTop: hasFreq ? 8 : 0,
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {w.summary}
-                      </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 12 }}>
+                <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0 }}>RUN LOG</h2>
+                {state?.phase && (
+                  <span style={{ ...monoLabelStyle, letterSpacing: 0.5 }}>
+                    PHASE: {state.phase}
+                  </span>
+                )}
+                {agentsFailed > 0 && (
+                  <span style={{ ...monoLabelStyle, color: TOKENS.alert, letterSpacing: 0.5 }}>
+                    {agentsFailed} FAILED
+                  </span>
+                )}
+              </div>
+              {recent.length === 0 ? (
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted }}>
+                  AWAITING FIRST EVENT
+                </div>
+              ) : (
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 12,
+                    margin: 0,
+                    background: TOKENS.paperElevated,
+                    borderRadius: 2,
+                    fontFamily: FONT_MONO,
+                    fontSize: 12,
+                    color: TOKENS.ink,
+                    ...TNUM,
+                  }}
+                >
+                  {recent.map((ev, i) => (
+                    <li key={`${ev.at}-${i}`} style={{ padding: "2px 0" }}>
+                      {describeEvent(ev)}
                     </li>
-                  );
-                })}
-              </ul>
+                  ))}
+                </ul>
+              )}
             </section>
           )}
 
-          {result.refinement_suggestions &&
-            result.refinement_suggestions.length > 0 && (
-              <section style={cardStyle}>
-                <h2
-                  style={{
-                    fontSize: 20,
-                    color: TOKENS.ink,
-                    margin: 0,
-                    marginBottom: 16,
-                  }}
-                >
-                  Suggested refinements
-                </h2>
-                <ol
-                  style={{
-                    paddingLeft: 24,
-                    margin: 0,
-                    color: TOKENS.ink,
-                    fontSize: 15,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {result.refinement_suggestions.map((s, i) => (
-                    <li key={i} style={{ marginBottom: 6 }}>
-                      {s}
+          {/* Degraded A/B notes — paper, below the glass. Gated on
+              sim.arm_split (request-level ground truth, codex R1-P2/R4-P2). */}
+          {completeResult != null && hasLift && (
+            <LiftDegradedNotes result={completeResult} />
+          )}
+
+          {completeResult != null && hasLift && (
+            <PerArmDetailCard
+              treatmentScore={completeResult.treatment_score ?? completeResult.confidence_score}
+              treatmentCi={completeResult.confidence_score_ci ?? null}
+              controlScore={completeResult.control_score ?? null}
+              sampledAgentCount={sim.sampled_agent_count ?? null}
+            />
+          )}
+
+          {/* Phase 5 #101: cohort banner — only for persona-filtered runs. */}
+          {status === "complete" && sim.selected_personas != null && (
+            <CohortBanner selectedIds={sim.selected_personas} agentMeta={agentMeta} />
+          )}
+
+          {/* Weakness register (§8.4 — bare bars, no tracks). */}
+          {(status === "complete" || status === "running") && (
+            <WeaknessRegister result={completeResult} running={!terminal} />
+          )}
+
+          {/* Refinement queue */}
+          {completeResult?.refinement_suggestions != null &&
+            completeResult.refinement_suggestions.length > 0 && (
+              <RefinementQueue suggestions={completeResult.refinement_suggestions} />
+            )}
+
+          {/* Method card */}
+          {completeResult != null && (
+            <MethodCard modelId={sim.model_id ?? null} hasLift={hasLift} />
+          )}
+
+          {/* Cohort register — agents that participated */}
+          {agentIds.length > 0 && (
+            <section style={cardStyle}>
+              <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 16 }}>
+                COHORT REGISTER — AGENTS THAT PARTICIPATED
+              </h2>
+              {agentMetaError && (
+                <div style={{ fontSize: 13, color: TOKENS.alert, marginBottom: 12 }}>
+                  Persona breakdown failed to load ({agentMetaError}). Showing raw IDs below.
+                </div>
+              )}
+              {agentMeta == null && !agentMetaError && (
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted, marginBottom: 12 }}>
+                  REGISTER PENDING — {agentIds.length} AGENT
+                  {agentIds.length === 1 ? "" : "S"} TO JOIN
+                </div>
+              )}
+              {agentMeta != null ? (
+                <PersonaGroupedAgents agents={agentMeta} />
+              ) : (
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {agentIds.map((aid, i) => (
+                    <li
+                      key={aid}
+                      style={{
+                        padding: "8px 0",
+                        borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
+                        fontFamily: FONT_MONO,
+                        fontSize: 14,
+                      }}
+                    >
+                      <Link
+                        href={`/agents/${aid}`}
+                        style={{ color: TOKENS.ink, textDecoration: "underline", textDecorationColor: TOKENS.rule }}
+                      >
+                        {aid.slice(0, 8)}
+                      </Link>
+                      <span style={{ color: TOKENS.inkMuted, marginLeft: 8, fontSize: 12 }}>
+                        {aid}
+                      </span>
                     </li>
                   ))}
-                </ol>
-              </section>
-            )}
-        </>
-      )}
+                </ul>
+              )}
+            </section>
+          )}
+        </div>
 
-      {/* Failure */}
-      {status === "failed" && (
-        <section
-          style={{
-            ...cardStyle,
-            border: `0.75px solid ${TOKENS.alert}`,
-            background: TOKENS.paperRecessed,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 18,
-              color: TOKENS.alert,
-              margin: 0,
-              marginBottom: 8,
-            }}
-          >
-            Simulation failed
-          </h2>
-          <div
-            style={{
-              fontFamily:
-                FONT_MONO,
-              fontSize: 13,
-              color: TOKENS.alert,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {state?.error ?? "Unknown error."}
-          </div>
-        </section>
-      )}
-
-      {/* Agents that participated — grouped by persona */}
-      {agentIds.length > 0 && (
-        <section style={cardStyle}>
-          <h2
-            style={{
-              fontSize: 20,
-              color: TOKENS.ink,
-              margin: 0,
-              marginBottom: 16,
-            }}
-          >
-            Agents that participated
-          </h2>
-          {agentMetaError && (
-            <div
-              style={{
-                fontSize: 13,
-                color: TOKENS.alert,
-                marginBottom: 12,
-              }}
-            >
-              Couldn&rsquo;t load persona breakdown ({agentMetaError}).
-              Showing raw IDs below.
-            </div>
-          )}
-          {agentMeta == null && !agentMetaError && (
-            <div style={{ fontSize: 13, color: TOKENS.inkMuted, marginBottom: 12 }}>
-              Loading persona breakdown for {agentIds.length} agent
-              {agentIds.length === 1 ? "" : "s"}…
-            </div>
-          )}
-          {agentMeta != null ? (
-            <PersonaGroupedAgents agents={agentMeta} />
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {agentIds.map((aid, i) => (
-                <li
-                  key={aid}
-                  style={{
-                    padding: "8px 0",
-                    borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
-                    fontFamily:
-                      FONT_MONO,
-                    fontSize: 14,
-                  }}
-                >
-                  <Link
-                    href={`/agents/${aid}`}
-                    style={{ color: TOKENS.ink, textDecoration: "underline", textDecorationColor: TOKENS.rule }}
-                  >
-                    {aid.slice(0, 8)}
-                  </Link>
-                  <span style={{ color: TOKENS.inkMuted, marginLeft: 8, fontSize: 12 }}>
-                    {aid}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+        {/* ── Zone 3 — inspector rail (§7.2, 340px paper-elevated) ────── */}
+        <InspectorRail
+          sim={sim}
+          status={status}
+          agentMeta={agentMeta}
+          personaGroups={personaGroups}
+          selectedPersona={selectedPersona}
+          onSelectPersona={setSelectedPersona}
+        />
+      </div>
     </main>
   );
 }
 
-function ModelBanner({ modelId }: { modelId: string | null }) {
-  const model = modelDisplay(modelId);
-  const body =
-    model == null
-      ? "Not tracked for this legacy run. New simulations store the selected model so comparisons can account for model variance."
-      : `Ran on ${model.label} (${model.provider}). Reactions, classifiers, and lift reflect this model; comparing runs across models should be read as model variance, not only product variance.`;
+function TeleCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ ...monoLabelStyle, marginBottom: 4 }}>{label}</div>
+      <div
+        style={{
+          fontSize: 13,
+          color: TOKENS.ink,
+          fontFamily: FONT_MONO,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          ...TNUM,
+        }}
+        title={value}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Glass instrument — DESIGN.md §4.2 / §8.2 / §9.4 / §9.7.
+// ───────────────────────────────────────────────────────────────────────
+
+// Trace geometry: viewBox 0..100 × 0..56, stretched to the container with
+// preserveAspectRatio="none". Only lines/rects/paths live inside the SVG
+// (non-scaling strokes); ALL text labels are HTML overlay rows so glyphs
+// never stretch.
+const TRACE_H = 56;
+const traceY = (score: number) =>
+  52 - (Math.max(0, Math.min(100, score)) / 100) * 48;
+const traceX = (t: number) => Math.max(0, Math.min(1, t)) * 100;
+
+function tracePath(pts: TracePoint[], flatFullWidth: boolean): string {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) {
+    const y = traceY(pts[0].y).toFixed(2);
+    if (flatFullWidth) return `M 0 ${y} L 100 ${y}`;
+    const x = traceX(pts[0].x);
+    return `M ${Math.max(0, x - 1).toFixed(2)} ${y} L ${Math.min(100, x + 1).toFixed(2)} ${y}`;
+  }
+  return pts
+    .map(
+      (p, i) =>
+        `${i === 0 ? "M" : "L"} ${traceX(p.x).toFixed(2)} ${traceY(p.y).toFixed(2)}`,
+    )
+    .join(" ");
+}
+
+function GlassTrace({
+  points,
+  ticks = [],
+  settle,
+  flatFullWidth,
+  readingsLabel,
+  emptyLabel = "AWAITING FIRST READING",
+}: {
+  points: TracePoint[];
+  // Progress ticks (live runs): one baseline tick per observed completion
+  // fraction. Honest "readings are arriving" signal for the window where no
+  // score reading exists yet (codex P2 on #166 — today's backend emits the
+  // score only at scoring end).
+  ticks?: number[];
+  settle: boolean;
+  flatFullWidth: boolean;
+  readingsLabel: string;
+  emptyLabel?: string;
+}) {
+  const d = tracePath(points, flatFullWidth);
+  const thrY = traceY(DECISION_POLICY.threshold).toFixed(2);
+  return (
+    <div style={{ position: "relative", height: 120, margin: "10px 0 4px" }}>
+      <svg
+        viewBox={`0 0 100 ${TRACE_H}`}
+        preserveAspectRatio="none"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}
+        aria-hidden
+      >
+        {/* Threshold reference — part of the instrument, not the data. */}
+        <line
+          x1="0"
+          y1={thrY}
+          x2="100"
+          y2={thrY}
+          stroke={TOKENS.glassMuted}
+          strokeWidth={1}
+          strokeDasharray="1.5 1.5"
+          vectorEffect="non-scaling-stroke"
+        />
+        {/* Baseline progress ticks — lime is the live-state carrier (§4.2). */}
+        {ticks.map((t) => (
+          <line
+            key={t}
+            x1={traceX(t)}
+            y1={traceY(0)}
+            x2={traceX(t)}
+            y2={traceY(0) - 3}
+            stroke={TOKENS.signal}
+            strokeWidth={1}
+            opacity={0.7}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {d !== "" && (
+          <>
+            {/* Phosphor underdraw — same path, wide + faint. */}
+            <path
+              className={settle ? "simd-draw" : undefined}
+              d={d}
+              fill="none"
+              stroke={TOKENS.signal}
+              strokeWidth={5}
+              opacity={0.18}
+              vectorEffect="non-scaling-stroke"
+              pathLength={1}
+            />
+            <path
+              className={settle ? "simd-draw" : undefined}
+              d={d}
+              fill="none"
+              stroke={TOKENS.signal}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+              pathLength={1}
+            />
+          </>
+        )}
+      </svg>
+      {d === "" && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...glassLabelStyle,
+          }}
+        >
+          {emptyLabel}
+        </div>
+      )}
+      {/* HTML overlay labels (never stretched SVG text). */}
+      <div style={{ position: "absolute", top: 2, right: 0, ...glassLabelStyle, fontSize: 9 }}>
+        THR {DECISION_POLICY.threshold}
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: -14,
+          display: "flex",
+          justifyContent: "space-between",
+          ...glassLabelStyle,
+          fontSize: 9,
+          ...TNUM,
+        }}
+      >
+        <span>0</span>
+        <span>READINGS</span>
+        <span>{readingsLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+// CI axis on glass: baseline + ticks + dashed threshold + CI band (scaleX
+// settle) + lime point marker. Labels live in HTML rows above/below.
+function GlassCiAxis({
+  score,
+  ciLow,
+  ciHigh,
+}: {
+  score: number;
+  ciLow: number | null;
+  ciHigh: number | null;
+}) {
+  const hasCi = ciLow != null && ciHigh != null;
+  const { v, lo, hi } = _safeRange(score, ciLow ?? score, ciHigh ?? score, 0, 100);
+  const collapsed = !hasCi || hi - lo < _CI_COLLAPSE_THRESHOLD;
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          ...glassLabelStyle,
+          fontSize: 9,
+          marginBottom: 2,
+        }}
+      >
+        <span>AGREEMENT SCALE 0–100</span>
+        <span>THR {DECISION_POLICY.threshold}</span>
+      </div>
+      <svg
+        viewBox="0 0 100 20"
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: 28, display: "block" }}
+        aria-hidden
+      >
+        <line x1="0" y1="14" x2="100" y2="14" stroke={TOKENS.glassRule} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        {[0, 25, 50, 75, 100].map((t) => (
+          <line
+            key={t}
+            x1={t}
+            y1="11"
+            x2={t}
+            y2="17"
+            stroke={TOKENS.glassRule}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        <line
+          x1={DECISION_POLICY.threshold}
+          y1="2"
+          x2={DECISION_POLICY.threshold}
+          y2="18"
+          stroke={TOKENS.glassMuted}
+          strokeWidth={1}
+          strokeDasharray="1.5 1.5"
+          vectorEffect="non-scaling-stroke"
+        />
+        {!collapsed && (
+          <rect
+            className="simd-band"
+            x={lo}
+            y="6"
+            width={Math.max(0, hi - lo)}
+            height="8"
+            fill={TOKENS.glassText}
+            fillOpacity={0.13}
+          />
+        )}
+        <line
+          x1={v}
+          y1="4"
+          x2={v}
+          y2="16"
+          stroke={TOKENS.signal}
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          ...glassLabelStyle,
+          fontSize: 9,
+          marginTop: 2,
+          ...TNUM,
+        }}
+      >
+        <span>0</span>
+        <span>50</span>
+        <span>100</span>
+      </div>
+      <div style={{ ...glassLabelStyle, marginTop: 8, letterSpacing: 0.5, lineHeight: 1.6, ...TNUM }}>
+        {!hasCi
+          ? "CI UNAVAILABLE FOR THIS RUN"
+          : collapsed
+            ? "NARROW INTERVAL — BAND BELOW DISPLAY RESOLUTION"
+            : `95% CI [${lo.toFixed(1)}, ${hi.toFixed(1)}] — LOWER BOUND ${
+                lo >= DECISION_POLICY.threshold ? "CLEARS" : "DOES NOT CLEAR"
+              } THRESHOLD ${DECISION_POLICY.threshold}`}
+      </div>
+    </div>
+  );
+}
+
+// Paired-lift axis: delta scale centred on the control baseline (0). The
+// treatment tick is the live marker; the CI band is glassText at 0.13.
+function GlassLiftAxis({ lift, ci }: { lift: number; ci: [number, number] | null }) {
+  const vals = [0, lift, ...(ci ?? [])];
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  const span = Math.max(hi - lo, 1);
+  const pad = span * 0.18;
+  const min = lo - pad;
+  const max = hi + pad;
+  const xOf = (v: number) => ((v - min) / (max - min)) * 100;
+  const clampPct = (p: number) => Math.max(8, Math.min(92, p));
+  const sign = lift > 0 ? "+" : lift < 0 ? "−" : "±";
+  return (
+    <div style={{ position: "relative", paddingTop: 14, paddingBottom: 14 }}>
+      <span
+        style={{
+          position: "absolute",
+          top: 0,
+          left: `${clampPct(xOf(lift))}%`,
+          transform: "translateX(-50%)",
+          ...glassLabelStyle,
+          fontSize: 9,
+          color: TOKENS.glassText,
+          whiteSpace: "nowrap",
+          ...TNUM,
+        }}
+      >
+        T {sign}{Math.abs(lift).toFixed(1)}
+      </span>
+      <svg
+        viewBox="0 0 100 16"
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: 24, display: "block" }}
+        aria-hidden
+      >
+        <line x1="0" y1="8" x2="100" y2="8" stroke={TOKENS.glassRule} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        {ci != null && (
+          <rect
+            className="simd-band"
+            x={Math.min(xOf(ci[0]), xOf(ci[1]))}
+            y="4"
+            width={Math.abs(xOf(ci[1]) - xOf(ci[0]))}
+            height="8"
+            fill={TOKENS.glassText}
+            fillOpacity={0.13}
+          />
+        )}
+        <line
+          x1={xOf(0)}
+          y1="1"
+          x2={xOf(0)}
+          y2="15"
+          stroke={TOKENS.glassMuted}
+          strokeWidth={1}
+          strokeDasharray="1.5 1.5"
+          vectorEffect="non-scaling-stroke"
+        />
+        <line
+          x1={xOf(lift)}
+          y1="2"
+          x2={xOf(lift)}
+          y2="14"
+          stroke={TOKENS.signal}
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <span
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: `${clampPct(xOf(0))}%`,
+          transform: "translateX(-50%)",
+          ...glassLabelStyle,
+          fontSize: 9,
+          whiteSpace: "nowrap",
+        }}
+      >
+        C 0 (BASELINE)
+      </span>
+    </div>
+  );
+}
+
+function GlassPanelComplete({
+  sim,
+  result,
+  livePoints,
+  personaCount,
+}: {
+  sim: Simulation;
+  result: SimulationResult;
+  livePoints: TracePoint[];
+  personaCount: number | null;
+}) {
+  const hasLift = sim.arm_split != null;
+  const ci = result.confidence_score_ci ?? null;
+  const lift = result.lift ?? null;
+  const liftCi = result.lift_ci ?? null;
+  const pairedN = result.lift_paired_n ?? null;
+  const nReadings = (sim.agent_instance_ids ?? []).length;
+
+  // Settled trace = every point the page witnessed live, plus the final
+  // reading. A page opened after completion has no witnessed points — the
+  // trace settles as a flat line at the final score (honest: one reading).
+  const pts: TracePoint[] = [...livePoints];
+  const last = pts[pts.length - 1];
+  if (!last || last.x !== 1 || last.y !== result.confidence_score) {
+    pts.push({ x: 1, y: result.confidence_score });
+  }
+
+  const liftCrossesZero = liftCi != null && liftCi[0] <= 0 && liftCi[1] >= 0;
+  const liftSign = lift == null ? "" : lift > 0 ? "+" : lift < 0 ? "−" : "±";
 
   return (
     <section
       style={{
-        ...cardStyle,
-        padding: "12px 16px",
-        background: TOKENS.paperElevated,
-        color: TOKENS.inkMuted,
-        fontSize: 14,
+        background: TOKENS.glass,
+        border: `0.75px solid ${TOKENS.glassRule}`,
+        borderRadius: 4,
+        marginBottom: 24,
+        overflow: "hidden",
+        fontFamily: FONT_SANS,
       }}
     >
-      <strong style={{ color: TOKENS.ink }}>Model:</strong> {body}
+      <div
+        className="simd-glassgrid"
+        style={hasLift ? undefined : { gridTemplateColumns: "1fr" }}
+      >
+        <div
+          style={{
+            padding: 20,
+            borderRight: hasLift ? `0.75px solid ${TOKENS.glassRule}` : undefined,
+            minWidth: 0,
+          }}
+        >
+          {/* Honesty containment: raw + uncalibrated, in the headline. */}
+          <div style={glassLabelStyle}>
+            SIMULATION AGREEMENT — RAW, UNCALIBRATED (LEDGER EMPTY)
+          </div>
+          <GlassTrace
+            points={pts}
+            settle
+            flatFullWidth
+            readingsLabel={`${nReadings}`}
+          />
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 20 }}>
+            <div
+              className="simd-num"
+              style={{
+                fontSize: 64,
+                fontWeight: 600,
+                lineHeight: 1,
+                color: TOKENS.glassText,
+                fontFamily: FONT_MONO,
+                ...TNUM,
+              }}
+            >
+              {result.confidence_score.toFixed(1)}
+            </div>
+            <div style={{ ...glassLabelStyle, fontSize: 10 }}>AGREEMENT / 100</div>
+          </div>
+          {/* Decision-rule readout (§8.1). */}
+          <div
+            className="simd-num"
+            style={{
+              display: "flex",
+              gap: 20,
+              flexWrap: "wrap",
+              margin: "14px 0 16px",
+              ...TNUM,
+            }}
+          >
+            <GlassKv k="THRESHOLD" v={`${DECISION_POLICY.threshold} / 100`} />
+            <GlassKv
+              k="MARGIN"
+              v={`${result.confidence_score >= DECISION_POLICY.threshold ? "+" : "−"}${Math.abs(
+                result.confidence_score - DECISION_POLICY.threshold,
+              ).toFixed(1)}`}
+            />
+            <GlassKv k="POLICY" v={DECISION_POLICY.id} />
+          </div>
+          <GlassCiAxis
+            score={result.confidence_score}
+            ciLow={ci != null ? ci[0] : null}
+            ciHigh={ci != null ? ci[1] : null}
+          />
+        </div>
+
+        {hasLift && (
+          <div className="simd-lift" style={{ padding: 20, minWidth: 0 }}>
+            <div style={glassLabelStyle}>
+              PAIRED LIFT — TREATMENT − CONTROL (CONFIDENCE POINTS)
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "18px 0 6px" }}>
+              <div
+                style={{
+                  fontSize: 40,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  color: TOKENS.glassText,
+                  fontFamily: FONT_MONO,
+                  ...TNUM,
+                }}
+                aria-label={
+                  lift == null
+                    ? "Paired lift not available"
+                    : `Paired lift ${lift >= 0 ? "plus" : "minus"} ${Math.abs(lift).toFixed(1)} confidence points`
+                }
+              >
+                {lift == null ? "—.—" : `${liftSign}${Math.abs(lift).toFixed(1)}`}
+              </div>
+              {lift != null && <div style={{ ...glassLabelStyle, fontSize: 10 }}>PTS</div>}
+            </div>
+            {lift != null ? (
+              <>
+                <GlassLiftAxis lift={lift} ci={liftCi} />
+                <div
+                  style={{
+                    ...glassLabelStyle,
+                    letterSpacing: 0.5,
+                    lineHeight: 1.7,
+                    marginTop: 8,
+                    ...TNUM,
+                  }}
+                >
+                  {liftCi != null &&
+                    `95% CI [${liftCi[0] >= 0 ? "+" : ""}${liftCi[0].toFixed(1)}, ${
+                      liftCi[1] >= 0 ? "+" : ""
+                    }${liftCi[1].toFixed(1)}]`}
+                  {pairedN != null && pairedN > 0 && ` · n = ${pairedN} PAIRED`}
+                  {liftCrossesZero && (
+                    <>
+                      <br />
+                      CI CROSSES ZERO — NO EFFECT NOT RULED OUT
+                    </>
+                  )}
+                  <br />
+                  PAIRED BOOTSTRAP OVER PER-AGENT SENTIMENT DELTAS
+                  <br />
+                  SEED VARIANCE: SINGLE RUN — NOT ESTIMATED
+                </div>
+              </>
+            ) : (
+              <div style={{ ...glassLabelStyle, letterSpacing: 0.5, lineHeight: 1.7 }}>
+                LIFT UNCOMPUTABLE — SEE NOTE BELOW THE GLASS
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <GlassFooter
+        left={`n = ${nReadings} READINGS · ${
+          personaCount != null ? personaCount : "—"
+        } PERSONAS · SEED ${sim.run_seed ?? "—"} (SINGLE RUN — NO SEED-VARIANCE ESTIMATE)`}
+      />
     </section>
   );
 }
 
-// Phase 5 #101: cohort banner. Renders above the population banner when the
-// sim was submitted with a persona filter. Joins selected persona_ids against
+function GlassPanelLive({
+  livePoints,
+  liveTicks,
+  done,
+  total,
+  failed,
+}: {
+  livePoints: TracePoint[];
+  liveTicks: number[];
+  done: number;
+  total: number;
+  failed: number;
+}) {
+  return (
+    <section
+      style={{
+        background: TOKENS.glass,
+        border: `0.75px solid ${TOKENS.glassRule}`,
+        borderRadius: 4,
+        marginBottom: 24,
+        overflow: "hidden",
+        fontFamily: FONT_SANS,
+      }}
+    >
+      <div style={{ padding: 20 }}>
+        <div style={glassLabelStyle}>
+          SIMULATION AGREEMENT — LIVE READING (RAW, UNCALIBRATED)
+        </div>
+        {/* §9.7: readings plot as they arrive from poll ticks; the trace is
+            the progress indicator. No settle classes while live. Baseline
+            ticks carry progress while no score reading exists — today's
+            backend only emits a score at the scoring phase. */}
+        <GlassTrace
+          points={livePoints}
+          ticks={liveTicks}
+          settle={false}
+          flatFullWidth={false}
+          readingsLabel={total > 0 ? `${done} OF ${total}` : "—"}
+          emptyLabel="AWAITING SCORE READING — PRINTS AT SCORING PHASE"
+        />
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 20 }}>
+          <div
+            style={{
+              fontSize: 64,
+              fontWeight: 600,
+              lineHeight: 1,
+              color: TOKENS.glassMuted,
+              fontFamily: FONT_MONO,
+              ...TNUM,
+            }}
+            aria-label="Reading in progress"
+          >
+            ——
+          </div>
+          <div style={{ ...glassLabelStyle, fontSize: 10 }}>READING IN PROGRESS</div>
+        </div>
+      </div>
+      <GlassFooter
+        left={`n = ${total > 0 ? `${done} OF ${total}` : "—"} READINGS${
+          failed > 0 ? ` · ${failed} FAILED` : ""
+        }`}
+      />
+    </section>
+  );
+}
+
+function GlassKv({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div style={{ ...glassLabelStyle, fontSize: 9, marginBottom: 2 }}>{k}</div>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: TOKENS.glassText, ...TNUM }}>
+        {v}
+      </div>
+    </div>
+  );
+}
+
+function GlassFooter({ left }: { left: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 16,
+        flexWrap: "wrap",
+        padding: "10px 20px",
+        borderTop: `0.75px solid ${TOKENS.glassRule}`,
+        ...glassLabelStyle,
+        fontSize: 9,
+        ...TNUM,
+      }}
+    >
+      <span>{left}</span>
+      {/* Honesty containment footer — no live outcomes have graded this run. */}
+      <span>UNGRADED — NO LIVE OUTCOMES YET</span>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Paper notes below the glass — degraded A/B shapes (codex R1-P2 / R4-P2).
+// pairedN === 0  → A/B ran, scoring found no matched pairs.
+// pairedN == null → backend returned a single-arm placeholder (no per-arm
+// output at all). Both must surface distinctly; drop counters print when
+// any agent was excluded from the paired statistic.
+// ───────────────────────────────────────────────────────────────────────
+function LiftDegradedNotes({ result }: { result: SimulationResult }) {
+  const lift = result.lift ?? null;
+  const pairedN = result.lift_paired_n ?? null;
+  const unpairedTreatment = result.lift_unpaired_treatment ?? 0;
+  const unpairedControl = result.lift_unpaired_control ?? 0;
+  const sentimentFailureDrops = result.lift_sentiment_failure_drops ?? 0;
+  const anyDrops =
+    unpairedTreatment > 0 || unpairedControl > 0 || sentimentFailureDrops > 0;
+  const noPairs = lift == null;
+  if (!noPairs && !anyDrops) return null;
+
+  return (
+    <section style={{ ...cardStyle, padding: "14px 18px" }}>
+      {noPairs && pairedN != null && (
+        <div style={{ fontSize: 13, color: TOKENS.alert, lineHeight: 1.5 }}>
+          <strong>A/B run completed but lift is uncomputable.</strong> No
+          matched (treatment, control) pairs were available — every agent in
+          at least one arm was dropped (sentiment classification failure, no
+          matching paired-sampling key, or one arm produced zero usable
+          reactions). The treatment arm&rsquo;s confidence score is shown in
+          the per-arm detail, but it is NOT a lift measurement — it&rsquo;s
+          only the treatment arm in isolation. See the drop counters for
+          which dropout caused this.
+        </div>
+      )}
+      {noPairs && pairedN == null && (
+        <div style={{ fontSize: 13, color: TOKENS.alert, lineHeight: 1.5 }}>
+          {/* Codex R4-P2: backend returned a generic placeholder result with
+              no per-arm fields at all. Common cause: zero successful agents
+              in either arm (LLM outage, every agent timing out). Distinct
+              from the no-pairs case above — there scoring ran but found no
+              pairs; here scoring never produced per-arm output. */}
+          <strong>A/B run did not produce per-arm scoring output.</strong>{" "}
+          The simulation finished but the backend returned a single-arm
+          placeholder result — usually because no agents in either arm
+          completed successfully (LLM outage, timeouts, or every agent
+          erroring). Re-run the simulation, or check the run state for the
+          failure reason.
+        </div>
+      )}
+      {anyDrops && (
+        <div
+          style={{
+            marginTop: noPairs ? 12 : 0,
+            paddingTop: noPairs ? 12 : 0,
+            borderTop: noPairs ? `0.75px solid ${TOKENS.rule}` : undefined,
+            fontSize: 12,
+            color: TOKENS.inkMuted,
+            lineHeight: 1.5,
+            ...TNUM,
+          }}
+        >
+          Dropped from pairing:
+          {unpairedTreatment > 0 && <> {unpairedTreatment} unpaired treatment;</>}
+          {unpairedControl > 0 && <> {unpairedControl} unpaired control;</>}
+          {sentimentFailureDrops > 0 && (
+            <>
+              {" "}
+              {sentimentFailureDrops} sentiment classification failure
+              {sentimentFailureDrops === 1 ? "" : "s"};
+            </>
+          )}{" "}
+          excluded from the paired-delta statistic.
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Weakness register — §8.4. Bare 2px ink frequency bars on a hairline
+// baseline (no tracks, no radius); CI band in warn at token-derived alpha.
+// Rows stagger in at 960ms+ (§9.4).
+// ───────────────────────────────────────────────────────────────────────
+function RegisterFreqBar({
+  frequency,
+  ciLow,
+  ciHigh,
+}: {
+  frequency: number;
+  ciLow: number;
+  ciHigh: number;
+}) {
+  const { v, lo, hi } = _safeRange(frequency, ciLow, ciHigh, 0, 1);
+  return (
+    <div
+      role="img"
+      aria-label={`Frequency ${(v * 100).toFixed(0)}% with 95% CI from ${(lo * 100).toFixed(0)}% to ${(hi * 100).toFixed(0)}%`}
+      style={{ position: "relative", height: 8 }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 0.75,
+          background: TOKENS.rule,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: `${lo * 100}%`,
+          width: `${Math.max(0, (hi - lo) * 100)}%`,
+          top: 1,
+          height: 6,
+          // CI band — TOKENS.warn at 35% (accent-only, never text).
+          background: `${TOKENS.warn}59`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          width: `${v * 100}%`,
+          bottom: 0,
+          height: 2,
+          background: TOKENS.ink,
+        }}
+      />
+    </div>
+  );
+}
+
+function WeaknessRegister({
+  result,
+  running,
+}: {
+  result: SimulationResult | null;
+  running: boolean;
+}) {
+  const weaknesses = result?.weaknesses ?? [];
+  return (
+    <section style={cardStyle}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 220px",
+          gap: 16,
+          paddingBottom: 8,
+          borderBottom: `0.75px solid ${TOKENS.rule}`,
+          ...monoLabelStyle,
+          fontSize: 11,
+        }}
+      >
+        <span>WEAKNESS REGISTER — FINDING</span>
+        <span>FREQUENCY (95% CI)</span>
+      </div>
+      {running ? (
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted, padding: "14px 0 4px" }}>
+          REGISTER PENDING — FINDINGS PRINT AS READINGS COMPLETE
+        </div>
+      ) : weaknesses.length === 0 ? (
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted, padding: "14px 0 4px" }}>
+          NO WEAKNESS FINDINGS — NO AGENTS FLAGGED THIS RUN
+        </div>
+      ) : (
+        weaknesses.map((w, idx) => {
+          // `w.supporting_agent_ids` is intentionally NOT surfaced as a
+          // count here — the backend caps it at 5 (it's a sample for a
+          // future click-to-expand interaction, not an accurate count).
+          // The `N/M agents flagged this` line in `w.summary` is the
+          // truthful count. See #69 for the prior "5 agents flagged
+          // this" footer that was always literally 5 and misled PMs.
+          const hasFreq =
+            w.frequency != null && w.ci_low != null && w.ci_high != null;
+          return (
+            <div
+              key={idx}
+              className="simd-row"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) 220px",
+                gap: 16,
+                padding: "12px 0",
+                borderTop: idx === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
+                animationDelay: `${960 + idx * 30}ms`,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: TOKENS.ink,
+                    marginBottom: 4,
+                  }}
+                >
+                  {formatCategory(w.category)}
+                  <WeaknessCategoryInfo category={w.category} />
+                </div>
+                <div style={{ fontSize: 13, color: TOKENS.ink, lineHeight: 1.5 }}>
+                  {w.summary}
+                </div>
+              </div>
+              <div>
+                {hasFreq ? (
+                  <>
+                    <RegisterFreqBar
+                      frequency={w.frequency!}
+                      ciLow={w.ci_low!}
+                      ciHigh={w.ci_high!}
+                    />
+                    <div
+                      style={{
+                        fontFamily: FONT_MONO,
+                        fontSize: 11,
+                        color: TOKENS.inkMuted,
+                        marginTop: 6,
+                        ...TNUM,
+                      }}
+                    >
+                      {(w.frequency! * 100).toFixed(0)}% [
+                      {(w.ci_low! * 100).toFixed(0)}&ndash;
+                      {(w.ci_high! * 100).toFixed(0)}%]
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: TOKENS.inkMuted }}>
+                    — NOT MEASURED
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Refinement queue — refinement_suggestions with a queue action. The wizard
+// has no prefill contract (no backend support), so the action opens a fresh
+// hypothesis and the microcopy says so honestly.
+// ───────────────────────────────────────────────────────────────────────
+function RefinementQueue({ suggestions }: { suggestions: string[] }) {
+  return (
+    <section style={cardStyle}>
+      <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 4 }}>
+        REFINEMENT QUEUE
+      </h2>
+      <div style={{ fontSize: 12, color: TOKENS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+        Queueing opens a fresh hypothesis in the wizard — suggestions are not
+        prefilled. Copy the wording you want to keep.
+      </div>
+      {suggestions.map((s, i) => (
+        <div
+          key={i}
+          className="simd-row"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: 16,
+            alignItems: "center",
+            padding: "12px 0",
+            borderTop: `0.75px solid ${TOKENS.rule}`,
+            animationDelay: `${960 + i * 30}ms`,
+          }}
+        >
+          <div style={{ fontSize: 14, color: TOKENS.ink, lineHeight: 1.5 }}>{s}</div>
+          <Link
+            href="/simulations/new"
+            className="simd-qbtn"
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+              letterSpacing: 0.8,
+              textTransform: "uppercase",
+              color: TOKENS.ink,
+              textDecoration: "none",
+              border: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 2,
+              padding: "6px 10px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            QUEUE AS HYPOTHESIS →
+          </Link>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Method card — how the reading is computed, in PM-readable lines. Honest
+// about the DR-1 rubric being a page-level display rule, not API output.
+// ───────────────────────────────────────────────────────────────────────
+function MethodCard({ modelId, hasLift }: { modelId: string | null; hasLift: boolean }) {
+  const model = modelDisplay(modelId);
+  const modelBody =
+    model == null
+      ? "Not tracked for this legacy run. New simulations store the selected model so comparisons can account for model variance."
+      : `Ran on ${model.label} (${model.provider}). Reactions, classifiers, and lift reflect this model; comparing runs across models should be read as model variance, not only product variance.`;
+  const rows: Array<{ k: string; v: string }> = [
+    {
+      k: "AGREEMENT",
+      v: "Confidence-weighted mean of per-agent sentiment, shrunk toward neutral (Bayesian), penalized by weakness share, scaled 0–100. Raw simulation reading — no live-outcome calibration has been applied (ledger empty).",
+    },
+    {
+      k: "INTERVAL",
+      v: "Bootstrap percentile interval over agents; deterministic for a given run seed.",
+    },
+    ...(hasLift
+      ? [
+          {
+            k: "LIFT",
+            v: "Paired bootstrap over per-agent sentiment deltas (treatment − control), in confidence points. Unpaired or unclassifiable agents are dropped from the statistic and counted in the drop note.",
+          },
+        ]
+      : []),
+    {
+      k: "DECISION RULE",
+      v: `${DECISION_POLICY.id} — ${DECISION_POLICY.rule}. Display rubric applied by this page; the API does not return a policy object.`,
+    },
+    { k: "MODEL", v: modelBody },
+  ];
+  return (
+    <section style={cardStyle}>
+      <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 14 }}>
+        METHOD — HOW THIS READING IS COMPUTED
+      </h2>
+      {rows.map((r, i) => (
+        <div
+          key={r.k}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "130px minmax(0, 1fr)",
+            gap: 16,
+            padding: "10px 0",
+            borderTop: i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
+          }}
+        >
+          <span style={{ ...monoLabelStyle, paddingTop: 2 }}>{r.k}</span>
+          <span style={{ fontSize: 13, color: TOKENS.ink, lineHeight: 1.55 }}>{r.v}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Inspector rail — §7.2 zone 3. Paper-elevated, 340px, sticky. Persona
+// readings + pinned quote well + provenance + raw artifacts. Fades in last
+// in the choreography (§9.4).
+// ───────────────────────────────────────────────────────────────────────
+function InspectorRail({
+  sim,
+  status,
+  agentMeta,
+  personaGroups,
+  selectedPersona,
+  onSelectPersona,
+}: {
+  sim: Simulation;
+  status: SimulationStatus;
+  agentMeta: AgentRow[] | null;
+  personaGroups: PersonaGroup[] | null;
+  selectedPersona: string | null;
+  onSelectPersona: (pid: string) => void;
+}) {
+  const isAbMode = agentMeta != null && agentMeta.some((a) => a.arm != null);
+  const active =
+    personaGroups != null && personaGroups.length > 0
+      ? (personaGroups.find((g) => g.pid === selectedPersona) ?? personaGroups[0])
+      : null;
+  const activeQuote =
+    active != null
+      ? pickGroupQuote(
+          isAbMode ? active.agents.filter((a) => a.arm === "treatment") : active.agents,
+        )
+      : null;
+  // Codex P2 (#166): a persona can land entirely in one arm — the chat page
+  // 404s an arm with zero agents, so disable that arm's rail link (same
+  // gating the cohort register's ArmChatLink applies).
+  const activeTreatmentN =
+    active != null ? active.agents.filter((a) => a.arm === "treatment").length : 0;
+  const activeControlN =
+    active != null ? active.agents.filter((a) => a.arm === "control").length : 0;
+  const model = modelDisplay(sim.model_id ?? null);
+  const stimulus = [
+    "PROSE",
+    sim.hypothesis.proposed_prd ? "+ PRD" : null,
+    sim.hypothesis.proposed_figma ? "+ FIGMA" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const provRows: Array<{ k: string; v: React.ReactNode }> = [
+    { k: "RUN", v: sim.id.slice(0, 8).toUpperCase() },
+    { k: "CREATED", v: formatDateTime(sim.created_at) },
+    { k: "CAPABILITY", v: sim.hypothesis.capability_name },
+    { k: "PERSONA PACK", v: sim.persona_pack_version },
+    { k: "FEATURE PACK", v: sim.feature_pack_version },
+    { k: "STIMULUS", v: stimulus },
+    {
+      k: "COHORT",
+      v:
+        sim.selected_personas != null
+          ? `FILTERED — ${sim.selected_personas.length} PERSONA${
+              sim.selected_personas.length === 1 ? "" : "S"
+            }`
+          : "FULL PACK",
+    },
+    {
+      k: "POPULATION",
+      v:
+        sim.population_size != null
+          ? `${sim.population_size.toLocaleString()} · HAMILTON`
+          : "—",
+    },
+    {
+      k: "SAMPLED",
+      v:
+        sim.sampled_agent_count != null
+          ? `${sim.sampled_agent_count}${sim.arm_split != null ? " PER ARM" : " AGENTS"}`
+          : "—",
+    },
+    { k: "SEED", v: sim.run_seed != null ? `${sim.run_seed}` : "—" },
+    { k: "MODEL", v: model ? model.label : "—" },
+    { k: "POLICY", v: `${DECISION_POLICY.id} (DISPLAY RUBRIC)` },
+    { k: "GRADED", v: "NOT YET — LEDGER EMPTY" },
+  ];
+
+  return (
+    <aside
+      className="simd-late"
+      style={{
+        background: TOKENS.paperElevated,
+        border: `0.75px solid ${TOKENS.rule}`,
+        borderRadius: 4,
+        padding: 20,
+        position: "sticky",
+        top: 24,
+        fontFamily: FONT_SANS,
+        minWidth: 0,
+      }}
+    >
+      <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 12 }}>
+        PERSONA READINGS
+      </h2>
+      {personaGroups == null ? (
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted, marginBottom: 16 }}>
+          {status === "failed" ? "NO READINGS — RUN FAILED" : "REGISTER PENDING"}
+        </div>
+      ) : personaGroups.length === 0 ? (
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.inkMuted, marginBottom: 16 }}>
+          NO AGENTS IN THIS RUN
+        </div>
+      ) : (
+        <div style={{ marginBottom: 16 }}>
+          {personaGroups.map((g) => {
+            const isActive = active != null && g.pid === active.pid;
+            const counts = sentimentCounts(g.agents);
+            return (
+              <button
+                key={g.pid}
+                type="button"
+                onClick={() => onSelectPersona(g.pid)}
+                aria-pressed={isActive}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  width: "100%",
+                  textAlign: "left",
+                  background: isActive ? TOKENS.paperRecessed : "transparent",
+                  border: "none",
+                  borderTop: `0.75px solid ${TOKENS.rule}`,
+                  borderRadius: 0,
+                  padding: "8px 6px",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 400,
+                    color: TOKENS.ink,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    flex: 1,
+                  }}
+                >
+                  {g.persona_name}
+                </span>
+                {/* Negative counts read as muted ink, never alert (§8.5). */}
+                <span
+                  style={{
+                    fontFamily: FONT_MONO,
+                    fontSize: 11,
+                    color: TOKENS.inkMuted,
+                    whiteSpace: "nowrap",
+                    ...TNUM,
+                  }}
+                >
+                  +{counts.positive} ~{counts.neutral} −{counts.negative}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {active != null && (
+        <div
+          style={{
+            background: TOKENS.paperRecessed,
+            borderRadius: 2,
+            padding: 12,
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ ...monoLabelStyle, fontSize: 9, marginBottom: 6 }}>
+            {isAbMode ? "PINNED QUOTE — TREATMENT ARM" : "PINNED QUOTE"}
+          </div>
+          {activeQuote != null ? (
+            <div style={{ fontSize: 13, color: TOKENS.ink, lineHeight: 1.55, marginBottom: 8 }}>
+              &ldquo;{activeQuote}&rdquo;
+            </div>
+          ) : (
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: TOKENS.inkMuted, marginBottom: 8 }}>
+              NO QUOTE CAPTURED FOR THIS PERSONA
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {isAbMode ? (
+              <>
+                <RailChatLink
+                  href={`/simulations/${sim.id}/personas/${active.pid}?arm=treatment`}
+                  label="T →"
+                  aria={
+                    activeTreatmentN > 0
+                      ? `Open treatment persona-group chat with ${active.persona_name}`
+                      : `Treatment persona-group chat unavailable for ${active.persona_name}`
+                  }
+                  enabled={activeTreatmentN > 0}
+                />
+                <RailChatLink
+                  href={`/simulations/${sim.id}/personas/${active.pid}?arm=control`}
+                  label="C →"
+                  aria={
+                    activeControlN > 0
+                      ? `Open control persona-group chat with ${active.persona_name}`
+                      : `Control persona-group chat unavailable for ${active.persona_name}`
+                  }
+                  enabled={activeControlN > 0}
+                />
+              </>
+            ) : (
+              <RailChatLink
+                href={`/simulations/${sim.id}/personas/${active.pid}`}
+                label="GROUP CHAT →"
+                aria={`Open persona-group chat with ${active.persona_name}`}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 8 }}>
+        PROVENANCE
+      </h2>
+      <dl style={{ margin: 0, marginBottom: 16 }}>
+        {provRows.map((r) => (
+          <div
+            key={r.k}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "110px minmax(0, 1fr)",
+              gap: 8,
+              padding: "5px 0",
+              borderTop: `0.75px solid ${TOKENS.rule}`,
+            }}
+          >
+            <dt style={{ ...monoLabelStyle, fontSize: 9, paddingTop: 1 }}>{r.k}</dt>
+            <dd
+              style={{
+                margin: 0,
+                fontFamily: FONT_MONO,
+                fontSize: 11,
+                color: TOKENS.ink,
+                overflowWrap: "anywhere",
+                ...TNUM,
+              }}
+            >
+              {r.v}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <h2 style={{ ...monoLabelStyle, fontSize: 11, margin: 0, marginBottom: 8 }}>
+        ARTIFACTS
+      </h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Raw JSON the backend exposes today — the only artifact endpoints
+            that exist. No readings.csv / transcript bundle / decision record
+            yet (flagged as a data gap in #166). */}
+        <a
+          href={`${API_BASE}/simulations/${sim.id}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 0.6, color: TOKENS.ink, textDecoration: "none" }}
+        >
+          RESULT JSON →
+        </a>
+        <a
+          href={`${API_BASE}/simulations/${sim.id}/agents`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 0.6, color: TOKENS.ink, textDecoration: "none" }}
+        >
+          AGENTS JSON →
+        </a>
+      </div>
+    </aside>
+  );
+}
+
+function RailChatLink({
+  href,
+  label,
+  aria,
+  enabled = true,
+}: {
+  href: string;
+  label: string;
+  aria: string;
+  enabled?: boolean;
+}) {
+  const style: React.CSSProperties = {
+    fontFamily: FONT_MONO,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: TOKENS.ink,
+    textDecoration: "none",
+    border: `0.75px solid ${TOKENS.rule}`,
+    borderRadius: 2,
+    padding: "4px 8px",
+    whiteSpace: "nowrap",
+  };
+  if (!enabled) {
+    // Arm with zero agents — the chat page would 404 (codex P2 on #166).
+    return (
+      <span
+        aria-label={aria}
+        title="No agents are available in this arm for the completed run."
+        style={{ ...style, color: TOKENS.inkMuted, cursor: "not-allowed" }}
+      >
+        {label}
+      </span>
+    );
+  }
+  return (
+    <Link href={href} aria-label={aria} style={style}>
+      {label}
+    </Link>
+  );
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString([], { hour12: false });
+  } catch {
+    return iso;
+  }
+}
+
+function sentimentCounts(agents: AgentRow[]): {
+  positive: number;
+  neutral: number;
+  negative: number;
+} {
+  const counts = { positive: 0, neutral: 0, negative: 0 };
+  for (const a of agents) {
+    if (a.sentiment != null) counts[a.sentiment] += 1;
+  }
+  return counts;
+}
+
+type PersonaGroup = { pid: string; persona_name: string; agents: AgentRow[] };
+
+// Group by persona_id (stable key); persona_name is the human label.
+// Preserve first-seen order so the visual order matches the simulator's
+// allocation order (largest persona first under largest-remainder).
+function groupAgents(agents: AgentRow[]): PersonaGroup[] {
+  const order: string[] = [];
+  const byPersona = new Map<string, PersonaGroup>();
+  for (const a of agents) {
+    if (!byPersona.has(a.persona_id)) {
+      byPersona.set(a.persona_id, {
+        pid: a.persona_id,
+        persona_name: a.persona_name,
+        agents: [],
+      });
+      order.push(a.persona_id);
+    }
+    byPersona.get(a.persona_id)!.agents.push(a);
+  }
+  return order.map((pid) => byPersona.get(pid)!);
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Per-arm diagnostic + cohort banner (paper record).
+// ───────────────────────────────────────────────────────────────────────
+
+// Phase 5 #101: cohort banner. Renders above the registers when the sim was
+// submitted with a persona filter. Joins selected persona_ids against
 // agentMeta (loaded by the result page on terminal status) to surface human
 // names — falls back to IDs if agentMeta hasn't joined yet. Absent entirely
 // when the sim wasn't filtered (sim.selected_personas is null).
@@ -895,6 +2272,7 @@ function CohortBanner({
         ...cardStyle,
         padding: "12px 16px",
         background: TOKENS.paperRecessed,
+        // Warn as a border ACCENT only — never warn text (codex on #164).
         border: `0.75px solid ${TOKENS.warn}`,
         color: TOKENS.ink,
         fontSize: 14,
@@ -906,225 +2284,6 @@ function CohortBanner({
       {" "}Lift / scores are for the selected cohort, not the full
       Persona Pack — re-run with all personas to compare against the
       unfiltered baseline.
-    </section>
-  );
-}
-
-function LiftCard({
-  lift,
-  liftCi,
-  pairedN,
-  unpairedTreatment,
-  unpairedControl,
-  sentimentFailureDrops,
-}: {
-  lift: number | null;
-  liftCi: [number, number] | null;
-  pairedN: number | null;
-  unpairedTreatment: number;
-  unpairedControl: number;
-  sentimentFailureDrops: number;
-}) {
-  // Sign-coloured big number. Near-zero (|lift| < 0.5) is rendered gray so a
-  // bootstrap-noise lift around zero doesn't read as a real movement.
-  // When lift is null (A/B attempted but uncomputable — see degraded-state
-  // block below), the number area is replaced by a placeholder instead.
-  const sign = lift == null ? "" : lift > 0 ? "+" : lift < 0 ? "−" : "";
-  const magnitude = lift == null ? null : Math.abs(lift);
-  const color =
-    lift == null
-      ? TOKENS.inkMuted
-      : Math.abs(lift) < 0.5
-        ? TOKENS.inkMuted
-        : lift > 0
-          ? TOKENS.success
-          : TOKENS.alert;
-  const ciNarrow =
-    liftCi != null && Math.abs(liftCi[1] - liftCi[0]) < _CI_COLLAPSE_THRESHOLD;
-  const ciCrossesZero =
-    liftCi != null && liftCi[0] <= 0 && liftCi[1] >= 0;
-  const anyDrops =
-    unpairedTreatment > 0 || unpairedControl > 0 || sentimentFailureDrops > 0;
-
-  // Codex R1-P2 on #91: lift=null + paired_n=0 means "A/B was attempted but
-  // no pairs matched" — every agent in one arm was dropped (e.g. all sentiment
-  // failures, or no shared (persona_id, sample_index) keys between arms).
-  // The backend deliberately distinguishes this from single-arm sims, which
-  // surface paired_n=null; the result page must honour that distinction or
-  // the PM loses the only signal that the run was an A/B attempt.
-  const noPairs = lift == null;
-
-  return (
-    <section
-      style={{
-        ...cardStyle,
-        // Slight emphasis vs neighbouring cards — this is the headline number
-        // in A/B mode.
-        borderColor: TOKENS.rule,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          color: TOKENS.inkMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 4,
-        }}
-      >
-        Predicted reception lift (treatment − control)
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          color: TOKENS.inkMuted,
-          marginBottom: 12,
-          maxWidth: 640,
-          lineHeight: 1.5,
-        }}
-      >
-        Synthetic-agent sentiment toward the proposed change vs. the current
-        product — paired comparison per agent. This is a forecast of how the
-        change will <em>land</em> with customers, not a real business metric
-        (orders, retention, conversion).
-      </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16, flexWrap: "wrap" }}>
-        <div
-          style={{
-            fontSize: noPairs ? 32 : 64,
-            fontWeight: 700,
-            lineHeight: 1,
-            color,
-            fontFamily: FONT_MONO,
-            ...TNUM,
-          }}
-          aria-label={
-            lift == null
-              ? "Predicted lift not available — A/B run produced no matched pairs"
-              : `Predicted lift ${lift >= 0 ? "+" : ""}${lift.toFixed(1)} confidence points`
-          }
-        >
-          {lift == null || magnitude == null ? (
-            "n/a"
-          ) : (
-            <>
-              {sign}
-              {magnitude.toFixed(1)}
-            </>
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {liftCi && !ciNarrow && (
-            <div
-              style={{
-                fontSize: 14,
-                color: TOKENS.inkMuted,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              95% CI: [{liftCi[0] >= 0 ? "+" : ""}
-              {liftCi[0].toFixed(1)} &ndash; {liftCi[1] >= 0 ? "+" : ""}
-              {liftCi[1].toFixed(1)}]
-            </div>
-          )}
-          {liftCi && ciNarrow && (
-            <div style={{ fontSize: 14, color: TOKENS.inkMuted }}>Narrow interval</div>
-          )}
-          <div style={{ fontSize: 14, color: TOKENS.inkMuted, maxWidth: 520 }}>
-            Same 0–100 scale as the single-arm confidence score (so −20 here
-            means treatment lands ~20 confidence-points worse than the current
-            product). Paired bootstrap over per-agent sentiment deltas.
-            {pairedN != null && pairedN > 0 && (
-              <> {pairedN} paired agent{pairedN === 1 ? "" : "s"}.</>
-            )}
-          </div>
-          {liftCi && ciCrossesZero && !ciNarrow && (
-            <div
-              style={{
-                fontSize: 13,
-                color: TOKENS.inkMuted,
-                marginTop: 2,
-              }}
-            >
-              CI crosses zero — the data does not rule out "no effect."
-            </div>
-          )}
-        </div>
-      </div>
-      {noPairs && pairedN != null && (
-        <div
-          style={{
-            marginTop: 12,
-            padding: "10px 12px",
-            background: TOKENS.paperRecessed,
-            border: `0.75px solid ${TOKENS.alert}`,
-            borderRadius: 4,
-            fontSize: 13,
-            color: TOKENS.alert,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong>A/B run completed but lift is uncomputable.</strong> No
-          matched (treatment, control) pairs were available — every agent in
-          at least one arm was dropped (sentiment classification failure, no
-          matching paired-sampling key, or one arm produced zero usable
-          reactions). The treatment arm&rsquo;s confidence score is shown
-          below, but it is NOT a lift measurement — it&rsquo;s only the
-          treatment arm in isolation. See the drop counters for which
-          dropout caused this.
-        </div>
-      )}
-      {noPairs && pairedN == null && (
-        <div
-          style={{
-            marginTop: 12,
-            padding: "10px 12px",
-            background: TOKENS.paperRecessed,
-            border: `0.75px solid ${TOKENS.alert}`,
-            borderRadius: 4,
-            fontSize: 13,
-            color: TOKENS.alert,
-            lineHeight: 1.5,
-          }}
-        >
-          {/* Codex R4-P2: backend returned a generic placeholder result
-              with no per-arm fields at all. Common cause: zero successful
-              agents in either arm (LLM outage, every agent timing out).
-              Distinct from the no-pairs case above — there scoring ran but
-              found no pairs; here scoring never produced per-arm output. */}
-          <strong>A/B run did not produce per-arm scoring output.</strong>{" "}
-          The simulation finished but the backend returned a single-arm
-          placeholder result — usually because no agents in either arm
-          completed successfully (LLM outage, timeouts, or every agent
-          erroring). Re-run the simulation, or check the run state for the
-          failure reason.
-        </div>
-      )}
-      {anyDrops && (
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: `0.75px solid ${TOKENS.rule}`,
-            fontSize: 12,
-            color: TOKENS.inkMuted,
-            lineHeight: 1.5,
-          }}
-        >
-          Dropped from pairing:
-          {unpairedTreatment > 0 && (
-            <> {unpairedTreatment} unpaired treatment;</>
-          )}
-          {unpairedControl > 0 && (
-            <> {unpairedControl} unpaired control;</>
-          )}
-          {sentimentFailureDrops > 0 && (
-            <> {sentimentFailureDrops} sentiment classification failure
-            {sentimentFailureDrops === 1 ? "" : "s"};</>
-          )}{" "}
-          excluded from the paired-delta statistic.
-        </div>
-      )}
     </section>
   );
 }
@@ -1148,16 +2307,8 @@ function PerArmDetailCard({
         background: TOKENS.paperElevated,
       }}
     >
-      <div
-        style={{
-          fontSize: 13,
-          color: TOKENS.inkMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0,
-          marginBottom: 6,
-        }}
-      >
-        Per-arm detail
+      <div style={{ ...monoLabelStyle, fontSize: 11, marginBottom: 6 }}>
+        PER-ARM DETAIL
       </div>
       <div
         style={{
@@ -1171,7 +2322,7 @@ function PerArmDetailCard({
         These diagnostic scores are not directly comparable. The treatment arm
         includes weakness penalties for the proposed change; the control arm is
         scored as the status-quo product and skips weakness classification. Use
-        Lift above for the apples-to-apples A/B read.
+        the paired lift on the glass for the apples-to-apples A/B read.
       </div>
       <div
         style={{
@@ -1205,8 +2356,9 @@ function PerArmDetailCard({
           lineHeight: 1.5,
         }}
       >
-        Single-arm rubric still applies to the treatment confidence score:
-        {" "}&ge;80 = validated; below = needs refinement.
+        Policy {DECISION_POLICY.id} still applies to the treatment confidence
+        score: &ge;{DECISION_POLICY.threshold} = ship candidate; below = needs
+        refinement.
       </div>
     </section>
   );
@@ -1226,18 +2378,8 @@ function ArmScoreTile({
   sampledAgentCount: number | null;
 }) {
   return (
-    <div
-      style={{
-        padding: "4px 0",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          color: TOKENS.inkMuted,
-          marginBottom: 6,
-        }}
-      >
+    <div style={{ padding: "4px 0" }}>
+      <div style={{ fontSize: 12, color: TOKENS.inkMuted, marginBottom: 6 }}>
         {label}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
@@ -1251,7 +2393,7 @@ function ArmScoreTile({
             ...TNUM,
           }}
         >
-          {score == null ? "n/a" : Math.round(score)}
+          {score == null ? "—.—" : Math.round(score)}
         </div>
         {ci != null && (
           <ConfidenceIntervalLabel
@@ -1275,7 +2417,7 @@ function ArmScoreTile({
   );
 }
 
-// Shared sanitizer for CI bar inputs (codex P2 round 1).
+// Shared sanitizer for CI inputs (codex P2 round 1).
 // - Coerces non-finite values to a safe default.
 // - Clamps to [min, max].
 // - Swaps low/high when ci_low > ci_high (shouldn't happen from backend
@@ -1306,8 +2448,8 @@ function _safeRange(
 // unanimity flag, so the copy describes the OBSERVATION (a narrow
 // interval) rather than CLAIMING the cause (every agent agreed). 0.2
 // catches both truly-zero CIs and rounded-to-zero CIs without grabbing
-// genuinely-tight-but-real intervals. Shared between the label and
-// ScoreCiBar so a future tweak lands in one place.
+// genuinely-tight-but-real intervals. Shared between the labels and the
+// glass CI axis so a future tweak lands in one place.
 const _CI_COLLAPSE_THRESHOLD = 0.2;
 
 function ConfidenceIntervalLabel({
@@ -1323,9 +2465,7 @@ function ConfidenceIntervalLabel({
   if (isCollapsed) {
     // No info icon: the phrase is self-explanatory and avoids the focusable-
     // span / outline-none / tooltip-discoverability rabbit hole codex flagged
-    // in round 2. The ScoreCiBar's aria-label carries a fuller explanation
-    // for screen-reader users; sighted users can read the docs if they want
-    // the math behind why the CI collapsed.
+    // in round 2.
     return (
       <div
         style={{
@@ -1352,139 +2492,6 @@ function ConfidenceIntervalLabel({
   );
 }
 
-function ScoreCiBar({
-  score,
-  ciLow,
-  ciHigh,
-}: {
-  score: number;
-  ciLow: number;
-  ciHigh: number;
-}) {
-  // Map 0-100 score onto a 0-100% bar. Marker = point estimate; band = CI.
-  const { v, lo, hi } = _safeRange(score, ciLow, ciHigh, 0, 100);
-  // Same threshold as ConfidenceIntervalLabel — see #71. Hairline-width
-  // band looks like a render bug; hide it and show just the marker. The
-  // label above already explains the "Strong agreement" framing.
-  const isCollapsed = hi - lo < _CI_COLLAPSE_THRESHOLD;
-  return (
-    <div style={{ marginTop: 16, paddingTop: 4 }}>
-      <div
-        role="img"
-        aria-label={
-          isCollapsed
-            ? `Confidence score ${v.toFixed(1)} with a narrow confidence interval that collapsed to a single point at this display resolution.`
-            : `Confidence score ${v.toFixed(1)} with 95% CI from ${lo.toFixed(1)} to ${hi.toFixed(1)}`
-        }
-        style={{
-          position: "relative",
-          height: 12,
-          background: TOKENS.paperRecessed,
-          borderRadius: 6,
-          // overflow:hidden so the marker can't escape the track at edges
-          // (codex P2 round 1: 2px marker centered on left:0% or left:100%
-          // protruded 1px outside the rounded background).
-          overflow: "hidden",
-        }}
-      >
-        {!isCollapsed && (
-          <div
-            style={{
-              position: "absolute",
-              left: `${lo}%`,
-              width: `${Math.max(0, hi - lo)}%`,
-              top: 0,
-              bottom: 0,
-              // CI band — TOKENS.ink at 25%.
-              background: `${TOKENS.ink}40`,
-            }}
-          />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            left: `${v}%`,
-            top: 0,
-            bottom: 0,
-            width: 2,
-            background: scoreColor(v),
-            transform: "translateX(-1px)",
-          }}
-        />
-      </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 11,
-          color: TOKENS.inkMuted,
-          marginTop: 4,
-          fontVariantNumeric: "tabular-nums",
-        }}
-        aria-hidden
-      >
-        <span>0</span>
-        <span>50</span>
-        <span>100</span>
-      </div>
-    </div>
-  );
-}
-
-function WeaknessFrequencyBar({
-  frequency,
-  ciLow,
-  ciHigh,
-}: {
-  frequency: number;
-  ciLow: number;
-  ciHigh: number;
-}) {
-  // 0..1 frequencies onto a 0-100% bar; same sanitizer as the score bar.
-  const { v, lo, hi } = _safeRange(frequency, ciLow, ciHigh, 0, 1);
-  const f = v * 100;
-  const loPct = lo * 100;
-  const hiPct = hi * 100;
-  return (
-    <div
-      role="img"
-      aria-label={`Frequency ${f.toFixed(0)}% with 95% CI from ${loPct.toFixed(
-        0,
-      )}% to ${hiPct.toFixed(0)}%`}
-      style={{
-        position: "relative",
-        height: 10,
-        background: TOKENS.paperRecessed,
-        borderRadius: 5,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          left: `${loPct}%`,
-          width: `${Math.max(0, hiPct - loPct)}%`,
-          top: 0,
-          bottom: 0,
-          // CI band — TOKENS.warn at 35%.
-          background: `${TOKENS.warn}59`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: `${f}%`,
-          top: 0,
-          bottom: 0,
-          width: 2,
-          background: TOKENS.warn,
-          transform: "translateX(-1px)",
-        }}
-      />
-    </div>
-  );
-}
-
 // Row shape for the result table: agent metadata + sentiment/top_quote
 // joined from the persisted result (#51). Defined once so the result-table
 // component tree stays consistent.
@@ -1501,18 +2508,7 @@ type AgentRow = {
 };
 
 function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
-  // Group by persona_id (stable key); persona_name is the human label.
-  // Preserve first-seen order so the visual order matches the simulator's
-  // allocation order (largest persona first under largest-remainder).
-  const order: string[] = [];
-  const byPersona = new Map<string, { persona_name: string; agents: AgentRow[] }>();
-  for (const a of agents) {
-    if (!byPersona.has(a.persona_id)) {
-      byPersona.set(a.persona_id, { persona_name: a.persona_name, agents: [] });
-      order.push(a.persona_id);
-    }
-    byPersona.get(a.persona_id)!.agents.push(a);
-  }
+  const groups = groupAgents(agents);
 
   // Phase 4.6 #91: A/B mode is detected at the table level — if ANY agent in
   // the sim has an arm tag, we treat the table as arm-split and render two
@@ -1523,19 +2519,16 @@ function PersonaGroupedAgents({ agents }: { agents: AgentRow[] }) {
 
   return (
     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-      {order.map((pid, i) => {
-        const group = byPersona.get(pid)!;
-        return (
-          <PersonaGroupRow
-            key={pid}
-            personaId={pid}
-            personaName={group.persona_name}
-            agents={group.agents}
-            isFirst={i === 0}
-            isAbMode={isAbMode}
-          />
-        );
-      })}
+      {groups.map((g, i) => (
+        <PersonaGroupRow
+          key={g.pid}
+          personaId={g.pid}
+          personaName={g.persona_name}
+          agents={g.agents}
+          isFirst={i === 0}
+          isAbMode={isAbMode}
+        />
+      ))}
     </ul>
   );
 }
@@ -1575,9 +2568,7 @@ function PersonaGroupRow({
   // persona thought about the proposed change." Pin the summary quote to
   // the treatment arm (which is the only arm that saw the change). Single-
   // arm sims fall through to the original pick across all agents.
-  const groupQuote = pickGroupQuote(
-    isAbMode ? treatmentAgents : agents,
-  );
+  const groupQuote = pickGroupQuote(isAbMode ? treatmentAgents : agents);
   const controlSentiment = aggregateSentiment(controlAgents);
 
   return (
@@ -1596,55 +2587,114 @@ function PersonaGroupRow({
           minWidth: 0,
         }}
       >
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={listId}
-        style={{
-          background: "transparent",
-          border: "none",
-          padding: 0,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "baseline",
-          gap: 12,
-          flex: 1,
-          textAlign: "left",
-          // minWidth:0 + the truncating persona-id below = no horizontal
-          // scroll on narrow viewports (codex P2 round 1).
-          minWidth: 0,
-        }}
-      >
-        <span
-          aria-hidden
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-controls={listId}
           style={{
-            fontSize: 12,
-            color: TOKENS.inkMuted,
-            width: 12,
-            display: "inline-block",
-            flex: "0 0 auto",
-          }}
-        >
-          {open ? "▾" : "▸"}
-        </span>
-        <span
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: TOKENS.ink,
-            flex: "0 1 auto",
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "baseline",
+            gap: 12,
+            flex: 1,
+            textAlign: "left",
+            // minWidth:0 + the truncating persona-id below = no horizontal
+            // scroll on narrow viewports (codex P2 round 1).
             minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
-          {personaName}
-        </span>
-        <span style={{ fontSize: 14, color: TOKENS.inkMuted, flex: "0 0 auto" }}>
-          &times; {agents.length} agent{agents.length === 1 ? "" : "s"}
-        </span>
+          <span
+            aria-hidden
+            style={{
+              fontSize: 12,
+              color: TOKENS.inkMuted,
+              width: 12,
+              display: "inline-block",
+              flex: "0 0 auto",
+            }}
+          >
+            {open ? "▾" : "▸"}
+          </span>
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: TOKENS.ink,
+              flex: "0 1 auto",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {personaName}
+          </span>
+          <span style={{ fontSize: 14, color: TOKENS.inkMuted, flex: "0 0 auto", ...TNUM }}>
+            &times; {agents.length} agent{agents.length === 1 ? "" : "s"}
+          </span>
+          {isAbMode ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                flex: "0 0 auto",
+              }}
+            >
+              {/* Arm designators carry ink-weight, never color (§5.4). */}
+              <span
+                aria-hidden
+                style={{ fontSize: 11, color: TOKENS.inkMuted, fontWeight: 600 }}
+                title="Treatment arm"
+              >
+                T
+              </span>
+              <SentimentChip
+                sentiment={treatmentSentiment.label}
+                intensity={treatmentSentiment.intensity}
+              />
+              <span
+                aria-hidden
+                style={{
+                  fontSize: 11,
+                  color: TOKENS.inkMuted,
+                  fontWeight: 600,
+                  marginLeft: 4,
+                }}
+                title="Control arm"
+              >
+                C
+              </span>
+              <SentimentChip
+                sentiment={controlSentiment.label}
+                intensity={controlSentiment.intensity}
+              />
+            </span>
+          ) : (
+            <SentimentChip
+              sentiment={groupSentiment.label}
+              intensity={groupSentiment.intensity}
+            />
+          )}
+          <span
+            style={{
+              fontSize: 12,
+              color: TOKENS.inkMuted,
+              marginLeft: "auto",
+              fontFamily: FONT_MONO,
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {personaId}
+          </span>
+        </button>
         {isAbMode ? (
           <span
             style={{
@@ -1652,108 +2702,45 @@ function PersonaGroupRow({
               alignItems: "center",
               gap: 6,
               flex: "0 0 auto",
+              whiteSpace: "nowrap",
             }}
           >
-            <span
-              aria-hidden
-              style={{
-                fontSize: 11,
-                color: TOKENS.inkMuted,
-                fontWeight: 600,
-              }}
-              title="Treatment arm"
-            >
-              T
-            </span>
-            <SentimentChip
-              sentiment={treatmentSentiment.label}
-              intensity={treatmentSentiment.intensity}
+            <ArmChatLink
+              simId={simId}
+              personaId={personaId}
+              personaName={personaName}
+              arm="treatment"
+              enabled={treatmentAgents.length > 0}
             />
-            <span
-              aria-hidden
-              style={{
-                fontSize: 11,
-                color: TOKENS.inkMuted,
-                fontWeight: 600,
-                marginLeft: 4,
-              }}
-              title="Control arm"
-            >
-              C
-            </span>
-            <SentimentChip
-              sentiment={controlSentiment.label}
-              intensity={controlSentiment.intensity}
+            <ArmChatLink
+              simId={simId}
+              personaId={personaId}
+              personaName={personaName}
+              arm="control"
+              enabled={controlAgents.length > 0}
             />
           </span>
         ) : (
-          <SentimentChip
-            sentiment={groupSentiment.label}
-            intensity={groupSentiment.intensity}
-          />
+          <Link
+            href={`/simulations/${simId}/personas/${personaId}`}
+            aria-label={`Open persona-group chat with ${personaName}`}
+            style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+              letterSpacing: 0.8,
+              textTransform: "uppercase",
+              color: TOKENS.ink,
+              textDecoration: "none",
+              flex: "0 0 auto",
+              whiteSpace: "nowrap",
+            }}
+          >
+            CHAT →
+          </Link>
         )}
-        <span
-          style={{
-            fontSize: 12,
-            color: TOKENS.inkMuted,
-            marginLeft: "auto",
-            fontFamily:
-              FONT_MONO,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {personaId}
-        </span>
-      </button>
-      {isAbMode ? (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            flex: "0 0 auto",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <ArmChatPill
-            simId={simId}
-            personaId={personaId}
-            personaName={personaName}
-            arm="treatment"
-            enabled={treatmentAgents.length > 0}
-          />
-          <ArmChatPill
-            simId={simId}
-            personaId={personaId}
-            personaName={personaName}
-            arm="control"
-            enabled={controlAgents.length > 0}
-          />
-        </span>
-      ) : (
-        <Link
-          href={`/simulations/${simId}/personas/${personaId}`}
-          aria-label={`Open persona-group chat with ${personaName}`}
-          style={{
-            fontSize: 13,
-            color: TOKENS.ink,
-            textDecoration: "none",
-            flex: "0 0 auto",
-            whiteSpace: "nowrap",
-          }}
-        >
-          💬 chat
-        </Link>
-      )}
       </div>
       {groupQuote && (
-        <TopQuoteLine
-          text={groupQuote}
-          armLabel={isAbMode ? "treatment" : null}
-        />
+        <TopQuoteLine text={groupQuote} armLabel={isAbMode ? "treatment" : null} />
       )}
       {open &&
         (isAbMode ? (
@@ -1782,7 +2769,10 @@ function PersonaGroupRow({
   );
 }
 
-function ArmChatPill({
+// Text chat link per arm — was an emoji "💬 T" pill; §10 bans emoji
+// affordances, so the affordance is now a mono uppercase text link with the
+// 2px input radius.
+function ArmChatLink({
   simId,
   personaId,
   personaName,
@@ -1796,16 +2786,20 @@ function ArmChatPill({
   enabled: boolean;
 }) {
   const isTreatment = arm === "treatment";
-  const label = isTreatment ? "T" : "C";
+  const label = isTreatment ? "T →" : "C →";
   const armName = isTreatment ? "treatment" : "control";
-  const style = {
-    fontSize: 12,
+  const style: React.CSSProperties = {
+    fontFamily: FONT_MONO,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     textDecoration: "none",
     border: `0.75px solid ${TOKENS.rule}`,
-    borderRadius: 4,
-    padding: "2px 7px",
+    borderRadius: 2,
+    padding: "3px 7px",
     background: isTreatment ? TOKENS.paperRecessed : TOKENS.paperElevated,
     color: TOKENS.ink,
+    whiteSpace: "nowrap",
   };
 
   if (!enabled) {
@@ -1820,7 +2814,7 @@ function ArmChatPill({
           cursor: "not-allowed",
         }}
       >
-        💬 {label}
+        {label}
       </span>
     );
   }
@@ -1831,7 +2825,7 @@ function ArmChatPill({
       aria-label={`Open ${armName} persona-group chat with ${personaName}`}
       style={style}
     >
-      💬 {label}
+      {label}
     </Link>
   );
 }
@@ -1876,14 +2870,17 @@ function AgentLi({ agent: a }: { agent: AgentRow }) {
           href={`/agents/${a.agent_id}`}
           aria-label={`Open individual chat with ${a.agent_id}`}
           style={{
-            fontSize: 12,
+            fontFamily: FONT_MONO,
+            fontSize: 10,
+            letterSpacing: 0.8,
+            textTransform: "uppercase",
             color: TOKENS.ink,
             textDecoration: "none",
             flex: "0 0 auto",
             whiteSpace: "nowrap",
           }}
         >
-          💬 chat 1:1
+          CHAT 1:1 →
         </Link>
       </div>
       {a.top_quote && <TopQuoteLine text={a.top_quote} />}
@@ -2104,7 +3101,7 @@ function TopQuoteLine({
             padding: "1px 6px",
             background: TOKENS.paperRecessed,
             border: `0.75px solid ${TOKENS.rule}`,
-            borderRadius: 4,
+            borderRadius: 2,
           }}
         >
           {armLabel}
@@ -2168,7 +3165,7 @@ function pickGroupQuote(agents: AgentRow[]): string | null {
 
 // ───────────────────────────────────────────────────────────────────────
 // Weakness category info — PM-readable definitions for each weakness type
-// surfaced in the result. Click the ⓘ button next to a category to read
+// surfaced in the result. Click the info button next to a category to read
 // what that category means in plain English (not statistician-speak).
 // ───────────────────────────────────────────────────────────────────────
 
@@ -2314,24 +3311,6 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
           </button>
         </div>
       )}
-    </span>
-  );
-}
-
-function Pill({ label, value }: { label: string; value: string }) {
-  return (
-    <span
-      style={{
-        fontSize: 13,
-        padding: "4px 10px",
-        borderRadius: 4,
-        background: TOKENS.paperElevated,
-        border: `0.75px solid ${TOKENS.rule}`,
-        color: TOKENS.inkMuted,
-      }}
-    >
-      <span style={{ color: TOKENS.inkMuted, marginRight: 6 }}>{label}:</span>
-      <span style={{ color: TOKENS.ink }}>{value}</span>
     </span>
   );
 }
