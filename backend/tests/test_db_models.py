@@ -19,6 +19,7 @@ def test_models_import_and_register_with_metadata() -> None:
         "simulations",
         "agent_instances",
         "agent_feedback",
+        "crawl_configs",
     }
 
 

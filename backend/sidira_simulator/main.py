@@ -13,6 +13,7 @@ from sidira_simulator.api import (
     agents,
     capabilities,
     config,
+    crawls,
     feature_stores,
     feedback,
     models,
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(config.router)
     app.include_router(capabilities.router)
+    app.include_router(crawls.router)
     app.include_router(feature_stores.router)
     app.include_router(persona_builds.router)
     app.include_router(persona_packs.router)

@@ -78,6 +78,8 @@ async function _req<T>(path: string, init?: RequestInit): Promise<T> {
 export const apiGet = <T>(path: string) => _req<T>(path);
 export const apiPost = <T, U>(path: string, body: T) =>
   _req<U>(path, { method: "POST", body: JSON.stringify(body) });
+export const apiPut = <T, U>(path: string, body: T) =>
+  _req<U>(path, { method: "PUT", body: JSON.stringify(body) });
 
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
@@ -111,6 +113,42 @@ export const generateSampleWorkspace = () =>
     "/sample-workspace",
     {},
   );
+
+// #171 crawl setup — the saved config the walker will read. Inline types,
+// same codegen caveat as CreateSimulationResponse. The setup names WHAT to
+// crawl (capabilities, entry URLs, sandbox logins); it never carries pack
+// content — the pack stays generated, never authored.
+export interface CrawlCapability {
+  name: string;
+  entry_urls: string[];
+}
+
+export interface CrawlRoleCredential {
+  role: string;
+  username: string;
+}
+
+export type CrawlCadence = "weekly" | "on_demand";
+
+export interface CrawlSetup {
+  capabilities: CrawlCapability[];
+  sandbox_url: string;
+  test_users: CrawlRoleCredential[];
+  ip_allowlist_note: string;
+  cadence: CrawlCadence;
+  walk_depth: number;
+}
+
+export interface CrawlSetupEnvelope {
+  customer_id: string;
+  setup: CrawlSetup | null;
+  updated_at: string | null;
+}
+
+export const getCrawlSetup = () => apiGet<CrawlSetupEnvelope>("/crawl-setup");
+
+export const saveCrawlSetup = (setup: CrawlSetup) =>
+  apiPut<CrawlSetup, CrawlSetupEnvelope>("/crawl-setup", setup);
 
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);

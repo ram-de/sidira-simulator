@@ -82,6 +82,26 @@ class Simulation(Base):
     )
 
 
+class CrawlConfig(Base):
+    """Saved crawl setup for one customer (#171) — the inputs the crawler's
+    MVP contract asks the customer to supply (capabilities + entry URLs, sandbox
+    tenant, test users per role, cadence, depth). One row per customer; the
+    config itself is JSONB validated by schemas/crawl.py:CrawlSetup at the API
+    boundary. Crawl *runs* are not modeled here — they arrive with the walker
+    (sidira-crawler #1–#3) alongside the trigger endpoint.
+    """
+
+    __tablename__ = "crawl_configs"
+
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), primary_key=True
+    )
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AgentInstance(Base):
     """Metadata for one AgentInstance. Identity + reaction + chat live in R2.
 
