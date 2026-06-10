@@ -15,6 +15,13 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 #32 frontend auth pages).
 
 ## In Progress
+- [ ] **#149 — forward Clerk credential through prod proxy + Next token hop**
+  — STARTED 2026-06-09 (worktree). The last prod-enablement blocker. Scope:
+  (1) Next `/api` proxy route forwards the Clerk session token to the backend;
+  (2) `deploy/Caddyfile.api` stops stripping `Authorization` on the
+  authenticated path; (3) E2E verify 200-authed / 401-unauthed; (4) only then
+  flip `SIDIRA_CLERK_SECRET_KEY` (+ `SIDIRA_CLERK_AUTHORIZED_PARTIES`) in SSM
+  and add the Amplify `pk_live`/`sk_live` keys — one coherent cutover.
 - [x] **Item 1 — Enable Clerk Organizations** — DONE on the **Production** instance
   (app `app_3EoIE8Rsl9TGEOJ1wHuXD4zxcVz`, instance `ins_3EoIQrcTqt9VuPdpSVAwEW2QZ3k`,
   `pk_live_`/`sk_live_` keys — confirmed by founder). Organizations enabled;
@@ -241,9 +248,10 @@ Remaining work is the rest of Production go-live wiring + the still-blocked sess
      accepted, and **completed signup**. Two hiccups en route, same root cause:
      no invite email + portal unreachable = domain verification hadn't been run
      yet in Clerk (cert issuance and email sending are both gated on verify).
-     Remaining sanity check: Clerk webhook log shows 200 Succeeded for the real
-     `organization.created` / membership events, and the backend `customers`
-     row exists. Step 3 holds — no Amplify keys until #149.
+     **Sanity check CONFIRMED 2026-06-09: founder verified the Clerk webhook
+     log is clean (200 Succeeded on the real org events) — `customers` row
+     provisioned.** Staged cutover steps 1+2 fully closed. Step 3 holds — no
+     Amplify keys until #149, which is now the active work item.
 4. **#30 — customer-scoping leak audit** — **AUDIT COMPLETE 2026-06-09, NO LIVE
    LEAKS** (founder go-ahead given; ran in parallel with the staged cutover prep).
    **PR #157 MERGED to `main` as `f346760`; issue #30 auto-closed.** Worktree
