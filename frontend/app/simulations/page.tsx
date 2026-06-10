@@ -19,6 +19,10 @@ import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 // State chips (QUEUED · READING IN PROGRESS · RUN FAILED) are run states,
 // not verdicts — §8.6 sanctions them as honest pending text.
 
+// One API page; the list endpoint returns no total, so when a full page
+// comes back the header can only honestly claim "latest N" (codex P2).
+const PAGE_LIMIT = 50;
+
 // §8.1 explainer, surfaced as a tooltip on the verdict column cells.
 const POLICY_GAP_NOTE =
   "A verdict renders only against a persisted decision policy (threshold + " +
@@ -170,14 +174,18 @@ export default function SimulationsIndexPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listSimulations()
+    listSimulations(PAGE_LIMIT)
       .then(setRows)
       .catch((e) => setError(e?.message ?? "Failed to load simulations"));
   }, []);
 
+  // The API returns one page with no total; at the page limit the honest
+  // claim is "latest N", not a total count.
   const countClause =
     rows !== null
-      ? `${rows.length} ${rows.length === 1 ? "HYPOTHESIS" : "HYPOTHESES"} · `
+      ? rows.length >= PAGE_LIMIT
+        ? `LATEST ${rows.length} HYPOTHESES · `
+        : `${rows.length} ${rows.length === 1 ? "HYPOTHESIS" : "HYPOTHESES"} · `
       : "";
 
   return (
