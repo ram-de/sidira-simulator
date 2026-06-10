@@ -17,6 +17,7 @@ import {
   type SimulationRequest,
 } from "@/lib/api";
 import { TOKENS, FONT_SANS } from "@/lib/design";
+import SampleWorkspaceCard from "@/components/SampleWorkspaceCard";
 
 export default function NewSimulationPage() {
   const router = useRouter();
@@ -24,6 +25,13 @@ export default function NewSimulationPage() {
   const [manifest, setManifest] = useState<FeaturePackManifest | null>(null);
   const [loadingCaps, setLoadingCaps] = useState(true);
   const [capsError, setCapsError] = useState<string | null>(null);
+
+  // sessions/sample-workspace: sample seeding is offered only when BOTH
+  // /capabilities and /personas 404 — a truly empty tenant. A tenant with
+  // one real pack (e.g. personas built, crawl pending) would just hit the
+  // backend's 409, so don't offer the button. (codex R1-P3)
+  const [capsNotFound, setCapsNotFound] = useState(false);
+  const [personasNotFound, setPersonasNotFound] = useState(false);
 
   const [capability, setCapability] = useState<string>("");
   const [hypothesis, setHypothesis] = useState<string>("");
@@ -108,6 +116,7 @@ export default function NewSimulationPage() {
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError) {
+          if (e.status === 404) setCapsNotFound(true);
           setCapsError(
             e.status === 404
               ? "No capabilities found for this customer. Run a crawl first."
@@ -194,6 +203,9 @@ export default function NewSimulationPage() {
         if (cancelled) return;
         // Non-fatal: hide the filter UI, fall back to "all personas"
         // (selected_personas: null on submit).
+        if (e instanceof ApiError && e.status === 404) {
+          setPersonasNotFound(true);
+        }
         if (e instanceof Error) {
           setPersonasError(`Could not load personas: ${e.message}`);
         } else {
@@ -347,6 +359,11 @@ export default function NewSimulationPage() {
         <div style={emptyStateStyle}>
           <strong>{capsError}</strong>
         </div>
+      )}
+
+      {/* sessions/sample-workspace: both packs missing = empty tenant. */}
+      {!loadingCaps && !loadingPersonas && capsNotFound && personasNotFound && (
+        <SampleWorkspaceCard />
       )}
 
       {!loadingCaps && !capsError && !hasCapabilities && (

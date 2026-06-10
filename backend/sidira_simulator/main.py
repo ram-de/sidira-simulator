@@ -20,6 +20,7 @@ from sidira_simulator.api import (
     persona_groups,
     persona_packs,
     personas,
+    sample_workspace,
     simulations,
     webhooks,
 )
@@ -112,6 +113,7 @@ def create_app() -> FastAPI:
     app.include_router(persona_builds.router)
     app.include_router(persona_packs.router)
     app.include_router(personas.router)
+    app.include_router(sample_workspace.router)
     app.include_router(webhooks.router)
 
     return app
