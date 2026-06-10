@@ -108,6 +108,8 @@ Current order:
 1. Crawler/product-pack work — Playwright walker + product-pack synthesis are still the biggest missing producer path; new design-partner orgs currently have only the one-click Streamly sample to play with.
 2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
 
+**Deferred (ticketed, not scheduled):** #162 per-org vanity subdomains (`org_slug.sidira.ai`) — full feasibility analysis in the issue; blocked on Amplify Hosting's lack of wildcard-subdomain support; revisit at the enterprise/SSO stage.
+
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
 - LLM prose synthesis on `identity_seed` (richer agent personality, follow-up to #5)
 - v1.1 personas pack rollout for true cross-persona variance (currently `_DEFAULT_BEHAVIORAL_SEEDS` shared across personas)
