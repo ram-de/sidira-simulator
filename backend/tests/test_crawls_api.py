@@ -97,7 +97,9 @@ def test_put_overwrites_prior_save(client):
             ]
         },
         {"capabilities": [{"name": "bad-scheme", "entry_urls": ["ftp://x.dev"]}]},
+        {"capabilities": [{"name": "no-host", "entry_urls": ["https://"]}]},
         {"sandbox_url": "not-a-url"},
+        {"sandbox_url": "https://"},  # scheme-only — no host to navigate
         {"test_users": []},  # one login per role minimum
         {"walk_depth": 5},
         {"cadence": "hourly"},

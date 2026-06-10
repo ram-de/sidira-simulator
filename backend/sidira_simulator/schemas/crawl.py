@@ -11,14 +11,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator
 
 
 def _require_http_url(value: str, label: str) -> str:
     value = value.strip()
-    if not value.startswith(("https://", "http://")):
-        raise ValueError(f"{label} must be an http(s) URL")
+    parts = urlsplit(value)
+    # A scheme-only value like "https://" parses but has no host — the walker
+    # could never navigate it, so reject at the API boundary (codex P2).
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise ValueError(f"{label} must be an http(s) URL with a host")
     return value
 
 
