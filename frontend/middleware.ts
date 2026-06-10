@@ -100,8 +100,8 @@ function basicAuthMiddleware(request: NextRequest) {
 
 // Clerk-configured behavior: host redirects still run first, then unauthenticated
 // requests to protected product routes are redirected to /sign-in. Clerk replaces
-// the temporary Basic Auth gate on the app host. #149 will add backend token
-// forwarding through the Caddy proxy; that header redesign is out of scope here.
+// the temporary Basic Auth gate on the app host. The backend token hop lives in
+// app/api/[...path]/route.ts → Caddy (#149).
 const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
   const redirect = hostRedirect(request);
   if (redirect) return redirect;
@@ -115,7 +115,7 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
   // API proxy routes require a session, but answer with 401 rather than a
   // sign-in redirect — an API client can't follow an HTML redirect. This closes
   // the bypass where the proxy would forward to the backend with the server's
-  // Basic Auth credential. #149 will forward the Clerk token onward.
+  // Basic Auth credential. The proxy forwards the session's Clerk token (#149).
   if (isApiRoute(request)) {
     const { userId } = await auth();
     if (!userId) return apiAuthChallenge();

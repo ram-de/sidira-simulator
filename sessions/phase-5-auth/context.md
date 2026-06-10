@@ -16,12 +16,16 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 
 ## In Progress
 - [ ] **#149 — forward Clerk credential through prod proxy + Next token hop**
-  — STARTED 2026-06-09 (worktree). The last prod-enablement blocker. Scope:
-  (1) Next `/api` proxy route forwards the Clerk session token to the backend;
-  (2) `deploy/Caddyfile.api` stops stripping `Authorization` on the
-  authenticated path; (3) E2E verify 200-authed / 401-unauthed; (4) only then
-  flip `SIDIRA_CLERK_SECRET_KEY` (+ `SIDIRA_CLERK_AUTHORIZED_PARTIES`) in SSM
-  and add the Amplify `pk_live`/`sk_live` keys — one coherent cutover.
+  — **PR #158 OPEN 2026-06-09** (worktree `phase-5-149-token-hop`). Design:
+  Clerk token rides `X-Sidira-Clerk-Authorization` (the `Authorization` slot
+  holds the hop Basic credential consumed by Caddy `basic_auth`); Caddy
+  promotes it to `Authorization` upstream and never leaks the Basic credential
+  to the backend. Env-gated on the Amplify publishable key — prod behavior
+  unchanged until cutover. Verified: typecheck+build, `caddy validate`, live
+  header-semantics test (promotion/carrier-drop/no-leak/401-bad-hop), codex
+  round 1 clean. Cutover procedure + rollback documented in
+  `docs/sidira-domain-runbook.md` § Clerk Production Cutover. Issue #149 stays
+  open until the prod flip (Amplify keys + SSM secret together) is executed.
 - [x] **Item 1 — Enable Clerk Organizations** — DONE on the **Production** instance
   (app `app_3EoIE8Rsl9TGEOJ1wHuXD4zxcVz`, instance `ins_3EoIQrcTqt9VuPdpSVAwEW2QZ3k`,
   `pk_live_`/`sk_live_` keys — confirmed by founder). Organizations enabled;
