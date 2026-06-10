@@ -1532,7 +1532,7 @@
           <div class="card-head"><span class="card-name">lumen-app</span><span class="chip">SNAPSHOT 2026-06-01</span></div>
           <dl>
             <dt>Capabilities</dt><dd>12 — EACH WITH REVERSE PRD + REVERSE FIGMA</dd>
-            <dt>Source</dt><dd><span class="mvp-only">MANUAL SNAPSHOT · AUTO-CRAWL PENDING</span><span class="future-only">WEEKLY PLAYWRIGHT CRAWL · 2026-06-01</span></dd>
+            <dt>Source</dt><dd>PLAYWRIGHT CRAWL · 2026-06-01</dd>
             <dt>Schema</dt><dd>v1.0</dd>
             <dt>Used in</dt><dd>43 RUNS (SLICE FROZEN PER RUN)</dd>
           </dl>
@@ -1563,12 +1563,10 @@
           <dl>
             <dt>Source</dt><dd>CRAWL OF THE AS-BUILT PRODUCT</dd>
             <dt>Versioning</dt><dd>LATEST POINTER FLIPS AFTER A CLEAN CRAWL</dd>
-            <dt class="mvp-only">Today</dt><dd class="mvp-only">PROVISIONED AT ONBOARDING — RE-CRAWL IS AN OPS ACTION</dd>
-            <dt class="future-only">Setup</dt><dd class="future-only">CAPABILITIES · ENTRY URLS · ROLE LOGINS — THEN THE WALKER RUNS</dd>
-            <dt class="future-only">Cadence</dt><dd class="future-only">WEEKLY PLAYWRIGHT CRAWL · ON-DEMAND</dd>
+            <dt>Setup</dt><dd>CAPABILITIES · ENTRY URLS · ROLE LOGINS — THEN THE WALKER RUNS</dd>
+            <dt>Cadence</dt><dd>WEEKLY PLAYWRIGHT CRAWL · ON-DEMAND</dd>
           </dl>
-          <a class="card-link mvp-only" href="#" title="Feature packs are written by the crawler, not by hand">WHY NO EDITOR? — IT'S THE CONTROL ARM</a>
-          <a class="card-link future-only" href="#" data-goto="crawler">CRAWL SETUP + RE-CRAWL →</a>
+          <a class="card-link" href="#" data-goto="crawler" title="Feature packs are written by the crawler, never by hand — the as-built pack is the control arm">CRAWL SETUP + RE-CRAWL →</a>
         </div>
       </div>
     </section>
@@ -1654,7 +1652,7 @@
   </div>
 </div>
 
-<!-- ════════ FEATURE PACK CRAWL SETUP — future surface (#171, Phase 7) ════════ -->
+<!-- ════════ FEATURE PACK CRAWL SETUP — MVP surface (#171) ════════ -->
 <div class="page" id="page-crawler" data-tab="library">
   <header class="page-strip">
     <h1>Feature pack — crawl setup</h1>
@@ -1997,7 +1995,6 @@
       var current = document.querySelector(".page.on");
       var tab = current ? current.getAttribute("data-tab") : "";
       if (tab === "objectives" || tab === "rollouts" || tab === "calibration") showPage("hyplist");
-      if (current && current.id === "page-crawler") showPage("library");
     }
   });
 
