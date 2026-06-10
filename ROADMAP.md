@@ -1,6 +1,6 @@
 # Sidira — Overall Roadmap
 
-**Last updated:** 2026-06-01 (producer repos renamed to Sidira)
+**Last updated:** 2026-06-10 (Phase 6.5 opportunity engine added — post-crawler, #173)
 
 The Sidira product spans three repos. This document is the strategy map: phases, sequencing across repos, critical path, and what to focus on next. **Open tickets** live in the [Sidira GitHub Project](https://github.com/users/ram-de/projects/) (multi-repo board across sidira-simulator + sidira-personas + sidira-crawler), not in markdown — see "Where to find what" below.
 
@@ -62,6 +62,7 @@ What's **not yet real**:
 | **5a** | **Postgres repo wiring (carve-out — #68)** | — | — | ✅ Done |
 | 5 | Auth (Clerk) + multi-tenancy + per-customer R2 prefix isolation | R2 artifact integration | — | 🔲 Pending |
 | 6 | Observability | Schema v1.1 + validation | — | 🔲 Pending |
+| **6.5** | **Opportunity engine Stage 0: OKR → ranked bet portfolio (#173)** | — | (consumes crawled feature pack) | 🔲 Post-crawler |
 | 7 | First customer (Lumen MVP) | First customer | First customer | 🔲 Pending |
 | 8 | Refinement loop UX (Karpathy AutoResearch) | Layer-3 calibration prep | — | 🔲 Pending |
 | 9 | Layer-3 calibration | Layer-3 loop | — | 🔲 Pending |
@@ -92,6 +93,7 @@ What's **not yet real**:
 Current ticket order:
 - Pick up Phase 5 auth/multi-tenancy work when broader access matters: #29 Clerk middleware, #30 customer scoping audit, #31 signup/customer record, #32 auth pages, #33 R2 prefix isolation.
 - Pick up crawler/product-pack work when the goal is customer-specific value: crawler Phase 2 Playwright walker + synthesis.
+- **After crawler completes:** Phase 6.5 opportunity engine Stage 0 (#173) — OKR → generated hypotheses → simulated ranked portfolio. Decided 2026-06-10 in session `ideation-decision-intelligence`; gated on the crawler because generation quality depends on a real crawled feature pack.
 - Keep Amplify access control enabled until real auth is in place.
 
 ---
@@ -213,6 +215,19 @@ Production follow-up: configure managed Postgres through SSM, run one migration-
 ### Phase 6 — Observability 🔲
 
 Sentry (errors) + Langfuse (LLM traces) + Grafana (basic counts). Per-customer cost tracking on LLM spend.
+
+### Phase 6.5 — Opportunity engine, Stage 0 🔲 (post-crawler — #173)
+
+**Thesis (the "product decision intelligence layer" direction, decided 2026-06-10):** invert the funnel. Instead of a PM bringing one hand-authored hypothesis for validation, a PM/VP describes their product OKRs and Sidira generates candidate hypotheses grounded in connected data, simulates them, and returns a ranked bet portfolio. Hypothesis generation alone is a commodity; the calibrated simulation engine is the ranking function nobody else has. Side effect: 10–20× more predictions per customer, accelerating the Phase 9 calibration flywheel.
+
+**Staged ladder:**
+- **Stage 0 (this phase, #173):** generate from data already in Sidira (persona pack gripes/seeds + crawled feature pack + past-sim weaknesses). Zero new integrations. On-demand only (OKR in → portfolio out). New surfaces: "Start from an OKR" wizard entry, generation service with mandatory per-hypothesis data **receipts**, tiered cost funnel (LLM pre-screen → top-k full sims), and an opportunity-run parent entity + portfolio ranking view.
+- **Stage 1 (later):** one enterprise connector (likely the Phase 4.5 Snowflake plan, generalized) for metric-grounded opportunities.
+- **Stage 2 (later):** multi-source continuous opportunity radar (proactive scanning against standing OKRs).
+
+**Guardrails:** 4.6(b) stays rejected — observational data is generation *input*, real A/B outcomes enter only as Phase 9 calibration signal, never as an analysis product. Every generated hypothesis carries a data receipt or doesn't ship.
+
+**Dependencies:** crawler Phase 2/3 (real feature pack). No customer conversations have shaped this yet — revisit scope after first design-partner contact.
 
 ### Phase 7 — First customer (Lumen MVP) 🔲
 

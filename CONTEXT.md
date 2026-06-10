@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-09 (Phase 5 closed; sample-workspace live in prod; pre-cutover DB debris deleted)
+**Last updated:** 2026-06-10 (Phase 6.5 opportunity engine direction decided — post-crawler, #173)
 
 ---
 
@@ -107,6 +107,7 @@ Current gaps live in the [GitHub Project](https://github.com/users/ram-de/projec
 Current order:
 1. Crawler/product-pack work — Playwright walker + product-pack synthesis are still the biggest missing producer path; new design-partner orgs currently have only the one-click Streamly sample to play with.
 2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
+3. **After crawler: Phase 6.5 opportunity engine Stage 0 (#173)** — "product decision intelligence layer" direction decided 2026-06-10 (session `ideation-decision-intelligence`, CLOSED): PM/VP describes OKRs → Sidira generates data-receipted hypotheses from personas + crawled feature pack + past sims → simulates top-k → ranked bet portfolio. On-demand only for now. Full spec in ROADMAP.md § Phase 6.5 and #173.
 
 **Deferred (ticketed, not scheduled):** #162 per-org vanity subdomains (`org_slug.sidira.ai`) — full feasibility analysis in the issue; blocked on Amplify Hosting's lack of wildcard-subdomain support; revisit at the enterprise/SSO stage.
 
