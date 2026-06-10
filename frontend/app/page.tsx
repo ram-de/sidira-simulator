@@ -1,31 +1,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { isPublicSiteHost } from "@/lib/site-hosts";
-import SidiraLockup from "@/components/SidiraLockup";
-import SidiraLockupDuo from "@/components/SidiraLockupDuo";
+import PublicTopBar, { APP_URL } from "@/components/PublicTopBar";
 import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO } from "@/lib/design";
-
-const CARDS = [
-  {
-    href: "/personas",
-    title: "Personas",
-    body: "Connect your Snowflake, map your columns into Sidira's 7 feature groups, and build a versioned persona pack.",
-    cta: "Build personas",
-  },
-  {
-    href: "/product",
-    title: "Product",
-    body: "Connect your product sandbox. The weekly crawler captures how every capability works today — PRD + Figma per capability.",
-    cta: "Connect product",
-  },
-  {
-    href: "/simulations",
-    title: "Simulations",
-    body: "Submit a hypothesis. Watch the agents react. Then chat with each agent about why they reacted that way.",
-    cta: "New simulation",
-  },
-];
 
 export default function HomePage() {
   const host = headers().get("host");
@@ -34,47 +13,9 @@ export default function HomePage() {
     return <PublicCompanyHome />;
   }
 
-  return <ProductHome />;
-}
-
-function ProductHome() {
-  return (
-    <main
-      style={{
-        maxWidth: 960,
-        margin: "64px auto",
-        padding: "0 24px",
-        fontFamily: FONT_SANS,
-        WebkitFontSmoothing: "antialiased",
-        color: TOKENS.ink,
-      }}
-    >
-      <h1 style={{ fontFamily: FONT_NARROW, fontSize: 40, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", margin: 0, color: TOKENS.ink }}>Sidira</h1>
-      <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, marginTop: 8, marginBottom: 48 }}>
-        Validate product hypotheses before you build them.
-      </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-        {CARDS.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            style={{
-              border: `0.75px solid ${TOKENS.rule}`,
-              borderRadius: 4,
-              padding: 20,
-              textDecoration: "none",
-              color: TOKENS.ink,
-              display: "block",
-            }}
-          >
-            <h3 style={{ fontFamily: FONT_SANS, marginTop: 0 }}>{card.title}</h3>
-            <p style={{ fontFamily: FONT_SANS, color: TOKENS.inkMuted, fontSize: 14, lineHeight: 1.5 }}>{card.body}</p>
-            <span style={{ fontFamily: FONT_SANS, color: TOKENS.ink, fontWeight: 500 }}>{card.cta} →</span>
-          </Link>
-        ))}
-      </div>
-    </main>
-  );
+  // App host has no home surface in the R2 IA — the hypotheses register IS
+  // the landing page (epic #156).
+  redirect("/simulations");
 }
 
 
@@ -92,11 +33,6 @@ const STEPS = [
     body: "Turn weak spots into sharper hypotheses for the next product review. Iterate before the build, not after the rollout.",
   },
 ];
-
-const APP_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://127.0.0.1:3000/simulations"
-    : "https://app.sidira.ai";
 
 function PublicCompanyHome() {
   return (
@@ -120,74 +56,8 @@ function PublicCompanyHome() {
         }
       `}</style>
 
-      {/* Top bar */}
-      <header
-        style={{
-          maxWidth: 1280,
-          margin: "0 auto",
-          padding: "24px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 24,
-          flexWrap: "wrap",
-          borderBottom: `0.75px solid ${TOKENS.rule}`,
-        }}
-      >
-        <Link
-          href="/"
-          aria-label="Sidira home"
-          style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-block" }}
-        >
-          <SidiraLockupDuo height={36} />
-        </Link>
-        <nav style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-          <Link
-            href="/about"
-            style={{
-              color: TOKENS.inkMuted,
-              fontFamily: FONT_SANS,
-              fontSize: 16,
-              fontWeight: 500,
-              textDecoration: "none",
-              padding: "8px 4px",
-            }}
-          >
-            About
-          </Link>
-          <Link
-            href="mailto:founders@sidira.ai?subject=Sidira%20access"
-            style={{
-              color: TOKENS.inkMuted,
-              fontFamily: FONT_SANS,
-              fontSize: 16,
-              fontWeight: 500,
-              textDecoration: "none",
-              padding: "8px 4px",
-            }}
-          >
-            Request access
-          </Link>
-          <Link
-            href={APP_URL}
-            style={{
-              background: TOKENS.ink,
-              border: `0.75px solid ${TOKENS.ink}`,
-              borderRadius: 4,
-              color: TOKENS.paper,
-              fontFamily: FONT_NARROW,
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              padding: "10px 16px",
-              textDecoration: "none",
-              textTransform: "uppercase",
-            }}
-          >
-            Sign in
-          </Link>
-        </nav>
-      </header>
+      {/* Top bar — shared with /about */}
+      <PublicTopBar />
 
       {/* Hero */}
       <section
