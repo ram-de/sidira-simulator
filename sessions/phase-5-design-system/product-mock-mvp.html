@@ -551,6 +551,16 @@
   }
   .pf-chip:hover { border-color: var(--ink-muted); }
   .pf-chip.on { border-color: var(--ink); color: var(--ink); background: var(--paper-recessed); }
+  .stim-author {
+    display: none; margin-top: 14px; padding: 16px 16px 14px;
+    border: 1px dashed var(--rule); border-radius: 2px; background: var(--paper);
+  }
+  .stim-author.open { display: block; }
+  .stim-author .field:first-child { margin-top: 0; }
+  .stim-control {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+    color: var(--ink-muted); margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule);
+  }
   .manifest-foot { padding: 16px 20px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; }
   .manifest-foot .est { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.04em; line-height: 1.5; }
 
@@ -1046,9 +1056,34 @@
             </div>
             <div>
               <span class="sublabel">Stimulus</span>
-              <select><option>sample-workspace-v1 · FLOW · 2 ARMS</option><option>digest-v2 · EMAIL · 2 ARMS</option><option>+ new stimulus…</option></select>
+              <select id="stimSelect"><option>sample-workspace-v1 · FLOW · 2 ARMS</option><option>digest-v2 · EMAIL · 2 ARMS</option><option>+ new stimulus…</option></select>
               <div class="field-hint">The artifact agents react to, managed in the Library.</div>
             </div>
+          </div>
+          <div class="stim-author" id="stimAuthor">
+            <div class="field field-row">
+              <div>
+                <span class="sublabel">Name</span>
+                <input type="text" value="sample-workspace-v2">
+              </div>
+              <div>
+                <span class="sublabel">Type</span>
+                <select><option>FLOW</option><option>EMAIL</option><option>PAGE</option></select>
+              </div>
+            </div>
+            <div class="field">
+              <span class="sublabel">Treatment — proposed change</span>
+              <textarea rows="3">Onboarding opens into a pre-filled sample workspace — three example projects, one completed checklist — instead of an empty state.</textarea>
+              <div class="field-hint">Written like a PRD delta — treatment-arm agents read this alongside the capability's reverse PRD.</div>
+            </div>
+            <div class="field">
+              <span class="sublabel">Screens — optional</span>
+              <div class="pf-chips" style="margin-top:0">
+                <span class="pf-chip">+ ATTACH SCREENS</span>
+              </div>
+              <div class="field-hint">Proposed screen flow, reverse-Figma format. Without screens, agents read the prose delta only.</div>
+            </div>
+            <div class="stim-control">CONTROL ARM = AS-BUILT CAPABILITY FROM THE FROZEN SLICE — NEVER AUTHORED</div>
           </div>
           <div class="field">
             <span class="sublabel">Mode</span>
@@ -1105,7 +1140,7 @@
         <dt>Mode</dt><dd>A/B — PAIRED</dd>
         <dt>Capability</dt><dd>onboarding-checklist</dd>
         <dt>Slice</dt><dd>lumen-app 2026-06-01 · FREEZES AT RUN</dd>
-        <dt>Stimulus</dt><dd>sample-workspace-v1 · 2 ARMS</dd>
+        <dt>Stimulus</dt><dd id="manifestStim">sample-workspace-v1 · 2 ARMS</dd>
         <dt>Cohort</dt><dd>smb-core v4 · 48 OF 48</dd>
         <dt>Population</dt><dd>1,000 · HAMILTON</dd>
         <dt>Seeds</dt><dd>5 PER PERSONA</dd>
@@ -1816,6 +1851,19 @@
   var presentToggle = document.getElementById("presentToggle");
   function togglePresent() { document.body.classList.toggle("present"); }
   presentToggle.addEventListener("click", togglePresent);
+
+  // Wizard: "+ new stimulus…" discloses the inline authoring panel; the
+  // manifest rail tracks the selection either way.
+  var stimSelect = document.getElementById("stimSelect");
+  var stimAuthor = document.getElementById("stimAuthor");
+  var manifestStim = document.getElementById("manifestStim");
+  stimSelect.addEventListener("change", function () {
+    var isNew = stimSelect.value.indexOf("+") === 0;
+    stimAuthor.classList.toggle("open", isNew);
+    manifestStim.textContent = isNew
+      ? "sample-workspace-v2 · NEW · 2 ARMS"
+      : stimSelect.value.split(" · ")[0] + " · 2 ARMS";
+  });
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
