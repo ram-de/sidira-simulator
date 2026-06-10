@@ -60,3 +60,20 @@ def test_customer_clerk_org_id_optional() -> None:
     """Phase 5 wires Clerk; until then clerk_org_id is nullable."""
     col = Customer.__table__.columns["clerk_org_id"]
     assert col.nullable is True
+
+
+def test_customer_external_id_supports_provider_swap() -> None:
+    """Pins the auth-provider portability contract
+    (docs/auth-provider-portability.md): ``customers.id`` is the opaque
+    internal PK every tenant-scoped table references, and ``clerk_org_id`` is
+    a separate unique mapping column — so swapping auth providers is a
+    backfill of a new mapping column, never a primary-key migration.
+    """
+    table = Customer.__table__
+    assert [c.name for c in table.primary_key.columns] == ["id"]
+    clerk_col = table.columns["clerk_org_id"]
+    assert clerk_col.unique is True
+    assert clerk_col.primary_key is False
+    # Tenant-scoped tables key on the internal id, not a provider id.
+    sim_fks = {fk.target_fullname for fk in Simulation.__table__.foreign_keys}
+    assert "customers.id" in sim_fks

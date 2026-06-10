@@ -70,6 +70,26 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
 
 ## Completed
 
+### Auth-provider portability insurance — docs + invariant pins (this PR)
+- Founder asked for "external_id column insurance" against a future Clerk →
+  WorkOS (or similar) swap. Scope discovery: **the mapping column already
+  exists** — `customers.clerk_org_id` (unique, nullable) has been in the schema
+  since migration 001 and is populated by the #31 webhook. What was missing was
+  the *contract*: nothing documented why the column exists, that `customers.id`
+  is opaque/permanent (its equality with the Clerk org id is a value
+  coincidence, not a semantic dependency), or where the provider seams are.
+- Shipped: `docs/auth-provider-portability.md` (why Clerk, full coupling map,
+  5-invariant portability contract, WorkOS swap playbook), seam-marking
+  docstrings on `Customer`, `auth._extract_customer_id` (THE resolution seam),
+  and the webhook module, invariant-pinning test
+  `test_customer_external_id_supports_provider_swap`, and an ONBOARDING.md
+  pointer row.
+- **Decision (2026-06-09): did NOT mint internal UUID PKs.** Rationale in the
+  doc — the mapping column buys the same swap path; UUID PKs would force a DB
+  lookup into the currently DB-free auth hot path and break the
+  signup-then-act race dedup (`ensure_exists` keyed on the org claim), all on
+  the eve of the #149 flip.
+
 ### #32 — Frontend Clerk auth pages + env-gated route protection (MERGED — PR #153, `f958bff`)
 - PR #153 squash-merged to `main` 2026-06-07 as `f958bff`; **issue #32 auto-closed**.
   Worktree `phase-5-32-clerk-frontend` removed. Opened/merged via `gh` as `ram-de`.

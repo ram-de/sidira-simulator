@@ -20,7 +20,13 @@ class Base(DeclarativeBase):
 
 
 class Customer(Base):
-    """Placeholder until Clerk wires up — Phase 5 populates clerk_org_id."""
+    """One tenant. ``id`` is an opaque internal key and is permanent; for
+    webhook-provisioned tenants its value equals the Clerk org id (globally
+    unique, doubles as the R2 prefix root), but nothing may parse it or assume
+    the auth provider can resolve it. ``clerk_org_id`` is the provider mapping
+    column that keeps an auth-provider swap a backfill instead of a data
+    migration — see docs/auth-provider-portability.md before changing either.
+    """
 
     __tablename__ = "customers"
 

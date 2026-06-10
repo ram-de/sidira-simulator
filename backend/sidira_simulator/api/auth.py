@@ -77,6 +77,14 @@ def _get_client():
 
 
 def _extract_customer_id(payload: dict) -> str | None:
+    """Resolve session claims → tenant id. THE provider-portability seam.
+
+    Today this is a passthrough: the claim value IS the customer id, because
+    the webhook provisions tenants keyed by Clerk org id. In an auth-provider
+    swap this function (and nothing else) becomes a mapping lookup against the
+    provider's external-id column on ``customers`` — no other code may read
+    tenant claims off a token. See docs/auth-provider-portability.md.
+    """
     for claim in _CUSTOMER_CLAIMS:
         value = payload.get(claim)
         if value:
