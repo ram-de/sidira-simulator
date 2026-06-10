@@ -74,9 +74,10 @@ visual, UI, and brand decision. Read it before:
 
 The mark, the wordmark, and the lockup files live in
 `frontend/public/brand/` and `frontend/app/icon.svg`. Reuse them; do not
-recreate them. The dual-color "founder-mode" variants are reserved for the
-cofounder / about / press / anniversary surfaces and the in-product
-aperture-close animation only — never for the favicon, nav, or dashboard.
+recreate them. The dual-color "founder-mode" variants are reserved for
+brand-mode surfaces (favicon · app icon · public site · about / press /
+anniversary — DESIGN.md §1.3) and the in-product aperture-close animation
+only — never resting in the nav or dashboard.
 
 When QAing or reviewing UI changes, flag any code that violates DESIGN.md
 (refuse list in §10) or that deviates from the locked specs without an
