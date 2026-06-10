@@ -282,7 +282,7 @@ export default function PersonaGroupChatPage() {
           <strong>Unknown persona-group chat arm.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
-            style={{ color: "#1d4ed8", textDecoration: "underline" }}
+            style={{ color: TOKENS.ink, textDecoration: "underline" }}
           >
             Back to simulation
           </Link>
@@ -298,7 +298,7 @@ export default function PersonaGroupChatPage() {
           <strong>Persona group not found.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
-            style={{ color: "#1d4ed8", textDecoration: "underline" }}
+            style={{ color: TOKENS.ink, textDecoration: "underline" }}
           >
             Back to simulation
           </Link>
@@ -711,7 +711,7 @@ function CollectiveTurn({
         }}
       >
         <span style={collectiveLabelStyle}>
-          {personaName} <span style={{ color: "#888" }}>(collective)</span>
+          {personaName} <span style={{ color: TOKENS.inkMuted }}>(collective)</span>
         </span>
         <span style={{ flex: 1 }} />
         <ThumbsControl
@@ -723,9 +723,9 @@ function CollectiveTurn({
       <div
         style={{
           ...turnBodyStyle,
-          background: "#f4f8ff",
+          background: TOKENS.paperRecessed,
           padding: "10px 14px",
-          borderLeft: "3px solid #1d4ed8",
+          borderLeft: `3px solid ${TOKENS.ink}`,
           borderRadius: "0 4px 4px 0",
         }}
       >
@@ -770,9 +770,9 @@ function SynthesisTurn({
         style={{
           ...turnBodyStyle,
           fontWeight: 500,
-          background: "#fafaf2",
+          background: TOKENS.paperRecessed,
           padding: "8px 12px",
-          borderLeft: "3px solid #b08d00",
+          borderLeft: `3px solid ${TOKENS.inkMuted}`,
           borderRadius: "0 4px 4px 0",
         }}
       >
@@ -805,7 +805,7 @@ function SynthesisTurn({
                 <span
                   style={{
                     fontSize: 11,
-                    color: "#0a7d3a",
+                    color: TOKENS.inkMuted,
                     textTransform: "uppercase",
                     letterSpacing: 0.5,
                     fontWeight: 600,
@@ -968,9 +968,11 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 600,
 };
 
+// Turn designators are ink-weight, not color-coded — semantic colors are
+// reserved for outcomes (§4.3).
 const pmLabelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: "#1d4ed8",
+  color: TOKENS.ink,
   textTransform: "uppercase",
   letterSpacing: 0.5,
   fontWeight: 600,
@@ -979,7 +981,7 @@ const pmLabelStyle: React.CSSProperties = {
 
 const collectiveLabelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: "#1d4ed8",
+  color: TOKENS.ink,
   textTransform: "uppercase",
   letterSpacing: 0.5,
   fontWeight: 600,
@@ -988,7 +990,7 @@ const collectiveLabelStyle: React.CSSProperties = {
 
 const synthesisLabelStyle: React.CSSProperties = {
   fontSize: 11,
-  color: "#b08d00",
+  color: TOKENS.inkMuted,
   textTransform: "uppercase",
   letterSpacing: 0.5,
   fontWeight: 600,
