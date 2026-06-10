@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira sticker · aperture hex (ink on paper)</title>
+  <desc id="desc">Hexagonal die-cut sticker, 38 mm point-to-point. Paper ground (#F4EFE6), monochrome ink mark (#0E1A2B). Hexagon orientation matches the mark's inner aperture: points face top and bottom, flat edges face left and right. Mark holds the §1.4 clear space (one blade-length) inside the die. The hexagon outline is the DIE-LINE: non-printing, cut path only.</desc>
+  <!-- DIE-LINE · NON-PRINTING · kiss-cut path -->
+  <polygon id="dieline" points="110.23,89 60,118 9.77,89 9.77,31 60,2 110.23,31"
+           fill="#F4EFE6" stroke="#0E1A2B" stroke-opacity="0.35" stroke-width="0.5"/>
+  <!-- mark: canonical geometry from sidira-mark.svg, scaled 0.8 about center -->
+  <g transform="translate(60 60) scale(0.8) translate(-50 -50)"
+     stroke="#0E1A2B" stroke-width="1.4" stroke-linejoin="round" fill="none">
+    <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+    <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+    <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+    <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+    <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+    <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+  </g>
+</svg>

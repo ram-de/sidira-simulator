@@ -646,6 +646,14 @@ These are never allowed to ship.
 | `frontend/public/brand/sidira-mark-duo.svg` | founder-mode dual-color mark |
 | `frontend/public/brand/sidira-lockup.svg` | primary horizontal lockup |
 | `frontend/public/brand/sidira-lockup-duo.svg` | founder-mode horizontal lockup |
+| `frontend/public/brand/merch/sidira-sticker-mark.svg` | merch · hex die-cut sticker, ink mark on paper (38 mm) |
+| `frontend/public/brand/merch/sidira-sticker-duo.svg` | merch · hex die-cut sticker, duo mark — ships only if merch is sanctioned as a §1.3 brand-mode surface (open founder decision) |
+| `frontend/public/brand/merch/sidira-sticker-reading.svg` | merch · settle-trace reading sticker, signal + paper on glass (84 × 30 mm) |
+| `frontend/public/brand/merch/sidira-sticker-verdict.svg` | merch · verdict-with-policy sticker, ink on paper (84 × 31 mm) |
+| `frontend/public/brand/merch/sidira-sticker-wordmark.svg` | merch · lockup strip sticker, ink on paper (80 × 21 mm) |
+| `frontend/public/brand/merch/sidira-print-decision-rule.svg` | merch · apparel back print, §8.1 decision rule, single color via `currentColor` |
+| `frontend/public/brand/merch/sidira-print-reading.svg` | merch · apparel print, settle-trace record, signal + paper — dark garments only (§4.1) |
+| `frontend/public/brand/merch/lookbook.html` | merch · tech pack 01: full line, specs, production notes, open decisions |
 
 When a new asset is needed, add it to `frontend/public/brand/` with a name that
 matches the convention (`sidira-<thing>[-<variant>].svg`) and add a row to the

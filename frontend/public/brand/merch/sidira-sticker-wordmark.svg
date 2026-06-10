@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" role="img" aria-labelledby="title desc" fill="none">
+  <title id="title">Sidira sticker · lockup strip (ink on paper)</title>
+  <desc id="desc">Rectangular sticker, 80 × 21 mm, radius 6. The primary horizontal lockup (mark + SIDIRA, §3 proportions from sidira-lockup.svg) in ink on paper. Single-color print. Wordmark set in Archivo Narrow SemiBold (MVP stack); convert text to outlines before production. The outer rounded rect is the cut path.</desc>
+  <!-- cut path = outer rect -->
+  <rect x="0.5" y="0.5" width="239" height="63" rx="6" fill="#F4EFE6" stroke="#0E1A2B" stroke-opacity="0.35" stroke-width="0.5"/>
+  <!-- lockup: verbatim composition from sidira-lockup.svg, scaled 0.88 with 12/7 inset -->
+  <g transform="translate(12 7) scale(0.88)" color="#0E1A2B">
+    <g transform="translate(0 5) scale(0.5)" stroke="#0E1A2B" stroke-width="2.2" stroke-linejoin="round" fill="none">
+      <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+      <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+      <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+      <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+      <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+      <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+    </g>
+    <text x="64" y="44" font-family="'Archivo Narrow', 'Archivo', sans-serif" font-weight="600"
+          font-size="44" letter-spacing="2.6" fill="#0E1A2B">SIDIRA</text>
+  </g>
+</svg>
