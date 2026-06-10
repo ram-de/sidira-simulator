@@ -52,12 +52,11 @@ export default function NewSimulationPage() {
   // is open AND the treatment textarea has prose.
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [proposedPrd, setProposedPrd] = useState<string>("");
-  // R2 #167: presentational-only stimulus designators. They name the
-  // stimulus in the reading manifest; they are NOT part of the submit
+  // R2 #167/#183: presentational-only stimulus designator. It names the
+  // stimulus in the reading manifest; it is NOT part of the submit
   // payload (MVP stimuli live on the Hypothesis as prose + proposed_prd —
   // DESIGN.md §7.6).
   const [stimName, setStimName] = useState<string>("");
-  const [stimType, setStimType] = useState<string>("FLOW");
   // Phase 4.6 #88: A/B experiment mode toggle. When on, the request gets
   // `arm_split: { treatment_fraction: 0.5 }` and the simulator runs both
   // a treatment arm (sees the proposed change) and a control arm (sees
@@ -376,10 +375,10 @@ export default function NewSimulationPage() {
     [
       "Stimulus",
       showAdvanced
-        ? `${stimName.trim() || "untitled"} · ${stimType} · NEW · ${
+        ? `${stimName.trim() || "untitled"} · NEW · ${
             abMode ? "2 ARMS" : "1 ARM"
           }`
-        : "PROSE-ONLY · FROM CLAIM",
+        : "CLAIM TEXT ONLY",
     ],
     [
       "Cohort",
@@ -569,18 +568,18 @@ export default function NewSimulationPage() {
                         setShowAdvanced(false);
                         setProposedPrd("");
                         setStimName("");
-                        setStimType("FLOW");
                       }
                     }}
                     disabled={formDisabled}
                     style={selectStyle}
                   >
-                    <option value="prose">prose-only · FROM CLAIM</option>
+                    <option value="prose">Claim text only — no PRD delta</option>
                     <option value="new">+ new stimulus…</option>
                   </select>
                   <div style={hintStyle}>
-                    The artifact agents react to. Prose-only uses the claim
-                    itself; a new stimulus adds a PRD-style delta.
+                    What agents react to. By default they read the claim above
+                    as-is; a new stimulus adds a PRD-delta describing the
+                    proposed change.
                   </div>
                 </div>
               </div>
@@ -612,25 +611,9 @@ export default function NewSimulationPage() {
                         style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 13 }}
                       />
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <label htmlFor="stim-type" style={sublabelStyle}>
-                        Type
-                      </label>
-                      <select
-                        id="stim-type"
-                        value={stimType}
-                        onChange={(e) => setStimType(e.target.value)}
-                        disabled={formDisabled}
-                        style={selectStyle}
-                      >
-                        <option value="FLOW">FLOW</option>
-                        <option value="EMAIL">EMAIL</option>
-                        <option value="PAGE">PAGE</option>
-                      </select>
-                    </div>
                   </div>
                   <div style={hintStyle}>
-                    Name and type print on the reading manifest — the treatment
+                    The name prints on the reading manifest — the treatment
                     text below is what agents actually read.
                   </div>
                   <div style={fieldStyle}>
@@ -655,12 +638,15 @@ export default function NewSimulationPage() {
                       alongside the capability&rsquo;s as-built PRD.
                     </div>
                   </div>
+                  {/* #183: no false affordance — proposed_figma has no
+                      authoring path here (the wizard always submits null).
+                      First-class stimuli with a screens editor are #169. */}
                   <div style={fieldStyle}>
-                    <span style={sublabelStyle}>Screens — optional</span>
+                    <span style={sublabelStyle}>Screens — not yet</span>
                     <div style={hintStyle}>
-                      Proposed screen flow attaches in reverse-Figma format via
-                      the API. Without screens, agents read the prose delta
-                      only.
+                      Screen flows can&rsquo;t be attached here yet — agents
+                      read the PRD-delta text only. Attachable screens arrive
+                      with first-class stimuli.
                     </div>
                   </div>
                   <div
