@@ -87,10 +87,10 @@ On the instance (SSM session or another `send-command`):
 git -C /opt/sidira/repo log -1 --oneline
 
 # Containers were recreated just now
-docker ps --format 'table {{.Names}}\t{{.Status}}'
+sudo docker ps --format 'table {{.Names}}\t{{.Status}}'
 
 # The new route(s) exist — lists every path the deployed code serves
-docker exec sidira-api python -c "from sidira_simulator.main import app; print('\n'.join(sorted({r.path for r in app.routes})))"
+sudo docker exec sidira-api python -c "from sidira_simulator.main import app; print('\n'.join(sorted({r.path for r in app.routes})))"
 ```
 
 (The route check imports the app in-process instead of calling
