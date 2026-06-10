@@ -512,15 +512,20 @@
   .slot .slot-spec dd { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); }
 
   /* ── new-hypothesis wizard (MVP-shipped flow) ────── */
-  .form-wrap { max-width: 760px; }
-  .field { margin-top: 20px; }
-  .field > .label { display: block; border: none; padding-bottom: 6px; }
-  .field-hint { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.04em; margin-top: 5px; }
+  .form-wrap { max-width: 620px; }
+  .wsec { margin-top: 28px; }
+  .wsec:first-child { margin-top: 0; }
+  .wsec > .label { display: block; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+  .field { margin-top: 16px; }
+  .sublabel {
+    display: block; font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-muted); margin-bottom: 6px;
+  }
+  .field-hint { font-size: 12px; color: var(--ink-muted); margin-top: 6px; line-height: 1.45; max-width: 52ch; }
   input[type="text"], textarea, select {
     width: 100%; font-family: var(--font-body); font-size: 14px; color: var(--ink);
-    background: var(--paper-recessed); border: 1px solid var(--rule); border-radius: 2px;
-    box-shadow: inset 0 1px 2px rgba(14, 26, 43, 0.07);
-    padding: 9px 11px; transition: border-color 80ms ease-out;
+    background: var(--paper-elevated); border: 1px solid var(--rule); border-radius: 2px;
+    padding: 8px 11px; transition: border-color 80ms ease-out;
   }
   textarea { resize: vertical; min-height: 64px; line-height: 1.45; }
   input:focus, textarea:focus, select:focus { outline: none; border-color: var(--ink); }
@@ -545,11 +550,8 @@
   }
   .pf-chip:hover { border-color: var(--ink-muted); }
   .pf-chip.on { border-color: var(--ink); color: var(--ink); background: var(--paper-recessed); }
-  .form-foot {
-    display: flex; align-items: center; gap: 16px; margin-top: 28px;
-    border-top: 1px solid var(--rule); padding-top: 18px;
-  }
-  .form-foot .est { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.06em; }
+  .manifest-foot { padding: 16px 20px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; }
+  .manifest-foot .est { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.04em; line-height: 1.5; }
 
   /* ── agent chat (the differentiator, MVP-shipped) ── */
   .chat-panel { display: flex; min-height: 520px; }
@@ -628,7 +630,7 @@
 <!-- mock chrome — not product UI -->
 <div class="board-chrome">
   <span class="title">SIDIRA PRODUCT MOCK · MVP SURFACES + EXPANSION SLOTS</span>
-  <span class="keyhint">TABS = FULL PRODUCT · ▶ PLAYS A RUN · MOONSHOT TOGGLE FILLS THE EXPANSION SLOTS</span>
+  <span class="keyhint">MVP NAV = WHAT'S BUILT · ▶ PLAYS A RUN · MOONSHOT TOGGLE REVEALS FUTURE TABS</span>
   <div class="chrome-actions">
     <button class="chrome-btn" id="runDemo" type="button">▶ RUN SIMULATION</button>
     <button class="chrome-btn" id="replayChrome" type="button">REPLAY SETTLE ↻</button>
@@ -655,17 +657,14 @@
     <span class="wordmark">Sidira</span>
   </a>
   <div class="nav-tabs">
-    <a href="#" data-page="objectives">Objectives</a>
+    <a href="#" class="future-only" data-page="objectives">Objectives</a>
     <a href="#" class="active" data-page="hyplist">Hypotheses</a>
-    <a href="#" data-page="rollouts">Rollouts</a>
-    <a href="#" data-page="calibration">Calibration</a>
+    <a href="#" class="future-only" data-page="rollouts">Rollouts</a>
+    <a href="#" class="future-only" data-page="calibration">Calibration</a>
     <a href="#" data-page="library">Library</a>
   </div>
   <span class="cmdk">⌘K</span>
-  <a class="cal-readout" href="#" data-goto="calibration" title="Calibration ledger">
-    <span class="mvp-only">CAL <b>—</b> · n=0</span>
-    <span class="future-only">CAL <b>0.81</b> · n=142</span>
-  </a>
+  <a class="cal-readout future-only" href="#" data-goto="calibration" title="Calibration ledger">CAL <b>0.81</b> · n=142</a>
   <a class="workspace-chip" href="#"><span class="org">LUMEN</span><span class="sep">/</span>WS-01</a>
   <span class="avatar" title="Signed in via Clerk — per-customer workspace isolation">RD</span>
 </nav>
@@ -679,12 +678,9 @@
       <a href="#" data-goto="hyplist">HYP-117</a><span class="sep">/</span>
       <span>RUN-3</span>
     </div>
-    <div class="lineage mvp-only" aria-label="Pipeline stage 2 of 4 — rollout grading lands in Phase 9">
+    <div class="lineage mvp-only" aria-label="Simulated, now at decision">
       <span class="stage done"><span class="stage-dot"></span>SIMULATED</span>
       <span class="stage current"><span class="stage-dot"></span>DECISION</span>
-      <span class="stage unreachable" title="Phase 9"><span class="stage-dot"></span>ROLLOUT</span>
-      <span class="stage unreachable" title="Phase 9"><span class="stage-dot"></span>GRADED</span>
-      <span class="stage-count">STAGE 2/4</span>
     </div>
     <div class="lineage future-only" aria-label="Pipeline stage 3 of 5">
       <span class="stage done"><span class="stage-dot"></span>SIMULATED</span>
@@ -792,7 +788,7 @@
           SEED VARIANCE σ = 0.021
         </span>
         <span class="spacer"></span>
-        <span class="mvp-only">UNGRADED — CALIBRATION LEDGER EMPTY · <a href="#" data-goto="calibration" style="color:var(--glass-muted); border-bottom:1px dotted var(--glass-muted)">WHY →</a></span>
+        <span class="mvp-only">UNGRADED — NO LIVE OUTCOMES YET</span>
         <span class="future-only">GRADED AGAINST CAL LEDGER n=142</span>
       </div>
     </section>
@@ -1027,79 +1023,102 @@
 <div class="page" id="page-wizard" data-tab="hyplist">
   <header class="page-strip">
     <h1>New hypothesis</h1>
-    <span class="sub">HYP-123 · WORKSPACE LUMEN</span>
+    <span class="sub">HYP-123 · DRAFT · WORKSPACE LUMEN</span>
     <span class="right page-tag">READINGS ARE PAIRED BY PERSONA + SEED</span>
   </header>
-  <div class="page-body">
-    <div class="form-wrap">
-      <div class="field">
-        <span class="label">Hypothesis statement</span>
-        <textarea rows="2">Surfacing the integrations step first in onboarding will lift day-7 setup completion for new admins.</textarea>
-        <div class="field-hint">STATE IT AS A FALSIFIABLE PREDICTION — THE VERDICT PRINTS AGAINST POLICY DR-1 (THRESHOLD 0.70)</div>
+  <div class="panel">
+    <main class="zone-evidence">
+      <div class="form-wrap">
+        <section class="wsec">
+          <span class="label">01 · Claim</span>
+          <div class="field">
+            <textarea rows="2">Adding a pre-filled sample workspace to onboarding will lift day-7 setup completion for new admins.</textarea>
+            <div class="field-hint">State a falsifiable prediction — the verdict prints against policy DR-1 (threshold 0.70).</div>
+          </div>
+        </section>
+        <section class="wsec">
+          <span class="label">02 · Subject</span>
+          <div class="field field-row">
+            <div>
+              <span class="sublabel">Capability under test</span>
+              <select><option>onboarding-checklist</option><option>weekly-digest</option><option>usage-dashboard</option></select>
+              <div class="field-hint">From the feature pack — its reverse PRD and screens attach to every agent's context.</div>
+            </div>
+            <div>
+              <span class="sublabel">Stimulus</span>
+              <select><option>sample-workspace-v1 · FLOW · 2 ARMS</option><option>digest-v2 · EMAIL · 2 ARMS</option><option>+ new stimulus…</option></select>
+              <div class="field-hint">The artifact agents react to, managed in the Library.</div>
+            </div>
+          </div>
+          <div class="field">
+            <span class="sublabel">Mode</span>
+            <span class="seg">
+              <button type="button">SINGLE ARM</button>
+              <button type="button" class="on">A/B — TREATMENT VS CONTROL</button>
+            </span>
+            <div class="field-hint">A/B pairs every reading — same persona, same seed, both arms. Lift is the paired difference.</div>
+          </div>
+        </section>
+        <section class="wsec">
+          <span class="label">03 · Cohort</span>
+          <div class="field">
+            <span class="sublabel">Persona pack</span>
+            <select><option>smb-core v4 · 48 PERSONAS</option><option>enterprise-it v2 · 36 PERSONAS</option></select>
+          </div>
+          <div class="field">
+            <span class="sublabel">Filter</span>
+            <div class="pf-chips" style="margin-top:0">
+              <span class="pf-chip on">P02 OFFICE ADMIN</span>
+              <span class="pf-chip on">P05 OWNER-OPERATOR</span>
+              <span class="pf-chip on">P07 FRANCHISE MGR</span>
+              <span class="pf-chip on">P09 IT LEAD</span>
+              <span class="pf-chip on">P11 PRIVACY-FIRST</span>
+              <span class="pf-chip on">+ 43 MORE — ALL SELECTED</span>
+            </div>
+            <div class="field-hint">Deselect personas to target the reading — weights renormalize via Hamilton allocation over the subset.</div>
+          </div>
+        </section>
+        <section class="wsec">
+          <span class="label">04 · Reading</span>
+          <div class="field field-row-3">
+            <div>
+              <span class="sublabel">Population</span>
+              <input type="text" value="1,000">
+            </div>
+            <div>
+              <span class="sublabel">Seeds</span>
+              <select><option>5 · DEFAULT</option><option>3</option><option>10</option></select>
+            </div>
+            <div>
+              <span class="sublabel">Model</span>
+              <select><option>gpt-5.2 · OPENAI</option><option>claude-fable-5 · ANTHROPIC</option><option>llama-4-70b · GROQ</option></select>
+            </div>
+          </div>
+          <div class="field-hint">Population allocates across selected personas by pack weights. Seeds are identity seeds — repeated measures per persona.</div>
+        </section>
       </div>
-
-      <div class="field field-row">
-        <div>
-          <span class="label">Capability under test</span>
-          <select><option>onboarding-checklist — lumen-app 2026-06-01</option><option>weekly-digest</option><option>usage-dashboard</option></select>
-          <div class="field-hint">FROM FEATURE PACK · REVERSE PRD + 6 SCREENS ATTACH TO EVERY AGENT'S CONTEXT</div>
-        </div>
-        <div>
-          <span class="label">Stimulus</span>
-          <select><option>onboarding-checklist-v1 — FLOW · 2 ARMS</option><option>digest-v2 — EMAIL · 2 ARMS</option><option>+ NEW STIMULUS…</option></select>
-          <div class="field-hint">THE ARTIFACT AGENTS REACT TO · MANAGED IN LIBRARY</div>
-        </div>
-      </div>
-
-      <div class="field">
-        <span class="label">Mode</span><br>
-        <span class="seg">
-          <button type="button">SINGLE ARM</button>
-          <button type="button" class="on">A/B — TREATMENT VS CONTROL</button>
-        </span>
-        <div class="field-hint">A/B PAIRS EVERY READING: SAME PERSONA, SAME SEED, BOTH ARMS · LIFT = PAIRED DIFFERENCE</div>
-      </div>
-
-      <div class="field">
-        <span class="label">Persona pack + filter</span>
-        <select><option>smb-core v4 — 48 PERSONAS · GRADED USE ONLY</option><option>enterprise-it v2 — 36 PERSONAS</option></select>
-        <div class="pf-chips">
-          <span class="pf-chip on">P02 OFFICE ADMIN</span>
-          <span class="pf-chip on">P05 OWNER-OPERATOR</span>
-          <span class="pf-chip on">P07 FRANCHISE MGR</span>
-          <span class="pf-chip on">P09 IT LEAD</span>
-          <span class="pf-chip on">P11 PRIVACY-FIRST</span>
-          <span class="pf-chip">P01 BOOKKEEPER</span>
-          <span class="pf-chip">P03 NIGHT-SHIFT OPS</span>
-          <span class="pf-chip">+ 41 MORE…</span>
-        </div>
-        <div class="field-hint">5 OF 48 SELECTED — WEIGHTS RENORMALIZED VIA HAMILTON ALLOCATION OVER THE SUBSET</div>
-      </div>
-
-      <div class="field field-row-3">
-        <div>
-          <span class="label">Population</span>
-          <input type="text" value="1,000">
-          <div class="field-hint">ALLOCATED ACROSS SELECTED PERSONAS BY PACK WEIGHTS</div>
-        </div>
-        <div>
-          <span class="label">Seeds</span>
-          <select><option>5 — DEFAULT</option><option>3</option><option>10</option></select>
-          <div class="field-hint">IDENTITY SEEDS — REPEATED MEASURES PER PERSONA</div>
-        </div>
-        <div>
-          <span class="label">Model</span>
-          <select><option>gpt-5.2 — OPENAI</option><option>claude-fable-5 — ANTHROPIC</option><option>llama-4-70b — GROQ</option></select>
-          <div class="field-hint">PROVIDER + MODEL SELECTABLE PER RUN</div>
-        </div>
-      </div>
-
-      <div class="form-foot">
+    </main>
+    <aside class="zone-inspector">
+      <div class="inspector-head"><span class="label">Reading manifest</span></div>
+      <dl class="provenance" style="border-top:none; flex:1; align-content:start">
+        <dt>Designator</dt><dd>HYP-123 · DRAFT</dd>
+        <dt>Mode</dt><dd>A/B — PAIRED</dd>
+        <dt>Capability</dt><dd>onboarding-checklist</dd>
+        <dt>Slice</dt><dd>lumen-app 2026-06-01 · FREEZES AT RUN</dd>
+        <dt>Stimulus</dt><dd>sample-workspace-v1 · 2 ARMS</dd>
+        <dt>Cohort</dt><dd>smb-core v4 · 48 OF 48</dd>
+        <dt>Population</dt><dd>1,000 · HAMILTON</dd>
+        <dt>Seeds</dt><dd>5 PER PERSONA</dd>
+        <dt>Readings</dt><dd>240 PAIRED</dd>
+        <dt>Model</dt><dd>gpt-5.2</dd>
+        <dt>Policy</dt><dd>DR-1 · THRESHOLD 0.70</dd>
+      </dl>
+      <div class="manifest-foot">
         <button class="primary-action" type="button" data-goto="hypdetail">Begin reading →</button>
         <button class="secondary-action" type="button" data-goto="hyplist">Save draft</button>
-        <span class="est">EST. 4–6 MIN · 240 PAIRED READINGS · THE TRACE PLOTS AS BATCHES LAND — NO SPINNERS</span>
+        <div class="est">EST. 4–6 MIN — THE TRACE PLOTS AS BATCHES LAND. NO SPINNERS.</div>
       </div>
-    </div>
+    </aside>
   </div>
 </div>
 
@@ -1798,6 +1817,11 @@
     var on = document.body.classList.toggle("moonshot");
     modeToggle.classList.toggle("on", on);
     modeToggle.textContent = on ? "VIEW MVP STATE" : "VIEW MOONSHOT STATE";
+    if (!on) {
+      var current = document.querySelector(".page.on");
+      var tab = current ? current.getAttribute("data-tab") : "";
+      if (tab === "objectives" || tab === "rollouts" || tab === "calibration") showPage("hyplist");
+    }
   });
 
   // page navigation: tabs swap pages (§9.3 — 120ms crossfade)
