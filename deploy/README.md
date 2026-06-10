@@ -2,6 +2,10 @@
 
 This directory contains the browser-console-friendly production bootstrap path.
 
+> **Already bootstrapped and just shipped a backend change?** You want
+> `REDEPLOY.md` — the routine, agent-executable redeploy runbook. This README
+> covers first-time instance setup.
+
 ## Backend API on a small AWS VM
 
 Use this when avoiding a local AWS CLI profile:
