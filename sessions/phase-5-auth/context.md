@@ -27,6 +27,18 @@ hardening (#124/#131, shipped) → Clerk session auth + per-request multi-tenanc
   round 1 clean. Cutover procedure + rollback documented in
   `docs/sidira-domain-runbook.md` § Clerk Production Cutover. Issue #149 stays
   open until the prod flip (Amplify keys + SSM secret together) is executed.
+  **Flip pre-flight blocker FIXED 2026-06-09 — PR #159 merged as `0cec35a`:**
+  the Codex flip prompt's Step 0b caught that `amplify.yml` writes a curated
+  `frontend/.env.production` (Amplify console env vars reach the BUILD only;
+  the Next runtime compute never sees them) and the Clerk pair was missing —
+  `CLERK_SECRET_KEY` would have been a silent runtime no-op. `amplify.yml` now
+  conditionally writes both Clerk vars into `.env.production` (optional =
+  keyless pre-cutover/preview builds still pass; half-set pair fails the build
+  fast). Also fixed `test_public_api_is_gated_by_backend_internal_key`, which
+  was failing on `main` since #158's two-branch Caddyfile split (stale global
+  ordering assertion → per-branch invariants). Suite 430 passed; codex round 1
+  findings (2 test-strength gaps) addressed. **The flip is now UNBLOCKED** —
+  re-run the Codex flip prompt; Step 0b will pass.
 - [x] **Item 1 — Enable Clerk Organizations** — DONE on the **Production** instance
   (app `app_3EoIE8Rsl9TGEOJ1wHuXD4zxcVz`, instance `ins_3EoIQrcTqt9VuPdpSVAwEW2QZ3k`,
   `pk_live_`/`sk_live_` keys — confirmed by founder). Organizations enabled;
