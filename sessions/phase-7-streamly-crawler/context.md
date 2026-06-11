@@ -45,4 +45,4 @@ First-customer (mock) pipeline in ram-de/sidira-crawler: generic Playwright walk
 - Codex review discipline: run codex review before declaring any PR done (`~/.npm-global/bin/codex`, off PATH; `-s read-only`, prefix prompts with the skill-files exclusion warning).
 
 ## For my cofounder
-Ticket #2 is functionally done — PR #7 just needs the CI gate to finish (it passed locally end-to-end; the only CI failure so far was the GHCR grant, now fixed). Merge on green is pre-approved. Ticket #3 is unblocked: real walk data exists, contract documented above. Watch the anti-circularity rule — it's the whole point of the sandbox being independently built.
+Ticket #2 is DONE — PR #7 merged as `229de67` on crawler main, CI gate green on the real GHCR image. Ticket #3 is fully unblocked: branch off crawler main, real walk data exists (see Next Steps), and all secrets (R2 + GROQ_API_KEY) are configured on the repo and verified. Watch the anti-circularity rule — it's the whole point of the sandbox being independently built.
