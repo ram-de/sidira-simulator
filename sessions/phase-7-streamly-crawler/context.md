@@ -12,10 +12,10 @@ owner: ram-de
 First-customer (mock) pipeline in ram-de/sidira-crawler: generic Playwright walker (#1, done) → CI acceptance gate against the streamly-sandbox image (#2, PR #7) → Phase 3 synthesizer over the raw walk → Streamly Feature Pack (#3, ready to start).
 
 ## In Progress
-- [ ] Crawler #2: PR #7 (`feat/sandbox-walk-ci`) — sandbox-walk gate re-running in CI after the GHCR read grant was fixed; **user approved squash-merge once green** (being handled in the original session; if you're picking this up and the gate is green, merge it)
-- [ ] Crawler #3: synthesize Streamly Feature Pack via Phase 3 synthesizer — **can start NOW, no merge dependency** (see Key Context)
+- [ ] Crawler #3: synthesize Streamly Feature Pack via Phase 3 synthesizer — **unblocked; branch off crawler `main`** (see Key Context)
 
 ## Completed
+- Crawler #2 MERGED 2026-06-11: PR #7 squash-merged as `229de67` on crawler main; CI gate PASSED on the real GHCR image (guest 8/8, member 19/20, premium 20/20, 6/6 mustDiscover, determinism PASS, 16 min). Issue #2 closed, board moved to Done.
 - Crawler #1 (walker MVP) — PR #6 merged. Generic BFS walker: replayable action paths, fresh context per node, screen_id = route + flag tokens + structural digest.
 - Crawler #2 build: acceptance harness (`scripts/sandbox_acceptance.py`), judge config (`acceptance/streamly-sandbox.json`), CI workflow (`.github/workflows/sandbox-walk.yml`), hermetic tests (94 passed). Local gate PASS: guest 8/8, member 19/20, premium 20/20, all 6 mustDiscover FOUND, determinism PASS, 16.5 min with --jobs 3.
 - Codex review of PR #7: 6 findings (1 P1 evidence-free matchers, 3 P2, 2 P3) — all fixed (`1130a7a`, `79c3edb`), verdict re-judged unchanged.
@@ -24,9 +24,8 @@ First-customer (mock) pipeline in ram-de/sidira-crawler: generic Playwright walk
 - All crawler issues backfilled to GitHub project 1 (gh token now has `project` scope; pass `--project` on future ticket creation).
 
 ## Next Steps
-1. **Start crawler #3** (`gh issue view 3 -R ram-de/sidira-crawler`): run the Phase 3 synthesizer over the raw sandbox walk → reverse PRD + reverse Figma per capability → Feature Pack to R2 `customers/streamly-sandbox/featurepacks/<weekly-bucket>/`, schema-validated.
+1. **Start crawler #3** (`gh issue view 3 -R ram-de/sidira-crawler`): run the Phase 3 synthesizer over the raw sandbox walk → reverse PRD + reverse Figma per capability → Feature Pack to R2 `customers/streamly-sandbox/featurepacks/<weekly-bucket>/`, schema-validated. Branch off crawler `main` (≥ `229de67`).
 2. Input data: on Ram's Mac a full passing walk is at `/tmp/raw3.jsonl`; elsewhere, download the `raw-jsonl` artifact from PR #7's sandbox-walk run, or regenerate locally: `python scripts/sandbox_acceptance.py --server-cmd 'cd <streamly-sandbox checkout> && npm run dev' --config acceptance/streamly-sandbox.json --manifest <sandbox>/ground-truth/manifest.json --run-date <date> --out raw.jsonl --jobs 3`.
-3. If PR #7 is green and unmerged: squash-merge it (user pre-approved), then branch #3 work off updated `main`. If not yet green, branch off `feat/sandbox-walk-ci` so the raw.jsonl schema-2 producer is in-tree.
 4. After #3: file remaining gaps; sandbox backlog parked (#4 public deploy, #5 hostility traits); crawler #8 (replay idempotency) is an open engine follow-up.
 
 ## Key Files
