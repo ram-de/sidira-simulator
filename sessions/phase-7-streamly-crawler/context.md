@@ -39,7 +39,7 @@ First-customer (mock) pipeline in ram-de/sidira-crawler: generic Playwright walk
 - **#3 has a data dependency on #2, not a merge dependency** — the synthesizer consumes raw walk output, which already exists. Treat raw.jsonl schema as pinned to PR #7's branch.
 - **Anti-circularity (hard rule for #3):** build and run the synthesizer WITHOUT reading sidira-simulator `streamly_sample` fixture content. The honest-test gate compares synthesized pack vs streamly_sample on normalized graph shape + screen categories ONLY — never route names, labels, titles, fixture IDs. Comparison happens after synthesis, as evaluation.
 - **Engine purity (hard rule, CI-greppable):** `grep -ri streamly sidira_crawler/` must stay empty. Judge/config may know the sandbox; the engine never does.
-- R2 secrets are NOT configured on ram-de/sidira-crawler (CI R2 upload skips with a notice; artifact upload still works). #3's R2 write needs them or a local store.
+- R2 + LLM secrets CONFIGURED on ram-de/sidira-crawler (2026-06-11): R2_BUCKET=`sidira-artifacts`, R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (bucket-scoped Object Read & Write token; verified with a live put/get/delete probe), plus GROQ_API_KEY (same key as simulator backend/.env). CI R2 upload and #3's pack write are unblocked. For local #3 runs, source GROQ_API_KEY from sidira-simulator/backend/.env.
 - Known honest miss: member `plan-upgrade-done` (replay non-idempotency, issue #8) — doesn't gate.
 - Docker is not installed on Ram's Mac — use `--server-cmd` mode locally; ports 4180-4199 free, 3000 taken.
 - Codex review discipline: run codex review before declaring any PR done (`~/.npm-global/bin/codex`, off PATH; `-s read-only`, prefix prompts with the skill-files exclusion warning).
