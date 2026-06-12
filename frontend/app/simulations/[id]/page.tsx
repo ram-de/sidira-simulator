@@ -23,6 +23,8 @@ import {
   EASE_MECH,
   EASE_SETTLE,
   TNUM,
+  DUO_SID,
+  DUO_AVIRA,
 } from "@/lib/design";
 
 // ───────────────────────────────────────────────────────────────────────
@@ -3404,12 +3406,12 @@ function ApertureMark({ size = 32, animating }: { size?: number; animating: bool
         >
           <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
             <g strokeWidth="1.1" strokeLinejoin="round" fill="none">
-              <g stroke="#2C5577">
+              <g stroke={DUO_SID}>
                 <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
                 <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
                 <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
               </g>
-              <g stroke="#D696C8">
+              <g stroke={DUO_AVIRA}>
                 <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
                 <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
                 <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
