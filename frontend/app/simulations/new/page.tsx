@@ -486,7 +486,7 @@ export default function NewSimulationPage() {
           )}
 
           {(submitError || validationError) && (
-            <div style={errorBannerStyle}>
+            <div role="alert" style={errorBannerStyle}>
               {submitError ?? validationError}
             </div>
           )}
@@ -1304,7 +1304,19 @@ function PersonaFilterSection({
           allocated across just those.
         </div>
         {noneChecked && (
-          <div style={{ marginTop: 6, fontSize: 13, color: TOKENS.alert }}>
+          <div
+            role="alert"
+            style={{
+              marginTop: 6,
+              fontSize: 13,
+              color: TOKENS.ink,
+              padding: "8px 12px",
+              background: TOKENS.paperRecessed,
+              border: `0.75px solid ${TOKENS.alert}`,
+              borderRadius: 2,
+              maxWidth: "52ch",
+            }}
+          >
             Select at least one persona — empty filter is rejected.
           </div>
         )}
@@ -1411,9 +1423,10 @@ const errorBannerStyle: React.CSSProperties = {
   marginBottom: 16,
   padding: "12px 16px",
   background: TOKENS.paperRecessed,
+  // alert is accent-only (border) — the message reads in ink (DESIGN.md §4.3/§7.7).
   border: `0.75px solid ${TOKENS.alert}`,
   borderRadius: 2,
-  color: TOKENS.alert,
+  color: TOKENS.ink,
   fontSize: 14,
   maxWidth: 620,
   boxSizing: "border-box",

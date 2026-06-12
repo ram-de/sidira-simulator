@@ -68,6 +68,19 @@ export default function RootLayout({
           background: TOKENS.paper,
         }}
       >
+        {/* Focus ring — DESIGN.md §7.8. The app's one global element-selector
+            rule: offset ink hairline on :focus-visible. Surfaces that need a
+            different ring color (glass) set --focus-ring inline. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              :focus-visible {
+                outline: 1px solid var(--focus-ring, ${TOKENS.ink});
+                outline-offset: 2px;
+              }
+            `,
+          }}
+        />
         {showProductNav ? <TopNav /> : null}
         <div style={{ minHeight: showProductNav ? "calc(100vh - 56px)" : "100vh" }}>
           {children}
