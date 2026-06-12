@@ -196,13 +196,14 @@ For each customer with an experiment archive (even 3–5 past experiments/promos
 2. **Hewitt archive + megastudies eval** (476 + 346 treatment effects, includes unpublished = contamination-controlled; Milkman gym/vaccine megastudies for the hard tiny-effect regime). Target: r ≥ 0.6 on field/behavioral effects with correct top-5 rank ordering beats both published LLM and human-forecaster anchors.
 3. **Null-integrity certificate** — placebo/paraphrase suite, published. Cheap, disproportionately persuasive.
 4. **Stratified honesty table** — accuracy by treatment modality across 1–3, failure cells included.
+5. **End-to-end pipeline eval on Hillstrom + Criteo Uplift** — the only public datasets with individual user features AND measured treatment responses, hence the only public test of the full persona-construction → simulation stack (§6.1). Items 1–4 validate the simulation engine with synthetic demographic panels; item 5 validates the pipeline.
 
 **Tier 1 — first design partner (the artifact that closes deals):**
-5. **Buyer-archive blind backtest**: 150–200 of *their* historical experiments; Sidira receives specs/screenshots only; predictions (3-class + effect-size distribution) **hash-committed before unblinding**; contamination screen for publicly-leaked tests; scored per §4.2 against always-flat, their archive's empirical-Bayes prior, a metadata GBM, and averaged internal PM forecasts. Win condition: statistically significant lift over the best non-simulation baseline at n ≥ 150 + demonstrated non-filtering of top-decile winners. This doubles as the Layer-F calibration data.
+6. **Buyer-archive blind backtest**: 150–200 of *their* historical experiments; Sidira receives specs/screenshots only; predictions (3-class + effect-size distribution) **hash-committed before unblinding**; contamination screen for publicly-leaked tests; scored per §4.2 against always-flat, their archive's empirical-Bayes prior, a metadata GBM, and averaged internal PM forecasts. Win condition: statistically significant lift over the best non-simulation baseline at n ≥ 150 + demonstrated non-filtering of top-decile winners. This doubles as the Layer-F calibration data.
 
 **Tier 2 — standing credibility (moat):**
-6. **Prospective escrow registry**: predictions filed before each experiment starts, third-party timestamped (Social Science Prediction Platform is the template), scored and published quarterly. The only design that fully answers contamination; no vendor in this space has one — first mover gets the category's only audited track record.
-7. **Re-run the golden set on every model/prompt version** (documented LLM behavioral drift across snapshots) — version-pinned accuracy is part of the SLA.
+7. **Prospective escrow registry**: predictions filed before each experiment starts, third-party timestamped (Social Science Prediction Platform is the template), scored and published quarterly. The only design that fully answers contamination; no vendor in this space has one — first mover gets the category's only audited track record.
+8. **Re-run the golden set on every model/prompt version** (documented LLM behavioral drift across snapshots) — version-pinned accuracy is part of the SLA.
 
 ### 4.4 The twelve questions they will ask (have written answers before the first meeting)
 
@@ -242,7 +243,32 @@ Notably deprioritized: the XGBoost assignment classifier (use posteriors), HDBSC
 
 ---
 
-## 6. Key sources
+## 6. Addendum (2026-06-12): benchmark input sourcing & the treatment-rendering gap
+
+*Added after founder Q&A. Two questions: (a) where do the three simulation inputs — existing state, proposed change, personas+users — come from for public-experiment benchmarks? (b) did this analysis audit how the current-feature PRD and change PRD are ingested?*
+
+### 6.1 Sourcing the three inputs per Tier-0 dataset
+
+| Dataset | Proposed change | Existing state | Personas / users |
+|---|---|---|---|
+| **Upworthy** (22,743 confirmatory tests) | In the archive: every variant's headline text + image ID | Reconstructable once via Wayback Machine (upworthy.com 2013–15); headline tests need little more than site/story context | **None available.** Synthetic panel calibrated to the documented audience (Facebook-referred, skewed female, liberal-leaning US social-media users — archive paper + Pew 2013–14 social-media surveys). Demographic-grade only. |
+| **Hewitt archive** (476 effects) | Published stimulus texts (treatmenteffect.app / OSF) | Survey frame — minimal by design | Published per-study sample demographics (often census-representative) → census-calibrated synthetic panels, the same move the source papers make |
+| **Milkman megastudies** (~600 effects) | Full SMS/message texts in supplements | Gym membership / pharmacy messaging program context, published | Published participant demographics (24 Hour Fitness members; pharmacy patients) |
+| **Hillstrom** (64K customers) | Two email campaigns + control, fully described | E-commerce email program | **Real individual RFM behavioral features per user** — run the actual sidira-personas pipeline on them |
+| **Criteo Uplift** (13M users) | Ad exposure treatment | Ad serving context | **Real per-user feature vectors** (anonymized, 12 features) |
+
+**The structural consequence:** Upworthy/Hewitt/Milkman have no user-level behavioral data, so Tier-0 artifacts 1–4 validate the **simulation engine** (elicitation, calibration, delta prediction, null integrity) under demographic-grade conditioning — a deliberate **lower bound**: "even with generic panels we score X; behavioral conditioning adds Y per Park et al." They cannot validate the persona-extraction pipeline. **Hillstrom and Criteo are the only public end-to-end tests**: cluster real user features → build personas → simulate the treatment → score against measured uplift, including the GATES-style check that our personas stratify the real treatment effect. Narrow regimes (email/ads, conversion outcomes) and Criteo's features are anonymized — but it is the one public proof the full stack can exist before a design partner does. Hence Tier-0 artifact #5. Full-stack validation on product-grade experiments remains a Tier-1 (customer-archive) deliverable; say so plainly when presenting Tier-0 numbers.
+
+### 6.2 The treatment-rendering layer (gap acknowledged)
+
+This analysis covers how the change description should be *used* — design unblinding (§3.3), paraphrase ensembles (§3.3), hypothesis linting (§1), OEC-aligned scoring (§4.4 Q11) — but did **not** audit how the crawler's feature pack and the user's change PRD are currently ingested, diffed, and rendered into agent context. That scoping followed the founder premise ("crawling is deterministic; hypothesis quality is user-dependent"), and the premise hid a real component: **treatment rendering** — (existing state, proposed change) → the exact text/image context an agent reads — is its own design surface with documented accuracy consequences (prompt-format sensitivity [Sclar]; the modality cliff §4.1). Two requirements fall out:
+
+1. **Benchmark↔production format parity.** Public experiments must be rendered to agents in the *same* format customer PRDs are rendered, or Tier-0 scores will not transfer. The renderer is therefore shared infrastructure between the benchmark harness and the product, and should be built once, in the harness, first.
+2. **The agent behavior spec** (the identified follow-up doc) must own the full agent-context assembly: feature pack + change PRD + persona narrative + individual row — including the diff representation (what changed, what is explicitly held fixed) and per-modality handling (copy vs UI screenshot vs pricing/mechanics).
+
+---
+
+## 7. Key sources
 
 **LLM simulation accuracy:** Hewitt, Ashokkumar, Ghezae & Willer 2024 (70 experiments, r=0.85/0.90; treatmenteffect.app) · Park et al. 2024, arXiv:2411.10109 (1,052 interview agents, 85% of test-retest; interviews ≫ demographics) · Toubia et al. 2025, Twin-2K-500, arXiv:2505.17479 (public 2,058-person testbed) · Peng et al. 2025/26 "Funhouse Mirrors," arXiv:2509.19088 (individual r≈0.20; five distortions) · SimBench, arXiv:2510.17516 (40.8/100; alignment–simulation tradeoff) · Chen, Hu & Lu 2025, arXiv:2504.01167 (78% on 276 field experiments, bimodal) · Aher et al. ICML 2023 (Turing Experiments; hyper-accuracy) · Argyle et al. 2023, Political Analysis (silicon sampling) · Horton 2023, NBER w31122.
 **Failure modes:** Bisbee et al. 2024, Political Analysis (variance compression, temporal drift) · Cheng et al. EMNLP 2023, CoMPosT (caricature) · Wang et al., Nature MI 2025 (out-group portrayals) · Hu & Collier ACL 2024 (<10% persona variance) · Sclar et al. (prompt-format swings) · Atari et al. 2023 (WEIRD, r=−0.70 cultural distance) · Santurkar et al. ICML 2023 (OpinionQA) · Gui & Toubia, arXiv:2312.15524 (causal confounding; unblinding fix).

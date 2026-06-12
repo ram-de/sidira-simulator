@@ -40,7 +40,11 @@ Worked example (fee-transparency test): old way, 20 "Frugal Foodie" agents share
 Has: the full behavioral architecture (hierarchical conditioning, soft sampling, distribution elicitation, delta prediction, shrinkage) and the feature framework — decision rule: *a feature earns its place if it improves held-out experiment prediction, not cluster stability*; three distinct feature roles (clustering basis ≠ conditioning signal ≠ response priors); measured-vs-proxy flagging; survey fusion.
 Missing (deliberately — depends on adoption decisions): actual prompt templates, the feature-pack+persona-pack → agent-context merge spec, step-by-step ablation protocol, multi-turn chat consistency mechanics, per-modality handling (screenshot vs copy vs pricing). → That's the **agent behavior spec**, the next session after the Now-items decision.
 
-## 8. Agreed next steps
+## 8. Benchmark inputs & the treatment-rendering gap (2026-06-12, full detail in analysis.md §6)
+
+Q: public benchmarks need (existing state, proposed change, personas) — where do they come from? A: proposed changes are in the archives (headline texts, stimuli, message texts); existing state is reconstructable (Wayback Machine for Upworthy; survey/program frames elsewhere); **personas are the gap** — no public archive has user-level behavioral data, so Tier-0 artifacts 1–4 run on demographic-calibrated synthetic panels and validate the *simulation engine* only (an honest lower bound). **Hillstrom (64K customers, real RFM features) and Criteo Uplift (13M users) are the only public end-to-end tests of the full persona pipeline** → added as Tier-0 artifact #5. Q: did the analysis audit how the current-feature PRD / change PRD are ingested? A: it covers how the description should be used (unblinding, paraphrase ensembles, linting, OEC scoring) but did NOT audit the ingestion/rendering path — the **treatment-rendering layer** (state + change → what the agent reads) is a newly named component; it must be format-identical between benchmark and production (build it once, in the harness, first) and is now in scope for the agent behavior spec.
+
+## 9. Agreed next steps
 
 1. Founder reads `analysis.md` (§1, §4.1, §5 especially).
 2. Adoption decision on the three "Now" items: simulator elicitation fixes; sidira-personas hygiene (soft posteriors, per-cluster Jaccard, holdout, tests); Tier-0 benchmark harness (green-light first if only one — it's the criterion everything else is judged on, and the start of the sales artifact).
