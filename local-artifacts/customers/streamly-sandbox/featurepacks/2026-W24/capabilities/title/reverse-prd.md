@@ -1,5 +1,5 @@
 ### 1. User goal
-The user goal is to view detailed information about a title on Streamly.
+The user goal is to view details about a specific title on Streamly.
 
 ### 2. Roles
 The observed roles are:
@@ -8,34 +8,29 @@ The observed roles are:
 
 ### 3. Flow per role
 Both member and premium roles can access the title details page via the `/title/:id` route. The flow involves:
-- Viewing the title details dialog with headings such as "The Coral Architects / Drama / Sci-Fi / Documentary"
-- Optionally adding the title to their list by clicking the '+ My List' button
-- Scrolling through the feed to view more information
-- Exiting the dialog by clicking the '✕' button to return to the browse page or clicking the '▶ Play' link to start watching the title
+* Viewing the title details dialog with headings such as "The Coral Architects / Drama / Sci-Fi / Documentary" and copy including "STREAMLY | Browse | Search | My List | Kids | Sam Member | Sign Out | Featured"
+* Clicking the '+ My List' button to add the title to their list
+* Scrolling through the feed to view more information
+* Clicking the '✕' button to exit the dialog and return to the browse page
+* Clicking the '▶ Play' link to start watching the title
 
-The premium role has additional information displayed, such as "4K Ultra HD", but the overall flow remains the same.
+The premium role also has access to additional information such as "4K Ultra HD" for certain titles.
 
 ### 4. Success criteria
 Success criteria include:
-- The title details dialog is displayed with the correct information
-- The user can add the title to their list successfully
-- The user can scroll through the feed without issues
-- The user can exit the dialog and navigate to other pages (browse or watch) successfully
+* The user can view the title details dialog with relevant information such as genre and headings
+* The user can add the title to their list by clicking the '+ My List' button
+* The user can scroll through the feed to view more information
+* The user can exit the dialog and return to the browse page by clicking the '✕' button
+* The user can start watching the title by clicking the '▶ Play' link
 
 ### 5. Edge cases & failure modes
-Edge cases and failure modes include:
-- The user clicking the '+ My List' button when the title is already in their list
-- The user scrolling through the feed when there is no more content to display
-- The user clicking the '✕' button or '▶ Play' link when the dialog is not fully loaded
-- The user not having permission to access the title details page
+_(no evidence observed)_
 
 ### 6. Dependencies
-Dependencies include:
-- The browse capability (`/browse::s875413`) for exiting the title details dialog
-- The watch capability (`/watch/:id::overlay+s002039`) for starting to watch the title
+The title details capability depends on the following capabilities:
+* Browse capability (`/browse::s875413`): the user can exit the title details dialog and return to the browse page
+* Watch capability (`/watch/:id::overlay+s002039`): the user can start watching the title by clicking the '▶ Play' link
 
 ### 7. Implicit metric
-Implicit metric includes:
-- The number of times users click the '+ My List' button to add titles to their list
-- The number of times users start watching a title from the title details dialog
-- The time spent by users on the title details page before exiting or taking another action
+_(no evidence observed)_

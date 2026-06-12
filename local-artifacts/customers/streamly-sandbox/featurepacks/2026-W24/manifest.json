@@ -1,7 +1,7 @@
 {
   "customer_id": "streamly-sandbox",
   "snapshot_version": "2026-W24",
-  "generated_at": "2026-06-12T04:55:21.945517Z",
+  "generated_at": "2026-06-12T06:28:49.891411Z",
   "schema_version": "1.0",
   "capabilities": [
     "landing",
@@ -14,13 +14,14 @@
     "my_list",
     "kids",
     "account",
+    "account_plan",
     "watch",
     "title"
   ],
   "crawl_metadata": {
     "screens": "48",
     "transitions": "218",
-    "unassigned_screens": "0",
+    "unassigned_screens": "1",
     "roles": "guest,member,premium",
     "source": "raw.jsonl",
     "run_date": "2026-06-12",

@@ -1,0 +1,453 @@
+{
+  "screens": [
+    {
+      "id": "/account/plan::se5de17",
+      "name": "Plan",
+      "role": "member",
+      "components": [
+        {
+          "id": "heading-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-current-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Current plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-upgrade-to-premium",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Upgrade to Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Upgrade to Premium",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/account/plan::s4de81d",
+      "name": "Plan",
+      "role": "member",
+      "components": [
+        {
+          "id": "heading-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-current-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Current plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/account/plan::s230757",
+      "name": "Plan",
+      "role": "member",
+      "components": [
+        {
+          "id": "heading-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-current-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Current plan",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/account/plan::s633472",
+      "name": "Plan",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-current-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Current plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-downloads",
+          "role": "heading",
+          "states": [],
+          "text": "Downloads",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/account/plan::sbc5c3a",
+      "name": "Plan",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-current-plan",
+          "role": "heading",
+          "states": [],
+          "text": "Current plan",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-downloads",
+          "role": "heading",
+          "states": [],
+          "text": "Downloads",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Upgrade to Premium'",
+      "from_screen": "/account/plan::se5de17",
+      "to_screen": "/account/plan::s4de81d",
+      "role_gated": [
+        "member"
+      ]
+    },
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/account/plan::s633472",
+      "to_screen": "/account/plan::sbc5c3a",
+      "role_gated": [
+        "premium"
+      ]
+    }
+  ]
+}

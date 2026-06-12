@@ -7,14 +7,14 @@ The observed roles are:
 - Premium
 
 ### 3. Flow per role
-Both member and premium roles have the same flow:
+Both Member and Premium roles have the same flow:
 1. Enter the `/kids` screen, which displays kid-friendly content.
 2. From the `/kids` screen, users can click on links to navigate to other screens, such as:
    - `/browse`
    - `/search`
    - `/my-list`
-   - `/account` (for profile management)
-   - `/title/:id` (to view specific title details)
+   - `/account` (to view their account information)
+   - `/title/:id` (to view a specific title)
    - Sign out
 
 ### 4. Success criteria
@@ -33,4 +33,4 @@ The kids capability depends on the following capabilities:
 - Sign out functionality
 
 ### 7. Implicit metric
-The implicit metric for this capability could be the number of users who access kid-friendly content on Streamly, measured by the frequency of visits to the `/kids` screen and engagement with the content (e.g., clicking on title links).
+The implicit metric for this capability could be the number of users who access kid-friendly content on Streamly, measured by the number of visits to the `/kids` screen. Additionally, metrics such as time spent on the `/kids` screen, number of titles clicked, and user engagement with kid-friendly content could also be used to evaluate the effectiveness of this capability.
