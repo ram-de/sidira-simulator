@@ -22,6 +22,7 @@ from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
     CrawlConfig,
+    CrawlRun,
     Customer,
     Simulation,
 )
@@ -508,8 +509,116 @@ class InMemoryCrawlConfigRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# CrawlRun (#193)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class CrawlRunRepo(Protocol):
+    async def insert(self, run: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def get(self, crawl_id: str) -> dict[str, Any] | None: ...
+
+    async def update(self, crawl_id: str, fields: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def list_for_customer(self, customer_id: str, limit: int = 20) -> list[dict[str, Any]]: ...
+
+
+class PostgresCrawlRunRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def insert(self, run: dict[str, Any]) -> dict[str, Any]:
+        row = CrawlRun(**run)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _crawl_run_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(self, crawl_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(CrawlRun, crawl_id)
+        result = _crawl_run_to_dict(row) if row is not None else None
+        await _release_read_transaction(self._session)
+        return result
+
+    async def update(self, crawl_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+        row = await self._session.get(CrawlRun, crawl_id)
+        if row is None:
+            # Reachable: a customer delete cascades to crawl_runs mid-poll.
+            raise LookupError(f"crawl run {crawl_id} vanished mid-update")
+        for key, value in fields.items():
+            setattr(row, key, value)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _crawl_run_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(self, customer_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        stmt = (
+            select(CrawlRun)
+            .where(CrawlRun.customer_id == customer_id)
+            .order_by(CrawlRun.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_crawl_run_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryCrawlRunRepo:
+    def __init__(self) -> None:
+        self._runs: dict[str, dict[str, Any]] = {}
+
+    async def insert(self, run: dict[str, Any]) -> dict[str, Any]:
+        row = {
+            "status": "pending",
+            "run_id": None,
+            "run_url": None,
+            "snapshot_version": None,
+            "error": None,
+            "completed_at": None,
+            **run,
+            "created_at": datetime.now(timezone.utc),
+        }
+        self._runs[row["id"]] = row
+        return dict(row)
+
+    async def get(self, crawl_id: str) -> dict[str, Any] | None:
+        row = self._runs.get(crawl_id)
+        return dict(row) if row is not None else None
+
+    async def update(self, crawl_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+        row = self._runs[crawl_id]
+        row.update(fields)
+        return dict(row)
+
+    async def list_for_customer(self, customer_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        rows = [r for r in self._runs.values() if r["customer_id"] == customer_id]
+        rows.sort(key=lambda r: r["created_at"], reverse=True)
+        return [dict(r) for r in rows[:limit]]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _crawl_run_to_dict(row: CrawlRun) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "status": row.status,
+        "crawl_date": row.crawl_date,
+        "run_id": row.run_id,
+        "run_url": row.run_url,
+        "snapshot_version": row.snapshot_version,
+        "error": row.error,
+        "created_at": row.created_at,
+        "completed_at": row.completed_at,
+    }
 
 
 def _crawl_config_to_dict(row: CrawlConfig) -> dict[str, Any]:
@@ -576,6 +685,17 @@ def get_in_memory_crawl_config_repo() -> InMemoryCrawlConfigRepo:
     if _in_memory_crawl_configs is None:
         _in_memory_crawl_configs = InMemoryCrawlConfigRepo()
     return _in_memory_crawl_configs
+
+
+_in_memory_crawl_runs: InMemoryCrawlRunRepo | None = None
+
+
+def get_in_memory_crawl_run_repo() -> InMemoryCrawlRunRepo:
+    """Process-wide in-memory crawl-run repo (same pattern as crawl configs)."""
+    global _in_memory_crawl_runs
+    if _in_memory_crawl_runs is None:
+        _in_memory_crawl_runs = InMemoryCrawlRunRepo()
+    return _in_memory_crawl_runs
 
 
 def get_in_memory_repos() -> tuple[

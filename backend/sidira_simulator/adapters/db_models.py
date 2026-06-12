@@ -102,6 +102,32 @@ class CrawlConfig(Base):
     )
 
 
+class CrawlRun(Base):
+    """One product-triggered crawl (#193). The crawl itself executes in
+    sidira-crawler CI (dispatched via the GitHub API — R2/Groq secrets never
+    touch this backend); this row is the dispatch record plus the last
+    observed status. ``run_id`` is the GitHub Actions run, correlated after
+    dispatch by the ``crawl_id``-bearing run name (workflow_dispatch returns
+    no run id). Terminal status/error/snapshot are persisted on the poll
+    that first observes them; non-terminal rows refresh from GitHub on read.
+    """
+
+    __tablename__ = "crawl_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    crawl_date: Mapped[str] = mapped_column(String(10))
+    run_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    run_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    snapshot_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AgentInstance(Base):
     """Metadata for one AgentInstance. Identity + reaction + chat live in R2.
 
