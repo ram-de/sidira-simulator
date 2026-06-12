@@ -1,11 +1,10 @@
 {
   "customer_id": "streamly-sandbox",
   "snapshot_version": "2026-W24",
-  "generated_at": "2026-06-12T04:55:21.945517Z",
+  "generated_at": "2026-06-12T07:07:27.254932Z",
   "schema_version": "1.0",
   "capabilities": [
     "landing",
-    "help",
     "login",
     "signup",
     "profiles",
@@ -14,6 +13,7 @@
     "my_list",
     "kids",
     "account",
+    "account_plan",
     "watch",
     "title"
   ],

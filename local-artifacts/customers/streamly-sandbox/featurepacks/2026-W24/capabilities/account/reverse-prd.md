@@ -1,43 +1,37 @@
-### 1. User goal
-The user goal is to manage account settings and plans on Streamly, including updating membership and playback settings, and reviewing security information.
+### User goal
+Manage my Streamly account settings.
 
-### 2. Roles
-The observed roles are:
-- Member
-- Premium
+### Roles
+* member
+* premium
 
-### 3. Flow per role
+### Flow per role
 #### Member
-1. The member starts at the `/account::s4058eb` screen.
-2. They can click the 'Manage plan' link to navigate to the `/account/plan::se5de17` screen.
-3. From the `/account/plan::se5de17` screen, they can click the 'Sam Member' link to return to the `/account::s4058eb` screen.
-4. They can also click the 'Upgrade to Premium' button to navigate to the `/account/plan::s4de81d` screen.
-5. Alternatively, they can click the 'Accept' button on the `/account::s4058eb` screen to navigate to the `/account::saca983` screen.
-6. From the `/account::saca983` screen, they can click the 'Manage plan' link to navigate to the `/account/plan::s230757` screen.
+1. The member lands on the `/account::s4058eb` screen, which displays headings for Account, Membership, Playback settings, and Security.
+2. The member can click the 'Accept' button to transition to the `/account::saca983` screen.
+3. From either the `/account::s4058eb` or `/account::saca983` screen, the member can click links to navigate to other capabilities, such as Browse, Search, My List, Kids, or manage their plan.
+4. The member can also sign out of their account by clicking the 'Sign Out' or 'Sign out of Streamly' button.
 
 #### Premium
-1. The premium user starts at the `/account::s4058eb` screen.
-2. They can click the 'Manage plan' link to navigate to the `/account/plan::s633472` screen.
-3. From the `/account/plan::s633472` screen, they can click the 'Pat Premium' link to return to the `/account::s4058eb` screen.
-4. They can also click the 'Accept' button to navigate to the `/account/plan::sbc5c3a` screen.
-5. From the `/account/plan::sbc5c3a` screen, they can click the 'Pat Premium' link to navigate to the `/account::saca983` screen.
-6. From the `/account::saca983` screen, they can click the 'Manage plan' link to navigate to the `/account/plan::sbc5c3a` screen.
+1. The premium user lands on the `/account::s4058eb` screen, which displays headings for Account, Membership, Playback settings, and Security.
+2. The premium user can click the 'Accept' button to transition to the `/account::saca983` screen.
+3. From either the `/account::s4058eb` or `/account::saca983` screen, the premium user can click links to navigate to other capabilities, such as Browse, Search, My List, Kids, or manage their plan.
+4. The premium user can also sign out of their account by clicking the 'Sign Out' or 'Sign out of Streamly' button.
 
-### 4. Success criteria
+### Success criteria
 _(no evidence observed)_
 
-### 5. Edge cases & failure modes
+### Edge cases & failure modes
 _(no evidence observed)_
 
-### 6. Dependencies
+### Dependencies
 The account capability depends on the following capabilities:
-- Browse
-- Search
-- My List
-- Kids
-- Sign Out
+* Browse (`/browse::s875413`, `/browse::s633472`, `/browse::sbc5c3a`)
+* Search (`/search::sf0043e`, `/search::se78740`)
+* My List (`/my-list::s7709ba`, `/my-list::s329ed6`)
+* Kids (`/kids::s7709ba`, `/kids::s329ed6`)
+* Account plan management (`/account/plan::se5de17`, `/account/plan::s230757`, `/account/plan::s633472`)
+* Sign out (`/::sfb8cd5`, `/::scdffb1`)
 
-The account capability can exit into these capabilities through various links and buttons.
-
-### 7. Implicit metric
+### Implicit metric
 _(no evidence observed)_

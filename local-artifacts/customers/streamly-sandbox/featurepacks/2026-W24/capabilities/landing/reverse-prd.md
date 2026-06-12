@@ -2,17 +2,17 @@
 Learn about Streamly and sign up for an account.
 
 ### 2. Roles
-The observed roles are:
-- guest
-- member
-- premium
+The following roles are observed:
+* guest
+* member
+* premium
 
 ### 3. Flow per role
-All roles (guest, member, premium) follow the same flow:
-1. Enter the landing page at `/::sfb8cd5` or `/::scdffb1`.
-2. View the headings and copy, including "Unlimited stories. One small price.", "Pick the plan that fits", and options for "Member" and "Premium" plans.
-3. Click the 'Get Started' button to proceed to the signup process.
-4. Alternatively, click 'Sign In' to log in if they already have an account, or click 'Help' to access the help center.
+All roles (guest, member, premium) can navigate through the following screens:
+- `/::sfb8cd5`: The landing page with headings "Unlimited stories. One small price." and "Pick the plan that fits" and copy "Get Started" and "Pick the plan that fits".
+- `/help::sdfec15` and `/help::s9ca1b4`: The help center pages with headings "Help Center" and copy "Quick answers to common questions".
+- `/::scdffb1`: Another landing page with similar headings and copy as `/::sfb8cd5`.
+The flow involves clicking on links such as "Help", "Help Center", "STREAMLY", "Sign In", "Get Started", and buttons like "Accept".
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -22,9 +22,8 @@ _(no evidence observed)_
 
 ### 6. Dependencies
 The landing capability depends on the following capabilities:
-- Help capability (`/help::sdfec15`, `/help::s9ca1b4`) for when the user clicks the 'Help' or 'Help Center' links.
-- Login capability (`/login::login+s142a09`, `/login::login+sabcaae`) for when the user clicks the 'Sign In' link.
-- Signup capability (`/signup::s2a640d`, `/signup::s8b8d39`) for when the user clicks the 'Get Started' button.
+- Login capability (`/login::login+s142a09`, `/login::login+sabcaae`): accessed by clicking the "Sign In" link.
+- Signup capability (`/signup::s2a640d`, `/signup::s8b8d39`): accessed by clicking the "Get Started" link.
 
 ### 7. Implicit metric
 _(no evidence observed)_

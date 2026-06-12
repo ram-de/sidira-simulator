@@ -6,13 +6,11 @@ The observed user roles are:
 * member
 * premium
 
-Both roles have access to the watch capability, with similar screen layouts and functionality.
-
 ### 3. Flow per role
-The flow for both member and premium roles is as follows:
-1. The user enters the `/watch/:id::overlay+s002039` screen, which displays a cookie acceptance notice.
-2. The user clicks the "Accept" button, transitioning to the `/watch/:id::overlay+s9b8b43` screen.
-3. On both screens, the user can click the "← Back" button to exit the watch capability.
+Both member and premium roles follow the same flow:
+1. Enter the `/watch/:id::overlay+s002039` screen, which displays a cookie acceptance notice.
+2. Click the 'Accept' button to transition to the `/watch/:id::overlay+s9b8b43` screen, which appears to be the main video playback screen.
+Both roles can also exit the watch capability by clicking the '← Back' button, but the destination screen differs between members (`/browse::s2c425e`) and premiums (`/browse::s633472`).
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -21,7 +19,7 @@ _(no evidence observed)_
 _(no evidence observed)_
 
 ### 6. Dependencies
-The watch capability depends on the browse capability, as evidenced by the exit transitions from `/watch/:id::overlay+s002039` to `/browse::s2c425e` (for member roles) and `/browse::s633472` (for premium roles) when the "← Back" button is clicked.
+The watch capability depends on the browse capability, as evidenced by the exit transitions from `/watch/:id::overlay+s002039` to `/browse::s2c425e` (for members) and `/browse::s633472` (for premiums) when the '← Back' button is clicked.
 
 ### 7. Implicit metric
-The presence of video playback information such as "00:07 | 52:00" suggests that the system may be tracking video playback time, which could be an implicit metric for measuring user engagement with the watch capability.
+The presence of video playback information such as "Now playing · | HD 1080p | 00:07 | 52:00" and the ability to transition between different video quality options (e.g., HD 1080p and 4K Ultra HD) implies that video playback quality and engagement metrics (e.g., watch time, playback quality selection) may be important metrics for this capability.

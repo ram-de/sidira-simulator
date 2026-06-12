@@ -93,126 +93,6 @@
       ]
     },
     {
-      "id": "/signup::login+sde2e7d",
-      "name": "Choose a password",
-      "role": null,
-      "components": [
-        {
-          "id": "heading-choose-a-password",
-          "role": "heading",
-          "states": [],
-          "text": "Choose a password",
-          "visible_to_roles": null
-        },
-        {
-          "id": "button-accept",
-          "role": "button",
-          "states": [
-            {
-              "name": "default",
-              "text": "Accept",
-              "annotations": {}
-            }
-          ],
-          "text": "Accept",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "button-next",
-          "role": "button",
-          "states": [
-            {
-              "name": "default",
-              "text": "Next",
-              "annotations": {}
-            }
-          ],
-          "text": "Next",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "link-help",
-          "role": "link",
-          "states": [
-            {
-              "name": "default",
-              "text": "Help",
-              "annotations": {}
-            }
-          ],
-          "text": "Help",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "link-streamly",
-          "role": "link",
-          "states": [
-            {
-              "name": "default",
-              "text": "STREAMLY",
-              "annotations": {}
-            }
-          ],
-          "text": "STREAMLY",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "link-sign-in",
-          "role": "link",
-          "states": [
-            {
-              "name": "default",
-              "text": "Sign In",
-              "annotations": {}
-            }
-          ],
-          "text": "Sign In",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "link-sign-in-2",
-          "role": "link",
-          "states": [
-            {
-              "name": "default",
-              "text": "Sign in",
-              "annotations": {}
-            }
-          ],
-          "text": "Sign in",
-          "visible_to_roles": [
-            "guest"
-          ]
-        },
-        {
-          "id": "form-submit-login-form",
-          "role": "form",
-          "states": [
-            {
-              "name": "default",
-              "text": null,
-              "annotations": {}
-            }
-          ],
-          "text": null,
-          "visible_to_roles": [
-            "member",
-            "premium"
-          ]
-        }
-      ]
-    },
-    {
       "id": "/signup::s8b8d39",
       "name": "Create your account",
       "role": null,
@@ -354,6 +234,126 @@
           ],
           "text": "Sign In",
           "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/signup::login+sde2e7d",
+      "name": "Choose a password",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-choose-a-password",
+          "role": "heading",
+          "states": [],
+          "text": "Choose a password",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "button-next",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Next",
+              "annotations": {}
+            }
+          ],
+          "text": "Next",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-help",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help",
+              "annotations": {}
+            }
+          ],
+          "text": "Help",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-sign-in",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign In",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign In",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-sign-in-2",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign in",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign in",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "form-submit-login-form",
+          "role": "form",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
         }
       ]
     },

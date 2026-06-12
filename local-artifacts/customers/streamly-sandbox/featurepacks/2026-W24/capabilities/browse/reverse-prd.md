@@ -1,30 +1,21 @@
 ### 1. User goal
-The user goal is to browse and discover content on Streamly.
+The user goal is to browse available content on Streamly, as indicated by the copy "Browse" on the `/browse` screens.
 
 ### 2. Roles
 The observed roles are:
-- guest
-- member
-- premium
+* guest
+* member
+* premium
 
 ### 3. Flow per role
 #### Guest
-- The guest starts on the `/browse::s633472` screen.
-- The guest can scroll through the feed to reach the `/browse::exhausted+s875413` screen.
-- From the `/browse::exhausted+s875413` screen, the guest can click on the 'STREAMLY' or 'Browse' links to navigate to other screens, but the specific destination screens are not observed for the guest role.
+The guest role can access the `/browse` screen, but the specific flow is not well-defined, as there are no unique transitions or exits observed for the guest role.
 
 #### Member
-- The member starts on various `/browse` screens (e.g., `/browse::s633472`, `/browse::sbc5c3a`, `/browse::s875413`, `/browse::s2c425e`, `/browse::sc764aa`).
-- The member can scroll through the feed to reach the exhausted screens (e.g., `/browse::exhausted+s875413`, `/browse::exhausted+sc764aa`).
-- From the exhausted screens, the member can click on the 'STREAMLY' or 'Browse' links to navigate to other `/browse` screens.
-- The member can also click on links to exit into other capabilities, such as 'Search', 'My List', 'Kids', 'Account', 'Sign Out', 'Play', 'More Info', and specific title links.
+The member role can access the `/browse` screen and navigate through different screens, such as `/browse::s633472`, `/browse::exhausted+s875413`, and `/browse::s875413`. The member can also click on links like "Search", "My List", "Kids", and "Sign Out".
 
 #### Premium
-- The premium user starts on various `/browse` screens (e.g., `/browse::s633472`, `/browse::sbc5c3a`, `/browse::s875413`, `/browse::s2c425e`, `/browse::sc764aa`, `/browse::s2ae585`).
-- The premium user can scroll through the feed to reach the exhausted screens (e.g., `/browse::exhausted+s875413`, `/browse::exhausted+sc764aa`).
-- From the exhausted screens, the premium user can click on the 'STREAMLY' or 'Browse' links to navigate to other `/browse` screens.
-- The premium user can also click on links to exit into other capabilities, such as 'Search', 'My List', 'Kids', 'Account', 'Sign Out', 'Play', 'More Info', and specific title links.
-- The premium user has an additional link '4K' on some screens.
+The premium role has a similar flow to the member role, with access to the same screens and links. Additionally, the premium role can click on the link "Pat Premium" to access the account screen.
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -34,12 +25,12 @@ _(no evidence observed)_
 
 ### 6. Dependencies
 The browse capability depends on the following capabilities:
-- Search
-- My List
-- Kids
-- Account
-- Watch
-- Title
+* Search (`/search`)
+* My List (`/my-list`)
+* Kids (`/kids`)
+* Account (`/account`)
+* Watch (`/watch`)
+* Title (`/title`)
 
 ### 7. Implicit metric
-_(no evidence observed)_
+The implicit metric for the browse capability could be the number of times a user navigates through the different browse screens, or the number of clicks on links like "Search", "My List", and "Kids". Additionally, the time spent on the browse screens could be a metric to measure user engagement.

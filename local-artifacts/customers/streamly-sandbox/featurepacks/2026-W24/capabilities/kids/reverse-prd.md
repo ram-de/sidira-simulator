@@ -3,19 +3,19 @@ The user goal is to access kid-friendly content on Streamly, as indicated by the
 
 ### 2. Roles
 The observed roles are:
-- Member
-- Premium
+* `member`
+* `premium`
 
 ### 3. Flow per role
-Both member and premium roles have the same flow:
+Both `member` and `premium` roles have the same flow:
 1. Enter the `/kids` screen, which displays kid-friendly content.
 2. From the `/kids` screen, users can click on links to navigate to other screens, such as:
-   - `/browse`
-   - `/search`
-   - `/my-list`
-   - `/account` (for profile management)
-   - `/title/:id` (to view specific title details)
-   - Sign out
+	* `/browse`
+	* `/search`
+	* `/my-list`
+	* `/account` (for profile management)
+	* `/title/:id` (to view specific title details)
+3. Users can also sign out by clicking the "Sign Out" button.
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -25,12 +25,12 @@ _(no evidence observed)_
 
 ### 6. Dependencies
 The kids capability depends on the following capabilities:
-- `/browse`
-- `/search`
-- `/my-list`
-- `/account`
-- `/title/:id`
-- Sign out functionality
+* `/browse`
+* `/search`
+* `/my-list`
+* `/account`
+* `/title/:id`
+These dependencies are observed through the links and transitions from the `/kids` screen to these other screens.
 
 ### 7. Implicit metric
-The implicit metric for this capability could be the number of users who access kid-friendly content on Streamly, measured by the frequency of visits to the `/kids` screen and engagement with the content (e.g., clicking on title links).
+_(no evidence observed)_

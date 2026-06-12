@@ -288,57 +288,6 @@
       ]
     },
     {
-      "id": "/browse::sbc5c3a",
-      "name": "The Coral Architects",
-      "role": null,
-      "components": [
-        {
-          "id": "heading-the-coral-architects",
-          "role": "heading",
-          "states": [],
-          "text": "The Coral Architects",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-drama",
-          "role": "heading",
-          "states": [],
-          "text": "Drama",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-sci-fi",
-          "role": "heading",
-          "states": [],
-          "text": "Sci-Fi",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-documentary",
-          "role": "heading",
-          "states": [],
-          "text": "Documentary",
-          "visible_to_roles": null
-        },
-        {
-          "id": "feed-scroll-feed",
-          "role": "feed",
-          "states": [
-            {
-              "name": "default",
-              "text": null,
-              "annotations": {}
-            }
-          ],
-          "text": null,
-          "visible_to_roles": [
-            "member",
-            "premium"
-          ]
-        }
-      ]
-    },
-    {
       "id": "/browse::s875413",
       "name": "The Coral Architects",
       "role": null,
@@ -521,6 +470,57 @@
           ],
           "text": "▶ Play",
           "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::sbc5c3a",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
         }
       ]
     },
@@ -737,6 +737,41 @@
       ]
     },
     {
+      "id": "/browse::sc764aa",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
       "id": "/browse::s2c425e",
       "name": "The Coral Architects",
       "role": null,
@@ -780,41 +815,6 @@
             }
           ],
           "text": null,
-          "visible_to_roles": null
-        }
-      ]
-    },
-    {
-      "id": "/browse::sc764aa",
-      "name": "The Coral Architects",
-      "role": null,
-      "components": [
-        {
-          "id": "heading-the-coral-architects",
-          "role": "heading",
-          "states": [],
-          "text": "The Coral Architects",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-drama",
-          "role": "heading",
-          "states": [],
-          "text": "Drama",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-sci-fi",
-          "role": "heading",
-          "states": [],
-          "text": "Sci-Fi",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-documentary",
-          "role": "heading",
-          "states": [],
-          "text": "Documentary",
           "visible_to_roles": null
         }
       ]
