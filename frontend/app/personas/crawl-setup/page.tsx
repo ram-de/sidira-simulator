@@ -1,12 +1,13 @@
 "use client";
 
-// Feature pack — crawl setup + re-crawl window (#171).
+// Feature pack — crawl setup + re-crawl window (#171), fire-and-watch
+// trigger (#193).
 //
-// The setup form and its saved config land ahead of the walker
-// (sidira-crawler #1–#3): "Save setup" PUTs /crawl-setup and is live;
-// "Start crawl" stays an honest dead designator until POST /crawls stops
-// 501ing. The walked-capability list will be the progress indicator — no
-// spinners (DESIGN.md §8.6).
+// "Save setup" PUTs /crawl-setup; "Start crawl" POSTs /crawls, which
+// dispatches the walker in sidira-crawler CI and returns immediately. The
+// browser is never load-bearing — the workflow itself publishes the pack by
+// flipping the latest pointer; this page only watches via GET /crawls/{id}.
+// Pending states are honest text, never spinners (DESIGN.md §8.6).
 //
 // Invariant (#171): the pack is GENERATED — NEVER AUTHORED. This window
 // configures WHAT the walker crawls (capability names, entry URLs, sandbox
@@ -16,10 +17,14 @@ import { useEffect, useState } from "react";
 import {
   ApiError,
   getCapabilities,
+  getCrawl,
   getCrawlSetup,
+  listCrawls,
   saveCrawlSetup,
+  startCrawl,
   type CrawlCadence,
   type CrawlSetup,
+  type CrawlSummary,
   type FeaturePackManifest,
 } from "@/lib/api";
 import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
@@ -72,6 +77,47 @@ type SaveState =
   | { state: "saved"; at: string }
   | { state: "error"; message: string };
 
+// GET /crawls/{id} cadence while a crawl is pending/running. The crawl takes
+// ~40 min; the poll only reads status, so a slow beat is plenty.
+const CRAWL_POLL_MS = 5000;
+
+const isInFlight = (c: CrawlSummary | null): boolean =>
+  c !== null && (c.status === "pending" || c.status === "running");
+
+// Backend errors arrive as JSON {"detail": "..."} — surface the detail, not
+// the raw envelope.
+function apiErrorMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    try {
+      const detail = JSON.parse(e.body)?.detail;
+      if (typeof detail === "string") return detail;
+    } catch {
+      /* non-JSON body — fall through */
+    }
+    return e.body || `HTTP ${e.status}`;
+  }
+  return e instanceof Error ? e.message : "request failed";
+}
+
+// Honest-text status line (§8.6) — every word is backed by backend data.
+function crawlStatusLine(c: CrawlSummary): string {
+  switch (c.status) {
+    case "pending":
+      return "PENDING — QUEUED ON GITHUB";
+    case "running":
+      return c.phase ? `RUNNING · ${c.phase.toUpperCase()}` : "RUNNING";
+    case "complete":
+      return c.snapshot_version
+        ? `COMPLETE · SNAPSHOT ${c.snapshot_version} IS LATEST`
+        : "COMPLETE";
+    case "failed":
+      return "FAILED";
+  }
+}
+
+const utcStamp = (iso: string) =>
+  new Date(iso).toISOString().replace("T", " · ").slice(0, 18) + " UTC";
+
 export default function CrawlSetupPage() {
   const [caps, setCaps] = useState<CapabilityDraft[]>([emptyCapability()]);
   const [sandboxUrl, setSandboxUrl] = useState("");
@@ -88,6 +134,11 @@ export default function CrawlSetupPage() {
   const [save, setSave] = useState<SaveState>({ state: "idle" });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<FeaturePackManifest | null>(null);
+
+  // #193 fire-and-watch: the latest crawl row (in-flight or last outcome).
+  const [crawl, setCrawl] = useState<CrawlSummary | null>(null);
+  const [crawlStarting, setCrawlStarting] = useState(false);
+  const [crawlError, setCrawlError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,10 +178,69 @@ export default function CrawlSetupPage() {
         }
       });
 
+    // Rediscover a crawl after tab close/reopen: prefer the newest in-flight
+    // row (a newer terminal row — e.g. a dispatch-failed attempt — must not
+    // shadow a live crawl), fall back to the last outcome on record. Never
+    // overwrite a crawl already started on this page: this response can
+    // resolve after a fast POST /crawls.
+    listCrawls()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) return;
+        const rediscovered = rows.find(isInFlight) ?? rows[0];
+        setCrawl((current) => current ?? rediscovered);
+      })
+      .catch(() => {
+        /* the trigger button still works without the history */
+      });
+
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Watch poll — runs only while the crawl is pending/running; the id is
+  // stable across polls so the interval survives until a terminal status.
+  const watchId = isInFlight(crawl) ? crawl!.id : null;
+  useEffect(() => {
+    if (!watchId) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const next = await getCrawl(watchId);
+        if (cancelled) return;
+        setCrawl(next);
+        if (next.status === "complete") {
+          // The CI-side pointer flip already published — refresh the
+          // manifest rail so SNAPSHOT shows what the tenant now serves.
+          getCapabilities()
+            .then((m) => {
+              if (!cancelled) setManifest(m);
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // 502 = flaky GitHub poll (the backend keeps the row's last-known
+        // status by design); network blips likewise — the next beat retries.
+      }
+    };
+    const interval = setInterval(tick, CRAWL_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [watchId]);
+
+  const handleStartCrawl = async () => {
+    setCrawlError(null);
+    setCrawlStarting(true);
+    try {
+      setCrawl(await startCrawl());
+    } catch (e) {
+      setCrawlError(apiErrorMessage(e));
+    } finally {
+      setCrawlStarting(false);
+    }
+  };
 
   const handleSave = async () => {
     const error = validate(caps, sandboxUrl, users);
@@ -560,13 +670,74 @@ export default function CrawlSetupPage() {
                   SAVED {save.at ? new Date(save.at).toISOString().replace("T", " · ").slice(0, 18) + " UTC" : ""}
                 </div>
               )}
-              {/* Honest dead designator — no fake button while POST /crawls
-                  501s (sidira-crawler #1–#3). */}
-              <div style={{ ...railCaptionStyle, marginTop: 8 }}>
-                START CRAWL — WAITING ON THE WALKER (SIDIRA-CRAWLER #1–#3)
-              </div>
+            </div>
+
+            {/* ── Crawl trigger + watch (#193) ─────────────── */}
+            <div
+              style={{
+                padding: "16px 20px",
+                borderTop: `0.75px solid ${TOKENS.rule}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleStartCrawl}
+                disabled={crawlStarting || isInFlight(crawl)}
+                style={{
+                  ...secondaryBtnStyle,
+                  opacity: crawlStarting || isInFlight(crawl) ? 0.5 : 1,
+                  cursor:
+                    crawlStarting || isInFlight(crawl) ? "not-allowed" : "pointer",
+                }}
+              >
+                {crawlStarting
+                  ? "Dispatching..."
+                  : isInFlight(crawl)
+                    ? "Crawl in flight"
+                    : "Start crawl"}
+              </button>
+              {crawlError && (
+                <div role="alert" style={railAlertStyle}>
+                  {crawlError}
+                </div>
+              )}
+              {crawl && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={railCaptionStyle}>CRAWL {crawl.id}</div>
+                  <div style={{ ...railCaptionStyle, color: TOKENS.ink }}>
+                    {crawlStatusLine(crawl)}
+                  </div>
+                  <div style={railCaptionStyle}>
+                    DISPATCHED {utcStamp(crawl.created_at)}
+                  </div>
+                  {crawl.completed_at && (
+                    <div style={railCaptionStyle}>
+                      SETTLED {utcStamp(crawl.completed_at)}
+                    </div>
+                  )}
+                  {crawl.status === "failed" && crawl.error && (
+                    <div role="alert" style={railAlertStyle}>
+                      {crawl.error}
+                    </div>
+                  )}
+                  {crawl.run_url && (
+                    <a
+                      href={crawl.run_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ ...railCaptionStyle, color: TOKENS.ink, textDecoration: "none" }}
+                    >
+                      CI RUN ↗
+                    </a>
+                  )}
+                </div>
+              )}
               <div style={railCaptionStyle}>
-                WALKED CAPABILITIES PRINT AS THE CRAWLER LANDS THEM. NO SPINNERS.
+                THE CRAWL RUNS IN CI (~40 MIN) AND PUBLISHES ON ITS OWN —
+                CLOSING THIS TAB CHANGES NOTHING.
               </div>
             </div>
           </div>
@@ -699,6 +870,30 @@ const primaryBtnStyle: React.CSSProperties = {
   fontSize: 13,
   fontFamily: FONT_SANS,
   cursor: "pointer",
+};
+
+const secondaryBtnStyle: React.CSSProperties = {
+  background: "transparent",
+  color: TOKENS.ink,
+  border: `0.75px solid ${TOKENS.ink}`,
+  borderRadius: 2,
+  padding: "7px 14px",
+  fontWeight: 500,
+  fontSize: 13,
+  fontFamily: FONT_SANS,
+  cursor: "pointer",
+};
+
+const railAlertStyle: React.CSSProperties = {
+  padding: "8px 10px",
+  background: TOKENS.paperRecessed,
+  border: `0.75px solid ${TOKENS.alert}`,
+  borderRadius: 2,
+  // alert is accent-only (border) — the message reads in ink (§4.3/§7.7).
+  color: TOKENS.ink,
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: "break-word",
 };
 
 const railCaptionStyle: React.CSSProperties = {
