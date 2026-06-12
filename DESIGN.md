@@ -151,13 +151,13 @@ encode these proportions. Use them directly rather than recomposing.
 | Layer | Token | Hex | Carries |
 | --- | --- | --- | --- |
 | **Structure** = Sid | `ink` | `#0E1A2B` | the entire ink layer — mark, wordmark, body text, rules, structural foundation. Already navy-leaning. Sid is the thing everything else stands on. |
-| **Signal** = brand-functional | `signal` | `#C8FF3D` | live state · the instrument is reading · oscilloscope-phosphor accent. No personal meaning. Used at ≤ 8% of any rendered surface, only on live traces and the active state of one control. Never as fill, never as background. |
+| **Signal** = brand-functional | `signal` | `#C8FF3D` | live state · the instrument is reading · oscilloscope-phosphor accent. No personal meaning. Countable budget: lime lives on **at most three carriers per screen** — a glass well's live traces (the well counts as one carrier; §9.1 sanctions two traces inside it), the §9.5 live carrier, and the active state of one control. Never on two adjacent elements, never as fill, never as background. |
 | **Vital** = Avira | `avira` | `#D696C8` | secondary accent for narrowly-scoped narrative surfaces — see §4.4. |
 
 **Lime's primary home is glass.** On glass (`#0A1421`) signal lime reaches
-~14:1 contrast and reads as phosphor — that is where it lives. On paper, lime
+~15.7:1 contrast and reads as phosphor — that is where it lives. On paper, lime
 requires an ink companion stroke at ≥3:1 contrast (this codifies the existing
-underdraw practice as law; bare lime on cream fails at ~1.1:1).
+underdraw practice as law; bare lime on cream fails at ~1:1).
 
 **Phosphor persistence:** lime traces on glass get a 5 px / 18%-opacity
 underdraw of the same path. Never CSS glow, blur, or `drop-shadow`.
@@ -169,7 +169,7 @@ underdraw of the same path. Never CSS glow, blur, or `drop-shadow`.
 | `paper` | `#F4EFE6` | primary surface — archival-tungsten warm off-white |
 | `paper-elevated` | `#FAF6EE` | cards · modals · elevated panels |
 | `paper-recessed` | `#EBE5D8` | inputs · code blocks · receded panels |
-| `rule` | `rgba(14,26,43,0.16)` | hairline dividers, **0.75pt** — a true hairline (replaces solid `#D6CFC0`) |
+| `rule` | `rgba(14,26,43,0.16)` | hairline dividers, **`0.75px` CSS** — a true hairline (replaces solid `#D6CFC0`; unit law in §7.2 — never `pt`) |
 | `ink` | `#0E1A2B` | primary text · mark · lines |
 | `ink-muted` | `#4A5668` | secondary text · axis labels · captions |
 
@@ -209,6 +209,16 @@ dashboard — this rule is load-bearing. Glass wells take radius 4 and a 1 px
 root-cause gap behind the off-token green/blue/red hexes that accumulated in
 production. Token sweep happens in the rollout's PR 2.
 
+**Semantic colors are chip and accent colors, not prose colors.** Prose and
+body text are always `ink` or `ink-muted`. What each token may touch:
+
+| Token | Text? | Accent (borders · bands · markers)? |
+| --- | --- | --- |
+| `warn` | **never** — ≈2.0:1 on paper, fails WCAG at any size (Codex catch, PR #174 — now law). Mid-range score text falls back to `ink-muted` | yes — this is its only job |
+| `alert` | short mono designators and chips only, always co-signaled by a border or the wording itself (≈3.4:1 — below AA for small text; see §7.8). Never body text | yes |
+| `success` | short mono designators and chips (≈5.6:1 — AA) | yes |
+| `signal` | never text on paper (§4.1 — needs the ink companion); on glass per §4.1 | per §4.1 only |
+
 ### 4.4 Sid + Avira — sanctioned use
 
 The personal-meaning colors appear in two color states of the mark (§1.3) and
@@ -232,27 +242,28 @@ Forbidden uses for `avira`:
   favicon, §9.2 animation keyframes)
 - anywhere a buyer's first impression is being formed
 
+The duo-color favicon is a sanctioned exception to the first-impression rule,
+not a contradiction of it: the favicon is a §1.3 **brand-mode** surface
+(browser chrome), not product UI. This line exists so the question stops
+being re-litigated.
+
 `sid-blue` `#2C5577` is **only** used in the duo mark (founder-mode surfaces,
 the brand-mode favicon, and the §9.2 animation keyframes). It is not a
-system-wide token. Outside the duo mark, structure is `ink`.
+system-wide token. Outside the duo mark, structure is `ink`. In code the duo
+hexes exist as **scoped constants** — `DUO_SID` / `DUO_AVIRA` in
+`frontend/lib/design.ts` — and the §9.2 keyframes and duo lockup components
+consume those, never hardcoded hexes (the scoped constant is what keeps
+sid-blue out of the system palette without inviting drift into animation
+CSS). Standalone SVG *assets* keep literal hexes; they can't import.
 
 ### 4.5 Dark mode
 
-Dark mode inverts paper and ink:
-
-| Token | Light | Dark |
-| --- | --- | --- |
-| `paper` | `#F4EFE6` | `#0E1A2B` |
-| `ink` | `#0E1A2B` | `#F4EFE6` |
-| `paper-elevated` | `#FAF6EE` | `#16243A` |
-| `paper-recessed` | `#EBE5D8` | `#0A1421` |
-| `rule` | `rgba(14,26,43,0.16)` | `#1F2F47` |
-| `signal` | `#C8FF3D` | `#C8FF3D` (unchanged — lime works on both) |
-| `avira` | `#D696C8` | `#D696C8` (unchanged) |
-| `glass` | `#0A1421` | `#0A1421` (unchanged — the display is always dark) |
-
-Saturation drops 15% on all non-signal, non-avira colors in dark mode. Dark
-mode remains a follow-on; glass is a component surface today, not a theme.
+Dark mode inverts paper and ink; glass is unchanged — the display is always
+dark. That sentence is the entire spec today. The computed token table lands
+in this section when dark mode is actually scheduled — **do not implement
+dark mode from this section, and do not invent values** (a half-spec invites
+premature implementation; this one is deliberately cut to nothing). Glass is
+a component surface today, not a theme.
 
 ---
 
@@ -288,8 +299,15 @@ sans-only.
 Line height: **1.4** for body, **1.1** for display.
 
 Floors: no text below **10 px**; below **12 px** only as uppercase mono labels
-or numerals. The hypothesis statement is body-weight scaffolding (16 px / 600)
-— **the reading numeral is the hero** (84–96 px mono on glass).
+or numerals. 10 px is the floor *deliberately* — §8.4's axis numerals sit
+exactly on it. The hypothesis statement is body-weight scaffolding (16 px /
+600) — **the reading numeral is the hero** (84–96 px mono on glass).
+
+**Two sanctioned off-scale ranges** — the only sizes above 64:
+the reading numeral (**84–96 px**, mono on glass) and marketing display
+(**64–96 px**, §5.1; a fluid `clamp()` may pass below 64 on narrow
+viewports — the shipped hero clamps 48 → 96). Nothing else renders above 64;
+a new hero size gets added to this paragraph before it ships.
 
 ### 5.3 Numerals
 
@@ -316,9 +334,14 @@ The **12-step is load-bearing**. It is the difference between Sidira's
 instrument-panel density and the typical SaaS-default `4 · 8 · 16 · 24` ladder.
 Use it for tight inline gaps where 8 is too tight and 16 is too airy.
 
+Marketing extension: `96 · 112` for section rhythm on the 1280 px marketing
+grid (codified from the shipped homepage, `frontend/app/page.tsx`) —
+**marketing surfaces only, never inside the app**. Without these two steps,
+marketing pages invent their own.
+
 ---
 
-## 7. Layout posture
+## 7. Layout & interaction posture
 
 Dense, left-aligned, instrument-panel composition. Three persistent zones on
 every primary product screen:
@@ -328,7 +351,7 @@ every primary product screen:
 3. **Inspector** — provenance, manifest, or per-persona detail (right rail)
 
 No marketing symmetry inside the app. No centered hero blocks. No
-three-column-icon feature grids. Hairline rules (`0.75pt`, `--rule`) at zone
+three-column-icon feature grids. Hairline rules (`0.75px`, `--rule`) at zone
 boundaries.
 
 **MVP navigation is `Hypotheses · Library`** — the nav names only pages that
@@ -364,9 +387,12 @@ No `border-radius: 9999px`. No fully-rounded controls. Anywhere.
 
 ### 7.2 Rules
 
-Hairline dividers at `0.75pt` color `--rule` (`rgba(14,26,43,0.16)` light,
-`#1F2F47` dark; `glass-rule` on glass). Heavier weight only at zone
-boundaries, never inside a zone.
+Hairline dividers at **`0.75px` CSS**, color `--rule` (`rgba(14,26,43,0.16)`;
+`glass-rule` on glass). The unit is `px`, never `pt` — `pt` is a print unit
+that CSS resolves to ~1px anyway, so a `pt` value in code is a rounding
+accident waiting to ship. `0.75px` is intentional: 1× displays round it to a
+1 px hairline; hi-DPI displays render a true sub-pixel hairline. Heavier
+weight only at zone boundaries, never inside a zone.
 
 ### 7.3 Grid
 
@@ -417,6 +443,111 @@ records, not readings, so no glass. Run provenance pins all three: persona
 pack version · stimulus · feature-pack snapshot (the slice frozen into
 `identity.md` at run time).
 
+**PRD-document typography — the record voice.** A reverse PRD or decision
+record renders as a paper document, not a panel: a `paper-elevated` sheet
+(radius 4, hairline border) with a mono provenance header on top (designator
+· snapshot version · capture timestamp), then sans-only document text —
+16 px body at line-height **1.6** (the one sanctioned exception to §5.2's
+1.4 body line-height — long-form documents breathe) in a **≤ 68ch** measure,
+headings from the §5.2 scale (20 / 24 / 32) in display weight, sentence
+case. Mono never appears in the document body itself; it stops at the
+provenance header. No glass, no semantic color, no motion — a record is
+static ink on paper by definition (§8). *(Forward spec — the only one in
+v0.3: the Library's REVERSE PRD views are not yet shipped; this spec gates
+them when they land.)*
+
+### 7.7 Controls
+
+§10 bans what a button can't be; this is what controls **are** (codified from
+the shipped wizard — `frontend/app/simulations/new/page.tsx`):
+
+| Control | Spec |
+| --- | --- |
+| **Primary action** | ink fill on paper: `ink` background, `paper` text, `0.75px` `ink` border, radius 2, padding `7px 14px`, 13 px / 500 body font, sentence case (`Begin reading →`). **One per zone** — the wizard's lives in the manifest rail. |
+| **Secondary action** | same geometry, transparent background, `ink` text, `rule` border. Hover: `paper-recessed` fill (80 ms, §9.3). |
+| **Quiet / row action** | mono designator button: mono 10–11 px uppercase, `rule` border, radius 2, transparent. For row-level operations (expand · pin · view). Hover may invert — `paper` text on `ink` fill — but never ink-on-ink (Codex catch, PR #179). |
+| **Links** | prose links are `ink` with a 1 px underline; designator links (run IDs, artifact files) are mono, underlined. Never blue — `#1d4ed8` died in the token sweep. |
+| **Disabled** | `opacity: 0.5` + `cursor: not-allowed` on the same control. Never a recolor, never hidden — a disabled control is honest about existing. |
+| **Press** | `translateY(1px)` at 0 ms, release 80 ms (§9.3). |
+| **The signal-active control** (§4.1) | lime is a state *carrier*, not a fill: the active segment gets a 2 px lime edge with its ink companion (§4.1) — the control surface itself stays paper/ink. |
+
+Form validation is honest text, not decoration: a `paper-recessed` note with
+a `0.75px` `alert` border, message in sentence-case body font, `ink` — never
+`alert` body text (§4.3). Cautionary notes use the same anatomy with a
+`warn` border and `ink-muted` text — the border carries severity, the words
+carry meaning. Field-level errors print the message below the field and
+never rely on color alone. *(Implementation note: the shipped wizard's
+banner has the correct anatomy but renders the message in `alert` text
+instead of `ink`, and the field-level persona error is bare `alert` text
+with no border — known deviations from the §4.3 law; follow-up flagged in
+#195 alongside the §7.8 focus ring.)*
+
+Forbidden: gradient fills (§10) · pills (§10) · `avira` fills (§4.4) · lime
+fills (§4.1) · more than one primary action per zone.
+
+### 7.8 Accessibility
+
+- **Focus**: every interactive element gets a visible `:focus-visible`
+  treatment — `outline: 1px solid` `ink`, `outline-offset: 2px` on paper;
+  `glass-text` on glass. The offset hairline ring is the instrument
+  language's focus state. Never `outline: none` without a replacement; never
+  a glow or shadow ring. *(Implementation note: the app has no global
+  stylesheet yet — the ring ships as a scoped global in the app shell;
+  follow-up flagged in #195.)*
+- **Keyboard**: everything clickable is a real `<button>` / `<a>` (never
+  `div + onClick`), reachable in DOM order; `Escape` closes disclosures;
+  keyboard shortcuts never bind while an input has focus. *(Known deviation:
+  the shipped register row is a `tr + onClick`, keyboard-unreachable —
+  follow-up flagged in #195.)*
+- **Contrast floors** (against `paper` / `glass`; verdicts per WCAG AA):
+
+| Pair | Ratio | Standing |
+| --- | --- | --- |
+| `ink` / paper | ≈ 15:1 | body text |
+| `ink-muted` / paper | ≈ 6.5:1 | secondary text — AA |
+| `success` / paper | ≈ 5.6:1 | chip / designator text — AA |
+| `alert` / paper | ≈ 3.4:1 | **below AA for small text** — chips co-signal with border + wording; body text never; a text-grade darker alert is an open follow-up |
+| `warn` / paper | ≈ 2.0:1 | **never text** — accent only (§4.3) |
+| `glass-text` / glass | ≈ 16:1 | text on the display |
+| `signal` / glass | ≈ 15.7:1 | lime's home (§4.1) |
+| `signal` / paper | ≈ 1:1 | illegible — requires the ink companion stroke (§4.1) |
+
+- **Color never carries state alone**: every semantic color is co-signaled
+  by wording, a glyph, or a border (§4.3, §8.5).
+- **Reduced motion** is already law per-entry: every §9 spec declares its
+  settled frame.
+
+### 7.9 Breakpoints
+
+Desktop-first, `max-width` queries. The shipped thresholds, now law:
+
+| Threshold | What changes |
+| --- | --- |
+| ≤ 1023 px | the instrument grid (evidence + 340 px inspector rail) collapses to one column — the inspector rail becomes a stacked section (§7.5) |
+| ≤ 859 px | glass wells go single-column; the telemetry grid drops 6 → 2 columns |
+| ≤ 768 px | marketing multi-column rows stack |
+
+New responsive behavior picks from these three thresholds before inventing a
+fourth.
+
+### 7.10 Iconography
+
+No icon library, ever — imported icon sets are the fastest route to visual
+drift. Two sanctioned registers:
+
+- **Text glyphs** (preferred for furniture): `+ ~ −` sentiment · `▾ ▸`
+  disclosure · `×` dismiss · `→` action direction · `i` info. Set in mono at
+  ink weight; a glyph takes its context's text color, and §4.3 governs when
+  that may be a semantic tone.
+- **Drawn icons** (rare; must earn their place over a mono label): inline
+  SVG in the mark's own language — `currentColor` stroke, no fill,
+  `linejoin: round`, stroke weight matched to the §1.2 ladder at the render
+  size.
+
+Icons are `ink` / `ink-muted` / `currentColor`. A semantic color on an icon
+requires the adjacent text to carry the same state. No emoji anywhere in
+product UI (the 👍/👎 purge: PR #177).
+
 ---
 
 ## 8. Data furniture
@@ -453,6 +584,34 @@ The stem names the measurement; the second clause carries the polarity
 ledger has graded predictions, the product claims agreement among simulated
 agents — nothing more.
 
+**Verdict → token mapping.** The lexicon maps 1:1 onto §4.3 tokens —
+implementers never choose a verdict color (codified from the shipped
+instrument panel, `verdictFor()` in `frontend/app/simulations/[id]/page.tsx`):
+
+| Verdict | Tone |
+| --- | --- |
+| `HIGH SIM AGREEMENT · SHIP CANDIDATE` / `DECISIVE · SHIP` | `success` |
+| `DIRECTIONAL — BELOW SHIP THRESHOLD` | `ink-muted` |
+| `UNDERPOWERED — TREAT AS DIRECTIONAL` | `ink-muted` — **not `warn`**: warn is accent-only (§4.3), and underpowered is a data condition, not an alarm |
+| `LOW SIM AGREEMENT · DO NOT SHIP` / `DECISIVE · DO NOT SHIP` | `alert` |
+| `READING IN PROGRESS` | `ink-muted` + the §9.5 live carrier |
+| `RUN FAILED — NO VERDICT` | `alert` |
+
+**Chip anatomy.** Two shipped registers, one law:
+
+- **Register chip** (hypotheses register — `CHIP_BASE` in
+  `frontend/app/simulations/page.tsx`): mono 10.5 px, letter-spacing 0.06em,
+  tabular numerals, 1 px border (`rule`; the tone color borders `alert`
+  states), radius 2, padding `2px 7px`, transparent background.
+- **Panel verdict chip** (instrument panel, next to the §8.1 policy
+  designator): mono 11 px / 600, padding `3px 8px`, radius 2, `0.75px`
+  `rule` border, `paper-recessed` fill — a paper surface tone, not a
+  semantic fill.
+
+The law: a chip is **never filled with a semantic tone** — the tone lives in
+the text (and, on the register's `alert` states, the border); the polarity
+lives in the words (§4.3: color never carries state alone).
+
 ### 8.3 Honest numbers
 
 - The headline number is labeled for what it is. MVP:
@@ -474,8 +633,8 @@ agents — nothing more.
   real run data, or it doesn't render. The confidence trace is the literal
   running estimate over readings, axis-labeled — never a decorative waveform.
 - Frequency bars: bare 2 px ink bars, no gray tracks.
-- CI axis: SVG with real ticks, 10 px mono scale numerals, **and the decision
-  threshold marked on the axis**.
+- CI axis: SVG with real ticks, 10 px mono scale numerals (the §5.2 floor,
+  deliberately), **and the decision threshold marked on the axis**.
 - **Lift is a paired difference, not a second waveform**: control tick →
   treatment tick on a labeled rate axis with the delta CI band — matching the
   paired A/B semantics in `frontend/app/simulations/[id]/page.tsx`.
@@ -498,6 +657,25 @@ Every reading screen carries a two-column provenance grid: persona pack
 version · stimulus · feature-pack snapshot · run ID · timestamp · seed ·
 model — plus artifact links (`readings.csv`, transcripts, API) for the
 engineer audience.
+
+### 8.8 Registers and tables
+
+The register is a core zone; this is its density spec (codified from the
+shipped hypotheses register, `frontend/app/simulations/page.tsx`):
+
+| Property | Spec |
+| --- | --- |
+| Header | mono 11 px / 400, uppercase, letter-spacing 0.1em, `ink-muted`, padding `10px 16px 6px 0`. Left-aligned; right-aligned above numeral columns |
+| Cells | padding `9px 16px 9px 0`, `vertical-align: baseline`, `0.75px` `rule` bottom border |
+| Numerals | right-aligned, mono, tabular (§5.3) — always |
+| Designators | first column, mono, 8-hex (4-hex collides on one page — Codex, PR #175) |
+| Row hover | `paper-recessed` fill, 80 ms (§9.3) |
+| Stripes / zebra | never — the hairline is the row separator |
+| Empty / truncated | honest text per §8.6: `REGISTER PENDING`; a display limit is labeled as one (`LATEST 50 HYPOTHESES`), never presented as a total (Codex, PR #175) |
+
+Key/value grids (telemetry, provenance §8.7) follow the same treatment:
+mono `ink-muted` keys, `ink` values, hairline separations, gaps from the §6
+scale (12 / 16).
 
 ---
 
@@ -667,6 +845,7 @@ table above.
 | --- | --- | --- |
 | 2026-06-02 | 0.1 | Initial DESIGN.md. Locked: six-blade diaphragm mark · narrow uppercase SIDIRA wordmark · hybrid color C (monochrome default, dual-color during animation, dual-color founder-mode lockup) · Sid + Avira architecture · settle-trace motion bet · Söhne / Berkeley Mono / GT Sectra Fine type stack. Replaces the legacy teal/blue split-test mark. |
 | 2026-06-10 | 0.2 | **R2 "Paper bench, glass display"** (founder-signed; epic #156, this PR = #163). Adds: glass surface + tokens (§4.2) · lime-on-glass law + phosphor persistence (§4.1) · `success` token (§4.3) · true-hairline `rule` · data-furniture section (§8): decision-rule primitive, MVP verdict lexicon (`HIGH SIM AGREEMENT` stem, `DECISIVE` calibrated-only), honest-numbers rules, data-bound marks, paired-difference lift · surface restraint "same system, different pressure" (§7.4) · mobile = stacked instrument readout (§7.5) · Library IA (§7.6) · motion §9.3 mech ease + §9.4 reading choreography + §9.5 live carrier + §9.6 marketing motion + §9.7 live plotting · refuse-list additions. Drops GT Sectra Fine; fallback family unified on Archivo; MVP ships fallbacks (founder, 2026-06-10). Resolves: duo commit-beat carve-out (§1.3/§9.2) · favicon duo-on-paper confirmed (§1.3/§4.4/§11 reconciled) · verdict stem. Grid folded into §7.3. |
+| 2026-06-12 | 0.3 | **Spec-gap close** (#195; external design review, triaged in `sessions/phase-5-design-system/external-design-review-2026-06-12.md`). Codifies what the shipped R2 surfaces already render — no new product surfaces (R2.4-compatible); the one forward spec is §7.6's record voice, gating the unshipped Library REVERSE PRD views. Adds: §7.7 controls (primary/secondary/quiet/links/disabled/signal-active/validation) · §7.8 accessibility (focus ring, keyboard, contrast floors, color-never-alone) · §7.9 breakpoints · §7.10 iconography (no icon libraries) · §8.2 verdict→token mapping + chip anatomy (register + panel registers) · §8.8 registers and tables · §7.6 PRD-document "record voice" typography. Promotes the R2.14 Codex catch into law: `warn` is accent-only, never text (§4.3 token-role table). Resolves inconsistencies: unit law `px` never `pt`, `0.75px` intentional (§7.2 rewrite; §4.2) · sanctioned off-scale type ranges 84–96 reading numeral / 64–96 marketing display (§5.2) · marketing spacing extension 96·112 (§6) · lime budget restated as countable (§4.1) · scoped duo constants `DUO_SID`/`DUO_AVIRA` in `lib/design.ts` (§4.4) · dark-mode half-spec cut to one line (§4.5) · favicon brand-mode exception acknowledged (§4.4). |
 
 ---
 

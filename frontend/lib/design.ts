@@ -20,6 +20,11 @@ export const TOKENS = {
   glassMuted: "rgba(244, 239, 230, 0.55)",
 } as const;
 
+// Duo-mark scope ONLY — DESIGN.md §4.4/§9.2. Sid-blue is not a system token;
+// these exist so aperture keyframes and the duo lockup never hardcode hexes.
+export const DUO_SID = "#2C5577";
+export const DUO_AVIRA = TOKENS.avira;
+
 export const FONT_SANS = "var(--font-sans), ui-sans-serif, sans-serif";
 export const FONT_NARROW = "var(--font-narrow), sans-serif";
 export const FONT_MONO = "var(--font-mono), ui-monospace, monospace";
