@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -175,6 +176,55 @@ def test_status_lifecycle_pending_running_complete(client, fake_dispatcher):
     got = client.get(f"/crawls/{crawl_id}").json()
     assert got["status"] == "complete"
     assert len(fake_dispatcher.lookups) == lookups_before
+
+
+def test_concurrency_held_run_is_pending_not_failed(client, fake_dispatcher):
+    """GitHub reports status "pending" (not in the queued/waiting/requested
+    trio) for a run held by a concurrency group — which is exactly what our
+    own one-pending-run-per-customer contract produces for a second crawl.
+    Only "completed" may terminalize a row."""
+    body = _start(client)
+    fake_dispatcher.find_run_result = _state(status="pending")
+    got = client.get(f"/crawls/{body['id']}").json()
+    assert got["status"] == "pending"
+    assert got["error"] is None
+
+
+def test_run_that_never_materializes_eventually_fails(client, fake_dispatcher):
+    """Without a cutoff, a dispatch whose run is never found (rejected, or
+    pushed out of the lookup window before any poll) reports pending forever."""
+    body = _start(client)
+    fake_dispatcher.find_run_result = None
+    repo = get_in_memory_crawl_run_repo()
+    repo._runs[body["id"]]["created_at"] = datetime.now(timezone.utc) - timedelta(minutes=20)
+
+    got = client.get(f"/crawls/{body['id']}").json()
+    assert got["status"] == "failed"
+    assert "never materialized" in got["error"]
+
+
+def test_terminal_rows_stay_readable_without_the_dispatch_token(client, fake_dispatcher):
+    """A rotated-out token must not lock users out of finished crawls — the
+    terminal early-return answers from the DB before the dispatcher is needed.
+    A non-terminal row, by contrast, needs GitHub and 503s."""
+    done = _start(client)
+    fake_dispatcher.find_run_result = _state(status="completed", conclusion="success")
+    assert client.get(f"/crawls/{done['id']}").json()["status"] == "complete"
+    pending = _start(client)
+
+    app.dependency_overrides[get_crawl_dispatcher] = lambda: None  # token gone
+    assert client.get(f"/crawls/{done['id']}").json()["status"] == "complete"
+    assert client.get(f"/crawls/{pending['id']}").status_code == 503
+    assert client.post("/crawls").status_code == 503
+
+
+def test_uncrawlable_customer_id_is_rejected_before_dispatch(client, fake_dispatcher, monkeypatch):
+    """customer becomes an R2 key segment and a workflow input in the
+    secret-bearing crawler repo — mirror crawl.yml's validation here."""
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "Bad_Tenant!")
+    resp = client.post("/crawls")
+    assert resp.status_code == 400
+    assert fake_dispatcher.dispatched == []
 
 
 def test_cancelled_run_reports_superseded(client, fake_dispatcher):

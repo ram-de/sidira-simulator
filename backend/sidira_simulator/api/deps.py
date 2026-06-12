@@ -128,20 +128,20 @@ def get_crawl_run_repo(session: RepositorySession = None) -> CrawlRunRepo:
     return PostgresCrawlRunRepo(session)
 
 
-async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher"]:
-    """Request-scoped GitHub Actions dispatcher (#193). 503 when the
-    dispatch token is absent — crawls are un-dispatchable, not broken."""
+async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher | None"]:
+    """Request-scoped GitHub Actions dispatcher (#193). Yields None when the
+    dispatch token is absent so the routes decide: POST 503s (crawls are
+    un-dispatchable, not broken), while GET keeps serving terminal rows
+    straight from the DB — finished crawls outlive a rotated-out token."""
     from sidira_simulator.adapters.github_actions import (
-        CrawlDispatchError,
         GitHubCrawlDispatcher,
+        dispatch_configured,
     )
 
-    try:
-        dispatcher = GitHubCrawlDispatcher()
-    except CrawlDispatchError as exc:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if not dispatch_configured():
+        yield None
+        return
+    dispatcher = GitHubCrawlDispatcher()
     try:
         yield dispatcher
     finally:

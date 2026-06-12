@@ -44,7 +44,7 @@ class WorkflowRunState:
     """The slice of a workflow run the crawl API cares about."""
 
     run_id: int
-    status: str  # queued | in_progress | completed
+    status: str  # queued | waiting | requested | pending (concurrency-held) | in_progress | completed
     conclusion: str | None  # success | failure | cancelled | timed_out | ...
     html_url: str
 
@@ -113,8 +113,11 @@ class GitHubCrawlDispatcher:
         pending, not as an error.
         """
         url = f"{_API}/repos/{self._repo}/actions/workflows/{self._workflow}/runs"
+        # Widest single page GitHub allows. A run only needs to be found once
+        # (the run_id is persisted after); the route's materialization cutoff
+        # handles the pathological case where it falls out of this window.
         resp = await self._request(
-            "GET", url, params={"event": "workflow_dispatch", "per_page": 30}
+            "GET", url, params={"event": "workflow_dispatch", "per_page": 100}
         )
         if resp.status_code != 200:
             raise CrawlDispatchError(

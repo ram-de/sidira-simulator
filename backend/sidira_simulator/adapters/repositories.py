@@ -544,7 +544,9 @@ class PostgresCrawlRunRepo:
 
     async def update(self, crawl_id: str, fields: dict[str, Any]) -> dict[str, Any]:
         row = await self._session.get(CrawlRun, crawl_id)
-        assert row is not None, f"crawl run {crawl_id} vanished mid-update"
+        if row is None:
+            # Reachable: a customer delete cascades to crawl_runs mid-poll.
+            raise LookupError(f"crawl run {crawl_id} vanished mid-update")
         for key, value in fields.items():
             setattr(row, key, value)
         await _commit(self._session)
