@@ -221,10 +221,20 @@ def test_terminal_rows_stay_readable_without_the_dispatch_token(client, fake_dis
 def test_uncrawlable_customer_id_is_rejected_before_dispatch(client, fake_dispatcher, monkeypatch):
     """customer becomes an R2 key segment and a workflow input in the
     secret-bearing crawler repo — mirror crawl.yml's validation here."""
-    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "Bad_Tenant!")
-    resp = client.post("/crawls")
-    assert resp.status_code == 400
+    for bad in ("Bad Tenant!", "../acceptance", "-leading-dash", "a" * 65):
+        monkeypatch.setenv("SIDIRA_CUSTOMER_ID", bad)
+        resp = client.post("/crawls")
+        assert resp.status_code == 400, bad
     assert fake_dispatcher.dispatched == []
+
+
+def test_clerk_org_id_is_a_crawlable_customer(client, fake_dispatcher, monkeypatch):
+    """The production tenant key is the Clerk org id, passed through verbatim
+    (api/auth.py) — underscore + mixed case must clear the charset check."""
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org_2NXxKpDuS3vLkAhQeFdGhI8mWyZ")
+    resp = client.post("/crawls")
+    assert resp.status_code == 202
+    assert len(fake_dispatcher.dispatched) == 1
 
 
 def test_cancelled_run_reports_superseded(client, fake_dispatcher):

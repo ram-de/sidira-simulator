@@ -60,7 +60,10 @@ _TERMINAL = (CrawlStatus.COMPLETE.value, CrawlStatus.FAILED.value)
 # Mirrors crawl.yml's "Validate inputs" regex — customer becomes an R2 key
 # segment and the workflow's run-name in the secret-bearing crawler repo, so
 # reject anything else here with a clear 400 instead of a cryptic CI failure.
-_CUSTOMER_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+# Wider than a DNS-ish slug because the production tenant key IS the Clerk
+# org id (org_..., underscore + mixed case — see api/auth.py passthrough);
+# still a single safe key segment: no separators, no dots, no leading dash.
+_CUSTOMER_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 # A dispatched run materializes on GitHub within seconds. If it still cannot
 # be found after this long, the run either never got created or fell out of
@@ -126,7 +129,7 @@ async def create_crawl(
     if not _CUSTOMER_RE.fullmatch(customer_id):
         raise HTTPException(
             status_code=400,
-            detail="customer id is not crawlable: must match [a-z0-9][a-z0-9-]*",
+            detail="customer id is not crawlable: must match [A-Za-z0-9][A-Za-z0-9_-]*",
         )
     await customer_repo.ensure_exists(customer_id)
     crawl_id = f"cr-{uuid4().hex[:12]}"
