@@ -476,11 +476,7 @@ a `0.75px` `alert` border, message in sentence-case body font, `ink` — never
 `alert` body text (§4.3). Cautionary notes use the same anatomy with a
 `warn` border and `ink-muted` text — the border carries severity, the words
 carry meaning. Field-level errors print the message below the field and
-never rely on color alone. *(Implementation note: the shipped wizard's
-banner has the correct anatomy but renders the message in `alert` text
-instead of `ink`, and the field-level persona error is bare `alert` text
-with no border — known deviations from the §4.3 law; follow-up flagged in
-#195 alongside the §7.8 focus ring.)*
+never rely on color alone.
 
 Forbidden: gradient fills (§10) · pills (§10) · `avira` fills (§4.4) · lime
 fills (§4.1) · more than one primary action per zone.
@@ -491,14 +487,17 @@ fills (§4.1) · more than one primary action per zone.
   treatment — `outline: 1px solid` `ink`, `outline-offset: 2px` on paper;
   `glass-text` on glass. The offset hairline ring is the instrument
   language's focus state. Never `outline: none` without a replacement; never
-  a glow or shadow ring. *(Implementation note: the app has no global
-  stylesheet yet — the ring ships as a scoped global in the app shell;
-  follow-up flagged in #195.)*
+  a glow or shadow ring. Ships as the app's one global element-selector
+  rule — a scoped `<style>` block in the app shell
+  (`frontend/app/layout.tsx`); a surface that needs a different ring color
+  (glass) sets `--focus-ring` inline.
 - **Keyboard**: everything clickable is a real `<button>` / `<a>` (never
   `div + onClick`), reachable in DOM order; `Escape` closes disclosures;
-  keyboard shortcuts never bind while an input has focus. *(Known deviation:
-  the shipped register row is a `tr + onClick`, keyboard-unreachable —
-  follow-up flagged in #195.)*
+  keyboard shortcuts never bind while an input has focus. A row-level
+  `onClick` (the register's `tr`) is permitted only as progressive
+  enhancement around a real link in the row (the register puts it in the
+  hypothesis cell) — the link is the keyboard path; the row click is a
+  convenience on top.
 - **Contrast floors** (against `paper` / `glass`; verdicts per WCAG AA):
 
 | Pair | Ratio | Standing |
@@ -846,6 +845,7 @@ table above.
 | 2026-06-02 | 0.1 | Initial DESIGN.md. Locked: six-blade diaphragm mark · narrow uppercase SIDIRA wordmark · hybrid color C (monochrome default, dual-color during animation, dual-color founder-mode lockup) · Sid + Avira architecture · settle-trace motion bet · Söhne / Berkeley Mono / GT Sectra Fine type stack. Replaces the legacy teal/blue split-test mark. |
 | 2026-06-10 | 0.2 | **R2 "Paper bench, glass display"** (founder-signed; epic #156, this PR = #163). Adds: glass surface + tokens (§4.2) · lime-on-glass law + phosphor persistence (§4.1) · `success` token (§4.3) · true-hairline `rule` · data-furniture section (§8): decision-rule primitive, MVP verdict lexicon (`HIGH SIM AGREEMENT` stem, `DECISIVE` calibrated-only), honest-numbers rules, data-bound marks, paired-difference lift · surface restraint "same system, different pressure" (§7.4) · mobile = stacked instrument readout (§7.5) · Library IA (§7.6) · motion §9.3 mech ease + §9.4 reading choreography + §9.5 live carrier + §9.6 marketing motion + §9.7 live plotting · refuse-list additions. Drops GT Sectra Fine; fallback family unified on Archivo; MVP ships fallbacks (founder, 2026-06-10). Resolves: duo commit-beat carve-out (§1.3/§9.2) · favicon duo-on-paper confirmed (§1.3/§4.4/§11 reconciled) · verdict stem. Grid folded into §7.3. |
 | 2026-06-12 | 0.3 | **Spec-gap close** (#195; external design review, triaged in `sessions/phase-5-design-system/external-design-review-2026-06-12.md`). Codifies what the shipped R2 surfaces already render — no new product surfaces (R2.4-compatible); the one forward spec is §7.6's record voice, gating the unshipped Library REVERSE PRD views. Adds: §7.7 controls (primary/secondary/quiet/links/disabled/signal-active/validation) · §7.8 accessibility (focus ring, keyboard, contrast floors, color-never-alone) · §7.9 breakpoints · §7.10 iconography (no icon libraries) · §8.2 verdict→token mapping + chip anatomy (register + panel registers) · §8.8 registers and tables · §7.6 PRD-document "record voice" typography. Promotes the R2.14 Codex catch into law: `warn` is accent-only, never text (§4.3 token-role table). Resolves inconsistencies: unit law `px` never `pt`, `0.75px` intentional (§7.2 rewrite; §4.2) · sanctioned off-scale type ranges 84–96 reading numeral / 64–96 marketing display (§5.2) · marketing spacing extension 96·112 (§6) · lime budget restated as countable (§4.1) · scoped duo constants `DUO_SID`/`DUO_AVIRA` in `lib/design.ts` (§4.4) · dark-mode half-spec cut to one line (§4.5) · favicon brand-mode exception acknowledged (§4.4). |
+| 2026-06-12 | 0.3.1 | **Deviation close** (#197). The three v0.3 known-deviation notes resolved in lockstep with the code: §7.8 focus ring shipped as the app's one global element-selector rule (scoped `<style>` in `frontend/app/layout.tsx`; `--focus-ring` is the override mechanism for glass — no glass surface has a focusable element yet) · §7.7 wizard validation now matches the law (banner message in `ink`; field-level persona error gets the full note anatomy; both carry `role="alert"`) — note removed · §7.8 keyboard deviation note **corrected, not fixed**: the register row's hypothesis cell already carried a real `<Link>` (`simulations/page.tsx`), so the `tr onClick` was always progressive enhancement; the spec now states that pattern as law. |
 
 ---
 
