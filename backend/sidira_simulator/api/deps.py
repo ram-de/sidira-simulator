@@ -9,7 +9,10 @@ configured. The Clerk/JWT path takes precedence; the SIDIRA_CUSTOMER_ID env
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Annotated, AsyncIterator
+from typing import TYPE_CHECKING, Annotated, AsyncIterator
+
+if TYPE_CHECKING:
+    from sidira_simulator.adapters.github_actions import GitHubCrawlDispatcher
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,14 +28,17 @@ from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
     CrawlConfigRepo,
+    CrawlRunRepo,
     CustomerRepo,
     PostgresAgentFeedbackRepo,
     PostgresAgentInstanceRepo,
     PostgresCrawlConfigRepo,
+    PostgresCrawlRunRepo,
     PostgresCustomerRepo,
     PostgresSimulationRepo,
     SimulationRepo,
     get_in_memory_crawl_config_repo,
+    get_in_memory_crawl_run_repo,
     get_in_memory_repos,
 )
 from sidira_simulator.services.runtime_config import resolve_sidira_env
@@ -114,6 +120,32 @@ def get_crawl_config_repo(session: RepositorySession = None) -> CrawlConfigRepo:
     if session is None:
         return get_in_memory_crawl_config_repo()
     return PostgresCrawlConfigRepo(session)
+
+
+def get_crawl_run_repo(session: RepositorySession = None) -> CrawlRunRepo:
+    if session is None:
+        return get_in_memory_crawl_run_repo()
+    return PostgresCrawlRunRepo(session)
+
+
+async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher"]:
+    """Request-scoped GitHub Actions dispatcher (#193). 503 when the
+    dispatch token is absent — crawls are un-dispatchable, not broken."""
+    from sidira_simulator.adapters.github_actions import (
+        CrawlDispatchError,
+        GitHubCrawlDispatcher,
+    )
+
+    try:
+        dispatcher = GitHubCrawlDispatcher()
+    except CrawlDispatchError as exc:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    try:
+        yield dispatcher
+    finally:
+        await dispatcher.aclose()
 
 
 def get_artifact_store() -> ArtifactStore:

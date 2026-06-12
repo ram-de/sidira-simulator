@@ -2,8 +2,9 @@
 
 GET /crawl-setup returns an empty envelope before any save; PUT validates
 the CrawlSetup contract (capability count, entry-url count + scheme, walk
-depth bounds) and round-trips; saves are customer-scoped; the trigger
-endpoints 501 until the walker lands (sidira-crawler #1-#3).
+depth bounds) and round-trips; saves are customer-scoped. The trigger
+endpoints are covered in test_crawl_trigger_api.py (#193) — here only the
+unconfigured-token 503 is pinned.
 """
 
 from __future__ import annotations
@@ -119,6 +120,12 @@ def test_setup_is_customer_scoped(client, monkeypatch):
     assert got["setup"] is None
 
 
-def test_trigger_endpoints_stub_until_walker_lands(client):
-    assert client.post("/crawls").status_code == 501
-    assert client.get("/crawls/some-id").status_code == 501
+def test_trigger_unconfigured_is_503_not_501(client, monkeypatch):
+    """#193 wired the trigger; without the dispatch token it is explicitly
+    un-dispatchable (503), never a silent stub. Full lifecycle coverage
+    lives in test_crawl_trigger_api.py."""
+    monkeypatch.delenv("SIDIRA_CRAWLER_DISPATCH_TOKEN", raising=False)
+    monkeypatch.delenv("PYTHIA_CRAWLER_DISPATCH_TOKEN", raising=False)
+    resp = client.post("/crawls")
+    assert resp.status_code == 503
+    assert "SIDIRA_CRAWLER_DISPATCH_TOKEN" in resp.json()["detail"]
