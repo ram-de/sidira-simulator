@@ -1,11 +1,10 @@
 {
   "customer_id": "streamly-sandbox",
   "snapshot_version": "2026-W24",
-  "generated_at": "2026-06-12T06:28:49.891411Z",
+  "generated_at": "2026-06-12T07:07:27.254932Z",
   "schema_version": "1.0",
   "capabilities": [
     "landing",
-    "help",
     "login",
     "signup",
     "profiles",
@@ -21,7 +20,7 @@
   "crawl_metadata": {
     "screens": "48",
     "transitions": "218",
-    "unassigned_screens": "1",
+    "unassigned_screens": "0",
     "roles": "guest,member,premium",
     "source": "raw.jsonl",
     "run_date": "2026-06-12",

@@ -3,9 +3,9 @@ The user goal is to select a profile to use with Streamly, as indicated by the c
 
 ### 2. Roles
 The observed user roles are:
-* guest
-* member
-* premium
+* Guest
+* Member
+* Premium
 
 ### 3. Flow per role
 * **Guest**: The guest role sees the `/profiles::chooser+sab6eb8` and `/profiles::chooser+s157f95` screens, with the heading "Who's watching?" and options including "🍿 Sam Member" and "🧸 Kids". Selecting the first option takes them to the `/browse` capability.

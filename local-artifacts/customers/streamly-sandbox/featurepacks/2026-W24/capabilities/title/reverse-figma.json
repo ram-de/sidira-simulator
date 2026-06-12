@@ -206,41 +206,6 @@
       ]
     },
     {
-      "id": "/title/:id::overlay+dialog+sd93668",
-      "name": "The Coral Architects",
-      "role": null,
-      "components": [
-        {
-          "id": "heading-the-coral-architects",
-          "role": "heading",
-          "states": [],
-          "text": "The Coral Architects",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-drama",
-          "role": "heading",
-          "states": [],
-          "text": "Drama",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-sci-fi",
-          "role": "heading",
-          "states": [],
-          "text": "Sci-Fi",
-          "visible_to_roles": null
-        },
-        {
-          "id": "heading-documentary",
-          "role": "heading",
-          "states": [],
-          "text": "Documentary",
-          "visible_to_roles": null
-        }
-      ]
-    },
-    {
       "id": "/title/:id::overlay+dialog+s366105",
       "name": "The Coral Architects",
       "role": null,
@@ -277,6 +242,41 @@
     },
     {
       "id": "/title/:id::overlay+dialog+s235b83",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+sd93668",
       "name": "The Coral Architects",
       "role": null,
       "components": [

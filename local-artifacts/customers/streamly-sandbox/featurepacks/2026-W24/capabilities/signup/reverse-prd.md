@@ -2,25 +2,23 @@
 Create a new Streamly account.
 
 ### 2. Roles
-The following roles are observed:
-- Guest
-- Member
-- Premium
+The observed roles are:
+- guest
+- member
+- premium
 
 ### 3. Flow per role
 The flow for each role is as follows:
-- **Guest**: 
-  1. `/signup::s2a640d` (Create your account) -> `/signup::login+sde2e7d` (Choose a password) by clicking 'Next'
-  2. `/signup::login+sde2e7d` -> `/signup::s4197c3` (Pick your plan) by clicking 'Next'
-  3. `/signup::login+sde2e7d` -> `/signup::login+sb09644` (Choose a password) by clicking 'Accept'
-  4. `/signup::s8b8d39` -> `/signup::login+sb09644` by clicking 'Next'
-  5. `/signup::login+sb09644` -> `/signup::s2cf795` (Pick your plan) by clicking 'Next'
-- **Member** and **Premium**:
-  1. `/signup::s2a640d` (Create your account) -> `/signup::login+sde2e7d` (Choose a password) by clicking 'Next'
-  2. `/signup::s2a640d` -> `/signup::s8b8d39` by clicking 'Accept'
-  3. `/signup::s8b8d39` -> `/signup::login+sb09644` by clicking 'Next'
-  4. `/signup::login+sde2e7d` -> `/signup::s4197c3` by submitting the login form
-  5. `/signup::login+sb09644` -> `/signup::s2cf795` by submitting the login form
+- **guest**: 
+  1. Start at `/signup::s2a640d` and click 'Next' to proceed to `/signup::login+sde2e7d`.
+  2. From `/signup::login+sde2e7d`, click 'Next' to proceed to `/signup::s4197c3`.
+  3. Alternatively, from `/signup::s2a640d`, click 'Accept' to proceed to `/signup::s8b8d39`, then click 'Next' to proceed to `/signup::login+sb09644`.
+  4. From `/signup::login+sb09644`, click 'Next' to proceed to `/signup::s2cf795`.
+- **member** and **premium**: 
+  1. Start at `/signup::s2a640d` and click 'Next' to proceed to `/signup::login+sde2e7d`.
+  2. From `/signup::login+sde2e7d`, submit the login form to proceed to `/signup::s4197c3`.
+  3. Alternatively, from `/signup::s2a640d`, click 'Accept' to proceed to `/signup::s8b8d39`, then click 'Next' to proceed to `/signup::login+sb09644`.
+  4. From `/signup::login+sb09644`, submit the login form to proceed to `/signup::s2cf795`.
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -29,10 +27,11 @@ _(no evidence observed)_
 _(no evidence observed)_
 
 ### 6. Dependencies
-The following capabilities are referenced:
-- `/help` (linked from various screens)
-- `/login` (linked from various screens)
-- `/profiles::chooser` (exited into from `/signup::s4197c3` and `/signup::s2cf795`)
+The signup capability has exits into the following capabilities:
+- `/login` (via clicking 'Sign In' or 'Sign in' links)
+- `/help` (via clicking 'Help' links)
+- `/profiles` (via clicking 'Start Watching' button after selecting a plan)
+- The root capability (`/`) is also accessible via clicking the 'STREAMLY' link.
 
 ### 7. Implicit metric
 _(no evidence observed)_

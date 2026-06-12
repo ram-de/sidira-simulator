@@ -2,18 +2,17 @@
 Learn about Streamly and sign up for an account.
 
 ### 2. Roles
-The observed roles are:
-- guest
-- member
-- premium
+The following roles are observed:
+* guest
+* member
+* premium
 
 ### 3. Flow per role
-All roles (guest, member, premium) can access the screens `/::sfb8cd5` and `/::scdffb1`. The flow is as follows:
-- The user starts on screen `/::sfb8cd5`, where they can see headings such as "Unlimited stories. One small price." and "Pick the plan that fits" along with copy describing the benefits of Streamly.
-- From `/::sfb8cd5`, the user can click on the "Get Started" button to proceed to the signup process, or click on "Sign In" to log in if they already have an account.
-- The user can also navigate to the help center by clicking on the "Help" link.
-- After clicking the "Accept" button, the user transitions to screen `/::scdffb1`, which has similar content to `/::sfb8cd5`.
-- From `/::scdffb1`, the user has the same options as on `/::sfb8cd5`: to sign up, sign in, or visit the help center.
+All roles (guest, member, premium) can navigate through the following screens:
+- `/::sfb8cd5`: The landing page with headings "Unlimited stories. One small price." and "Pick the plan that fits" and copy "Get Started" and "Pick the plan that fits".
+- `/help::sdfec15` and `/help::s9ca1b4`: The help center pages with headings "Help Center" and copy "Quick answers to common questions".
+- `/::scdffb1`: Another landing page with similar headings and copy as `/::sfb8cd5`.
+The flow involves clicking on links such as "Help", "Help Center", "STREAMLY", "Sign In", "Get Started", and buttons like "Accept".
 
 ### 4. Success criteria
 _(no evidence observed)_
@@ -22,10 +21,9 @@ _(no evidence observed)_
 _(no evidence observed)_
 
 ### 6. Dependencies
-The landing capability has dependencies on the following capabilities:
-- Help capability (`/help::sdfec15`, `/help::s9ca1b4`)
-- Login capability (`/login::login+s142a09`, `/login::login+sabcaae`)
-- Signup capability (`/signup::s2a640d`, `/signup::s8b8d39`)
+The landing capability depends on the following capabilities:
+- Login capability (`/login::login+s142a09`, `/login::login+sabcaae`): accessed by clicking the "Sign In" link.
+- Signup capability (`/signup::s2a640d`, `/signup::s8b8d39`): accessed by clicking the "Get Started" link.
 
 ### 7. Implicit metric
 _(no evidence observed)_

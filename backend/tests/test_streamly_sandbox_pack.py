@@ -37,8 +37,8 @@ def test_manifest_is_the_crawled_snapshot(loader: FeaturePackLoader) -> None:
     manifest = loader.load_latest_manifest(_CUSTOMER)
     assert manifest.customer_id == _CUSTOMER
     assert manifest.snapshot_version == "2026-W24"
-    assert len(manifest.capabilities) == 13
-    assert len(set(manifest.capabilities)) == 13
+    assert len(manifest.capabilities) == 12
+    assert len(set(manifest.capabilities)) == 12
 
 
 def test_every_capability_round_trips(loader: FeaturePackLoader) -> None:

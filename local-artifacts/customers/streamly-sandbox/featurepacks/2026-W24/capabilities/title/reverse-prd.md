@@ -9,28 +9,20 @@ The observed roles are:
 ### 3. Flow per role
 Both member and premium roles can access the title details page via the `/title/:id` route. The flow involves:
 * Viewing the title details dialog with headings such as "The Coral Architects / Drama / Sci-Fi / Documentary" and copy including "STREAMLY | Browse | Search | My List | Kids | Sam Member | Sign Out | Featured"
-* Clicking the '+ My List' button to add the title to their list
-* Scrolling through the feed to view more information
-* Clicking the '✕' button to exit the dialog and return to the browse page
-* Clicking the '▶ Play' link to start watching the title
-
-The premium role also has access to additional information such as "4K Ultra HD" for certain titles.
+* Clicking the '+ My List' button to transition to another dialog (`/title/:id::overlay+dialog+sd93668`)
+* Scrolling the feed to transition to an exhausted dialog (`/title/:id::overlay+dialog+exhausted+s6f169a`)
+* Premium users may also see additional information such as "4K Ultra HD"
 
 ### 4. Success criteria
-Success criteria include:
-* The user can view the title details dialog with relevant information such as genre and headings
-* The user can add the title to their list by clicking the '+ My List' button
-* The user can scroll through the feed to view more information
-* The user can exit the dialog and return to the browse page by clicking the '✕' button
-* The user can start watching the title by clicking the '▶ Play' link
+_(no evidence observed)_
 
 ### 5. Edge cases & failure modes
 _(no evidence observed)_
 
 ### 6. Dependencies
 The title details capability depends on the following capabilities:
-* Browse capability (`/browse::s875413`): the user can exit the title details dialog and return to the browse page
-* Watch capability (`/watch/:id::overlay+s002039`): the user can start watching the title by clicking the '▶ Play' link
+* Browse (`/browse::s875413`): accessed when the user clicks the '✕' button
+* Watch (`/watch/:id::overlay+s002039`): accessed when the user clicks the '▶ Play' link
 
 ### 7. Implicit metric
 _(no evidence observed)_
