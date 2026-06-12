@@ -132,7 +132,19 @@ export default function SampleWorkspaceCard({
         </button>
       )}
       {error && (
-        <div style={{ marginTop: 10, fontSize: 13, color: TOKENS.alert }}>
+        <div
+          role="alert"
+          style={{
+            marginTop: 10,
+            fontSize: 13,
+            // §7.7 note anatomy — alert border carries severity, message in ink.
+            color: TOKENS.ink,
+            padding: "8px 12px",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+            borderRadius: 2,
+          }}
+        >
           {error}
         </div>
       )}

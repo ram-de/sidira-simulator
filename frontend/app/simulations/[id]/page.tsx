@@ -481,7 +481,19 @@ export default function SimulationDetailPage() {
   if (!sim) {
     return (
       <main style={{ maxWidth: 960, margin: "48px auto", padding: "0 24px", fontFamily: FONT_SANS }}>
-        <p style={{ color: TOKENS.alert, fontSize: 14 }}>
+        <p
+          role="alert"
+          style={{
+            color: TOKENS.ink,
+            fontSize: 14,
+            padding: "12px 16px",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+            borderRadius: 2,
+            margin: 0,
+            maxWidth: "52ch",
+          }}
+        >
           {error ?? "Unable to load simulation."}
         </p>
       </main>
@@ -536,11 +548,13 @@ export default function SimulationDetailPage() {
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLE }} />
       {error && (
         <div
+          role="alert"
           style={{
             border: `0.75px solid ${TOKENS.alert}`,
             background: TOKENS.paperRecessed,
-            color: TOKENS.alert,
-            borderRadius: 4,
+            // alert is accent-only (border) — message in ink (§4.3/§7.7).
+            color: TOKENS.ink,
+            borderRadius: 2,
             padding: "8px 12px",
             marginBottom: 16,
             fontSize: 13,
@@ -708,20 +722,23 @@ export default function SimulationDetailPage() {
           {/* Failure card */}
           {status === "failed" && (
             <section
+              role="alert"
               style={{
                 ...cardStyle,
                 border: `0.75px solid ${TOKENS.alert}`,
                 background: TOKENS.paperRecessed,
               }}
             >
-              <h2 style={{ fontSize: 18, color: TOKENS.alert, margin: 0, marginBottom: 8, fontFamily: FONT_NARROW }}>
+              <h2 style={{ fontSize: 18, color: TOKENS.ink, margin: 0, marginBottom: 8, fontFamily: FONT_NARROW }}>
                 Simulation failed
               </h2>
               <div
                 style={{
                   fontFamily: FONT_MONO,
                   fontSize: 13,
-                  color: TOKENS.alert,
+                  // severity lives on the card's alert border — the words
+                  // read in ink (§4.3/§7.7).
+                  color: TOKENS.ink,
                   whiteSpace: "pre-wrap",
                 }}
               >
@@ -837,7 +854,18 @@ export default function SimulationDetailPage() {
                 COHORT REGISTER — AGENTS THAT PARTICIPATED
               </h2>
               {agentMetaError && (
-                <div style={{ fontSize: 13, color: TOKENS.alert, marginBottom: 12 }}>
+                <div
+                  role="alert"
+                  style={{
+                    fontSize: 13,
+                    color: TOKENS.ink,
+                    marginBottom: 12,
+                    padding: "8px 12px",
+                    background: TOKENS.paperRecessed,
+                    border: `0.75px solid ${TOKENS.alert}`,
+                    borderRadius: 2,
+                  }}
+                >
                   Persona breakdown failed to load ({agentMetaError}). Showing raw IDs below.
                 </div>
               )}
@@ -1558,7 +1586,18 @@ function LiftDegradedNotes({ result }: { result: SimulationResult }) {
   return (
     <section style={{ ...cardStyle, padding: "14px 18px" }}>
       {noPairs && pairedN != null && (
-        <div style={{ fontSize: 13, color: TOKENS.alert, lineHeight: 1.5 }}>
+        <div
+          style={{
+            fontSize: 13,
+            // §7.7 note anatomy — alert border carries severity, prose in ink.
+            color: TOKENS.ink,
+            lineHeight: 1.5,
+            padding: "10px 14px",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+            borderRadius: 2,
+          }}
+        >
           <strong>A/B run completed but lift is uncomputable.</strong> No
           matched (treatment, control) pairs were available — every agent in
           at least one arm was dropped (sentiment classification failure, no
@@ -1570,7 +1609,17 @@ function LiftDegradedNotes({ result }: { result: SimulationResult }) {
         </div>
       )}
       {noPairs && pairedN == null && (
-        <div style={{ fontSize: 13, color: TOKENS.alert, lineHeight: 1.5 }}>
+        <div
+          style={{
+            fontSize: 13,
+            color: TOKENS.ink,
+            lineHeight: 1.5,
+            padding: "10px 14px",
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+            borderRadius: 2,
+          }}
+        >
           {/* Codex R4-P2: backend returned a generic placeholder result with
               no per-arm fields at all. Common cause: zero successful agents
               in either arm (LLM outage, every agent timing out). Distinct

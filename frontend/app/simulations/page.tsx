@@ -256,12 +256,14 @@ export default function SimulationsIndexPage() {
       <div style={{ padding: 24 }}>
         {error && (
           <div
+            role="alert"
             style={{
               padding: 12,
               border: `0.75px solid ${TOKENS.alert}`,
               background: TOKENS.paperRecessed,
-              borderRadius: 4,
-              color: TOKENS.alert,
+              borderRadius: 2,
+              // alert is accent-only (border) — message in ink (§4.3/§7.7).
+              color: TOKENS.ink,
               fontSize: 14,
             }}
           >
