@@ -1,0 +1,920 @@
+{
+  "screens": [
+    {
+      "id": "/browse::s633472",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::exhausted+s875413",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-title-t-107",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-107",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-107",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-title-t-108",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-108",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-108",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-4k",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "4K",
+              "annotations": {}
+            }
+          ],
+          "text": "4K",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-more-info",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "More Info",
+              "annotations": {}
+            }
+          ],
+          "text": "More Info",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        },
+        {
+          "id": "link-play",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "▶ Play",
+              "annotations": {}
+            }
+          ],
+          "text": "▶ Play",
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/browse::sbc5c3a",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": [
+            "member",
+            "premium"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/browse::s875413",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-title-t-107",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-107",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-107",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-title-t-108",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-108",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-108",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-4k",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "4K",
+              "annotations": {}
+            }
+          ],
+          "text": "4K",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-more-info",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "More Info",
+              "annotations": {}
+            }
+          ],
+          "text": "More Info",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-play",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "▶ Play",
+              "annotations": {}
+            }
+          ],
+          "text": "▶ Play",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::exhausted+sc764aa",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-title-t-107",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-107",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-107",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-title-t-108",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "/title/t-108",
+              "annotations": {}
+            }
+          ],
+          "text": "/title/t-108",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-4k",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "4K",
+              "annotations": {}
+            }
+          ],
+          "text": "4K",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-more-info",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "More Info",
+              "annotations": {}
+            }
+          ],
+          "text": "More Info",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-play",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "▶ Play",
+              "annotations": {}
+            }
+          ],
+          "text": "▶ Play",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::s2c425e",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::sc764aa",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/browse::s2ae585",
+      "name": "The Coral Architects",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-4k-ultra-hd",
+          "role": "heading",
+          "states": [],
+          "text": "4K Ultra HD",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "scroll feed",
+      "from_screen": "/browse::s633472",
+      "to_screen": "/browse::exhausted+s875413",
+      "role_gated": null
+    },
+    {
+      "trigger": "click link 'STREAMLY'",
+      "from_screen": "/browse::exhausted+s875413",
+      "to_screen": "/browse::s875413",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "click link 'Browse'",
+      "from_screen": "/browse::exhausted+s875413",
+      "to_screen": "/browse::s875413",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "scroll feed",
+      "from_screen": "/browse::sbc5c3a",
+      "to_screen": "/browse::exhausted+sc764aa",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "click link 'STREAMLY'",
+      "from_screen": "/browse::exhausted+sc764aa",
+      "to_screen": "/browse::sc764aa",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "click link 'Browse'",
+      "from_screen": "/browse::exhausted+sc764aa",
+      "to_screen": "/browse::sc764aa",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "scroll feed",
+      "from_screen": "/browse::s2c425e",
+      "to_screen": "/browse::exhausted+s875413",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    }
+  ]
+}

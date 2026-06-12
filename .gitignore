@@ -30,11 +30,24 @@ next-env.d.ts
 .env.*
 !.env.example
 
-# Local artifact mirror (dev only — prod writes to R2)
-local-artifacts/
+# Local artifact mirror (dev only — prod writes to R2). Layered so the
+# per-customer exceptions below actually work: a whole-dir ignore
+# (`local-artifacts/`) is final in git — negations under it are dead letters,
+# which is why the old exceptions only "worked" for force-added files.
+local-artifacts/*
+!local-artifacts/customers/
+local-artifacts/customers/*
 # Exception: the `demo` customer seed is checked in so a fresh clone has
 # working fixture data for the Magic Moment sprint and integration tests.
 !local-artifacts/customers/demo/
 # Exception: the `streamly_sample` customer — second-vertical sample fixture
 # (streaming) used to pressure-test that the simulator isn't food-delivery-shaped.
 !local-artifacts/customers/streamly_sample/
+# Exception: the `streamly-sandbox` customer — the first crawler-GENERATED pack
+# (sidira-crawler synthesize-pack run, 2026-W24), imported verbatim from R2 in
+# #190. GENERATED, NEVER AUTHORED: never hand-edit these files; re-import from
+# R2 instead.
+!local-artifacts/customers/streamly-sandbox/
+# Runtime output written into allowlisted customers (simulation runs from the
+# test suite / local dev) stays out of git regardless of the allowlist above.
+local-artifacts/customers/*/simulations/

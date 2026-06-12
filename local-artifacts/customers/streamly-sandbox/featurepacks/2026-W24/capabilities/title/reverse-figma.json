@@ -1,0 +1,377 @@
+{
+  "screens": [
+    {
+      "id": "/title/:id::overlay+dialog+s6f169a",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-my-list",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "+ My List",
+              "annotations": {}
+            }
+          ],
+          "text": "+ My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "✕",
+              "annotations": {}
+            }
+          ],
+          "text": "✕",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-play",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "▶ Play",
+              "annotations": {}
+            }
+          ],
+          "text": "▶ Play",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+s0910b3",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+s7adb33",
+      "name": "The Coral Architects",
+      "role": "member",
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        },
+        {
+          "id": "feed-scroll-feed",
+          "role": "feed",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+s1b7577",
+      "name": "The Coral Architects",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-4k-ultra-hd",
+          "role": "heading",
+          "states": [],
+          "text": "4K Ultra HD",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+s366105",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+s235b83",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+sd93668",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/title/:id::overlay+dialog+exhausted+s6f169a",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-drama",
+          "role": "heading",
+          "states": [],
+          "text": "Drama",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-sci-fi",
+          "role": "heading",
+          "states": [],
+          "text": "Sci-Fi",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-documentary",
+          "role": "heading",
+          "states": [],
+          "text": "Documentary",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button '+ My List'",
+      "from_screen": "/title/:id::overlay+dialog+s6f169a",
+      "to_screen": "/title/:id::overlay+dialog+sd93668",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "scroll feed",
+      "from_screen": "/title/:id::overlay+dialog+s0910b3",
+      "to_screen": "/title/:id::overlay+dialog+exhausted+s6f169a",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    },
+    {
+      "trigger": "scroll feed",
+      "from_screen": "/title/:id::overlay+dialog+s7adb33",
+      "to_screen": "/title/:id::overlay+dialog+exhausted+s6f169a",
+      "role_gated": [
+        "member"
+      ]
+    }
+  ]
+}

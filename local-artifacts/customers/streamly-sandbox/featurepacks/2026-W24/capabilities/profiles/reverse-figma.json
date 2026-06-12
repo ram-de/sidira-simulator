@@ -1,0 +1,115 @@
+{
+  "screens": [
+    {
+      "id": "/profiles::chooser+sab6eb8",
+      "name": "Who's watching?",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-who-s-watching",
+          "role": "heading",
+          "states": [],
+          "text": "Who's watching?",
+          "visible_to_roles": null
+        },
+        {
+          "id": "select-sam-member",
+          "role": "select",
+          "states": [
+            {
+              "name": "default",
+              "text": "🍿Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "🍿Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/profiles::chooser+s157f95",
+      "name": "Who's watching?",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-who-s-watching",
+          "role": "heading",
+          "states": [],
+          "text": "Who's watching?",
+          "visible_to_roles": null
+        },
+        {
+          "id": "select-sam-member",
+          "role": "select",
+          "states": [
+            {
+              "name": "default",
+              "text": "🍿Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "🍿Sam Member",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/profiles::chooser+se8c8c0",
+      "name": "Who's watching?",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-who-s-watching",
+          "role": "heading",
+          "states": [],
+          "text": "Who's watching?",
+          "visible_to_roles": null
+        },
+        {
+          "id": "select-pat-premium",
+          "role": "select",
+          "states": [
+            {
+              "name": "default",
+              "text": "🍿Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "🍿Pat Premium",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/profiles::chooser+sdb9b57",
+      "name": "Who's watching?",
+      "role": "premium",
+      "components": [
+        {
+          "id": "heading-who-s-watching",
+          "role": "heading",
+          "states": [],
+          "text": "Who's watching?",
+          "visible_to_roles": null
+        },
+        {
+          "id": "select-pat-premium",
+          "role": "select",
+          "states": [
+            {
+              "name": "default",
+              "text": "🍿Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "🍿Pat Premium",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": []
+}
