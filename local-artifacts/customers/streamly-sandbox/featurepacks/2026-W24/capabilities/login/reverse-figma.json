@@ -1,0 +1,177 @@
+{
+  "screens": [
+    {
+      "id": "/login::login+s142a09",
+      "name": "Sign In",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-sign-in",
+          "role": "heading",
+          "states": [],
+          "text": "Sign In",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-help",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help",
+              "annotations": {}
+            }
+          ],
+          "text": "Help",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-sign-up-now",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign up now",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign up now",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "form-submit-login-form",
+          "role": "form",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": [
+            "member"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/login::login+sabcaae",
+      "name": "Sign In",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-sign-in",
+          "role": "heading",
+          "states": [],
+          "text": "Sign In",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-help",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help",
+              "annotations": {}
+            }
+          ],
+          "text": "Help",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "link-sign-up-now",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign up now",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign up now",
+          "visible_to_roles": [
+            "guest"
+          ]
+        },
+        {
+          "id": "form-submit-login-form",
+          "role": "form",
+          "states": [
+            {
+              "name": "default",
+              "text": null,
+              "annotations": {}
+            }
+          ],
+          "text": null,
+          "visible_to_roles": [
+            "member"
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/login::login+s142a09",
+      "to_screen": "/login::login+sabcaae",
+      "role_gated": [
+        "guest"
+      ]
+    }
+  ]
+}
