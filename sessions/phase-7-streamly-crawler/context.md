@@ -9,43 +9,45 @@ owner: ram-de
 # Session: phase-7-streamly-crawler — walk the Streamly sandbox, synthesize the Feature Pack
 
 ## Goal
-First-customer (mock) pipeline in ram-de/sidira-crawler: generic Playwright walker (#1, done) → CI acceptance gate against the streamly-sandbox image (#2, done) → Phase 3 synthesizer over the raw walk → Streamly Feature Pack (#3, done). Core MVP chain COMPLETE.
+First-customer (mock) pipeline: crawler MVP chain (#1–#3, done) → import the generated pack into the simulator as the first real customer (#190, done). Next: trigger crawls from the product (#193).
 
 ## In Progress
-- (nothing — tickets 1–3 all done; see Next Steps for follow-ups)
+- (nothing — #190 closed with acceptance evidence; #193 is the next pickup)
 
 ## Completed
-- **Crawler #3 DONE 2026-06-12**: Phase-3 synthesizer merged (PR #10 `1667001`, robustness follow-up PR #11 `7ecf59a`, both on crawler main; issue #3 auto-closed). Pipeline: deterministic graph load/merge → LLM capability clustering (validated, retry-with-errors, coverage-only repair) → deterministic reverse-Figma + LLM reverse-PRD → FeaturePack (pydantic schema v1.0) → artifact store.
-  - **Pack in R2**: `customers/streamly-sandbox/featurepacks/2026-W24/` (26 objects: manifest + 12 capabilities × reverse-prd.md + reverse-figma.json + cluster.json), written by `synthesize-pack.yml` run 27395394894 from `crawl/2026-06-12/raw.jsonl`. Also uploaded as workflow artifact `feature-pack`.
-  - **Honest-test gate PASS** on the CI-produced pack vs streamly_sample (scope: sample): content leakage 0/0/0 (screen ids / screen names / capability names), category recall 0.75 (auth, detail, library found; `confirmation` legitimately absent — it sits behind a purchase the read-only walker never performs), info: similarity 0.4148, count ratio 6.0. Anti-circularity held: synthesizer built/run without reading fixture content.
-  - Engine purity verified: `grep -ri streamly sidira_crawler/` empty.
-  - New: `sidira_crawler/synthesis/` (graph, cluster, figma, prd, pack), `cli.py synthesize`, `scripts/pack_structure_compare.py` (judge with declared `--reference-scope full|sample`), `.github/workflows/synthesize-pack.yml` (workflow_dispatch; downloads raw from R2, synthesizes via Groq, writes pack to R2, mirrors as artifact), hermetic test suite (120 passed/1 skipped).
-- Crawler #2 MERGED 2026-06-11: PR #7 squash-merged as `229de67`; CI gate PASSED on the real GHCR image (guest 8/8, member 19/20, premium 20/20, 6/6 mustDiscover, determinism PASS). Issue #2 closed.
-- Crawler #1 (walker MVP) — PR #6 merged. Generic BFS walker: replayable action paths, fresh context per node, screen_id = route + flag tokens + structural digest.
-- R2 crawl upload proven in CI: merge-triggered sandbox-walk (run 27387169611) uploaded `customers/streamly-sandbox/crawl/2026-06-12/raw.jsonl` (the 2026-06-11 walk predated the repo secrets, so its upload was skipped).
-- Codex reviews: PR #10 (P2 MIN_CAPABILITIES floor → 1, fixed `8940750`) and PR #11 (clean).
+- **Simulator #190 DONE 2026-06-12**: streamly-sandbox 2026-W24 imported as the first crawler-GENERATED customer pack; `latest` pointer written in R2 by the crawler workflow itself.
+  - PR #191 (`d7b62c3`): initial import + layered `.gitignore` allowlist + `backend/tests/test_streamly_sandbox_pack.py` (round-trips every capability through `FeaturePackLoader`; structural assertions only — GENERATED, NEVER AUTHORED).
+  - Crawler PR #12 (`4245c7b`): `publish_latest` — pointer written only after pack AND diff, no-regress guard for backfills (zero-padded ISO weeks compare as strings). Verified live in synthesize-pack runs 27398818409 + 27400430296.
+  - The verification re-dispatch re-synthesized 2026-W24 in R2 (clustering is nondeterministic even at temp 0.0), so PR #192 (`1298bee`) re-imported: final pack is **12 capabilities** (`account_plan` split out of `account`; `help` folded away), `crawl_metadata` consistent (`unassigned_screens: 0`, 48/48 assigned). Honest gate PASS on the exact imported pack (leakage 0/0/0, recall 0.75).
+  - Codex review on #192 caught a real crawler bug → crawler PR #13 (`bf9f625`): clustering validation never checked `unassigned ∩ assigned`; repair drops double-listed screens (assignment wins, `cluster.double_listed_repaired` log).
+  - R2 snapshot keys are not cleaned on overwrite: re-running the same snapshot leaves stale capability dirs (the run-27400430296 artifact still had `help/`). Import takes manifest + diff + manifest-named capability dirs — **the manifest is the source of truth for pack membership**.
+- **Crawler #3 DONE 2026-06-12**: Phase-3 synthesizer (PRs #10, #11). Pack in R2 at `customers/streamly-sandbox/featurepacks/2026-W24/`; honest gate PASS; engine purity (`grep -ri streamly sidira_crawler/` empty) holds.
+- Crawler #2 (CI acceptance gate, PR #7) and #1 (generic BFS walker, PR #6) — see git history.
 
 ## Next Steps
-1. Sandbox backlog parked: #4 public deploy, #5 hostility traits.
-2. Crawler #8 open: replay steps not idempotent (member plan-upgrade-done 19/20) — engine follow-up.
-3. Possible next ticket: consume the Feature Pack in sidira-simulator (import `customers/streamly-sandbox/featurepacks/2026-W24/` as a real customer pack) — not yet filed.
-4. CI date gotcha: synthesize-pack defaults `crawl_date` to *today UTC*; when dispatching after 00:00Z, pass the crawl date explicitly.
+1. **#193 (ready)**: wire Start crawl — `POST /crawls` dispatches the crawler CI workflow (R2/Groq secrets stay in crawler CI), `GET /crawls/{id}` maps run → status, fire-and-watch UI (no spinners, DESIGN.md §8.6; browser never load-bearing). Open decisions in the ticket: single `crawl.yml` walk→synthesize entry point, GitHub token for dispatch, dispatch→run-id correlation.
+2. **#194 (parked behind #193)**: local walker execution — full loop on the dev Mac, `--server-cmd` sandbox, LocalArtifactStore, no CI/cloud creds. Guardrail: a local crawl must not silently overwrite the imported streamly-sandbox fixture.
+3. **Crawler #14 (open)**: figma synthesis drops cross-capability transitions — the observed `Manage plan` path from `account` into `account_plan` is absent from the published pack. Generator design change (boundary transitions with external-target marker); needs consumer-schema thought. Re-import the pack wholesale once it lands.
+4. Crawler #8 open: replay steps not idempotent (member 19/20).
+5. Sandbox backlog parked: #4 public deploy, #5 hostility traits.
 
 ## Key Files
-- crawler `sidira_crawler/synthesis/` — Phase-3 pipeline; `cluster.py` holds the LLM clustering + validation/repair (MIN 1 / MAX 16 capabilities, retries 2)
-- crawler `scripts/pack_structure_compare.py` — honest-test judge; sample scope gates category recall ≥0.75 + zero leakage, full scope gates symmetric similarity + count ratio ≤3.0
-- crawler `.github/workflows/synthesize-pack.yml` — dispatch with `customer`, `crawl_date`, optional `snapshot`
-- crawler `scripts/sandbox_acceptance.py`, `acceptance/streamly-sandbox.json`, `.github/workflows/sandbox-walk.yml` — walk + gate (sandbox knowledge lives here, never in the engine)
-- reference pack: sidira-simulator `local-artifacts/customers/streamly_sample/featurepacks/2026-W21/`
-- sandbox image pin: `ghcr.io/ram-de/streamly-sandbox@sha256:abdeb699118e99271363c0ea705a8142cbd1e55debb80211e7e0830892b9aaff # v0.1.0`
+- simulator `backend/tests/test_streamly_sandbox_pack.py` — round-trip tests on the generated fixture (pins 2026-W24 × 12 caps)
+- simulator `local-artifacts/customers/streamly-sandbox/featurepacks/` — GENERATED, NEVER AUTHORED; re-import from R2, never hand-edit
+- simulator `backend/sidira_simulator/api/crawls.py` — `POST /crawls` / `GET /crawls/{id}` 501 stubs (#193 wires them)
+- crawler `sidira_crawler/storage.py` — `publish_latest` / `_read_latest`
+- crawler `sidira_crawler/synthesis/cluster.py` — validation + coverage repair + `_drop_double_listed`
+- crawler `scripts/pack_structure_compare.py` — honest-test judge (sample scope: recall ≥0.75 + zero leakage)
 
 ## Key Context
-- **Anti-circularity & engine purity remain standing rules** for any future synthesizer work: never read `streamly_sample` fixture content during build/run; `grep -ri streamly sidira_crawler/` must stay empty (judge/config/workflows may know the sandbox).
-- R2 + LLM secrets live on ram-de/sidira-crawler (R2_BUCKET=`sidira-artifacts` + endpoint/keys, GROQ_API_KEY). **No R2 creds on Ram's Mac** — R2 reads/writes go through CI; local runs use LocalArtifactStore + GROQ_API_KEY from sidira-simulator `backend/.env`.
-- LLM: Groq `llama-3.3-70b-versatile`, temperature 0.0; AnthropicClient fallback.
-- Docker is not installed on Ram's Mac — use `--server-cmd` mode locally; ports 4180-4199 free, 3000 taken.
-- Codex review discipline: run codex review before declaring any PR done (`~/.npm-global/bin/codex`, off PATH; `-s read-only`).
-- gh quirks: GraphQL 401 with ram-de token → use REST; workflow_dispatch needs the workflow file on the default branch.
+- **GENERATED, NEVER AUTHORED**: pack content is never hand-edited in the simulator repo; codex findings about pack *content* route to crawler tickets (e.g. #14), then re-import.
+- Anti-circularity & engine purity remain standing rules; the honest gate re-runs locally fine (judge may read fixtures; synthesis may not).
+- **No R2 creds on Ram's Mac** — R2 via crawler CI only; the synthesize-pack artifact is an R2 mirror of the snapshot prefix (may contain stale dirs from earlier writes at the same key).
+- Clustering is nondeterministic run-to-run (Groq, temp 0.0): capability count/shape can shift on every re-synthesis; the round-trip test pins whatever the imported manifest says.
+- CI date gotcha: pass `crawl_date` explicitly when dispatching after 00:00Z (used 2026-06-12 throughout).
+- Codex review discipline: `~/.npm-global/bin/codex review --base main` (off PATH) before declaring any PR done — it caught both crawler #13 and #14.
+- gh quirks: GraphQL 401 with ram-de token → use REST (`gh api -X PUT .../merge`).
+- Backend api.sidira.ai is manual-deploy; #190/#191/#192 were fixture+test only — no redeploy needed. #193 WILL touch backend routes → redeploy reminder applies.
 
 ## For my cofounder
-The whole MVP chain is done: walker (#1) → CI acceptance gate (#2) → Feature Pack synthesis (#3). A real, schema-valid Streamly Feature Pack sits in R2 at `customers/streamly-sandbox/featurepacks/2026-W24/` — 12 capabilities, each with a reverse PRD and reverse Figma, synthesized from crawl data alone. The honest-test gate passed with zero content overlap against our hand-authored sample, which is the proof the pipeline isn't circular. Natural next move: wire that pack into the simulator as the first real customer import.
+The first real customer is live in the repo: the simulator now serves a Feature Pack that no human wrote — crawled from the Streamly sandbox, synthesized by the crawler, published to R2 with a `latest` pointer the workflow flips itself, imported verbatim, and round-tripped by tests through the same loader the product uses. The review loop earned its keep twice: codex caught a metadata contradiction that turned out to be a real clustering-validation gap (fixed, crawler #13) and a dropped cross-capability path that's now crawler #14. Next: #193 makes the Start crawl button real (fire-and-watch via CI dispatch), then #194 gives us the local dev loop.
