@@ -237,7 +237,7 @@ export default function AgentChatPage() {
   if (notFound) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...errorCardStyle }}>
+        <div role="alert" style={{ ...errorCardStyle }}>
           <strong>Agent not found.</strong>
         </div>
       </main>
@@ -246,7 +246,7 @@ export default function AgentChatPage() {
   if (loadError) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...errorCardStyle }}>
+        <div role="alert" style={{ ...errorCardStyle }}>
           <strong>Failed to load agent:</strong> {loadError}
         </div>
       </main>
@@ -515,10 +515,12 @@ export default function AgentChatPage() {
               aria-live="polite"
               style={{
                 fontSize: 13,
-                color: TOKENS.alert,
+                // alert is accent-only — severity on the border, message in
+                // ink (DESIGN.md §4.3/§7.7).
+                color: TOKENS.ink,
                 background: TOKENS.paperRecessed,
                 padding: "8px 16px",
-                borderTop: `1px solid ${TOKENS.rule}`,
+                borderTop: `0.75px solid ${TOKENS.alert}`,
               }}
             >
               {sendError}
@@ -955,10 +957,10 @@ const sendButtonStyle: React.CSSProperties = {
 };
 
 const errorCardStyle: React.CSSProperties = {
-  border: `1px solid ${TOKENS.rule}`,
+  border: `0.75px solid ${TOKENS.alert}`,
   borderRadius: 4,
   padding: 20,
-  color: TOKENS.alert,
+  color: TOKENS.ink,
   background: TOKENS.paperRecessed,
   fontSize: 14,
 };

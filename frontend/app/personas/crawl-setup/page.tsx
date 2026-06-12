@@ -261,12 +261,12 @@ export default function CrawlSetupPage() {
             </div>
           )}
           {loadError && (
-            <div style={errorBannerStyle}>
+            <div role="alert" style={errorBannerStyle}>
               The saved setup could not be loaded: {loadError}
             </div>
           )}
           {(validationError || save.state === "error") && (
-            <div style={errorBannerStyle}>
+            <div role="alert" style={errorBannerStyle}>
               {validationError ?? (save.state === "error" ? save.message : null)}
             </div>
           )}
@@ -716,7 +716,8 @@ const errorBannerStyle: React.CSSProperties = {
   background: TOKENS.paperRecessed,
   border: `0.75px solid ${TOKENS.alert}`,
   borderRadius: 2,
-  color: TOKENS.alert,
+  // alert is accent-only (border) — the message reads in ink (§4.3/§7.7).
+  color: TOKENS.ink,
   fontSize: 14,
   maxWidth: 620,
   boxSizing: "border-box",

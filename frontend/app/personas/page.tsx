@@ -617,15 +617,18 @@ function PendingNote({ children }: { children: React.ReactNode }) {
 }
 
 function ErrorNote({ children }: { children: React.ReactNode }) {
+  // §7.7 note anatomy — the alert border carries severity; the message
+  // reads in ink (§4.3).
   return (
     <div
+      role="alert"
       style={{
         marginTop: 12,
         padding: 12,
-        border: `1px solid ${TOKENS.alert}`,
-        borderRadius: 4,
+        border: `0.75px solid ${TOKENS.alert}`,
+        borderRadius: 2,
         background: TOKENS.paperRecessed,
-        color: TOKENS.alert,
+        color: TOKENS.ink,
         fontSize: 13,
       }}
     >

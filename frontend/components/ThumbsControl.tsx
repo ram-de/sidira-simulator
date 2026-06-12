@@ -91,7 +91,9 @@ export function ThumbsControl({
           aria-live="polite"
           style={{
             fontSize: 11,
-            color: TOKENS.alert,
+            // §4.3 — alert text is reserved for mono designators/chips; this
+            // sans label co-signals by wording, so it reads in muted ink.
+            color: TOKENS.inkMuted,
             marginLeft: 4,
           }}
           title={err}

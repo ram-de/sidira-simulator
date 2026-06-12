@@ -278,7 +278,17 @@ export default function PersonaGroupChatPage() {
   if (invalidArm) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
+        {/* Error cards: alert is accent-only — severity on the border,
+            message in ink (§4.3/§7.7). */}
+        <div
+          role="alert"
+          style={{
+            ...cardStyle,
+            color: TOKENS.ink,
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+          }}
+        >
           <strong>Unknown persona-group chat arm.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
@@ -294,7 +304,15 @@ export default function PersonaGroupChatPage() {
   if (notFound) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
+        <div
+          role="alert"
+          style={{
+            ...cardStyle,
+            color: TOKENS.ink,
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+          }}
+        >
           <strong>Persona group not found.</strong>{" "}
           <Link
             href={`/simulations/${simId}`}
@@ -309,7 +327,15 @@ export default function PersonaGroupChatPage() {
   if (loadError) {
     return (
       <main style={pageStyle}>
-        <div style={{ ...cardStyle, color: TOKENS.alert, background: TOKENS.paperRecessed }}>
+        <div
+          role="alert"
+          style={{
+            ...cardStyle,
+            color: TOKENS.ink,
+            background: TOKENS.paperRecessed,
+            border: `0.75px solid ${TOKENS.alert}`,
+          }}
+        >
           <strong>Failed to load:</strong> {loadError}
         </div>
       </main>
@@ -452,10 +478,11 @@ export default function PersonaGroupChatPage() {
             aria-live="polite"
             style={{
               fontSize: 13,
-              color: TOKENS.alert,
+              color: TOKENS.ink,
               background: TOKENS.paperRecessed,
+              border: `0.75px solid ${TOKENS.alert}`,
               padding: "8px 12px",
-              borderRadius: 4,
+              borderRadius: 2,
               marginBottom: 8,
             }}
           >
@@ -837,10 +864,11 @@ function SynthesisTurn({
                 <div
                   style={{
                     fontSize: 13,
-                    color: TOKENS.alert,
+                    color: TOKENS.ink,
                     background: TOKENS.paperRecessed,
+                    border: `0.75px solid ${TOKENS.alert}`,
                     padding: "6px 10px",
-                    borderRadius: 4,
+                    borderRadius: 2,
                   }}
                 >
                   failed — {slot.error}
