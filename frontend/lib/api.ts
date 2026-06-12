@@ -150,6 +150,33 @@ export const getCrawlSetup = () => apiGet<CrawlSetupEnvelope>("/crawl-setup");
 export const saveCrawlSetup = (setup: CrawlSetup) =>
   apiPut<CrawlSetup, CrawlSetupEnvelope>("/crawl-setup", setup);
 
+// #193 fire-and-watch crawl trigger. POST dispatches the crawler's CI
+// workflow and returns immediately; the browser is never load-bearing — the
+// workflow itself publishes the pack by flipping the latest pointer. GET
+// /crawls/{id} is the poll; GET /crawls rediscovers an in-flight crawl
+// after tab close/reopen. Inline types, same codegen caveat as above.
+export type CrawlRunStatus = "pending" | "running" | "complete" | "failed";
+
+export interface CrawlSummary {
+  id: string;
+  customer_id: string;
+  status: CrawlRunStatus;
+  phase: string | null; // walking | synthesizing while running
+  snapshot_version: string | null;
+  capabilities_walked: string[] | null;
+  run_url: string | null;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+export const startCrawl = () =>
+  apiPost<Record<string, never>, CrawlSummary>("/crawls", {});
+
+export const getCrawl = (id: string) => apiGet<CrawlSummary>(`/crawls/${id}`);
+
+export const listCrawls = () => apiGet<CrawlSummary[]>("/crawls");
+
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);
 
