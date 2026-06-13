@@ -155,6 +155,11 @@ write_env SIDIRA_WEB_PROXY_BASIC_AUTH_HASH "$web_proxy_basic_auth_hash"
 write_env DATABASE_URL "$database_url"
 write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
 
+# Optional secrets passed straight through from Parameter Store. Each is
+# omitted from the env file when its SSM param is absent (write_env skips
+# empty/None), so the app falls back to its unconfigured behavior.
+# SIDIRA_CRAWLER_DISPATCH_TOKEN is the GitHub PAT that lets POST /crawls
+# dispatch crawl.yml (#193); without it the crawl routes 503 by design.
 for key in \
   GROQ_API_KEY \
   ANTHROPIC_API_KEY \
@@ -162,7 +167,8 @@ for key in \
   R2_BUCKET \
   R2_ENDPOINT_URL \
   R2_ACCESS_KEY_ID \
-  R2_SECRET_ACCESS_KEY
+  R2_SECRET_ACCESS_KEY \
+  SIDIRA_CRAWLER_DISPATCH_TOKEN
 do
   value="$(ssm_value "$key")"
   write_env "$key" "$value"
