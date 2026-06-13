@@ -82,10 +82,19 @@ Known additions:
   bind-mount (`get_store()`). Do **not** set `R2_BUCKET` for this — that is a
   global switch that would route every write to R2 and demand read-write creds.
 
+  The bucket is **`sidira-artifacts`** (verified 2026-06-13: it holds
+  `customers/<org-id>/featurepacks/…` for the live org + `streamly-sandbox`).
+  This is the same bucket the crawler publishes to — its name lives only in the
+  `R2_BUCKET` GitHub Actions secret on `ram-de/sidira-crawler` (not in any
+  source file), so confirm it in the Cloudflare R2 dashboard rather than
+  guessing. The R2 token must be **R2 → API → Object Read only**, scoped to that
+  bucket. Endpoint is the bucket's S3 API URL
+  (`https://<account-id>.r2.cloudflarestorage.com`).
+
   ```bash
   for kv in \
-    R2_PACK_BUCKET=sidira-crawler \
-    R2_PACK_ENDPOINT_URL='https://<account>.r2.cloudflarestorage.com' \
+    R2_PACK_BUCKET=sidira-artifacts \
+    R2_PACK_ENDPOINT_URL='https://<account-id>.r2.cloudflarestorage.com' \
     R2_PACK_ACCESS_KEY_ID='<read-only key id>' \
     R2_PACK_SECRET_ACCESS_KEY='<read-only secret>'; do
     aws ssm put-parameter --region us-east-1 \
