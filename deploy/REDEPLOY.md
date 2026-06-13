@@ -49,6 +49,30 @@ via `git -C /opt/sidira/repo log -1 --oneline` before deploying.)
   that runs the migrations — reset it to `0` afterwards.
 - **No new migration, or prod is on the in-memory repos**: skip this step.
 
+### 2b. Ensure any new secrets exist in Parameter Store
+
+`ec2-api-deploy.sh` builds the container env from a fixed set of
+`/sidira/prod/*` parameters. When a merged PR introduces a new secret that the
+backend reads, the parameter must exist **before** the deploy runs, otherwise
+the script omits it and the feature silently runs in its unconfigured state.
+
+Known additions:
+
+- **#193 crawl trigger** — `POST /crawls` reads `SIDIRA_CRAWLER_DISPATCH_TOKEN`
+  (a GitHub PAT with Actions read+write on `ram-de/sidira-crawler`). Store it as
+  a `SecureString`; without it the crawl routes 503 by design. The deploy
+  script reads it via the optional-secrets loop.
+
+  ```bash
+  aws ssm put-parameter --region us-east-1 \
+    --name /sidira/prod/SIDIRA_CRAWLER_DISPATCH_TOKEN \
+    --type SecureString --value '<the PAT>' --overwrite
+  ```
+
+  The local dev value lives in `backend/.env` as
+  `SIDIRA_CRAWLER_DISPATCH_TOKEN=` — copy that exact value. Rotate the PAT at
+  expiry (it has passed through a chat transcript).
+
 ### 3. Run the deploy on the EC2 instance
 
 The instance is the one whose Elastic IP `api.sidira.ai` resolves to
@@ -91,6 +115,27 @@ sudo docker ps --format 'table {{.Names}}\t{{.Status}}'
 
 # The new route(s) exist — lists every path the deployed code serves
 sudo docker exec sidira-api python -c "from sidira_simulator.main import app; print('\n'.join(sorted({r.path for r in app.routes})))"
+```
+
+For the #193 deploy specifically, also confirm the migration ran and the
+dispatch token reached the container:
+
+```bash
+# crawl_runs table exists (migration 010) — Postgres prod only. get_engine()
+# is async, so inspect() must run through run_sync on a connection.
+sudo docker exec sidira-api python -c "
+import asyncio
+from sqlalchemy import inspect
+from sidira_simulator.adapters.postgres import get_engine
+async def main():
+    async with get_engine().connect() as conn:
+        names = await conn.run_sync(lambda c: inspect(c).get_table_names())
+    print('crawl_runs present:', 'crawl_runs' in names)
+asyncio.run(main())
+"
+
+# The dispatch token is wired (prints True, never the secret itself)
+sudo docker exec sidira-api python -c "from sidira_simulator.adapters.github_actions import dispatch_configured; print('dispatch_configured:', dispatch_configured())"
 ```
 
 (The route check imports the app in-process instead of calling
