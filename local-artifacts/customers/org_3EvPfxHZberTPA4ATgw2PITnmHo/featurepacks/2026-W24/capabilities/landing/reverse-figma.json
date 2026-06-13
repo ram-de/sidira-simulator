@@ -1,0 +1,199 @@
+{
+  "screens": [
+    {
+      "id": "/::sfb8cd5",
+      "name": "Unlimited stories. One small price.",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-unlimited-stories-one-small-price",
+          "role": "heading",
+          "states": [],
+          "text": "Unlimited stories. One small price.",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-pick-the-plan-that-fits",
+          "role": "heading",
+          "states": [],
+          "text": "Pick the plan that fits",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-member",
+          "role": "heading",
+          "states": [],
+          "text": "Member",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-premium",
+          "role": "heading",
+          "states": [],
+          "text": "Premium",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-get-started",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Get Started",
+              "annotations": {}
+            }
+          ],
+          "text": "Get Started",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-help-center",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help Center",
+              "annotations": {}
+            }
+          ],
+          "text": "Help Center",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-help",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help",
+              "annotations": {}
+            }
+          ],
+          "text": "Help",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sign-in",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign In",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign In",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/::scdffb1",
+      "name": "Unlimited stories. One small price.",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-unlimited-stories-one-small-price",
+          "role": "heading",
+          "states": [],
+          "text": "Unlimited stories. One small price.",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-pick-the-plan-that-fits",
+          "role": "heading",
+          "states": [],
+          "text": "Pick the plan that fits",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-member",
+          "role": "heading",
+          "states": [],
+          "text": "Member",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-premium",
+          "role": "heading",
+          "states": [],
+          "text": "Premium",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-get-started",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Get Started",
+              "annotations": {}
+            }
+          ],
+          "text": "Get Started",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-help-center",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help Center",
+              "annotations": {}
+            }
+          ],
+          "text": "Help Center",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-help",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Help",
+              "annotations": {}
+            }
+          ],
+          "text": "Help",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sign-in",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign In",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign In",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/::sfb8cd5",
+      "to_screen": "/::scdffb1",
+      "role_gated": null
+    }
+  ]
+}

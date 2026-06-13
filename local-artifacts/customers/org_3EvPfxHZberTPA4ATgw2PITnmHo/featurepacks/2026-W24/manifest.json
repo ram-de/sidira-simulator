@@ -1,0 +1,30 @@
+{
+  "customer_id": "org_3EvPfxHZberTPA4ATgw2PITnmHo",
+  "snapshot_version": "2026-W24",
+  "generated_at": "2026-06-13T06:29:01.810976Z",
+  "schema_version": "1.0",
+  "capabilities": [
+    "landing",
+    "help",
+    "login",
+    "signup",
+    "profiles",
+    "browse",
+    "search",
+    "my_list",
+    "kids",
+    "account",
+    "account_plan",
+    "watch",
+    "title"
+  ],
+  "crawl_metadata": {
+    "screens": "48",
+    "transitions": "218",
+    "unassigned_screens": "0",
+    "roles": "guest,member,premium",
+    "source": "raw.jsonl",
+    "run_date": "2026-06-13",
+    "walker_version": "0.1.0"
+  }
+}

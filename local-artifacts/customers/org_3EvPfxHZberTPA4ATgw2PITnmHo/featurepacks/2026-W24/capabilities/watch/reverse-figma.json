@@ -1,0 +1,71 @@
+{
+  "screens": [
+    {
+      "id": "/watch/:id::overlay+s002039",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-back",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "← Back",
+              "annotations": {}
+            }
+          ],
+          "text": "← Back",
+          "visible_to_roles": [
+            "member"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "/watch/:id::overlay+s9b8b43",
+      "name": "The Coral Architects",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-the-coral-architects",
+          "role": "heading",
+          "states": [],
+          "text": "The Coral Architects",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/watch/:id::overlay+s002039",
+      "to_screen": "/watch/:id::overlay+s9b8b43",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    }
+  ]
+}
