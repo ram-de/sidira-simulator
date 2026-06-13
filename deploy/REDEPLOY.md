@@ -82,10 +82,19 @@ Known additions:
   bind-mount (`get_store()`). Do **not** set `R2_BUCKET` for this — that is a
   global switch that would route every write to R2 and demand read-write creds.
 
+  The bucket is **`sidira-artifacts`** (verified 2026-06-13: it holds
+  `customers/<org-id>/featurepacks/…` for the live org + `streamly-sandbox`).
+  This is the same bucket the crawler publishes to — its name lives only in the
+  `R2_BUCKET` GitHub Actions secret on `ram-de/sidira-crawler` (not in any
+  source file), so confirm it in the Cloudflare R2 dashboard rather than
+  guessing. The R2 token must be **R2 → API → Object Read only**, scoped to that
+  bucket. Endpoint is the bucket's S3 API URL
+  (`https://<account-id>.r2.cloudflarestorage.com`).
+
   ```bash
   for kv in \
-    R2_PACK_BUCKET=sidira-crawler \
-    R2_PACK_ENDPOINT_URL='https://<account>.r2.cloudflarestorage.com' \
+    R2_PACK_BUCKET=sidira-artifacts \
+    R2_PACK_ENDPOINT_URL='https://<account-id>.r2.cloudflarestorage.com' \
     R2_PACK_ACCESS_KEY_ID='<read-only key id>' \
     R2_PACK_SECRET_ACCESS_KEY='<read-only secret>'; do
     aws ssm put-parameter --region us-east-1 \
@@ -99,6 +108,25 @@ Known additions:
   Until these exist the backend keeps reading `local-artifacts/` (today's
   behavior) — so this deploy is safe to run before the params are added; the
   live-read just stays dormant.
+
+  > **Verify credential lengths before deploying.** An R2 access key id is
+  > exactly **32** chars and the secret is **64** chars. A paste mangle (extra
+  > shell text, embedded newline) is silently stored by `put-parameter` and only
+  > surfaces at runtime as an opaque HTTP 500 — `read_text` catches `NoSuchKey`
+  > but lets every other `ClientError` propagate, so a bad credential reads as
+  > `botocore … InvalidArgument: Credential access key has length N, should be
+  > 32`, not a config error. Guard the set, then read it back:
+  >
+  > ```bash
+  > read -rsp 'R2 Access Key ID (32): ' AKID; echo;  echo "len=${#AKID}"   # MUST be 32
+  > read -rsp 'R2 Secret (64): '       SAK;  echo;  echo "len=${#SAK}"     # MUST be 64
+  > # only put-parameter if both lengths match; then confirm what landed:
+  > aws ssm get-parameter --region us-east-1 --name /sidira/prod/R2_PACK_ACCESS_KEY_ID \
+  >   --with-decryption --query Parameter.Value --output text | awk '{print "stored len:", length($0)}'
+  > ```
+  >
+  > (Hit during the #208 deploy, 2026-06-13: the access-key param was stored as
+  > 647 chars and the Library 500'd until it was re-set cleanly.)
 
 ### 3. Run the deploy on the EC2 instance
 
