@@ -89,6 +89,17 @@ def _extract_customer_id(payload: dict) -> str | None:
         value = payload.get(claim)
         if value:
             return str(value)
+    # Clerk v2 session tokens (clerk-backend-api >=5) drop the top-level
+    # ``org_id`` and nest the active org under a compact ``o`` claim
+    # ({"o": {"id": "org_…", "rol": …, "slg": …}}). Networkless verification
+    # returns the raw payload, and which shape arrives is an instance/dashboard
+    # setting, not an SDK one — so accept both. Without this, a v2 instance
+    # resolves to None and the gate silently falls back to SIDIRA_CUSTOMER_ID.
+    org = payload.get("o")
+    if isinstance(org, dict):
+        value = org.get("id")
+        if value:
+            return str(value)
     metadata = payload.get("metadata")
     if isinstance(metadata, dict):
         value = metadata.get("customer_id")

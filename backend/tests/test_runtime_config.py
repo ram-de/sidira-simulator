@@ -6,7 +6,12 @@ from pathlib import Path
 
 from fastapi import Request
 
-from sidira_simulator.adapters.r2 import LocalArtifactStore, get_store
+from sidira_simulator.adapters.r2 import (
+    LocalArtifactStore,
+    R2ArtifactStore,
+    get_featurepack_store,
+    get_store,
+)
 from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.main import _cors_origins
 from sidira_simulator.services.runtime_config import resolve_sidira_env
@@ -89,3 +94,36 @@ def test_local_artifact_store_prefers_sidira_namespace(
 
     assert isinstance(store, LocalArtifactStore)
     assert store.root == sidira_root
+
+
+def _clear_r2_pack_env(monkeypatch) -> None:
+    for suffix in ("BUCKET", "ENDPOINT_URL", "ACCESS_KEY_ID", "SECRET_ACCESS_KEY"):
+        monkeypatch.delenv(f"R2_PACK_{suffix}", raising=False)
+        monkeypatch.delenv(f"R2_{suffix}", raising=False)
+
+
+def test_featurepack_store_falls_back_to_local_when_unconfigured(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    # No R2_PACK_BUCKET (dev + tests): packs are read from the same local store
+    # as everything else (#208).
+    _clear_r2_pack_env(monkeypatch)
+    _clear_product_env(monkeypatch, "LOCAL_ARTIFACTS")
+    monkeypatch.setenv("SIDIRA_LOCAL_ARTIFACTS", str(tmp_path / "art"))
+
+    assert isinstance(get_featurepack_store(), LocalArtifactStore)
+
+
+def test_featurepack_store_uses_r2_without_flipping_write_store(monkeypatch) -> None:
+    # R2_PACK_* set but R2_BUCKET unset: the pack reader goes to R2 while
+    # get_store() (the write path) stays local — the whole point of the split.
+    _clear_r2_pack_env(monkeypatch)
+    _clear_product_env(monkeypatch, "LOCAL_ARTIFACTS")
+    monkeypatch.setenv("R2_PACK_BUCKET", "sidira-crawler")
+    monkeypatch.setenv("R2_PACK_ENDPOINT_URL", "https://example.r2.cloudflarestorage.com")
+    monkeypatch.setenv("R2_PACK_ACCESS_KEY_ID", "ak")
+    monkeypatch.setenv("R2_PACK_SECRET_ACCESS_KEY", "sk")
+
+    assert isinstance(get_featurepack_store(), R2ArtifactStore)
+    assert isinstance(get_store(), LocalArtifactStore)

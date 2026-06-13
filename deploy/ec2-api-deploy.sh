@@ -160,6 +160,10 @@ write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
 # empty/None), so the app falls back to its unconfigured behavior.
 # SIDIRA_CRAWLER_DISPATCH_TOKEN is the GitHub PAT that lets POST /crawls
 # dispatch crawl.yml (#193); without it the crawl routes 503 by design.
+# R2_PACK_* (#208) configure a read-only store for crawler-published Feature
+# Packs: setting R2_PACK_BUCKET makes the backend serve a customer's latest
+# pack live from R2 (no per-crawl import) while writes stay on the local
+# bind-mount. Distinct from R2_BUCKET, which would flip the whole store.
 for key in \
   GROQ_API_KEY \
   ANTHROPIC_API_KEY \
@@ -168,6 +172,10 @@ for key in \
   R2_ENDPOINT_URL \
   R2_ACCESS_KEY_ID \
   R2_SECRET_ACCESS_KEY \
+  R2_PACK_BUCKET \
+  R2_PACK_ENDPOINT_URL \
+  R2_PACK_ACCESS_KEY_ID \
+  R2_PACK_SECRET_ACCESS_KEY \
   SIDIRA_CRAWLER_DISPATCH_TOKEN
 do
   value="$(ssm_value "$key")"

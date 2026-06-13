@@ -18,7 +18,7 @@ from sidira_simulator.adapters.base import (
     ArtifactSchemaError,
     load_json_artifact,
 )
-from sidira_simulator.adapters.r2 import ArtifactStore, get_store
+from sidira_simulator.adapters.r2 import ArtifactStore, get_featurepack_store
 from sidira_simulator.schemas.feature_pack import (
     Capability,
     FeaturePackManifest,
@@ -30,7 +30,11 @@ class FeaturePackLoader:
     """Reads versioned Feature Packs scoped by customer."""
 
     def __init__(self, store: ArtifactStore | None = None) -> None:
-        self._store = store or get_store()
+        # Feature Packs are crawler-published and live in R2 in prod; the read
+        # store (get_featurepack_store) serves them live without dragging the
+        # write paths onto R2. Persona packs are seed data and stay on get_store
+        # — see PersonaPackLoader. (#208)
+        self._store = store or get_featurepack_store()
 
     # ── Version resolution ──────────────────────────────────────────────
 
