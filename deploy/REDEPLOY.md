@@ -102,6 +102,15 @@ The script fetches `origin/main`, rebuilds the API image, rereads
 `/sidira/prod/*` parameters, and restarts the `sidira-api` + `sidira-caddy`
 containers. It is idempotent — re-running it is safe.
 
+> **Self-modifying-script gotcha:** when the merged change edits
+> `deploy/ec2-api-deploy.sh` *itself*, run the deploy **twice**. The first
+> invocation fetches the new commit but keeps executing the script body it
+> started with, so any newly-added logic (e.g. a new SSM param in the secrets
+> loop) does not run. The first run lands the updated script on disk; the
+> second run executes it. Verify in step 4 — if a just-added secret reads back
+> as unconfigured, that's this gotcha; re-run the deploy. (Hit during the #204
+> dispatch-token deploy, 2026-06-12.)
+
 ### 4. Verify
 
 On the instance (SSM session or another `send-command`):
@@ -145,6 +154,12 @@ still 401 — neither gate is in play when reading `app.routes` directly.)
 
 Finally, reload the affected page on https://app.sidira.ai — the 404 banner
 should be gone.
+
+> **`/health` version is not a deploy freshness signal.** `__version__` in
+> `backend/sidira_simulator/__init__.py` is a hand-bumped constant (still
+> `0.1.0`), so `/health` reports `0.1.0` no matter how recent the deploy. Judge
+> freshness by the deployed SHA (`git -C /opt/sidira/repo log -1`) and the
+> route/migration checks above, never by the health version.
 
 ### 5. Clean up
 
