@@ -125,6 +125,17 @@ def test_extract_customer_id_reads_claim_chain(claim: str) -> None:
     assert auth._extract_customer_id({claim: "acme"}) == "acme"
 
 
+def test_extract_customer_id_reads_v2_org_claim() -> None:
+    # Clerk v2 session tokens nest the active org under `o` instead of a
+    # top-level org_id (#208).
+    assert auth._extract_customer_id({"o": {"id": "org_abc", "rol": "admin"}}) == "org_abc"
+
+
+def test_extract_customer_id_prefers_top_level_over_v2_org_claim() -> None:
+    payload = {"org_id": "org_top", "o": {"id": "org_nested"}}
+    assert auth._extract_customer_id(payload) == "org_top"
+
+
 def test_extract_customer_id_reads_nested_metadata() -> None:
     assert auth._extract_customer_id({"metadata": {"customer_id": "acme"}}) == "acme"
 

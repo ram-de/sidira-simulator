@@ -73,6 +73,33 @@ Known additions:
   `SIDIRA_CRAWLER_DISPATCH_TOKEN=` — copy that exact value. Rotate the PAT at
   expiry (it has passed through a chat transcript).
 
+- **#208 live Feature Pack read** — when `R2_PACK_BUCKET` is set the backend
+  serves each customer's latest pack live from the crawler's R2 bucket
+  (`get_featurepack_store()` → `R2ArtifactStore`), eliminating the manual
+  per-crawl `local-artifacts/` import. **Read-only** creds scoped to the
+  `customers/` prefix are sufficient — only feature-pack *reads* route to R2;
+  agent memory, feedback, run-state, persona packs all stay on the local
+  bind-mount (`get_store()`). Do **not** set `R2_BUCKET` for this — that is a
+  global switch that would route every write to R2 and demand read-write creds.
+
+  ```bash
+  for kv in \
+    R2_PACK_BUCKET=sidira-crawler \
+    R2_PACK_ENDPOINT_URL='https://<account>.r2.cloudflarestorage.com' \
+    R2_PACK_ACCESS_KEY_ID='<read-only key id>' \
+    R2_PACK_SECRET_ACCESS_KEY='<read-only secret>'; do
+    aws ssm put-parameter --region us-east-1 \
+      --name "/sidira/prod/${kv%%=*}" --type SecureString \
+      --value "${kv#*=}" --overwrite
+  done
+  ```
+
+  `R2_PACK_ENDPOINT_URL`/`_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY` fall back to the
+  generic `R2_*` vars when unset, but those are absent in prod, so set all four.
+  Until these exist the backend keeps reading `local-artifacts/` (today's
+  behavior) — so this deploy is safe to run before the params are added; the
+  live-read just stays dormant.
+
 ### 3. Run the deploy on the EC2 instance
 
 The instance is the one whose Elastic IP `api.sidira.ai` resolves to
