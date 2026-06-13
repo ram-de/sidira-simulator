@@ -109,6 +109,25 @@ Known additions:
   behavior) — so this deploy is safe to run before the params are added; the
   live-read just stays dormant.
 
+  > **Verify credential lengths before deploying.** An R2 access key id is
+  > exactly **32** chars and the secret is **64** chars. A paste mangle (extra
+  > shell text, embedded newline) is silently stored by `put-parameter` and only
+  > surfaces at runtime as an opaque HTTP 500 — `read_text` catches `NoSuchKey`
+  > but lets every other `ClientError` propagate, so a bad credential reads as
+  > `botocore … InvalidArgument: Credential access key has length N, should be
+  > 32`, not a config error. Guard the set, then read it back:
+  >
+  > ```bash
+  > read -rsp 'R2 Access Key ID (32): ' AKID; echo;  echo "len=${#AKID}"   # MUST be 32
+  > read -rsp 'R2 Secret (64): '       SAK;  echo;  echo "len=${#SAK}"     # MUST be 64
+  > # only put-parameter if both lengths match; then confirm what landed:
+  > aws ssm get-parameter --region us-east-1 --name /sidira/prod/R2_PACK_ACCESS_KEY_ID \
+  >   --with-decryption --query Parameter.Value --output text | awk '{print "stored len:", length($0)}'
+  > ```
+  >
+  > (Hit during the #208 deploy, 2026-06-13: the access-key param was stored as
+  > 647 chars and the Library 500'd until it was re-set cleanly.)
+
 ### 3. Run the deploy on the EC2 instance
 
 The instance is the one whose Elastic IP `api.sidira.ai` resolves to
