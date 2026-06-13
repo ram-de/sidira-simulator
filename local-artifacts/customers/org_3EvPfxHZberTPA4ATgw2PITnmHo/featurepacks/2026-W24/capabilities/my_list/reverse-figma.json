@@ -1,0 +1,260 @@
+{
+  "screens": [
+    {
+      "id": "/my-list::s7709ba",
+      "name": "My List",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-my-list",
+          "role": "heading",
+          "states": [],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/my-list::s329ed6",
+      "name": "My List",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-my-list",
+          "role": "heading",
+          "states": [],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-pat-premium",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Pat Premium",
+              "annotations": {}
+            }
+          ],
+          "text": "Pat Premium",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-sam-member",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sam Member",
+              "annotations": {}
+            }
+          ],
+          "text": "Sam Member",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/my-list::s122998",
+      "name": "My List",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-my-list",
+          "role": "heading",
+          "states": [],
+          "text": "My List",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/my-list::s7709ba",
+      "to_screen": "/my-list::s329ed6",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    }
+  ]
+}

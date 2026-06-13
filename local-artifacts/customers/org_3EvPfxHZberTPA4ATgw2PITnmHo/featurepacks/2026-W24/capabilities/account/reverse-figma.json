@@ -1,0 +1,310 @@
+{
+  "screens": [
+    {
+      "id": "/account::s4058eb",
+      "name": "Account",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-account",
+          "role": "heading",
+          "states": [],
+          "text": "Account",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-membership",
+          "role": "heading",
+          "states": [],
+          "text": "Membership",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-playback-settings",
+          "role": "heading",
+          "states": [],
+          "text": "Playback settings",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-security",
+          "role": "heading",
+          "states": [],
+          "text": "Security",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-accept",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Accept",
+              "annotations": {}
+            }
+          ],
+          "text": "Accept",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out-of-streamly",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign out of Streamly",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign out of Streamly",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-manage-plan",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Manage plan",
+              "annotations": {}
+            }
+          ],
+          "text": "Manage plan",
+          "visible_to_roles": [
+            "premium"
+          ]
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    },
+    {
+      "id": "/account::saca983",
+      "name": "Account",
+      "role": null,
+      "components": [
+        {
+          "id": "heading-account",
+          "role": "heading",
+          "states": [],
+          "text": "Account",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-membership",
+          "role": "heading",
+          "states": [],
+          "text": "Membership",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-playback-settings",
+          "role": "heading",
+          "states": [],
+          "text": "Playback settings",
+          "visible_to_roles": null
+        },
+        {
+          "id": "heading-security",
+          "role": "heading",
+          "states": [],
+          "text": "Security",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign Out",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign Out",
+          "visible_to_roles": null
+        },
+        {
+          "id": "button-sign-out-of-streamly",
+          "role": "button",
+          "states": [
+            {
+              "name": "default",
+              "text": "Sign out of Streamly",
+              "annotations": {}
+            }
+          ],
+          "text": "Sign out of Streamly",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-browse",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Browse",
+              "annotations": {}
+            }
+          ],
+          "text": "Browse",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-kids",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Kids",
+              "annotations": {}
+            }
+          ],
+          "text": "Kids",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-manage-plan",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Manage plan",
+              "annotations": {}
+            }
+          ],
+          "text": "Manage plan",
+          "visible_to_roles": [
+            "member"
+          ]
+        },
+        {
+          "id": "link-my-list",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "My List",
+              "annotations": {}
+            }
+          ],
+          "text": "My List",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-streamly",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "STREAMLY",
+              "annotations": {}
+            }
+          ],
+          "text": "STREAMLY",
+          "visible_to_roles": null
+        },
+        {
+          "id": "link-search",
+          "role": "link",
+          "states": [
+            {
+              "name": "default",
+              "text": "Search",
+              "annotations": {}
+            }
+          ],
+          "text": "Search",
+          "visible_to_roles": null
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "trigger": "click button 'Accept'",
+      "from_screen": "/account::s4058eb",
+      "to_screen": "/account::saca983",
+      "role_gated": [
+        "member",
+        "premium"
+      ]
+    }
+  ]
+}

@@ -48,6 +48,11 @@ local-artifacts/customers/*
 # #190. GENERATED, NEVER AUTHORED: never hand-edit these files; re-import from
 # R2 instead.
 !local-artifacts/customers/streamly-sandbox/
+# Exception: the `org_3EvPfxHZberTPA4ATgw2PITnmHo` customer — the live Clerk org
+# (app.sidira.ai) first real UI-driven crawl, synthesize-pack run 2026-W24,
+# imported verbatim from R2 (the run's feature-pack artifact). GENERATED, NEVER
+# AUTHORED: never hand-edit; re-import from R2 instead.
+!local-artifacts/customers/org_3EvPfxHZberTPA4ATgw2PITnmHo/
 # Runtime output written into allowlisted customers (simulation runs from the
 # test suite / local dev) stays out of git regardless of the allowlist above.
 local-artifacts/customers/*/simulations/
