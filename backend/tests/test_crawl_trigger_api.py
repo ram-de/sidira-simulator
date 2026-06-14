@@ -8,6 +8,7 @@ unit-tested against httpx.MockTransport in test_github_actions.py.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -24,6 +25,7 @@ from sidira_simulator.adapters.github_actions import (  # noqa: E402
     WorkflowRunState,
 )
 from sidira_simulator.adapters.repositories import (  # noqa: E402
+    get_in_memory_crawl_config_repo,
     get_in_memory_crawl_run_repo,
     get_in_memory_repos,
 )
@@ -32,6 +34,33 @@ from sidira_simulator.api.deps import (  # noqa: E402
     get_feature_pack_loader,
 )
 from sidira_simulator.main import app  # noqa: E402
+from sidira_simulator.schemas.crawl import (  # noqa: E402
+    CrawlCapability,
+    CrawlRoleCredential,
+    CrawlSetup,
+)
+
+
+def _setup_dict(sandbox_url: str = "https://sandbox.example.com") -> dict:
+    """A minimal valid CrawlSetup, stored as the repo persists it."""
+    return CrawlSetup(
+        capabilities=[
+            CrawlCapability(name="onboarding", entry_urls=[f"{sandbox_url}/start"]),
+        ],
+        sandbox_url=sandbox_url,
+        test_users=[CrawlRoleCredential(role="member", username="member@example.com")],
+        walk_depth=3,
+    ).model_dump()
+
+
+def _seed_config(customer_id: str) -> None:
+    """Persist a crawl setup for ``customer_id`` straight into the in-memory
+    repo (the route refuses to dispatch a tenant that has none)."""
+    get_in_memory_crawl_config_repo()._configs[customer_id] = {
+        "customer_id": customer_id,
+        "config_json": _setup_dict(),
+        "updated_at": datetime.now(timezone.utc),
+    }
 
 
 def _state(run_id=7001, status="queued", conclusion=None):
@@ -47,7 +76,7 @@ class FakeDispatcher:
     """Scriptable stand-in for GitHubCrawlDispatcher."""
 
     def __init__(self) -> None:
-        self.dispatched: list[tuple[str, str, str]] = []
+        self.dispatched: list[tuple[str, str, str, str | None]] = []
         self.find_run_result: WorkflowRunState | None = None
         self.run_states: dict[int, WorkflowRunState] = {}
         self.phase: str | None = None
@@ -55,10 +84,17 @@ class FakeDispatcher:
         self.lookup_error: CrawlDispatchError | None = None
         self.lookups: list[tuple[str, object]] = []
 
-    async def dispatch(self, *, crawl_id: str, customer_id: str, crawl_date: str) -> None:
+    async def dispatch(
+        self,
+        *,
+        crawl_id: str,
+        customer_id: str,
+        crawl_date: str,
+        config_json: str | None = None,
+    ) -> None:
         if self.dispatch_error is not None:
             raise self.dispatch_error
-        self.dispatched.append((crawl_id, customer_id, crawl_date))
+        self.dispatched.append((crawl_id, customer_id, crawl_date, config_json))
 
     async def find_run(self, crawl_id: str) -> WorkflowRunState | None:
         if self.lookup_error is not None:
@@ -91,6 +127,10 @@ def client(fake_dispatcher):
     customer_repo, _, _, _ = get_in_memory_repos()
     customer_repo._customers.clear()
     get_in_memory_crawl_run_repo()._runs.clear()
+    get_in_memory_crawl_config_repo()._configs.clear()
+    # Most tests post as the default "demo" tenant; a real tenant must have a
+    # saved setup before the route will dispatch (#206), so seed one here.
+    _seed_config("demo")
     app.dependency_overrides[get_crawl_dispatcher] = lambda: fake_dispatcher
     app.dependency_overrides[get_feature_pack_loader] = lambda: FakeLoader()
     with TestClient(app) as c:
@@ -111,11 +151,21 @@ def test_post_dispatches_and_returns_202_pending(client, fake_dispatcher):
     assert body["completed_at"] is None
 
     assert len(fake_dispatcher.dispatched) == 1
-    crawl_id, customer_id, crawl_date = fake_dispatcher.dispatched[0]
+    crawl_id, customer_id, crawl_date, config_json = fake_dispatcher.dispatched[0]
     assert crawl_id == body["id"]
     assert customer_id == body["customer_id"]
     # Explicit date, never runner-resolved "today" (CI dates are UTC).
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", crawl_date)
+    # A configured tenant ships its non-secret setup to the workflow.
+    assert config_json is not None
+    payload = json.loads(config_json)
+    assert payload["sandbox_url"] == "https://sandbox.example.com"
+    assert payload["product_id"] == "default"
+    assert payload["roles"] == ["member"]
+    assert [c["name"] for c in payload["capabilities"]] == ["onboarding"]
+    # Credentials never cross the dispatch boundary.
+    assert "username" not in config_json
+    assert "password" not in config_json
 
 
 def test_post_dispatch_failure_is_502_and_row_failed(client, fake_dispatcher):
@@ -231,10 +281,58 @@ def test_uncrawlable_customer_id_is_rejected_before_dispatch(client, fake_dispat
 def test_clerk_org_id_is_a_crawlable_customer(client, fake_dispatcher, monkeypatch):
     """The production tenant key is the Clerk org id, passed through verbatim
     (api/auth.py) — underscore + mixed case must clear the charset check."""
-    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org_2NXxKpDuS3vLkAhQeFdGhI8mWyZ")
+    org = "org_2NXxKpDuS3vLkAhQeFdGhI8mWyZ"
+    _seed_config(org)
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", org)
     resp = client.post("/crawls")
     assert resp.status_code == 202
     assert len(fake_dispatcher.dispatched) == 1
+
+
+def test_unconfigured_tenant_cannot_crawl(client, fake_dispatcher, monkeypatch):
+    """A real tenant with no saved setup is 400'd before any run row or
+    dispatch — a crawl without capabilities could never produce a pack."""
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org_neverConfigured123")
+    resp = client.post("/crawls")
+    assert resp.status_code == 400
+    assert "crawl setup" in resp.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_streamly_sandbox_dispatches_without_a_saved_setup(client, fake_dispatcher, monkeypatch):
+    """The sandbox demo is the one exemption: it runs crawl.yml's mock
+    acceptance path, so it dispatches with no config_json (#206 Slice B)."""
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "streamly-sandbox")
+    resp = client.post("/crawls")
+    assert resp.status_code == 202
+    assert len(fake_dispatcher.dispatched) == 1
+    _, customer_id, _, config_json = fake_dispatcher.dispatched[0]
+    assert customer_id == "streamly-sandbox"
+    assert config_json is None
+
+
+def test_legacy_invalid_setup_is_409_not_500(client, fake_dispatcher, monkeypatch):
+    """A row saved before #206 tightened URL validation (e.g. a basic-auth
+    sandbox URL) must not 500 on rehydration — the trigger and the setup GET
+    both surface a controlled 409 asking the operator to re-save, and nothing
+    dispatches."""
+    bad = _setup_dict()
+    bad["sandbox_url"] = "https://user:pass@legacy.example.com"
+    get_in_memory_crawl_config_repo()._configs["org_legacy"] = {
+        "customer_id": "org_legacy",
+        "config_json": bad,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org_legacy")
+
+    trigger = client.post("/crawls")
+    assert trigger.status_code == 409
+    assert "re-save" in trigger.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+    assert client.get("/crawl-setup").status_code == 409
 
 
 def test_cancelled_run_reports_superseded(client, fake_dispatcher):

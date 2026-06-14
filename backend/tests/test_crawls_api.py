@@ -99,8 +99,11 @@ def test_put_overwrites_prior_save(client):
         },
         {"capabilities": [{"name": "bad-scheme", "entry_urls": ["ftp://x.dev"]}]},
         {"capabilities": [{"name": "no-host", "entry_urls": ["https://"]}]},
+        # Credential-bearing URLs must never reach config_json (codex P2, #206).
+        {"capabilities": [{"name": "creds", "entry_urls": ["https://u:p@x.dev"]}]},
         {"sandbox_url": "not-a-url"},
         {"sandbox_url": "https://"},  # scheme-only — no host to navigate
+        {"sandbox_url": "https://user:pass@sandbox.lumen.dev"},  # embedded creds
         {"test_users": []},  # one login per role minimum
         {"walk_depth": 5},
         {"cadence": "hourly"},
@@ -118,6 +121,31 @@ def test_setup_is_customer_scoped(client, monkeypatch):
     got = client.get("/crawl-setup").json()
     assert got["customer_id"] == "other-tenant"
     assert got["setup"] is None
+
+
+def test_dispatch_payload_is_non_secret_projection():
+    """The crawl trigger ships this to the workflow (#206). It must carry the
+    walk inputs and role *names* but never a login username or password — the
+    crawler pulls credentials from an authenticated endpoint at run start."""
+    from sidira_simulator.schemas.crawl import CrawlSetup
+
+    setup = CrawlSetup.model_validate(_setup_payload())
+    payload = setup.dispatch_payload()
+
+    assert payload["product_id"] == "default"  # #215 forward-compat default
+    assert payload["sandbox_url"] == "https://sandbox.lumen.dev"
+    assert payload["walk_depth"] == 3
+    assert payload["cadence"] == "weekly"
+    assert [c["name"] for c in payload["capabilities"]] == [
+        "onboarding-checklist",
+        "weekly-digest",
+    ]
+    assert payload["roles"] == ["admin", "member"]
+
+    blob = repr(payload)
+    assert "crawler-admin@lumen.dev" not in blob
+    assert "username" not in payload and "test_users" not in payload
+    assert setup.dispatch_payload(product_id="driver-app")["product_id"] == "driver-app"
 
 
 def test_trigger_unconfigured_is_503_not_501(client, monkeypatch):
