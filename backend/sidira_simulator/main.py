@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -16,6 +18,7 @@ from sidira_simulator.api import (
     crawls,
     feature_stores,
     feedback,
+    internal,
     models,
     persona_builds,
     persona_groups,
@@ -32,6 +35,31 @@ from sidira_simulator.services.runtime_config import resolve_sidira_env
 # browser session token or the internal key, so it self-authenticates via the
 # Svix signature instead (see api/webhooks.py).
 _PUBLIC_PATHS = frozenset({"/health", "/webhooks/clerk"})
+
+# Service-to-service routes hit by CI, not a browser. They bypass BOTH the Clerk
+# session gate (no session token to present) and the internal-key gate — the
+# crawler reaches api.sidira.ai directly, and Caddy only staples
+# X-Sidira-Internal-Key on the /_sidira_web_proxy/* paths, never on this
+# fallthrough (deploy/Caddyfile.api). These routes are NOT public: each carries
+# its own dedicated, constant-time bearer-token auth (see api/internal.py), which
+# is the sole authority on this path.
+_INTERNAL_PREFIX = "/internal/"
+
+# loc path segments that mark a field whose rejected value is a secret. A 422
+# from FastAPI/Pydantic echoes the offending `input` (and sometimes `ctx`) back
+# to the caller by default — for the crawl-setup password (#206 Slice C) that
+# would leak the very secret the field is write-only to protect. The handler
+# below redacts `input`/`ctx` on any validation error whose loc touches one of
+# these, covering both the per-item password field and model-level test_users
+# errors that carry the whole (password-bearing) list as their input.
+_SECRET_VALIDATION_LOC_TOKENS = frozenset({"password", "test_users"})
+
+# Request paths whose body carries a write-only secret. A validation failure on
+# an *unrelated* top-level field (e.g. a missing `capabilities`) still puts the
+# whole submitted body — passwords and all — in the error `input`, and its loc
+# would not match the secret tokens above. So for these paths the handler
+# redacts `input` on every error, not just the secret-loc ones.
+_SECRET_BODY_PATHS = frozenset({"/crawl-setup"})
 
 
 def _cors_origins() -> list[str]:
@@ -72,6 +100,7 @@ def create_app() -> FastAPI:
         if (
             not auth.clerk_configured()
             or request.url.path in _PUBLIC_PATHS
+            or request.url.path.startswith(_INTERNAL_PREFIX)
             or request.method == "OPTIONS"
         ):
             return await call_next(request)
@@ -92,11 +121,36 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def internal_api_key_gate(request: Request, call_next):
         expected = resolve_sidira_env("INTERNAL_API_KEY")
-        if not expected or request.url.path in _PUBLIC_PATHS or request.method == "OPTIONS":
+        if (
+            not expected
+            or request.url.path in _PUBLIC_PATHS
+            or request.url.path.startswith(_INTERNAL_PREFIX)
+            or request.method == "OPTIONS"
+        ):
             return await call_next(request)
         if request.headers.get("x-sidira-internal-key") != expected:
             return JSONResponse({"detail": "Not found"}, status_code=404)
         return await call_next(request)
+
+    @app.exception_handler(RequestValidationError)
+    async def _redact_secret_validation_errors(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        # Same 422 shape as FastAPI's default handler, but with the rejected
+        # value scrubbed from any error that touches a secret field — so an
+        # invalid crawl-setup password is never reflected back (#206 Slice C).
+        # On a secret-bearing path, scrub every error's input (a top-level
+        # failure can carry the whole password-bearing body as its input).
+        redact_all = request.url.path in _SECRET_BODY_PATHS
+        cleaned = []
+        for err in exc.errors():
+            if redact_all or _SECRET_VALIDATION_LOC_TOKENS.intersection(
+                str(p) for p in err.get("loc", ())
+            ):
+                err = {**err, "input": "<redacted>"}
+                err.pop("ctx", None)  # ctx (e.g. limit errors) can echo it too
+            cleaned.append(err)
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(cleaned)})
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -111,6 +165,7 @@ def create_app() -> FastAPI:
     app.include_router(config.router)
     app.include_router(capabilities.router)
     app.include_router(crawls.router)
+    app.include_router(internal.router)
     app.include_router(feature_stores.router)
     app.include_router(persona_builds.router)
     app.include_router(persona_packs.router)

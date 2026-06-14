@@ -73,6 +73,44 @@ Known additions:
   `SIDIRA_CRAWLER_DISPATCH_TOKEN=` — copy that exact value. Rotate the PAT at
   expiry (it has passed through a chat transcript).
 
+- **#206 Slice C per-customer credential pull** — two params, both load-bearing
+  the moment this deploys:
+
+  1. `SIDIRA_LOCAL_CRED_KEY` (+ `SIDIRA_CRED_MODE=local`) — the at-rest key that
+     encrypts crawl-setup passwords. **Now required:** `PUT /crawl-setup` 503s if
+     it is unset (we refuse to store a login we cannot protect). The deploy
+     script already reads both via `ssm_value`, but the param must exist first.
+     Generate a base64 32-byte AESGCM key:
+
+     ```bash
+     KEY=$(python3 -c 'import secrets,base64;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())')
+     aws ssm put-parameter --region us-east-1 --name /sidira/prod/SIDIRA_LOCAL_CRED_KEY \
+       --type SecureString --value "$KEY" --overwrite
+     aws ssm put-parameter --region us-east-1 --name /sidira/prod/SIDIRA_CRED_MODE \
+       --type String --value local --overwrite
+     ```
+
+     > **Do not rotate this key once setups are saved** — existing blobs were
+     > encrypted under it and become undecryptable if it changes. Re-saving each
+     > setup is the only re-key path until KMS mode (Phase 5) lands.
+
+  2. `SIDIRA_CRAWLER_CREDENTIALS_TOKEN` — the CI-only bearer the crawler presents
+     to `GET /internal/crawl-credentials/{customer}`. Sibling to the dispatch
+     token; without it the pull route 503s and the crawler logs in nowhere.
+     **Now also required to dispatch:** `POST /crawls` fails closed with a 503 for
+     any real tenant when this is unset, rather than starting a ~40-min walk whose
+     credential pull would 503 (the sandbox demo is exempt — it never pulls). Must
+     match the value configured as a secret on `ram-de/sidira-crawler` (set there
+     in the crawler PR, which deploys **after** this endpoint is live).
+
+     ```bash
+     TOKEN=$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')
+     aws ssm put-parameter --region us-east-1 \
+       --name /sidira/prod/SIDIRA_CRAWLER_CREDENTIALS_TOKEN \
+       --type SecureString --value "$TOKEN" --overwrite
+     # then mirror $TOKEN into the crawler repo's CI secret of the same name.
+     ```
+
 - **#208 live Feature Pack read** — when `R2_PACK_BUCKET` is set the backend
   serves each customer's latest pack live from the crawler's R2 bucket
   (`get_featurepack_store()` → `R2ArtifactStore`), eliminating the manual

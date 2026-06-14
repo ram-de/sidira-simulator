@@ -343,6 +343,11 @@ TENANT_AGNOSTIC_ROUTES = {
     ("GET", "/models"),
     # Process-wide simulation caps — no tenant data.
     ("GET", "/config/limits"),
+    # Service-to-service credential pull (#206 Slice C): the tenant is the
+    # {customer} path segment, not a browser session — CI carries no session.
+    # Auth is the dedicated SIDIRA_CRAWLER_CREDENTIALS_TOKEN bearer (see
+    # api/internal.py), not current_customer_id.
+    ("GET", "/internal/crawl-credentials/{customer}"),
 }
 
 # Non-APIRoute mounts FastAPI registers itself (docs/openapi). Anything else
