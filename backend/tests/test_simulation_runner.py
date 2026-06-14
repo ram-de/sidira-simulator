@@ -663,3 +663,206 @@ async def test_no_persona_control_ignored_in_ab_mode() -> None:
     assert result.persona_lift_sentiment_failure_drops == 0
     # No no_persona shadow leaked into the persisted A/B records.
     assert all(r.arm != "no_persona" for r in runner._last_run_agent_records)
+
+
+@pytest.mark.asyncio
+async def test_current_state_control_completes_and_excludes_shadows() -> None:
+    """#221 §3.3.1: with include_current_state_control=True the run completes,
+    the delta-mode fields are populated, and the ephemeral current-state shadows
+    NEVER appear in the persisted agent records.
+
+    This is also the regression guard for the current_state_delta.computed
+    run-event: the runner emits it after scoring the shadow panel, so if the
+    event type were absent from EVENT_TYPES the emit would raise a
+    ValidationError and this await would fail rather than return a result."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        include_current_state_control=True,
+    )
+
+    # Shadows are ephemeral: persisted records are persona-only, arm stays None
+    # (single-arm run), and no record leaks the "current_state" tag.
+    records = runner._last_run_agent_records
+    assert len(records) == 3
+    assert all(r.arm is None for r in records)
+    assert all(r.arm != "current_state" for r in records)
+
+    # Delta-mode baseline is populated; all 3 persona agents pair with their
+    # current-state shadow by (persona_id, sample_index).
+    result = simulation.result
+    assert result is not None
+    assert result.current_state_score is not None
+    assert result.current_state_delta is not None
+    assert result.current_state_delta_paired_n == 3
+    # The delta flag does NOT touch the persona-lift fields (independent baselines).
+    assert result.persona_lift is None
+    assert result.no_persona_score is None
+
+
+@pytest.mark.asyncio
+async def test_current_state_control_records_uncomputable_when_all_shadows_fail() -> None:
+    """Honesty gate (#221 §3.3.1): when the baseline is REQUESTED but every
+    current-state shadow fails materialization, the result records paired_n=0
+    (NOT None) with every persona agent counted as unpaired — so a
+    requested-but-uncomputable baseline is distinguishable from a flag-off run
+    (where these fields stay None / 0). delta itself stays None."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    original = runner._materialize_agent
+
+    async def fail_shadows(*args, arm=None, **kwargs):
+        # Drop ONLY the ephemeral current-state shadows; persona agents
+        # materialize normally. The runner's gather uses return_exceptions=True,
+        # so a raising shadow is filtered out and never reaches the scorer.
+        if arm == "current_state":
+            raise RuntimeError("shadow materialization failed")
+        return await original(*args, arm=arm, **kwargs)
+
+    runner._materialize_agent = fail_shadows  # type: ignore[assignment]
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        include_current_state_control=True,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.current_state_delta_paired_n == 0  # requested, not flag-off (None)
+    assert result.current_state_delta_unpaired_persona == 3  # all persona agents unpaired
+    assert result.current_state_delta is None
+    assert result.current_state_delta_ci is None
+    assert result.current_state_score is None
+    # Persona agents still scored + persisted normally.
+    assert len(runner._last_run_agent_records) == 3
+    assert result.confidence_score is not None
+
+
+@pytest.mark.asyncio
+async def test_current_state_control_records_uncomputable_when_all_personas_fail() -> None:
+    """Honesty gate, the inverted failure (codex P2): every REAL single-arm
+    persona agent fails, but the current-state shadows survive. agent_records is
+    then non-empty (shadows present), so _score() skips its zero-agent fast-path;
+    after filtering, the persona side (`analyses`) is empty and there is no
+    treatment side to pair against. The delta is uncomputable — but because the
+    baseline was requested on a single-arm run, the result must STILL record
+    paired_n=0 (not None), distinguishable from a flag-off run. Without dropping
+    the `and analyses` guard on the honesty branch this case would silently look
+    like the flag was never set."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    original = runner._materialize_agent
+
+    async def fail_personas(*args, arm=None, **kwargs):
+        # Drop ONLY the real single-arm persona agents (arm is None); the
+        # current-state shadows (arm == "current_state") materialize normally.
+        if arm is None:
+            raise RuntimeError("persona materialization failed")
+        return await original(*args, arm=arm, **kwargs)
+
+    runner._materialize_agent = fail_personas  # type: ignore[assignment]
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        include_current_state_control=True,
+    )
+
+    result = simulation.result
+    assert result is not None
+    # Requested + uncomputable (no treatment side) → paired_n=0, NOT None.
+    assert result.current_state_delta_paired_n == 0
+    assert result.current_state_delta is None
+    assert result.current_state_delta_ci is None
+    assert result.current_state_score is None
+    # No persona side survived, so unpaired_persona is 0 (len of empty analyses).
+    assert result.current_state_delta_unpaired_persona == 0
+    # All real persona agents failed → nothing persisted (shadows never persist).
+    assert runner._last_run_agent_records == []
+
+
+@pytest.mark.asyncio
+async def test_current_state_control_off_leaves_delta_fields_unset() -> None:
+    """Flag-off (the default) is byte-identical to today: no shadow panel runs,
+    so every delta-mode field stays at its None / zero default."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.current_state_score is None
+    assert result.current_state_delta is None
+    assert result.current_state_delta_ci is None
+    assert result.current_state_delta_paired_n is None
+    assert result.current_state_delta_unpaired_persona == 0
+    assert result.current_state_delta_unpaired_current_state == 0
+    assert result.current_state_delta_sentiment_failure_drops == 0
+
+
+@pytest.mark.asyncio
+async def test_current_state_control_ignored_in_ab_mode() -> None:
+    """A/B mode IGNORES include_current_state_control (docs: single-arm only).
+    Shadows are appended only on the single-arm allocation path, so an A/B run
+    has no current-state reactions. The current_state_delta* fields must
+    therefore stay at their flag-off defaults — NOT be recorded as
+    requested-but-uncomputable (paired_n=0), which would falsely advertise a
+    baseline for an unsupported path. (mirrors the persona-lift honesty gate.)"""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        treatment_fraction=0.5,  # A/B mode
+        include_current_state_control=True,  # ignored on this path
+    )
+
+    result = simulation.result
+    assert result is not None
+    # Flag silently ignored: every delta-mode field stays at its flag-off
+    # default, indistinguishable from an A/B run that never requested it.
+    assert result.current_state_score is None
+    assert result.current_state_delta is None
+    assert result.current_state_delta_ci is None
+    assert result.current_state_delta_paired_n is None
+    assert result.current_state_delta_unpaired_persona == 0
+    assert result.current_state_delta_unpaired_current_state == 0
+    assert result.current_state_delta_sentiment_failure_drops == 0
+    # No current_state shadow leaked into the persisted A/B records.
+    assert all(r.arm != "current_state" for r in runner._last_run_agent_records)

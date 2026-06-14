@@ -48,6 +48,10 @@ EVENT_TYPES = Literal[
     # scored, carrying the persona − no_persona lift + paired_n. Only fires when
     # include_no_persona_control=True; absent from every default (flag-off) run.
     "persona_lift.computed",
+    # #221 §3.3.1 delta-mode: emitted once after the current-state shadow panel
+    # is scored, carrying the treatment − current_state delta + paired_n. Only
+    # fires when include_current_state_control=True; absent from default runs.
+    "current_state_delta.computed",
     "run.complete",
     "run.failed",
 ]

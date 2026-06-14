@@ -250,8 +250,17 @@ class ScoringService:
             stable and saves the LLM call.
         Single-arm sims (arm=None) keep the existing treatment-style
         prompts unchanged.
+
+        #221 §3.3.1 delta-mode: the `current_state` shadow arm is the existing
+        control framing applied as a 1:1 paired shadow in single-arm mode — the
+        same personas reacting to TODAY's product. It is control-equivalent for
+        analysis: its reaction was composed with the control task block (see
+        SimulationRunner._materialize_agent mapping current_state → control), so
+        it MUST be scored with the same status-quo sentiment prompt and weakness
+        skip. Scoring it as treatment would frame status-quo reception as
+        reception-of-a-change and corrupt current_state_score / the delta. (codex P1)
         """
-        is_control = reaction.arm == "control"
+        is_control = reaction.arm in ("control", "current_state")
 
         if is_control:
             # No-op weakness coroutine so gather() still works without a
@@ -1040,3 +1049,36 @@ def aggregate_persona_lift(
     # persona is the "treatment" side → lift sign is persona − no_persona.
     lift_result = _paired_lift(persona_analyses, no_persona_analyses, cfg, run_seed=run_seed)
     return no_persona_result, lift_result
+
+
+def aggregate_current_state_delta(
+    treatment_analyses: Sequence[AgentAnalysis],
+    current_state_analyses: Sequence[AgentAnalysis],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+) -> tuple[SimulationResult, ABLiftResult]:
+    """Delta-mode baseline (#221 §3.3.1): proposed change vs current-state shadow.
+
+    The single-arm analog of the A/B aggregator: the SAME personas react to
+    the proposed change (the headline single-arm panel) AND to the current
+    product state (an ephemeral paired shadow, the existing A/B control framing
+    applied 1:1). Returns the current-state arm's standalone `SimulationResult`
+    (so callers can surface its score next to the headline) plus the paired
+    delta. Delta sign is `treatment − current_state`: a positive delta means
+    the proposed change is more positively received than leaving the product
+    as-is. A delta CI that straddles zero is the falsification signal: the
+    change isn't moving sentiment over the status quo.
+
+    Because every persona is its own control (a 100%-paired design), this is
+    strictly more powerful than the locked 50/50 A/B split. The headline panel's
+    own `confidence_score` is computed elsewhere on the SAME treatment analyses;
+    this function does NOT recompute or touch it — it only adds the baseline +
+    delta, keeping the headline byte-identical to a run with the flag off.
+    """
+    cfg = config or ScoringConfig()
+    current_state_result = ScoringService.aggregate(current_state_analyses, cfg, run_seed=run_seed)
+    # treatment (proposed change) is the "treatment" side → delta is
+    # treatment − current_state.
+    delta_result = _paired_lift(treatment_analyses, current_state_analyses, cfg, run_seed=run_seed)
+    return current_state_result, delta_result

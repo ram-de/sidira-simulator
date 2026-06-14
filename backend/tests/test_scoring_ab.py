@@ -625,6 +625,40 @@ async def test_analyze_routes_control_arm_to_status_quo_sentiment_prompt() -> No
 
 
 @pytest.mark.asyncio
+async def test_analyze_routes_current_state_arm_to_status_quo_sentiment_prompt() -> None:
+    """#221 §3.3.1 delta-mode (codex P1): the `current_state` shadow arm is
+    control-equivalent — the same personas reacting to TODAY's product, composed
+    with the control task block. It MUST be scored with the status-quo sentiment
+    prompt and skip weakness classification, exactly like `arm="control"`.
+    Before the fix `analyze()` keyed only on `arm == "control"`, so current-state
+    shadows were scored with the treatment ('reception-of-a-change') prompt,
+    corrupting current_state_score and the delta."""
+    recorder = _PromptRecorder()
+    svc = ScoringService(chat_client=recorder)
+
+    analysis = await svc.analyze(
+        Hypothesis(capability_name="reorder", prose="test change"),
+        AgentReaction(
+            agent_id="cs0",
+            persona_id="p0",
+            persona_name="P0",
+            reaction_text="status-quo feedback",
+            sample_index=0,
+            arm="current_state",
+        ),
+    )
+    # Control-equivalent → exactly one chat_json call (sentiment only), routed
+    # to the status-quo prompt, and weakness classification skipped.
+    assert len(recorder.calls) == 1
+    system, user, schema = recorder.calls[0]
+    assert schema is SentimentClassification
+    assert "STATUS-QUO" in system or "status-quo" in user
+    assert "proposed product change" not in system.lower()
+    assert analysis.weakness.categories == []
+    assert analysis.weakness_failed is False
+
+
+@pytest.mark.asyncio
 async def test_analyze_routes_treatment_arm_to_change_sentiment_prompt() -> None:
     """Treatment arm keeps the original 'reception of a proposed product
     change' prompt — backwards-compat with single-arm sims."""
