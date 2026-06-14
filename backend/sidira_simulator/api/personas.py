@@ -37,6 +37,10 @@ class PersonaSummary(BaseModel):
 class ActivePersonasResponse(BaseModel):
     pack_version: str
     personas: list[PersonaSummary]
+    # True when this is the generic starter pack served to a tenant that has no
+    # Persona Pack yet (#212) — the UI labels it as a placeholder, not a real
+    # promoted pack, and still offers to seed/build.
+    is_starter: bool = False
 
 
 @router.get("", response_model=ActivePersonasResponse)
@@ -49,15 +53,28 @@ async def list_active_personas(
     Used by the wizard's #101 persona-filter UI. `weight` is from the
     `head_count` scheme (the same one allocate() uses by default), so the
     subtext displayed to PMs matches what the allocator would actually do.
+
+    A tenant with no Persona Pack yet gets the generic starter pack
+    (`is_starter=True`) instead of a 404 (#212), so the wizard renders and
+    simulations run immediately; the loader serves it in-memory.
+
+    A 404 is still returned for the *stale-pointer* case — a `latest`
+    pointer that references a missing/partial artifact. That's a corrupt
+    tenant state, not an empty one, so we surface the error rather than
+    masking it behind a starter pack.
     """
     try:
         pack = loader.load_latest(customer_id)
     except ArtifactNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404,
+            detail=f"No persona pack for customer {customer_id!r}.",
+        ) from exc
 
     head_count = pack.weights.head_count
     return ActivePersonasResponse(
         pack_version=pack.version,
+        is_starter=pack.is_starter,
         personas=[
             PersonaSummary(
                 id=p.id,

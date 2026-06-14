@@ -326,7 +326,27 @@ function PersonaPacksSection({ personas }: { personas: Fetchable<ActivePersonasR
         </BodyNote>
       )}
       <CardGrid>
-        {personas.state === "ready" && (
+        {personas.state === "ready" && personas.data.is_starter && (
+          <Card>
+            <CardHead name="Starter pack">
+              <Chip>STARTER · PLACEHOLDER</Chip>
+            </CardHead>
+            <Rows
+              rows={[
+                ["Personas", String(personas.data.personas.length)],
+                ["Status", "GENERIC PLACEHOLDER — NOT FROM YOUR DATA"],
+                ...(leading ? ([["Leading", leading]] as [string, string][]) : []),
+                ["Next", "BUILD A REAL PACK OR SEED THE SAMPLE"],
+              ]}
+            />
+            <CardNote>
+              These generic personas let you click through Sidira right away, but they
+              aren&apos;t built from your data — build a real pack, or seed the sample
+              workspace below, before trusting any reading.
+            </CardNote>
+          </Card>
+        )}
+        {personas.state === "ready" && !personas.data.is_starter && (
           <Card>
             <CardHead name="Active pack">
               <Chip strong>{personas.data.pack_version}</Chip>

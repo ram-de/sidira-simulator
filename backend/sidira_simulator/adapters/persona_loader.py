@@ -9,9 +9,23 @@ Production layout (R2), parallel to feature_pack_loader:
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 from sidira_simulator.adapters.base import ArtifactNotFound, load_json_artifact
 from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.schemas.persona import PersonaPack
+
+# Generic, product-agnostic placeholder pack served to tenants that have no
+# Persona Pack yet (#212). It ships with the application image (not the artifact
+# store) because it is application data, not a customer artifact.
+_STARTER_TEMPLATE_PATH = Path(__file__).with_name("starter_persona_pack.json")
+
+
+@lru_cache(maxsize=1)
+def _starter_template() -> PersonaPack:
+    """Parse + validate the bundled starter pack once, then cache it."""
+    return PersonaPack.model_validate_json(_STARTER_TEMPLATE_PATH.read_text())
 
 
 class PersonaPackLoader:
@@ -33,6 +47,29 @@ class PersonaPackLoader:
         key = f"customers/{customer_id}/personas/{version}/persona_pack.json"
         return load_json_artifact(self._store, key, PersonaPack)
 
+    def starter_pack(self, customer_id: str) -> PersonaPack:
+        """The generic starter pack, stamped with the caller's customer_id.
+
+        Re-stamping (rather than mutating the cached template) keeps the
+        cached parse pristine and gives the tenant a pack that round-trips
+        through the rest of the pipeline as its own.
+        """
+        return _starter_template().model_copy(
+            update={"customer_id": customer_id, "is_starter": True}
+        )
+
     def load_latest(self, customer_id: str) -> PersonaPack:
-        version = self.resolve_latest_version(customer_id)
+        """Load the active pack, or serve the starter when none exists yet.
+
+        A tenant with no `latest` pointer (a brand-new org, or one whose
+        Feature Pack landed before any Persona Pack was built) gets the
+        generic starter pack instead of a 404, so `/personas`, the wizard's
+        persona filter, and simulations all work immediately (#212). The
+        starter is served in-memory only — nothing is written, so the
+        sample-workspace clone still sees an empty tenant and can seed it.
+        """
+        try:
+            version = self.resolve_latest_version(customer_id)
+        except ArtifactNotFound:
+            return self.starter_pack(customer_id)
         return self.load_at_version(customer_id, version)

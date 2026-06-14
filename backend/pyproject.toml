@@ -47,6 +47,12 @@ pythia-simulator = "sidira_simulator.cli:cli"
 [tool.setuptools.packages.find]
 include = ["sidira_simulator*"]
 
+[tool.setuptools.package-data]
+# The generic starter Persona Pack (#212) is application data loaded at runtime
+# via Path(__file__).with_name(...); ship it in wheels/sdists so non-editable
+# installs don't FileNotFoundError on empty tenants.
+sidira_simulator = ["adapters/starter_persona_pack.json"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
