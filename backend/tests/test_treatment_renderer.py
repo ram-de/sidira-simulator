@@ -17,6 +17,8 @@ from sidira_simulator.schemas.feature_pack import (
 )
 from sidira_simulator.schemas.simulation import Hypothesis
 from sidira_simulator.services.treatment_renderer import (
+    _DEFAULT_FALLBACK_CHOICES,
+    extract_choice_set,
     render_state_diff,
     summarize_reverse_figma,
 )
@@ -400,3 +402,117 @@ def test_identical_figmas_yield_no_structural_delta() -> None:
     assert rc.prose_only is False
     assert rc.changes == []
     assert "No structural delta detected" in rc.state_plus_diff_view()
+
+
+# ── choice-set extraction (§3a Q3 / §1.6 step 4) ────────────────────────────
+
+
+def _flow_capability() -> Capability:
+    """A capability whose proposed state has transitions out of the cart screen,
+    so the choice set can be grounded in the crawl."""
+    figma = ReverseFigma(
+        screens=[_cart_screen(), _account_screen()],
+        transitions=[
+            Transition(trigger="checkout", from_screen="cart", to_screen="payment"),
+            Transition(trigger="continue_shopping", from_screen="cart", to_screen="catalog"),
+            Transition(
+                trigger="apply_promo",
+                from_screen="cart",
+                to_screen="cart",
+                role_gated=["member"],
+            ),
+            # A transition that does NOT leave the decision point — must be ignored.
+            Transition(trigger="confirm", from_screen="payment", to_screen="receipt"),
+        ],
+    )
+    return _capability(figma)
+
+
+def _flow_rendered(prose: str = "Streamline checkout."):
+    cap = _flow_capability()
+    # proposed_figma mirrors the capability's flow so transitions are reachable.
+    return render_state_diff(
+        cap,
+        Hypothesis(
+            capability_name="checkout",
+            prose=prose,
+            proposed_figma=cap.reverse_figma,
+        ),
+    )
+
+
+def test_choice_set_grounded_in_reachable_transitions() -> None:
+    cs = _flow_rendered().choice_set("cart")
+    assert cs.grounded is True
+    assert cs.fallback_used is False
+    actions = {c.action for c in cs.choices}
+    # The three transitions leaving `cart` are present...
+    assert {"checkout", "continue_shopping", "apply_promo"} <= actions
+    # ...the transition leaving `payment` is NOT (it doesn't leave the decision point).
+    assert "confirm" not in actions
+    # The synthetic always-available leave sink is appended.
+    assert "leave" in actions
+    leave = next(c for c in cs.choices if c.action == "leave")
+    assert leave.synthetic is True and leave.leads_to is None
+
+
+def test_choice_set_carries_leads_to_and_role_gating() -> None:
+    cs = _flow_rendered().choice_set("cart")
+    checkout = next(c for c in cs.choices if c.action == "checkout")
+    assert checkout.leads_to == "payment"
+    assert checkout.synthetic is False
+    promo = next(c for c in cs.choices if c.action == "apply_promo")
+    assert promo.role_gated == ["member"]
+
+
+def test_choice_set_does_not_double_append_leave() -> None:
+    figma = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[
+            Transition(trigger="exit_to_home", from_screen="cart", to_screen="home"),
+        ],
+    )
+    cap = _capability(figma)
+    rc = render_state_diff(
+        cap,
+        Hypothesis(capability_name="checkout", prose="x", proposed_figma=cap.reverse_figma),
+    )
+    cs = rc.choice_set("cart")
+    # `exit_to_home` already reads as a leave action, so no synthetic "leave"
+    # sink is appended.
+    assert [c.action for c in cs.choices] == ["exit_to_home"]
+    assert all(not c.synthetic for c in cs.choices)
+
+
+def test_choice_set_falls_back_when_no_transition_leaves_decision_point() -> None:
+    # Leaf decision point: no transition leaves `account` → curated fallback.
+    cs = _flow_rendered().choice_set("account")
+    assert cs.grounded is False
+    assert cs.fallback_used is True
+    assert [c.action for c in cs.choices] == list(_DEFAULT_FALLBACK_CHOICES)
+    assert all(c.synthetic for c in cs.choices)
+
+
+def test_choice_set_falls_back_for_prose_only_change() -> None:
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(capability_name="checkout", prose="No figma here."),
+    )
+    cs = rc.choice_set("cart")
+    assert cs.grounded is False
+    assert cs.fallback_used is True
+
+
+def test_choice_set_accepts_custom_fallback() -> None:
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(capability_name="checkout", prose="No figma here."),
+    )
+    cs = extract_choice_set(rc, "cart", fallback=["click", "ignore"])
+    assert [c.action for c in cs.choices] == ["click", "ignore"]
+    assert cs.fallback_used is True
+
+
+def test_choice_set_method_matches_module_function() -> None:
+    rc = _flow_rendered()
+    assert rc.choice_set("cart") == extract_choice_set(rc, "cart")

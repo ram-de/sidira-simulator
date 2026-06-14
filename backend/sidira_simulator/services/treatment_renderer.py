@@ -175,6 +175,129 @@ class RenderedChange(BaseModel):
             lines.append("  - everything not listed above is unchanged")
         return "\n".join(lines)
 
+    def choice_set(self, decision_point: str, fallback: list[str] | None = None) -> ChoiceSet:
+        """The realistic action set at `decision_point` for the §3a conversion
+        question (delegates to :func:`extract_choice_set`)."""
+        return extract_choice_set(self, decision_point, fallback)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Choice-set extraction (treatment-rendering-layer.md §1.6 step 4 / resolves
+# §3a Q3): the conversion question's realistic-alternatives set is the
+# transitions reachable from the agent's decision-point screen in the *proposed*
+# state. Grounding it in the actual crawled flow (rather than a hand-written
+# list) is what keeps the benchmark and production choice sets format-identical.
+# ──────────────────────────────────────────────────────────────────────────
+
+# Curated fallback when the crawl yields no transitions out of the decision
+# point (thin/partial crawl, prose-only change, or an unknown screen id). The
+# `grounded`/`fallback_used` flags let the caller log it so a sparse crawl never
+# masquerades as a grounded choice set (elicitation-conversion.md §6 / the
+# no-silent-degradation rule shared with §1/§2/§4).
+_DEFAULT_FALLBACK_CHOICES = ("convert", "keep_browsing", "comparison_shop", "leave")
+
+# Trigger fragments that already represent abandoning the flow — used so the
+# synthetic always-available "leave" sink is not appended twice.
+_LEAVE_MARKERS = ("leave", "exit", "abandon", "close", "quit", "back")
+
+
+class Choice(BaseModel):
+    """One realistic alternative the agent can allocate trials to."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(description="The trigger / action label the user would take.")
+    leads_to: str | None = Field(
+        default=None,
+        description="Destination screen id; None for the synthetic leave sink "
+        "and curated fallback choices.",
+    )
+    role_gated: list[str] | None = Field(
+        default=None,
+        description="Roles the underlying transition is gated to (carried so a "
+        "downstream filter can drop actions the agent's role can't take); None = open.",
+    )
+    synthetic: bool = Field(
+        default=False,
+        description="True for the always-available leave sink and curated fallback "
+        "choices (not a crawled transition).",
+    )
+
+
+class ChoiceSet(BaseModel):
+    """The realistic-alternatives set fed to the §3a forced-allocation question."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision_point: str
+    choices: list[Choice] = Field(default_factory=list)
+    grounded: bool = Field(
+        description="True when choices derive from real crawled transitions; "
+        "False when the curated fallback was used.",
+    )
+    fallback_used: bool = Field(
+        description="True when no transition left the decision point and the "
+        "curated default set was substituted — caller should log this.",
+    )
+
+
+def _is_leave(action: str) -> bool:
+    """Whether an action label already represents abandoning the flow."""
+    low = action.lower()
+    return any(marker in low for marker in _LEAVE_MARKERS)
+
+
+def extract_choice_set(
+    rendered: RenderedChange,
+    decision_point: str,
+    fallback: list[str] | None = None,
+) -> ChoiceSet:
+    """Realistic alternatives at `decision_point` in the *proposed* state.
+
+    Pure and deterministic. The grounded set is every transition leaving
+    `decision_point` in `rendered.proposed_figma`, plus a synthetic always-
+    available "leave" sink (a real user can abandon at any step — §3a needs a
+    non-conversion option). When no transition leaves the decision point (thin
+    crawl, prose-only change, or an unknown screen id) the curated `fallback`
+    set is substituted and `grounded=False` / `fallback_used=True` are set so the
+    caller can log the degradation rather than letting it pass silently.
+    """
+    fallback_labels = tuple(fallback) if fallback is not None else _DEFAULT_FALLBACK_CHOICES
+
+    figma = rendered.proposed_figma
+    reachable: list[Transition] = (
+        [t for t in figma.transitions if t.from_screen == decision_point]
+        if figma is not None
+        else []
+    )
+
+    if not reachable:
+        return ChoiceSet(
+            decision_point=decision_point,
+            choices=[Choice(action=a, synthetic=True) for a in fallback_labels],
+            grounded=False,
+            fallback_used=True,
+        )
+
+    choices = [
+        Choice(
+            action=t.trigger,
+            leads_to=t.to_screen,
+            role_gated=t.role_gated,
+            synthetic=False,
+        )
+        for t in reachable
+    ]
+    if not any(_is_leave(c.action) for c in choices):
+        choices.append(Choice(action="leave", synthetic=True))
+
+    return ChoiceSet(
+        decision_point=decision_point,
+        choices=choices,
+        grounded=True,
+        fallback_used=False,
+    )
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Public entry point
