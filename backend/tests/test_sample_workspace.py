@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
-from sidira_simulator.adapters.r2 import LocalArtifactStore
+from sidira_simulator.adapters.r2 import FallbackArtifactStore, LocalArtifactStore
 from sidira_simulator.api.deps import current_customer_id, get_artifact_store
 from sidira_simulator.main import app
 
@@ -70,6 +70,35 @@ def test_cloned_packs_round_trip_through_loaders(client: TestClient, store_root:
         capability = fp_loader.load_latest_capability(TARGET, name)
         assert capability.reverse_prd
         assert capability.surfaces
+
+
+def test_seeded_feature_pack_served_through_pack_bucket_split(
+    client: TestClient, store_root: Path
+) -> None:
+    """Regression (#208 fallout): in prod the clone writes via get_store() (the
+    writable bind-mount) while Feature Packs are read via get_featurepack_store()
+    (the read-only R2 pack bucket). Before the read-through fallback, the seeded
+    feature pack landed where the loader never looked, so a freshly seeded tenant
+    showed a persona pack but "no feature pack".
+
+    Reproduce the split: read the feature pack through a FallbackArtifactStore
+    whose primary (the pack bucket) does NOT have the sample tenant, and whose
+    secondary is the writable store the clone wrote to. The seeded pack must
+    still resolve, exactly as it now does in prod.
+    """
+    assert client.post("/sample-workspace").status_code == 201
+
+    writable = LocalArtifactStore(store_root)  # what the clone wrote to (bind-mount)
+    empty_pack_bucket = LocalArtifactStore(store_root / "_empty_r2_pack")  # R2 lacks it
+    fp_read_store = FallbackArtifactStore(primary=empty_pack_bucket, secondary=writable)
+
+    loader = FeaturePackLoader(fp_read_store)
+    manifest = loader.load_latest_manifest(TARGET)
+    assert manifest.customer_id == TARGET
+    assert manifest.capabilities
+    for name in manifest.capabilities:
+        capability = loader.load_latest_capability(TARGET, name)
+        assert capability.reverse_prd
 
 
 def test_clone_rewrites_customer_id_in_persona_manifest(

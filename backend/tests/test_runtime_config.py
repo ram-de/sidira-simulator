@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import Request
 
 from sidira_simulator.adapters.r2 import (
+    FallbackArtifactStore,
     LocalArtifactStore,
     R2ArtifactStore,
     get_featurepack_store,
@@ -129,7 +130,13 @@ def test_featurepack_store_uses_r2_without_flipping_write_store(monkeypatch) -> 
     monkeypatch.setenv("R2_PACK_ACCESS_KEY_ID", "ak")
     monkeypatch.setenv("R2_PACK_SECRET_ACCESS_KEY", "sk")
 
-    assert isinstance(get_featurepack_store(), R2ArtifactStore)
+    # The pack reader is a read-through fallback: R2 primary (live crawler
+    # packs), the local write store as secondary (sample-workspace seed packs
+    # the read-only pack bucket can't hold). get_store() still stays local.
+    store = get_featurepack_store()
+    assert isinstance(store, FallbackArtifactStore)
+    assert isinstance(store._primary, R2ArtifactStore)
+    assert isinstance(store._secondary, LocalArtifactStore)
     assert isinstance(get_store(), LocalArtifactStore)
 
 

@@ -79,10 +79,23 @@ class R2ArtifactStore:
         )
 
     def read_text(self, key: str) -> str:
+        from botocore.exceptions import ClientError
+
         try:
             obj = self._s3.get_object(Bucket=self._bucket, Key=key)
         except self._s3.exceptions.NoSuchKey as exc:
             raise FileNotFoundError(key) from exc
+        except ClientError as exc:
+            # R2's S3-compat surface can return a bare 404 as a generic
+            # ClientError rather than the modeled NoSuchKey. Map a missing key to
+            # FileNotFoundError so read-through fallback (FallbackArtifactStore /
+            # get_featurepack_store) treats it as a miss, not a hard error. A
+            # missing *bucket* or any other code still propagates — that's config,
+            # not an absent artifact.
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in ("NoSuchKey", "404", "NotFound"):
+                raise FileNotFoundError(key) from exc
+            raise
         return obj["Body"].read().decode("utf-8")
 
     def read_lines(self, key: str) -> list[str]:
@@ -99,6 +112,50 @@ class R2ArtifactStore:
         except FileNotFoundError:
             existing = ""
         self.write_text(key, existing + line.rstrip("\n") + "\n")
+
+
+class FallbackArtifactStore:
+    """Read-through store: reads try ``primary`` first, fall back to ``secondary``
+    on a miss; writes go to ``secondary``.
+
+    This is what lets the seeded sample Feature Pack be served in prod. After
+    #208, Feature Pack reads moved to the read-only R2 pack bucket
+    (``get_featurepack_store``), but the sample-workspace clone can only *write*
+    to the writable general store (``get_store`` — the bind-mount), since the
+    pack-bucket creds are read-only. Without a fallback the clone wrote the
+    feature pack where the loader never looked, so a freshly seeded tenant showed
+    a persona pack but "no feature pack". Reading R2 first, bind-mount second,
+    closes that gap.
+
+    A given tenant's pack lives entirely in ONE backend — a crawled tenant only
+    in R2, a seeded tenant only on the bind-mount — so a read never stitches one
+    tenant's ``latest`` pointer onto another store's manifest/capability body.
+    Where a tenant exists in both (a real crawl landed over an old sample clone),
+    the primary wins for every key, so the live crawled pack is served whole.
+    """
+
+    def __init__(self, primary: ArtifactStore, secondary: ArtifactStore) -> None:
+        self._primary = primary
+        self._secondary = secondary
+
+    def read_text(self, key: str) -> str:
+        try:
+            return self._primary.read_text(key)
+        except FileNotFoundError:
+            return self._secondary.read_text(key)
+
+    def read_lines(self, key: str) -> list[str]:
+        try:
+            return self._primary.read_lines(key)
+        except FileNotFoundError:
+            return self._secondary.read_lines(key)
+
+    def write_text(self, key: str, body: str) -> None:
+        # The primary is read-only; the only writable backend is the secondary.
+        self._secondary.write_text(key, body)
+
+    def append_line(self, key: str, line: str) -> None:
+        self._secondary.append_line(key, line)
 
 
 def get_store() -> ArtifactStore:
@@ -124,11 +181,17 @@ def get_featurepack_store() -> ArtifactStore:
     ``R2_*`` vars when their pack-scoped twin is unset. With nothing configured
     (dev + the test suite) this falls back to :func:`get_store`, keeping packs
     fully local.
+
+    When the pack bucket *is* configured the result is a
+    :class:`FallbackArtifactStore` reading R2 first and the writable general
+    store (:func:`get_store`) second, so a sample-workspace clone — which can
+    only write to the bind-mount, not the read-only pack bucket — is still
+    served. See that class for why mixing across tenants can't happen.
     """
     bucket = os.environ.get("R2_PACK_BUCKET")
     if not bucket:
         return get_store()
-    return R2ArtifactStore(
+    pack_store = R2ArtifactStore(
         bucket=bucket,
         endpoint_url=os.environ.get("R2_PACK_ENDPOINT_URL") or os.environ.get("R2_ENDPOINT_URL"),
         access_key_id=os.environ.get("R2_PACK_ACCESS_KEY_ID")
@@ -136,3 +199,4 @@ def get_featurepack_store() -> ArtifactStore:
         secret_access_key=os.environ.get("R2_PACK_SECRET_ACCESS_KEY")
         or os.environ.get("R2_SECRET_ACCESS_KEY"),
     )
+    return FallbackArtifactStore(primary=pack_store, secondary=get_store())
