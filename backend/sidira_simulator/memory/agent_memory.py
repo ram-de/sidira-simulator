@@ -47,6 +47,7 @@ from sidira_simulator.schemas.agent import (
     AgentInstanceMetadata,
     AgentRole,
 )
+from sidira_simulator.schemas.elicitation import ReactionDistribution
 from sidira_simulator.schemas.identity import IdentitySeed
 
 
@@ -87,6 +88,21 @@ class AgentMemory:
         self._writer.write_text(
             f"{self._base_key(metadata)}/identity_seed.json",
             identity_seed.model_dump_json(),
+        )
+
+    def write_reaction_distribution(
+        self, metadata: AgentInstanceMetadata, distribution: ReactionDistribution
+    ) -> None:
+        """Persist the full within-agent reaction distribution (#221).
+
+        Captured ALONGSIDE the canonical `initial_reaction.md` (which holds the
+        modal sample), not in place of it: the frozen reaction stays the
+        identity-continuity anchor, while this artifact preserves the per-agent
+        variance for the hierarchical scoring slice that un-collapses the CIs.
+        """
+        self._writer.write_text(
+            f"{self._base_key(metadata)}/reaction_distribution.json",
+            distribution.model_dump_json(),
         )
 
     def append_turn(self, metadata: AgentInstanceMetadata, turn: AgentChatTurn) -> None:

@@ -14,7 +14,11 @@ from sidira_simulator.adapters.r2 import (
 )
 from sidira_simulator.api.deps import current_customer_id
 from sidira_simulator.main import _cors_origins
-from sidira_simulator.services.runtime_config import resolve_sidira_env
+from sidira_simulator.services.runtime_config import (
+    resolve_elicitation_samples,
+    resolve_elicitation_temperature,
+    resolve_sidira_env,
+)
 
 
 def _request_without_session() -> Request:
@@ -127,3 +131,47 @@ def test_featurepack_store_uses_r2_without_flipping_write_store(monkeypatch) -> 
 
     assert isinstance(get_featurepack_store(), R2ArtifactStore)
     assert isinstance(get_store(), LocalArtifactStore)
+
+
+# ── #221 distribution-elicitation flags ──────────────────────────────────────
+
+
+def test_elicitation_samples_defaults_to_one(monkeypatch) -> None:
+    # Default reproduces the historical single-reaction path.
+    _clear_product_env(monkeypatch, "ELICITATION_SAMPLES")
+    assert resolve_elicitation_samples() == 1
+
+
+def test_elicitation_samples_reads_env_and_clamps_below_one(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "ELICITATION_SAMPLES")
+    monkeypatch.setenv("SIDIRA_ELICITATION_SAMPLES", "5")
+    assert resolve_elicitation_samples() == 5
+
+    monkeypatch.setenv("SIDIRA_ELICITATION_SAMPLES", "0")
+    assert resolve_elicitation_samples() == 1  # never zero — an agent needs a reaction
+
+
+def test_elicitation_samples_malformed_fails_open_to_default(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "ELICITATION_SAMPLES")
+    monkeypatch.setenv("SIDIRA_ELICITATION_SAMPLES", "not-an-int")
+    assert resolve_elicitation_samples() == 1
+
+
+def test_elicitation_temperature_defaults_to_zero(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "ELICITATION_TEMPERATURE")
+    assert resolve_elicitation_temperature() == 0.0
+
+
+def test_elicitation_temperature_reads_env_and_clamps_negative(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "ELICITATION_TEMPERATURE")
+    monkeypatch.setenv("SIDIRA_ELICITATION_TEMPERATURE", "1.1")
+    assert resolve_elicitation_temperature() == 1.1
+
+    monkeypatch.setenv("SIDIRA_ELICITATION_TEMPERATURE", "-0.5")
+    assert resolve_elicitation_temperature() == 0.0
+
+
+def test_elicitation_temperature_malformed_fails_open_to_default(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "ELICITATION_TEMPERATURE")
+    monkeypatch.setenv("SIDIRA_ELICITATION_TEMPERATURE", "warm")
+    assert resolve_elicitation_temperature() == 0.0
