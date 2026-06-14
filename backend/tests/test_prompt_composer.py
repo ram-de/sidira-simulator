@@ -388,3 +388,81 @@ def test_control_arm_never_sees_renderer_change_framing() -> None:
     assert "### Explicitly NOT changing" not in prompt
     assert "Tip: 20% pre-filled" not in prompt
     assert _hypothesis_with_proposed_figma().prose not in prompt
+
+
+# ── agent-behavior-spec §2: behavioral-profile block wiring ──────────────────
+
+
+def _persona_with_centroid() -> Persona:
+    return Persona(
+        id="p_centroid",
+        name="DashPass Power",
+        description="Heavy weekly user who orders for the family.",
+        jtbd="Get dinner on the table without thinking about it.",
+        centroid_features={
+            "order_frequency_z": 1.62,
+            "browse_dependency_z": -1.33,
+        },
+    )
+
+
+def test_behavioral_profile_block_present_when_centroid_salient() -> None:
+    """§2 wiring: a persona with salient centroid_features gains the 'How you
+    compare' block, rendered from the previously-unused centroid."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    assert "## How you compare" in prompt
+    assert "**much higher** order frequency" in prompt
+    assert "**much lower** browse dependency" in prompt
+
+
+def test_behavioral_profile_block_positioned_after_snapshot_before_product() -> None:
+    """The block is the layer-4 home: between the behavioral snapshot and the
+    product-today section (context-assembly.md §1 stack order)."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    snapshot_idx = prompt.index("## Behavioral snapshot")
+    profile_idx = prompt.index("## How you compare")
+    product_idx = prompt.index("## The product today")
+    assert snapshot_idx < profile_idx < product_idx
+
+
+def test_behavioral_profile_block_absent_without_centroid() -> None:
+    """Back-compat: a persona with no centroid_features (v1.0 packs, and the
+    pre-§2 default) yields a prompt with no profile block — byte-identical to
+    before §2 for that input."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),  # no centroid_features
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    assert "## How you compare" not in prompt
+
+
+def test_behavioral_profile_block_in_both_arms() -> None:
+    """The profile is identity, not change framing, so it must appear in BOTH
+    arms — otherwise it would break the #90 pairing invariant (arms differ only
+    in task framing)."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    treatment = compose_identity_prompt(**args, arm="treatment")
+    control = compose_identity_prompt(**args, arm="control")
+    assert "## How you compare" in treatment
+    assert "## How you compare" in control

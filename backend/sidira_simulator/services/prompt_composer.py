@@ -21,6 +21,17 @@ agent and the benchmark see byte-identical change framing. Prose-only changes
 NOT-changing guard. The preamble and the #77 opener guidance are unchanged, so
 the #90 pairing invariant (treatment and control differ only in task framing)
 holds.
+
+agent-behavior-spec §2 wiring (context-assembly.md): the preamble gains a
+"How you compare" block between the behavioral snapshot and the product-today
+section — the persona's population-relative behavioral profile, rendered from
+the previously-unused `Persona.centroid_features` by
+`behavioral_profile.render_behavioral_profile`. It is additive (empty string
+when the persona has no centroid or nothing salient, so old prompts are
+byte-identical) and shared by both arms (it is identity, not change framing), so
+the #90 invariant still holds. This is the *segment* reference frame; the
+per-agent individual row (layer 4, within-persona variety) is the #7-gated next
+touch that plugs into the same renderer.
 """
 
 from __future__ import annotations
@@ -31,6 +42,7 @@ from sidira_simulator.schemas.feature_pack import Capability
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.behavioral_profile import render_behavioral_profile
 from sidira_simulator.services.treatment_renderer import render_state_diff
 
 Arm = Literal["treatment", "control"]
@@ -53,7 +65,7 @@ _PREAMBLE_TEMPLATE = """You are roleplaying a real user of {customer_id}'s produ
 
 {behavioral_snapshot}
 
-## The product today
+{behavioral_profile_section}## The product today
 
 Below is how the **{capability_name}** capability works on the product right now. This
 is the current experience you have as a user — your reactions should be grounded in
@@ -190,6 +202,7 @@ def compose_identity_prompt(
         jtbd_section=jtbd_section,
         about_you_section=_about_you_section(identity_seed),
         behavioral_snapshot=snapshot_lines,
+        behavioral_profile_section=_behavioral_profile_section(persona),
         capability_name=capability.name,
         reverse_prd=capability.reverse_prd,
         reverse_figma_summary=_summarize_figma(capability),
@@ -212,6 +225,27 @@ def compose_identity_prompt(
         )
 
     return preamble + "\n" + task_block
+
+
+def _behavioral_profile_section(persona: Persona) -> str:
+    """agent-behavior-spec §2: the persona's population-relative behavioral
+    profile, rendered as salient natural-language deltas from `centroid_features`
+    (services.behavioral_profile.render_behavioral_profile).
+
+    Additive and gated on real data: returns "" — so the prompt is byte-identical
+    to pre-§2 — whenever the persona carries no centroid_features or none of them
+    clear the salience threshold. Both arms see it (it is identity, not change
+    framing), so the #90 pairing invariant — treatment and control differ only in
+    task framing — still holds. The trailing blank line keeps the spacing before
+    "## The product today" identical to the no-block case.
+
+    NOTE (#7 seam): this renders the persona *centroid* (a segment statistic
+    shared by every agent in the persona) — it closes the unused-centroid gap but
+    does NOT yet add the per-agent individual row that creates within-persona
+    variety; that needs the behavioral row + per-feature scale #7 ships.
+    """
+    block = render_behavioral_profile(persona).render()
+    return f"{block}\n\n" if block else ""
 
 
 def _about_you_section(seed: IdentitySeed | None) -> str:
