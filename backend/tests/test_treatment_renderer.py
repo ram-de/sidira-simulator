@@ -290,6 +290,7 @@ def test_standalone_view_has_no_change_framing() -> None:
         Hypothesis(
             capability_name="checkout",
             prose="Add free-returns note.",
+            proposed_prd="Add a free-returns note to the buy CTA.",
             proposed_figma=proposed,
         ),
     )
@@ -301,6 +302,10 @@ def test_standalone_view_has_no_change_framing() -> None:
     assert "What's changing" not in standalone
     assert "Add free-returns note." not in standalone
     assert "Explicitly NOT changing" not in standalone
+    # codex P2: the change PRD is intervention-framed prose and MUST NOT leak
+    # into the blinded view that feeds metric elicitation.
+    assert "Add a free-returns note to the buy CTA." not in standalone
+    assert "PRD" not in standalone
     # The unblinded view, by contrast, carries the framing.
     diff_view = rc.state_plus_diff_view()
     assert "What's changing" in diff_view

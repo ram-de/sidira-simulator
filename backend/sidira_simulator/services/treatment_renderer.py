@@ -127,16 +127,18 @@ class RenderedChange(BaseModel):
 
         Returns None when no structural proposed state exists (caller must fall
         back to the unblinded view and flag it).
+
+        Deliberately omits `proposed_prd`: it is authored as a *change* PRD
+        ("Add a flat $2 fee…"), so emitting it here would leak the intervention
+        framing into the blinded metric-elicitation path and contaminate the
+        benchmark/production comparison (treatment-rendering-layer.md §5b blinding
+        contract). The structural spec alone IS the blinded proposed state. A
+        rewritten proposed-state PRD could be added in a later version.
         """
         if self.proposed_figma is None:
             return None
         body = summarize_reverse_figma(self.proposed_figma)
-        prd = f"\n\n### PRD\n\n{self.proposed_prd}" if self.proposed_prd else ""
-        return (
-            f"### Structural spec\n\n{body}{prd}"
-            if body
-            else f"_(no structural detail available)_{prd}"
-        )
+        return f"### Structural spec\n\n{body}" if body else "_(no structural detail available)_"
 
     def state_plus_diff_view(self) -> str:
         """The explicit, unblinded changelog + mandatory NOT-changing guard."""
