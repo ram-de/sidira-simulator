@@ -229,10 +229,15 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
         <ErrorNote>The feature pack could not be loaded: {pack.message}</ErrorNote>
       )}
       {pack.state === "empty" && (
-        <BodyNote>
-          No feature pack yet. The feature pack is a generated snapshot of your as-built
-          product — Sidira&apos;s crawler writes it, and it is never authored by hand.
-        </BodyNote>
+        <EmptyState>
+          No feature pack yet — the pack is a generated snapshot of your as-built product,
+          written by Sidira&apos;s crawler and never authored by hand. Point the walker at
+          your product in{" "}
+          <Link href="/personas/crawl-setup" className="lib-link">
+            crawl setup
+          </Link>{" "}
+          to start the first crawl; the latest pointer flips once a clean crawl lands.
+        </EmptyState>
       )}
       <CardGrid>
         {pack.state === "ready" && (
@@ -606,6 +611,29 @@ function BodyNote({ children }: { children: React.ReactNode }) {
     <p style={{ margin: "12px 0 0", fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted }}>
       {children}
     </p>
+  );
+}
+
+// A designed empty-state — §7.7 note anatomy (paper-recessed surface) carrying
+// the next action. Empty is not an error: it takes the neutral `rule` border,
+// never `alert`/`warn` (§4.3, color never carries state alone), and reads in
+// sentence-case body font (§5.4).
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 16,
+        border: `1px solid ${TOKENS.rule}`,
+        borderRadius: 4,
+        background: TOKENS.paperRecessed,
+        color: TOKENS.ink,
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
