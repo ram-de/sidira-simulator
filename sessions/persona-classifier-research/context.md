@@ -1,8 +1,9 @@
 ---
 type: session
 domain: persona-classifier-research
-status: active
+status: closed
 started: 2026-06-11
+closed: 2026-06-13
 owner: ram-de
 ---
 
@@ -12,19 +13,21 @@ owner: ram-de
 Research-grade validation of the current persona classifier/building plan, plus a concrete classifier algorithm design and a benchmark strategy credible to experimentation-mature buyers (Meta, Google, Amazon).
 
 ## In Progress
-- [ ] Founder review of analysis.md → decide which roadmap items to adopt
+— session complete
 
 ## Completed
 - [x] Inventoried current plan (closed session sessions/persona-classifier/, sidira-personas code audit, simulator consumption path)
 - [x] 4 parallel research streams: pipeline code audit (12 defects), LLM-simulation literature (~40 sources), buyer-grade benchmark research (Kohavi-proof), segmentation/clustering SOTA
 - [x] Wrote the deliverable: `analysis.md` (validation verdict + classifier algorithm v2 + benchmark strategy)
 - [x] Founder Q&A walkthrough → captured in `qa-founder-clarifications.md` (positioning, sampling math, re-rank economics, agent chat, personas-stay verdict)
+- [x] **Adoption decision (2026-06-13): ALL THREE §5 "Now" items green-lit** (A personas hygiene, B simulator elicitation, C Tier-0 benchmark harness)
+- [x] Filed + cross-linked tickets (as ram-de): A → ram-de/sidira-personas#7 · B → ram-de/sidira-simulator#221 · C → ram-de/sidira-simulator#222 (C depends on #221; C artifact #5 depends on #7)
+- [x] **Metric-prediction discussion (2026-06-13)**: confirmed in code that current output is a generic sentiment-blend (`confidence_score`) and A/B `lift` is in confidence-score units, not the hypothesis's metric. Scoped metric-keyed outcome elicitation onto #221 + agent-behavior-spec §3a (predict conversion-lift etc.; directional now, calibrated absolute gated on #222)
+- [x] Opened follow-on session `agent-behavior-spec` (the implementation layer; owns the treatment-rendering layer + per-metric question design)
+- [x] Rolled the validated direction + adopted tickets into CONTEXT.md (What's next + Lesson 12)
 
 ## Next Steps
-1. Founder reads `analysis.md` (§1 premise revision, §4.1 Kohavi/positioning, §5 roadmap) — `qa-founder-clarifications.md` is the 5-min plain-language companion
-2. Adoption decision on the three §5 "Now" items: simulator elicitation fixes · sidira-personas hygiene (soft posteriors, per-cluster Jaccard, holdout, tests) · Tier-0 benchmark harness (recommend green-lighting first — it's the model-selection criterion AND the sales artifact)
-3. On "go": file tickets in sidira-personas + sidira-simulator (as ram-de), and start a new session for the **agent behavior spec** (prompt templates, feature-rendering rules, ablation protocol, chat-consistency + counterfactual-interview design) — identified as the missing implementation layer
-4. Close session once roadmap decisions are made; roll lasting decisions into CONTEXT.md
+— session complete. Work continues in: `agent-behavior-spec` session + tickets #7 / #221 / #222.
 
 ## Key Files
 - `sessions/persona-classifier-research/analysis.md` — THE deliverable (validation, classifier v2, benchmark strategy, sources)

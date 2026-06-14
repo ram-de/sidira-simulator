@@ -2,7 +2,7 @@
 
 **This file is the team's shared running context.** Both founders read it. AI agents read it before picking up work. Keep it short (2–3 screens), keep it current.
 
-**Last updated:** 2026-06-10 (mock-Streamly first customer decided — crawler chain unblocked)
+**Last updated:** 2026-06-13 (persona-classifier-research closed — accuracy/benchmark direction validated, 3 "Now" tickets adopted)
 
 ---
 
@@ -109,6 +109,13 @@ Current order:
 2. Self-serve onboarding ladder when beta opens up: reverse the invite-only toggles + email verification + bot protection + free-tier usage cap (the staged plan is recorded in `sessions/phase-5-auth/context.md` Key Context).
 3. **After crawler: Phase 6.5 opportunity engine Stage 0 (#173)** — "product decision intelligence layer" direction decided 2026-06-10 (session `ideation-decision-intelligence`, CLOSED): PM/VP describes OKRs → Sidira generates data-receipted hypotheses from personas + crawled feature pack + past sims → simulates top-k → ranked bet portfolio. On-demand only for now. Full spec in ROADMAP.md § Phase 6.5 and #173.
 
+**Research-validated accuracy + benchmark direction (session `persona-classifier-research`, CLOSED 2026-06-13).**
+A research-grade validation of the persona/classifier plan (deliverable: `sessions/persona-classifier-research/analysis.md`; 5-min companion `qa-founder-clarifications.md`). Headline findings: aggregate effect *direction* is predictable (r≈0.85 on text/copy) but individual "digital clones" are not (r≈0.20) and absolute *magnitudes* are inflated → sell calibrated-prior/triage, never "replaces experiments" or "digital clones" (Kohavi publicly attacked this category Nov 2025). Personas STAY but as **scaffolding, not the accuracy engine** — accuracy comes from individual-level conditioning + calibration + the eval harness, not from better clustering (ARI-chasing deprioritized). XGBoost assignment classifier mostly killed (the GMM posterior *is* the classifier). **Three "Now" tickets adopted + filed (2026-06-13):**
+- **A — pipeline hygiene** (soft posteriors, per-cluster Jaccard, holdout, tests, pack schema v1.1) → `ram-de/sidira-personas#7`
+- **B — simulator elicitation** (distribution sampling, delta-mode default, no-persona control, design unblinding; **+ metric-keyed outcome elicitation** so we predict the hypothesis's actual metric e.g. conversion-lift, not a generic sentiment score) → `sidira-simulator#221`
+- **C — Tier-0 benchmark harness** (Upworthy + Hewitt archive + null-integrity suite + Hillstrom/Criteo end-to-end; no customer needed, ~4–8 wks; the model-selection criterion AND first sales artifact) → `sidira-simulator#222`
+Sequencing: B before C; A feeds C's artifact #5. Follow-on session `agent-behavior-spec` (OPEN) owns the implementation layer — prompt templates, the treatment-rendering layer (format-identical benchmark↔production), the per-metric elicitation question design, ablation protocol, chat/counterfactual-interview. **Positioning sentence locked** (analysis §4.5): "a calibrated prior over your experiment backlog … re-ranks what you test first and warm-starts what you launch; your platform stays the ground truth."
+
 **Deferred (ticketed, not scheduled):** #162 per-org vanity subdomains (`org_slug.sidira.ai`) — full feasibility analysis in the issue; blocked on Amplify Hosting's lack of wildcard-subdomain support; revisit at the enterprise/SSO stage.
 
 **Carryover TODOS from Phase 2.5** (not blocking, capture for later):
@@ -143,6 +150,10 @@ From Phase 5:
 
 10. **Amplify console env vars reach the BUILD only — the Next runtime compute never sees them.** `amplify.yml` writes a curated `frontend/.env.production`; any server-side secret not written there is a silent runtime no-op (`CLERK_SECRET_KEY` nearly shipped that way — caught in flip pre-flight, PR #159). Every new runtime env var must be added to `amplify.yml`, not just the console.
 11. **Classify every prod config change as additive vs. hard cutover before touching it.** Adding `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` looked additive but was a hard auth cutover (middleware switches gates on its presence). The staged plan — DNS + founder account first, keys last, lockout insurance before the flip — is what made the actual flip a non-event.
+
+From persona-classifier-research:
+
+12. **Sell direction, never the digital twin — and never an uncalibrated magnitude.** The literature is consistent: LLM panels get treatment-effect *direction* right (r≈0.85 on copy) but inflate *magnitude*, and individual clones are near-useless (r≈0.20). Every accuracy claim must be scored against the right null ("always predict flat" already scores 67–90% raw) and the product must be positioned as a calibrated prior / triage / bandit warm-start. A bare "+5.0% conversion" before the calibration harness exists is exactly the overclaim a sophisticated buyer (Kohavi) reads as fraud.
 
 ---
 
