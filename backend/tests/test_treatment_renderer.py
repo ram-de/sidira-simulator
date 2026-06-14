@@ -407,6 +407,35 @@ def test_identical_figmas_yield_no_structural_delta() -> None:
     assert rc.prose_only is False
     assert rc.changes == []
     assert "No structural delta detected" in rc.state_plus_diff_view()
+    # codex P2: a figma with no structural delta cannot back a faithful blinded
+    # view — it would show an unchanged product. Fall back to unblinded + flag.
+    assert rc.has_standalone_view is False
+    assert rc.standalone_state_view() is None
+
+
+def test_prd_only_change_with_figma_has_no_blinded_view() -> None:
+    """codex P2: when the change lives entirely in proposed_prd (a pricing/fee
+    rule ReverseFigma can't encode) and the figma is unchanged, the blinded view
+    must be withheld so metric elicitation doesn't evaluate the wrong state."""
+    same_screens = [_cart_screen(), _account_screen()]
+    rc = render_state_diff(
+        _capability(ReverseFigma(screens=same_screens)),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Charge a $2 service fee.",
+            proposed_prd="Add a flat $2 service fee at the payment step.",
+            proposed_figma=ReverseFigma(screens=same_screens),
+        ),
+    )
+    assert rc.changes == []
+    # The PRD-carried mechanics is flagged via the regime, never faked into a view.
+    assert "mechanics" in rc.touched_modalities
+    assert rc.has_standalone_view is False
+    assert rc.standalone_state_view() is None
+    # The unblinded view still carries the change (PRD + NOT-changing guard).
+    diff_view = rc.state_plus_diff_view()
+    assert "$2 service fee" in diff_view
+    assert "Explicitly NOT changing" in diff_view
 
 
 # ── choice-set extraction (§3a Q3 / §1.6 step 4) ────────────────────────────

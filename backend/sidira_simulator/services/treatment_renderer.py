@@ -113,20 +113,29 @@ class RenderedChange(BaseModel):
 
     @property
     def has_standalone_view(self) -> bool:
-        """Whether a blinded standalone-state view can be produced.
+        """Whether a faithful blinded standalone-state view can be produced.
 
-        A pure-prose or pure-removal change ("we removed the confirmation step")
-        cannot always be rendered as a coherent standalone product state — those
-        fall back to the unblinded view + a flag (treatment-rendering-layer.md
-        §5b caveat / §3b open Q2).
+        Requires a proposed figma AND an actual structural delta (`changes`). A
+        change carried only by prose/PRD — a pricing or service-fee rule, a
+        gating policy `ReverseFigma` can't encode, or an identical figma — leaves
+        the structural spec equal to the current state, so a blinded view would
+        silently show an *unchanged* product and miss the treatment entirely.
+        Those fall back to the unblinded view + a flag (treatment-rendering-
+        layer.md §5b caveat / §3b open Q2).
+
+        Caveat (known v1 limit): when a structural delta exists *and* a PRD adds
+        mechanics not reflected structurally, the blinded view carries the
+        structural part only — the unencoded mechanics surface via the `mechanics`
+        modality / reliability regime, never faked into the view.
         """
-        return self.proposed_figma is not None
+        return self.proposed_figma is not None and bool(self.changes)
 
     def standalone_state_view(self) -> str | None:
         """The proposed state rendered as *just the product* — no change framing.
 
-        Returns None when no structural proposed state exists (caller must fall
-        back to the unblinded view and flag it).
+        Returns None when no faithful blinded view exists (no proposed figma, or
+        no structural delta — see `has_standalone_view`); the caller must then
+        fall back to the unblinded view and flag it.
 
         Deliberately omits `proposed_prd`: it is authored as a *change* PRD
         ("Add a flat $2 fee…"), so emitting it here would leak the intervention
@@ -135,7 +144,7 @@ class RenderedChange(BaseModel):
         contract). The structural spec alone IS the blinded proposed state. A
         rewritten proposed-state PRD could be added in a later version.
         """
-        if self.proposed_figma is None:
+        if not self.has_standalone_view:
             return None
         body = summarize_reverse_figma(self.proposed_figma)
         return f"### Structural spec\n\n{body}" if body else "_(no structural detail available)_"
