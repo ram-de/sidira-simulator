@@ -81,6 +81,37 @@ this reality.
 """
 
 
+# #221 §4.1 persona-lift baseline preamble: a base-LLM user with NO persona
+# conditioning. Deliberately drops EVERYTHING persona-specific — the name,
+# description, jtbd, the #77 identity_seed "About you" block, the behavioral
+# snapshot, and the §2 behavioral-profile section — keeping ONLY the generic
+# "you are a user of {customer_id}'s product" framing plus the shared
+# "## The product today" section. The trailing task block (treatment framing +
+# the deterministic state-diff change view) is appended by the caller VERBATIM,
+# byte-identical to the persona arm, so the ONLY difference between a persona
+# agent and its no-persona shadow is the presence/absence of persona identity.
+# That isolation is what makes persona-lift falsifiable: any sentiment delta
+# between the arms is attributable to persona conditioning, not to different
+# change framing (the "Funhouse Mirrors" guard — much of an LLM panel's output
+# is the base model, not the personas).
+_PREAMBLE_TEMPLATE_NO_PERSONA = """You are a real user of {customer_id}'s product.
+
+## The product today
+
+Below is how the **{capability_name}** capability works on the product right now. This
+is the current experience you have as a user — your reactions should be grounded in
+this reality.
+
+### PRD (reverse-engineered from the live product)
+
+{reverse_prd}
+
+### Structural spec
+
+{reverse_figma_summary}
+"""
+
+
 # Treatment-arm task: react to the PROPOSED change. The change framing
 # ({change_view}) is produced by the deterministic treatment renderer
 # (services.treatment_renderer.RenderedChange.state_plus_diff_view) — a typed
@@ -168,6 +199,7 @@ def compose_identity_prompt(
     hypothesis: Hypothesis,
     identity_seed: IdentitySeed | None = None,
     arm: Arm = "treatment",
+    use_persona: bool = True,
 ) -> str:
     """Build the frozen system prompt that defines this AgentInstance forever.
 
@@ -180,33 +212,54 @@ def compose_identity_prompt(
       the control prompt — only `capability_name` is used to name what the
       agent is reacting to.
 
+    #221 §4.1 persona-lift: `use_persona` (default True → byte-identical to
+    pre-#221) selects the preamble. When False, the prompt drops ALL persona
+    conditioning (name, description, jtbd, the #77 identity_seed block, the
+    behavioral snapshot, and the §2 behavioral-profile section) and uses the
+    generic `_PREAMBLE_TEMPLATE_NO_PERSONA` — a base-LLM user of the product.
+    The trailing task block is appended VERBATIM regardless, so a no-persona
+    shadow and its persona twin differ ONLY in the presence of persona
+    identity, which is what makes the persona-lift baseline falsifiable. The
+    runner pairs the no-persona shadow against the treatment arm, so callers
+    that pass `use_persona=False` also pass `arm="treatment"`.
+
     Identity continuity (memory/agent_memory.py): this output is persisted
     to R2 as `identity.md` and never recomputed. An agent created with
     `arm="control"` STAYS a control agent for all chat replay, even when
     a PM asks follow-ups months later. Re-computing the prompt with a
-    different arm would silently change the agent's reality.
+    different arm would silently change the agent's reality. (No-persona
+    shadows are ephemeral and never persisted, so this guarantee is moot
+    for them.)
     """
-    jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
+    if use_persona:
+        jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
 
-    snapshot = persona.behavioral_snapshot
-    snapshot_lines = (
-        "\n".join(f"- **{k}:** {v}" for k, v in snapshot.items())
-        if snapshot
-        else "_(no behavioral snapshot available)_"
-    )
+        snapshot = persona.behavioral_snapshot
+        snapshot_lines = (
+            "\n".join(f"- **{k}:** {v}" for k, v in snapshot.items())
+            if snapshot
+            else "_(no behavioral snapshot available)_"
+        )
 
-    preamble = _PREAMBLE_TEMPLATE.format(
-        customer_id=customer_id,
-        persona_name=persona.name,
-        persona_description=persona.description,
-        jtbd_section=jtbd_section,
-        about_you_section=_about_you_section(identity_seed),
-        behavioral_snapshot=snapshot_lines,
-        behavioral_profile_section=_behavioral_profile_section(persona),
-        capability_name=capability.name,
-        reverse_prd=capability.reverse_prd,
-        reverse_figma_summary=_summarize_figma(capability),
-    )
+        preamble = _PREAMBLE_TEMPLATE.format(
+            customer_id=customer_id,
+            persona_name=persona.name,
+            persona_description=persona.description,
+            jtbd_section=jtbd_section,
+            about_you_section=_about_you_section(identity_seed),
+            behavioral_snapshot=snapshot_lines,
+            behavioral_profile_section=_behavioral_profile_section(persona),
+            capability_name=capability.name,
+            reverse_prd=capability.reverse_prd,
+            reverse_figma_summary=_summarize_figma(capability),
+        )
+    else:
+        preamble = _PREAMBLE_TEMPLATE_NO_PERSONA.format(
+            customer_id=customer_id,
+            capability_name=capability.name,
+            reverse_prd=capability.reverse_prd,
+            reverse_figma_summary=_summarize_figma(capability),
+        )
 
     if arm == "treatment":
         # agent-behavior-spec §1: render the proposed change deterministically

@@ -512,3 +512,154 @@ async def test_single_arm_run_leaves_arm_none() -> None:
         run_seed=1,
     )
     assert all(r.arm is None for r in runner._last_run_agent_records)
+
+
+@pytest.mark.asyncio
+async def test_no_persona_control_completes_and_excludes_shadows() -> None:
+    """#221 §4.1: with include_no_persona_control=True the run completes, the
+    persona-lift fields are populated, and the ephemeral no-persona shadows
+    NEVER appear in the persisted agent records.
+
+    This is also the regression guard for the persona_lift.computed run-event:
+    the runner emits it after scoring the shadow panel, so if the event type
+    were absent from EVENT_TYPES the emit would raise a ValidationError and
+    this await would fail rather than return a result."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        include_no_persona_control=True,
+    )
+
+    # Shadows are ephemeral: persisted records are persona-only, arm stays None
+    # (single-arm run), and no record leaks the "no_persona" tag.
+    records = runner._last_run_agent_records
+    assert len(records) == 3
+    assert all(r.arm is None for r in records)
+    assert all(r.arm != "no_persona" for r in records)
+
+    # Persona-lift baseline is populated; all 3 persona agents pair with their
+    # shadow by (persona_id, sample_index).
+    result = simulation.result
+    assert result is not None
+    assert result.no_persona_score is not None
+    assert result.persona_lift is not None
+    assert result.persona_lift_paired_n == 3
+
+
+@pytest.mark.asyncio
+async def test_no_persona_control_records_uncomputable_when_all_shadows_fail() -> None:
+    """Honesty gate (#221 §4.1): when the baseline is REQUESTED but every
+    no-persona shadow fails materialization, the result records paired_n=0
+    (NOT None) with every persona agent counted as unpaired — so a
+    requested-but-uncomputable baseline is distinguishable from a flag-off run
+    (where these fields stay None / 0). lift itself stays None."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    original = runner._materialize_agent
+
+    async def fail_shadows(*args, arm=None, **kwargs):
+        # Drop ONLY the ephemeral no-persona shadows; persona agents materialize
+        # normally. The runner's gather uses return_exceptions=True, so a raising
+        # shadow is filtered out and never reaches the scorer.
+        if arm == "no_persona":
+            raise RuntimeError("shadow materialization failed")
+        return await original(*args, arm=arm, **kwargs)
+
+    runner._materialize_agent = fail_shadows  # type: ignore[assignment]
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        include_no_persona_control=True,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.persona_lift_paired_n == 0  # requested, not flag-off (None)
+    assert result.persona_lift_unpaired_persona == 3  # all persona agents unpaired
+    assert result.persona_lift is None
+    assert result.persona_lift_ci is None
+    assert result.no_persona_score is None
+    # Persona agents still scored + persisted normally.
+    assert len(runner._last_run_agent_records) == 3
+    assert result.confidence_score is not None
+
+
+@pytest.mark.asyncio
+async def test_no_persona_control_off_leaves_lift_fields_unset() -> None:
+    """Flag-off (the default) is byte-identical to today: no shadow panel runs,
+    so every persona-lift field stays at its None / zero default."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.no_persona_score is None
+    assert result.persona_lift is None
+    assert result.persona_lift_ci is None
+    assert result.persona_lift_paired_n is None
+    assert result.persona_lift_unpaired_persona == 0
+    assert result.persona_lift_unpaired_no_persona == 0
+    assert result.persona_lift_sentiment_failure_drops == 0
+
+
+@pytest.mark.asyncio
+async def test_no_persona_control_ignored_in_ab_mode() -> None:
+    """A/B mode IGNORES include_no_persona_control (docs: single-arm only).
+    Shadows are appended only on the single-arm allocation path, so an A/B run
+    has no no-persona reactions. The persona_lift* fields must therefore stay at
+    their flag-off defaults — NOT be recorded as requested-but-uncomputable
+    (paired_n=0), which would falsely advertise a baseline for an unsupported
+    path. (codex P2 honesty gate.)"""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        treatment_fraction=0.5,  # A/B mode
+        include_no_persona_control=True,  # ignored on this path
+    )
+
+    result = simulation.result
+    assert result is not None
+    # Flag silently ignored: every persona-lift field stays at its flag-off
+    # default, indistinguishable from an A/B run that never requested it.
+    assert result.no_persona_score is None
+    assert result.persona_lift is None
+    assert result.persona_lift_ci is None
+    assert result.persona_lift_paired_n is None
+    assert result.persona_lift_unpaired_persona == 0
+    assert result.persona_lift_unpaired_no_persona == 0
+    assert result.persona_lift_sentiment_failure_drops == 0
+    # No no_persona shadow leaked into the persisted A/B records.
+    assert all(r.arm != "no_persona" for r in runner._last_run_agent_records)

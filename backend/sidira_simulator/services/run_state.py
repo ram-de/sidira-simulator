@@ -44,6 +44,10 @@ EVENT_TYPES = Literal[
     "agent.reaction.completed",
     "agent.reaction.failed",
     "score.updated",
+    # #221 §4.1 persona-lift: emitted once after the no-persona shadow panel is
+    # scored, carrying the persona − no_persona lift + paired_n. Only fires when
+    # include_no_persona_control=True; absent from every default (flag-off) run.
+    "persona_lift.computed",
     "run.complete",
     "run.failed",
 ]
