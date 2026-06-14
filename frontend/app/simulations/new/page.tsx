@@ -38,6 +38,9 @@ export default function NewSimulationPage() {
   // backend's 409, so don't offer the button. (codex R1-P3)
   const [capsNotFound, setCapsNotFound] = useState(false);
   const [personasNotFound, setPersonasNotFound] = useState(false);
+  // #212: an empty tenant gets a starter pack (200, is_starter) instead of a
+  // 404, so "no real personas yet" is now starter-OR-404, not 404 alone.
+  const [personasAreStarter, setPersonasAreStarter] = useState(false);
 
   const [capability, setCapability] = useState<string>("");
   const [hypothesis, setHypothesis] = useState<string>("");
@@ -213,6 +216,7 @@ export default function NewSimulationPage() {
         if (cancelled) return;
         setActivePersonas(resp.personas);
         setPackVersion(resp.pack_version);
+        setPersonasAreStarter(resp.is_starter ?? false);
         setSelectedPersonas(new Set(resp.personas.map((p) => p.id)));
       } catch (e) {
         if (cancelled) return;
@@ -471,11 +475,12 @@ export default function NewSimulationPage() {
             </div>
           )}
 
-          {/* sessions/sample-workspace: both packs missing = empty tenant. */}
+          {/* sessions/sample-workspace: both packs missing = empty tenant. A
+              starter pack (#212) counts as "no real personas yet". */}
           {!loadingCaps &&
             !loadingPersonas &&
             capsNotFound &&
-            personasNotFound && <SampleWorkspaceCard />}
+            (personasNotFound || personasAreStarter) && <SampleWorkspaceCard />}
 
           {!loadingCaps && !capsError && !hasCapabilities && (
             <div style={emptyStateStyle}>

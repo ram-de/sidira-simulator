@@ -1,0 +1,90 @@
+{
+  "version": "starter-v1",
+  "customer_id": "starter",
+  "generated_at": "2026-06-14T00:00:00Z",
+  "schema_version": "1.0",
+  "is_starter": true,
+  "stability_score": 0.0,
+  "personas": [
+    {
+      "id": "starter_power_user",
+      "name": "Power user",
+      "description": "Generic placeholder persona — your most engaged customer, in any product. Visits frequently, explores deeply, adopts new capabilities first, and is the most sensitive to friction in core flows. Replace with personas compiled from your own usage data.",
+      "jtbd": "Get the most out of the product on every visit and stay ahead of changes.",
+      "behavioral_snapshot": {
+        "engagement": "high",
+        "sessions_per_week": 12,
+        "tenure_months": 18,
+        "feature_breadth": "broad"
+      },
+      "centroid_features": {
+        "engagement": 0.92,
+        "recency": 0.95,
+        "breadth": 0.85,
+        "price_sensitivity": 0.25
+      }
+    },
+    {
+      "id": "starter_casual_user",
+      "name": "Casual user",
+      "description": "Generic placeholder persona — the occasional, low-intent customer. Returns now and then for a narrow set of tasks, skims rather than explores, and notices only changes that touch the few flows they actually use. Replace with personas compiled from your own usage data.",
+      "jtbd": "Get one specific thing done quickly, then leave.",
+      "behavioral_snapshot": {
+        "engagement": "low",
+        "sessions_per_week": 1,
+        "tenure_months": 9,
+        "feature_breadth": "narrow"
+      },
+      "centroid_features": {
+        "engagement": 0.35,
+        "recency": 0.5,
+        "breadth": 0.2,
+        "price_sensitivity": 0.55
+      }
+    },
+    {
+      "id": "starter_new_user",
+      "name": "New user",
+      "description": "Generic placeholder persona — the recently-onboarded customer still forming a habit. High curiosity, low context: easily delighted by clarity and easily lost in jargon or dead ends. Onboarding and first-run flows shape whether they stay. Replace with personas compiled from your own usage data.",
+      "jtbd": "Figure out whether this product is worth my time in the first few sessions.",
+      "behavioral_snapshot": {
+        "engagement": "ramping",
+        "sessions_per_week": 3,
+        "tenure_months": 1,
+        "feature_breadth": "exploring"
+      },
+      "centroid_features": {
+        "engagement": 0.55,
+        "recency": 0.9,
+        "breadth": 0.45,
+        "price_sensitivity": 0.6
+      }
+    },
+    {
+      "id": "starter_at_risk_user",
+      "name": "At-risk user",
+      "description": "Generic placeholder persona — the lapsing customer drifting toward churn. Was active once, now logs in rarely and with low patience; price-sensitive and quick to abandon. The persona a retention or win-back change is aimed at. Replace with personas compiled from your own usage data.",
+      "jtbd": "Decide whether this product still earns a place in my routine and budget.",
+      "behavioral_snapshot": {
+        "engagement": "declining",
+        "sessions_per_week": 0,
+        "tenure_months": 22,
+        "feature_breadth": "narrowing"
+      },
+      "centroid_features": {
+        "engagement": 0.18,
+        "recency": 0.15,
+        "breadth": 0.3,
+        "price_sensitivity": 0.8
+      }
+    }
+  ],
+  "weights": {
+    "head_count": {
+      "starter_power_user": 0.2,
+      "starter_casual_user": 0.4,
+      "starter_new_user": 0.2,
+      "starter_at_risk_user": 0.2
+    }
+  }
+}

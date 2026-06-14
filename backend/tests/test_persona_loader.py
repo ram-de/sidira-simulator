@@ -96,3 +96,53 @@ def test_schema_error_on_corrupt_pack(tmp_path: Path) -> None:
     bad_loader = PersonaPackLoader(LocalArtifactStore(tmp_path))
     with pytest.raises(ArtifactSchemaError):
         bad_loader.load_latest("demo")
+
+
+# ── #212 starter pack ─────────────────────────────────────────────────────
+
+
+def test_load_latest_serves_starter_when_no_pack(tmp_path: Path) -> None:
+    """A tenant with no `latest` pointer gets the generic starter, not a 404."""
+    loader = PersonaPackLoader(LocalArtifactStore(tmp_path))
+    pack = loader.load_latest("brand_new_org")
+    assert pack.is_starter is True
+    assert pack.customer_id == "brand_new_org"
+    assert pack.version == "starter-v1"
+    assert len(pack.personas) >= 1
+
+
+def test_starter_does_not_persist_anything(tmp_path: Path) -> None:
+    """Serving the starter must not write a `latest` pointer — that's the
+    invariant the sample-workspace clone relies on to still see an empty
+    tenant and seed it (#212). (LocalArtifactStore mkdir's parent dirs on
+    every read, so dir presence is not a persist signal; the pointer file is.)"""
+    loader = PersonaPackLoader(LocalArtifactStore(tmp_path))
+    loader.load_latest("brand_new_org")
+    assert not (tmp_path / "customers/brand_new_org/personas/latest").exists()
+    assert not (tmp_path / "customers/brand_new_org/personas/starter-v1").exists()
+    with pytest.raises(ArtifactNotFound):
+        loader.resolve_latest_version("brand_new_org")
+
+
+def test_real_pack_takes_precedence_over_starter(loader: PersonaPackLoader) -> None:
+    """A tenant that actually has a pack reads it, not the starter."""
+    pack = loader.load_latest("demo")
+    assert pack.is_starter is False
+    assert pack.version == "v_1"
+
+
+def test_starter_weights_sum_to_one_and_keyed_by_ids(tmp_path: Path) -> None:
+    loader = PersonaPackLoader(LocalArtifactStore(tmp_path))
+    pack = loader.load_latest("brand_new_org")
+    persona_ids = {p.id for p in pack.personas}
+    assert set(pack.weights.head_count.keys()) == persona_ids
+    assert abs(sum(pack.weights.head_count.values()) - 1.0) < 0.001
+
+
+def test_starter_personas_are_well_formed(tmp_path: Path) -> None:
+    loader = PersonaPackLoader(LocalArtifactStore(tmp_path))
+    pack = loader.load_latest("brand_new_org")
+    for persona in pack.personas:
+        assert persona.name
+        assert persona.description
+        assert persona.behavioral_snapshot

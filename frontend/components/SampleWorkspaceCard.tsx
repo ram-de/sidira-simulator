@@ -9,10 +9,16 @@
 //
 // `detectEmpty` mode is for pages that can't tell whether the tenant has
 // data (e.g. the personas index): the card probes GET /personas AND
-// GET /capabilities on mount and renders only when BOTH 404 — a truly
-// empty tenant. A tenant with one real pack would just hit the backend's
-// 409, so the button isn't offered. (codex R1-P3) Pages that already
-// established both-empty themselves (the wizard) render it directly.
+// GET /capabilities on mount and renders only when the tenant has neither a
+// real Persona Pack nor a Feature Pack — a truly empty tenant. A tenant with
+// one real pack would just hit the backend's 409, so the button isn't
+// offered. (codex R1-P3) Pages that already established both-empty themselves
+// (the wizard) render it directly.
+//
+// #212: GET /personas no longer 404s for an empty tenant — it serves a generic
+// starter pack flagged `is_starter`. A starter still means "no real personas
+// yet", so we treat it as empty here, otherwise the card would vanish for
+// exactly the tenants it exists to help.
 
 import { useEffect, useState } from "react";
 import {
@@ -48,9 +54,19 @@ export default function SampleWorkspaceCard({
         return e instanceof ApiError && e.status === 404;
       }
     };
+    // Personas need their own probe: a starter pack returns 200 but means the
+    // tenant has no real personas yet (#212), so it counts as empty.
+    const noRealPersonas = async () => {
+      try {
+        const res = await getActivePersonas();
+        return res.is_starter === true;
+      } catch (e) {
+        return e instanceof ApiError && e.status === 404;
+      }
+    };
     (async () => {
       const [noPersonas, noCapabilities] = await Promise.all([
-        is404(getActivePersonas),
+        noRealPersonas(),
         is404(getCapabilities),
       ]);
       if (!cancelled && noPersonas && noCapabilities) {

@@ -518,6 +518,11 @@ export interface components {
             pack_version: string;
             /** Personas */
             personas: components["schemas"]["PersonaSummary"][];
+            /**
+             * Is Starter
+             * @default false
+             */
+            is_starter?: boolean;
         };
         /**
          * AgentAnalysisSummary

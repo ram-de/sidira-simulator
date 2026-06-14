@@ -52,3 +52,12 @@ class PersonaPack(BaseModel):
     personas: list[Persona]
     weights: WeightSchemes
     stability_score: float
+    is_starter: bool = Field(
+        default=False,
+        description=(
+            "True for the generic, product-agnostic starter pack the loader serves "
+            "when a tenant has no Persona Pack yet (#212). A starter is a placeholder "
+            "so the product is clickable immediately; it is NOT built from customer "
+            "data and never persisted. Real packs (built or sample-cloned) carry False."
+        ),
+    )

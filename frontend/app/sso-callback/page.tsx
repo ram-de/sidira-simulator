@@ -39,6 +39,11 @@ function StatusMessage({ children }: { children: React.ReactNode }) {
 // getActivePersonas() is authenticated as the tenant; until then the call may be
 // served under the temporary Basic-Auth context. Either way, a thrown/empty
 // result is treated as "no pack yet" and sends the user to /personas/new.
+//
+// #212: GET /personas no longer 404s for an empty tenant — it serves a generic
+// starter pack (is_starter=true) so the rest of the product is clickable. A
+// starter is NOT a real pack, so it must still route the user into onboarding,
+// otherwise brand-new orgs would skip /personas/new entirely.
 export default function PostAuthGatewayPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, orgId } = useAuth();
@@ -63,7 +68,10 @@ export default function PostAuthGatewayPage() {
       let destination = "/personas/new";
       try {
         const active = await getActivePersonas();
-        if ((active?.personas?.length ?? 0) > 0) destination = "/";
+        // A starter pack (#212) means "no real pack yet" — keep onboarding.
+        if ((active?.personas?.length ?? 0) > 0 && !active?.is_starter) {
+          destination = "/";
+        }
       } catch {
         // No active pack (404) or not yet authenticated to the API → onboard.
         destination = "/personas/new";
