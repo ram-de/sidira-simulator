@@ -206,22 +206,27 @@ def render_state_diff(capability: Capability, hypothesis: Hypothesis) -> Rendere
             proposed_figma=None,
         )
 
-    changes: list[StateChange] = []
-    changes += _diff_screens(current, proposed)
-    changes += _diff_transitions(current, proposed)
+    all_changes: list[StateChange] = []
+    all_changes += _diff_screens(current, proposed)
+    all_changes += _diff_transitions(current, proposed)
 
-    truncated_count = 0
-    if len(changes) > _MAX_CHANGES:
-        truncated_count = len(changes) - _MAX_CHANGES
-        changes = changes[:_MAX_CHANGES]
+    # Derive the NOT-changing guard and the reliability metadata from the FULL
+    # diff, BEFORE truncating the rendered changelog. Truncating first would let
+    # a screen whose only change fell past the cap be wrongly listed as "NOT
+    # changing", and would overstate the regime if the weakest modality only
+    # appears after the cutoff — defeating the safety purpose of this layer.
+    modalities = _collect_modalities(all_changes, hypothesis.proposed_prd)
+    not_changing = _not_changing(current, proposed, all_changes)
 
-    modalities = _collect_modalities(changes, hypothesis.proposed_prd)
+    truncated_count = max(0, len(all_changes) - _MAX_CHANGES)
+    changes = all_changes[:_MAX_CHANGES]
+
     return RenderedChange(
         capability_name=capability.name,
         prose=hypothesis.prose,
         prose_only=False,
         changes=changes,
-        not_changing=_not_changing(current, proposed, changes),
+        not_changing=not_changing,
         touched_modalities=modalities,
         reliability_regime=_regime(modalities),
         truncated_count=truncated_count,

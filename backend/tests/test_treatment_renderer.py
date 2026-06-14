@@ -340,6 +340,50 @@ def test_large_diff_is_capped_and_counted() -> None:
     assert "20 more minor changes" in rc.state_plus_diff_view()
 
 
+def test_metadata_is_derived_from_full_diff_not_truncated_changelog() -> None:
+    """Codex P2: NOT-changing guard + reliability regime must come from the FULL
+    diff, before the changelog is capped. Otherwise a screen whose only change
+    falls past the cap is wrongly listed as unchanged, and a weaker modality
+    past the cutoff overstates the regime — defeating the safety purpose."""
+    # Screen A: 45 copy-only changes (all strong) — fills past the 40-cap.
+    a_current = [Component(id=f"a{i}", role="label", text=f"old{i}") for i in range(45)]
+    a_proposed = [Component(id=f"a{i}", role="label", text=f"new{i}") for i in range(45)]
+    # Screen B: exactly one structural change (weak), guaranteed past the cutoff
+    # because screen A's 45 changes are emitted first.
+    b_current = [Component(id="b0", role="button", text="x")]
+    b_proposed: list[Component] = []  # b0 removed → ui_structure (weak)
+
+    current = ReverseFigma(
+        screens=[
+            Screen(id="A", name="A", components=a_current),
+            Screen(id="B", name="B", components=b_current),
+        ]
+    )
+    proposed = ReverseFigma(
+        screens=[
+            Screen(id="A", name="A", components=a_proposed),
+            Screen(id="B", name="B", components=b_proposed),
+        ]
+    )
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Reword screen A and drop a button on B.",
+            proposed_figma=proposed,
+        ),
+    )
+    assert len(rc.changes) == 40  # changelog capped
+    assert rc.truncated_count == 6  # 45 + 1 = 46 total, 6 over the cap
+    # Screen B changed — it must NOT appear under NOT-changing even though its
+    # change was truncated out of the rendered changelog.
+    assert "screen `B`" not in rc.not_changing
+    # The weak structural modality on B must still set the regime, despite being
+    # past the cutoff (the changelog shows only screen A's copy changes).
+    assert "ui_structure" in rc.touched_modalities
+    assert rc.reliability_regime == "weak"
+
+
 # ── degenerate: identical figmas ────────────────────────────────────────────
 
 
