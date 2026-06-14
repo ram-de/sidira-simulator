@@ -1,0 +1,358 @@
+"""Tests for services.treatment_renderer (agent-behavior-spec §1).
+
+The renderer is pure and deterministic, so these are plain fixture-diff tests:
+construct a current `Capability` and a proposed `Hypothesis`, assert the typed
+changelog, the NOT-changing guard, the modality/reliability tags, and the two
+output views (blinded standalone vs unblinded state+diff).
+"""
+
+from __future__ import annotations
+
+from sidira_simulator.schemas.feature_pack import (
+    Capability,
+    Component,
+    ReverseFigma,
+    Screen,
+    Transition,
+)
+from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.treatment_renderer import (
+    render_state_diff,
+    summarize_reverse_figma,
+)
+
+# ── fixtures ────────────────────────────────────────────────────────────────
+
+
+def _cart_screen(cta_text: str = "Buy now") -> Screen:
+    return Screen(
+        id="cart",
+        name="Cart",
+        components=[
+            Component(id="checkout_cta", role="button", text=cta_text),
+            Component(id="promo_code", role="input", text="Promo code"),
+        ],
+    )
+
+
+def _account_screen() -> Screen:
+    return Screen(
+        id="account",
+        name="Account",
+        components=[Component(id="email", role="text", text="you@example.com")],
+    )
+
+
+def _capability(figma: ReverseFigma | None = None) -> Capability:
+    return Capability(
+        name="checkout",
+        surfaces=["mobile"],
+        roles=["guest", "member"],
+        entry_points=["cart"],
+        reverse_prd="The cart screen lets users confirm and pay.",
+        reverse_figma=(
+            figma
+            if figma is not None
+            else ReverseFigma(screens=[_cart_screen(), _account_screen()])
+        ),
+    )
+
+
+def _by_kind_target(rc, kind, target_id):
+    return [c for c in rc.changes if c.kind == kind and c.target_id == target_id]
+
+
+# ── prose-only fallback ─────────────────────────────────────────────────────
+
+
+def test_prose_only_when_no_proposed_figma() -> None:
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(capability_name="checkout", prose="Make the tip selector bigger."),
+    )
+    assert rc.prose_only is True
+    assert rc.changes == []
+    assert rc.has_standalone_view is False
+    assert rc.standalone_state_view() is None
+    # Even with no figma, the diff view still labels the change AND emits the
+    # mandatory NOT-changing guard.
+    view = rc.state_plus_diff_view()
+    assert "Make the tip selector bigger." in view
+    assert "described in prose only" in view
+    assert "Explicitly NOT changing" in view
+
+
+def test_prose_only_with_prd_is_mechanics_regime() -> None:
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Charge a $2 service fee.",
+            proposed_prd="Add a flat $2 fee at the payment step.",
+        ),
+    )
+    assert rc.touched_modalities == ["mechanics"]
+    assert rc.reliability_regime == "mixed"
+    assert "Add a flat $2 fee" in rc.state_plus_diff_view()
+
+
+# ── copy change (strong regime) ─────────────────────────────────────────────
+
+
+def test_copy_change_is_strong_regime() -> None:
+    proposed = ReverseFigma(
+        screens=[_cart_screen(cta_text="Buy now · free returns"), _account_screen()]
+    )
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Add a free-returns note to the CTA.",
+            proposed_figma=proposed,
+        ),
+    )
+    assert rc.prose_only is False
+    changed = _by_kind_target(rc, "CHANGED", "checkout_cta")
+    assert len(changed) == 1
+    assert changed[0].modality == "copy"
+    assert '"Buy now"' in changed[0].detail
+    assert '"Buy now · free returns"' in changed[0].detail
+    assert rc.touched_modalities == ["copy"]
+    assert rc.reliability_regime == "strong"
+
+
+# ── structural add/remove (weak regime) ─────────────────────────────────────
+
+
+def test_added_and_removed_components() -> None:
+    proposed_cart = Screen(
+        id="cart",
+        name="Cart",
+        components=[
+            Component(id="checkout_cta", role="button", text="Buy now"),
+            # promo_code removed; trust_strip added
+            Component(
+                id="trust_strip",
+                role="banner",
+                text="10,000 5-star reviews",
+                visible_to_roles=["guest", "member"],
+            ),
+        ],
+    )
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Drop the promo field, add a trust strip.",
+            proposed_figma=ReverseFigma(screens=[proposed_cart, _account_screen()]),
+        ),
+    )
+    assert _by_kind_target(rc, "ADDED", "trust_strip")
+    assert _by_kind_target(rc, "REMOVED", "promo_code")
+    # Pure structural change → weak reading regime (the UI-modality cliff).
+    assert rc.reliability_regime == "weak"
+    assert "ui_structure" in rc.touched_modalities
+
+
+def test_added_and_removed_screens() -> None:
+    proposed = ReverseFigma(screens=[_cart_screen()])  # account screen removed
+    proposed.screens.append(Screen(id="upsell", name="Upsell", components=[]))
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Remove account screen, add an upsell.",
+            proposed_figma=proposed,
+        ),
+    )
+    assert _by_kind_target(rc, "ADDED", "upsell")
+    assert _by_kind_target(rc, "REMOVED", "account")
+
+
+# ── mechanics: gating change ────────────────────────────────────────────────
+
+
+def test_visible_to_roles_change_is_mechanics() -> None:
+    proposed_cart = Screen(
+        id="cart",
+        name="Cart",
+        components=[
+            Component(id="checkout_cta", role="button", text="Buy now"),
+            Component(
+                id="promo_code",
+                role="input",
+                text="Promo code",
+                visible_to_roles=["member"],  # now gated to members only
+            ),
+        ],
+    )
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Gate the promo field to members.",
+            proposed_figma=ReverseFigma(screens=[proposed_cart, _account_screen()]),
+        ),
+    )
+    changed = _by_kind_target(rc, "CHANGED", "promo_code")
+    assert len(changed) == 1
+    assert changed[0].modality == "mechanics"
+    assert rc.reliability_regime == "mixed"
+
+
+# ── transitions ─────────────────────────────────────────────────────────────
+
+
+def test_transition_add_and_remove() -> None:
+    current = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[Transition(trigger="tap_checkout", from_screen="cart", to_screen="pay")],
+    )
+    proposed = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[Transition(trigger="tap_checkout", from_screen="cart", to_screen="review")],
+    )
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Route checkout through a review step.",
+            proposed_figma=proposed,
+        ),
+    )
+    # Re-route surfaces as REMOVED old + ADDED new in v1 (MOVED deferred).
+    assert any(c.target_type == "transition" and c.kind == "ADDED" for c in rc.changes)
+    assert any(c.target_type == "transition" and c.kind == "REMOVED" for c in rc.changes)
+
+
+def test_transition_role_gating_change_is_mechanics() -> None:
+    current = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[Transition(trigger="tap_checkout", from_screen="cart", to_screen="pay")],
+    )
+    proposed = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[
+            Transition(
+                trigger="tap_checkout",
+                from_screen="cart",
+                to_screen="pay",
+                role_gated=["member"],
+            )
+        ],
+    )
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Gate checkout to members.",
+            proposed_figma=proposed,
+        ),
+    )
+    gating = [c for c in rc.changes if c.kind == "CHANGED" and c.target_type == "transition"]
+    assert len(gating) == 1
+    assert gating[0].modality == "mechanics"
+
+
+# ── NOT-changing guard ──────────────────────────────────────────────────────
+
+
+def test_not_changing_lists_untouched_screens() -> None:
+    proposed = ReverseFigma(screens=[_cart_screen(cta_text="Buy now today"), _account_screen()])
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Tweak the CTA copy.",
+            proposed_figma=proposed,
+        ),
+    )
+    # account is untouched and must be named; cart is touched and must not be.
+    assert "screen `account`" in rc.not_changing
+    assert "screen `cart`" not in rc.not_changing
+    assert "everything else not listed above" in rc.not_changing
+    view = rc.state_plus_diff_view()
+    assert "Explicitly NOT changing" in view
+    assert "screen `account`" in view
+
+
+# ── two output views (§5b blinding contract) ────────────────────────────────
+
+
+def test_standalone_view_has_no_change_framing() -> None:
+    proposed = ReverseFigma(
+        screens=[_cart_screen(cta_text="Buy now · free returns"), _account_screen()]
+    )
+    rc = render_state_diff(
+        _capability(),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Add free-returns note.",
+            proposed_figma=proposed,
+        ),
+    )
+    standalone = rc.standalone_state_view()
+    assert standalone is not None
+    # Blinded: the proposed product appears, but NO "what's changing" framing
+    # and NOT the prose describing the change.
+    assert "Buy now · free returns" in standalone
+    assert "What's changing" not in standalone
+    assert "Add free-returns note." not in standalone
+    assert "Explicitly NOT changing" not in standalone
+    # The unblinded view, by contrast, carries the framing.
+    diff_view = rc.state_plus_diff_view()
+    assert "What's changing" in diff_view
+    assert "Add free-returns note." in diff_view
+
+
+def test_summarize_reverse_figma_matches_prompt_composer_shape() -> None:
+    """The standalone view reuses the same vocabulary as prompt_composer's
+    `_summarize_figma`, so 'product today' and 'proposed product' read identically
+    (the symmetry that makes the #90 paired comparison clean)."""
+    from sidira_simulator.services.prompt_composer import _summarize_figma
+
+    figma = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[Transition(trigger="tap_checkout", from_screen="cart", to_screen="pay")],
+    )
+    cap = _capability(figma)
+    assert summarize_reverse_figma(figma) == _summarize_figma(cap)
+
+
+# ── truncation (open Q2: never silently drop) ───────────────────────────────
+
+
+def test_large_diff_is_capped_and_counted() -> None:
+    many = [Component(id=f"c{i}", role="button", text=f"t{i}") for i in range(60)]
+    current = ReverseFigma(screens=[Screen(id="s", name="S", components=many)])
+    # Remove every component → 60 REMOVED changes, over the _MAX_CHANGES cap.
+    proposed = ReverseFigma(screens=[Screen(id="s", name="S", components=[])])
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Strip the screen.",
+            proposed_figma=proposed,
+        ),
+    )
+    assert len(rc.changes) == 40
+    assert rc.truncated_count == 20
+    assert "20 more minor changes" in rc.state_plus_diff_view()
+
+
+# ── degenerate: identical figmas ────────────────────────────────────────────
+
+
+def test_identical_figmas_yield_no_structural_delta() -> None:
+    same = ReverseFigma(screens=[_cart_screen(), _account_screen()])
+    rc = render_state_diff(
+        _capability(same),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Described in prose, no structural change.",
+            proposed_figma=ReverseFigma(screens=[_cart_screen(), _account_screen()]),
+        ),
+    )
+    assert rc.prose_only is False
+    assert rc.changes == []
+    assert "No structural delta detected" in rc.state_plus_diff_view()
