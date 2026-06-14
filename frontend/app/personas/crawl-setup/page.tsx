@@ -136,7 +136,7 @@ export default function CrawlSetupPage() {
   ]);
   const [ipNote, setIpNote] = useState("");
   const [cadence, setCadence] = useState<CrawlCadence>("weekly");
-  const [walkDepth, setWalkDepth] = useState(3);
+  const [walkDepth, setWalkDepth] = useState(6);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -602,11 +602,20 @@ export default function CrawlSetupPage() {
                       onChange={(e) => setWalkDepth(Number(e.target.value))}
                       style={selectStyle}
                     >
-                      <option value={3}>3 HOPS · DEFAULT</option>
-                      <option value={2}>2 HOPS</option>
-                      <option value={4}>4 HOPS</option>
+                      {[2, 3, 4, 5, 6, 7, 8].map((d) => (
+                        <option key={d} value={d}>
+                          {d} HOPS{d === 6 ? " · DEFAULT" : ""}
+                        </option>
+                      ))}
                     </select>
                   </div>
+                </div>
+                <div style={hintStyle}>
+                  Walk depth is how many hops from each capability&apos;s entry URL
+                  the crawler explores before stopping — it caps every capability
+                  alike. The default 6 sits above the deepest real flow (checkout,
+                  refunds), so it&apos;s a safety ceiling, not a budget you tune
+                  per crawl; raise it only if a deep flow gets truncated.
                 </div>
                 <div style={hintStyle}>
                   Each crawl produces a new versioned snapshot and a diff against

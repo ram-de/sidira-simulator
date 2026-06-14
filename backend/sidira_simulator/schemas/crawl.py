@@ -39,7 +39,7 @@ class CrawlCapability(BaseModel):
     entry_urls: list[str] = Field(
         min_length=1,
         max_length=3,
-        description="1–3 URLs the walker authenticates into and walks ~3 hops deep",
+        description="1–3 URLs the walker authenticates into and walks up to walk_depth hops deep",
     )
 
     @field_validator("name")
@@ -103,7 +103,18 @@ class CrawlSetup(BaseModel):
         description="Where/how the walker's egress IPs were allowlisted",
     )
     cadence: Literal["weekly", "on_demand"] = "weekly"
-    walk_depth: int = Field(default=3, ge=2, le=4)
+    walk_depth: int = Field(
+        default=6,
+        ge=2,
+        le=8,
+        description=(
+            "Hops from a capability's entry URL the walker explores before it stops. "
+            "Applied crawler-side as every capability's max_hops (#227). The default 6 "
+            "matches the crawler's CapabilityConfig.max_hops and sits above the deepest "
+            "real flow (checkout, refunds, subscription management run 5–6+ hops), so "
+            "depth is a safety ceiling, not the binding constraint."
+        ),
+    )
 
     @field_validator("sandbox_url")
     @classmethod

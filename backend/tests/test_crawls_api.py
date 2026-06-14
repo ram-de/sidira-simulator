@@ -94,6 +94,19 @@ def test_put_overwrites_prior_save(client):
     assert got["setup"]["cadence"] == "on_demand"
 
 
+def test_walk_depth_defaults_to_six_and_accepts_new_ceiling(client):
+    """#227: walk_depth realigned to the crawler's per-capability max_hops intent —
+    default 6 (parity with CapabilityConfig.max_hops), range 2–8 so depth is a
+    safety ceiling above the deepest real flow, never the binding constraint."""
+    payload = _setup_payload()
+    del payload["walk_depth"]
+    got = client.put("/crawl-setup", json=payload).json()
+    assert got["setup"]["walk_depth"] == 6
+
+    deep = client.put("/crawl-setup", json=_setup_payload(walk_depth=8)).json()
+    assert deep["setup"]["walk_depth"] == 8
+
+
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -123,7 +136,8 @@ def test_put_overwrites_prior_save(client):
                 {"role": "admin", "username": "b@x.dev", "password": "p2"},
             ]
         },  # duplicate role
-        {"walk_depth": 5},
+        {"walk_depth": 1},  # below the floor (#227: range is 2–8)
+        {"walk_depth": 9},  # above the ceiling (#227)
         {"cadence": "hourly"},
     ],
 )
