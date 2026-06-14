@@ -197,8 +197,12 @@ class RenderedChange(BaseModel):
 _DEFAULT_FALLBACK_CHOICES = ("convert", "keep_browsing", "comparison_shop", "leave")
 
 # Trigger fragments that already represent abandoning the flow — used so the
-# synthetic always-available "leave" sink is not appended twice.
-_LEAVE_MARKERS = ("leave", "exit", "abandon", "close", "quit", "back")
+# synthetic always-available "leave" sink is not appended twice. Kept narrow on
+# purpose: broad fragments like "back" or "close" match ordinary in-flow
+# navigation ("back_to_cart", "close_modal"), which would suppress the leave
+# sink and understate non-conversion alternatives. When in doubt, append leave —
+# a duplicate-ish option is cheaper than omitting the abandon choice entirely.
+_LEAVE_MARKERS = ("leave", "exit", "abandon", "quit")
 
 
 class Choice(BaseModel):
@@ -392,11 +396,46 @@ def _diff_screens(current: ReverseFigma, proposed: ReverseFigma) -> list[StateCh
                 )
             )
 
-    # CHANGED screens: diff components within screens present in both.
+    # CHANGED screens: the screen's own prompt-visible fields (name/role), then
+    # its components, for screens present in both.
     for sid, prop_screen in prop_by_id.items():
         cur_screen = cur_by_id.get(sid)
         if cur_screen is not None:
+            out += _diff_one_screen(cur_screen, prop_screen)
             out += _diff_components(sid, cur_screen, prop_screen)
+    return out
+
+
+def _diff_one_screen(current: Screen, proposed: Screen) -> list[StateChange]:
+    """Diff a screen's own fields (name/role) — both are rendered by
+    `summarize_reverse_figma`, so a change is prompt-visible and must surface as
+    CHANGED rather than letting the screen read as "NOT changing"."""
+    out: list[StateChange] = []
+    sid = proposed.id
+
+    if current.name != proposed.name:
+        out.append(
+            StateChange(
+                kind="CHANGED",
+                target_type="screen",
+                target_id=sid,
+                modality="copy",
+                detail=f"screen `{sid}` — name {_q(current.name)} → {_q(proposed.name)}",
+            )
+        )
+
+    if (current.role or None) != (proposed.role or None):
+        out.append(
+            StateChange(
+                kind="CHANGED",
+                target_type="screen",
+                target_id=sid,
+                # Screen `role` is an access role (who the screen is for), so it
+                # is a mechanics change, like a component's visible_to_roles.
+                modality="mechanics",
+                detail=f"screen `{sid}` — role {_q(current.role)} → {_q(proposed.role)}",
+            )
+        )
     return out
 
 

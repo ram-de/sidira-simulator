@@ -516,3 +516,65 @@ def test_choice_set_accepts_custom_fallback() -> None:
 def test_choice_set_method_matches_module_function() -> None:
     rc = _flow_rendered()
     assert rc.choice_set("cart") == extract_choice_set(rc, "cart")
+
+
+def test_back_navigation_does_not_suppress_leave_sink() -> None:
+    """codex P2: a `back_to_cart`-style in-flow navigation is NOT an abandon
+    action, so the synthetic always-available leave sink must still be appended."""
+    figma = ReverseFigma(
+        screens=[_cart_screen()],
+        transitions=[
+            Transition(trigger="back_to_cart", from_screen="cart", to_screen="cart"),
+            Transition(trigger="checkout", from_screen="cart", to_screen="payment"),
+        ],
+    )
+    cap = _capability(figma)
+    rc = render_state_diff(
+        cap,
+        Hypothesis(capability_name="checkout", prose="x", proposed_figma=cap.reverse_figma),
+    )
+    actions = [c.action for c in rc.choice_set("cart").choices]
+    assert "back_to_cart" in actions
+    assert "leave" in actions  # not suppressed by the "back" substring
+
+
+# ── screen-level field changes (codex P2) ───────────────────────────────────
+
+
+def test_screen_name_change_is_a_copy_change_and_not_unchanged() -> None:
+    """codex P2: a screen `name` change is prompt-visible (summarize renders it),
+    so it must surface as CHANGED and the screen must NOT read as NOT-changing."""
+    current = ReverseFigma(screens=[_cart_screen(), _account_screen()])
+    proposed = ReverseFigma(
+        screens=[
+            Screen(id="cart", name="Your Basket", components=_cart_screen().components),
+            _account_screen(),
+        ]
+    )
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(capability_name="checkout", prose="Rename Cart→Basket", proposed_figma=proposed),
+    )
+    changed = _by_kind_target(rc, "CHANGED", "cart")
+    assert len(changed) == 1
+    assert changed[0].modality == "copy"
+    assert changed[0].target_type == "screen"
+    assert "Cart" in changed[0].detail and "Your Basket" in changed[0].detail
+    assert "screen `cart`" not in rc.not_changing
+
+
+def test_screen_role_change_is_a_mechanics_change() -> None:
+    current = ReverseFigma(screens=[Screen(id="cart", name="Cart", role="guest")])
+    proposed = ReverseFigma(screens=[Screen(id="cart", name="Cart", role="member")])
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Gate the cart to members",
+            proposed_figma=proposed,
+        ),
+    )
+    changed = _by_kind_target(rc, "CHANGED", "cart")
+    assert len(changed) == 1
+    assert changed[0].modality == "mechanics"
+    assert "guest" in changed[0].detail and "member" in changed[0].detail
