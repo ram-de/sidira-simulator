@@ -9,8 +9,8 @@
 //
 // Honest data sources only:
 //   · Feature pack   — GET /capabilities (manifest: version, generated_at,
-//     capability names, crawl metadata). Per-capability reverse PRDs exist
-//     in the pack but no endpoint exposes them yet, so cards say so.
+//     capability names, crawl metadata). Each capability card links to its
+//     reverse PRD + reverse-Figma record via GET /capabilities/{name} (#207).
 //   · Persona packs  — GET /personas (active pack version + personas).
 //     GET /persona-packs is still a stub upstream, so only the active pack
 //     renders; drafts aren't listable yet.
@@ -274,10 +274,9 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
                   ["Artifacts", "REVERSE PRD + REVERSE FIGMA"],
                 ]}
               />
-              <CardNote>
-                The reverse PRD and reverse-Figma spec live in the pack; they aren&apos;t
-                browsable from the Library yet.
-              </CardNote>
+              <CardLink href={`/personas/capability/${encodeURIComponent(name)}`}>
+                OPEN CAPABILITY →
+              </CardLink>
             </Card>
           ))}
         <Card ghost>

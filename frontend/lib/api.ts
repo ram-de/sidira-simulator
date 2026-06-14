@@ -12,6 +12,32 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 // ── Re-exported schema types for page imports ──────────────────────────
 
 export type FeaturePackManifest = components["schemas"]["FeaturePackManifest"];
+export type ReverseFigma = components["schemas"]["ReverseFigma"];
+export type Screen = components["schemas"]["Screen"];
+export type FigmaComponent = components["schemas"]["Component"];
+export type Transition = components["schemas"]["Transition"];
+// The single-capability schema isn't in the committed generated types — the
+// checked-in api-types.ts predates several backend endpoints (the crawl routes
+// are hand-typed here too, see CrawlCapability below). Mirror the backend
+// Capability model from its generated sub-schemas; collapse to
+// components["schemas"]["Capability"] whenever api-types.ts is regenerated.
+export type Capability = {
+  name: string;
+  surfaces: string[];
+  roles: string[];
+  entry_points: string[];
+  reverse_prd: string;
+  reverse_figma: ReverseFigma;
+  implicit_metric?: string | null;
+};
+// The capability detail read wraps the capability in its pack provenance so the
+// record header's snapshot + capture timestamp come from the SAME read that
+// served the body (no second `latest` lookup that could race a crawl publish).
+export type CapabilityRecord = {
+  snapshot_version: string;
+  generated_at: string;
+  capability: Capability;
+};
 export type PersonaSummary = components["schemas"]["PersonaSummary"];
 export type ActivePersonasResponse = components["schemas"]["ActivePersonasResponse"];
 export type Hypothesis = components["schemas"]["Hypothesis"];
@@ -84,6 +110,9 @@ export const apiPut = <T, U>(path: string, body: T) =>
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
 export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities");
+
+export const getCapability = (name: string) =>
+  apiGet<CapabilityRecord>(`/capabilities/${encodeURIComponent(name)}`);
 
 export const listSupportedModels = () =>
   apiGet<ListModelsResponse>("/models");
