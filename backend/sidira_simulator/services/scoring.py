@@ -14,6 +14,7 @@ import asyncio
 import random
 import secrets
 from collections import Counter
+from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 import structlog
@@ -48,6 +49,14 @@ class AgentReaction:
     `sample_index` + `arm` (Phase 4.6 #90): both default-safe for single-arm
     callers. The pair (persona_id, sample_index) is the lift formula's
     matching key; `arm` partitions the population at the score step.
+
+    `reaction_distribution` (#221 hierarchical scoring): the agent's full
+    elicited reaction distribution as (text, probability) pairs, when the run
+    used verbalized sampling (`samples > 1`). `reaction_text` always carries
+    the modal (highest-probability) reaction — the frozen identity reaction —
+    so a None/single-entry distribution leaves the historical path untouched.
+    When present and >1 entry, `score()` classifies every reaction and feeds a
+    hierarchical bootstrap that propagates within-agent variance into the CI.
     """
 
     __slots__ = (
@@ -57,6 +66,7 @@ class AgentReaction:
         "reaction_text",
         "sample_index",
         "arm",
+        "reaction_distribution",
     )
 
     def __init__(
@@ -68,6 +78,7 @@ class AgentReaction:
         reaction_text: str,
         sample_index: int = 0,
         arm: str | None = None,
+        reaction_distribution: list[tuple[str, float]] | None = None,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -75,6 +86,44 @@ class AgentReaction:
         self.reaction_text = reaction_text
         self.sample_index = sample_index
         self.arm = arm
+        self.reaction_distribution = reaction_distribution
+
+
+# ─── Per-agent classified reaction distribution (#221) ──────────────────
+
+
+@dataclass
+class _AnalysisGroup:
+    """One agent's classified reaction distribution (#221 hierarchical scoring).
+
+    `modal` is the analysis of the agent's modal (highest-probability)
+    reaction — the canonical row used for the point estimate, the per-agent
+    table, and the frozen-identity contract. `distribution` pairs every
+    classified reaction with its probability weight (≥1 entry; for the
+    k=1 / off path it is just ``[(modal, 1.0)]``). The hierarchical bootstrap
+    draws within `distribution`; everything else reads `modal`.
+    """
+
+    modal: AgentAnalysis
+    distribution: list[tuple[AgentAnalysis, float]]
+
+
+def _draw_within_agent(
+    group: Sequence[tuple[AgentAnalysis, float]],
+    rng: random.Random,
+) -> AgentAnalysis:
+    """Draw one classified reaction from an agent's elicited distribution.
+
+    `group` is a non-empty list of (analysis, probability) for a single agent —
+    one entry per verbalized-sampling reaction (#221). The draw is weighted by
+    probability so likelier reactions dominate, mirroring the normalized weights
+    on `ReactionDistribution`. A single-entry group returns its sole analysis
+    without touching the RNG (the k=1 / off path within a mixed run).
+    """
+    if len(group) == 1:
+        return group[0][0]
+    analyses, weights = zip(*group)
+    return rng.choices(analyses, weights=weights, k=1)[0]
 
 
 # ─── Prompt templates ──────────────────────────────────────────────────
@@ -393,6 +442,48 @@ class ScoringService:
 
     # — Pack-level scoring ——————————————————————————————————————————
 
+    async def _analyze_group(
+        self, hypothesis: Hypothesis, reaction: AgentReaction
+    ) -> _AnalysisGroup:
+        """Classify an agent's reaction(s) into an `_AnalysisGroup` (#221).
+
+        Default / off path (no distribution, or a single sample): one
+        `analyze()` call, exactly as before — the group degenerates to
+        ``[(analysis, 1.0)]`` and the modal IS that analysis.
+
+        Distribution path (`samples > 1`): classify EVERY elicited reaction
+        (weakness + sentiment per sample, fanned out concurrently), then pair
+        each analysis with its sample probability. The modal analysis is the
+        one for the highest-probability sample (ties → first), matching
+        `ReactionDistribution.modal` and the frozen `initial_reaction`, so the
+        point estimate and per-agent table are identical to the modal-only run.
+        """
+        dist = reaction.reaction_distribution
+        if not dist or len(dist) <= 1:
+            analysis = await self.analyze(hypothesis, reaction)
+            return _AnalysisGroup(modal=analysis, distribution=[(analysis, 1.0)])
+
+        sub_reactions = [
+            AgentReaction(
+                agent_id=reaction.agent_id,
+                persona_id=reaction.persona_id,
+                persona_name=reaction.persona_name,
+                reaction_text=text,
+                sample_index=reaction.sample_index,
+                arm=reaction.arm,
+            )
+            for text, _weight in dist
+        ]
+        analyses = await asyncio.gather(
+            *(self.analyze(hypothesis, sub) for sub in sub_reactions),
+            return_exceptions=False,
+        )
+        paired = [(analysis, weight) for analysis, (_text, weight) in zip(analyses, dist)]
+        # max() is stable on ties → first occurrence wins, matching
+        # ReactionDistribution.modal (and therefore the frozen reaction_text).
+        modal = max(paired, key=lambda pair: pair[1])[0]
+        return _AnalysisGroup(modal=modal, distribution=paired)
+
     async def score(
         self,
         hypothesis: Hypothesis,
@@ -406,6 +497,13 @@ class ScoringService:
         `run_seed` makes the bootstrap CI on confidence_score deterministic
         when the caller wants reproducibility. `config` lets the caller swap
         in a `ScoringConfig(bootstrap_resamples=0)` to skip the CI.
+
+        #221 hierarchical scoring: when any reaction carries a multi-sample
+        `reaction_distribution`, every elicited reaction is classified and the
+        per-agent distributions feed a hierarchical bootstrap so the CI
+        reflects within-agent variance. The headline `confidence_score` (and
+        the returned per-agent `analyses`) still come from the modal reactions,
+        so the default/off path (no distribution) is byte-identical to before.
         """
         if not reactions:
             return (
@@ -422,12 +520,21 @@ class ScoringService:
                 [],
             )
 
-        analyses = await asyncio.gather(
-            *(self.analyze(hypothesis, r) for r in reactions),
+        groups = await asyncio.gather(
+            *(self._analyze_group(hypothesis, r) for r in reactions),
             return_exceptions=False,
         )
-        result = self.aggregate(analyses, config, run_seed=run_seed)
-        return result, analyses
+        modal_analyses = [g.modal for g in groups]
+        if any(len(g.distribution) > 1 for g in groups):
+            result = self.aggregate(
+                modal_analyses,
+                config,
+                run_seed=run_seed,
+                agent_distributions=[g.distribution for g in groups],
+            )
+        else:
+            result = self.aggregate(modal_analyses, config, run_seed=run_seed)
+        return result, modal_analyses
 
     # — Aggregation (pure function, no LLM) ————————————————————————————
 
@@ -491,6 +598,7 @@ class ScoringService:
         config: ScoringConfig | None = None,
         *,
         run_seed: int | None = None,
+        agent_distributions: Sequence[Sequence[tuple[AgentAnalysis, float]]] | None = None,
     ) -> SimulationResult:
         """Aggregate per-agent analyses into a SimulationResult.
 
@@ -505,6 +613,16 @@ class ScoringService:
 
         Underpowered gate: if N < config.min_sample_size, prepend an
         `underpowered_design` weakness so the PM sees the limitation.
+
+        `agent_distributions` (#221 hierarchical scoring, optional): per-agent
+        lists of (analysis, probability) aligned 1:1 with `analyses` (each
+        agent's modal analysis is the matching `analyses` entry). When provided
+        and at least one agent has >1 reaction, the confidence_score CI is
+        computed by a two-level bootstrap (resample agents, then draw a
+        reaction within each) so it reflects within-agent variance. The point
+        estimate, weakness surface, and gates always read the modal `analyses`,
+        so passing None (or all single-entry distributions) is byte-identical
+        to the historical flat bootstrap.
         """
         cfg = config or ScoringConfig()
         analyses_list = list(analyses)
@@ -552,12 +670,46 @@ class ScoringService:
                 run_seed if run_seed is not None else secrets.randbits(53)
             ) ^ _BOOTSTRAP_SEED_MIX
             rng = random.Random(effective_seed)
-            ci_low, ci_high = bootstrap_percentile_ci(
-                analyses_list,
-                lambda resample: cls._compute_score(resample, cfg)[0],
-                n_resamples=cfg.bootstrap_resamples,
-                rng=rng,
+            # #221 hierarchical scoring: when per-agent reaction distributions
+            # are supplied (and at least one agent has >1 reaction), run a
+            # two-level bootstrap — resample agents with replacement AND draw
+            # one classified reaction within each, weighted by sample
+            # probability. This folds WITHIN-agent variance (the
+            # verbalized-sampling spread) into the CI on top of the
+            # BETWEEN-agent variance the flat bootstrap already captures, so
+            # the interval stops being "precisely wrong" around a single
+            # collapsed reaction per agent. The point estimate (`confidence`)
+            # is untouched: it reads the modal analyses, preserving the
+            # frozen-identity headline. Falls back to the historical flat
+            # bootstrap when no distributions are present, so the default path
+            # is byte-identical.
+            use_hierarchical = (
+                agent_distributions is not None
+                and len(agent_distributions) == n
+                and any(len(group) > 1 for group in agent_distributions)
             )
+            if use_hierarchical:
+                groups = [list(group) for group in agent_distributions]
+
+                def _hierarchical_statistic(
+                    resampled_groups: Sequence[Sequence[tuple[AgentAnalysis, float]]],
+                ) -> float:
+                    drawn = [_draw_within_agent(group, rng) for group in resampled_groups]
+                    return cls._compute_score(drawn, cfg)[0]
+
+                ci_low, ci_high = bootstrap_percentile_ci(
+                    groups,
+                    _hierarchical_statistic,
+                    n_resamples=cfg.bootstrap_resamples,
+                    rng=rng,
+                )
+            else:
+                ci_low, ci_high = bootstrap_percentile_ci(
+                    analyses_list,
+                    lambda resample: cls._compute_score(resample, cfg)[0],
+                    n_resamples=cfg.bootstrap_resamples,
+                    rng=rng,
+                )
             # Apply the degradation discount to the CI bounds too so the
             # interval shifts down with the point estimate — otherwise the
             # CI would bracket the raw score, not the displayed one.

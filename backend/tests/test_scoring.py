@@ -712,3 +712,201 @@ async def test_score_with_no_reactions_returns_underpowered_design() -> None:
     assert result.confidence_score == 0.0
     assert result.weaknesses[0].category == "underpowered_design"
     assert analyses == []
+
+
+# ── #221 hierarchical bootstrap (within-agent variance) ───────────────
+
+
+_HIER_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=400)
+
+
+def _uniform_distribution(
+    *sentiments: Sentiment,
+    agent_id: str = "a",
+) -> list[tuple[AgentAnalysis, float]]:
+    """An agent's classified reaction distribution with equal weights."""
+    return [
+        (_analysis(f"{agent_id}-s{i}", s, confidence=1.0), 1.0) for i, s in enumerate(sentiments)
+    ]
+
+
+def test_hierarchical_bootstrap_widens_ci_vs_flat() -> None:
+    """Same modal analyses, but with within-agent variance the hierarchical
+    bootstrap must produce a strictly wider CI than the flat one.
+
+    Modal list is homogeneous (all POSITIVE), so the flat bootstrap resamples
+    identical points → degenerate, near-zero-width CI. Each agent's
+    distribution spans POSITIVE↔NEGATIVE, so the hierarchical draw injects
+    real within-agent variance → a genuinely wide interval."""
+    n = 12
+    modal_analyses = [_analysis(f"a{i}", Sentiment.POSITIVE, confidence=1.0) for i in range(n)]
+    agent_distributions = [
+        [
+            (modal_analyses[i], 1.0),
+            (_analysis(f"a{i}-alt", Sentiment.NEGATIVE, confidence=1.0), 1.0),
+        ]
+        for i in range(n)
+    ]
+
+    flat = ScoringService.aggregate(modal_analyses, _HIER_CFG, run_seed=99)
+    hier = ScoringService.aggregate(
+        modal_analyses, _HIER_CFG, run_seed=99, agent_distributions=agent_distributions
+    )
+
+    assert flat.confidence_score_ci is not None
+    assert hier.confidence_score_ci is not None
+    flat_width = flat.confidence_score_ci[1] - flat.confidence_score_ci[0]
+    hier_width = hier.confidence_score_ci[1] - hier.confidence_score_ci[0]
+    assert hier_width > flat_width
+    # The widened CI still brackets the (unchanged) point estimate.
+    assert hier.confidence_score_ci[0] <= hier.confidence_score <= hier.confidence_score_ci[1]
+
+
+def test_hierarchical_point_estimate_matches_modal_only() -> None:
+    """The headline confidence_score reads the modal analyses only — supplying
+    distributions must NOT move the point estimate (frozen-identity contract)."""
+    n = 8
+    modal_analyses = [_analysis(f"a{i}", Sentiment.POSITIVE, confidence=0.9) for i in range(n)]
+    agent_distributions = [
+        [
+            (modal_analyses[i], 0.7),
+            (_analysis(f"a{i}-alt", Sentiment.NEGATIVE, confidence=0.9), 0.3),
+        ]
+        for i in range(n)
+    ]
+    flat = ScoringService.aggregate(modal_analyses, _HIER_CFG, run_seed=5)
+    hier = ScoringService.aggregate(
+        modal_analyses, _HIER_CFG, run_seed=5, agent_distributions=agent_distributions
+    )
+    assert hier.confidence_score == flat.confidence_score
+
+
+def test_hierarchical_falls_back_to_flat_when_all_single_entry() -> None:
+    """All-single-entry distributions carry no within-agent variance, so the
+    result must be byte-identical to the flat path (same seed) — the default
+    off-state when samples=1."""
+    analyses = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(6)] + [
+        _analysis(f"n{i}", Sentiment.NEGATIVE, categories=["wrong_metric"]) for i in range(6)
+    ]
+    singletons = [[(a, 1.0)] for a in analyses]
+    flat = ScoringService.aggregate(analyses, _HIER_CFG, run_seed=321)
+    with_singletons = ScoringService.aggregate(
+        analyses, _HIER_CFG, run_seed=321, agent_distributions=singletons
+    )
+    assert with_singletons.confidence_score_ci == flat.confidence_score_ci
+
+
+def test_hierarchical_length_mismatch_falls_back_to_flat() -> None:
+    """Defensive: distributions misaligned with analyses (wrong length) must
+    fall back to the flat bootstrap rather than silently scoring a subset."""
+    analyses = [_analysis(f"p{i}", Sentiment.POSITIVE) for i in range(5)]
+    truncated = [
+        [(analyses[0], 0.5), (_analysis("x", Sentiment.NEGATIVE), 0.5)]
+    ]  # len 1 != len(analyses)=5
+    flat = ScoringService.aggregate(analyses, _HIER_CFG, run_seed=11)
+    mismatched = ScoringService.aggregate(
+        analyses, _HIER_CFG, run_seed=11, agent_distributions=truncated
+    )
+    assert mismatched.confidence_score_ci == flat.confidence_score_ci
+
+
+def test_hierarchical_deterministic_with_run_seed() -> None:
+    """Same data + seed → identical hierarchical CI across runs."""
+    n = 10
+    modal_analyses = [_analysis(f"a{i}", Sentiment.POSITIVE, confidence=1.0) for i in range(n)]
+    agent_distributions = [
+        [
+            (modal_analyses[i], 0.6),
+            (_analysis(f"a{i}-alt", Sentiment.NEGATIVE, confidence=1.0), 0.4),
+        ]
+        for i in range(n)
+    ]
+    r1 = ScoringService.aggregate(
+        modal_analyses, _HIER_CFG, run_seed=777, agent_distributions=agent_distributions
+    )
+    r2 = ScoringService.aggregate(
+        modal_analyses, _HIER_CFG, run_seed=777, agent_distributions=agent_distributions
+    )
+    assert r1.confidence_score_ci == r2.confidence_score_ci
+    assert r1.confidence_score_ci[1] > r1.confidence_score_ci[0]
+
+
+class _DistributionStub:
+    """Stub ChatClient that classifies sentiment by keyword in the reaction.
+
+    Records every reaction text it sees in a sentiment call so a test can
+    assert the scorer classified EVERY sample of a distribution, not just the
+    modal one. Weakness classification is always empty.
+    """
+
+    def __init__(self) -> None:
+        self.sentiment_reactions: list[str] = []
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        content = messages[-1]["content"]
+        if schema is WeaknessClassification:
+            return WeaknessClassification(categories=[], primary_reason="")
+        reaction = content.split("User's reaction:\n", 1)[-1]
+        self.sentiment_reactions.append(reaction)
+        sentiment = Sentiment.POSITIVE if "happy" in reaction else Sentiment.NEGATIVE
+        return SentimentClassification(sentiment=sentiment, confidence=1.0, one_line_summary="")
+
+    def chat(self, *a, **k):  # pragma: no cover - distribution path uses chat_json
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_score_classifies_every_sample_and_scores_off_modal() -> None:
+    """End-to-end: an agent carrying a multi-sample distribution gets every
+    reaction classified, the point estimate is taken off the modal
+    (highest-probability) reaction, and a CI is produced."""
+    stub = _DistributionStub()
+    svc = ScoringService(chat_client=stub)
+    reaction = AgentReaction(
+        agent_id="a0",
+        persona_id="p0",
+        persona_name="P0",
+        reaction_text="happy take",  # the modal/frozen reaction
+        reaction_distribution=[("happy take", 0.7), ("angry take", 0.3)],
+    )
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=200)
+    result, analyses = await svc.score(
+        Hypothesis(capability_name="reorder", prose="test"),
+        [reaction],
+        run_seed=1,
+        config=cfg,
+    )
+
+    # Both reactions classified (not just the modal).
+    assert set(stub.sentiment_reactions) == {"happy take", "angry take"}
+    # One modal row per agent returned; modal = the POSITIVE (highest-prob) take.
+    assert len(analyses) == 1
+    assert analyses[0].sentiment.sentiment is Sentiment.POSITIVE
+    # Point estimate matches the modal-only aggregate; CI is populated.
+    modal_only = ScoringService.aggregate([analyses[0]], cfg, run_seed=1)
+    assert result.confidence_score == modal_only.confidence_score
+    assert result.confidence_score_ci is not None
+
+
+@pytest.mark.asyncio
+async def test_score_single_sample_distribution_takes_flat_path() -> None:
+    """A single-entry distribution (samples=1) must leave the historical path
+    intact — only one classification per agent, modal == that reaction."""
+    stub = _DistributionStub()
+    svc = ScoringService(chat_client=stub)
+    reaction = AgentReaction(
+        agent_id="a0",
+        persona_id="p0",
+        persona_name="P0",
+        reaction_text="happy take",
+        reaction_distribution=[("happy take", 1.0)],
+    )
+    cfg = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
+    result, analyses = await svc.score(
+        Hypothesis(capability_name="reorder", prose="test"),
+        [reaction],
+        config=cfg,
+    )
+    assert stub.sentiment_reactions == ["happy take"]
+    assert len(analyses) == 1
+    assert result.confidence_score_ci is None

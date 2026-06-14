@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
 
@@ -78,6 +78,13 @@ class AgentRecord:
     # (persona_id, sample_index) across arms; this field tells the matcher
     # which side of the comparison each record belongs to.
     arm: str | None = None
+    # #221 hierarchical scoring: the agent's full elicited reaction
+    # distribution as (text, probability) pairs. Populated from
+    # `ReactionDistribution.samples`; at the default samples=1 it is a single
+    # entry whose text equals `reaction_text` (the modal/frozen reaction), so
+    # the scorer's hierarchical path stays dormant. With samples>1 the scorer
+    # classifies every reaction and folds within-agent variance into the CI.
+    reaction_distribution: list[tuple[str, float]] = field(default_factory=list)
 
 
 class _LazyModelChatClient:
@@ -486,6 +493,7 @@ class SimulationRunner:
                 reaction_text=initial_reaction,
                 sample_index=sample_index,
                 arm=arm,
+                reaction_distribution=[(s.text, s.probability) for s in distribution.samples],
             )
 
     async def _score(
@@ -532,6 +540,7 @@ class SimulationRunner:
                 reaction_text=r.reaction_text,
                 sample_index=r.sample_index,
                 arm=r.arm,
+                reaction_distribution=r.reaction_distribution or None,
             )
             for r in agent_records
         ]
@@ -542,6 +551,13 @@ class SimulationRunner:
         # through to the existing `score()` path unchanged.
         is_ab_mode = any(r.arm is not None for r in reactions)
         if is_ab_mode:
+            # #221 (deferred slice): the A/B path does NOT yet consume
+            # `reaction_distribution`. `score_ab()` → `analyze()` reads only
+            # `reaction_text` (the modal/frozen reaction), so multi-sample A/B
+            # runs keep modal-only per-arm CIs and lift — byte-identical to
+            # pre-#221 behavior. Hierarchical CIs for the paired-lift bootstrap
+            # are tracked as a follow-up; the single-arm `score()` path below is
+            # the only consumer of within-agent variance in this slice.
             treatment_reactions = [r for r in reactions if r.arm == "treatment"]
             control_reactions = [r for r in reactions if r.arm == "control"]
             result, analyses = await scoring.score_ab(
