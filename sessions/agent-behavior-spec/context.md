@@ -12,10 +12,11 @@ owner: ram-de
 Specify how an agent's full context is assembled and how it behaves — prompt templates, the feature-pack + persona-pack + individual-row merge, the treatment-rendering layer, the ablation protocol, per-modality handling, and multi-turn chat consistency — so the adopted "Now" tickets (#7/#221/#222) have a concrete spec to build against, format-identical between benchmark harness and production.
 
 ## In Progress
-- [ ] Scope the spec sections and decide drafting order (recommend: treatment-rendering layer first — it's shared infra built once in the harness)
+- [ ] §1 treatment-rendering layer + §3a conversion question — draft v1 of both written; 3 open Qs each, recommendations attached, none blocking (defaults chosen). Founder review when convenient.
 
 ## Completed
-(nothing yet)
+- [x] **§1 treatment-rendering layer, draft v1** (2026-06-13) → `treatment-rendering-layer.md`: audited `prompt_composer.py` in code → 3 confirmed gaps (`proposed_figma` dropped entirely; no explicit diff/"held-fixed"; control vs treatment differ in representation density, not just content). Spec = typed structural state-diff (ADDED/REMOVED/CHANGED/MOVED + mandatory "NOT changing" block) rendered symmetrically across arms, per-modality table tied to reliability regimes, format-identical via an archive→`Hypothesis` adapter at the edge. Resolves §3a Q3 (choice-set = transitions reachable from `decision_point`).
+- [x] **§3a conversion question, draft v1** (2026-06-13) → `elicitation-conversion.md`: agent-side in-character elicitation (turn 2 after the free-text reaction), forced 10-trial allocation across realistic alternatives (verbalized sampling, counters acquiescence/hyper-rationality/mode-collapse), `p_conv` derived per arm, scored as paired delta (reuses #90 bootstrap, cancels uncalibrated absolute level), reported in pp but directional/relative until #222. 3 open Qs resolved to reversible v1 defaults.
 
 ## Next Steps
 1. **Treatment-rendering layer** (the newly named component, analysis §6.2): (existing state, proposed change) → exact text/image context an agent reads. Diff representation (what changed / what is explicitly held fixed), per-modality handling (copy vs UI screenshot vs pricing/mechanics). MUST be format-identical between Tier-0 benchmark inputs and customer PRDs — build once, in the harness (#222), first.
@@ -27,6 +28,8 @@ Specify how an agent's full context is assembled and how it behaves — prompt t
 6. Define OEC-aligned scoring input: simulate against the customer's OEC definition from the feature pack, not generic sentiment (analysis §4.4 Q11 — a real product gap today).
 
 ## Key Files
+- `sessions/agent-behavior-spec/treatment-rendering-layer.md` — §1 deliverable: code audit of `prompt_composer.py`, the 3 gaps, the typed state-diff representation, per-modality handling, benchmark↔prod format contract, build order
+- `sessions/agent-behavior-spec/elicitation-conversion.md` — §3a deliverable: the conversion question (prompt text, output schema, aggregation contract, design rationale, open Qs)
 - `sessions/persona-classifier-research/analysis.md` — parent research (§3.2 conditioning, §3.3 elicitation, §6.2 treatment-rendering gap)
 - `sessions/persona-classifier-research/qa-founder-clarifications.md` — §5 agent chat verdict, §7/§8 what's deliberately deferred to THIS spec
 - Tickets this spec feeds: ram-de/sidira-personas#7 (A), ram-de/sidira-simulator#221 (B), ram-de/sidira-simulator#222 (C)
