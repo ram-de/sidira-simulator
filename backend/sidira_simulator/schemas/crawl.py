@@ -9,11 +9,21 @@ GENERATED, NEVER AUTHORED (the as-built pack is the control arm).
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, field_validator
+
+# A capability name is a slug: it becomes both a URL path segment (the Library's
+# /personas/capability/<name> detail route, #207) and an artifact storage path
+# segment (customers/<id>/featurepacks/<v>/capabilities/<name>/...). Restricting
+# it to URL- and path-safe characters keeps single-segment routing and key
+# construction unambiguous — a name with `/` would split into a nested path that
+# neither the route nor the store round-trips. Matches every crawler-emitted
+# name (e.g. reorder, account_plan, browse-recommendations).
+_CAPABILITY_SLUG_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _require_http_url(value: str, label: str) -> str:
@@ -35,7 +45,11 @@ def _require_http_url(value: str, label: str) -> str:
 class CrawlCapability(BaseModel):
     """One priority capability the walker documents (reverse-PRD + reverse-Figma)."""
 
-    name: str = Field(min_length=1, max_length=64, description="Capability slug, e.g. onboarding-checklist")
+    name: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Capability slug (letters, digits, '-', '_'), e.g. onboarding-checklist",
+    )
     entry_urls: list[str] = Field(
         min_length=1,
         max_length=3,
@@ -48,6 +62,11 @@ class CrawlCapability(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("capability name must be non-empty")
+        if not _CAPABILITY_SLUG_RE.match(v):
+            raise ValueError(
+                "capability name must be a slug — letters, digits, '-' or '_' only "
+                "(no spaces, slashes, or other punctuation)"
+            )
         return v
 
     @field_validator("entry_urls")

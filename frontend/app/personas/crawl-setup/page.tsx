@@ -52,6 +52,13 @@ const emptyCapability = (): CapabilityDraft => ({ name: "", urls: [""] });
 
 const isHttpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
 
+// A capability name becomes both a URL path segment (the Library's
+// /personas/capability/<name> detail route) and an artifact storage path
+// segment, so it must be a slug. Mirror the backend's _CAPABILITY_SLUG_RE
+// (schemas/crawl.py) here so a bad name is caught before save instead of
+// bouncing back as a raw 422 after the user re-enters passwords.
+const isCapabilitySlug = (value: string) => /^[A-Za-z0-9_-]+$/.test(value.trim());
+
 function validate(
   caps: CapabilityDraft[],
   sandboxUrl: string,
@@ -60,6 +67,8 @@ function validate(
   if (caps.length === 0) return "Name at least one capability to crawl.";
   for (const cap of caps) {
     if (!cap.name.trim()) return "Every capability needs a name.";
+    if (!isCapabilitySlug(cap.name))
+      return `Capability "${cap.name.trim()}" must be a slug — letters, digits, "-" or "_" only (no spaces, slashes, or other punctuation).`;
     const urls = cap.urls.map((u) => u.trim()).filter(Boolean);
     if (urls.length === 0)
       return `Capability "${cap.name.trim()}" needs at least one entry URL.`;
@@ -430,8 +439,9 @@ export default function CrawlSetupPage() {
                   </AddButton>
                 )}
                 <div style={hintStyle}>
-                  5–10 priority capabilities by name — the walker writes a reverse
-                  PRD and reverse-Figma spec for each.
+                  5–10 priority capabilities, each named as a slug — letters,
+                  digits, “-” or “_” (e.g. onboarding-checklist). The walker
+                  writes a reverse PRD and reverse-Figma spec for each.
                 </div>
               </section>
 

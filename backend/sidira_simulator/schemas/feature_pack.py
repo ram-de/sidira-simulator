@@ -61,3 +61,18 @@ class FeaturePackManifest(BaseModel):
     schema_version: Literal["1.0"] = "1.0"
     capabilities: list[str]
     crawl_metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class CapabilityRecord(BaseModel):
+    """A single capability plus the provenance of the pack it was read from.
+
+    Carries the snapshot version and capture timestamp alongside the capability
+    so the Library's record header (#207, DESIGN.md §7.6) is sourced from the
+    SAME read that served the body. The pack provenance and the capability are
+    both pinned to one `snapshot_version`, so a crawl that flips the `latest`
+    pointer mid-request can't label a record with a different snapshot's date.
+    """
+
+    snapshot_version: str
+    generated_at: datetime
+    capability: Capability
