@@ -4,12 +4,23 @@ This is called ONCE per agent, at simulation time. The output is persisted to
 R2 as `identity.md` and is never recomputed. See the identity-continuity
 guarantee in sidira_simulator/memory/agent_memory.py.
 
-Phase 4.6 #89 adds the `arm` parameter to support A/B mode. The treatment-arm
-prompt is unchanged from the single-arm/pre-4.6 shape. The control-arm prompt
-drops the proposed-change section and replaces the task framing with a
+Phase 4.6 #89 adds the `arm` parameter to support A/B mode. The control-arm
+prompt drops the proposed-change section and replaces the task framing with a
 status-quo reaction prompt. Both arms share the persona/identity_seed/
 behavioral_snapshot/product-today preamble AND the #77 opener guidance
 (identity-grounded openers + the anti-polite-hedge template list).
+
+agent-behavior-spec §1 wiring (#221/#222): the treatment arm no longer hand-
+formats the proposed change as prose. It runs the deterministic treatment
+renderer (`render_state_diff`) and embeds its unblinded `state_plus_diff_view`
+— a typed changelog plus the mandatory "Explicitly NOT changing" guard, the
+cheapest single defense against the inference-confabulation gap (spec §2). This
+is the SAME renderer the Tier-0 benchmark (#222) consumes, so the production
+agent and the benchmark see byte-identical change framing. Prose-only changes
+(no `proposed_figma`) route through the renderer too, so they still get the
+NOT-changing guard. The preamble and the #77 opener guidance are unchanged, so
+the #90 pairing invariant (treatment and control differ only in task framing)
+holds.
 """
 
 from __future__ import annotations
@@ -20,6 +31,7 @@ from sidira_simulator.schemas.feature_pack import Capability
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.treatment_renderer import render_state_diff
 
 Arm = Literal["treatment", "control"]
 
@@ -57,14 +69,13 @@ this reality.
 """
 
 
-# Treatment-arm task: react to the PROPOSED change. Unchanged from pre-4.6.
-_TREATMENT_TASK_BLOCK = """## The proposed change
-
-The product team is considering this change:
-
-{hypothesis_prose}
-
-{proposed_prd_section}
+# Treatment-arm task: react to the PROPOSED change. The change framing
+# ({change_view}) is produced by the deterministic treatment renderer
+# (services.treatment_renderer.RenderedChange.state_plus_diff_view) — a typed
+# changelog plus the mandatory "Explicitly NOT changing" guard — NOT hand-built
+# prose. The renderer owns the "## What's changing" header and the NOT-changing
+# block; this template only supplies the surrounding task framing + #77 openers.
+_TREATMENT_TASK_BLOCK = """{change_view}
 
 ## Your task
 
@@ -185,12 +196,15 @@ def compose_identity_prompt(
     )
 
     if arm == "treatment":
-        proposed_prd_section = (
-            f"### Proposed PRD\n\n{hypothesis.proposed_prd}" if hypothesis.proposed_prd else ""
-        )
+        # agent-behavior-spec §1: render the proposed change deterministically
+        # (typed changelog + mandatory NOT-changing guard) instead of hand-
+        # formatting prose. Same renderer the Tier-0 benchmark (#222) consumes,
+        # so production and benchmark see byte-identical change framing. The
+        # unblinded state_plus_diff_view is correct here: this is the "react to
+        # the change / why" task, not the blinded metric-elicitation path (#221).
+        rendered = render_state_diff(capability, hypothesis)
         task_block = _TREATMENT_TASK_BLOCK.format(
-            hypothesis_prose=hypothesis.prose,
-            proposed_prd_section=proposed_prd_section,
+            change_view=rendered.state_plus_diff_view(),
         )
     else:  # arm == "control"
         task_block = _CONTROL_TASK_BLOCK.format(
