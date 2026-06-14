@@ -23,6 +23,12 @@ def _require_http_url(value: str, label: str) -> str:
     # could never navigate it, so reject at the API boundary (codex P2).
     if parts.scheme not in ("http", "https") or not parts.netloc:
         raise ValueError(f"{label} must be an http(s) URL with a host")
+    # Embedded userinfo (user:pass@host) would be serialized into config_json
+    # and cross the workflow_dispatch boundary, leaking login secrets into the
+    # crawler repo/run metadata despite the payload being secret-free (codex P2,
+    # #206). Reject it at the API boundary.
+    if parts.username or parts.password:
+        raise ValueError(f"{label} must not embed credentials (user:pass@host)")
     return value
 
 
@@ -77,6 +83,32 @@ class CrawlSetup(BaseModel):
     @classmethod
     def _validate_sandbox(cls, v: str) -> str:
         return _require_http_url(v, "sandbox url")
+
+    def dispatch_payload(self, product_id: str = "default") -> dict:
+        """The non-secret projection sent to the crawler via workflow_dispatch
+        (#206 Slice A). This is the ONE place that decides what crosses the
+        dispatch boundary — keep it secret-free.
+
+        Login credentials (the per-role username + the password that Slice C
+        adds to CrawlRoleCredential) are deliberately excluded: the crawler
+        pulls them at run start from an authenticated backend endpoint, never
+        from this payload. Only role *names* travel here, so the crawler knows
+        which logins to request.
+
+        ``product_id`` is forward-compat for the product-as-sub-entity model
+        (#215): it namespaces the R2 pack path. Defaults to "default" until a
+        customer has more than one product.
+        """
+        return {
+            "product_id": product_id,
+            "sandbox_url": self.sandbox_url,
+            "walk_depth": self.walk_depth,
+            "cadence": self.cadence,
+            "capabilities": [
+                {"name": c.name, "entry_urls": list(c.entry_urls)} for c in self.capabilities
+            ],
+            "roles": [u.role for u in self.test_users],
+        }
 
 
 class CrawlSetupEnvelope(BaseModel):

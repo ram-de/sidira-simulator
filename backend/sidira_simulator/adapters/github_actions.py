@@ -80,18 +80,32 @@ class GitHubCrawlDispatcher:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def dispatch(self, *, crawl_id: str, customer_id: str, crawl_date: str) -> None:
+    async def dispatch(
+        self,
+        *,
+        crawl_id: str,
+        customer_id: str,
+        crawl_date: str,
+        config_json: str | None = None,
+    ) -> None:
         """Fire crawl.yml. crawl_date is passed explicitly (CI dates are UTC;
-        resolving "today" on the runner can disagree with the caller)."""
+        resolving "today" on the runner can disagree with the caller).
+
+        ``config_json`` (#206) is the non-secret saved crawl setup —
+        capabilities, sandbox URL, walk depth, role names — JSON-encoded. When
+        omitted (the streamly-sandbox demo) crawl.yml falls back to its
+        hardcoded mock acceptance path; when present it drives the production
+        walk. Login credentials never ride here (the crawler pulls them at run
+        start)."""
         url = f"{_API}/repos/{self._repo}/actions/workflows/{self._workflow}/dispatches"
-        payload = {
-            "ref": self._ref,
-            "inputs": {
-                "crawl_id": crawl_id,
-                "customer": customer_id,
-                "crawl_date": crawl_date,
-            },
+        inputs: dict[str, str] = {
+            "crawl_id": crawl_id,
+            "customer": customer_id,
+            "crawl_date": crawl_date,
         }
+        if config_json is not None:
+            inputs["config_json"] = config_json
+        payload = {"ref": self._ref, "inputs": inputs}
         resp = await self._request("POST", url, json=payload)
         if resp.status_code != 204:
             raise CrawlDispatchError(
@@ -102,6 +116,7 @@ class GitHubCrawlDispatcher:
             crawl_id=crawl_id,
             customer_id=customer_id,
             crawl_date=crawl_date,
+            configured=config_json is not None,
             repo=self._repo,
         )
 

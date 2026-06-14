@@ -13,6 +13,7 @@ or writes reverse-PRD / reverse-Figma content.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -20,7 +21,7 @@ from uuid import uuid4
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from sidira_simulator.api.deps import (
     current_customer_id,
@@ -65,6 +66,27 @@ _TERMINAL = (CrawlStatus.COMPLETE.value, CrawlStatus.FAILED.value)
 # still a single safe key segment: no separators, no dots, no leading dash.
 _CUSTOMER_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
+# The one customer that may crawl without a saved setup: the streamly-sandbox
+# demo runs crawl.yml's hardcoded mock acceptance path (#206 Slice B keeps it).
+# Every real tenant must configure capabilities + a sandbox URL first.
+_SANDBOX_CUSTOMER = "streamly-sandbox"
+
+
+def _rehydrate_setup(row: dict) -> CrawlSetup:
+    """Validate a persisted crawl-setup row back into a CrawlSetup.
+
+    Field validation also runs on read, so a row saved under looser rules
+    (e.g. a basic-auth URL accepted before #206 tightened ``_require_http_url``)
+    would otherwise surface as an opaque 500. Convert that to a 409 telling the
+    operator to re-save, instead of a server error (codex P2, #206)."""
+    try:
+        return CrawlSetup.model_validate(row["config_json"])
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail="saved crawl setup is no longer valid — re-save it on the crawl setup window",
+        ) from exc
+
 # A dispatched run materializes on GitHub within seconds. If it still cannot
 # be found after this long, the run either never got created or fell out of
 # the lookup window — without a cutoff the row would report pending forever.
@@ -95,7 +117,7 @@ async def get_crawl_setup(
         return CrawlSetupEnvelope(customer_id=customer_id)
     return CrawlSetupEnvelope(
         customer_id=customer_id,
-        setup=CrawlSetup.model_validate(row["config_json"]),
+        setup=_rehydrate_setup(row),
         updated_at=row["updated_at"],
     )
 
@@ -113,7 +135,7 @@ async def save_crawl_setup(
     row = await repo.upsert(customer_id, payload.model_dump())
     return CrawlSetupEnvelope(
         customer_id=customer_id,
-        setup=CrawlSetup.model_validate(row["config_json"]),
+        setup=_rehydrate_setup(row),
         updated_at=row["updated_at"],
     )
 
@@ -123,6 +145,7 @@ async def create_crawl(
     customer_id: str = Depends(current_customer_id),
     runs: CrawlRunRepo = Depends(get_crawl_run_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
+    config_repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
     dispatcher: GitHubCrawlDispatcher | None = Depends(get_crawl_dispatcher),
 ) -> CrawlSummary:
     dispatcher = _require_dispatcher(dispatcher)
@@ -131,6 +154,10 @@ async def create_crawl(
             status_code=400,
             detail="customer id is not crawlable: must match [A-Za-z0-9][A-Za-z0-9_-]*",
         )
+    # The saved setup drives the production walk (#206). Resolve it before
+    # inserting the run row so an unconfigured tenant 400s instead of leaving a
+    # pending row that could never produce a pack.
+    config_json = await _resolve_dispatch_config(customer_id, config_repo)
     await customer_repo.ensure_exists(customer_id)
     crawl_id = f"cr-{uuid4().hex[:12]}"
     # Resolved here, passed explicitly: CI dates are UTC and "today" on the
@@ -141,7 +168,10 @@ async def create_crawl(
     )
     try:
         await dispatcher.dispatch(
-            crawl_id=crawl_id, customer_id=customer_id, crawl_date=crawl_date
+            crawl_id=crawl_id,
+            customer_id=customer_id,
+            crawl_date=crawl_date,
+            config_json=config_json,
         )
     except CrawlDispatchError as exc:
         row = await runs.update(
@@ -247,6 +277,25 @@ async def _refresh_from_github(
                 log.warning("crawl.latest_pointer_unreadable", crawl_id=crawl_id)
         row = await runs.update(crawl_id, fields)
     return row, phase
+
+
+async def _resolve_dispatch_config(customer_id: str, config_repo: CrawlConfigRepo) -> str | None:
+    """Load the saved crawl setup and project it to the non-secret JSON the
+    dispatch carries. Returns None for the streamly-sandbox demo (no setup
+    needed — it runs the mock path); 400s for any other unconfigured tenant."""
+    row = await config_repo.get(customer_id)
+    if row is None:
+        if customer_id == _SANDBOX_CUSTOMER:
+            return None
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "no crawl setup saved — configure capabilities and a sandbox URL "
+                "before triggering a crawl"
+            ),
+        )
+    setup = _rehydrate_setup(row)
+    return json.dumps(setup.dispatch_payload(), separators=(",", ":"))
 
 
 def _require_dispatcher(dispatcher: GitHubCrawlDispatcher | None) -> GitHubCrawlDispatcher:
