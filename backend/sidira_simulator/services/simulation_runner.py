@@ -44,10 +44,15 @@ from sidira_simulator.schemas.simulation import (
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
 from sidira_simulator.services.prompt_composer import compose_identity_prompt
+from sidira_simulator.services.reaction_elicitor import elicit_reaction_distribution
 from sidira_simulator.services.run_state import (
     RunPhase,
     RunStateStore,
     SimulationRunState,
+)
+from sidira_simulator.services.runtime_config import (
+    resolve_elicitation_samples,
+    resolve_elicitation_temperature,
 )
 
 log = structlog.get_logger()
@@ -170,6 +175,12 @@ class SimulationRunner:
         # resolved seed flows out via SimulationRunState (observable) and is used
         # for every draw_identity_seed call below.
         resolved_run_seed = run_seed if run_seed is not None else time.time_ns()
+        # #221 distribution elicitation: resolve once per run (not per agent) so
+        # the whole population shares one config and it is observable in
+        # run.started. Defaults (1, 0.0) reproduce the historical single-reaction
+        # path byte-for-byte.
+        elicitation_samples = resolve_elicitation_samples()
+        elicitation_temperature = resolve_elicitation_temperature()
         now = datetime.now(timezone.utc)
 
         state = SimulationRunState(
@@ -185,6 +196,8 @@ class SimulationRunner:
             "run.started",
             population_size=population_size,
             run_seed=resolved_run_seed,
+            elicitation_samples=elicitation_samples,
+            elicitation_temperature=elicitation_temperature,
         )
 
         # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
@@ -300,6 +313,8 @@ class SimulationRunner:
                     resolved_run_seed,
                     chat_client,
                     arm=arm,
+                    elicitation_samples=elicitation_samples,
+                    elicitation_temperature=elicitation_temperature,
                 )
                 for persona, sample_index, arm in agent_specs
             ),
@@ -344,6 +359,8 @@ class SimulationRunner:
         run_seed: int,
         chat_client: ChatClient,
         arm: str | None = None,
+        elicitation_samples: int = 1,
+        elicitation_temperature: float = 0.0,
     ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
@@ -389,13 +406,14 @@ class SimulationRunner:
                 )
 
             try:
-                initial_reaction = await asyncio.wait_for(
+                distribution = await asyncio.wait_for(
                     asyncio.to_thread(
-                        chat_client.chat,
-                        [
-                            {"role": "system", "content": identity_prompt},
-                            {"role": "user", "content": user_turn},
-                        ],
+                        elicit_reaction_distribution,
+                        chat_client,
+                        system_prompt=identity_prompt,
+                        user_turn=user_turn,
+                        samples=elicitation_samples,
+                        temperature=elicitation_temperature,
                     ),
                     timeout=self._per_agent_timeout_s,
                 )
@@ -420,6 +438,12 @@ class SimulationRunner:
                 )
                 raise
 
+            # Modal sample is the canonical frozen reaction (identity-continuity
+            # contract); the full distribution is persisted alongside for #221's
+            # hierarchical scoring slice. At the default samples=1 this is exactly
+            # the single reaction the historical path produced.
+            initial_reaction = distribution.modal.text
+
             now = datetime.now(timezone.utc)
             metadata = AgentInstanceMetadata(
                 id=agent_id,
@@ -438,6 +462,7 @@ class SimulationRunner:
             self._memory.write_identity(metadata, identity_prompt)
             self._memory.write_initial_reaction(metadata, initial_reaction)
             self._memory.write_identity_seed(metadata, identity_seed)
+            self._memory.write_reaction_distribution(metadata, distribution)
 
             state.agents_complete += 1
             self._run_state.emit(
