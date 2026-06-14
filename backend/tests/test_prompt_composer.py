@@ -8,7 +8,12 @@ and `## Behavioral snapshot`; when absent, the prompt is unchanged
 
 from __future__ import annotations
 
-from sidira_simulator.schemas.feature_pack import Capability, ReverseFigma
+from sidira_simulator.schemas.feature_pack import (
+    Capability,
+    Component,
+    ReverseFigma,
+    Screen,
+)
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.schemas.simulation import Hypothesis
@@ -283,3 +288,103 @@ def test_control_arm_works_without_identity_seed() -> None:
     # No about-you section, but the control task framing still landed.
     assert "## About you specifically" not in prompt
     assert "as it works for you TODAY" in prompt
+
+
+# ─────────────────────────────────────────────────────────────────────
+# agent-behavior-spec §1 — treatment arm renders via the treatment renderer
+# (typed changelog + mandatory NOT-changing guard), not hand-built prose.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _capability_with_figma() -> Capability:
+    """Current state: a cart screen whose CTA reads one way."""
+    return Capability(
+        name="checkout",
+        surfaces=["mobile"],
+        roles=["consumer"],
+        entry_points=["cart"],
+        reverse_prd="The checkout screen lets users confirm and pay.",
+        reverse_figma=ReverseFigma(
+            screens=[
+                Screen(
+                    id="cart",
+                    name="Cart",
+                    components=[Component(id="cta", role="button", text="Tip: choose amount")],
+                ),
+            ],
+        ),
+    )
+
+
+def _hypothesis_with_proposed_figma() -> Hypothesis:
+    """Proposed state: same screen, CTA copy changed → one CHANGED copy delta."""
+    return Hypothesis(
+        capability_name="checkout",
+        prose="Pre-fill a 20% tip on the cart CTA.",
+        proposed_figma=ReverseFigma(
+            screens=[
+                Screen(
+                    id="cart",
+                    name="Cart",
+                    components=[Component(id="cta", role="button", text="Tip: 20% pre-filled")],
+                ),
+            ],
+        ),
+    )
+
+
+def test_treatment_arm_renders_typed_changelog_when_proposed_figma_present() -> None:
+    """§1 wiring: with a structural delta the treatment arm carries the
+    renderer's changelog headers, not the old hand-built `## The proposed
+    change` block."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+    )
+    assert "## What's changing" in prompt
+    assert "### Concretely" in prompt
+    # The CTA copy delta surfaces concretely (old → new copy both named).
+    assert "Tip: choose amount" in prompt
+    assert "Tip: 20% pre-filled" in prompt
+    # The old hand-built header is gone.
+    assert "## The proposed change" not in prompt
+
+
+def test_treatment_arm_always_carries_not_changing_guard() -> None:
+    """The mandatory NOT-changing guard (spec §2 defense) is present even for
+    a prose-only change with no proposed_figma — exactly the case that most
+    needs an explicit boundary against confabulated inference."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),  # prose only, no proposed_figma
+        identity_seed=_seed(),
+    )
+    assert "### Explicitly NOT changing" in prompt
+    # Prose-only changes are still labelled as a diff, not silently dropped.
+    assert "## What's changing" in prompt
+    # The prose itself is carried through the renderer.
+    assert _hypothesis().prose in prompt
+
+
+def test_control_arm_never_sees_renderer_change_framing() -> None:
+    """The renderer output is treatment-only: a control agent must not see the
+    changelog or the NOT-changing block, even when the hypothesis carries a
+    full proposed_figma. Drift here would leak the intervention into the
+    control arm and break the #90 paired comparison."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        arm="control",
+    )
+    assert "## What's changing" not in prompt
+    assert "### Explicitly NOT changing" not in prompt
+    assert "Tip: 20% pre-filled" not in prompt
+    assert _hypothesis_with_proposed_figma().prose not in prompt
