@@ -215,8 +215,18 @@ git -C /opt/sidira/repo log -1 --oneline
 # Containers were recreated just now
 sudo docker ps --format 'table {{.Names}}\t{{.Status}}'
 
-# The new route(s) exist — lists every path the deployed code serves
-sudo docker exec sidira-api python -c "from sidira_simulator.main import app; print('\n'.join(sorted({r.path for r in app.routes})))"
+# The new route(s) exist — lists every path the deployed code serves.
+# Use app.openapi()['paths'], NOT app.routes: the app mounts sub-routers as
+# _IncludedRouter objects that have no `.path` attribute, so iterating
+# app.routes raises `AttributeError: '_IncludedRouter' object has no attribute
+# 'path'`. openapi()['paths'] flattens every mounted router. (Hit 2026-06-14
+# during the #230 walk_depth deploy — the old app.routes one-liner had silently
+# rotted.)
+sudo docker exec sidira-api python -c "from sidira_simulator.main import app; print('\n'.join(sorted(app.openapi()['paths'])))"
+
+# Verify a specific field/bound instead of just route presence (e.g. #230
+# realigned walk_depth) — read the live model directly:
+sudo docker exec sidira-api python -c "from sidira_simulator.schemas.crawl import CrawlSetup; f=CrawlSetup.model_fields['walk_depth']; print('walk_depth default:', f.default, 'metadata:', f.metadata)"
 ```
 
 For the #193 deploy specifically, also confirm the migration ran and the
@@ -240,10 +250,10 @@ asyncio.run(main())
 sudo docker exec sidira-api python -c "from sidira_simulator.adapters.github_actions import dispatch_configured; print('dispatch_configured:', dispatch_configured())"
 ```
 
-(The route check imports the app in-process instead of calling
-`/openapi.json` over HTTP: the `internal_api_key_gate` middleware 404s
-keyless requests even from localhost, and the Clerk gate behind it would
-still 401 — neither gate is in play when reading `app.routes` directly.)
+(The route check imports the app in-process and calls `app.openapi()` instead
+of fetching `/openapi.json` over HTTP: the `internal_api_key_gate` middleware
+404s keyless requests even from localhost, and the Clerk gate behind it would
+still 401 — neither gate is in play when building the schema in-process.)
 
 Finally, reload the affected page on https://app.sidira.ai — the 404 banner
 should be gone.
