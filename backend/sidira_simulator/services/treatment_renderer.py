@@ -589,6 +589,21 @@ def _not_changing(
     """Screens present in both states with no recorded change, explicitly listed."""
     touched_screens = {c.screen_id for c in changes if c.screen_id is not None}
     touched_screens |= {c.target_id for c in changes if c.target_type == "screen"}
+
+    # A transition change touches BOTH its endpoint screens — otherwise a reroute
+    # (`cart -> pay` becomes `cart -> review`) would render the transition as
+    # changed and still list `screen cart` as NOT changing, contradicting itself.
+    # Map the changed signatures back to the actual Transition objects (rather
+    # than parsing the signature string) to read endpoints robustly.
+    changed_sigs = {c.target_id for c in changes if c.target_type == "transition"}
+    if changed_sigs:
+        by_sig = {_transition_sig(t): t for t in current.transitions}
+        by_sig.update({_transition_sig(t): t for t in proposed.transitions})
+        for sig in changed_sigs:
+            t = by_sig.get(sig)
+            if t is not None:
+                touched_screens |= {t.from_screen, t.to_screen}
+
     cur_ids = {s.id for s in current.screens}
     prop_ids = {s.id for s in proposed.screens}
     unchanged = sorted(sid for sid in (cur_ids & prop_ids) if sid not in touched_screens)

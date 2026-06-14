@@ -583,3 +583,36 @@ def test_screen_role_change_is_a_mechanics_change() -> None:
     assert len(changed) == 1
     assert changed[0].modality == "mechanics"
     assert "guest" in changed[0].detail and "member" in changed[0].detail
+
+
+def test_transition_reroute_endpoints_not_listed_as_unchanged() -> None:
+    """codex P2: a reroute (cart->pay becomes cart->review) renders the
+    transition as changed, so its endpoint screens must NOT appear under
+    'Explicitly NOT changing' — otherwise the guard contradicts the changelog."""
+    screens = [
+        Screen(id="cart", name="Cart"),
+        Screen(id="pay", name="Pay"),
+        Screen(id="review", name="Review"),
+    ]
+    current = ReverseFigma(
+        screens=screens,
+        transitions=[Transition(trigger="checkout", from_screen="cart", to_screen="pay")],
+    )
+    proposed = ReverseFigma(
+        screens=screens,
+        transitions=[Transition(trigger="checkout", from_screen="cart", to_screen="review")],
+    )
+    rc = render_state_diff(
+        _capability(current),
+        Hypothesis(
+            capability_name="checkout",
+            prose="Route checkout through a review step.",
+            proposed_figma=proposed,
+        ),
+    )
+    # The reroute surfaces as REMOVED + ADDED transitions (MOVED deferred, §7 Q1).
+    assert any(c.target_type == "transition" for c in rc.changes)
+    # Neither endpoint screen may be claimed unchanged.
+    assert "screen `cart`" not in rc.not_changing
+    assert "screen `pay`" not in rc.not_changing
+    assert "screen `review`" not in rc.not_changing
