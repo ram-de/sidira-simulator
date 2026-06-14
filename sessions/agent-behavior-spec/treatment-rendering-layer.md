@@ -107,6 +107,15 @@ So the adapter work lives at the *edge* (archive → `Hypothesis`), and the rend
 
 ---
 
+## 5b. Two output views (contract added by §3b blinding)
+
+The renderer must expose its result in **two views**, because §3 (elicitation-templates.md) runs metric prediction *blinded* and chat *unblinded*:
+
+- **standalone-state view** — the treatment state rendered as *just the product*, with NO "what changed / the team is considering" framing. Fed to blinded behavioral agents (§3b default for metric elicitation), so they meet the change cold, as a real user meets a shipped product.
+- **state+diff view** — the full structural changelog + "NOT changing" block from §2 above. Fed to the unblinded chat/"why" pass and to the scorer, never to a blinded behavioral agent.
+
+Same `RenderedChange` object, two serializations. Caveat (§3b open Q2 / §3 §5.2): removal-type or pure-mechanic changes ("we removed the confirmation step") may not be expressible as a coherent standalone state — those fall back to unblinded + a flag.
+
 ## 6. Build order & touch points
 
 1. `services/treatment_renderer.py` (new) — `render_state_diff(capability, hypothesis) -> RenderedChange` (structural diff + changelog + NOT-changing + modality tags). Pure, deterministic, unit-testable against fixture figmas.
