@@ -174,6 +174,7 @@ class SimulationRunner:
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        include_no_persona_control: bool = False,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
         chat_client = self._chat_for_model(model_id)
@@ -237,6 +238,20 @@ class SimulationRunner:
                 persona = pack_by_id[persona_id]
                 for sample_index in range(count):
                     agent_specs.append((persona, sample_index, None))
+            # #221 §4.1 persona-lift baseline: add a 1:1 shadow panel of
+            # "no_persona" agents over the SAME (persona_id, sample_index)
+            # allocation. Each shadow reacts to the identical proposed change
+            # via the base LLM with NO persona conditioning, so the paired-lift
+            # aggregator can attribute any sentiment delta to persona
+            # conditioning alone (the "Funhouse Mirrors" guard). Shadows are
+            # ephemeral — never persisted to R2/DB — and only the no-arm panel
+            # gets them; A/B mode is out of scope for this slice. Default off:
+            # when the flag is unset the spec list is byte-identical to today.
+            if include_no_persona_control:
+                for persona_id, count in allocation:
+                    persona = pack_by_id[persona_id]
+                    for sample_index in range(count):
+                        agent_specs.append((persona, sample_index, "no_persona"))
         else:
             # A/B mode: in A/B mode `population_size` is the PER-ARM target
             # (matches the wizard's cost-preview math, which uses the
@@ -328,13 +343,27 @@ class SimulationRunner:
             return_exceptions=True,
         )
         agent_records: list[AgentRecord] = [r for r in results if isinstance(r, AgentRecord)]
-        agent_ids = [r.agent_id for r in agent_records]
-        self._last_run_agent_records = agent_records  # caller can read for repo persistence
+        # #221 persona-lift: no_persona shadows are ephemeral. They feed the
+        # scorer (for the paired-lift baseline) but are NOT persisted — the
+        # orchestrator reads `_last_run_agent_records` to write agent_instances
+        # rows and to populate `agent_instance_ids`, both of which must contain
+        # only the real persona agents (no phantom rows, no A/B mislabel).
+        persisted_records = [r for r in agent_records if r.arm != "no_persona"]
+        agent_ids = [r.agent_id for r in persisted_records]
+        self._last_run_agent_records = persisted_records  # caller reads for repo persistence
 
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
+        # Pass the FULL record set (persona + no_persona) so _score can compute
+        # the persona-lift baseline; it splits the arms internally.
         result = await self._score(
-            state, sim_id, hypothesis, agent_records, resolved_run_seed, chat_client
+            state,
+            sim_id,
+            hypothesis,
+            agent_records,
+            resolved_run_seed,
+            chat_client,
+            include_no_persona_control=include_no_persona_control,
         )
 
         state.mark_phase(RunPhase.COMPLETE)
@@ -385,6 +414,13 @@ class SimulationRunner:
             # which is the paired-comparison invariant pinned by
             # test_control_arm_keeps_identity_preamble_byte_equivalent).
             composer_arm = arm if arm in ("treatment", "control") else "treatment"
+            # #221 persona-lift: the no_persona shadow reacts to the SAME
+            # proposed change (treatment task framing) but with the persona
+            # conditioning stripped out of the preamble. Everything else —
+            # the user turn, the elicitation config, the change view — is
+            # byte-identical to its persona twin, so the only difference is
+            # persona identity.
+            use_persona = arm != "no_persona"
             identity_prompt = compose_identity_prompt(
                 customer_id=customer_id,
                 persona=persona,
@@ -392,6 +428,7 @@ class SimulationRunner:
                 hypothesis=hypothesis,
                 identity_seed=identity_seed,
                 arm=composer_arm,
+                use_persona=use_persona,
             )
 
             # The "user turn" reaction prompt also has to diverge: in the
@@ -452,24 +489,33 @@ class SimulationRunner:
             initial_reaction = distribution.modal.text
 
             now = datetime.now(timezone.utc)
-            metadata = AgentInstanceMetadata(
-                id=agent_id,
-                customer_id=customer_id,
-                simulation_id=sim_id,
-                persona_id=persona.id,
-                persona_pack_version=persona_pack_version,
-                persona_name=persona.name,
-                created_at=now,
-                last_active_at=now,
-                message_count=0,
-                arm=arm,
-            )
 
-            # FROZEN — the identity-continuity guarantee starts here.
-            self._memory.write_identity(metadata, identity_prompt)
-            self._memory.write_initial_reaction(metadata, initial_reaction)
-            self._memory.write_identity_seed(metadata, identity_seed)
-            self._memory.write_reaction_distribution(metadata, distribution)
+            # #221 persona-lift: no_persona shadows are ephemeral. They exist
+            # only to feed the scorer's paired-lift baseline this run, so we
+            # skip ALL R2 persistence (identity, initial reaction, seed,
+            # distribution) and never build the AgentInstanceMetadata. There is
+            # no chat replay for a shadow and no DB row, so the
+            # identity-continuity guarantee does not apply. The AgentRecord
+            # returned below still carries the reaction so _score can use it.
+            if use_persona:
+                metadata = AgentInstanceMetadata(
+                    id=agent_id,
+                    customer_id=customer_id,
+                    simulation_id=sim_id,
+                    persona_id=persona.id,
+                    persona_pack_version=persona_pack_version,
+                    persona_name=persona.name,
+                    created_at=now,
+                    last_active_at=now,
+                    message_count=0,
+                    arm=arm,
+                )
+
+                # FROZEN — the identity-continuity guarantee starts here.
+                self._memory.write_identity(metadata, identity_prompt)
+                self._memory.write_initial_reaction(metadata, initial_reaction)
+                self._memory.write_identity_seed(metadata, identity_seed)
+                self._memory.write_reaction_distribution(metadata, distribution)
 
             state.agents_complete += 1
             self._run_state.emit(
@@ -504,6 +550,7 @@ class SimulationRunner:
         agent_records: list[AgentRecord],
         run_seed: int,
         chat_client: ChatClient,
+        include_no_persona_control: bool = False,
     ) -> SimulationResult:
         """Call ScoringService + RefinementService over the agent reactions.
 
@@ -545,11 +592,21 @@ class SimulationRunner:
             for r in agent_records
         ]
 
+        # #221 §4.1 persona-lift: split off the ephemeral no_persona shadows
+        # BEFORE the A/B-mode detection below. The persona arms (treatment /
+        # control / single-arm None) drive the headline score exactly as
+        # before; the no_persona shadows only feed the persona-lift baseline
+        # at the end, so they must NOT leak into is_ab_mode or the persona
+        # scoring path (a no_persona record carries arm="no_persona", which is
+        # non-None and would otherwise trip the A/B branch).
+        no_persona_reactions = [r for r in reactions if r.arm == "no_persona"]
+        persona_reactions = [r for r in reactions if r.arm != "no_persona"]
+
         # Phase 4.6 #90: A/B mode → run the paired-lift aggregator over the
-        # treatment + control split. Detect dual-arm via any record carrying
-        # an `arm` tag; single-arm sims keep `arm=None` everywhere and fall
-        # through to the existing `score()` path unchanged.
-        is_ab_mode = any(r.arm is not None for r in reactions)
+        # treatment + control split. Detect dual-arm via any persona record
+        # carrying an `arm` tag; single-arm sims keep `arm=None` everywhere
+        # and fall through to the existing `score()` path unchanged.
+        is_ab_mode = any(r.arm is not None for r in persona_reactions)
         if is_ab_mode:
             # #221 (deferred slice): the A/B path does NOT yet consume
             # `reaction_distribution`. `score_ab()` → `analyze()` reads only
@@ -558,8 +615,8 @@ class SimulationRunner:
             # pre-#221 behavior. Hierarchical CIs for the paired-lift bootstrap
             # are tracked as a follow-up; the single-arm `score()` path below is
             # the only consumer of within-agent variance in this slice.
-            treatment_reactions = [r for r in reactions if r.arm == "treatment"]
-            control_reactions = [r for r in reactions if r.arm == "control"]
+            treatment_reactions = [r for r in persona_reactions if r.arm == "treatment"]
+            control_reactions = [r for r in persona_reactions if r.arm == "control"]
             result, analyses = await scoring.score_ab(
                 hypothesis,
                 treatment_reactions,
@@ -567,7 +624,7 @@ class SimulationRunner:
                 run_seed=run_seed,
             )
         else:
-            result, analyses = await scoring.score(hypothesis, reactions, run_seed=run_seed)
+            result, analyses = await scoring.score(hypothesis, persona_reactions, run_seed=run_seed)
         # #51: persist per-agent sentiment + top-quote on the result so the
         # detail page can render the table without N extra R2 reads. Pair
         # analyses with their reaction text by agent_id (same len + same order
@@ -594,7 +651,10 @@ class SimulationRunner:
         # a run that's genuinely broken upstream — skip it.
         ab_missing_arm = is_ab_mode and not analyses
         if result.confidence_score < 80.0 and not ab_missing_arm:
-            sample_reactions = [r.reaction_text for r in agent_records[:3]]
+            # Sample from the persona records only — no_persona shadows are a
+            # base-LLM baseline, not material the PM should see paraphrased
+            # back as refinement evidence.
+            sample_reactions = [r.reaction_text for r in agent_records if r.arm != "no_persona"][:3]
             suggestions = await refinement.suggest(
                 RefinementInput(
                     hypothesis_prose=hypothesis.prose,
@@ -605,6 +665,74 @@ class SimulationRunner:
                 )
             )
             result.refinement_suggestions = suggestions
+
+        # #221 §4.1 persona-lift baseline: if no_persona shadows ran and the
+        # persona arm actually produced analyses, classify the shadows and
+        # compute the paired persona − no_persona lift. This is purely ADDITIVE:
+        # it populates the persona_lift* / no_persona_score fields and leaves
+        # confidence_score, weaknesses, per_agent_analyses, and refinement
+        # untouched, so a run with the flag off is byte-identical. `analyses`
+        # (the persona modal analyses) is paired by (persona_id, sample_index)
+        # against the freshly-classified no_persona analyses.
+        #
+        # A/B mode IGNORES the flag entirely (docs: single-arm only). Shadows
+        # are appended only on the single-arm allocation path, so an A/B run
+        # has no no_persona_reactions; gating both branches on `not is_ab_mode`
+        # keeps the persona_lift* fields at their flag-off defaults rather than
+        # falsely recording the run as "requested but uncomputable" (paired_n=0)
+        # for an unsupported path. (codex P2)
+        if include_no_persona_control and not is_ab_mode and analyses and no_persona_reactions:
+            from sidira_simulator.services.scoring import aggregate_persona_lift
+
+            np_analyses = await asyncio.gather(
+                *(scoring.analyze(hypothesis, r) for r in no_persona_reactions),
+                return_exceptions=False,
+            )
+            no_persona_result, lift = aggregate_persona_lift(
+                analyses, np_analyses, run_seed=run_seed
+            )
+            result = result.model_copy(
+                update={
+                    "no_persona_score": no_persona_result.confidence_score,
+                    "persona_lift": lift.lift,
+                    "persona_lift_ci": lift.lift_ci,
+                    "persona_lift_paired_n": lift.paired_n,
+                    # _paired_lift's "treatment" side is the persona arm, so its
+                    # unpaired_treatment / unpaired_control counters map onto
+                    # persona / no_persona here.
+                    "persona_lift_unpaired_persona": lift.unpaired_treatment,
+                    "persona_lift_unpaired_no_persona": lift.unpaired_control,
+                    "persona_lift_sentiment_failure_drops": lift.sentiment_failure_drops,
+                }
+            )
+            self._run_state.emit(
+                state,
+                "persona_lift.computed",
+                persona_lift=lift.lift,
+                no_persona_score=no_persona_result.confidence_score,
+                paired_n=lift.paired_n,
+            )
+        elif include_no_persona_control and not is_ab_mode and analyses:
+            # The baseline was REQUESTED but no no-persona shadow produced a
+            # usable reaction (every shadow timed out or failed materialization),
+            # so the lift is uncomputable. Record paired_n=0 + every persona
+            # agent as unpaired so the persisted result is distinguishable from a
+            # flag-off run (where these fields stay None / 0). Honesty gate: a
+            # requested-but-uncomputable baseline must not masquerade as "never
+            # requested". persona_lift / ci / no_persona_score stay None.
+            result = result.model_copy(
+                update={
+                    "persona_lift_paired_n": 0,
+                    "persona_lift_unpaired_persona": len(analyses),
+                }
+            )
+            self._run_state.emit(
+                state,
+                "persona_lift.computed",
+                persona_lift=None,
+                no_persona_score=None,
+                paired_n=0,
+            )
 
         return result
 

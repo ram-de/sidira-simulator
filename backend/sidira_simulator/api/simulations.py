@@ -119,6 +119,7 @@ async def create_simulation(
             treatment_fraction=treatment_fraction,
             selected_personas=payload.selected_personas,
             model_id=model_id,
+            include_no_persona_control=payload.include_no_persona_control,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.

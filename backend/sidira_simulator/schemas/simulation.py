@@ -105,6 +105,18 @@ class SimulationRequest(BaseModel):
             "When omitted, the backend resolves its configured default."
         ),
     )
+    include_no_persona_control: bool = Field(
+        default=False,
+        description=(
+            "#221 §4.1 persona-lift baseline. When True, a 1:1 shadow panel of "
+            "no-persona agents (the base LLM with persona conditioning stripped) "
+            "reacts to the SAME proposed change, and the result surfaces "
+            "persona_lift = persona − no_persona sentiment delta. The shadows "
+            "are ephemeral (never persisted) and don't affect the headline "
+            "confidence_score. Default False → byte-identical to today. Only "
+            "the single-arm path supports it; A/B mode ignores it for now."
+        ),
+    )
 
     @field_validator("selected_personas")
     @classmethod
@@ -206,6 +218,23 @@ class SimulationResult(BaseModel):
     lift_unpaired_treatment: int = 0
     lift_unpaired_control: int = 0
     lift_sentiment_failure_drops: int = 0
+
+    # ── Persona-lift baseline fields (#221 §4.1) ──
+    # Populated only when the run requested `include_no_persona_control`.
+    # All None / 0 otherwise, so older `result_json` rows load unchanged and
+    # the headline confidence_score stays byte-identical to a flag-off run.
+    # `persona_lift` is persona − no_persona sentiment delta in
+    # confidence_score units ([-100, +100]); a `persona_lift_ci` straddling
+    # zero is the falsification signal (personas add no signal over the base
+    # model). The unpaired / failure counters surface what the paired
+    # bootstrap excluded, matching the A/B lift counters above.
+    no_persona_score: float | None = None
+    persona_lift: float | None = None
+    persona_lift_ci: tuple[float, float] | None = None
+    persona_lift_paired_n: int | None = None
+    persona_lift_unpaired_persona: int = 0
+    persona_lift_unpaired_no_persona: int = 0
+    persona_lift_sentiment_failure_drops: int = 0
 
 
 class Simulation(BaseModel):

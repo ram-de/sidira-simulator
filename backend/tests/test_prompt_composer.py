@@ -466,3 +466,88 @@ def test_behavioral_profile_block_in_both_arms() -> None:
     control = compose_identity_prompt(**args, arm="control")
     assert "## How you compare" in treatment
     assert "## How you compare" in control
+
+
+# ── #221 §4.1 persona-lift: use_persona flag ──────────────────────────────
+
+
+def test_use_persona_true_is_the_default() -> None:
+    """Back-compat: pre-#221 callers don't pass `use_persona`. The default must
+    be byte-identical to an explicit use_persona=True so existing agents keep
+    their persona-conditioned prompt."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    default_prompt = compose_identity_prompt(**args)
+    explicit = compose_identity_prompt(**args, use_persona=True)
+    assert default_prompt == explicit
+
+
+def test_no_persona_prompt_drops_all_persona_conditioning() -> None:
+    """The no-persona baseline (#221) strips EVERY persona-specific element:
+    the name, description, jtbd, the identity-seed 'About you' block, the
+    behavioral snapshot, and the §2 behavioral-profile section. Only the
+    generic framing + product-today section survive."""
+    persona = _persona_with_centroid()
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=persona,
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        use_persona=False,
+    )
+    assert persona.name not in prompt
+    assert persona.description not in prompt
+    assert persona.jtbd not in prompt
+    assert "## Who you are" not in prompt
+    assert "## About you specifically" not in prompt
+    assert "## Behavioral snapshot" not in prompt
+    assert "## How you compare" not in prompt
+    # The identity-seed details must not leak either.
+    assert "commuting home, hungry" not in prompt
+    # But it IS still a user of the product, grounded in the current product.
+    assert "real user of acme's product" in prompt
+    assert "## The product today" in prompt
+    assert _capability().reverse_prd in prompt
+
+
+def test_no_persona_keeps_treatment_task_block_byte_equivalent() -> None:
+    """The ONLY difference between a persona agent and its no-persona shadow is
+    the presence/absence of persona identity in the preamble — the trailing
+    treatment task block (change view + #77 openers) must be byte-identical, so
+    the persona-lift comparison isolates persona conditioning alone."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    persona_prompt = compose_identity_prompt(**args, arm="treatment", use_persona=True)
+    shadow_prompt = compose_identity_prompt(**args, arm="treatment", use_persona=False)
+    # Both end with the same task block; split on the task header and compare
+    # the tail verbatim.
+    marker = "## Your task"
+    assert marker in persona_prompt
+    assert marker in shadow_prompt
+    assert persona_prompt.split(marker, 1)[1] == shadow_prompt.split(marker, 1)[1]
+
+
+def test_no_persona_still_sees_the_proposed_change() -> None:
+    """The shadow reacts to the SAME proposed change as the persona arm — the
+    treatment renderer's change view (and its NOT-changing guard) must be
+    present, so any sentiment delta is about persona conditioning, not about a
+    different change being shown."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        use_persona=False,
+    )
+    assert "What's changing" in prompt or "NOT changing" in prompt

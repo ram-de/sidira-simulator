@@ -940,6 +940,32 @@ def aggregate_ab(
     treatment_result = ScoringService.aggregate(treatment_analyses, cfg, run_seed=run_seed)
     control_result = ScoringService.aggregate(control_analyses, cfg, run_seed=run_seed)
 
+    lift_result = _paired_lift(treatment_analyses, control_analyses, cfg, run_seed=run_seed)
+
+    return treatment_result, control_result, lift_result
+
+
+def _paired_lift(
+    treatment_analyses: Sequence[AgentAnalysis],
+    control_analyses: Sequence[AgentAnalysis],
+    cfg: ScoringConfig,
+    *,
+    run_seed: int | None = None,
+) -> ABLiftResult:
+    """Paired-bootstrap lift of `treatment` vs `control` analyses.
+
+    The matched-pair core shared by the A/B aggregator (Phase 4.6 #90) and
+    the persona-lift baseline (#221 §4.1). Matches the two analysis sets by
+    `(persona_id, sample_index)`, then computes the lift point estimate AND
+    the bootstrap CI off the SAME locked Q2 statistic — the per-pair
+    confidence-weighted sentiment delta, scaled by `sentiment_weight × 100`
+    into confidence_score units — so the CI brackets the point by
+    construction. The sign is `treatment − control`: a positive lift means
+    the treatment side is more positively received than the control side.
+
+    Degenerate cases (no matched pairs) surface honestly: `lift`/`lift_ci`
+    stay None and the drop counters explain what was excluded.
+    """
     paired_pairs, unpaired_t, unpaired_c, sentiment_drops = _match_paired_analyses(
         treatment_analyses, control_analyses
     )
@@ -953,9 +979,8 @@ def aggregate_ab(
     )
 
     if paired_n == 0:
-        # No usable pairs — lift is genuinely not computable. Per-arm
-        # results are still populated so the result table renders.
-        return treatment_result, control_result, lift_result
+        # No usable pairs — lift is genuinely not computable.
+        return lift_result
 
     # Point estimate + CI both bootstrap the SAME statistic on the
     # matched-pair subset (the locked Q2 paired sentiment delta), so the
@@ -985,4 +1010,33 @@ def aggregate_ab(
             max(ci_high_r, lift_result.lift),
         )
 
-    return treatment_result, control_result, lift_result
+    return lift_result
+
+
+def aggregate_persona_lift(
+    persona_analyses: Sequence[AgentAnalysis],
+    no_persona_analyses: Sequence[AgentAnalysis],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+) -> tuple[SimulationResult, ABLiftResult]:
+    """Persona-lift baseline (#221 §4.1): persona arm vs no-persona shadow.
+
+    Returns the no-persona arm's standalone `SimulationResult` (so callers
+    can surface its score next to the persona score) plus the paired-lift
+    result. Lift sign is `persona − no_persona`: a positive lift means the
+    persona-conditioned panel is more positively received than the same base
+    LLM with no persona — i.e. persona conditioning ADDS optimism. A lift CI
+    that straddles zero is the falsification signal: the personas aren't
+    moving the needle beyond the base model (the "Funhouse Mirrors" guard).
+
+    The persona arm's own `confidence_score` (the headline number) is
+    computed elsewhere on the SAME persona analyses; this function does NOT
+    recompute or touch it — it only adds the baseline + lift, keeping the
+    headline byte-identical to a run with the flag off.
+    """
+    cfg = config or ScoringConfig()
+    no_persona_result = ScoringService.aggregate(no_persona_analyses, cfg, run_seed=run_seed)
+    # persona is the "treatment" side → lift sign is persona − no_persona.
+    lift_result = _paired_lift(persona_analyses, no_persona_analyses, cfg, run_seed=run_seed)
+    return no_persona_result, lift_result
