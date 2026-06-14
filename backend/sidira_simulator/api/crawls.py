@@ -31,6 +31,7 @@ from sidira_simulator.api.deps import (
     get_customer_repo,
     get_feature_pack_loader,
 )
+from sidira_simulator.adapters import credentials
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.adapters.github_actions import (
     CrawlDispatchError,
@@ -42,7 +43,8 @@ from sidira_simulator.adapters.repositories import (
     CrawlRunRepo,
     CustomerRepo,
 )
-from sidira_simulator.schemas.crawl import CrawlSetup, CrawlSetupEnvelope
+from sidira_simulator.schemas.crawl import CrawlSetup, CrawlSetupEnvelope, CrawlSetupInput
+from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 log = structlog.get_logger(__name__)
 
@@ -70,6 +72,19 @@ _CUSTOMER_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 # demo runs crawl.yml's hardcoded mock acceptance path (#206 Slice B keeps it).
 # Every real tenant must configure capabilities + a sandbox URL first.
 _SANDBOX_CUSTOMER = "streamly-sandbox"
+
+# Reserved key inside config_json holding the at-rest-encrypted role→password
+# map (#206 Slice C). It rides alongside the password-free CrawlSetup fields;
+# CrawlSetup.model_validate ignores it on rehydration (extra keys are dropped),
+# and the authenticated crawler-pull endpoint is the only reader. Shared with
+# api/internal.py — keep the two in lockstep.
+CREDENTIALS_ENC_KEY = "credentials_enc"
+
+# Env suffix for the CI-only bearer that authorizes the credential pull
+# (api/internal.py imports this so the two stay in lockstep). resolve_sidira_env
+# applies the SIDIRA_ → PYTHIA_ fallback. The dispatch preflight checks it so a
+# real tenant isn't dispatched into a crawl whose credential pull would 503.
+CRAWLER_CREDENTIALS_TOKEN_SUFFIX = "CRAWLER_CREDENTIALS_TOKEN"
 
 
 def _rehydrate_setup(row: dict) -> CrawlSetup:
@@ -124,7 +139,7 @@ async def get_crawl_setup(
 
 @router.put("/crawl-setup", response_model=CrawlSetupEnvelope)
 async def save_crawl_setup(
-    payload: CrawlSetup,
+    payload: CrawlSetupInput,
     customer_id: str = Depends(current_customer_id),
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
@@ -132,7 +147,22 @@ async def save_crawl_setup(
     # Same signup-then-act guard as the simulation path: the customer row may
     # not exist yet when the first thing a tenant does is save a crawl setup.
     await customer_repo.ensure_exists(customer_id)
-    row = await repo.upsert(customer_id, payload.model_dump())
+    # Split the payload: the password-free setup persists as cleartext JSON; the
+    # role→password map is encrypted at rest and stashed under CREDENTIALS_ENC_KEY
+    # (#206 Slice C). Passwords never touch config_json in cleartext, never come
+    # back out of GET, and reach CI only via the authenticated crawler pull.
+    stored = payload.to_setup().model_dump()
+    try:
+        blob = credentials.encrypt(payload.credential_secrets())
+    except credentials.CredentialError as exc:
+        # No key material configured — saving a login we cannot protect would be
+        # worse than refusing. Surface a 503 instead of an opaque 500.
+        raise HTTPException(
+            status_code=503,
+            detail="credential storage is not configured — set SIDIRA_LOCAL_CRED_KEY",
+        ) from exc
+    stored[CREDENTIALS_ENC_KEY] = credentials.serialize_blob(blob)
+    row = await repo.upsert(customer_id, stored)
     return CrawlSetupEnvelope(
         customer_id=customer_id,
         setup=_rehydrate_setup(row),
@@ -295,7 +325,62 @@ async def _resolve_dispatch_config(customer_id: str, config_repo: CrawlConfigRep
             ),
         )
     setup = _rehydrate_setup(row)
+    if customer_id != _SANDBOX_CUSTOMER:
+        # Real tenants pull logins from /internal/crawl-credentials at run start.
+        # Verify that pull will succeed *before* spending a ~40-min CI walk.
+        _require_dispatchable_credentials(setup, row["config_json"])
     return json.dumps(setup.dispatch_payload(), separators=(",", ":"))
+
+
+def _require_dispatchable_credentials(setup: CrawlSetup, config_json: dict) -> None:
+    """Fail closed if the run-start credential pull could not succeed.
+
+    The crawler can only log in if (a) an encrypted blob is stored, (b) the
+    pull bearer is configured, and (c) the blob actually decrypts to a login
+    for every role. Anything else means CI would start a doomed, login-less
+    crawl — so reject here instead (codex P2, #206 Slice C)."""
+    enc = config_json.get(CREDENTIALS_ENC_KEY)
+    if not enc:
+        # Setup saved before Slice C (or otherwise missing the blob).
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "saved crawl setup has no stored login credentials — re-save it "
+                "on the crawl setup window before triggering a crawl"
+            ),
+        )
+    if not resolve_sidira_env(CRAWLER_CREDENTIALS_TOKEN_SUFFIX):
+        # Server misconfiguration: the pull route would 503 for every customer.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "crawler credential pull is not configured — "
+                "set SIDIRA_CRAWLER_CREDENTIALS_TOKEN"
+            ),
+        )
+    try:
+        secrets = credentials.decrypt(credentials.deserialize_blob(enc))
+    except credentials.CredentialError as exc:
+        # Key rotated after the blob was written, or stored ciphertext corrupted
+        # — the pull would 503. Re-saving the setup re-encrypts under the live key.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "stored crawl credentials cannot be decrypted — re-save the crawl "
+                "setup (was SIDIRA_LOCAL_CRED_KEY rotated?)"
+            ),
+        ) from exc
+    missing = [u.role for u in setup.test_users if u.role not in secrets]
+    if missing:
+        # Blob decrypts but is missing a login the setup expects (e.g. a role
+        # added after the last save). The pull would deliver a partial login set.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "stored credentials are missing logins for: "
+                f"{', '.join(missing)} — re-save the crawl setup"
+            ),
+        )
 
 
 def _require_dispatcher(dispatcher: GitHubCrawlDispatcher | None) -> GitHubCrawlDispatcher:

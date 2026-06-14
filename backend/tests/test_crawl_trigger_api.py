@@ -19,7 +19,19 @@ from fastapi.testclient import TestClient
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+# A configured tenant's saved setup now carries an at-rest credential blob
+# (#206 Slice C), and the trigger refuses to dispatch a real tenant whose setup
+# lacks it — so seeds must produce that blob. Same test-only key as the other
+# crawl suites.
+os.environ.setdefault(
+    "SIDIRA_LOCAL_CRED_KEY", "c2lkaXJhLXRlc3QtY3JlZC1rZXktMzJieXRlcyEhISE="
+)
+# The dispatch preflight also refuses to dispatch a real tenant when the
+# credential-pull bearer is unset (the pull would 503 mid-crawl). Configure it
+# so the happy-path tests dispatch; the dedicated test below clears it.
+os.environ.setdefault("SIDIRA_CRAWLER_CREDENTIALS_TOKEN", "ci-pull-token-trigger-tests")
 
+from sidira_simulator.adapters import credentials  # noqa: E402
 from sidira_simulator.adapters.github_actions import (  # noqa: E402
     CrawlDispatchError,
     WorkflowRunState,
@@ -53,12 +65,20 @@ def _setup_dict(sandbox_url: str = "https://sandbox.example.com") -> dict:
     ).model_dump()
 
 
-def _seed_config(customer_id: str) -> None:
+def _seed_config(customer_id: str, *, with_credentials: bool = True) -> None:
     """Persist a crawl setup for ``customer_id`` straight into the in-memory
-    repo (the route refuses to dispatch a tenant that has none)."""
+    repo (the route refuses to dispatch a tenant that has none). By default it
+    also attaches the at-rest credential blob the real PUT path produces; pass
+    ``with_credentials=False`` to simulate a setup saved before #206 Slice C."""
+    from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
+
+    config = _setup_dict()
+    if with_credentials:
+        blob = credentials.encrypt({"member": "member-pw-s3cret"})
+        config[CREDENTIALS_ENC_KEY] = credentials.serialize_blob(blob)
     get_in_memory_crawl_config_repo()._configs[customer_id] = {
         "customer_id": customer_id,
-        "config_json": _setup_dict(),
+        "config_json": config,
         "updated_at": datetime.now(timezone.utc),
     }
 
@@ -298,6 +318,79 @@ def test_unconfigured_tenant_cannot_crawl(client, fake_dispatcher, monkeypatch):
     assert "crawl setup" in resp.json()["detail"]
     assert fake_dispatcher.dispatched == []
     assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_setup_without_stored_credentials_is_blocked_before_dispatch(
+    client, fake_dispatcher, monkeypatch
+):
+    """A setup saved before Slice C has no at-rest credential blob, so the
+    crawler's pull would 404 and CI would start a ~40-min walk with no logins.
+    Reject it up front with the same re-save guidance — nothing dispatches
+    (codex P2, #206 Slice C)."""
+    _seed_config("org_preSliceC", with_credentials=False)
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org_preSliceC")
+    resp = client.post("/crawls")
+    assert resp.status_code == 400
+    assert "re-save" in resp.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_dispatch_blocked_when_pull_token_unconfigured(client, fake_dispatcher, monkeypatch):
+    """A real tenant with stored credentials still must not dispatch when the
+    credential-pull bearer is unset — the crawler's run-start pull would 503 and
+    CI would walk for ~40 min with no logins. Fail closed with a 503 before
+    dispatch (codex P2, #206 Slice C)."""
+    monkeypatch.delenv("SIDIRA_CRAWLER_CREDENTIALS_TOKEN", raising=False)
+    monkeypatch.delenv("PYTHIA_CRAWLER_CREDENTIALS_TOKEN", raising=False)
+    resp = client.post("/crawls")  # demo is seeded with credentials by the fixture
+    assert resp.status_code == 503
+    assert "SIDIRA_CRAWLER_CREDENTIALS_TOKEN" in resp.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_dispatch_blocked_when_stored_credentials_undecryptable(client, fake_dispatcher):
+    """A blob that is present but undecryptable (key rotated after it was written,
+    or ciphertext corrupted) must 503 before dispatch — otherwise the failure
+    only surfaces when the crawler's run-start pull 503s mid-crawl (codex P2,
+    #206 Slice C)."""
+    from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
+
+    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row["config_json"][CREDENTIALS_ENC_KEY]["ciphertext"] = "QUJDREVG"  # valid b64, bad tag
+    resp = client.post("/crawls")
+    assert resp.status_code == 503
+    assert "decrypt" in resp.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_dispatch_blocked_when_a_role_login_is_missing(client, fake_dispatcher):
+    """The blob decrypts but lacks a login for a role the setup expects (e.g. a
+    role added after the last save) — reject with re-save guidance rather than
+    dispatch a partial-login crawl (codex P2, #206 Slice C)."""
+    from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
+
+    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    # Re-encrypt an empty secret map: the setup's "member" role now has no login.
+    row["config_json"][CREDENTIALS_ENC_KEY] = credentials.serialize_blob(credentials.encrypt({}))
+    resp = client.post("/crawls")
+    assert resp.status_code == 400
+    assert "member" in resp.json()["detail"]
+    assert fake_dispatcher.dispatched == []
+    assert client.get("/crawls").json() == []  # no orphaned pending row
+
+
+def test_sandbox_dispatches_without_the_pull_token(client, fake_dispatcher, monkeypatch):
+    """The sandbox runs the mock path and never pulls credentials, so a missing
+    pull bearer must not block it (the exemption mirrors the missing-blob case)."""
+    monkeypatch.delenv("SIDIRA_CRAWLER_CREDENTIALS_TOKEN", raising=False)
+    monkeypatch.delenv("PYTHIA_CRAWLER_CREDENTIALS_TOKEN", raising=False)
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "streamly-sandbox")
+    resp = client.post("/crawls")
+    assert resp.status_code == 202
+    assert len(fake_dispatcher.dispatched) == 1
 
 
 def test_streamly_sandbox_dispatches_without_a_saved_setup(client, fake_dispatcher, monkeypatch):

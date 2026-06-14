@@ -9,6 +9,7 @@ unconfigured-token 503 is pinned.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -17,6 +18,12 @@ from fastapi.testclient import TestClient
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+# Saving a crawl setup now encrypts the role passwords at rest (#206 Slice C),
+# so the local-key fallback must be configured before the app imports. A fixed
+# base64 32-byte AESGCM key — test-only, never a real secret.
+os.environ.setdefault(
+    "SIDIRA_LOCAL_CRED_KEY", "c2lkaXJhLXRlc3QtY3JlZC1rZXktMzJieXRlcyEhISE="
+)
 
 from sidira_simulator.adapters.repositories import (  # noqa: E402
     get_in_memory_crawl_config_repo,
@@ -45,8 +52,8 @@ def _setup_payload(**overrides):
         ],
         "sandbox_url": "https://sandbox.lumen.dev",
         "test_users": [
-            {"role": "admin", "username": "crawler-admin@lumen.dev"},
-            {"role": "member", "username": "crawler-member@lumen.dev"},
+            {"role": "admin", "username": "crawler-admin@lumen.dev", "password": "adm-pw-s3cret"},
+            {"role": "member", "username": "crawler-member@lumen.dev", "password": "mbr-pw-s3cret"},
         ],
         "ip_allowlist_note": "egress IPs allowlisted in Cloudflare WAF",
         "cadence": "weekly",
@@ -105,6 +112,17 @@ def test_put_overwrites_prior_save(client):
         {"sandbox_url": "https://"},  # scheme-only — no host to navigate
         {"sandbox_url": "https://user:pass@sandbox.lumen.dev"},  # embedded creds
         {"test_users": []},  # one login per role minimum
+        # Slice C (#206): every login must carry a non-blank password, and each
+        # role may appear only once (the secret store is keyed by role).
+        {"test_users": [{"role": "admin", "username": "a@x.dev"}]},  # missing password
+        {"test_users": [{"role": "admin", "username": "a@x.dev", "password": ""}]},  # blank
+        {"test_users": [{"role": "admin", "username": "a@x.dev", "password": "   "}]},  # whitespace
+        {
+            "test_users": [
+                {"role": "admin", "username": "a@x.dev", "password": "p1"},
+                {"role": "admin", "username": "b@x.dev", "password": "p2"},
+            ]
+        },  # duplicate role
         {"walk_depth": 5},
         {"cadence": "hourly"},
     ],
@@ -146,6 +164,113 @@ def test_dispatch_payload_is_non_secret_projection():
     assert "crawler-admin@lumen.dev" not in blob
     assert "username" not in payload and "test_users" not in payload
     assert setup.dispatch_payload(product_id="driver-app")["product_id"] == "driver-app"
+
+
+def test_password_is_never_echoed_back(client):
+    """The PUT response and a follow-up GET both return the password-free
+    projection — passwords go in but never come back out (#206 Slice C)."""
+    put = client.put("/crawl-setup", json=_setup_payload())
+    assert put.status_code == 200
+    got = client.get("/crawl-setup")
+
+    for resp in (put, got):
+        users = resp.json()["setup"]["test_users"]
+        assert [u["role"] for u in users] == ["admin", "member"]
+        for u in users:
+            assert "password" not in u
+        # belt-and-suspenders: the secret never appears anywhere in the body.
+        assert "adm-pw-s3cret" not in resp.text
+        assert "mbr-pw-s3cret" not in resp.text
+
+
+def test_password_stored_encrypted_not_cleartext(client):
+    """config_json persists the password-free setup plus an encrypted blob — the
+    plaintext password must not appear in the stored row (#206 Slice C)."""
+    from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
+
+    client.put("/crawl-setup", json=_setup_payload())
+    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    stored = json.dumps(row["config_json"])
+    assert "adm-pw-s3cret" not in stored
+    assert "mbr-pw-s3cret" not in stored
+    # The encrypted sibling is present and self-describes as the local-key blob.
+    enc = row["config_json"][CREDENTIALS_ENC_KEY]
+    assert enc["kek_id"] == "local"
+    assert enc["ciphertext"] and enc["nonce"]
+
+
+def test_save_without_cred_key_is_503(client, monkeypatch):
+    """With no key material configured we refuse to store a login we cannot
+    protect — a 503, not a silent cleartext save."""
+    monkeypatch.delenv("SIDIRA_LOCAL_CRED_KEY", raising=False)
+    monkeypatch.delenv("PYTHIA_LOCAL_CRED_KEY", raising=False)
+    resp = client.put("/crawl-setup", json=_setup_payload())
+    assert resp.status_code == 503
+    assert "SIDIRA_LOCAL_CRED_KEY" in resp.json()["detail"]
+
+
+def test_field_validation_error_never_echoes_the_password(client):
+    """A 422 on the password field must not reflect the rejected secret — the
+    default Pydantic error payload includes `input`, so it is redacted
+    (codex P2, #206 Slice C)."""
+    secret = "p" * 300  # exceeds max_length=256 → 422 on the password field
+    resp = client.put(
+        "/crawl-setup",
+        json=_setup_payload(
+            test_users=[{"role": "admin", "username": "a@x.dev", "password": secret}]
+        ),
+    )
+    assert resp.status_code == 422
+    assert secret not in resp.text
+    assert "<redacted>" in resp.text
+
+
+def test_model_level_validation_error_never_echoes_passwords(client):
+    """A model-level test_users error (duplicate role) carries the whole
+    password-bearing list as its `input` — that must be redacted too."""
+    resp = client.put(
+        "/crawl-setup",
+        json=_setup_payload(
+            test_users=[
+                {"role": "admin", "username": "a@x.dev", "password": "dup-pw-aaaa"},
+                {"role": "admin", "username": "b@x.dev", "password": "dup-pw-bbbb"},
+            ]
+        ),
+    )
+    assert resp.status_code == 422
+    assert "dup-pw-aaaa" not in resp.text
+    assert "dup-pw-bbbb" not in resp.text
+
+
+def test_top_level_validation_error_never_echoes_passwords(client):
+    """A validation failure on an unrelated top-level field (here, missing
+    capabilities) can carry the entire submitted body — passwords included — as
+    the Pydantic error `input`. The crawl-setup 422 redacts every error's input,
+    not just the password-loc ones (codex P2, #206 Slice C)."""
+    payload = _setup_payload(
+        test_users=[{"role": "admin", "username": "a@x.dev", "password": "whole-body-secret"}]
+    )
+    del payload["capabilities"]  # triggers a top-level missing-field error
+    resp = client.put("/crawl-setup", json=payload)
+    assert resp.status_code == 422
+    assert "whole-body-secret" not in resp.text
+
+
+@pytest.mark.parametrize(
+    "bad_key",
+    [
+        "not valid base64!!",  # binascii.Error from the base64 decode
+        "c2hvcnQ=",  # decodes to "short" — 5 bytes, not a valid AES-GCM length
+    ],
+)
+def test_save_with_malformed_cred_key_is_503_not_500(client, monkeypatch, bad_key):
+    """A typo'd or wrong-length SIDIRA_LOCAL_CRED_KEY must fail closed as a
+    controlled 503 (the deploy runbook has operators create this key by hand),
+    not surface a raw binascii/ValueError as a 500 (codex P2, #206 Slice C)."""
+    monkeypatch.setenv("SIDIRA_LOCAL_CRED_KEY", bad_key)
+    resp = client.put("/crawl-setup", json=_setup_payload())
+    assert resp.status_code == 503
+    assert "SIDIRA_LOCAL_CRED_KEY" in resp.json()["detail"]
 
 
 def test_trigger_unconfigured_is_503_not_501(client, monkeypatch):

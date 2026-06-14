@@ -23,7 +23,7 @@ import {
   saveCrawlSetup,
   startCrawl,
   type CrawlCadence,
-  type CrawlSetup,
+  type CrawlSetupInput,
   type CrawlSummary,
   type FeaturePackManifest,
 } from "@/lib/api";
@@ -43,6 +43,9 @@ interface CapabilityDraft {
 interface TestUserDraft {
   role: string;
   username: string;
+  // Write-only (#206 Slice C): collected here, encrypted at rest, never
+  // returned by GET — so it loads blank and must be re-entered to re-save.
+  password: string;
 }
 
 const emptyCapability = (): CapabilityDraft => ({ name: "", urls: [""] });
@@ -68,6 +71,12 @@ function validate(
   const filledUsers = users.filter((u) => u.role.trim() && u.username.trim());
   if (filledUsers.length === 0)
     return "Add at least one test login — role and username.";
+  const missingPassword = filledUsers.find((u) => !u.password.trim());
+  if (missingPassword)
+    return `Enter the password for the "${missingPassword.role.trim()}" login — it is encrypted at rest and re-entered on each save.`;
+  const roles = filledUsers.map((u) => u.role.trim());
+  if (new Set(roles).size !== roles.length)
+    return "Each role may have only one test login.";
   return null;
 }
 
@@ -122,8 +131,8 @@ export default function CrawlSetupPage() {
   const [caps, setCaps] = useState<CapabilityDraft[]>([emptyCapability()]);
   const [sandboxUrl, setSandboxUrl] = useState("");
   const [users, setUsers] = useState<TestUserDraft[]>([
-    { role: "admin", username: "" },
-    { role: "member", username: "" },
+    { role: "admin", username: "", password: "" },
+    { role: "member", username: "", password: "" },
   ]);
   const [ipNote, setIpNote] = useState("");
   const [cadence, setCadence] = useState<CrawlCadence>("weekly");
@@ -152,7 +161,8 @@ export default function CrawlSetupPage() {
             s.capabilities.map((c) => ({ name: c.name, urls: [...c.entry_urls] })),
           );
           setSandboxUrl(s.sandbox_url);
-          setUsers(s.test_users.map((u) => ({ ...u })));
+          // GET never returns passwords — load role+username, blank password.
+          setUsers(s.test_users.map((u) => ({ ...u, password: "" })));
           setIpNote(s.ip_allowlist_note);
           setCadence(s.cadence);
           setWalkDepth(s.walk_depth);
@@ -247,7 +257,7 @@ export default function CrawlSetupPage() {
     setValidationError(error);
     if (error) return;
 
-    const payload: CrawlSetup = {
+    const payload: CrawlSetupInput = {
       capabilities: caps.map((c) => ({
         name: c.name.trim(),
         entry_urls: c.urls.map((u) => u.trim()).filter(Boolean),
@@ -255,7 +265,13 @@ export default function CrawlSetupPage() {
       sandbox_url: sandboxUrl.trim(),
       test_users: users
         .filter((u) => u.role.trim() && u.username.trim())
-        .map((u) => ({ role: u.role.trim(), username: u.username.trim() })),
+        // Password is sent byte-for-byte (no trim) — surrounding whitespace can
+        // be significant; only its presence is validated above.
+        .map((u) => ({
+          role: u.role.trim(),
+          username: u.username.trim(),
+          password: u.password,
+        })),
       ip_allowlist_note: ipNote.trim(),
       cadence,
       walk_depth: walkDepth,
@@ -510,12 +526,29 @@ export default function CrawlSetupPage() {
                         )}
                       </div>
                     </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label htmlFor={`password-${i}`} style={sublabelStyle}>
+                        Password
+                      </label>
+                      <input
+                        id={`password-${i}`}
+                        type="password"
+                        value={user.password}
+                        onChange={(e) => setUser(i, { password: e.target.value })}
+                        autoComplete="off"
+                        placeholder="••••••••"
+                        style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 13 }}
+                      />
+                    </div>
                   </div>
                 ))}
                 {users.length < MAX_TEST_USERS && (
                   <AddButton
                     onClick={() =>
-                      setUsers((prev) => [...prev, { role: "", username: "" }])
+                      setUsers((prev) => [
+                        ...prev,
+                        { role: "", username: "", password: "" },
+                      ])
                     }
                   >
                     + ADD ROLE
@@ -534,8 +567,9 @@ export default function CrawlSetupPage() {
                   />
                   <div style={hintStyle}>
                     One test login per role — role gating is captured in the
-                    reverse-Figma spec. Allowlist the walker&apos;s egress IPs
-                    first.
+                    reverse-Figma spec. Passwords are encrypted at rest and never
+                    shown again, so re-enter them whenever you re-save. Allowlist
+                    the walker&apos;s egress IPs first.
                   </div>
                 </div>
               </section>

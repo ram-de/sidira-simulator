@@ -160,10 +160,28 @@ write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
 # empty/None), so the app falls back to its unconfigured behavior.
 # SIDIRA_CRAWLER_DISPATCH_TOKEN is the GitHub PAT that lets POST /crawls
 # dispatch crawl.yml (#193); without it the crawl routes 503 by design.
+# SIDIRA_CRAWLER_CREDENTIALS_TOKEN is the CI-only shared secret the crawler
+# presents to GET /internal/crawl-credentials/{customer} (#206 Slice C);
+# without it the credential-pull route 503s and no logins are delivered.
 # R2_PACK_* (#208) configure a read-only store for crawler-published Feature
 # Packs: setting R2_PACK_BUCKET makes the backend serve a customer's latest
 # pack live from R2 (no per-crawl import) while writes stay on the local
 # bind-mount. Distinct from R2_BUCKET, which would flip the whole store.
+# #206 Slice C: the two crawler tokens are paired. SIDIRA_CRAWLER_DISPATCH_TOKEN
+# enables POST /crawls; once it is enabled, every real-tenant crawl pulls logins
+# at run start with SIDIRA_CRAWLER_CREDENTIALS_TOKEN, and the dispatch preflight
+# now 503s without it. Shipping the first without the second yields a backend
+# whose "Start crawl" is broken for real tenants, so fail fast on that
+# half-configured state. (Neither set = crawls simply disabled, still a valid
+# deploy — that is why these stay out of the always-required checks above.)
+dispatch_token="$(ssm_value SIDIRA_CRAWLER_DISPATCH_TOKEN)"
+credentials_token="$(ssm_value SIDIRA_CRAWLER_CREDENTIALS_TOKEN)"
+if [[ -n "$dispatch_token" && "$dispatch_token" != "None" ]] \
+   && [[ -z "$credentials_token" || "$credentials_token" == "None" ]]; then
+  echo "crawl dispatch is enabled (SIDIRA_CRAWLER_DISPATCH_TOKEN present) but ${PARAM_PREFIX}/SIDIRA_CRAWLER_CREDENTIALS_TOKEN is missing; real-tenant POST /crawls would 503 — set the credential-pull token (see deploy/REDEPLOY.md) or remove the dispatch token to disable crawls" >&2
+  exit 1
+fi
+
 for key in \
   GROQ_API_KEY \
   ANTHROPIC_API_KEY \
@@ -176,7 +194,8 @@ for key in \
   R2_PACK_ENDPOINT_URL \
   R2_PACK_ACCESS_KEY_ID \
   R2_PACK_SECRET_ACCESS_KEY \
-  SIDIRA_CRAWLER_DISPATCH_TOKEN
+  SIDIRA_CRAWLER_DISPATCH_TOKEN \
+  SIDIRA_CRAWLER_CREDENTIALS_TOKEN
 do
   value="$(ssm_value "$key")"
   write_env "$key" "$value"

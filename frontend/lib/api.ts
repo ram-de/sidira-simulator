@@ -123,9 +123,18 @@ export interface CrawlCapability {
   entry_urls: string[];
 }
 
+// The password-FREE projection — what GET /crawl-setup returns and what the
+// dispatch payload names. Passwords go in on save but never come back out
+// (#206 Slice C): they're encrypted at rest and delivered to CI only via an
+// authenticated pull.
 export interface CrawlRoleCredential {
   role: string;
   username: string;
+}
+
+// The PUT-only login that also carries the secret password.
+export interface CrawlRoleCredentialInput extends CrawlRoleCredential {
+  password: string;
 }
 
 export type CrawlCadence = "weekly" | "on_demand";
@@ -139,6 +148,13 @@ export interface CrawlSetup {
   walk_depth: number;
 }
 
+// The PUT request body: a CrawlSetup whose logins carry passwords. GET still
+// returns the password-free CrawlSetup, so the page must re-collect passwords
+// to re-save an existing setup.
+export interface CrawlSetupInput extends Omit<CrawlSetup, "test_users"> {
+  test_users: CrawlRoleCredentialInput[];
+}
+
 export interface CrawlSetupEnvelope {
   customer_id: string;
   setup: CrawlSetup | null;
@@ -147,8 +163,8 @@ export interface CrawlSetupEnvelope {
 
 export const getCrawlSetup = () => apiGet<CrawlSetupEnvelope>("/crawl-setup");
 
-export const saveCrawlSetup = (setup: CrawlSetup) =>
-  apiPut<CrawlSetup, CrawlSetupEnvelope>("/crawl-setup", setup);
+export const saveCrawlSetup = (setup: CrawlSetupInput) =>
+  apiPut<CrawlSetupInput, CrawlSetupEnvelope>("/crawl-setup", setup);
 
 // #193 fire-and-watch crawl trigger. POST dispatches the crawler's CI
 // workflow and returns immediately; the browser is never load-bearing — the
