@@ -1,8 +1,9 @@
 ---
 type: session
 domain: persona-pack-ui
-status: active
+status: closed
 started: 2026-06-15
+closed: 2026-06-15
 owner: ram-de
 ---
 
@@ -31,7 +32,7 @@ Then, separately, realign the stale Phase-4.5 build-pipeline tickets to today's 
 - **Worktree for implementation** (CLAUDE.md hard rule): EnterWorktree before any code branch.
 
 ## In Progress
-— **None. Gap-2 shipped end-to-end + ticket realignment posted.** Session goal met.
+— session complete
 
 ## Completed
 - **Gap-2 — surface v1.1 pack richness (PR #249, merged `56efb34`, DEPLOYED + VERIFIED LIVE 2026-06-15).**
@@ -56,15 +57,14 @@ Then, separately, realign the stale Phase-4.5 build-pipeline tickets to today's 
 - **Phase-4.5 ticket realignment posted** (#21–#25 comments) per the audit in Key Context.
 
 ## Next Steps
-1. **(Verify after Amplify build)** the `sits/sit` fix shows on the live `/personas/[id]` page.
-2. **Follow-ups, not started** — the persona-side gaps still without UI (see frontend-surface map):
-   build history/status list, draft-pack list + promote UI, older-snapshot browsing; and the stubbed
-   `/personas/new` wizard (blocked on the realigned #23/#24 backend work).
-3. **To see FULL v1.1 richness live**, a v1.1 pack must be regenerated through the producer pipeline —
-   prod packs today are v1.0/starter, so the page correctly renders centroid + weights only (no
-   individual-row block). Validation confirmed the v1.0 honest-empty-state path on the starter pack.
-4. **Consider `/pythia-session close persona-pack-ui`** — goal is met; left active pending the
-   Amplify-build verification above.
+— session complete. Live verification done: Amplify job 203 (`b0967a8`) + job 205 (`31a9616`)
+both SUCCEED; the `sits/sit` fix confirmed on the live `/personas/[id]` page 2026-06-15.
+
+**Spun out as future work (not this session):**
+- Persona-side surfaces still without UI: build history/status list, draft-pack list + promote UI,
+  older-snapshot browsing; the stubbed `/personas/new` wizard (blocked on realigned #23/#24 backend).
+- To exercise the FULL v1.1 individual-row tier live, regenerate a v1.1 pack through the producer
+  pipeline — prod packs are v1.0/starter today, so the page correctly shows centroid + weights only.
 
 ## Key Files
 - `frontend/app/personas/[id]/page.tsx` — persona pack detail (the page to enrich)
