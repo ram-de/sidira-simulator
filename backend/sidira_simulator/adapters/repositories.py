@@ -24,6 +24,8 @@ from sidira_simulator.adapters.db_models import (
     CrawlConfig,
     CrawlRun,
     Customer,
+    FeatureStoreConnection,
+    PersonaBuildRun,
     Simulation,
 )
 
@@ -602,8 +604,333 @@ class InMemoryCrawlRunRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# FeatureStoreConnection (#22)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class FeatureStoreConnectionRepo(Protocol):
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None: ...
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]: ...
+
+
+class PostgresFeatureStoreConnectionRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        row = FeatureStoreConnection(**connection)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _feature_store_connection_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        # Scope by customer: never hand back another tenant's row even on a
+        # correct id guess.
+        result = (
+            _feature_store_connection_to_dict(row)
+            if row is not None and row.customer_id == customer_id
+            else None
+        )
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        stmt = (
+            select(FeatureStoreConnection)
+            .where(FeatureStoreConnection.customer_id == customer_id)
+            .order_by(FeatureStoreConnection.updated_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_feature_store_connection_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryFeatureStoreConnectionRepo:
+    def __init__(self) -> None:
+        self._connections: dict[str, dict[str, Any]] = {}
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        row = {**connection, "updated_at": datetime.now(timezone.utc)}
+        self._connections[row["id"]] = row
+        return dict(row)
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        return dict(row)
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        rows = [r for r in self._connections.values() if r["customer_id"] == customer_id]
+        rows.sort(key=lambda r: r["updated_at"], reverse=True)
+        return [dict(r) for r in rows]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# PersonaBuildRun (#24)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class PersonaBuildRepo(Protocol):
+    async def create(
+        self,
+        *,
+        build_id: str,
+        customer_id: str,
+        connection_id: str,
+    ) -> dict[str, Any]: ...
+
+    async def update_status(
+        self,
+        build_id: str,
+        customer_id: str,
+        status: str,
+        *,
+        pack_version: str | None = None,
+        stability_score: float | None = None,
+        persona_count: int | None = None,
+        error: str | None = None,
+        completed_at: datetime | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def get(self, build_id: str, customer_id: str) -> dict[str, Any] | None: ...
+
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict[str, Any]]: ...
+
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None: ...
+
+
+class PostgresPersonaBuildRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        *,
+        build_id: str,
+        customer_id: str,
+        connection_id: str,
+    ) -> dict[str, Any]:
+        row = PersonaBuildRun(
+            id=build_id,
+            customer_id=customer_id,
+            connection_id=connection_id,
+            status="pending",
+        )
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _persona_build_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def update_status(
+        self,
+        build_id: str,
+        customer_id: str,
+        status: str,
+        *,
+        pack_version: str | None = None,
+        stability_score: float | None = None,
+        persona_count: int | None = None,
+        error: str | None = None,
+        completed_at: datetime | None = None,
+    ) -> dict[str, Any]:
+        row = await self._session.get(PersonaBuildRun, build_id)
+        if row is None or row.customer_id != customer_id:
+            raise KeyError(f"Persona build {build_id!r} not found for customer {customer_id!r}")
+        row.status = status
+        if pack_version is not None:
+            row.pack_version = pack_version
+        if stability_score is not None:
+            row.stability_score = stability_score
+        if persona_count is not None:
+            row.persona_count = persona_count
+        if error is not None:
+            row.error = error
+        if completed_at is not None:
+            row.completed_at = completed_at
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _persona_build_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(self, build_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(PersonaBuildRun, build_id)
+        result = (
+            _persona_build_to_dict(row)
+            if row is not None and row.customer_id == customer_id
+            else None
+        )
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        stmt = (
+            select(PersonaBuildRun)
+            .where(PersonaBuildRun.customer_id == customer_id)
+            .order_by(PersonaBuildRun.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_persona_build_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None:
+        """Resolve a COMPLETE build by its exact (customer, pack_version) with no
+        row cap, so promoting/listing an older version still finds its metadata.
+        Returns the newest match if (rarely) more than one build shares a
+        version."""
+        stmt = (
+            select(PersonaBuildRun)
+            .where(
+                PersonaBuildRun.customer_id == customer_id,
+                PersonaBuildRun.pack_version == pack_version,
+                PersonaBuildRun.status == "complete",
+            )
+            .order_by(PersonaBuildRun.created_at.desc())
+            .limit(1)
+        )
+        row = (await self._session.execute(stmt)).scalars().first()
+        result = _persona_build_to_dict(row) if row is not None else None
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryPersonaBuildRepo:
+    def __init__(self) -> None:
+        self._builds: dict[str, dict[str, Any]] = {}
+
+    async def create(
+        self,
+        *,
+        build_id: str,
+        customer_id: str,
+        connection_id: str,
+    ) -> dict[str, Any]:
+        row = {
+            "id": build_id,
+            "customer_id": customer_id,
+            "connection_id": connection_id,
+            "status": "pending",
+            "pack_version": None,
+            "stability_score": None,
+            "persona_count": None,
+            "error": None,
+            "created_at": datetime.now(timezone.utc),
+            "completed_at": None,
+        }
+        self._builds[build_id] = row
+        return dict(row)
+
+    async def update_status(
+        self,
+        build_id: str,
+        customer_id: str,
+        status: str,
+        *,
+        pack_version: str | None = None,
+        stability_score: float | None = None,
+        persona_count: int | None = None,
+        error: str | None = None,
+        completed_at: datetime | None = None,
+    ) -> dict[str, Any]:
+        row = self._builds.get(build_id)
+        if row is None or row["customer_id"] != customer_id:
+            raise KeyError(f"Persona build {build_id!r} not found for customer {customer_id!r}")
+        row["status"] = status
+        if pack_version is not None:
+            row["pack_version"] = pack_version
+        if stability_score is not None:
+            row["stability_score"] = stability_score
+        if persona_count is not None:
+            row["persona_count"] = persona_count
+        if error is not None:
+            row["error"] = error
+        if completed_at is not None:
+            row["completed_at"] = completed_at
+        return dict(row)
+
+    async def get(self, build_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = self._builds.get(build_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        return dict(row)
+
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        rows = [dict(r) for r in self._builds.values() if r["customer_id"] == customer_id]
+        rows.sort(
+            key=lambda r: r.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        return rows[:limit]
+
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None:
+        matches = [
+            dict(r)
+            for r in self._builds.values()
+            if r["customer_id"] == customer_id
+            and r.get("pack_version") == pack_version
+            and r.get("status") == "complete"
+        ]
+        matches.sort(
+            key=lambda r: r.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        return matches[0] if matches else None
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _persona_build_to_dict(row: PersonaBuildRun) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "connection_id": row.connection_id,
+        "status": row.status,
+        "pack_version": row.pack_version,
+        "stability_score": row.stability_score,
+        "persona_count": row.persona_count,
+        "error": row.error,
+        "created_at": row.created_at,
+        "completed_at": row.completed_at,
+    }
+
+
+def _feature_store_connection_to_dict(row: FeatureStoreConnection) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "name": row.name,
+        "kind": row.kind,
+        "account": row.account,
+        "user": row.user,
+        "warehouse": row.warehouse,
+        "role": row.role,
+        "database": row.database,
+        "schema": row.schema,
+        "password_enc": row.password_enc,
+        "updated_at": row.updated_at,
+    }
 
 
 def _crawl_run_to_dict(row: CrawlRun) -> dict[str, Any]:
@@ -696,6 +1023,31 @@ def get_in_memory_crawl_run_repo() -> InMemoryCrawlRunRepo:
     if _in_memory_crawl_runs is None:
         _in_memory_crawl_runs = InMemoryCrawlRunRepo()
     return _in_memory_crawl_runs
+
+
+_in_memory_feature_store_connections: InMemoryFeatureStoreConnectionRepo | None = None
+
+
+def get_in_memory_feature_store_connection_repo() -> InMemoryFeatureStoreConnectionRepo:
+    """Process-wide in-memory feature-store-connection repo (#22), same pattern
+    as crawl configs/runs. Reset in tests via ``._connections.clear()``."""
+    global _in_memory_feature_store_connections
+    if _in_memory_feature_store_connections is None:
+        _in_memory_feature_store_connections = InMemoryFeatureStoreConnectionRepo()
+    return _in_memory_feature_store_connections
+
+
+_in_memory_persona_builds: InMemoryPersonaBuildRepo | None = None
+
+
+def get_in_memory_persona_build_repo() -> InMemoryPersonaBuildRepo:
+    """Process-wide in-memory persona-build repo (#24), same pattern as crawl
+    configs/runs + feature-store connections. Reset in tests via
+    ``._builds.clear()``."""
+    global _in_memory_persona_builds
+    if _in_memory_persona_builds is None:
+        _in_memory_persona_builds = InMemoryPersonaBuildRepo()
+    return _in_memory_persona_builds
 
 
 def get_in_memory_repos() -> tuple[

@@ -153,7 +153,7 @@ async def save_crawl_setup(
     # back out of GET, and reach CI only via the authenticated crawler pull.
     stored = payload.to_setup().model_dump()
     try:
-        blob = credentials.encrypt(payload.credential_secrets())
+        blob = credentials.encrypt(payload.credential_secrets(), customer_id=customer_id)
     except credentials.CredentialError as exc:
         # No key material configured — saving a login we cannot protect would be
         # worse than refusing. Surface a 503 instead of an opaque 500.
@@ -328,11 +328,13 @@ async def _resolve_dispatch_config(customer_id: str, config_repo: CrawlConfigRep
     if customer_id != _SANDBOX_CUSTOMER:
         # Real tenants pull logins from /internal/crawl-credentials at run start.
         # Verify that pull will succeed *before* spending a ~40-min CI walk.
-        _require_dispatchable_credentials(setup, row["config_json"])
+        _require_dispatchable_credentials(setup, row["config_json"], customer_id)
     return json.dumps(setup.dispatch_payload(), separators=(",", ":"))
 
 
-def _require_dispatchable_credentials(setup: CrawlSetup, config_json: dict) -> None:
+def _require_dispatchable_credentials(
+    setup: CrawlSetup, config_json: dict, customer_id: str
+) -> None:
     """Fail closed if the run-start credential pull could not succeed.
 
     The crawler can only log in if (a) an encrypted blob is stored, (b) the
@@ -359,7 +361,7 @@ def _require_dispatchable_credentials(setup: CrawlSetup, config_json: dict) -> N
             ),
         )
     try:
-        secrets = credentials.decrypt(credentials.deserialize_blob(enc))
+        secrets = credentials.decrypt(credentials.deserialize_blob(enc), customer_id=customer_id)
     except credentials.CredentialError as exc:
         # Key rotated after the blob was written, or stored ciphertext corrupted
         # — the pull would 503. Re-saving the setup re-encrypts under the live key.

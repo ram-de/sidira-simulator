@@ -32,7 +32,15 @@ class TablePreview:
 
 
 class FeatureStoreConnectionError(RuntimeError):
-    """Raised when a feature store cannot be reached or authenticated."""
+    """Raised when a feature store cannot be reached or authenticated.
+
+    ``kind`` classifies the failure for the API: one of ``auth`` / ``permission``
+    / ``network`` / ``unknown``. Adapters set it; the default is ``unknown``.
+    """
+
+    def __init__(self, *args: object, kind: str = "unknown") -> None:
+        super().__init__(*args)
+        self.kind = kind
 
 
 class FeatureStore(Protocol):

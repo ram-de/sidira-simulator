@@ -30,15 +30,21 @@ from sidira_simulator.adapters.repositories import (
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
+    FeatureStoreConnectionRepo,
+    PersonaBuildRepo,
     PostgresAgentFeedbackRepo,
     PostgresAgentInstanceRepo,
     PostgresCrawlConfigRepo,
     PostgresCrawlRunRepo,
     PostgresCustomerRepo,
+    PostgresFeatureStoreConnectionRepo,
+    PostgresPersonaBuildRepo,
     PostgresSimulationRepo,
     SimulationRepo,
     get_in_memory_crawl_config_repo,
     get_in_memory_crawl_run_repo,
+    get_in_memory_feature_store_connection_repo,
+    get_in_memory_persona_build_repo,
     get_in_memory_repos,
 )
 from sidira_simulator.services.runtime_config import resolve_sidira_env
@@ -126,6 +132,20 @@ def get_crawl_run_repo(session: RepositorySession = None) -> CrawlRunRepo:
     if session is None:
         return get_in_memory_crawl_run_repo()
     return PostgresCrawlRunRepo(session)
+
+
+def get_feature_store_connection_repo(
+    session: RepositorySession = None,
+) -> FeatureStoreConnectionRepo:
+    if session is None:
+        return get_in_memory_feature_store_connection_repo()
+    return PostgresFeatureStoreConnectionRepo(session)
+
+
+def get_persona_build_repo(session: RepositorySession = None) -> PersonaBuildRepo:
+    if session is None:
+        return get_in_memory_persona_build_repo()
+    return PostgresPersonaBuildRepo(session)
 
 
 async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher | None"]:
