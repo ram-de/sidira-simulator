@@ -7,9 +7,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sidira_simulator.adapters.base import ArtifactNotFound, ArtifactSchemaError
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.api.deps import current_customer_id, get_feature_pack_loader
-from sidira_simulator.schemas.feature_pack import CapabilityRecord, FeaturePackManifest
+from sidira_simulator.schemas.feature_pack import (
+    CapabilityRecord,
+    CapabilitySummary,
+    FeaturePackManifest,
+    FeaturePackSummary,
+)
 
 router = APIRouter(prefix="/capabilities", tags=["capabilities"])
+
+# The pack-summary projection lives under its OWN prefix, NOT as /capabilities/summary.
+# A sibling static segment under /capabilities would collide with the dynamic
+# /capabilities/{capability_name} detail route for any capability literally named
+# `summary` — and that name can arrive in a manifest we don't validate (the crawler
+# is a separate repo; manifests are read straight from R2). A dedicated prefix makes
+# the collision structurally impossible regardless of manifest provenance, so no
+# slug needs reserving. (#207)
+summary_router = APIRouter(prefix="/feature-pack", tags=["capabilities"])
 
 
 @router.get("", response_model=FeaturePackManifest)
@@ -22,6 +36,59 @@ async def list_capabilities(
         return loader.load_latest_manifest(customer_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@summary_router.get("/summary", response_model=FeaturePackSummary)
+async def list_capabilities_summary(
+    customer_id: str = Depends(current_customer_id),
+    loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+) -> FeaturePackSummary:
+    """Return the latest pack as lightweight `{name, roles}` rows + provenance.
+
+    Powers the Library browse page's group-by-role view (#207): the names-only
+    manifest can't carry `roles`, and shipping every full capability body just to
+    read them would be wasteful, so this projects each capability to name + roles.
+
+    Served at `/feature-pack/summary`, deliberately OUTSIDE the `/capabilities/`
+    prefix: a `/capabilities/summary` sibling would shadow the dynamic
+    `/capabilities/{capability_name}` detail route for a capability named `summary`,
+    and that name can reach us in a manifest the crawler (a separate repo) wrote
+    without passing our input validation. A separate prefix removes the collision
+    structurally, so no capability slug has to be reserved.
+
+    Same TOCTOU discipline as :func:`get_capability`: the manifest is loaded once
+    and every per-capability read is pinned to `manifest.snapshot_version`, so a
+    `latest`-pointer flip mid-request can't mix capabilities across snapshots.
+    404 when the pack or its `latest` pointer is missing.
+
+    Resilient per capability: a name in the manifest whose body is missing or has
+    corrupt reverse-Figma is returned with `roles: []` rather than 502-ing the
+    whole list — the name is manifest-guaranteed so the row still appears, and its
+    detail route surfaces the real error on open.
+
+    Cost: O(N) artifact reads per request (loads each capability fully to project
+    name + roles). Fine at today's pack size (~tens of capabilities). The proper
+    fix is to persist `roles` into the manifest at synthesis time and collapse this
+    to a single manifest read — folded into the sidira-crawler#18 work.
+    """
+    try:
+        manifest = loader.load_latest_manifest(customer_id)
+    except ArtifactNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    summaries: list[CapabilitySummary] = []
+    for name in manifest.capabilities:
+        try:
+            capability = loader.load_capability(customer_id, manifest.snapshot_version, name)
+            summaries.append(CapabilitySummary(name=capability.name, roles=capability.roles))
+        except (ArtifactNotFound, ArtifactSchemaError):
+            # Keep the list complete; the detail route surfaces the real error.
+            summaries.append(CapabilitySummary(name=name, roles=[]))
+    return FeaturePackSummary(
+        customer_id=customer_id,
+        snapshot_version=manifest.snapshot_version,
+        generated_at=manifest.generated_at,
+        capabilities=summaries,
+    )
 
 
 @router.get("/{capability_name}", response_model=CapabilityRecord)

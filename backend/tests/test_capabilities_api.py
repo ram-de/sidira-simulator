@@ -90,6 +90,84 @@ def test_get_capability_corrupt_figma_returns_502(tmp_path: Path) -> None:
     assert resp.status_code == 502, resp.text
 
 
+def test_summary_returns_name_and_roles() -> None:
+    """GET /feature-pack/summary projects each capability to name + roles.
+
+    Powers the browse page's group-by-role view (#207); the names-only manifest
+    can't carry roles, so the summary endpoint reads them per capability.
+    """
+    _use_loader(LocalArtifactStore(_FIXTURE_ROOT))
+    resp = TestClient(app).get("/feature-pack/summary")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["snapshot_version"]
+    assert body["generated_at"]
+    by_name = {c["name"]: c for c in body["capabilities"]}
+    assert "reorder" in by_name
+    # Roles are synthesized from reverse-Figma screen.role + transition.role_gated.
+    assert {"guest", "member", "premium_member"} <= set(by_name["reorder"]["roles"])
+
+
+def test_summary_is_version_pinned_to_manifest() -> None:
+    """The summary's snapshot_version matches the manifest the list route serves."""
+    _use_loader(LocalArtifactStore(_FIXTURE_ROOT))
+    client = TestClient(app)
+    manifest = client.get("/capabilities").json()
+    summary = client.get("/feature-pack/summary").json()
+    assert summary["snapshot_version"] == manifest["snapshot_version"]
+    # Same membership as the manifest — no orphans, nothing dropped.
+    assert {c["name"] for c in summary["capabilities"]} == set(manifest["capabilities"])
+
+
+def test_summary_no_pointer_returns_404(tmp_path: Path) -> None:
+    """An empty tenant (no `latest` pointer) is a 404, not a 500."""
+    _use_loader(LocalArtifactStore(tmp_path))
+    resp = TestClient(app).get("/feature-pack/summary")
+    assert resp.status_code == 404, resp.text
+
+
+def test_summary_resilient_to_corrupt_capability(tmp_path: Path) -> None:
+    """A capability with corrupt reverse-Figma still appears, with empty roles.
+
+    The whole list must not 502 because one body is unreadable: the name is
+    manifest-guaranteed, so the row is returned with `roles: []` and its detail
+    route surfaces the real error on open.
+    """
+    store = LocalArtifactStore(tmp_path)
+    base = "customers/demo/featurepacks/2026-W21/capabilities/broken"
+    _write_manifest(store, "2026-W21", ["broken"])
+    store.write_text(f"{base}/reverse-prd.md", "# Broken\n")
+    store.write_text(f"{base}/reverse-figma.json", '{"screens": "not-a-list"}')
+    _use_loader(store)
+    resp = TestClient(app).get("/feature-pack/summary")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["capabilities"] == [{"name": "broken", "roles": []}]
+
+
+def test_capability_named_summary_resolves_to_detail_not_projection(tmp_path: Path) -> None:
+    """A capability literally named `summary` still reaches its own detail page.
+
+    The summary projection lives at /feature-pack/summary, NOT /capabilities/summary,
+    so the dynamic /capabilities/{name} detail route owns `summary` like any other
+    slug. This is the guard against the route-shadow that a dedicated prefix removes:
+    a manifest the crawler wrote (separate repo, unvalidated here) can list `summary`
+    and the detail link must still deserialize a CapabilityRecord, not a summary.
+    """
+    store = LocalArtifactStore(tmp_path)
+    base = "customers/demo/featurepacks/2026-W21/capabilities/summary"
+    _write_manifest(store, "2026-W21", ["summary"])
+    store.write_text(f"{base}/reverse-prd.md", "# Summary\n")
+    store.write_text(f"{base}/reverse-figma.json", '{"screens": [], "transitions": []}')
+    _use_loader(store)
+    resp = TestClient(app).get("/capabilities/summary")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # The detail shape, not the projection: a CapabilityRecord wraps `capability`.
+    assert body["capability"]["name"] == "summary"
+    assert "capabilities" not in body
+
+
 def test_get_capability_orphaned_dir_returns_404(tmp_path: Path) -> None:
     """A capability dropped from the manifest but left on disk is a 404.
 

@@ -164,6 +164,7 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(config.router)
     app.include_router(capabilities.router)
+    app.include_router(capabilities.summary_router)
     app.include_router(crawls.router)
     app.include_router(internal.router)
     app.include_router(feature_stores.router)
