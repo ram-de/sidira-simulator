@@ -76,3 +76,30 @@ class CapabilityRecord(BaseModel):
     snapshot_version: str
     generated_at: datetime
     capability: Capability
+
+
+class CapabilitySummary(BaseModel):
+    """A capability projected to just its name + roles — no reverse-PRD/Figma body.
+
+    The names-only :class:`FeaturePackManifest` can't drive a group-by-role view,
+    and shipping every full :class:`Capability` to the Library browse page just to
+    read `roles` would be wasteful. This is the lightweight projection in between.
+    """
+
+    name: str
+    roles: list[str]
+
+
+class FeaturePackSummary(BaseModel):
+    """The latest pack as `{name, roles}` rows plus its provenance.
+
+    Mirrors :class:`FeaturePackManifest` (same version + timestamp header) but
+    carries per-capability `roles`, so the Library browse page (#207) gets names,
+    roles, version and date from a single fetch and can group by role.
+    """
+
+    customer_id: str
+    snapshot_version: str
+    generated_at: datetime
+    schema_version: Literal["1.0"] = "1.0"
+    capabilities: list[CapabilitySummary]

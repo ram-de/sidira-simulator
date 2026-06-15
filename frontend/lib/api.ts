@@ -38,6 +38,21 @@ export type CapabilityRecord = {
   generated_at: string;
   capability: Capability;
 };
+// Lightweight per-capability projection (name + roles, no PRD/Figma body) so the
+// Library browse page can group by role from a single fetch. Hand-mirrored like
+// Capability above; collapse to components["schemas"] when api-types.ts is
+// regenerated.
+export type CapabilitySummary = {
+  name: string;
+  roles: string[];
+};
+export type FeaturePackSummary = {
+  customer_id: string;
+  snapshot_version: string;
+  generated_at: string;
+  schema_version: "1.0";
+  capabilities: CapabilitySummary[];
+};
 export type PersonaSummary = components["schemas"]["PersonaSummary"];
 export type ActivePersonasResponse = components["schemas"]["ActivePersonasResponse"];
 export type Hypothesis = components["schemas"]["Hypothesis"];
@@ -110,6 +125,9 @@ export const apiPut = <T, U>(path: string, body: T) =>
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
 export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities");
+
+export const getCapabilitySummary = () =>
+  apiGet<FeaturePackSummary>("/feature-pack/summary");
 
 export const getCapability = (name: string) =>
   apiGet<CapabilityRecord>(`/capabilities/${encodeURIComponent(name)}`);
