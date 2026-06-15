@@ -51,11 +51,29 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
   (stacked; auto-retargets to main when #253 merges). tsc clean; next build clean (/personas/new 10.8kB).
   codex review: no P1; one P2 (stale promotion state on new-build-after-promote) → FIXED b7f07b3.
 
-## ⏭️ REMAINING (needs user / merge decisions)
-1. Review + merge **#253 (backend)** FIRST, then **#254 (frontend)** auto-retargets to main.
-2. After #253 merges → **BACKEND REDEPLOY** (api.sidira.ai is manual-deploy). Migrations **011+012**
-   (alembic) + set **SIDIRA_KMS_KEY_ID** if running cred mode=kms. Run deploy/REDEPLOY.md via codex.
-   #254 is frontend-only → Amplify auto-rebuilds on merge to main, no manual deploy.
+## ✅ SHIPPED + DEPLOYED 2026-06-15
+- #253 merged (1926232) + #254 merged (da04b0b) to main. Backend redeployed: alembic 012, tables
+  feature_store_connections + persona_build_runs EXIST, new routes live, SIDIRA_AUTO_MIGRATE reset 0.
+  Cred mode=local so SIDIRA_KMS_KEY_ID not needed. api.sidira.ai health ok.
+
+## 🔁 POST-SHIP DESIGN REVIEW (user, 2026-06-15)
+Two decisions after the user re-examined the design:
+1. **DB scope: KEEP Snowflake-only MVP** (matches ROADMAP:166 + adapter docstring). Generalization is a
+   LATER to-do → tracked in **issue #255** (kind-dispatch factory + per-vendor schema + UI-by-kind; the
+   FeatureStore read-Protocol seam already exists, so it's cheap later). No code change now.
+2. **Wizard flow: REDESIGN to 5-step evaluate-before-promote.** The shipped 7-step promoted on a single
+   stability scalar and only linked the rich persona view AFTER promote. New flow:
+   Connect → Map → Build(fire+watch, auto-k default) → **Evaluate**(read getPersonaPackDetail of the
+   UNPROMOTED v_N: per-persona name/share/distinctiveness + stability; honest that #7 holdout not yet shown;
+   Re-run or accept) → Promote(+done CTAs). Frontend-only (no backend change, no redeploy).
+
+### ✅ REDESIGN DONE — worktree `wizard-redesign-evaluate` (branch off main da04b0b), PR-ready
+- page.tsx rewritten 7→5 steps: Connect · Map · Build · **Evaluate** · Promote. wizard-ui.tsx + [id]/page.tsx UNTOUCHED.
+- Build config + live watch share one step (BuildConfigForm before / BuildWatch after); single `clearBuild` reset → Back always safe, new build supersedes prior promotion.
+- Evaluate reads UNPROMOTED pack via getPersonaPackDetail(version): compact per-persona name/Designator/share-chips/description + honest distinctiveness line (says so when undistinctive); "View full pack ↗" new-tab; holdout(#7/Jaccard) named as not-yet-shown (okBanner w/ neutral rule border, not success-green). Continuing IS the accept.
+- Commits: cfd1abe (redesign) · 34c4084 (codex P1/P2 fixes). tsc clean, build clean (/personas/new 11.8kB).
+- **Codex GATE: PASS** — round 1 found [P1] Promote reachable before Evaluate loaded/while errored + [P2] stale pack read after rerun shows wrong personas. Both FIXED (canContinue step4 gates on evalPhase==="ready" && evalPack.version===build.pack_version; evalReqRef latest-wins guard + clearBuild nulls it). Round 2: clean, no issues.
+- NEXT: push branch → open frontend-only PR base main → merge (Amplify auto-builds, NO backend redeploy).
 
 ### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
   (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
