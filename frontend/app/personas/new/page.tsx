@@ -1,27 +1,47 @@
 "use client";
 
-// Persona Builder — self-serve 7-step wizard (Phase 4.5; #26 connect, #27 map,
-// #28 review→trigger→watch→promote→done).
+// Persona Builder — self-serve 5-step wizard (Phase 4.5; #26 connect, #27 map,
+// #28 build/promote, redesigned around EVALUATE-BEFORE-PROMOTE per #27/#28).
 //
-// The wizard owns ALL shared state here; each step renders against that lifted
-// state and a small set of callbacks. Navigation is a top stepper plus Back/
-// Next; "Next" is gated per-step (see canContinue) so a step can't be left
+// REDESIGN RATIONALE (evaluate-before-promote): the original 7-step flow
+// (Connect · Map · Review · Trigger · Watch · Promote · Done) promoted a pack
+// the PM had never actually READ — Trigger/Watch were mechanical, and the only
+// place to inspect the result was AFTER promotion. The point of a builder is
+// judgement, not plumbing. So the flow collapses to 5 steps that put the
+// reading where the decision is:
+//
+//   Connect · Map · Build · Evaluate · Promote
+//
+//   • Build merges the old Trigger+Watch — config and the live watch live on
+//     ONE fire-and-watch step (the watch renders inline once a build exists).
+//   • Evaluate is the NEW step and the whole reason for the redesign: it reads
+//     the UNPROMOTED pack straight from R2 (getPersonaPackDetail works
+//     pre-promote) and renders a COMPACT evaluation — shares, descriptions, a
+//     distinctiveness one-liner per persona — so "these look right" is an
+//     informed act, not a leap of faith.
+//   • Promote folds in the old Done content (confirmation + the View / Run-a-
+//     simulation CTAs) — promotion IS the terminal step.
+//
+// The wizard still owns ALL shared state here; each step renders against that
+// lifted state and a small set of callbacks. Navigation is a top stepper plus
+// Back/Next; "Next" is gated per-step (see canContinue) so a step can't be left
 // until its contract is satisfied — a connection that TESTED OK (#26), a
-// mapping where every column is resolved (#27), a build that reached a
-// terminal/promotable state (#28).
+// mapping where every column is resolved (#27), a build that reached
+// `complete` (#28). On Evaluate, continuing IS the accept, so it's always open.
 //
 // Posture: instrument (DESIGN.md §7) — the visual vocabulary is the
 // crawl-setup page's, imported from ./wizard-ui. Pending/loading/empty states
 // are honest mono text, never spinners (§8.6). Errors use the paper-recessed
 // note anatomy: message in ink, severity on the alert border (§4.3/§7.7).
+// Confidence and distinctiveness ride the WORDING, never color.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ApiError,
   createFeatureStore,
   createPersonaBuild,
   getPersonaBuild,
   getPersonaBuildEvents,
+  getPersonaPackDetail,
   isBuildTerminal,
   previewFeatureStore,
   promotePersonaPack,
@@ -38,13 +58,15 @@ import {
   type LlmProvider,
   type MappingSuggestion,
   type PackSummary,
+  type PersonaPackDetail,
+  type PersonaProfileView,
+  type ProfileBlockView,
   type SnowflakeConnectionRequest,
   type WeightScheme,
   FEATURE_GROUPS,
 } from "@/lib/api";
 import { TOKENS, FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 import {
-  AddButton,
   apiErrorMessage,
   apiErrorParts,
   Chip,
@@ -52,11 +74,9 @@ import {
   fieldRowStyle,
   fieldStyle,
   hintStyle,
-  inputStyle,
   monoInputStyle,
   okBannerStyle,
   primaryBtnStyle,
-  railAlertStyle,
   railCaptionStyle,
   secondaryBtnStyle,
   sectionLabelStyle,
@@ -69,19 +89,19 @@ import {
 } from "./wizard-ui";
 
 // ── step metadata ─────────────────────────────────────────────────────────
+// The redesigned 5-step flow. Build absorbs the old Trigger+Watch; Evaluate is
+// the new reading step; Promote is terminal (folds in the old Done).
 const STEPS = [
   { id: 1, label: "Connect" },
   { id: 2, label: "Map" },
-  { id: 3, label: "Review" },
-  { id: 4, label: "Trigger" },
-  { id: 5, label: "Watch" },
-  { id: 6, label: "Promote" },
-  { id: 7, label: "Done" },
+  { id: 3, label: "Build" },
+  { id: 4, label: "Evaluate" },
+  { id: 5, label: "Promote" },
 ] as const;
 const LAST_STEP = STEPS.length;
 
-// Human labels for the 7 canonical feature groups (#27 review/map display).
-// The ids stay machine-canonical (column_mapper.FeatureGroup); these are the
+// Human labels for the 7 canonical feature groups (#27 map display). The ids
+// stay machine-canonical (column_mapper.FeatureGroup); these are the
 // reading-voice names shown in the UI only.
 const GROUP_LABELS: Record<FeatureGroup, string> = {
   demographic_identity: "Demographic / identity",
@@ -98,14 +118,6 @@ type Assignment = FeatureGroup | "ignore";
 
 // The wizard's source choice (#26). Exactly one of table/sql is active.
 type SourceMode = "table" | "sql";
-
-// Snapshot of the connection-form values used to mint the last connection id —
-// so we know whether any CREDENTIAL field changed and a fresh create is owed
-// before the next test (#26: reuse the id if nothing changed).
-type CredKey = keyof Pick<
-  SnowflakeConnectionRequest,
-  "name" | "account" | "user" | "password" | "warehouse" | "role" | "database" | "schema"
->;
 
 interface ConnForm {
   name: string;
@@ -162,19 +174,28 @@ export default function NewPersonaPackPage() {
   const [mapPhase, setMapPhase] = useState<"idle" | "profiling" | "suggesting" | "ready" | "error">("idle");
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // ── Step 3/4 · config (#28) ─────────────────────────────────────────────
+  // ── Step 3 · Build config (#28) ─────────────────────────────────────────
+  // The persona-target (k) moved here from the old Review step; it defaults to
+  // AUTO (the recommended value).
   const [k, setK] = useState<BuildK>("auto");
   const [stabilityThreshold, setStabilityThreshold] = useState(0.65);
   const [llmProvider, setLlmProvider] = useState<LlmProvider>("groq");
   const [weightSchemes] = useState<WeightScheme[]>(["head_count"]);
 
-  // ── Step 5 · Watch (#28) ────────────────────────────────────────────────
+  // ── Step 3 · Build watch (#28) ──────────────────────────────────────────
   const [build, setBuild] = useState<BuildSummary | null>(null);
   const [events, setEvents] = useState<BuildEvent[]>([]);
   const [triggering, setTriggering] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
-  // ── Step 6 · Promote (#28) ──────────────────────────────────────────────
+  // ── Step 4 · Evaluate (NEW) ─────────────────────────────────────────────
+  // The unpromoted pack read straight from R2 by version, for the compact
+  // reading. Re-loaded whenever the build's pack_version changes.
+  const [evalPack, setEvalPack] = useState<PersonaPackDetail | null>(null);
+  const [evalPhase, setEvalPhase] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [evalError, setEvalError] = useState<string | null>(null);
+
+  // ── Step 5 · Promote (#28) ──────────────────────────────────────────────
   const [promoting, setPromoting] = useState(false);
   const [promoted, setPromoted] = useState<PackSummary | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
@@ -186,6 +207,21 @@ export default function NewPersonaPackPage() {
   // The source body passed to preview/build. Table → SELECT *; SQL verbatim.
   const sourceBody = (): { table_fqn?: string | null; sql?: string | null } =>
     sourceMode === "table" ? { table_fqn: tableFqn.trim() } : { sql: sql.trim() };
+
+  // Clear the current build → returns the Build step to its config form. Used
+  // by Retry (failed build), Reconfigure (change settings), and Re-run (from
+  // Evaluate). Also drops any stale evaluation + promotion so the next build
+  // owns its own pack. Never re-triggers on its own — Start build does that.
+  const clearBuild = useCallback(() => {
+    setBuild(null);
+    setEvents([]);
+    setTriggerError(null);
+    setEvalPack(null);
+    setEvalPhase("idle");
+    setEvalError(null);
+    setPromoted(null);
+    setPromoteError(null);
+  }, []);
 
   // ── Step 1 handlers ──────────────────────────────────────────────────────
   const setConnField = (key: keyof ConnForm, value: string) => {
@@ -293,7 +329,10 @@ export default function NewPersonaPackPage() {
   const allResolved =
     columns !== null && columns.length > 0 && columns.every((c) => mapping[c.name] && mapping[c.name] !== "");
 
-  // ── Step 4 · trigger (#28) ───────────────────────────────────────────────
+  // ── Step 3 · start build (#28) ───────────────────────────────────────────
+  // Assembles the BuildConfig, fires it, stores the build, and resets any prior
+  // promotion — but does NOT advance: the watch renders inline on the SAME
+  // step. (Old Trigger auto-advanced to Watch; here the two are one step.)
   const handleStartBuild = async () => {
     if (!connection) return;
     setTriggerError(null);
@@ -323,13 +362,17 @@ export default function NewPersonaPackPage() {
       const summary = await createPersonaBuild(config);
       setBuild(summary);
       setEvents([]);
-      // A new build supersedes any prior promotion — otherwise the stale
-      // `promoted` would disable the new Promote button (while Continue stays
-      // enabled) and the Done page would report the OLD pack version. Reset it
-      // so this build promotes its own pack. (codex P2)
+      // A new build supersedes any prior promotion AND any prior evaluation —
+      // otherwise the stale `promoted` would disable the new Promote button
+      // (while Continue stays enabled) and Promote would report the OLD pack
+      // version, and the stale evalPack would show the wrong personas. Reset
+      // both so this build owns its own pack. (codex P2 + #27 evaluate.)
+      setEvalPack(null);
+      setEvalPhase("idle");
+      setEvalError(null);
       setPromoted(null);
       setPromoteError(null);
-      setStep(5); // auto-advance to Watch
+      // No setStep — the watch renders inline on this step (#28 redesign).
     } catch (e) {
       setTriggerError(apiErrorMessage(e));
     } finally {
@@ -337,7 +380,7 @@ export default function NewPersonaPackPage() {
     }
   };
 
-  // ── Step 5 · watch poll (#28) ────────────────────────────────────────────
+  // ── Step 3 · watch poll (#28) ────────────────────────────────────────────
   // Polls the build + events every ~2.5s while pending/running; stops on a
   // terminal status. The id is stable so the interval survives across beats.
   const watchId = build && !isBuildTerminal(build.status) ? build.id : null;
@@ -360,7 +403,7 @@ export default function NewPersonaPackPage() {
         // last-known status by design.
       }
     };
-    void tick(); // immediate first beat so Watch isn't blank for 2.5s
+    void tick(); // immediate first beat so the watch isn't blank for 2.5s
     const interval = setInterval(tick, POLL_MS);
     return () => {
       cancelled = true;
@@ -368,7 +411,36 @@ export default function NewPersonaPackPage() {
     };
   }, [watchId]);
 
-  // ── Step 6 · promote (#28) ───────────────────────────────────────────────
+  // ── Step 4 · load the unpromoted pack for evaluation (NEW) ───────────────
+  // On entry to Evaluate, read the pack straight from R2 by version. This works
+  // PRE-PROMOTE — getPersonaPackDetail resolves an explicit version regardless
+  // of the latest pointer — which is the whole point: read before you promote.
+  const loadEvaluation = useCallback(async (version: string) => {
+    setEvalError(null);
+    setEvalPhase("loading");
+    try {
+      const detail = await getPersonaPackDetail(version);
+      setEvalPack(detail);
+      setEvalPhase("ready");
+    } catch (e) {
+      setEvalError(apiErrorMessage(e));
+      setEvalPhase("error");
+    }
+  }, []);
+
+  const packVersion = build?.pack_version ?? null;
+  useEffect(() => {
+    if (
+      step === 4 &&
+      build?.status === "complete" &&
+      packVersion &&
+      evalPhase === "idle"
+    ) {
+      void loadEvaluation(packVersion);
+    }
+  }, [step, build?.status, packVersion, evalPhase, loadEvaluation]);
+
+  // ── Step 5 · promote (#28) ───────────────────────────────────────────────
   const handlePromote = async () => {
     if (!build?.pack_version) return;
     setPromoteError(null);
@@ -390,15 +462,11 @@ export default function NewPersonaPackPage() {
       case 2:
         return allResolved; // every column assigned or explicitly ignored
       case 3:
-        return true; // persona-target always has a value (defaults to auto)
+        return build?.status === "complete"; // Continue→Evaluate only when done
       case 4:
-        return false; // advancing happens via Start build, not Next
+        return true; // Evaluate: continuing IS the accept (the reading was the gate)
       case 5:
-        return build?.status === "complete"; // Continue→Promote only when done
-      case 6:
-        return promoted !== null; // Continue→Done only after promote
-      case 7:
-        return false;
+        return false; // terminal — Promote has no Next
       default:
         return false;
     }
@@ -409,8 +477,15 @@ export default function NewPersonaPackPage() {
     if (canContinue()) setStep((s) => Math.min(LAST_STEP, s + 1));
   };
 
-  // Steps 4 and 7 have no Next furniture (4 uses Start build; 7 is terminal).
-  const showNext = step !== 4 && step !== LAST_STEP;
+  // The Promote step (terminal) has no Next furniture. Every other step does,
+  // including Build (its Next appears once the build is complete) — Start build
+  // is a primary action WITHIN the step, not the step's navigation.
+  const showNext = step !== LAST_STEP;
+
+  // Per-step Next label — the wording carries the destination (instrument
+  // posture: meaning in words, not chrome).
+  const nextLabel =
+    step === 3 ? "Continue → Evaluate" : step === 4 ? "These look right → Promote" : "Next →";
 
   return (
     <main style={{ fontFamily: FONT_SANS, color: TOKENS.ink }}>
@@ -453,14 +528,13 @@ export default function NewPersonaPackPage() {
             whiteSpace: "nowrap",
           }}
         >
-          GENERATED FROM YOUR DATA — VERSIONED, PROMOTE-GATED
+          GENERATED FROM YOUR DATA — VERSIONED, EVALUATE-THEN-PROMOTE
         </span>
       </header>
 
       <Stepper current={step} />
 
-      {/* Step body. Each step renders inside the form zone; some steps add an
-          inspector rail to mirror crawl-setup's two-zone layout. */}
+      {/* Step body. Each step renders inside the form zone. */}
       <div style={{ padding: 24, maxWidth: 760 }}>
         {step === 1 && (
           <StepConnect
@@ -507,7 +581,8 @@ export default function NewPersonaPackPage() {
         )}
 
         {step === 3 && (
-          <StepReview
+          <StepBuild
+            // config
             connection={connection}
             sourceMode={sourceMode}
             tableFqn={tableFqn}
@@ -515,42 +590,44 @@ export default function NewPersonaPackPage() {
             columns={columns}
             mapping={mapping}
             k={k}
-            onK={setK}
-          />
-        )}
-
-        {step === 4 && (
-          <StepTrigger
-            k={k}
             stabilityThreshold={stabilityThreshold}
             llmProvider={llmProvider}
             weightSchemes={weightSchemes}
             triggering={triggering}
             triggerError={triggerError}
-            hasBuild={build !== null}
+            onK={setK}
             onStabilityThreshold={setStabilityThreshold}
             onLlmProvider={setLlmProvider}
             onStart={handleStartBuild}
+            // watch
+            build={build}
+            events={events}
+            onRetry={clearBuild}
+            onReconfigure={clearBuild}
           />
         )}
 
-        {step === 5 && (
-          <StepWatch
+        {step === 4 && (
+          <StepEvaluate
             build={build}
-            events={events}
+            phase={evalPhase}
+            error={evalError}
+            pack={evalPack}
+            onRerun={() => {
+              // Re-run with different settings: clear the build and return to
+              // Build's config form (#27 evaluate → tune → rebuild loop).
+              clearBuild();
+              setStep(3);
+            }}
             onRetry={() => {
-              // Re-trigger from step 4 with a clean slate (#28). Clearing the
-              // build is what lets Start build run again — Back alone never
-              // re-triggers.
-              setBuild(null);
-              setEvents([]);
-              setTriggerError(null);
-              setStep(4);
+              // Re-attempt the R2 read (transient fetch failure) without
+              // touching the build.
+              setEvalPhase("idle");
             }}
           />
         )}
 
-        {step === 6 && (
+        {step === 5 && (
           <StepPromote
             build={build}
             promoting={promoting}
@@ -559,8 +636,6 @@ export default function NewPersonaPackPage() {
             onPromote={handlePromote}
           />
         )}
-
-        {step === 7 && <StepDone build={build} promoted={promoted} />}
 
         {/* ── Back / Next nav ────────────────────────────────────────────── */}
         <div
@@ -595,7 +670,7 @@ export default function NewPersonaPackPage() {
                 cursor: canContinue() ? "pointer" : "not-allowed",
               }}
             >
-              {step === 5 ? "Continue → Promote" : step === 6 ? "Continue → Done" : "Next →"}
+              {nextLabel}
             </button>
           )}
         </div>
@@ -1095,9 +1170,49 @@ function ColumnRow({
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Step 3 · Review (#28)
+// Step 3 · Build (#28) — config + live watch on ONE fire-and-watch step.
+//
+// MERGES the old Trigger + Watch. Before a build exists this is the config form
+// with a prominent Start build; once a build exists the live watch renders
+// inline on the SAME step (no auto-advance). Continue (→ Evaluate) is gated on
+// the build reaching `complete`. The persona-target (k) lives here now — it
+// moved off the old Review step.
 // ════════════════════════════════════════════════════════════════════════════
-function StepReview({
+
+// Map a build status to an honest status line (§8.6).
+function buildStatusLine(b: BuildSummary): string {
+  switch (b.status) {
+    case "pending":
+      return "PENDING · QUEUED";
+    case "running":
+      return "RUNNING · CLUSTERING + NAMING";
+    case "complete":
+      return b.pack_version ? `COMPLETE · PACK ${b.pack_version}` : "COMPLETE";
+    case "failed":
+      return "FAILED";
+  }
+}
+
+// Render one build event as a readable line (#28) — never raw JSON.
+function eventLine(ev: BuildEvent): string {
+  const p = ev.payload ?? {};
+  switch (ev.type) {
+    case "run.started":
+      return "BUILD STARTED";
+    case "packs.loaded":
+      return `LOADED ${p.row_count ?? "?"} SOURCE ROWS`;
+    case "score.updated":
+      return `STABILITY ${p.stability_score ?? "?"} · ${p.persona_count ?? "?"} PERSONAS`;
+    case "run.complete":
+      return `COMPLETE · PACK ${p.pack_version ?? "?"} · STABILITY ${p.stability_score ?? "?"}`;
+    case "run.failed":
+      return `FAILED · ${p.error ?? "unknown error"}`;
+    default:
+      return String(ev.type).toUpperCase();
+  }
+}
+
+function StepBuild({
   connection,
   sourceMode,
   tableFqn,
@@ -1105,7 +1220,19 @@ function StepReview({
   columns,
   mapping,
   k,
+  stabilityThreshold,
+  llmProvider,
+  weightSchemes,
+  triggering,
+  triggerError,
   onK,
+  onStabilityThreshold,
+  onLlmProvider,
+  onStart,
+  build,
+  events,
+  onRetry,
+  onReconfigure,
 }: {
   connection: ConnectionSummary | null;
   sourceMode: SourceMode;
@@ -1114,15 +1241,98 @@ function StepReview({
   columns: ColumnProfile[] | null;
   mapping: Record<string, Assignment | "">;
   k: BuildK;
+  stabilityThreshold: number;
+  llmProvider: LlmProvider;
+  weightSchemes: WeightScheme[];
+  triggering: boolean;
+  triggerError: string | null;
   onK: (k: BuildK) => void;
+  onStabilityThreshold: (v: number) => void;
+  onLlmProvider: (v: LlmProvider) => void;
+  onStart: () => void;
+  build: BuildSummary | null;
+  events: BuildEvent[];
+  onRetry: () => void;
+  onReconfigure: () => void;
 }) {
-  // Build the per-group column lists from the resolved mapping.
+  // Once a build exists, the watch owns this step; otherwise the config form.
+  if (build) {
+    return (
+      <BuildWatch build={build} events={events} onRetry={onRetry} onReconfigure={onReconfigure} />
+    );
+  }
+  return (
+    <BuildConfigForm
+      connection={connection}
+      sourceMode={sourceMode}
+      tableFqn={tableFqn}
+      sql={sql}
+      columns={columns}
+      mapping={mapping}
+      k={k}
+      stabilityThreshold={stabilityThreshold}
+      llmProvider={llmProvider}
+      weightSchemes={weightSchemes}
+      triggering={triggering}
+      triggerError={triggerError}
+      onK={onK}
+      onStabilityThreshold={onStabilityThreshold}
+      onLlmProvider={onLlmProvider}
+      onStart={onStart}
+    />
+  );
+}
+
+// ── Build · config form (before a build exists) ────────────────────────────
+function BuildConfigForm({
+  connection,
+  sourceMode,
+  tableFqn,
+  sql,
+  columns,
+  mapping,
+  k,
+  stabilityThreshold,
+  llmProvider,
+  weightSchemes,
+  triggering,
+  triggerError,
+  onK,
+  onStabilityThreshold,
+  onLlmProvider,
+  onStart,
+}: {
+  connection: ConnectionSummary | null;
+  sourceMode: SourceMode;
+  tableFqn: string;
+  sql: string;
+  columns: ColumnProfile[] | null;
+  mapping: Record<string, Assignment | "">;
+  k: BuildK;
+  stabilityThreshold: number;
+  llmProvider: LlmProvider;
+  weightSchemes: WeightScheme[];
+  triggering: boolean;
+  triggerError: string | null;
+  onK: (k: BuildK) => void;
+  onStabilityThreshold: (v: number) => void;
+  onLlmProvider: (v: LlmProvider) => void;
+  onStart: () => void;
+}) {
+  // Per-group + ignored column lists, recapped from the resolved mapping so the
+  // PM sees exactly what's going in without bouncing back to Map.
   const groupCols = (group: FeatureGroup) =>
     (columns ?? []).filter((c) => mapping[c.name] === group).map((c) => c.name);
   const ignoredCols = (columns ?? []).filter((c) => mapping[c.name] === "ignore").map((c) => c.name);
 
   return (
     <div style={{ maxWidth: 680 }}>
+      {triggerError && (
+        <div role="alert" style={errorBannerStyle}>
+          {triggerError}
+        </div>
+      )}
+
       {/* ── Connection + source recap ───────────────────────────────────── */}
       <section>
         <div style={sectionLabelStyle}>Connection &amp; source</div>
@@ -1202,9 +1412,9 @@ function StepReview({
         </dl>
       </section>
 
-      {/* ── Persona target (config.k) ───────────────────────────────────── */}
+      {/* ── Persona target (config.k) — moved here from the old Review step ── */}
       <section style={sectionStyle}>
-        <div style={sectionLabelStyle}>Persona target</div>
+        <div style={sectionLabelStyle}>Persona count</div>
         <div style={fieldStyle}>
           <label htmlFor="persona-k" style={sublabelStyle}>
             How many personas?
@@ -1215,7 +1425,7 @@ function StepReview({
             onChange={(e) => onK(e.target.value === "auto" ? "auto" : Number(e.target.value))}
             style={{ ...selectStyle, width: 280 }}
           >
-            <option value="auto">AUTO · LET THE PIPELINE CHOOSE</option>
+            <option value="auto">AUTO · RECOMMENDED</option>
             {[6, 7, 8, 9, 10, 11, 12].map((n) => (
               <option key={n} value={n}>
                 {n} PERSONAS
@@ -1223,65 +1433,15 @@ function StepReview({
             ))}
           </select>
           <div style={hintStyle}>
-            Auto picks the count with the best stability for your population.
-            Pin a number only if you have a target segmentation in mind.
+            Auto picks the count with the best stability for your population —
+            leave it here unless you have a target segmentation in mind.
           </div>
         </div>
       </section>
-    </div>
-  );
-}
 
-// ════════════════════════════════════════════════════════════════════════════
-// Step 4 · Trigger (#28)
-// ════════════════════════════════════════════════════════════════════════════
-function StepTrigger({
-  k,
-  stabilityThreshold,
-  llmProvider,
-  weightSchemes,
-  triggering,
-  triggerError,
-  hasBuild,
-  onStabilityThreshold,
-  onLlmProvider,
-  onStart,
-}: {
-  k: BuildK;
-  stabilityThreshold: number;
-  llmProvider: LlmProvider;
-  weightSchemes: WeightScheme[];
-  triggering: boolean;
-  triggerError: string | null;
-  hasBuild: boolean;
-  onStabilityThreshold: (v: number) => void;
-  onLlmProvider: (v: LlmProvider) => void;
-  onStart: () => void;
-}) {
-  return (
-    <div style={{ maxWidth: 620 }}>
-      {triggerError && (
-        <div role="alert" style={errorBannerStyle}>
-          {triggerError}
-        </div>
-      )}
-
-      <section>
-        <div style={sectionLabelStyle}>Final build config</div>
-        <dl style={{ margin: 0, marginTop: 12, display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 16px" }}>
-          {[
-            ["Persona target", k === "auto" ? "AUTO" : `${k} PERSONAS`],
-            ["Weight schemes", weightSchemes.map((w) => w.toUpperCase()).join(" · ")],
-          ].map(([dt, dd]) => (
-            <div key={dt} style={{ display: "contents" }}>
-              <dt style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: TOKENS.inkMuted }}>
-                {dt}
-              </dt>
-              <dd style={{ margin: 0, fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.ink, ...TNUM }}>{dd}</dd>
-            </div>
-          ))}
-        </dl>
-
+      {/* ── Advanced — threshold + naming model ─────────────────────────── */}
+      <section style={sectionStyle}>
+        <div style={sectionLabelStyle}>Advanced</div>
         <div style={{ ...fieldStyle, ...fieldRowStyle }}>
           <div>
             <label htmlFor="stability" style={sublabelStyle}>
@@ -1316,10 +1476,12 @@ function StepTrigger({
         <div style={hintStyle}>
           The threshold (default 0.65) is the floor a clustering must clear to be
           accepted. The naming model writes each persona&apos;s name, description,
-          and jobs-to-be-done from its centroid.
+          and jobs-to-be-done from its centroid. Weight scheme:{" "}
+          {weightSchemes.map((w) => w.toUpperCase()).join(" · ")}.
         </div>
       </section>
 
+      {/* ── Start build ─────────────────────────────────────────────────── */}
       <section style={sectionStyle}>
         <button
           type="button"
@@ -1334,70 +1496,27 @@ function StepTrigger({
           {triggering ? "Starting…" : "Start build"}
         </button>
         <div style={hintStyle}>
-          {hasBuild
-            ? "A build was already started from this wizard — starting again creates a NEW build."
-            : "The build runs server-side; the next step watches it live. Closing the tab doesn’t stop it."}
+          The build runs server-side and the watch appears right here — closing
+          the tab doesn&apos;t stop it. You&apos;ll read the result on the next
+          step before deciding whether to promote it.
         </div>
       </section>
     </div>
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// Step 5 · Watch (#28)
-// ════════════════════════════════════════════════════════════════════════════
-
-// Map a build status to an honest status line (§8.6).
-function buildStatusLine(b: BuildSummary): string {
-  switch (b.status) {
-    case "pending":
-      return "PENDING · QUEUED";
-    case "running":
-      return "RUNNING · CLUSTERING + NAMING";
-    case "complete":
-      return b.pack_version
-        ? `COMPLETE · PACK ${b.pack_version}`
-        : "COMPLETE";
-    case "failed":
-      return "FAILED";
-  }
-}
-
-// Render one build event as a readable line (#28) — never raw JSON.
-function eventLine(ev: BuildEvent): string {
-  const p = ev.payload ?? {};
-  switch (ev.type) {
-    case "run.started":
-      return "BUILD STARTED";
-    case "packs.loaded":
-      return `LOADED ${p.row_count ?? "?"} SOURCE ROWS`;
-    case "score.updated":
-      return `STABILITY ${p.stability_score ?? "?"} · ${p.persona_count ?? "?"} PERSONAS`;
-    case "run.complete":
-      return `COMPLETE · PACK ${p.pack_version ?? "?"} · STABILITY ${p.stability_score ?? "?"}`;
-    case "run.failed":
-      return `FAILED · ${p.error ?? "unknown error"}`;
-    default:
-      return String(ev.type).toUpperCase();
-  }
-}
-
-function StepWatch({
+// ── Build · live watch (once a build exists), inline on the same step ───────
+function BuildWatch({
   build,
   events,
   onRetry,
+  onReconfigure,
 }: {
-  build: BuildSummary | null;
+  build: BuildSummary;
   events: BuildEvent[];
   onRetry: () => void;
+  onReconfigure: () => void;
 }) {
-  if (!build) {
-    return (
-      <div style={{ ...statusLineStyle, color: TOKENS.inkMuted }}>
-        NO BUILD STARTED YET — GO BACK TO TRIGGER.
-      </div>
-    );
-  }
   const failed = build.status === "failed";
 
   return (
@@ -1419,7 +1538,7 @@ function StepWatch({
         </div>
       )}
 
-      {/* Failure — surface the build's error and offer Retry (→ step 4). */}
+      {/* Failure — surface the build's error and offer Retry (→ config form). */}
       {failed && (
         <div style={{ marginTop: 14 }}>
           <div role="alert" style={errorBannerStyle}>
@@ -1454,7 +1573,18 @@ function StepWatch({
 
       {build.status === "complete" && (
         <div style={{ ...railCaptionStyle, marginTop: 14, color: TOKENS.ink }}>
-          BUILD COMPLETE — CONTINUE TO PROMOTE THE PACK.
+          BUILD COMPLETE — CONTINUE TO EVALUATE THE PACK BEFORE PROMOTING.
+        </div>
+      )}
+
+      {/* Reconfigure / new build — clears the build → back to the config form
+          on this same step, so the PM can change settings without re-treading
+          Connect/Map. Never re-triggers on its own (Back is safe). */}
+      {!failed && (
+        <div style={{ marginTop: 14 }}>
+          <button type="button" onClick={onReconfigure} style={secondaryBtnStyle}>
+            Reconfigure / new build
+          </button>
         </div>
       )}
     </div>
@@ -1462,7 +1592,212 @@ function StepWatch({
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Step 6 · Promote (#28)
+// Step 4 · Evaluate (NEW) — read before you promote (#27/#28).
+//
+// On entry, when the build is complete, the wizard loads the UNPROMOTED pack
+// from R2 by version (getPersonaPackDetail works pre-promote). This renders a
+// COMPACT evaluation — not the full record sheets of /personas/[id] — so the PM
+// can judge whether the personas look right. Continuing IS the accept.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Build a distinctiveness one-liner from a persona's `distinctive` block. The
+// honest fallback when the renderer found nothing salient (block is null) is
+// the whole reason we read this here: an undistinctive persona should SAY so,
+// not be dressed up (§2 no-silent-degradation).
+function distinctivenessLine(block: ProfileBlockView | null | undefined): string {
+  if (!block || block.deltas.length === 0) {
+    return "Sits within the typical range on measured traits — not strongly distinctive.";
+  }
+  const top = block.deltas.slice(0, 2).map((d) => `${d.magnitude} ${d.direction} ${d.label}`);
+  return `${block.heading}: ${top.join(", ")}.`;
+}
+
+function StepEvaluate({
+  build,
+  phase,
+  error,
+  pack,
+  onRerun,
+  onRetry,
+}: {
+  build: BuildSummary | null;
+  phase: "idle" | "loading" | "ready" | "error";
+  error: string | null;
+  pack: PersonaPackDetail | null;
+  onRerun: () => void;
+  onRetry: () => void;
+}) {
+  // No complete build to read — shouldn't be reachable (Continue gates on
+  // complete) but stay honest if a Back/forward dance lands here.
+  if (!build || build.status !== "complete" || !build.pack_version) {
+    return (
+      <div style={{ ...statusLineStyle, color: TOKENS.inkMuted }}>
+        NO COMPLETE BUILD TO EVALUATE — GO BACK TO BUILD.
+      </div>
+    );
+  }
+
+  if (phase === "loading" || phase === "idle") {
+    return (
+      <div style={{ ...statusLineStyle, color: TOKENS.inkMuted, marginTop: 8 }}>
+        READING THE PACK…
+      </div>
+    );
+  }
+
+  if (phase === "error" || !pack) {
+    return (
+      <div style={{ maxWidth: 620 }}>
+        <div role="alert" style={errorBannerStyle}>
+          {error ?? "The pack could not be read for evaluation."}
+        </div>
+        <button type="button" onClick={onRetry} style={secondaryBtnStyle}>
+          Retry reading
+        </button>
+      </div>
+    );
+  }
+
+  // Available weight schemes only — share chips render per available scheme,
+  // single-sourced from the pack's scheme labels (mirrors the detail page).
+  const availableSchemes = pack.weight_schemes.filter((s) => s.available);
+
+  return (
+    <div style={{ maxWidth: 720 }}>
+      {/* Pack header line — the available quality signal at a glance. */}
+      <div style={{ ...railCaptionStyle, color: TOKENS.ink }}>
+        STABILITY {pack.stability_score.toFixed(2)} · {pack.persona_count} PERSONA
+        {pack.persona_count === 1 ? "" : "S"} · SCHEMA {pack.schema_version} ·{" "}
+        {pack.version.toUpperCase()}
+      </div>
+      <div style={hintStyle}>
+        This pack is built but <strong>not yet promoted</strong> — read it here
+        before you commit. Each persona shows its share, a one-line summary, and
+        how distinctive it is from the population.
+      </div>
+
+      {/* Per-persona compact reading. */}
+      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 18 }}>
+        {pack.personas.map((persona) => (
+          <EvaluatePersona key={persona.id} persona={persona} schemes={availableSchemes} />
+        ))}
+      </div>
+
+      {/* Honesty note — stability is the signal we have; calibration/holdout
+          (Jaccard) is tracked separately under #7 and is NOT yet shown. Do not
+          fabricate a holdout number (§2 no-silent-degradation). */}
+      <div style={{ ...okBannerStyle, marginTop: 22, borderColor: TOKENS.rule }}>
+        Stability ({pack.stability_score.toFixed(2)}) is the quality signal
+        available today — how reproducible the clustering is. Calibration against
+        a holdout (Jaccard overlap) is tracked separately and is not shown here
+        yet, so it isn&apos;t reported as a number you don&apos;t have.
+      </div>
+
+      {/* Actions — deep dive, re-run, and (via Next) accept-then-promote. */}
+      <section style={sectionStyle}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <a
+            href={`/personas/${encodeURIComponent(build.pack_version)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...secondaryBtnStyle, textDecoration: "none", display: "inline-block" }}
+          >
+            View full pack ↗
+          </a>
+          <button type="button" onClick={onRerun} style={secondaryBtnStyle}>
+            Re-run with different settings
+          </button>
+        </div>
+        <div style={hintStyle}>
+          The full pack opens in a new tab — every persona&apos;s jobs-to-be-done,
+          behavioral snapshot, and complete comparison blocks. If these don&apos;t
+          look right, re-run with a different persona count or threshold rather
+          than promoting. Otherwise continue to promote this pack.
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// One persona, compact: name + id designator + share chip(s), description, and
+// a distinctiveness one-liner. Bordered-mono Chip / Designator vocabulary, no
+// color state (matches the detail page's record voice, condensed).
+function EvaluatePersona({
+  persona,
+  schemes,
+}: {
+  persona: PersonaProfileView;
+  schemes: PersonaPackDetail["weight_schemes"];
+}) {
+  const shareChips = schemes
+    .filter((s) => typeof persona.shares[s.key] === "number")
+    .map((s) => ({ key: s.key, label: s.label, pct: persona.shares[s.key] }));
+
+  return (
+    <div
+      style={{
+        background: TOKENS.paperElevated,
+        border: `0.75px solid ${TOKENS.rule}`,
+        borderRadius: 4,
+        padding: "14px 18px 16px",
+      }}
+    >
+      {/* Designator header — the one place mono appears (§7.6, condensed). */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>
+          {persona.name}
+        </span>
+        <Designator>{persona.id}</Designator>
+        {shareChips.map((c) => (
+          <Designator key={c.key}>
+            {(c.pct * 100).toFixed(0)}% {c.label.toUpperCase()}
+          </Designator>
+        ))}
+      </div>
+
+      {/* Description — 1–2 lines, sans prose. */}
+      <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.5, color: TOKENS.ink }}>
+        {persona.description}
+      </p>
+
+      {/* Distinctiveness one-liner — honest when there's nothing salient. */}
+      <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted }}>
+        {distinctivenessLine(persona.distinctive)}
+      </p>
+    </div>
+  );
+}
+
+// Local designator chip — mirrors the detail page's Designator at the wizard's
+// hairline weight (0.75px) so the Evaluate reading stays in lockstep with both
+// the wizard vocabulary and /personas/[id].
+function Designator({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      style={{
+        fontFamily: FONT_MONO,
+        fontSize: 10.5,
+        letterSpacing: "0.04em",
+        border: `0.75px solid ${TOKENS.rule}`,
+        color: TOKENS.inkMuted,
+        borderRadius: 2,
+        padding: "2px 7px",
+        whiteSpace: "nowrap",
+        ...TNUM,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Step 5 · Promote (#28) — terminal. Folds in the old Done content.
+//
+// Before promoting: the promote button + a recap. After promoting: the
+// confirmation and the View-the-pack / Run-a-simulation CTAs (the old Done
+// page). A new build supersedes any prior promotion (the safety reset lives in
+// handleStartBuild).
 // ════════════════════════════════════════════════════════════════════════════
 function StepPromote({
   build,
@@ -1480,10 +1815,54 @@ function StepPromote({
   if (!build || build.status !== "complete" || !build.pack_version) {
     return (
       <div style={{ ...statusLineStyle, color: TOKENS.inkMuted }}>
-        NO COMPLETE BUILD TO PROMOTE — GO BACK TO WATCH.
+        NO COMPLETE BUILD TO PROMOTE — GO BACK TO BUILD.
       </div>
     );
   }
+
+  // ── After promotion: the folded-in Done content ──────────────────────────
+  if (promoted) {
+    return (
+      <div style={{ maxWidth: 620 }}>
+        <section>
+          <div style={sectionLabelStyle}>Pack promoted</div>
+          <div style={{ ...okBannerStyle, marginTop: 12 }}>
+            {promoted.version} is now the latest persona pack
+            {promoted.promoted_at ? ` (promoted ${utcStamp(promoted.promoted_at)})` : ""}. Point a
+            simulation at it to put it to work — existing simulations keep their frozen pack.
+          </div>
+          <dl style={{ margin: 0, marginTop: 14, display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 16px" }}>
+            {[
+              ["Pack version", promoted.version],
+              ["Stability", String(promoted.stability_score)],
+              ["Personas", String(promoted.persona_count)],
+            ].map(([dt, dd]) => (
+              <div key={dt} style={{ display: "contents" }}>
+                <dt style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: TOKENS.inkMuted }}>
+                  {dt}
+                </dt>
+                <dd style={{ margin: 0, fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.ink, ...TNUM }}>{dd}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div style={{ ...fieldStyle, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a
+              href={`/personas/${encodeURIComponent(promoted.version)}`}
+              style={{ ...secondaryBtnStyle, textDecoration: "none", display: "inline-block" }}
+            >
+              View the pack →
+            </a>
+            <a href="/simulations/new" style={{ ...primaryBtnStyle, textDecoration: "none", display: "inline-block" }}>
+              Run a simulation →
+            </a>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // ── Before promotion: the promote action ─────────────────────────────────
   return (
     <div style={{ maxWidth: 620 }}>
       {promoteError && (
@@ -1499,80 +1878,23 @@ function StepPromote({
           {build.persona_count !== null ? ` · ${build.persona_count} PERSONAS` : ""}
         </div>
         <div style={hintStyle}>
-          Promoting flips this pack to the latest pointer — new simulations pick
-          it up. Existing simulations keep their frozen pack either way.
+          You evaluated this pack on the previous step. Promoting flips it to the
+          latest pointer — new simulations pick it up. Existing simulations keep
+          their frozen pack either way.
         </div>
         <div style={{ ...fieldStyle, display: "flex", alignItems: "center", gap: 12 }}>
           <button
             type="button"
             onClick={onPromote}
-            disabled={promoting || promoted !== null}
+            disabled={promoting}
             style={{
               ...primaryBtnStyle,
-              opacity: promoting || promoted !== null ? 0.5 : 1,
-              cursor: promoting || promoted !== null ? "not-allowed" : "pointer",
+              opacity: promoting ? 0.5 : 1,
+              cursor: promoting ? "not-allowed" : "pointer",
             }}
           >
-            {promoting ? "Promoting…" : promoted ? "Promoted" : "Promote to latest"}
+            {promoting ? "Promoting…" : "Promote to latest"}
           </button>
-          {promoted && (
-            <span style={statusLineStyle}>
-              ✓ PROMOTED · {promoted.version}
-              {promoted.is_latest ? " · IS LATEST" : ""}
-            </span>
-          )}
-        </div>
-        {promoted && (
-          <div style={{ ...okBannerStyle, marginTop: 12 }}>
-            {promoted.version} is now the latest persona pack
-            {promoted.promoted_at ? ` (promoted ${utcStamp(promoted.promoted_at)})` : ""}. Continue to finish.
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// Step 7 · Done (#28)
-// ════════════════════════════════════════════════════════════════════════════
-function StepDone({ build, promoted }: { build: BuildSummary | null; promoted: PackSummary | null }) {
-  const version = promoted?.version ?? build?.pack_version ?? null;
-  const stability = promoted?.stability_score ?? build?.stability_score ?? null;
-  const personas = promoted?.persona_count ?? build?.persona_count ?? null;
-
-  return (
-    <div style={{ maxWidth: 620 }}>
-      <section>
-        <div style={sectionLabelStyle}>Pack ready</div>
-        <div style={{ ...okBannerStyle, marginTop: 12 }}>
-          Your persona pack is built and promoted. Point a simulation at it to put
-          it to work.
-        </div>
-        <dl style={{ margin: 0, marginTop: 14, display: "grid", gridTemplateColumns: "auto 1fr", gap: "4px 16px" }}>
-          {[
-            ["Pack version", version ?? "—"],
-            ["Stability", stability !== null ? String(stability) : "—"],
-            ["Personas", personas !== null ? String(personas) : "—"],
-          ].map(([dt, dd]) => (
-            <div key={dt} style={{ display: "contents" }}>
-              <dt style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: TOKENS.inkMuted }}>
-                {dt}
-              </dt>
-              <dd style={{ margin: 0, fontFamily: FONT_MONO, fontSize: 12, color: TOKENS.ink, ...TNUM }}>{dd}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <div style={{ ...fieldStyle, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {version && (
-            <a href={`/personas/${encodeURIComponent(version)}`} style={{ ...secondaryBtnStyle, textDecoration: "none", display: "inline-block" }}>
-              View the pack →
-            </a>
-          )}
-          <a href="/simulations/new" style={{ ...primaryBtnStyle, textDecoration: "none", display: "inline-block" }}>
-            Run a simulation →
-          </a>
         </div>
       </section>
     </div>
