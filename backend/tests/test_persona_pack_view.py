@@ -123,3 +123,31 @@ def test_v11_pack_renders_individual_row_block() -> None:
     orders = next(d for d in block.deltas if d.label == "orders")
     assert orders.direction == "higher"
     assert orders.magnitude == "dramatically"
+
+
+def test_v11_all_typical_row_still_reports_tier_available() -> None:
+    """Row inputs present but the representative row is all-typical (no salient
+    deltas): `has_individual_rows` must stay True (tier available, nothing
+    distinctive) — distinguishable from a v1.0 pack with no row tier at all."""
+    persona = Persona(
+        id="p_avg",
+        name="Average Member",
+        description="A member who sits right on the segment norm.",
+        centroid_features={"order_frequency_z": 1.5},
+        centroid_full={"orders": 10.0, "browse": 5.0},
+        feature_scale={"orders": 2.0, "browse": 1.0},
+        # Row sits exactly on the centroid → every within-cluster z is 0.
+        sample_rows=[{"orders": 10.0, "browse": 5.0}],
+    )
+    pack = PersonaPack(
+        version="v_2",
+        customer_id="demo",
+        generated_at=datetime(2026, 6, 1),
+        schema_version="1.1",
+        personas=[persona],
+        weights=WeightSchemes(head_count={"p_avg": 1.0}),
+        stability_score=0.9,
+    )
+    detail = build_persona_pack_detail(pack)
+    assert detail.has_individual_rows is True  # tier available…
+    assert detail.personas[0].distinctive is None  # …but nothing distinctive to show

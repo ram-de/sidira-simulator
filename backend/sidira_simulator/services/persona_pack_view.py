@@ -207,6 +207,18 @@ def _centroid_block(persona: Persona) -> ProfileBlockView | None:
     )
 
 
+def _has_row_inputs(persona: Persona) -> bool:
+    """True when the persona carries the v1.1 individual-row inputs.
+
+    Mirrors `render_individual_row`'s guard: all three of `sample_rows`,
+    `centroid_full`, and `feature_scale` must be present for the row tier to be
+    renderable. Read from the INPUTS, not from whether a representative row
+    produced salient deltas — so an all-typical v1.1 row (tier available, nothing
+    distinctive) stays distinguishable from a v1.0 pack (no tier at all).
+    """
+    return bool(persona.sample_rows and persona.centroid_full and persona.feature_scale)
+
+
 def _distinctive_block(persona: Persona) -> ProfileBlockView | None:
     """The per-member individual-row block, or None on a v1.0 pack (no row inputs)."""
     profile = render_individual_row(persona, _REPRESENTATIVE_SAMPLE_INDEX)
@@ -299,7 +311,9 @@ def build_persona_pack_detail(pack: PersonaPack) -> PersonaPackDetail:
         is_starter=pack.is_starter,
         stability_score=pack.stability_score,
         persona_count=len(pack.personas),
-        has_individual_rows=any(p.distinctive is not None for p in personas),
+        # From the row INPUTS, not the rendered deltas: a v1.1 pack whose
+        # representative row is all-typical still has the tier available.
+        has_individual_rows=any(_has_row_inputs(p) for p in pack.personas),
         weight_schemes=_weight_schemes(pack),
         personas=personas,
     )
