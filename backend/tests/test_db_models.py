@@ -22,6 +22,7 @@ def test_models_import_and_register_with_metadata() -> None:
         "crawl_configs",
         "crawl_runs",
         "feature_store_connections",
+        "persona_build_runs",
     }
 
 

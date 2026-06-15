@@ -159,6 +159,33 @@ class FeatureStoreConnection(Base):
     )
 
 
+class PersonaBuildRun(Base):
+    """One persona-pack build (#24). The build executes as a BackgroundTask:
+    load the saved feature-store connection's creds, run the source query,
+    invoke the sidira-personas pipeline, and write the resulting pack to R2 at
+    ``customers/<id>/personas/v_<N>/persona_pack.json``. This row is the
+    dispatch record plus the last observed status; the live progress + JSONL
+    event log live alongside the artifacts in R2 (RunStateStore). ``pack_version``
+    is set only on success; ``error`` carries the failure reason (including a
+    stability-gate failure below ``stability_threshold``).
+    """
+
+    __tablename__ = "persona_build_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    connection_id: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    pack_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    stability_score: Mapped[float | None] = mapped_column(nullable=True)
+    persona_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AgentInstance(Base):
     """Metadata for one AgentInstance. Identity + reaction + chat live in R2.
 

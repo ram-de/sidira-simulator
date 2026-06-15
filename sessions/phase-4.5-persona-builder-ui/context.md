@@ -39,10 +39,25 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] #24 — persona-builds endpoint (running in subagent; shares R2/repos)
-- [ ] #25 — persona-packs endpoint (queued after #24 — shares R2/pack-loader)
+- [ ] #25 — persona-packs endpoint (next: list/get/promote)
 
 ## Completed
+- [x] **#24 — persona-builds endpoint (POST/GET/list/events)** (commit on this branch).
+  - `api/persona_builds.py`: create_build (202 + PENDING row + BackgroundTask, customer_id
+    from auth not body), get_build (404), list_builds (newest-first), GET /{id}/events
+    (StreamingResponse NDJSON mirroring simulations). `_run_build` resolves its own repos.
+  - `services/persona_builder.run` full 9-step orchestration: load+decrypt fs-conn creds →
+    SnowflakeStore.run_query → apply mapping → `run_personas_pipeline` SEAM → stability gate
+    (`BuildStabilityError` → FAILED, no pack written) → R2 write at
+    `customers/<id>/personas/v_<N>/persona_pack.json` (+manifest) → update row → emit events.
+  - Pipeline seam lazily `import sidira_personas` (NOT installed → clear RuntimeError); tests
+    monkeypatch `pb_mod.run_personas_pipeline`. `_next_version` probes v_<n> sequentially
+    (ArtifactStore has no list primitive) — ⚠️ minor: concurrent builds could race a version;
+    acceptable for MVP, note for hardening.
+  - `PersonaBuildRun` model + `PersonaBuildRepo` (Protocol/Postgres/InMemory) + deps +
+    **migration 012** (down_revision 011). Tests: test_persona_builds_api.py (7) + db_models.
+  - Authoritative full suite **792 passed** (+pre-existing deploy_config failure only); ruff clean.
+  - ⚠️ Migrations now 011 + 012 → redeploy reminder + SIDIRA_AUTO_MIGRATE at merge.
 - [x] **#23 — column_mapper LLM service + suggest-mapping endpoint** (commit on this branch).
   - `services/column_mapper.py`: `suggest_mapping(columns, llm=None) -> MappingSuggestion`,
     one-shot temp=0 via existing `get_chat_client()` (no hardcoded model), defensive parse —
