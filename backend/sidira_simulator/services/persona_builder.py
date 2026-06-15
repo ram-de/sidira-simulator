@@ -10,8 +10,8 @@ the result to R2 + Postgres.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -21,6 +21,7 @@ from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, S
 from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.adapters.repositories import PersonaBuildRepo
 from sidira_simulator.services.column_mapper import FeatureGroup
+from sidira_simulator.services.persona_pack_translator import translate_producer_pack
 from sidira_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
 
 
@@ -59,42 +60,265 @@ class PipelineOutput:
     :func:`run_personas_pipeline` to return a canned instance of this.
     """
 
+    #: The *producer* wire dict (``dataclasses.asdict`` of the sidira-personas
+    #: pack) — company_id/created_at/overall_stability + per-persona weights.
+    #: ``_write_pack`` runs it through ``translate_producer_pack`` before persisting.
     persona_pack: dict[str, Any]
     stability_score: float
     persona_count: int
     prompts: dict[str, str] = field(default_factory=dict)
 
 
-def run_personas_pipeline(
-    feature_rows: list[dict[str, list[Any]]],
+# ── pipeline-config assembly (pure Python, pandas-free so this module imports
+#    in the API image without the ML stack; see run_personas_pipeline) ─────────
+
+#: Wizard weight-scheme vocab → sidira-personas ``compute_weights`` vocab.
+_WEIGHT_SCHEME_MAP: dict[str, str] = {
+    "head_count": "headcount",
+    "order_weighted": "orders",
+    "revenue_weighted": "revenue",
+}
+
+
+def _looks_like_date(value: Any) -> bool:
+    """True if ``value`` is a date/datetime, or an ISO-ish date string.
+
+    ``date`` catches both native ``datetime.date`` and ``datetime.datetime`` (the
+    latter subclasses the former) — the Snowflake connector returns those for
+    real DATE/TIMESTAMP columns, while VARCHAR date columns arrive as strings.
+    """
+    if isinstance(value, date):
+        return True
+    if not isinstance(value, str):
+        return False
+    text = value.strip()
+    if len(text) < 8:  # too short to be a real date
+        return False
+    try:
+        datetime.fromisoformat(text.replace("Z", "+00:00").split(" ")[0])
+        return True
+    except ValueError:
+        return False
+
+
+def _parse_json_obj(value: Any) -> dict | None:
+    """Return ``value`` as a dict if it is one / parses to one, else None."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+def _infer_adapter_type(values: list[Any]) -> tuple[str, list[str] | None]:
+    """Infer a sidira-personas adapter ``type`` (and JSON ``keys``) for a column.
+
+    Decision (phase-1 heuristic over a sample of raw values; the wizard does not
+    yet capture the adapter type — see #268 follow-up for the override):
+      json_counts / json_ratios → dict-valued (or JSON-string) columns; ratios
+        when every numeric value is in [0, 1], counts otherwise.
+      tenure_days → date / ISO-date-string columns (needs a snapshot column).
+      flag → values drawn only from {0,1} / {true,false}.
+      ratio → numeric and every value in [0, 1].
+      count → non-negative integer-valued numeric.
+      score → any other numeric.
+      categorical → everything else (strings, mixed).
+    """
+    non_null = [v for v in values if v is not None and v != ""]
+    if not non_null:
+        return "categorical", None
+    sample = non_null[:200]
+
+    # JSON object columns → per-key shares.
+    json_objs = [d for d in (_parse_json_obj(v) for v in sample) if d is not None]
+    if json_objs and len(json_objs) >= max(1, len(sample) // 2):
+        keys = sorted({k for d in json_objs for k in d})
+        numeric_vals = [
+            float(x) for d in json_objs for x in d.values()
+            if isinstance(x, (int, float)) and not isinstance(x, bool)
+        ]
+        kind = "json_ratios" if numeric_vals and all(0.0 <= x <= 1.0 for x in numeric_vals) else "json_counts"
+        return kind, keys
+
+    # Date columns → tenure.
+    if all(_looks_like_date(v) for v in sample):
+        return "tenure_days", None
+
+    # Numeric family.
+    def _num(v: Any) -> float | None:
+        if isinstance(v, bool):
+            return float(v)
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            try:
+                return float(v)
+            except ValueError:
+                return None
+        return None
+
+    nums = [_num(v) for v in sample]
+    if all(n is not None for n in nums):
+        nums = [n for n in nums if n is not None]
+        distinct = set(nums)
+        if distinct <= {0.0, 1.0}:
+            return "flag", None
+        if all(0.0 <= n <= 1.0 for n in nums):
+            return "ratio", None
+        if all(n >= 0 and float(n).is_integer() for n in nums):
+            return "count", None
+        return "score", None
+
+    # Boolean-ish strings → flag.
+    lowered = {str(v).strip().lower() for v in sample}
+    if lowered <= {"true", "false", "t", "f", "yes", "no", "0", "1"}:
+        return "flag", None
+
+    return "categorical", None
+
+
+def _detect_column(rows: list[dict[str, Any]], predicate, *, name_hints: tuple[str, ...]) -> str | None:
+    """First column whose name matches a hint (in order) and satisfies predicate."""
+    if not rows:
+        return None
+    columns = list(rows[0].keys())
+    for hint in name_hints:
+        for col in columns:
+            if hint in col.lower() and predicate(col):
+                return col
+    return None
+
+
+def _build_pipeline_config(
+    rows: list[dict[str, Any]],
     column_mapping: dict[str, FeatureGroup | None],
     config: BuildConfig,
+    customer_id: str,
+) -> dict[str, Any]:
+    """Assemble the sidira-personas pipeline config from the wizard inputs.
+
+    Translates the wizard's group-only ``column_mapping`` into the pipeline's
+    ``feature_groups`` spec (inferring each column's adapter type), and fills the
+    remaining knobs with documented defaults / name-based detection for the bits
+    the wizard does not yet capture (snapshot date, user-id, orders/revenue
+    columns). These detections are the natural #268 follow-ups to surface in the
+    wizard alongside the adapter-type override.
+    """
+    columns = list(rows[0].keys()) if rows else []
+    col_values: dict[str, list[Any]] = {c: [r.get(c) for r in rows] for c in columns}
+
+    # feature_groups: group → [{name, type, keys?}], adapter type inferred per column.
+    feature_groups: dict[str, list[dict[str, Any]]] = {}
+    snapshot_needed = False
+    for column, group in column_mapping.items():
+        if group is None or column not in col_values:
+            continue
+        atype, keys = _infer_adapter_type(col_values[column])
+        if atype == "tenure_days":
+            snapshot_needed = True
+        spec: dict[str, Any] = {"name": column, "type": atype}
+        if keys is not None:
+            spec["keys"] = keys
+        feature_groups.setdefault(group, []).append(spec)
+
+    # Snapshot date column (for tenure_days). Prefer a snapshot/as-of name; else
+    # any unmapped date column. If none and tenure cols exist, those cols are
+    # silently skipped by the adapter — acceptable for phase 1.
+    snapshot_col = None
+    if snapshot_needed:
+        snapshot_col = _detect_column(
+            rows, lambda c: all(_looks_like_date(v) for v in col_values[c] if v not in (None, "")),
+            name_hints=("snapshot", "as_of", "asof", "observed", "date"),
+        )
+
+    # User-id column for assignments: an id-like, high-cardinality column.
+    n = len(rows) or 1
+    user_id_col = _detect_column(
+        rows,
+        lambda c: len({v for v in col_values[c] if v is not None}) >= 0.9 * n,
+        name_hints=("user_id", "consumer_id", "customer_id", "_id", "id"),
+    )
+
+    # Weight columns (only consulted for the matching schemes).
+    orders_col = _detect_column(rows, lambda c: True, name_hints=("orders", "order_count", "purchases"))
+    revenue_col = _detect_column(rows, lambda c: True, name_hints=("revenue", "gmv", "spend", "ltv"))
+
+    schemes = [_WEIGHT_SCHEME_MAP[s] for s in config.weight_schemes if s in _WEIGHT_SCHEME_MAP]
+    if "headcount" not in schemes:  # PersonaWeights always carries by_headcount
+        schemes.insert(0, "headcount")
+
+    # k: "auto" → BIC over a sensible range; an explicit k → a singleton range.
+    k_range = [3, 8] if config.k == "auto" else [int(config.k), int(config.k)]
+
+    cfg: dict[str, Any] = {
+        "company_id": customer_id,
+        "source": {"type": "snowflake", "user_id_column": user_id_col or "user_id"},
+        "feature_groups": feature_groups,
+        "encoder": {"method": "pca", "embedding_dim_per_group": 4},
+        "cluster": {
+            "method": "gmm",
+            "k_range": k_range,
+            "selection": "bic",
+            "random_state": 42,
+            "bootstrap_iters": 20,
+            "stability_threshold": config.stability_threshold,
+            "holdout_frac": 0.2,
+        },
+        "weights": {"schemes": schemes, "orders_column": orders_col, "revenue_column": revenue_col},
+        "sampling": {"n_synthetic_rows": 64, "random_state": 42},
+        "prompt_compiler": {"top_n_distinctive_features_per_group": 4, "threshold_sigma": 0.3},
+    }
+    if snapshot_col:
+        cfg["snapshot_date_column"] = snapshot_col
+    return cfg
+
+
+def run_personas_pipeline(
+    rows: list[dict[str, Any]],
+    column_mapping: dict[str, FeatureGroup | None],
+    config: BuildConfig,
+    customer_id: str,
+    run_id: str,
 ) -> PipelineOutput:
     """The single injectable seam over the ``sidira-personas`` producer library.
 
-    ``feature_rows`` is the per-group feature view (group id → list of column
-    values) the orchestrator assembled from the raw query rows + column mapping.
+    ``rows`` is the raw per-user result of the source query. This builds a
+    DataFrame + a pipeline config (translating the wizard's group-only
+    ``column_mapping`` into typed ``feature_groups``) and drives the real
+    pipeline (encoder → cluster → calibrate → compile_prompts).
 
-    The real pipeline (encoder → cluster → calibrate → compile_prompts) ships in
-    the ``sidira-personas`` package, which is NOT installed in this backend's
-    runtime. We import it lazily so the module loads (and tests run) without it;
-    a missing install raises a clear RuntimeError. Tests monkeypatch THIS
-    function to return canned :class:`PipelineOutput`, so the whole build
-    orchestration is exercised without real clustering.
+    The ML stack (``pandas``, ``sidira_personas`` → numpy/scikit-learn/scipy) is
+    imported **lazily** so this module loads in the API image without those heavy
+    deps; in the worker model (#268) the import resolves in the worker image.
+    Tests monkeypatch THIS function to return a canned :class:`PipelineOutput`,
+    so the build orchestration is exercised without real clustering.
     """
     try:
-        import sidira_personas  # type: ignore[import-not-found]  # noqa: F401
+        import pandas as pd
+
+        from sidira_personas import run_pipeline
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "sidira-personas not installed — the persona build pipeline is unavailable "
             "in this environment."
         ) from exc
 
-    # When the library IS present, this is where its pipeline gets driven. Left
-    # unimplemented intentionally: the producer-library integration lands with
-    # the package install; until then this path is unreachable in this backend.
-    raise RuntimeError(
-        "sidira-personas is installed but the pipeline binding is not implemented here."
+    cfg = _build_pipeline_config(rows, column_mapping, config, customer_id)
+    df = pd.DataFrame(rows)
+    result = run_pipeline(
+        df, cfg, run_id=run_id, no_llm=False, provider=config.llm_provider
+    )
+
+    pack = result.pack
+    return PipelineOutput(
+        persona_pack=asdict(pack),
+        stability_score=float(pack.overall_stability),
+        persona_count=len(pack.personas),
+        prompts=dict(result.prompts),
     )
 
 
@@ -144,19 +368,20 @@ class PersonaBuilderService:
                 )
             store = self._snowflake_store(row, customer_id)
 
-            # 3. Run the source query → user rows.
+            # 3. Run the source query → raw user rows.
             rows = store.run_query(config.source_query)
             self._run_state.emit(state, "packs.loaded", row_count=len(rows))
 
-            # 4. Apply column_mapping → per-group feature view.
-            feature_rows = self._apply_column_mapping(rows, config.column_mapping)
-
-            # 5. Invoke the sidira-personas pipeline (injectable seam).
+            # 4. Invoke the sidira-personas pipeline (injectable seam). The
+            #    binding infers each column's adapter type + builds the pipeline
+            #    config from the wizard's group-only mapping (#268).
             state.mark_phase(RunPhase.MATERIALIZING_AGENTS)
             self._run_state.write_state(state)
-            output = run_personas_pipeline(feature_rows, config.column_mapping, config)
+            output = run_personas_pipeline(
+                rows, config.column_mapping, config, customer_id, build_id
+            )
 
-            # 6. Stability gate. Below threshold → FAILED (no promoted pack).
+            # 5. Stability gate. Below threshold → FAILED (no promoted pack).
             state.mark_phase(RunPhase.SCORING)
             self._run_state.write_state(state)
             self._run_state.emit(
@@ -173,11 +398,11 @@ class PersonaBuilderService:
                 await self._fail(build_id, customer_id, state, msg)
                 raise BuildStabilityError(msg)
 
-            # 7. Write the pack to R2 (v_N auto-bumped, never overwriting).
+            # 6. Write the pack to R2 (v_N auto-bumped, never overwriting).
             pack_version = self._next_version(customer_id)
             artifact_uri = self._write_pack(customer_id, pack_version, output)
 
-            # 8. Update the build row to COMPLETE.
+            # 7. Update the build row to COMPLETE.
             completed_at = datetime.now(timezone.utc)
             await self._build_repo.update_status(
                 build_id,
@@ -189,7 +414,7 @@ class PersonaBuilderService:
                 completed_at=completed_at,
             )
 
-            # 9. Emit run.complete.
+            # 8. Emit run.complete.
             state.mark_phase(RunPhase.COMPLETE)
             self._run_state.write_state(state)
             self._run_state.emit(
@@ -260,36 +485,26 @@ class PersonaBuilderService:
         )
         return SnowflakeStore(creds)
 
-    @staticmethod
-    def _apply_column_mapping(
-        rows: list[dict[str, Any]],
-        column_mapping: dict[str, FeatureGroup | None],
-    ) -> list[dict[str, list[Any]]]:
-        """Project raw query rows onto the canonical feature groups.
-
-        Produces one entry per row: ``{group_id: [values of columns mapped to
-        that group]}``. Columns mapped to ``None`` (unmapped) are dropped.
-        """
-        view: list[dict[str, list[Any]]] = []
-        for row in rows:
-            grouped: dict[str, list[Any]] = {}
-            for column, group in column_mapping.items():
-                if group is None:
-                    continue
-                grouped.setdefault(group, []).append(row.get(column))
-            view.append(grouped)
-        return view
-
     def _write_pack(
         self,
         customer_id: str,
         pack_version: str,
         output: PipelineOutput,
     ) -> str:
-        """Write the pack + manifest (+ prompts) under the versioned prefix."""
+        """Write the pack + manifest (+ prompts) under the versioned prefix.
+
+        ``output.persona_pack`` is the *producer* wire dict (``dataclasses.asdict``
+        of the ``sidira-personas`` pack); its top-level field names differ from
+        the consumer schema (``company_id``/``created_at``/``overall_stability``
+        and per-persona weights). We run it through :func:`translate_producer_pack`
+        — pinning ``version`` to the R2 path segment — so the persisted artifact
+        validates as the consumer :class:`PersonaPack` that ``PersonaPackLoader``,
+        the ``/persona-packs`` routes, and downstream simulations read back.
+        """
         base = f"customers/{customer_id}/personas/{pack_version}"
         pack_key = f"{base}/persona_pack.json"
-        self._store.write_text(pack_key, json.dumps(output.persona_pack, indent=2))
+        pack = translate_producer_pack(output.persona_pack, version=pack_version)
+        self._store.write_text(pack_key, pack.model_dump_json(indent=2))
         manifest = {
             "version": pack_version,
             "customer_id": customer_id,
