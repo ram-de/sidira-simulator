@@ -1578,6 +1578,11 @@ export interface components {
             to_screen: string;
             /** Role Gated */
             role_gated?: string[] | null;
+            /**
+             * External
+             * @default false
+             */
+            external: boolean;
         };
         /**
          * UnavailableAgent
