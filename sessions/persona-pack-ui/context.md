@@ -31,30 +31,40 @@ Then, separately, realign the stale Phase-4.5 build-pipeline tickets to today's 
 - **Worktree for implementation** (CLAUDE.md hard rule): EnterWorktree before any code branch.
 
 ## In Progress
-— **Scoping Gap-2 (surface v1.1 pack richness).** Chosen over (a) wiring the stubbed build
-  wizard [blocked on backend + real data] and (b) promote/build-history [smaller, lower-vis].
-  Gap-2 is the rare persona-side frontend work that's fully unblocked today: no new data plane,
-  no real data needed, drives off any existing pack. See Next Steps for the concrete slice.
+— **None. Gap-2 shipped end-to-end + ticket realignment posted.** Session goal met.
 
 ## Completed
-(nothing yet — session just opened)
+- **Gap-2 — surface v1.1 pack richness (PR #249, merged `56efb34`, DEPLOYED + VERIFIED LIVE 2026-06-15).**
+  - Backend: new server-rendered view `services/persona_pack_view.py` (`PersonaPackDetail`) +
+    `GET /persona-packs/{id}/detail`. Reuses `render_behavioral_profile` (centroid "How you compare")
+    and `render_individual_row` (individual-row tier) so honesty/salience logic stays single-sourced.
+    All 3 weight schemes folded into per-persona shares with an honest reason when a scheme is absent.
+    Does NOT echo the bulky raw v1.1 arrays. v1.0 packs degrade to an honest empty individual-row state.
+  - codex P2 fixed: `has_individual_rows` reported from row INPUTS (`_has_row_inputs`), not rendered
+    deltas — an all-typical v1.1 row stays distinguishable from a v1.0 pack. Regression-tested.
+  - Frontend: `/personas/[id]` rebuilt in DESIGN.md §7.6 record voice (paper, mono designators, sans
+    body ≤68ch, no glass/motion); `getPersonaPackDetail` + view types in `lib/api.ts`.
+  - Tests: `test_persona_pack_view.py` + `/detail` cases in `test_persona_packs_api.py` (11 green),
+    `ruff` clean, `tsc --noEmit` clean, codex review clean.
+  - **Deploy:** SSM redeploy of api.sidira.ai → SHA `56efb34`, `/persona-packs/{pack_id}/detail` live,
+    containers healthy. No migration. (Deploy gotcha learned: never prepend a bare `git fetch` to the
+    SSM batch — `set -e` aborts before `ec2-api-deploy.sh` sets up the deploy key. See [[reference-redeploy-ssm-deploy-key-gotcha]].)
+- **Live-validation bug fix (PR #250, merged `b0967a8`).** Caught on the live starter-pack detail page:
+  the suppressed-trait line pluralized the noun but hardcoded the verb ("1 further trait **sit**…").
+  Fixed verb agreement → "1 further trait **sits**…" / "2 further traits **sit**…". Frontend-only, no
+  redeploy; Amplify rebuilds on merge. tsc + codex clean.
+- **Phase-4.5 ticket realignment posted** (#21–#25 comments) per the audit in Key Context.
 
 ## Next Steps
-1. **Read DESIGN.md** (§7.6, §10 refuse list, persona/record component specs) before touching UI.
-2. **Extend the persona-packs GET endpoint (#25) to expose v1.1 fields.** Today `/persona-packs/{id}`
-   returns description/JTBD/behavioral_snapshot/`head_count` weight only. Add (read-only): the
-   rendered "How you compare" block (reuse backend `render_behavioral_profile`), centroid_features,
-   individual-row sample (reuse `render_individual_row`), ALL weight schemes (head_count +
-   order_weighted + revenue_weighted, with the dropped-scheme reason), stability/honesty fields.
-   Decide render-on-server (return the rendered prose) vs return raw + render client-side — lean
-   server-side so the honesty/grounding logic stays single-sourced in `behavioral_profile.py`.
-   → backend change ⇒ **backend redeploy after merge** (api.sidira.ai is manual-deploy).
-3. **Render the richness on `/personas/[id]`** (`frontend/app/personas/[id]/page.tsx`): a "How you
-   compare" block per persona, a weight-schemes view (not just head_count), centroid/individual-row
-   surfacing, honesty/stability chips. Add the `getPersonaPack` wrapper fields in `frontend/lib/api.ts`
-   + types in `frontend/lib/api-types.ts`. Honest empty-states when a pack is v1.0 (no v1.1 quad).
-4. **codex review** before declaring the PR done (hard rule). Then PR as ram-de from a worktree branch.
-5. **(Separate, after user OK) Realign the stale Phase-4.5 tickets** — see ticket audit in Key Context.
+1. **(Verify after Amplify build)** the `sits/sit` fix shows on the live `/personas/[id]` page.
+2. **Follow-ups, not started** — the persona-side gaps still without UI (see frontend-surface map):
+   build history/status list, draft-pack list + promote UI, older-snapshot browsing; and the stubbed
+   `/personas/new` wizard (blocked on the realigned #23/#24 backend work).
+3. **To see FULL v1.1 richness live**, a v1.1 pack must be regenerated through the producer pipeline —
+   prod packs today are v1.0/starter, so the page correctly renders centroid + weights only (no
+   individual-row block). Validation confirmed the v1.0 honest-empty-state path on the starter pack.
+4. **Consider `/pythia-session close persona-pack-ui`** — goal is met; left active pending the
+   Amplify-build verification above.
 
 ## Key Files
 - `frontend/app/personas/[id]/page.tsx` — persona pack detail (the page to enrich)
