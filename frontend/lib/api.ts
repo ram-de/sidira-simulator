@@ -84,6 +84,56 @@ export type PersonaPack = {
   stability_score: number;
   is_starter: boolean;
 };
+
+// #25 / persona-pack-ui: the read-only RENDERED view of a pack (the
+// `/persona-packs/{id}/detail` endpoint). Distinct from the raw PersonaPack
+// above: the backend renders the behavioral-comparison blocks through the
+// single-sourced honesty logic in behavioral_profile.py rather than shipping the
+// bulky raw v1.1 arrays for the client to interpret. Hand-mirrored like the rest
+// of this block.
+export type DeltaView = {
+  label: string;
+  direction: "higher" | "lower";
+  magnitude: "somewhat" | "much" | "dramatically";
+};
+export type ProfileBlockView = {
+  heading: string;
+  intro: string;
+  deltas: DeltaView[];
+  tail_count: number;
+  suppressed_count: number;
+  grounded: boolean;
+  source_tier: string;
+  note: string;
+};
+export type WeightSchemeView = {
+  key: "head_count" | "order_weighted" | "revenue_weighted";
+  label: string;
+  available: boolean;
+  note?: string | null;
+};
+export type PersonaProfileView = {
+  id: string;
+  name: string;
+  description: string;
+  jtbd?: string | null;
+  behavioral_snapshot: Record<string, number | string>;
+  shares: Record<string, number>;
+  how_you_compare?: ProfileBlockView | null;
+  distinctive?: ProfileBlockView | null;
+};
+export type PersonaPackDetail = {
+  version: string;
+  customer_id: string;
+  generated_at: string;
+  schema_version: "1.0" | "1.1";
+  is_starter: boolean;
+  stability_score: number;
+  persona_count: number;
+  has_individual_rows: boolean;
+  weight_schemes: WeightSchemeView[];
+  personas: PersonaProfileView[];
+};
 export type Hypothesis = components["schemas"]["Hypothesis"];
 export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
@@ -177,6 +227,12 @@ export const getActivePersonas = () =>
 // an explicit version loads that snapshot and 404s when genuinely missing.
 export const getPersonaPack = (id: string) =>
   apiGet<PersonaPack>(`/persona-packs/${encodeURIComponent(id)}`);
+
+// #25: the rendered detail view (behavioral-comparison blocks, all weight
+// schemes with drop reasons, honesty flags) for the Library detail page. Same
+// `latest`/starter/404 semantics as getPersonaPack.
+export const getPersonaPackDetail = (id: string) =>
+  apiGet<PersonaPackDetail>(`/persona-packs/${encodeURIComponent(id)}/detail`);
 
 // Sample-workspace seeding (sessions/sample-workspace): clone the Streamly
 // sample persona + feature packs into the caller's own tenant. Backend 409s

@@ -1,11 +1,18 @@
 "use client";
 
 // Persona-pack detail — the full record for one persona pack of the modelled
-// population (Library browsability, #207). Reads GET /persona-packs/{id}, which
-// returns the whole PersonaPack: every persona's description / JTBD / behavioral
-// snapshot plus the pack's version, capture date, and stability score. `id`
-// is usually the "latest" sentinel — the active pack via the `latest` pointer —
-// but an explicit version addresses an older snapshot directly.
+// population (Library browsability, #207 / #25). Reads GET /persona-packs/{id}/detail,
+// the RENDERED view: every persona's description / JTBD / behavioral snapshot,
+// plus the server-rendered behavioral-comparison blocks (the centroid "how this
+// segment compares" profile and, on a v1.1 pack, the per-member individual-row
+// profile), every weight scheme with an honest reason when one is unavailable,
+// and the pack's stability. `id` is usually the "latest" sentinel — the active
+// pack — but an explicit version addresses an older snapshot directly.
+//
+// The comparison blocks are rendered SERVER-SIDE (behavioral_profile.py) so the
+// salience/grounding/honesty rules that govern what an agent reads also govern
+// what's shown here — this page just lays the rendered deltas out, it does not
+// re-derive them.
 //
 // These are RECORDS, not readings — DESIGN.md §7.6 "record voice": each persona
 // renders as a paper sheet (paper-elevated, mono provenance/designator header,
@@ -21,9 +28,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ApiError,
-  getPersonaPack,
-  type Persona,
-  type PersonaPack,
+  getPersonaPackDetail,
+  type PersonaPackDetail,
+  type PersonaProfileView,
+  type ProfileBlockView,
+  type WeightSchemeView,
 } from "@/lib/api";
 import { TOKENS, FONT_SANS, FONT_MONO } from "@/lib/design";
 
@@ -39,13 +48,13 @@ type Fetchable<T> =
 
 export default function PersonaPackDetailPage({ params }: { params: { id: string } }) {
   const id = decodeURIComponent(params.id);
-  const [pack, setPack] = useState<Fetchable<PersonaPack>>({ state: "loading" });
+  const [pack, setPack] = useState<Fetchable<PersonaPackDetail>>({ state: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getPersonaPack(id);
+        const data = await getPersonaPackDetail(id);
         if (!cancelled) setPack({ state: "ready", data });
       } catch (e) {
         if (cancelled) return;
@@ -126,7 +135,7 @@ export default function PersonaPackDetailPage({ params }: { params: { id: string
               <PersonaSheet
                 key={persona.id}
                 persona={persona}
-                weight={pack.data.weights.head_count?.[persona.id]}
+                schemes={pack.data.weight_schemes}
               />
             ))}
           </div>
@@ -136,9 +145,10 @@ export default function PersonaPackDetailPage({ params }: { params: { id: string
   );
 }
 
-// ── pack meta (version · capture · stability · honesty) ───────────────────
+// ── pack meta (version · capture · stability · weight schemes · honesty) ───
 
-function PackMeta({ pack }: { pack: PersonaPack }) {
+function PackMeta({ pack }: { pack: PersonaPackDetail }) {
+  const unavailable = pack.weight_schemes.filter((s) => !s.available);
   return (
     <section
       style={{
@@ -161,10 +171,31 @@ function PackMeta({ pack }: { pack: PersonaPack }) {
           textTransform: "uppercase",
         }}
       >
-        {pack.is_starter ? "STARTER PACK" : "ACTIVE PACK"} · {pack.personas.length} PERSONA
-        {pack.personas.length === 1 ? "" : "S"} · SNAPSHOT {pack.version.toUpperCase()} ·{" "}
-        {formatCapture(pack.generated_at)} · STABILITY {pack.stability_score.toFixed(2)}
+        {pack.is_starter ? "STARTER PACK" : "ACTIVE PACK"} · {pack.persona_count} PERSONA
+        {pack.persona_count === 1 ? "" : "S"} · SNAPSHOT {pack.version.toUpperCase()} ·{" "}
+        {formatCapture(pack.generated_at)} · STABILITY {pack.stability_score.toFixed(2)} · SCHEMA{" "}
+        {pack.schema_version}
       </div>
+
+      {/* Weight bases the pack carries — headcount is always present; the
+          revenue/order weightings appear only when the source data covered
+          every persona (§7.6: state the absence honestly, don't hide it). */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {pack.weight_schemes
+          .filter((s) => s.available)
+          .map((s) => (
+            <Designator key={s.key}>{s.label.toUpperCase()}</Designator>
+          ))}
+      </div>
+      {unavailable.map((s) => (
+        <p
+          key={s.key}
+          style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted, maxWidth: MEASURE }}
+        >
+          <strong>{s.label}</strong> — {s.note}
+        </p>
+      ))}
+
       {pack.is_starter && (
         <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted, maxWidth: MEASURE }}>
           These are generic placeholder personas so you can click through Sidira right away —
@@ -178,8 +209,20 @@ function PackMeta({ pack }: { pack: PersonaPack }) {
 
 // ── one persona — the record voice (§7.6) ─────────────────────────────────
 
-function PersonaSheet({ persona, weight }: { persona: Persona; weight?: number }) {
+function PersonaSheet({
+  persona,
+  schemes,
+}: {
+  persona: PersonaProfileView;
+  schemes: WeightSchemeView[];
+}) {
   const snapshot = Object.entries(persona.behavioral_snapshot ?? {});
+  // Per-scheme share designators, in the pack's scheme order, label from the
+  // pack-level scheme list so the wording stays single-sourced.
+  const shareChips = schemes
+    .filter((s) => typeof persona.shares[s.key] === "number")
+    .map((s) => ({ key: s.key, label: s.label, pct: persona.shares[s.key] }));
+
   return (
     <section
       style={{
@@ -206,9 +249,11 @@ function PersonaSheet({ persona, weight }: { persona: Persona; weight?: number }
           {persona.name}
         </span>
         <Designator>{persona.id}</Designator>
-        {typeof weight === "number" && (
-          <Designator>{(weight * 100).toFixed(0)}% OF POPULATION</Designator>
-        )}
+        {shareChips.map((c) => (
+          <Designator key={c.key}>
+            {(c.pct * 100).toFixed(0)}% {c.label.toUpperCase()}
+          </Designator>
+        ))}
       </div>
 
       {/* Sans-only document body, 16px / 1.6, ≤68ch measure (§7.6). */}
@@ -251,8 +296,57 @@ function PersonaSheet({ persona, weight }: { persona: Persona; weight?: number }
             </dl>
           </div>
         )}
+
+        {/* Behavioral-comparison blocks — only when the renderer found salient
+            divergence (§2 no-silent-degradation: absence is shown, not faked). */}
+        {persona.how_you_compare && <ComparisonBlock block={persona.how_you_compare} />}
+        {persona.distinctive && <ComparisonBlock block={persona.distinctive} />}
       </div>
     </section>
+  );
+}
+
+// ── one rendered behavioral-comparison block ──────────────────────────────
+
+function ComparisonBlock({ block }: { block: ProfileBlockView }) {
+  return (
+    <div>
+      <Label>{block.heading}</Label>
+      <p style={{ margin: "8px 0 0", fontSize: 16, lineHeight: BODY_LH }}>{block.intro}</p>
+      <ul
+        style={{
+          margin: "8px 0 0",
+          paddingLeft: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {block.deltas.map((d, i) => (
+          <li key={i} style={{ fontSize: 16, lineHeight: 1.5 }}>
+            <strong>
+              {d.magnitude} {d.direction}
+            </strong>{" "}
+            {d.label}
+          </li>
+        ))}
+      </ul>
+      {block.tail_count > 0 && (
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: TOKENS.inkMuted }}>
+          …plus {block.tail_count} further, smaller difference{block.tail_count === 1 ? "" : "s"} —
+          these are just the most pronounced.
+        </p>
+      )}
+      {block.suppressed_count > 0 && (
+        <p style={{ margin: "6px 0 0", fontSize: 13, color: TOKENS.inkMuted }}>
+          {block.suppressed_count} further trait{block.suppressed_count === 1 ? "" : "s"} sit within
+          the typical range.
+        </p>
+      )}
+      <p style={{ margin: "10px 0 0", fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted }}>
+        {block.note}
+      </p>
+    </div>
   );
 }
 

@@ -78,3 +78,37 @@ def test_unknown_version_404s() -> None:
     )
     resp = TestClient(app).get("/persona-packs/v_999")
     assert resp.status_code == 404, resp.text
+
+
+def test_detail_renders_blocks_and_weight_schemes() -> None:
+    """`/{id}/detail` returns the rendered view: centroid block, schemes, honesty."""
+    app.dependency_overrides[get_persona_loader] = lambda: PersonaPackLoader(
+        LocalArtifactStore(_FIXTURE_ROOT)
+    )
+    resp = TestClient(app).get("/persona-packs/latest/detail")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["version"] == "v_1"
+    assert body["schema_version"] == "1.0"
+    assert body["persona_count"] == 6
+    # The demo fixture is a v1.0 pack — no individual-row tier, honest empty-state.
+    assert body["has_individual_rows"] is False
+    # Centroid tier renders for personas with salient centroid_features.
+    assert any(p["how_you_compare"] for p in body["personas"])
+    assert all(p["distinctive"] is None for p in body["personas"])
+    # All three weight schemes are reported (present-or-not), headcount always present.
+    schemes = {s["key"]: s for s in body["weight_schemes"]}
+    assert schemes["head_count"]["available"] is True
+    assert {"head_count", "order_weighted", "revenue_weighted"} == set(schemes)
+    # The raw bulky v1.1 arrays are NOT echoed into the view payload.
+    first = body["personas"][0]
+    assert "sample_rows" not in first and "centroid_full" not in first
+
+
+def test_detail_unknown_version_404s() -> None:
+    """The detail view shares the raw endpoint's not-found semantics."""
+    app.dependency_overrides[get_persona_loader] = lambda: PersonaPackLoader(
+        LocalArtifactStore(_FIXTURE_ROOT)
+    )
+    resp = TestClient(app).get("/persona-packs/v_999/detail")
+    assert resp.status_code == 404, resp.text
