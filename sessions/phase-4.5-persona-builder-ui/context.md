@@ -67,9 +67,13 @@ Two decisions after the user re-examined the design:
    UNPROMOTED v_N: per-persona name/share/distinctiveness + stability; honest that #7 holdout not yet shown;
    Re-run or accept) → Promote(+done CTAs). Frontend-only (no backend change, no redeploy).
 
-### In flight: redesign on worktree `wizard-redesign-evaluate` (off main da04b0b)
-- Agent adapting page.tsx (preserve cred-fingerprint, poll effect, codex P2 reset). wizard-ui.tsx reused.
-- Then: tsc+build → review Evaluate semantics → codex → PR (base main, frontend-only) → merge (Amplify auto-build).
+### ✅ REDESIGN DONE — worktree `wizard-redesign-evaluate` (branch off main da04b0b), PR-ready
+- page.tsx rewritten 7→5 steps: Connect · Map · Build · **Evaluate** · Promote. wizard-ui.tsx + [id]/page.tsx UNTOUCHED.
+- Build config + live watch share one step (BuildConfigForm before / BuildWatch after); single `clearBuild` reset → Back always safe, new build supersedes prior promotion.
+- Evaluate reads UNPROMOTED pack via getPersonaPackDetail(version): compact per-persona name/Designator/share-chips/description + honest distinctiveness line (says so when undistinctive); "View full pack ↗" new-tab; holdout(#7/Jaccard) named as not-yet-shown (okBanner w/ neutral rule border, not success-green). Continuing IS the accept.
+- Commits: cfd1abe (redesign) · 34c4084 (codex P1/P2 fixes). tsc clean, build clean (/personas/new 11.8kB).
+- **Codex GATE: PASS** — round 1 found [P1] Promote reachable before Evaluate loaded/while errored + [P2] stale pack read after rerun shows wrong personas. Both FIXED (canContinue step4 gates on evalPhase==="ready" && evalPack.version===build.pack_version; evalReqRef latest-wins guard + clearBuild nulls it). Round 2: clean, no issues.
+- NEXT: push branch → open frontend-only PR base main → merge (Amplify auto-builds, NO backend redeploy).
 
 ### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
   (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
