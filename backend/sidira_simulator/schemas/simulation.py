@@ -117,6 +117,21 @@ class SimulationRequest(BaseModel):
             "the single-arm path supports it; A/B mode ignores it for now."
         ),
     )
+    include_current_state_control: bool = Field(
+        default=False,
+        description=(
+            "#221 §3.3.1 delta-mode. When True, a 1:1 shadow panel of the SAME "
+            "personas reacts to the CURRENT product state (the proposed change "
+            "omitted — the existing A/B control framing applied as a paired "
+            "shadow in single-arm mode), and the result surfaces "
+            "current_state_delta = treatment − current_state sentiment delta in "
+            "confidence_score units. A 100%-paired design: every persona is its "
+            "own control. The shadows are ephemeral (never persisted) and don't "
+            "affect the headline confidence_score in this slice — the delta is "
+            "purely additive. Default False → byte-identical to today. Only the "
+            "single-arm path supports it; A/B mode ignores it for now."
+        ),
+    )
 
     @field_validator("selected_personas")
     @classmethod
@@ -235,6 +250,25 @@ class SimulationResult(BaseModel):
     persona_lift_unpaired_persona: int = 0
     persona_lift_unpaired_no_persona: int = 0
     persona_lift_sentiment_failure_drops: int = 0
+
+    # ── Delta-mode fields (#221 §3.3.1) ──
+    # Populated only when the run requested `include_current_state_control`.
+    # All None / 0 otherwise, so older `result_json` rows load unchanged and
+    # the headline confidence_score stays byte-identical to a flag-off run.
+    # `current_state_score` is the same personas' standalone score reacting to
+    # the CURRENT product state (the proposed change omitted); `current_state_delta`
+    # is treatment − current_state sentiment delta in confidence_score units
+    # ([-100, +100]). A `current_state_delta_ci` straddling zero is the
+    # falsification signal (the proposed change moves no sentiment over leaving
+    # the product as-is). The unpaired / failure counters surface what the paired
+    # bootstrap excluded, matching the A/B + persona-lift counters above.
+    current_state_score: float | None = None
+    current_state_delta: float | None = None
+    current_state_delta_ci: tuple[float, float] | None = None
+    current_state_delta_paired_n: int | None = None
+    current_state_delta_unpaired_persona: int = 0
+    current_state_delta_unpaired_current_state: int = 0
+    current_state_delta_sentiment_failure_drops: int = 0
 
 
 class Simulation(BaseModel):

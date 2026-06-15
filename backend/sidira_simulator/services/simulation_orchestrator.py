@@ -67,6 +67,7 @@ class SimulationOrchestrator:
         model_id: str | None = None,
         sample_size: int = 10,
         include_no_persona_control: bool = False,
+        include_current_state_control: bool = False,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
 
@@ -145,6 +146,7 @@ class SimulationOrchestrator:
                         selected_personas=selected_personas,
                         model_id=model_id,
                         include_no_persona_control=include_no_persona_control,
+                        include_current_state_control=include_current_state_control,
                     )
                 return
 
@@ -162,6 +164,7 @@ class SimulationOrchestrator:
                 selected_personas=selected_personas,
                 model_id=model_id,
                 include_no_persona_control=include_no_persona_control,
+                include_current_state_control=include_current_state_control,
             )
 
         return sim_id, run
@@ -191,6 +194,7 @@ class SimulationOrchestrator:
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
         include_no_persona_control: bool = False,
+        include_current_state_control: bool = False,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -217,6 +221,7 @@ class SimulationOrchestrator:
                 selected_personas=selected_personas,
                 model_id=model_id,
                 include_no_persona_control=include_no_persona_control,
+                include_current_state_control=include_current_state_control,
             )
 
         except Exception as exc:
@@ -245,6 +250,7 @@ class SimulationOrchestrator:
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
         include_no_persona_control: bool = False,
+        include_current_state_control: bool = False,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -261,6 +267,7 @@ class SimulationOrchestrator:
             selected_personas=selected_personas,
             model_id=model_id,
             include_no_persona_control=include_no_persona_control,
+            include_current_state_control=include_current_state_control,
         )
 
         # Persist agent_instances rows using the records the runner exposed.

@@ -175,6 +175,7 @@ class SimulationRunner:
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
         include_no_persona_control: bool = False,
+        include_current_state_control: bool = False,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
         chat_client = self._chat_for_model(model_id)
@@ -252,6 +253,21 @@ class SimulationRunner:
                     persona = pack_by_id[persona_id]
                     for sample_index in range(count):
                         agent_specs.append((persona, sample_index, "no_persona"))
+            # #221 §3.3.1 delta-mode baseline: add a 1:1 shadow panel of the
+            # SAME personas reacting to the CURRENT product state — the existing
+            # A/B control framing (proposed change omitted) applied as a paired
+            # shadow in single-arm mode. Each shadow shares its persona twin's
+            # (persona_id, sample_index), so the paired-delta aggregator can
+            # attribute any sentiment movement to the proposed change alone.
+            # Every persona is its own control (a 100%-paired design). Shadows
+            # are ephemeral — never persisted to R2/DB — and only the single-arm
+            # panel gets them; A/B mode is out of scope for this slice. Default
+            # off: when unset the spec list is byte-identical to today.
+            if include_current_state_control:
+                for persona_id, count in allocation:
+                    persona = pack_by_id[persona_id]
+                    for sample_index in range(count):
+                        agent_specs.append((persona, sample_index, "current_state"))
         else:
             # A/B mode: in A/B mode `population_size` is the PER-ARM target
             # (matches the wizard's cost-preview math, which uses the
@@ -343,19 +359,22 @@ class SimulationRunner:
             return_exceptions=True,
         )
         agent_records: list[AgentRecord] = [r for r in results if isinstance(r, AgentRecord)]
-        # #221 persona-lift: no_persona shadows are ephemeral. They feed the
-        # scorer (for the paired-lift baseline) but are NOT persisted — the
-        # orchestrator reads `_last_run_agent_records` to write agent_instances
-        # rows and to populate `agent_instance_ids`, both of which must contain
-        # only the real persona agents (no phantom rows, no A/B mislabel).
-        persisted_records = [r for r in agent_records if r.arm != "no_persona"]
+        # #221 persona-lift / delta-mode: no_persona AND current_state shadows
+        # are ephemeral. They feed the scorer (for the paired baselines) but are
+        # NOT persisted — the orchestrator reads `_last_run_agent_records` to
+        # write agent_instances rows and to populate `agent_instance_ids`, both
+        # of which must contain only the real persona agents (no phantom rows,
+        # no A/B mislabel).
+        persisted_records = [
+            r for r in agent_records if r.arm not in ("no_persona", "current_state")
+        ]
         agent_ids = [r.agent_id for r in persisted_records]
         self._last_run_agent_records = persisted_records  # caller reads for repo persistence
 
         state.mark_phase(RunPhase.SCORING)
         self._run_state.write_state(state)
-        # Pass the FULL record set (persona + no_persona) so _score can compute
-        # the persona-lift baseline; it splits the arms internally.
+        # Pass the FULL record set (persona + shadows) so _score can compute the
+        # persona-lift and delta-mode baselines; it splits the arms internally.
         result = await self._score(
             state,
             sim_id,
@@ -364,6 +383,7 @@ class SimulationRunner:
             resolved_run_seed,
             chat_client,
             include_no_persona_control=include_no_persona_control,
+            include_current_state_control=include_current_state_control,
         )
 
         state.mark_phase(RunPhase.COMPLETE)
@@ -413,13 +433,23 @@ class SimulationRunner:
             # diverge ONLY in the task block (preamble stays byte-identical,
             # which is the paired-comparison invariant pinned by
             # test_control_arm_keeps_identity_preamble_byte_equivalent).
-            composer_arm = arm if arm in ("treatment", "control") else "treatment"
+            # #221 delta-mode: the current_state shadow reuses the existing A/B
+            # "control" framing — the FULL persona reacting to the CURRENT
+            # product state (proposed change omitted) — so it composes with
+            # arm="control". Only the task block differs from its treatment
+            # twin; the persona preamble stays byte-identical (paired invariant).
+            composer_arm = (
+                "control"
+                if arm == "current_state"
+                else (arm if arm in ("treatment", "control") else "treatment")
+            )
             # #221 persona-lift: the no_persona shadow reacts to the SAME
             # proposed change (treatment task framing) but with the persona
             # conditioning stripped out of the preamble. Everything else —
             # the user turn, the elicitation config, the change view — is
             # byte-identical to its persona twin, so the only difference is
-            # persona identity.
+            # persona identity. The current_state shadow KEEPS the persona
+            # (use_persona stays True) — it ablates the change, not the persona.
             use_persona = arm != "no_persona"
             identity_prompt = compose_identity_prompt(
                 customer_id=customer_id,
@@ -490,14 +520,17 @@ class SimulationRunner:
 
             now = datetime.now(timezone.utc)
 
-            # #221 persona-lift: no_persona shadows are ephemeral. They exist
-            # only to feed the scorer's paired-lift baseline this run, so we
-            # skip ALL R2 persistence (identity, initial reaction, seed,
-            # distribution) and never build the AgentInstanceMetadata. There is
-            # no chat replay for a shadow and no DB row, so the
-            # identity-continuity guarantee does not apply. The AgentRecord
-            # returned below still carries the reaction so _score can use it.
-            if use_persona:
+            # #221 persona-lift / delta-mode: both shadow arms (no_persona and
+            # current_state) are ephemeral. They exist only to feed the scorer's
+            # paired baselines this run, so we skip ALL R2 persistence (identity,
+            # initial reaction, seed, distribution) and never build the
+            # AgentInstanceMetadata. There is no chat replay for a shadow and no
+            # DB row, so the identity-continuity guarantee does not apply. The
+            # AgentRecord returned below still carries the reaction so _score can
+            # use it. (current_state keeps use_persona=True, so we gate
+            # persistence on the arm tag, not use_persona.)
+            persist = arm not in ("no_persona", "current_state")
+            if persist:
                 metadata = AgentInstanceMetadata(
                     id=agent_id,
                     customer_id=customer_id,
@@ -551,6 +584,7 @@ class SimulationRunner:
         run_seed: int,
         chat_client: ChatClient,
         include_no_persona_control: bool = False,
+        include_current_state_control: bool = False,
     ) -> SimulationResult:
         """Call ScoringService + RefinementService over the agent reactions.
 
@@ -592,15 +626,16 @@ class SimulationRunner:
             for r in agent_records
         ]
 
-        # #221 §4.1 persona-lift: split off the ephemeral no_persona shadows
-        # BEFORE the A/B-mode detection below. The persona arms (treatment /
-        # control / single-arm None) drive the headline score exactly as
-        # before; the no_persona shadows only feed the persona-lift baseline
-        # at the end, so they must NOT leak into is_ab_mode or the persona
-        # scoring path (a no_persona record carries arm="no_persona", which is
-        # non-None and would otherwise trip the A/B branch).
+        # #221 §4.1 persona-lift / §3.3.1 delta-mode: split off the ephemeral
+        # shadows BEFORE the A/B-mode detection below. The persona arms
+        # (treatment / control / single-arm None) drive the headline score
+        # exactly as before; the no_persona + current_state shadows only feed
+        # their paired baselines at the end, so they must NOT leak into
+        # is_ab_mode or the persona scoring path (a shadow record carries a
+        # non-None arm that would otherwise trip the A/B branch).
         no_persona_reactions = [r for r in reactions if r.arm == "no_persona"]
-        persona_reactions = [r for r in reactions if r.arm != "no_persona"]
+        current_state_reactions = [r for r in reactions if r.arm == "current_state"]
+        persona_reactions = [r for r in reactions if r.arm not in ("no_persona", "current_state")]
 
         # Phase 4.6 #90: A/B mode → run the paired-lift aggregator over the
         # treatment + control split. Detect dual-arm via any persona record
@@ -651,10 +686,14 @@ class SimulationRunner:
         # a run that's genuinely broken upstream — skip it.
         ab_missing_arm = is_ab_mode and not analyses
         if result.confidence_score < 80.0 and not ab_missing_arm:
-            # Sample from the persona records only — no_persona shadows are a
-            # base-LLM baseline, not material the PM should see paraphrased
-            # back as refinement evidence.
-            sample_reactions = [r.reaction_text for r in agent_records if r.arm != "no_persona"][:3]
+            # Sample from the persona records only — the shadow arms
+            # (no_persona, current_state) are baselines, not material the PM
+            # should see paraphrased back as refinement evidence.
+            sample_reactions = [
+                r.reaction_text
+                for r in agent_records
+                if r.arm not in ("no_persona", "current_state")
+            ][:3]
             suggestions = await refinement.suggest(
                 RefinementInput(
                     hypothesis_prose=hypothesis.prose,
@@ -731,6 +770,87 @@ class SimulationRunner:
                 "persona_lift.computed",
                 persona_lift=None,
                 no_persona_score=None,
+                paired_n=0,
+            )
+
+        # #221 §3.3.1 delta-mode baseline: if current_state shadows ran and the
+        # persona arm actually produced analyses, classify the shadows and
+        # compute the paired treatment − current_state delta. Purely ADDITIVE,
+        # exactly like the persona-lift block above: it populates the
+        # current_state_delta* / current_state_score fields and leaves
+        # confidence_score, weaknesses, per_agent_analyses, and refinement
+        # untouched, so a run with the flag off is byte-identical. `analyses`
+        # (the persona modal analyses, here the proposed-change "treatment"
+        # side) is paired by (persona_id, sample_index) against the
+        # freshly-classified current_state analyses.
+        #
+        # A/B mode IGNORES the flag entirely (single-arm only). Shadows are
+        # appended only on the single-arm allocation path, so an A/B run has no
+        # current_state_reactions; gating both branches on `not is_ab_mode`
+        # keeps the current_state_delta* fields at their flag-off defaults rather
+        # than falsely recording the run as "requested but uncomputable"
+        # (paired_n=0) for an unsupported path. (mirrors the persona-lift gate)
+        if (
+            include_current_state_control
+            and not is_ab_mode
+            and analyses
+            and current_state_reactions
+        ):
+            from sidira_simulator.services.scoring import aggregate_current_state_delta
+
+            cs_analyses = await asyncio.gather(
+                *(scoring.analyze(hypothesis, r) for r in current_state_reactions),
+                return_exceptions=False,
+            )
+            current_state_result, delta = aggregate_current_state_delta(
+                analyses, cs_analyses, run_seed=run_seed
+            )
+            result = result.model_copy(
+                update={
+                    "current_state_score": current_state_result.confidence_score,
+                    "current_state_delta": delta.lift,
+                    "current_state_delta_ci": delta.lift_ci,
+                    "current_state_delta_paired_n": delta.paired_n,
+                    # _paired_lift's "treatment" side is the proposed-change arm,
+                    # so its unpaired_treatment / unpaired_control counters map
+                    # onto persona / current_state here.
+                    "current_state_delta_unpaired_persona": delta.unpaired_treatment,
+                    "current_state_delta_unpaired_current_state": delta.unpaired_control,
+                    "current_state_delta_sentiment_failure_drops": delta.sentiment_failure_drops,
+                }
+            )
+            self._run_state.emit(
+                state,
+                "current_state_delta.computed",
+                current_state_delta=delta.lift,
+                current_state_score=current_state_result.confidence_score,
+                paired_n=delta.paired_n,
+            )
+        elif include_current_state_control and not is_ab_mode:
+            # The baseline was REQUESTED but the delta is uncomputable. Two ways
+            # to land here, both gated only on (flag + single-arm) — NOT on
+            # `analyses` — so the honesty signal survives every degenerate run:
+            #   - every current-state shadow timed out / failed materialization
+            #     (current_state_reactions empty), while persona agents scored, OR
+            #   - every real persona agent failed but a shadow survived, so
+            #     `analyses` is empty and there is no treatment side to pair
+            #     against (codex P2 — without dropping `and analyses` this case
+            #     would leave paired_n=None, indistinguishable from flag-off).
+            # Record paired_n=0 + the persona agents (if any) as unpaired so the
+            # persisted result is distinguishable from a flag-off run (where these
+            # fields stay None / 0). A requested-but-uncomputable baseline must not
+            # masquerade as "never requested". delta / ci / score stay None.
+            result = result.model_copy(
+                update={
+                    "current_state_delta_paired_n": 0,
+                    "current_state_delta_unpaired_persona": len(analyses),
+                }
+            )
+            self._run_state.emit(
+                state,
+                "current_state_delta.computed",
+                current_state_delta=None,
+                current_state_score=None,
                 paired_n=0,
             )
 
