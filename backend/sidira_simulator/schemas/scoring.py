@@ -216,6 +216,135 @@ class ConversionLiftResult(BaseModel):
     calibrated: bool = False
 
 
+# ── Null-integrity certificate (ablation-protocol §4) ──────────────────
+
+
+class NullIntegrityCertificate(BaseModel):
+    """Engine-validation gate for a Tier-0 ablation cell (ablation-protocol §4).
+
+    Scramble the experiment outcome labels and a CLEAN cell must score at
+    chance on direction and ρ≈0 on rank. A cell that "predicts" scrambled
+    outcomes is leaking signal from the label into the prediction; the whole
+    run is VOID until it doesn't. This certificate is the shippable proof:
+    `services.null_integrity.certify_null_integrity` produces it over a cell's
+    paired `(predicted_effect, actual_effect)` arrays, and it is meant to be
+    pre-registered (`integrity_hash`) and shipped alongside results.
+
+    The PASS/VOID gate (`passed`) reads the NULL distribution, not the observed
+    scores: a clean cell is one whose SCRAMBLED-label scores center at chance.
+    The observed scores and the permutation p-values (`*_p_value`) are the
+    SEPARATE "is the real result better than chance" read — they never relax
+    the gate.
+    """
+
+    # ── 1. Observed scores (the real, unscrambled prediction) ──
+    n_experiments: int = Field(
+        ge=0, description="Paired experiments scored (len of predictions == actuals)."
+    )
+    observed_direction_accuracy: float | None = Field(
+        default=None,
+        description=(
+            "Fraction of experiments where sign(pred) == sign(actual), over the "
+            "real labels. None on a degenerate (empty / underpowered-void) cert."
+        ),
+    )
+    observed_rank_rho: float | None = Field(
+        default=None,
+        description="Spearman rank-ρ of predictions vs actuals over the real labels.",
+    )
+
+    # ── 2. Null distribution (scrambled labels) ──
+    null_direction_accuracy_mean: float | None = Field(
+        default=None, description="Mean direction-accuracy across label permutations."
+    )
+    null_direction_accuracy_ci: tuple[float, float] | None = Field(
+        default=None,
+        description="Percentile CI of the null direction-accuracy distribution.",
+    )
+    null_rank_rho_mean: float | None = Field(
+        default=None, description="Mean rank-ρ across label permutations."
+    )
+    null_rank_rho_ci: tuple[float, float] | None = Field(
+        default=None, description="Percentile CI of the null rank-ρ distribution."
+    )
+    marginal_chance_accuracy: float | None = Field(
+        default=None,
+        description=(
+            "Expected direction-accuracy under random relabeling, given THIS "
+            "cell's sign marginals (Σ_s (n_pred_s/n)(n_actual_s/n)). The TRUE "
+            "chance baseline the direction gate brackets — not a fixed 0.5 — so "
+            "an imbalanced-but-honest sign distribution (e.g. all-positive "
+            "actuals) is not falsely voided."
+        ),
+    )
+
+    # ── 3. PASS/VOID gate (reads the NULL, per §4) ──
+    certifying: bool = Field(
+        default=False,
+        description=(
+            "True only when the faithful §4 rerun path was used (a `predict_fn` "
+            "re-derived predictions from each scrambled label set). A diagnostic "
+            "(fixed-prediction) certificate is NON-certifying and can never PASS, "
+            "because it cannot rule out a cell that leaked labels at predict-time."
+        ),
+    )
+    passed: bool = Field(
+        description=(
+            "True iff the certificate is `certifying` AND the null "
+            "direction-accuracy CI brackets the marginal chance baseline AND the "
+            "null rank-ρ CI brackets 0 (and the cell is not underpowered). False "
+            "means non-certifying, underpowered, or the scrambled-label scores did "
+            "NOT center at chance → leakage → the run is void until fixed."
+        )
+    )
+    void_reason: str | None = Field(
+        default=None,
+        description="Why the cell is VOID (leakage / degenerate). None when passed.",
+    )
+
+    # ── 4. Significance read (SECONDARY — never relaxes the gate) ──
+    direction_accuracy_p_value: float | None = Field(
+        default=None,
+        description=(
+            "Permutation p-value: fraction of permutations whose direction-accuracy "
+            ">= observed (+1/+1 add-one correction). The honest 'is the real "
+            "direction signal better than chance' number. Separate from `passed`."
+        ),
+    )
+    rank_rho_p_value: float | None = Field(
+        default=None,
+        description=(
+            "Permutation p-value: fraction of permutations whose rank-ρ >= observed "
+            "(+1/+1 add-one correction). Separate from `passed`."
+        ),
+    )
+
+    # ── 5. Honesty guards ──
+    underpowered: bool = Field(
+        default=False,
+        description=(
+            "True when n_experiments is below the certification floor. An "
+            "underpowered cell can never PASS (the null CI is too wide to certify); "
+            "`passed` is forced False and `caveat` explains."
+        ),
+    )
+    caveat: str | None = Field(
+        default=None,
+        description="Human-readable caveat (small-N, degenerate input, ties, etc.).",
+    )
+
+    # ── 6. Config + hash-commit integrity (§5) ──
+    n_permutations: int = Field(ge=0, description="Label permutations drawn for the null.")
+    seed: int = Field(description="Seed that drove the permutation RNG (reproducibility).")
+    integrity_hash: str = Field(
+        description=(
+            "SHA-256 over the canonical-serialized inputs + config (predictions, "
+            "actuals, n_permutations, seed, n_experiments). Lets a certificate be "
+            "pre-registered and not retrofitted — any input/config change moves it."
+        )
+    )
+
+
 # ── Refinement ────────────────────────────────────────────────────────
 
 
