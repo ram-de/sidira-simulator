@@ -17,7 +17,10 @@ from pathlib import Path
 import pytest
 
 from sidira_simulator.schemas.persona import PersonaPack
-from sidira_simulator.services.behavioral_profile import render_individual_row
+from sidira_simulator.services.behavioral_profile import (
+    _MAX_INDIVIDUAL_ROW_DELTAS,
+    render_individual_row,
+)
 from sidira_simulator.services.persona_pack_translator import translate_producer_pack
 from sidira_simulator.services.population_sampler import allocate
 
@@ -353,3 +356,90 @@ def test_real_fixed_persona_has_null_posterior_but_still_grounds():
     profile = render_individual_row(fixed, sample_index=0)
     assert profile.source_tier == "individual_row_synthetic"
     assert profile.render()
+
+
+# --- against the reproducible synthetic harness (sidira-simulator#247) -------
+#
+# Unlike _REAL_FIXTURE (a DoorDash-shaped pack with a hand-curated degenerate-
+# scale edge case), this fixture is a trimmed slice of the *reproducible*
+# `sidira-personas run --config config/synthetic.yaml --no-llm` output
+# (ram-de/sidira-personas#13) — no Snowflake, no API key, no real data. It is
+# the cross-repo regression guard for the dormant §2 individual-row chain: as
+# either repo evolves, a genuine current-harness pack must keep translating and
+# firing. See sidira-simulator#247.
+_SYNTH_FIXTURE = Path(__file__).parent / "fixtures" / "producer_pack_synthetic_e2e.json"
+
+
+def test_synthetic_harness_pack_translates_and_all_fire():
+    """A pack from the live `config/synthetic.yaml` harness translates cleanly and
+    every persona (discovered + FIXED) fires the synthetic individual-row tier."""
+    producer = json.loads(_SYNTH_FIXTURE.read_text())
+    pack = translate_producer_pack(producer)
+
+    assert pack.schema_version == "1.1"
+    assert pack.customer_id == "synthetic"
+    assert {p.id for p in pack.personas} == {"P05", "FIXED_DORMANT"}
+
+    for persona in pack.personas:
+        profile = render_individual_row(persona, sample_index=0)
+        assert profile.source_tier == "individual_row_synthetic", persona.id
+        assert profile.grounded, persona.id
+        assert profile.render().strip(), persona.id
+
+
+def test_synthetic_harness_weight_schemes_transpose_and_allocate():
+    """`order_weighted` survives the per-persona→per-pack transpose; the synthetic
+    config carries no revenue column, so `revenue_weighted` drops to None rather
+    than shipping a partial scheme that would fail `allocate()`. Both live schemes
+    must clear allocate()'s coverage + sum-to-1.0 contract end-to-end."""
+    producer = json.loads(_SYNTH_FIXTURE.read_text())
+    pack = translate_producer_pack(producer)
+    persona_ids = {p.id for p in pack.personas}
+
+    assert pack.weights.head_count is not None
+    assert pack.weights.order_weighted is not None
+    assert pack.weights.revenue_weighted is None
+    # both complete schemes cover every persona and sum to ~1.0
+    for scheme in (pack.weights.head_count, pack.weights.order_weighted):
+        assert set(scheme) == persona_ids
+        assert abs(sum(scheme.values()) - 1.0) < 1e-6
+
+    # and they actually allocate without tripping _validate_weights. Pin
+    # max_agents so the count is conserved exactly regardless of any ambient
+    # SIDIRA_MAX_AGENTS/PYTHIA_MAX_AGENTS env cap.
+    for scheme in ("head_count", "order_weighted"):
+        alloc = allocate(pack, 40, weight_scheme=scheme, max_agents=40)
+        assert sum(c for _, c in alloc) == 40
+        assert {pid for pid, _ in alloc} == persona_ids
+    with pytest.raises(ValueError, match="revenue_weighted"):
+        allocate(pack, 40, weight_scheme="revenue_weighted", max_agents=40)
+
+
+def test_synthetic_harness_delta_cap_renders_with_truthful_tail():
+    """A real harness persona has far more than the cap of distinctive features;
+    the rendered block must show at most _MAX_INDIVIDUAL_ROW_DELTAS bullets and
+    own the remainder with a truthful tail rather than silently dropping them."""
+    producer = json.loads(_SYNTH_FIXTURE.read_text())
+    pack = translate_producer_pack(producer)
+    p05 = next(p for p in pack.personas if p.id == "P05")
+
+    profile = render_individual_row(p05, sample_index=0)
+    bullets = [ln for ln in profile.render().splitlines() if ln.lstrip().startswith("- ")]
+    assert len(bullets) <= _MAX_INDIVIDUAL_ROW_DELTAS
+    # the persona genuinely has more deltas than the cap, so the tail must appear
+    assert len(profile.deltas) > _MAX_INDIVIDUAL_ROW_DELTAS
+    assert "further" in profile.render().lower()
+
+
+def test_synthetic_harness_fixed_persona_grounds_with_null_posterior():
+    """The prefilter FIXED_DORMANT persona from the synthetic harness carries no
+    GMM posterior yet still grounds an individual-row block from its v1.1 quad."""
+    producer = json.loads(_SYNTH_FIXTURE.read_text())
+    pack = translate_producer_pack(producer)
+    fixed = next(p for p in pack.personas if p.id == "FIXED_DORMANT")
+
+    assert fixed.posterior_mean is None
+    assert fixed.centroid_full and fixed.feature_scale and fixed.sample_rows
+    profile = render_individual_row(fixed, sample_index=0)
+    assert profile.source_tier == "individual_row_synthetic"
+    assert profile.render().strip()
