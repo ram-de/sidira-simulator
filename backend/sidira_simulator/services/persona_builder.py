@@ -237,9 +237,17 @@ class PersonaBuilderService:
 
     def _snowflake_store(self, row: dict[str, Any], customer_id: str) -> SnowflakeStore:
         """Decrypt the password blob and build a SnowflakeStore. The cleartext
-        password never leaves this method's scope."""
+        password never leaves this method's scope.
+
+        The blob is sealed with AAD ``f"{customer_id}:{connection_id}"`` at save
+        time (``feature_stores.create_connection``); decryption MUST supply the
+        same AAD or AES-GCM raises InvalidTag. Mirrors ``_store_from_row`` on the
+        preview/test path."""
+        aad = f"{customer_id}:{row['id']}".encode()
         secrets = credentials.decrypt(
-            credentials.deserialize_blob(row["password_enc"]), customer_id=customer_id
+            credentials.deserialize_blob(row["password_enc"]),
+            customer_id=customer_id,
+            aad=aad,
         )
         creds = SnowflakeCreds(
             account=row["account"],

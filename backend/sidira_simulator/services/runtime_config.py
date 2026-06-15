@@ -9,6 +9,10 @@ DEFAULT_MAX_AGENTS = 50
 # temperature=0 path byte-for-byte, so the feature is opt-in via env.
 DEFAULT_ELICITATION_SAMPLES = 1
 DEFAULT_ELICITATION_TEMPERATURE = 0.0
+# #221 §3e paraphrase ensemble. Default 1 reproduces the historical single-prompt
+# conversion pass byte-for-byte (paraphrase index 0 is the canonical wording), so
+# the ensemble is opt-in via env — same cost posture as the resampling knob above.
+DEFAULT_CONVERSION_PARAPHRASES = 1
 PRIMARY_ENV_PREFIX = "SIDIRA_"
 LEGACY_ENV_PREFIX = "PYTHIA_"
 
@@ -67,6 +71,28 @@ def resolve_elicitation_samples() -> int:
         parsed = int(raw)
     except ValueError:
         return DEFAULT_ELICITATION_SAMPLES
+    return max(1, parsed)
+
+
+def resolve_conversion_paraphrases() -> int:
+    """Number of question paraphrases to ensemble for the conversion metric (#221 §3e).
+
+    Each paraphrase rewords ONLY the elicitation question; the identity and the
+    blinded rendered state are held byte-identical, so the ensemble isolates
+    prompt-sensitivity, not content variation. The per-agent `p_conv` is the mean
+    over the K paraphrases. Default 1 reproduces the historical single-prompt path
+    byte-for-byte (paraphrase index 0 is the canonical wording). Malformed values
+    fail open to the default; values < 1 clamp to 1, so a bad env can never disable
+    the conversion pass entirely. The elicitor caps K to the number of hand-authored
+    paraphrases available, so an oversized env can't request a paraphrase that
+    doesn't exist.
+    """
+    raw = resolve_sidira_env("CONVERSION_PARAPHRASES", str(DEFAULT_CONVERSION_PARAPHRASES))
+    assert raw is not None
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return DEFAULT_CONVERSION_PARAPHRASES
     return max(1, parsed)
 
 

@@ -41,7 +41,10 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     Weakness,
 )
-from sidira_simulator.services.conversion_elicitor import elicit_conversion_decision
+from sidira_simulator.services.conversion_elicitor import (
+    CONVERSION_PARAPHRASE_COUNT,
+    elicit_conversion_ensemble,
+)
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
 from sidira_simulator.services.prompt_composer import (
@@ -55,6 +58,7 @@ from sidira_simulator.services.run_state import (
     SimulationRunState,
 )
 from sidira_simulator.services.runtime_config import (
+    resolve_conversion_paraphrases,
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
 )
@@ -107,6 +111,13 @@ class AgentRecord:
     # is low-confidence and is flagged downstream. Always False for control and
     # for blinded treatment passes; never set on a failed/None elicitation.
     conversion_unblinded: bool = False
+    # #221 §3e paraphrase ensemble: True when the agent's conversion propensity
+    # (p_conv) moved materially across the K question paraphrases (spread >
+    # threshold) — the answer is prompt-driven, so the pair's delta is
+    # low-confidence and is flagged downstream. Always False at the default K=1
+    # (a single prompt cannot disagree with itself) and on a failed/None
+    # elicitation. Set on EITHER arm (unlike unblinded, which is treatment-only).
+    conversion_paraphrase_unstable: bool = False
 
 
 class _LazyModelChatClient:
@@ -212,6 +223,11 @@ class SimulationRunner:
         # path byte-for-byte.
         elicitation_samples = resolve_elicitation_samples()
         elicitation_temperature = resolve_elicitation_temperature()
+        # #221 §3e: number of question paraphrases to ensemble for the conversion
+        # metric. Default 1 reproduces the historical single-prompt pass; resolved
+        # once per run so the whole population shares one K and it is observable in
+        # run.started.
+        conversion_paraphrases = resolve_conversion_paraphrases()
         now = datetime.now(timezone.utc)
 
         state = SimulationRunState(
@@ -229,6 +245,7 @@ class SimulationRunner:
             run_seed=resolved_run_seed,
             elicitation_samples=elicitation_samples,
             elicitation_temperature=elicitation_temperature,
+            conversion_paraphrases=conversion_paraphrases,
         )
 
         # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
@@ -375,6 +392,7 @@ class SimulationRunner:
                     arm=arm,
                     elicitation_samples=elicitation_samples,
                     elicitation_temperature=elicitation_temperature,
+                    conversion_paraphrases=conversion_paraphrases,
                 )
                 for persona, sample_index, arm in agent_specs
             ),
@@ -439,6 +457,7 @@ class SimulationRunner:
         arm: str | None = None,
         elicitation_samples: int = 1,
         elicitation_temperature: float = 0.0,
+        conversion_paraphrases: int = 1,
     ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
@@ -560,6 +579,7 @@ class SimulationRunner:
             # aggregation (elicitation_failure_drops) — never imputed to zero.
             conversion_p: float | None = None
             conversion_unblinded = False
+            conversion_paraphrase_unstable = False
             if hypothesis.metric_name == "conversion" and arm in ("treatment", "control"):
                 # §3a choice set (spec §"the on-screen options"): prefer the
                 # PM-supplied choice_set; otherwise ground the alternatives in the
@@ -634,9 +654,14 @@ class SimulationRunner:
                         ),
                     )
                 try:
-                    decision = await asyncio.wait_for(
+                    # §3e: K-paraphrase ensemble (K=conversion_paraphrases, default
+                    # 1 → byte-identical to the historical single-prompt pass). Only
+                    # the question wording varies across the K calls; the blinded
+                    # metric prompt and option set are held byte-identical, so the
+                    # ensemble isolates prompt-sensitivity from content.
+                    ensemble = await asyncio.wait_for(
                         asyncio.to_thread(
-                            elicit_conversion_decision,
+                            elicit_conversion_ensemble,
                             chat_client,
                             system_prompt=metric_prompt,
                             capability_name=capability.name,
@@ -644,13 +669,29 @@ class SimulationRunner:
                             conversion_action_label=hypothesis.conversion_action_label or "",
                             decision_point=hypothesis.decision_point or "",
                             choice_set=grounded_choice_set,
+                            paraphrases=conversion_paraphrases,
                         ),
-                        timeout=self._per_agent_timeout_s,
+                        # §3e: the ensemble runs K paraphrases SEQUENTIALLY, so the
+                        # per-call budget must scale by K — otherwise a K>1 run that
+                        # completes each call within the normal budget can still
+                        # exceed a single-call window and spuriously drop the whole
+                        # metric (conversion_p=None) for that agent (codex P2). K=1
+                        # is unchanged. Scale by the EFFECTIVE call count (the
+                        # elicitor caps to CONVERSION_PARAPHRASE_COUNT), so an
+                        # oversized env can't multiply the budget past the calls that
+                        # actually run (a 1000× stall, or OverflowError in wait_for).
+                        timeout=(
+                            self._per_agent_timeout_s
+                            * min(conversion_paraphrases, CONVERSION_PARAPHRASE_COUNT)
+                        ),
                     )
-                    conversion_p = decision.p_conv
+                    conversion_p = ensemble.mean_p_conv
                     # Only treatment can be unblinded (control is always blinded);
                     # flag rides only on a successful elicitation.
                     conversion_unblinded = not metric_blinded
+                    # §3e: flag rides on EITHER arm (a control flip is just as
+                    # corrupting to the pair's delta as a treatment flip).
+                    conversion_paraphrase_unstable = ensemble.paraphrase_unstable
                 except Exception as exc:
                     # Per-agent conversion failure — do NOT fail the agent. We
                     # log (rather than emit a RunEvent) because the SSE event
@@ -723,6 +764,7 @@ class SimulationRunner:
                 reaction_distribution=[(s.text, s.probability) for s in distribution.samples],
                 conversion_p=conversion_p,
                 conversion_unblinded=conversion_unblinded,
+                conversion_paraphrase_unstable=conversion_paraphrase_unstable,
             )
 
     async def _score(
@@ -774,6 +816,7 @@ class SimulationRunner:
                 reaction_distribution=r.reaction_distribution or None,
                 conversion_p=r.conversion_p,
                 conversion_unblinded=r.conversion_unblinded,
+                conversion_paraphrase_unstable=r.conversion_paraphrase_unstable,
             )
             for r in agent_records
         ]

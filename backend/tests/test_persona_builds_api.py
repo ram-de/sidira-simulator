@@ -46,7 +46,12 @@ _CUSTOMER_ID = "demo"
 
 def _seed_connection() -> None:
     repo = get_in_memory_feature_store_connection_repo()
-    blob = credentials.serialize_blob(credentials.encrypt({"password": "pw"}))
+    # Mirror production: ``create_connection`` seals the blob with AAD
+    # ``f"{customer_id}:{connection_id}"``. Seeding it the same way means the
+    # build path must supply the matching AAD to decrypt — the regression guard
+    # for the _snowflake_store bug. (Seeding without AAD masked the bug.)
+    aad = f"{_CUSTOMER_ID}:{_CONNECTION_ID}".encode()
+    blob = credentials.serialize_blob(credentials.encrypt({"password": "pw"}, aad=aad))
     repo._connections[_CONNECTION_ID] = {
         "id": _CONNECTION_ID,
         "customer_id": _CUSTOMER_ID,
@@ -152,6 +157,23 @@ def test_version_bumps_on_second_build(client, monkeypatch):
     # Both packs exist (no overwrite).
     client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_1/persona_pack.json")
     client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_2/persona_pack.json")
+
+
+# ── credential AAD regression ───────────────────────────────────────────
+
+
+def test_build_decrypts_aad_bound_connection(client, monkeypatch):
+    """Regression: the connection password is sealed with AAD
+    ``customer_id:connection_id`` at save time, so the build path's
+    ``_snowflake_store`` must supply the same AAD to decrypt. Omitting it
+    raises AES-GCM InvalidTag → "cannot decrypt credentials" and the build
+    fails. The seed is AAD-bound (see ``_seed_connection``), so a clean
+    COMPLETE here proves the decrypt AAD round-trips. Before the fix this
+    drove the build to FAILED with an error_kind of credential decryption."""
+    _patch_pipeline(monkeypatch)
+    build_id = client.post("/persona-builds", json=_CONFIG).json()["id"]
+    g = client.get(f"/persona-builds/{build_id}").json()
+    assert g["status"] == "complete", g.get("error")
 
 
 # ── stability gate ──────────────────────────────────────────────────────

@@ -356,6 +356,12 @@ class SimulationResult(BaseModel):
     # view). Defaults False so non-conversion / fully-blinded runs and older rows
     # are byte-identical; `conversion_lift_relative` also carries the caveat text.
     conversion_lift_unblinded_fallback: bool = False
+    # #221 §3e: True when at least one identity's conversion propensity (p_conv)
+    # moved materially across the K question paraphrases (its answer was
+    # wording-driven). Defaults False so non-conversion runs, the default K=1
+    # single-prompt path, and older rows are byte-identical; `conversion_lift_relative`
+    # also carries the caveat text.
+    conversion_lift_paraphrase_unstable: bool = False
 
 
 class Simulation(BaseModel):
