@@ -21,6 +21,7 @@ from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, S
 from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.adapters.repositories import PersonaBuildRepo
 from sidira_simulator.services.column_mapper import FeatureGroup
+from sidira_simulator.services.persona_pack_translator import translate_producer_pack
 from sidira_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
 
 
@@ -59,6 +60,9 @@ class PipelineOutput:
     :func:`run_personas_pipeline` to return a canned instance of this.
     """
 
+    #: The *producer* wire dict (``dataclasses.asdict`` of the sidira-personas
+    #: pack) — company_id/created_at/overall_stability + per-persona weights.
+    #: ``_write_pack`` runs it through ``translate_producer_pack`` before persisting.
     persona_pack: dict[str, Any]
     stability_score: float
     persona_count: int
@@ -487,10 +491,20 @@ class PersonaBuilderService:
         pack_version: str,
         output: PipelineOutput,
     ) -> str:
-        """Write the pack + manifest (+ prompts) under the versioned prefix."""
+        """Write the pack + manifest (+ prompts) under the versioned prefix.
+
+        ``output.persona_pack`` is the *producer* wire dict (``dataclasses.asdict``
+        of the ``sidira-personas`` pack); its top-level field names differ from
+        the consumer schema (``company_id``/``created_at``/``overall_stability``
+        and per-persona weights). We run it through :func:`translate_producer_pack`
+        — pinning ``version`` to the R2 path segment — so the persisted artifact
+        validates as the consumer :class:`PersonaPack` that ``PersonaPackLoader``,
+        the ``/persona-packs`` routes, and downstream simulations read back.
+        """
         base = f"customers/{customer_id}/personas/{pack_version}"
         pack_key = f"{base}/persona_pack.json"
-        self._store.write_text(pack_key, json.dumps(output.persona_pack, indent=2))
+        pack = translate_producer_pack(output.persona_pack, version=pack_version)
+        self._store.write_text(pack_key, pack.model_dump_json(indent=2))
         manifest = {
             "version": pack_version,
             "customer_id": customer_id,

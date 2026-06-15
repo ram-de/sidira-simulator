@@ -37,6 +37,8 @@ from sidira_simulator.adapters.repositories import (  # noqa: E402
 )
 from sidira_simulator.api.deps import get_artifact_store  # noqa: E402
 from sidira_simulator.main import app  # noqa: E402
+from sidira_simulator.adapters.persona_loader import PersonaPackLoader  # noqa: E402
+from sidira_simulator.schemas.persona import PersonaPack  # noqa: E402
 from sidira_simulator.services import persona_builder as pb_mod  # noqa: E402
 from sidira_simulator.services.persona_builder import PipelineOutput  # noqa: E402
 
@@ -97,11 +99,31 @@ def client(tmp_path, monkeypatch):
 
 def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
     def _fake(rows, column_mapping, config, customer_id, run_id):
+        # Mirror the real binding: persona_pack is the PRODUCER wire dict
+        # (company_id/created_at/overall_stability + per-persona weights), which
+        # _write_pack runs through translate_producer_pack before persisting.
         return PipelineOutput(
-            persona_pack={"personas": [{"id": f"p{i}"} for i in range(persona_count)]},
+            persona_pack={
+                "schema_version": "1.1",
+                "company_id": customer_id,
+                "run_id": run_id,
+                "created_at": "2026-06-15T00:00:00",
+                "overall_stability": stability,
+                "personas": [
+                    {
+                        "id": f"P{i:02d}",
+                        "name": f"Persona {i}",
+                        "description": "",
+                        "jtbd": None,
+                        "weights": {"by_headcount": 1.0 / persona_count},
+                        "top_features": [],
+                    }
+                    for i in range(persona_count)
+                ],
+            },
             stability_score=stability,
             persona_count=persona_count,
-            prompts={"p0": "# persona 0"},
+            prompts={"P00": "# persona 0"},
         )
 
     monkeypatch.setattr(pb_mod, "run_personas_pipeline", _fake)
@@ -145,6 +167,31 @@ def test_post_returns_202_and_drives_to_complete(client, monkeypatch):
     assert len(json.loads(raw)["personas"]) == 3
     # Manifest written too.
     client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_1/manifest.json")
+
+
+def test_written_pack_validates_as_consumer_schema(client, monkeypatch):
+    """The persisted pack must load as the consumer PersonaPack, not the raw
+    producer wire dict — otherwise promote/evaluate and simulations 500 on read.
+
+    Guards the translate_producer_pack step in _write_pack (#268): the producer
+    emits company_id/created_at/overall_stability + per-persona weights, which the
+    consumer loader rejects unless translated.
+    """
+    _patch_pipeline(monkeypatch)
+    client.post("/persona-builds", json=_CONFIG)
+
+    # Raw artifact validates against the consumer schema (the loader's contract).
+    raw = client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_1/persona_pack.json")
+    pack = PersonaPack.model_validate_json(raw)
+    assert pack.version == "v_1"            # pinned to the R2 path, not the run_id
+    assert pack.customer_id == _CUSTOMER_ID  # producer company_id → consumer field
+    assert len(pack.personas) == 3
+    # head_count scheme covers every persona (sums ~1.0) — allocate() contract.
+    assert set(pack.weights.head_count) == {p.id for p in pack.personas}
+
+    # And the loader itself reads it back without raising.
+    loaded = PersonaPackLoader(client._store).load_at_version(_CUSTOMER_ID, "v_1")
+    assert loaded.version == "v_1"
 
 
 def test_version_bumps_on_second_build(client, monkeypatch):
