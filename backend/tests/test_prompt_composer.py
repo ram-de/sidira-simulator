@@ -17,7 +17,10 @@ from sidira_simulator.schemas.feature_pack import (
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.schemas.simulation import Hypothesis
-from sidira_simulator.services.prompt_composer import compose_identity_prompt
+from sidira_simulator.services.prompt_composer import (
+    compose_identity_prompt,
+    compose_metric_prompt,
+)
 
 
 def _persona() -> Persona:
@@ -681,3 +684,173 @@ def test_no_persona_still_sees_the_proposed_change() -> None:
         use_persona=False,
     )
     assert "What's changing" in prompt or "NOT changing" in prompt
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #221 §3b — compose_metric_prompt: the BLINDED metric-elicitation prompt.
+# The single most important framing rule: the conversion metric must be
+# elicited on a standalone view of the state, with NO change framing, so the
+# treatment arm isn't inflated by demand characteristics (a bias that does not
+# cancel in the treatment−control delta).
+# ─────────────────────────────────────────────────────────────────────
+
+# Change-framing markers that must NEVER appear in a blinded metric prompt.
+_CHANGE_FRAMING_MARKERS = (
+    "## What's changing",
+    "### Explicitly NOT changing",
+    "## The proposed change",
+    "proposed change",
+    "## Your task",  # the reaction task block — the metric pass has no reaction task
+)
+
+
+def test_metric_prompt_treatment_is_blinded_and_shows_proposed_state_only() -> None:
+    """Treatment metric prompt with a structural delta: blinded=True, renders the
+    PROPOSED structural spec as just-the-product, and carries NO change framing.
+    Crucially it shows ONLY the proposed copy — the current copy is absent, so the
+    agent can't infer a diff (true blinding, not a relabelled changelog)."""
+    prompt, blinded = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        arm="treatment",
+    )
+    assert blinded is True
+    # Proposed state present, current state absent → no inferable diff.
+    assert "Tip: 20% pre-filled" in prompt
+    assert "Tip: choose amount" not in prompt
+    for marker in _CHANGE_FRAMING_MARKERS:
+        assert marker not in prompt, f"change framing leaked into blinded metric prompt: {marker!r}"
+    # The change-authored prose must not leak either.
+    assert _hypothesis_with_proposed_figma().prose not in prompt
+
+
+def test_metric_prompt_control_is_blinded_and_shows_current_state_only() -> None:
+    """Control metric prompt: blinded=True, renders the CURRENT product, never the
+    proposed copy, no change framing."""
+    prompt, blinded = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        arm="control",
+    )
+    assert blinded is True
+    assert "Tip: choose amount" in prompt
+    assert "Tip: 20% pre-filled" not in prompt
+    for marker in _CHANGE_FRAMING_MARKERS:
+        assert marker not in prompt
+
+
+def test_metric_prompt_treatment_falls_back_unblinded_when_no_standalone_view() -> None:
+    """The unblindable-fallback path (treatment-rendering-layer.md §5b / §3b Q2):
+    a prose-only change (no proposed_figma → no structural delta) has no faithful
+    standalone view, so the treatment metric pass falls back to the UNBLINDED
+    state_plus_diff_view and returns blinded=False so the caller flags it."""
+    prompt, blinded = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),  # prose only, no proposed_figma
+        identity_seed=_seed(),
+        arm="treatment",
+    )
+    assert blinded is False
+    # The fallback deliberately exposes the explicit diff (a blinded view would
+    # silently show an unchanged product and miss the treatment entirely).
+    assert "## What's changing" in prompt
+    assert "### Explicitly NOT changing" in prompt
+
+
+def test_metric_prompt_control_stays_blinded_even_with_no_standalone_view() -> None:
+    """Control is always blinded — the fallback is a treatment-only concern (the
+    control arm never renders the proposed state), so a prose-only hypothesis
+    still yields blinded=True and no change framing for control."""
+    prompt, blinded = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        arm="control",
+    )
+    assert blinded is True
+    for marker in _CHANGE_FRAMING_MARKERS:
+        assert marker not in prompt
+
+
+def test_metric_prompt_carries_persona_identity() -> None:
+    """The metric prompt is still the same persona — who-you-are / about-you /
+    behavioral snapshot must be present, so the elicited propensity is grounded in
+    the agent's behavior, not a generic base-LLM answer."""
+    prompt, _ = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        arm="treatment",
+    )
+    assert "## Who you are" in prompt
+    assert _persona().name in prompt
+    assert "## Behavioral snapshot" in prompt
+    assert "## About you specifically" in prompt
+    assert "commuting home, hungry" in prompt
+
+
+def test_metric_prompt_identity_block_byte_identical_across_arms() -> None:
+    """The #90 pairing invariant for the metric pass: the persona identity block
+    (everything before '## The product') is byte-identical across arms — only the
+    rendered state differs. Drift here would confound the paired conversion delta
+    with an identity difference."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        sample_index=2,
+    )
+    treatment, _ = compose_metric_prompt(**args, arm="treatment")
+    control, _ = compose_metric_prompt(**args, arm="control")
+    marker = "## The product"
+    assert marker in treatment and marker in control
+    assert treatment.split(marker, 1)[0] == control.split(marker, 1)[0]
+
+
+def test_metric_prompt_treatment_is_the_default_arm() -> None:
+    """Back-compat with the composer's other entry point: arm defaults to
+    treatment."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+    )
+    assert compose_metric_prompt(**args) == compose_metric_prompt(**args, arm="treatment")
+
+
+def test_metric_prompt_no_persona_strips_identity() -> None:
+    """use_persona=False drops all persona conditioning from the metric prompt
+    too (symmetry with compose_identity_prompt), keeping only the generic user
+    framing + the blinded state."""
+    prompt, blinded = compose_metric_prompt(
+        customer_id="acme",
+        persona=_persona_with_centroid(),
+        capability=_capability_with_figma(),
+        hypothesis=_hypothesis_with_proposed_figma(),
+        identity_seed=_seed(),
+        arm="treatment",
+        use_persona=False,
+    )
+    assert blinded is True
+    assert "## Who you are" not in prompt
+    assert _persona_with_centroid().name not in prompt
+    assert "real user of acme's product" in prompt
+    # Still blinded — proposed state only, no change framing.
+    assert "Tip: 20% pre-filled" in prompt
+    assert "Tip: choose amount" not in prompt

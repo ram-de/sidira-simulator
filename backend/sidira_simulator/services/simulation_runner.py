@@ -41,9 +41,13 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     Weakness,
 )
+from sidira_simulator.services.conversion_elicitor import elicit_conversion_decision
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
-from sidira_simulator.services.prompt_composer import compose_identity_prompt
+from sidira_simulator.services.prompt_composer import (
+    compose_identity_prompt,
+    compose_metric_prompt,
+)
 from sidira_simulator.services.reaction_elicitor import elicit_reaction_distribution
 from sidira_simulator.services.run_state import (
     RunPhase,
@@ -53,6 +57,10 @@ from sidira_simulator.services.run_state import (
 from sidira_simulator.services.runtime_config import (
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
+)
+from sidira_simulator.services.treatment_renderer import (
+    extract_choice_set,
+    render_state_diff,
 )
 
 log = structlog.get_logger()
@@ -85,6 +93,20 @@ class AgentRecord:
     # the scorer's hierarchical path stays dormant. With samples>1 the scorer
     # classifies every reaction and folds within-agent variance into the CI.
     reaction_distribution: list[tuple[str, float]] = field(default_factory=list)
+    # #221 §3a conversion metric: the agent's elicited conversion propensity
+    # (p_conv) from the turn-2 allocation, when the Hypothesis carried
+    # `metric_name == "conversion"` and this is a persona arm. None when no
+    # conversion metric was set OR the per-agent conversion elicitation failed
+    # (the run stays alive; the pair is dropped honestly at aggregation). Scored
+    # only as a paired treatment−control delta, never as an absolute level.
+    conversion_p: float | None = None
+    # #221 §3b blinding: True when the conversion metric ran on the UNBLINDED
+    # fallback prompt (treatment change had no faithful standalone view —
+    # removal / pure-mechanic / prose-only). The pass still produces a p_conv,
+    # but the treatment side is exposed to change framing, so the resulting lift
+    # is low-confidence and is flagged downstream. Always False for control and
+    # for blinded treatment passes; never set on a failed/None elicitation.
+    conversion_unblinded: bool = False
 
 
 class _LazyModelChatClient:
@@ -523,6 +545,127 @@ class SimulationRunner:
             # the single reaction the historical path produced.
             initial_reaction = distribution.modal.text
 
+            # #221 §3a: per-metric conversion elicitation. Only when the
+            # Hypothesis carried a conversion metric AND this is a persona arm
+            # that feeds the paired A/B comparison (treatment/control). The
+            # ephemeral shadows (no_persona / current_state) drive sentiment
+            # baselines only, never the conversion headline, so we don't spend a
+            # metric call on them. The metric pass is BLINDED (§3b): it runs on a
+            # separate blinded system prompt (compose_metric_prompt — standalone
+            # state, no change framing) and is NOT conditioned on the unblinded
+            # turn-1 reaction, so demand characteristics can't inflate the
+            # treatment arm and bias the treatment−control delta. A failure here
+            # is per-agent: conversion_p stays None, the agent (and its sentiment
+            # contribution) survives, and the pair is dropped honestly at
+            # aggregation (elicitation_failure_drops) — never imputed to zero.
+            conversion_p: float | None = None
+            conversion_unblinded = False
+            if hypothesis.metric_name == "conversion" and arm in ("treatment", "control"):
+                # §3a choice set (spec §"the on-screen options"): prefer the
+                # PM-supplied choice_set; otherwise ground the alternatives in the
+                # actual reachable actions at the decision point in the rendered
+                # proposed state (treatment_renderer.extract_choice_set), so the
+                # question reflects the screen the agent saw rather than generic
+                # fallbacks. The SAME proposed-state option set is used for both
+                # arms so p_conv is comparable across the paired seed (a treatment-
+                # only action the control product lacks correctly draws ~0 from the
+                # control agent → honest lift). The elicitor still falls back to
+                # DEFAULT_CONVERSION_CHOICE_SET when nothing grounds (prose-only
+                # change, thin crawl). Pure + cheap (no LLM), so computing it
+                # per-agent is dwarfed by the elicitation call that follows.
+                #
+                # The conversion action/label is filtered out of the ALTERNATIVES
+                # regardless of source (PM-supplied or extracted): the elicitor
+                # always prepends the canonical conversion_action_label, so any
+                # alternative equal to the conversion action/label would offer two
+                # conversion-like options while p_conv counts only the canonical
+                # one — agents could split conversion intent into the unlabeled
+                # twin and undercount the lift.
+                conv_terms = {
+                    (hypothesis.conversion_action or "").strip().lower(),
+                    (hypothesis.conversion_action_label or "").strip().lower(),
+                }
+                conv_terms.discard("")
+                grounded_choice_set: list[str] | None = None
+                if hypothesis.choice_set:
+                    grounded_choice_set = [
+                        lbl
+                        for lbl in hypothesis.choice_set
+                        if lbl.strip().lower() not in conv_terms
+                    ] or None
+                elif hypothesis.proposed_figma is not None:
+                    rendered = render_state_diff(capability, hypothesis)
+                    extracted = extract_choice_set(rendered, hypothesis.decision_point or "")
+                    # Only forward GROUNDED choices. When the decision point has no
+                    # reachable transitions, extract_choice_set substitutes its own
+                    # fallback set — which includes a generic "convert" option — so
+                    # on fallback we leave it None and let the elicitor use its
+                    # curated NON-conversion DEFAULT_CONVERSION_CHOICE_SET.
+                    if extracted.grounded:
+                        grounded_choice_set = [
+                            c.action
+                            for c in extracted.choices
+                            if c.action.strip().lower() not in conv_terms
+                        ] or None
+                # Blinded metric prompt (§3b): standalone state, no change
+                # framing — NOT the unblinded identity_prompt used for the
+                # reaction. `blinded` is False only on the treatment fallback
+                # (no faithful standalone view); we then flag the result
+                # low-confidence rather than report a clean blinded delta.
+                metric_prompt, metric_blinded = compose_metric_prompt(
+                    customer_id=customer_id,
+                    persona=persona,
+                    capability=capability,
+                    hypothesis=hypothesis,
+                    identity_seed=identity_seed,
+                    arm=arm,
+                    use_persona=use_persona,
+                    sample_index=sample_index,
+                )
+                if not metric_blinded:
+                    log.warning(
+                        "agent.conversion.unblinded_fallback",
+                        sim_id=sim_id,
+                        agent_id=agent_id,
+                        persona=persona.name,
+                        note=(
+                            "no faithful standalone view; conversion metric ran "
+                            "UNBLINDED — lift is low-confidence"
+                        ),
+                    )
+                try:
+                    decision = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            elicit_conversion_decision,
+                            chat_client,
+                            system_prompt=metric_prompt,
+                            capability_name=capability.name,
+                            conversion_action=hypothesis.conversion_action or "",
+                            conversion_action_label=hypothesis.conversion_action_label or "",
+                            decision_point=hypothesis.decision_point or "",
+                            choice_set=grounded_choice_set,
+                        ),
+                        timeout=self._per_agent_timeout_s,
+                    )
+                    conversion_p = decision.p_conv
+                    # Only treatment can be unblinded (control is always blinded);
+                    # flag rides only on a successful elicitation.
+                    conversion_unblinded = not metric_blinded
+                except Exception as exc:
+                    # Per-agent conversion failure — do NOT fail the agent. We
+                    # log (rather than emit a RunEvent) because the SSE event
+                    # contract has no conversion-failure type and the agent's
+                    # sentiment contribution still stands; the dropped pair is
+                    # surfaced honestly downstream via
+                    # conversion_lift_elicitation_failure_drops.
+                    log.warning(
+                        "agent.conversion.failed",
+                        sim_id=sim_id,
+                        agent_id=agent_id,
+                        persona=persona.name,
+                        error=str(exc)[:500],
+                    )
+
             now = datetime.now(timezone.utc)
 
             # #221 persona-lift / delta-mode: both shadow arms (no_persona and
@@ -578,6 +721,8 @@ class SimulationRunner:
                 sample_index=sample_index,
                 arm=arm,
                 reaction_distribution=[(s.text, s.probability) for s in distribution.samples],
+                conversion_p=conversion_p,
+                conversion_unblinded=conversion_unblinded,
             )
 
     async def _score(
@@ -627,6 +772,8 @@ class SimulationRunner:
                 sample_index=r.sample_index,
                 arm=r.arm,
                 reaction_distribution=r.reaction_distribution or None,
+                conversion_p=r.conversion_p,
+                conversion_unblinded=r.conversion_unblinded,
             )
             for r in agent_records
         ]
