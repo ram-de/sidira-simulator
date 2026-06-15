@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-4.5-persona-builder-ui
-status: active
+status: closed
 started: 2026-06-15
+closed: 2026-06-15
 owner: ram-de
 ---
 
@@ -73,7 +74,7 @@ Two decisions after the user re-examined the design:
 - Evaluate reads UNPROMOTED pack via getPersonaPackDetail(version): compact per-persona name/Designator/share-chips/description + honest distinctiveness line (says so when undistinctive); "View full pack ↗" new-tab; holdout(#7/Jaccard) named as not-yet-shown (okBanner w/ neutral rule border, not success-green). Continuing IS the accept.
 - Commits: cfd1abe (redesign) · 34c4084 (codex P1/P2 fixes). tsc clean, build clean (/personas/new 11.8kB).
 - **Codex GATE: PASS** — round 1 found [P1] Promote reachable before Evaluate loaded/while errored + [P2] stale pack read after rerun shows wrong personas. Both FIXED (canContinue step4 gates on evalPhase==="ready" && evalPack.version===build.pack_version; evalReqRef latest-wins guard + clearBuild nulls it). Round 2: clean, no issues.
-- NEXT: push branch → open frontend-only PR base main → merge (Amplify auto-builds, NO backend redeploy).
+- ✅ SHIPPED: **PR #256 merged to main (squash a1a69be), 2026-06-15.** Frontend-only → Amplify auto-build, NO backend redeploy. User QA'd live: "looks good." Branch `worktree-wizard-redesign-evaluate` still on remote (deletion not authorized).
 
 ### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
   (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
