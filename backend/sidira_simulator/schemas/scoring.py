@@ -207,6 +207,13 @@ class ConversionLiftResult(BaseModel):
     # EITHER arm. The paired delta then reflects wording noise, so the lift is
     # low-confidence; `conversion_lift_honesty` flags it.
     paraphrase_unstable: bool = False
+    # #221 shrinkage layer: True once a FITTED calibrator (services.
+    # conversion_calibrator) has mapped the raw `lift_pp` onto the real-world
+    # effect-size scale. The default `IdentityCalibrator` leaves this False, so
+    # pre-#222 runs keep the "uncalibrated — read as rank/direction, not effect
+    # size" caveat (`conversion_lift_honesty`). An uncalibrated magnitude is
+    # therefore never presented as calibrated. The fit itself is #222-gated.
+    calibrated: bool = False
 
 
 # ── Refinement ────────────────────────────────────────────────────────
