@@ -17,8 +17,13 @@ its own (sidira-personas has no CLAUDE.md), so it lives here.
 (nothing — see Next Steps)
 
 ## Completed
-- **Synthetic end-to-end pipeline fixture** issue filed — `ram-de/sidira-personas#12`
-  (replaces purged DoorDash `config/` + `samples/`; integration/smoke layer, distinct from #222).
+- **Synthetic end-to-end pipeline fixture** — PR #13 (merged, squashed to `main` 2026-06-15;
+  closes #12). Deterministic 1500-row userbase (`fixtures/synthetic_company.py`, 4 latent
+  segments + lifecycle prefilter, all 8 adapter types), committed parquet w/ drift guard,
+  `config/synthetic.yaml`, and `tests/test_pipeline_smoke.py` driving the real CLI end-to-end
+  (no Snowflake / no API key) asserting the full v1.1 + #7 pack contract. 39 tests pass,
+  ruff clean, codex review clean (no actionable bugs). Replaces purged DoorDash `config/`+`samples/`;
+  distinct from the #222 anonymized-row benchmark.
 - DoorDash artifact purge — PR #9 (merged). Removed real-company `config/` + `samples/`.
 - Persona Pack methodology doc (investor-grade) — PR #10 (merged).
 - Persona Pack **v1.1** producer fields — earlier this session: `centroid_full`,
@@ -32,7 +37,8 @@ its own (sidira-personas has no CLAUDE.md), so it lives here.
   - Issue #7 commented with shipped + deferred (XGBoost cold-start, HTML report).
 
 ## Next Steps
-1. (Deferred to #12) Build the synthetic end-to-end pipeline fixture + smoke test.
+1. (Pending user OK) Comment on `ram-de/sidira-personas#7` confirming the synthetic harness (#13)
+   now gives the Jaccard/holdout work CI coverage on real pipeline output.
 2. (Deferred to #7) XGBoost cold-start classifier; HTML diagnostic report.
 
 ## Key Files (sidira-personas repo)
