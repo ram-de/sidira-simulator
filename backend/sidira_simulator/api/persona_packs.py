@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,7 +10,12 @@ from pydantic import BaseModel
 
 from sidira_simulator.adapters.base import ArtifactNotFound
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
-from sidira_simulator.api.deps import current_customer_id, get_persona_loader
+from sidira_simulator.adapters.repositories import PersonaBuildRepo
+from sidira_simulator.api.deps import (
+    current_customer_id,
+    get_persona_build_repo,
+    get_persona_loader,
+)
 from sidira_simulator.schemas.persona import PersonaPack
 from sidira_simulator.services.persona_pack_view import (
     PersonaPackDetail,
@@ -45,13 +50,54 @@ class PackSummary(BaseModel):
     is_latest: bool = False
 
 
-@router.get("", response_model=list[PackSummary])
-async def list_packs(customer_id: str = Depends(current_customer_id)) -> list[PackSummary]:
-    """List all pack versions for the customer, newest first."""
-    raise HTTPException(
-        status_code=501,
-        detail="Phase 4.5 — read persona_pack_versions scoped to customer, resolve `latest` pointer",
+def _resolve_latest_version(loader: PersonaPackLoader, customer_id: str) -> str | None:
+    """The version the `latest` pointer resolves to, or None if unset."""
+    try:
+        return loader.resolve_latest_version(customer_id)
+    except ArtifactNotFound:
+        return None
+
+
+def _summary_from_build(row: dict, latest_version: str | None) -> PackSummary:
+    """Map a COMPLETE persona_build_runs row → PackSummary.
+
+    The pack is addressed by its `pack_version` string (e.g. "v_3"), the same
+    id `GET /{pack_id}` and `POST /{pack_id}/promote` accept. The version that
+    the `latest` pointer resolves to is PROMOTED + is_latest; all others DRAFT.
+    """
+    version = row["pack_version"]
+    is_latest = latest_version is not None and version == latest_version
+    return PackSummary(
+        id=version,
+        version=version,
+        status=PackStatus.PROMOTED if is_latest else PackStatus.DRAFT,
+        stability_score=row.get("stability_score") or 0.0,
+        persona_count=row.get("persona_count") or 0,
+        created_at=row["created_at"],
+        promoted_at=row.get("completed_at") if is_latest else None,
+        is_latest=is_latest,
     )
+
+
+@router.get("", response_model=list[PackSummary])
+async def list_packs(
+    customer_id: str = Depends(current_customer_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+    build_repo: PersonaBuildRepo = Depends(get_persona_build_repo),
+) -> list[PackSummary]:
+    """List all pack versions for the customer, newest first.
+
+    Each COMPLETE persona build that produced a `pack_version` is one pack
+    version. The build repo already returns rows newest-first. The current
+    `latest` pointer flags the matching version PROMOTED; an empty tenant
+    returns `[]` (not a 404)."""
+    latest_version = _resolve_latest_version(loader, customer_id)
+    builds = await build_repo.list_recent(customer_id)
+    return [
+        _summary_from_build(row, latest_version)
+        for row in builds
+        if row.get("status") == "complete" and row.get("pack_version")
+    ]
 
 
 def _load_pack(loader: PersonaPackLoader, customer_id: str, pack_id: str) -> PersonaPack:
@@ -112,13 +158,55 @@ async def get_pack_detail(
 
 @router.post("/{pack_id}/promote", response_model=PackSummary)
 async def promote_pack(
-    pack_id: str, customer_id: str = Depends(current_customer_id)
+    pack_id: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+    build_repo: PersonaBuildRepo = Depends(get_persona_build_repo),
 ) -> PackSummary:
-    """Atomically update the customer's `latest` pointer to this pack version."""
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "Phase 4.5 — verify pack is DRAFT, set status=PROMOTED, "
-            "write customers/<id>/personas/latest pointer atomically"
+    """Atomically update the customer's `latest` pointer to this pack version.
+
+    `pack_id` is a concrete version string (e.g. "v_3"); the `LATEST` sentinel
+    is a read-only convenience for GET, not a promote target. The version must
+    exist for this customer — a COMPLETE build with that `pack_version`, or a
+    snapshot that `load_at_version` can read — otherwise 404. Promotion is a
+    single pointer write through the loader (one key, shared with the read
+    path), after which `load_latest` resolves to this version.
+    """
+    if pack_id == LATEST:
+        raise HTTPException(
+            status_code=400, detail="Promote a concrete pack version, not the 'latest' sentinel."
+        )
+
+    builds = await build_repo.list_recent(customer_id)
+    match = next(
+        (
+            row
+            for row in builds
+            if row.get("status") == "complete" and row.get("pack_version") == pack_id
         ),
+        None,
+    )
+    if match is None:
+        # No build row, but the snapshot may still exist in R2 — accept it iff
+        # the versioned pack is readable; otherwise it is a genuine not-found.
+        try:
+            loader.load_at_version(customer_id, pack_id)
+        except ArtifactNotFound as exc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No persona pack version {pack_id!r} for customer {customer_id!r}.",
+            ) from exc
+
+    loader.promote(customer_id, pack_id)
+
+    if match is not None:
+        return _summary_from_build(match, pack_id)
+    return PackSummary(
+        id=pack_id,
+        version=pack_id,
+        status=PackStatus.PROMOTED,
+        stability_score=0.0,
+        persona_count=0,
+        created_at=datetime.now(timezone.utc),
+        is_latest=True,
     )

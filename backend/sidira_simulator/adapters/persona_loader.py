@@ -34,14 +34,32 @@ class PersonaPackLoader:
     def __init__(self, store: ArtifactStore | None = None) -> None:
         self._store = store or get_store()
 
+    @staticmethod
+    def _latest_pointer_key(customer_id: str) -> str:
+        """The single source of truth for the `latest` pointer key.
+
+        Both the read path (:meth:`resolve_latest_version`) and the write path
+        (:meth:`promote`) go through here so the pointer can never drift.
+        """
+        return f"customers/{customer_id}/personas/latest"
+
     def resolve_latest_version(self, customer_id: str) -> str:
-        key = f"customers/{customer_id}/personas/latest"
         try:
-            return self._store.read_text(key).strip()
+            return self._store.read_text(self._latest_pointer_key(customer_id)).strip()
         except FileNotFoundError as exc:
             raise ArtifactNotFound(
                 f"No 'latest' personas pointer for customer {customer_id!r}."
             ) from exc
+
+    def promote(self, customer_id: str, version: str) -> None:
+        """Point the customer's `latest` pointer at `version`.
+
+        A single pointer write — the contents are the version string — so a
+        subsequent :meth:`load_latest` resolves to the promoted snapshot. Uses
+        the same key as :meth:`resolve_latest_version` via
+        :meth:`_latest_pointer_key`.
+        """
+        self._store.write_text(self._latest_pointer_key(customer_id), version)
 
     def load_at_version(self, customer_id: str, version: str) -> PersonaPack:
         key = f"customers/{customer_id}/personas/{version}/persona_pack.json"

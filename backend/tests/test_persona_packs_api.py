@@ -1,14 +1,21 @@
-"""GET /persona-packs/{pack_id} endpoint tests.
+"""GET /persona-packs/{pack_id} endpoint tests + list/promote tests (#25).
 
 The Library's persona-pack detail page (#207) reads this to render each
 persona's description / JTBD / weight — the fields the wizard-shaped
 `GET /personas` projection deliberately omits. `pack_id="latest"` resolves the
 active pack (with the #212 starter fallback for empty tenants); an explicit
 version loads that snapshot and 404s when it is genuinely missing.
+
+The list/promote coverage (#25) at the bottom uses an in-memory persona-build
+repo (each COMPLETE build with a `pack_version` IS a pack version) and a
+`LocalArtifactStore(tmp_path)` so nothing hits real R2; `promote` writes the
+same `latest` pointer key the loader reads.
 """
 
 from __future__ import annotations
 
+import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -16,7 +23,12 @@ from fastapi.testclient import TestClient
 
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
 from sidira_simulator.adapters.r2 import LocalArtifactStore
-from sidira_simulator.api.deps import current_customer_id, get_persona_loader
+from sidira_simulator.adapters.repositories import get_in_memory_persona_build_repo
+from sidira_simulator.api.deps import (
+    current_customer_id,
+    get_artifact_store,
+    get_persona_loader,
+)
 from sidira_simulator.main import app
 
 _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
@@ -112,3 +124,140 @@ def test_detail_unknown_version_404s() -> None:
     )
     resp = TestClient(app).get("/persona-packs/v_999/detail")
     assert resp.status_code == 404, resp.text
+
+
+# ── list + promote (#25) ──────────────────────────────────────────────────
+
+_CUSTOMER_ID = "demo"
+
+
+def _write_pack(store: LocalArtifactStore, version: str) -> None:
+    """Write a schema-valid PersonaPack snapshot at `version`.
+
+    Reuses the demo fixture pack (a real, validated PersonaPack) so that a
+    follow-up GET can actually load it, just restamping the version field.
+    """
+    fixture = (
+        _FIXTURE_ROOT / "customers" / _CUSTOMER_ID / "personas" / "v_1" / "persona_pack.json"
+    )
+    pack = json.loads(fixture.read_text())
+    pack["version"] = version
+    key = f"customers/{_CUSTOMER_ID}/personas/{version}/persona_pack.json"
+    store.write_text(key, json.dumps(pack))
+
+
+def _seed_build(
+    *,
+    build_id: str,
+    status: str,
+    pack_version: str | None,
+    created_at: datetime,
+    stability: float = 0.8,
+    persona_count: int = 2,
+) -> None:
+    repo = get_in_memory_persona_build_repo()
+    repo._builds[build_id] = {
+        "id": build_id,
+        "customer_id": _CUSTOMER_ID,
+        "connection_id": "conn",
+        "status": status,
+        "pack_version": pack_version,
+        "stability_score": stability,
+        "persona_count": persona_count,
+        "error": None,
+        "created_at": created_at,
+        "completed_at": created_at,
+    }
+
+
+@pytest.fixture
+def packs_client(tmp_path: Path):
+    """Client wired to a tmp LocalArtifactStore + clean in-memory build repo."""
+    get_in_memory_persona_build_repo()._builds.clear()
+    store = LocalArtifactStore(tmp_path)
+    loader = PersonaPackLoader(store=store)
+    app.dependency_overrides[get_artifact_store] = lambda: store
+    app.dependency_overrides[get_persona_loader] = lambda: loader
+    with TestClient(app) as c:
+        c._store = store
+        c._loader = loader
+        yield c
+    app.dependency_overrides.clear()
+
+
+def test_list_empty_tenant_returns_empty_not_404(packs_client) -> None:
+    resp = packs_client.get("/persona-packs")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_list_newest_first_only_complete(packs_client) -> None:
+    base = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    _write_pack(packs_client._store, "v_1")
+    _write_pack(packs_client._store, "v_2")
+    _seed_build(build_id="b1", status="complete", pack_version="v_1", created_at=base)
+    _seed_build(
+        build_id="b2",
+        status="complete",
+        pack_version="v_2",
+        created_at=base + timedelta(hours=1),
+    )
+    # Non-complete / version-less builds must NOT appear.
+    _seed_build(
+        build_id="b3", status="failed", pack_version=None, created_at=base + timedelta(hours=2)
+    )
+    _seed_build(
+        build_id="b4", status="running", pack_version=None, created_at=base + timedelta(hours=3)
+    )
+
+    body = packs_client.get("/persona-packs").json()
+    assert [p["version"] for p in body] == ["v_2", "v_1"]  # newest first
+    assert all(p["id"] == p["version"] for p in body)
+    assert all(p["status"] == "draft" for p in body)
+    assert all(p["is_latest"] is False for p in body)
+
+
+def test_promote_writes_pointer_and_flips_status(packs_client) -> None:
+    base = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    _write_pack(packs_client._store, "v_1")
+    _write_pack(packs_client._store, "v_2")
+    _seed_build(build_id="b1", status="complete", pack_version="v_1", created_at=base)
+    _seed_build(
+        build_id="b2",
+        status="complete",
+        pack_version="v_2",
+        created_at=base + timedelta(hours=1),
+    )
+
+    resp = packs_client.post("/persona-packs/v_1/promote")
+    assert resp.status_code == 200
+    promoted = resp.json()
+    assert promoted["version"] == "v_1"
+    assert promoted["status"] == "promoted"
+    assert promoted["is_latest"] is True
+
+    # The pointer was written so the loader resolves latest → v_1.
+    assert packs_client._loader.resolve_latest_version(_CUSTOMER_ID) == "v_1"
+    # And GET /persona-packs/latest resolves to that snapshot.
+    latest = packs_client.get("/persona-packs/latest")
+    assert latest.status_code == 200
+    assert latest.json()["customer_id"] == _CUSTOMER_ID
+
+    # A follow-up list reflects the flip.
+    by_version = {p["version"]: p for p in packs_client.get("/persona-packs").json()}
+    assert by_version["v_1"]["status"] == "promoted"
+    assert by_version["v_1"]["is_latest"] is True
+    assert by_version["v_2"]["status"] == "draft"
+    assert by_version["v_2"]["is_latest"] is False
+
+
+def test_promote_unknown_version_404(packs_client) -> None:
+    base = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    _write_pack(packs_client._store, "v_1")
+    _seed_build(build_id="b1", status="complete", pack_version="v_1", created_at=base)
+
+    assert packs_client.post("/persona-packs/v_9/promote").status_code == 404
+
+
+def test_promote_latest_sentinel_rejected(packs_client) -> None:
+    assert packs_client.post("/persona-packs/latest/promote").status_code == 400

@@ -39,9 +39,22 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] #25 — persona-packs endpoint (next: list/get/promote)
+- [ ] Backend PR: /codex review on full #21–#25 diff → open ONE backend PR.
+- [ ] #27/#28 frontend on a branch based off this backend branch.
 
 ## Completed
+- [x] **#25 — persona-packs endpoint (list/get/promote)** (commit on this branch).
+  - `api/persona_packs.py`: implemented `list_packs` (derives from COMPLETE persona_build_runs,
+    newest-first; latest pointer → PROMOTED+is_latest, others DRAFT; empty tenant → []) and
+    `promote_pack` (validates version exists → 404 else; writes latest pointer; "latest"
+    sentinel rejected 400). get_pack/get_pack_detail/_load_pack were already implemented — untouched.
+  - `adapters/persona_loader.py`: centralized `_latest_pointer_key` (= `customers/<id>/personas/latest`)
+    used by both `resolve_latest_version` (read) and new `promote(customer_id, version)` (write).
+  - `{pack_id}` addressed by version string ("v_3"); PackSummary.id == version. NO new migration.
+  - Tests appended to test_persona_packs_api.py (11 total, 4 new). ruff clean. Full suite **797 passed**.
+
+### ✅ BACKEND CHAIN #21–#25 COMPLETE on `worktree-phase-4.5+persona-builder-backend` (pushed).
+  Commits: 2486a60(#21) 9994092(#22) d98fb62(#23) 8e926d1(#24) +#25. Migrations 011, 012.
 - [x] **#24 — persona-builds endpoint (POST/GET/list/events)** (commit on this branch).
   - `api/persona_builds.py`: create_build (202 + PENDING row + BackgroundTask, customer_id
     from auth not body), get_build (404), list_builds (newest-first), GET /{id}/events
