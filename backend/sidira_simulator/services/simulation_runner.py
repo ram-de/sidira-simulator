@@ -459,6 +459,11 @@ class SimulationRunner:
                 identity_seed=identity_seed,
                 arm=composer_arm,
                 use_persona=use_persona,
+                # agent-behavior-spec §2 layer 4: same per-agent index
+                # identity_seed is keyed on, so the individual behavioral row is
+                # selected deterministically and pairs across arms (treatment and
+                # control twins share sample_index → draw the same row).
+                sample_index=sample_index,
             )
 
             # The "user turn" reaction prompt also has to diverge: in the
