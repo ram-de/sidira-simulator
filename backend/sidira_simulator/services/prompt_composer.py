@@ -46,7 +46,10 @@ from sidira_simulator.services.behavioral_profile import (
     render_behavioral_profile,
     render_individual_row,
 )
-from sidira_simulator.services.treatment_renderer import render_state_diff
+from sidira_simulator.services.treatment_renderer import (
+    render_state_diff,
+    summarize_reverse_figma,
+)
 
 Arm = Literal["treatment", "control"]
 
@@ -291,6 +294,163 @@ def compose_identity_prompt(
         )
 
     return preamble + "\n" + task_block
+
+
+# ─── §3a blinded metric-elicitation prompt (#221 / agent-behavior-spec §3a/§3b) ──
+#
+# The per-metric (conversion) pass MUST be blinded — "the single most important
+# framing rule" (spec §3b/§4). The agent sees the state it faces as a *standalone
+# product* with NO change framing, so demand characteristics can't inflate the
+# TREATMENT arm's propensity specifically; an unblinded metric pass would bias the
+# treatment side, and that bias does NOT cancel in the treatment−control delta —
+# it corrupts the headline conversion lift. This is a SEPARATE pass from the
+# unblinded reaction/identity prompt (`compose_identity_prompt`): the free-text
+# reaction still feeds sentiment/chat unblinded; the metric pass is blinded and is
+# NOT conditioned on that reaction. This prompt is EPHEMERAL — never persisted as
+# `identity.md` — so it carries no frozen-identity obligation.
+#
+# Both arms render the product as a structural spec ONLY, via the SAME
+# `summarize_reverse_figma` renderer (control → the current figma; treatment → the
+# proposed figma's `standalone_state_view`). Holding the rendering and the
+# PRD-absence constant across arms is deliberate: the proposed state has no clean
+# standalone PRD (the proposed PRD is change-authored — "Add a $2 fee…" — and is
+# omitted by `standalone_state_view` to keep the pass blinded), so equalizing by
+# dropping the current PRD from the metric pass too leaves the ONLY cross-arm
+# difference the structural state itself. A PRD-present-vs-absent asymmetry would
+# be a confound that does not cancel in the delta. (The reaction/sentiment pass
+# still uses the full unblinded PRD — only this metric pass is structural-only.)
+#
+# Fallback (treatment-rendering-layer.md §5b / §3b open Q2): when no faithful
+# standalone view exists (removal / pure-mechanic / prose-only change —
+# `has_standalone_view` False), a blinded view would silently show an *unchanged*
+# product and miss the treatment entirely. The treatment pass then falls back to
+# the unblinded `state_plus_diff_view` and the composer returns `blinded=False`, so
+# the caller flags the conversion result low-confidence rather than reporting a
+# clean blinded delta.
+_METRIC_IDENTITY_BLOCK = """You are roleplaying a real user of {customer_id}'s product.
+
+## Who you are
+
+**{persona_name}**
+
+{persona_description}
+
+{jtbd_section}
+
+{about_you_section}## Behavioral snapshot
+
+{behavioral_snapshot}
+
+{behavioral_profile_section}"""
+
+
+_METRIC_IDENTITY_BLOCK_NO_PERSONA = """You are a real user of {customer_id}'s product.
+
+"""
+
+
+# Shared product framing for the metric pass — structural spec only, no "today"
+# vs "proposed" language, no change framing. The {structural_spec} body is the
+# arm's blinded state, rendered by summarize_reverse_figma in BOTH arms.
+_METRIC_PRODUCT_TEMPLATE = """## The product
+
+Below is how the **{capability_name}** capability works on the product you use.
+This is your current experience — answer grounded in this reality, judging it on
+its own terms.
+
+### Structural spec
+
+{structural_spec}
+"""
+
+
+def compose_metric_prompt(
+    customer_id: str,
+    persona: Persona,
+    capability: Capability,
+    hypothesis: Hypothesis,
+    identity_seed: IdentitySeed | None = None,
+    arm: Arm = "treatment",
+    use_persona: bool = True,
+    sample_index: int | None = None,
+) -> tuple[str, bool]:
+    """Build the BLINDED system prompt for the §3a metric-elicitation pass (#221).
+
+    Distinct from `compose_identity_prompt` (the unblinded reaction/identity
+    prompt persisted as `identity.md`): the metric pass MUST be blinded so demand
+    characteristics can't inflate the treatment arm and bias the treatment−control
+    delta (agent-behavior-spec §3b/§4 — "the single most important framing rule").
+    The agent sees the state it faces as a standalone product, with no "change"
+    framing, and is never told a change is under test.
+
+    The persona identity block (who-you-are / about-you / behavioral snapshot /
+    behavioral profile) is byte-identical across arms — it is identity, not change
+    framing — so the #90 pairing invariant holds for the metric pass too. Only the
+    structural state differs: control renders the CURRENT figma, treatment the
+    PROPOSED figma's `standalone_state_view`, both via `summarize_reverse_figma`.
+
+    Returns `(prompt, blinded)`. `blinded` is True for control and for treatment
+    whenever a faithful standalone view exists. It is False ONLY on the treatment
+    fallback (no standalone view — removal / pure-mechanic / prose-only change):
+    the pass then uses the unblinded `state_plus_diff_view`, and the caller must
+    flag that conversion result low-confidence (treatment-rendering-layer.md §5b /
+    §3b Q2). This prompt is EPHEMERAL — never persisted — so the identity-continuity
+    guarantee does not apply.
+    """
+    if use_persona:
+        jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
+        snapshot = persona.behavioral_snapshot
+        snapshot_lines = (
+            "\n".join(f"- **{k}:** {v}" for k, v in snapshot.items())
+            if snapshot
+            else "_(no behavioral snapshot available)_"
+        )
+        identity_block = _METRIC_IDENTITY_BLOCK.format(
+            customer_id=customer_id,
+            persona_name=persona.name,
+            persona_description=persona.description,
+            jtbd_section=jtbd_section,
+            about_you_section=_about_you_section(identity_seed),
+            behavioral_snapshot=snapshot_lines,
+            behavioral_profile_section=_behavioral_profile_section(persona, sample_index),
+        )
+    else:
+        identity_block = _METRIC_IDENTITY_BLOCK_NO_PERSONA.format(customer_id=customer_id)
+
+    blinded = True
+    if arm == "control":
+        # The current product, rendered as a standalone — the agent's real
+        # status-quo experience, no change framing.
+        product_block = _METRIC_PRODUCT_TEMPLATE.format(
+            capability_name=capability.name,
+            structural_spec=summarize_reverse_figma(capability.reverse_figma),
+        )
+    else:  # arm == "treatment"
+        rendered = render_state_diff(capability, hypothesis)
+        if rendered.has_standalone_view and rendered.proposed_figma is not None:
+            # The PROPOSED state rendered as just-the-product (structural spec
+            # only; the change-authored proposed PRD is deliberately omitted to
+            # keep the pass blinded). Same renderer/shape as the control arm, so
+            # the only cross-arm difference is the structural state itself.
+            product_block = _METRIC_PRODUCT_TEMPLATE.format(
+                capability_name=capability.name,
+                structural_spec=summarize_reverse_figma(rendered.proposed_figma),
+            )
+        else:
+            # Unblindable fallback: no faithful standalone view (a blinded view
+            # would silently show an unchanged product and miss the treatment).
+            # Show the current product + the explicit unblinded diff and flag it.
+            blinded = False
+            product_block = (
+                _METRIC_PRODUCT_TEMPLATE.format(
+                    capability_name=capability.name,
+                    structural_spec=summarize_reverse_figma(capability.reverse_figma),
+                )
+                + "\n"
+                + rendered.state_plus_diff_view()
+            )
+
+    return identity_block + product_block, blinded
 
 
 def _behavioral_profile_section(persona: Persona, sample_index: int | None = None) -> str:

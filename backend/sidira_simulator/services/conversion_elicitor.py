@@ -1,11 +1,19 @@
 """Per-metric outcome elicitation — the conversion question (#221 / §3a).
 
-Turn-2 in-character decision elicitation. After the agent's free-text reaction
-(turn 1, `reaction_elicitor`), this asks the agent — conditioned on that
-reaction and its frozen identity — to allocate "10 trials in your normal life"
-across the conversion action and the realistic non-conversion alternatives
-(verbalized allocation, one `chat_json` call). The conversion propensity is the
-share allocated to the conversion action: `p_conv = counts[label] / total`.
+BLINDED in-character decision elicitation. This is a SEPARATE pass from the
+free-text reaction (`reaction_elicitor`): it runs on a blinded system prompt
+(`prompt_composer.compose_metric_prompt`) where the agent sees the state it faces
+as a standalone product with NO change framing, and it is NOT conditioned on the
+agent's turn-1 reaction. That blinding is the single most important framing rule
+(agent-behavior-spec §3b/§4): an unblinded metric pass inflates the TREATMENT
+arm's propensity via demand characteristics, and that bias does NOT cancel in the
+treatment−control delta — it corrupts the headline conversion lift. The free-text
+reaction still feeds sentiment/chat unblinded; only this metric pass is blinded.
+
+The agent allocates "10 trials in your normal life" across the conversion action
+and the realistic non-conversion alternatives (verbalized allocation, one
+`chat_json` call). The conversion propensity is the share allocated to the
+conversion action: `p_conv = counts[label] / total`.
 
 Why allocation, not "would you buy? (yes/no)" — the four documented pathologies
 (acquiescence, hyper-rationality, mode collapse, uncalibrated magnitude) and the
@@ -48,9 +56,10 @@ def _conversion_user_turn(
     decision_point: str,
     options: Sequence[str],
 ) -> str:
-    """Build the §3a turn-2 question. Identity + rendered state live in the
-    system prompt and the prior reaction; this adds ONLY the decision ask, so
-    the treatment/control framing already in the system prompt is untouched."""
+    """Build the §3a decision question. The blinded identity + standalone state
+    live in the system prompt; this adds ONLY the decision ask. It must stay
+    blinded too — no "the change", no "you just saw", nothing that presumes a
+    prior reaction or signals an intervention is under test (§3b)."""
     # json.dumps each label so a value containing a quote/backslash (a PM-supplied
     # choice or a crawled transition trigger) renders as a valid, properly-escaped
     # JSON string rather than breaking the example / bullet list. The LLM then
@@ -67,7 +76,7 @@ def _conversion_user_turn(
     counts_example = ", ".join(f"{json.dumps(opt)}: <int>" for opt in options)
     return (
         "## What you do next\n\n"
-        f"You just saw the {capability_name} as described. Forget what a "
+        f"Think about how you use the {capability_name}. Forget what a "
         '"reasonable" person would do — think about what YOU actually do next, '
         "given how you normally behave (your behavioral snapshot above). Be "
         "honest with yourself: most of the time, on most visits, people do NOT "
@@ -113,7 +122,6 @@ def elicit_conversion_decision(
     chat_client: ChatClient,
     *,
     system_prompt: str,
-    reaction_text: str,
     capability_name: str,
     conversion_action: str,
     conversion_action_label: str,
@@ -123,8 +131,13 @@ def elicit_conversion_decision(
     seed: int | None = None,
     max_tokens: int = 1024,
 ) -> ConversionDecision:
-    """Elicit a per-agent conversion decision (turn 2), conditioned on the
-    agent's turn-1 reaction and frozen identity.
+    """Elicit a per-agent conversion decision on a BLINDED system prompt.
+
+    A standalone pass — NOT conditioned on the agent's turn-1 reaction (§3b): the
+    `system_prompt` must be the blinded metric prompt from
+    `prompt_composer.compose_metric_prompt` (standalone state, no change framing).
+    Conditioning on the unblinded reaction would re-introduce the change framing
+    the blinding exists to remove and inflate the treatment arm.
 
     Raises ValueError on a degenerate allocation (no positive total, or the
     conversion action absent) — surfaced by the caller as a per-agent
@@ -148,10 +161,10 @@ def elicit_conversion_decision(
 
     raw = chat_client.chat_json(
         [
+            # Blinded standalone pass: system prompt (blinded identity + standalone
+            # state) + the decision ask. Deliberately NO prior assistant turn — the
+            # unblinded turn-1 reaction must not condition the metric (§3b).
             {"role": "system", "content": system_prompt},
-            # The agent's own spelled-out reaction conditions the decision
-            # (reason-then-decide). It is the assistant's prior turn.
-            {"role": "assistant", "content": reaction_text},
             {"role": "user", "content": user_turn},
         ],
         _ConversionAllocation,
@@ -161,6 +174,21 @@ def elicit_conversion_decision(
     )
 
     counts = _resolve_count(raw.action_counts, conversion_action_label)
+    # Reject INCOMPLETE allocations (codex P2). The prompt asks for a count on
+    # EVERY offered label; a response that omits a non-conversion option silently
+    # shrinks the denominator and inflates p_conv (e.g. `{"check out now": 6}`
+    # alone → p_conv 1.0 instead of a malformed allocation). A missing offered
+    # option is a degenerate response → per-agent failure, never a silent
+    # inflation. Case-insensitive to mirror `_resolve_count`'s leniency; EXTRA
+    # keys a chatty model invents are still tolerated (they only enlarge the
+    # denominator → deflate p_conv, the conservative direction).
+    present = {k.lower() for k in counts}
+    missing = [opt for opt in options if opt.lower() not in present]
+    if missing:
+        raise ValueError(
+            f"conversion allocation omitted offered option(s) {missing}; "
+            f"got keys {sorted(counts)}"
+        )
     # ConversionDecision validates non-negativity, label presence, positive
     # total; raises (→ per-agent failure) otherwise.
     return ConversionDecision(

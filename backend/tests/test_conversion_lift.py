@@ -38,6 +38,7 @@ def _r(
     sample_index: int = 0,
     arm: str,
     conversion_p: float | None,
+    conversion_unblinded: bool = False,
 ) -> AgentReaction:
     return AgentReaction(
         agent_id=f"{arm}-{persona_id}-{sample_index}",
@@ -47,6 +48,7 @@ def _r(
         sample_index=sample_index,
         arm=arm,
         conversion_p=conversion_p,
+        conversion_unblinded=conversion_unblinded,
     )
 
 
@@ -137,6 +139,31 @@ def test_deterministic_for_same_seed() -> None:
     assert a.lift_ci_pp == b.lift_ci_pp
 
 
+# ── §3b unblinded-fallback flag ───────────────────────────────────────────────
+
+
+def test_unblinded_fallback_false_when_all_treatment_blinded() -> None:
+    """Default posture: every treatment agent ran blinded → the run's lift is
+    NOT flagged."""
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(3)]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.unblinded_fallback is False
+
+
+def test_unblinded_fallback_set_when_any_treatment_agent_unblinded() -> None:
+    """A single treatment agent forced onto the unblinded fallback prompt taints
+    the whole run's lift as low-confidence (control is always blinded, so only
+    the treatment side carries the flag)."""
+    treatment = [
+        _r(persona_id="p0", arm="treatment", conversion_p=0.5),
+        _r(persona_id="p1", arm="treatment", conversion_p=0.5, conversion_unblinded=True),
+    ]
+    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.unblinded_fallback is True
+
+
 # ── conversion_lift_honesty (§5) ──────────────────────────────────────────────
 
 
@@ -167,6 +194,24 @@ def test_honesty_negative_direction() -> None:
     res = ConversionLiftResult(lift_pp=-8.0, lift_ci_pp=(-15.0, -1.0), paired_n=5)
     _regime, relative = conversion_lift_honesty(res)
     assert "lower" in relative
+
+
+def test_honesty_appends_unblinded_caveat_when_flagged() -> None:
+    """§3b: an unblinded-fallback run gets an explicit low-confidence caveat in
+    the PM-facing relative statement, so a lift that ran unblinded is never read
+    as if it were a clean blinded delta."""
+    res = ConversionLiftResult(
+        lift_pp=12.0, lift_ci_pp=(3.0, 21.0), paired_n=5, unblinded_fallback=True
+    )
+    _regime, relative = conversion_lift_honesty(res)
+    assert "UNBLINDED" in relative
+    assert "low-confidence" in relative
+
+
+def test_honesty_no_unblinded_caveat_when_blinded() -> None:
+    res = ConversionLiftResult(lift_pp=12.0, lift_ci_pp=(3.0, 21.0), paired_n=5)
+    _regime, relative = conversion_lift_honesty(res)
+    assert "UNBLINDED" not in relative
 
 
 # ── score_ab wiring ───────────────────────────────────────────────────────────

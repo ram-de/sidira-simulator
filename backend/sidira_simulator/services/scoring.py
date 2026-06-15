@@ -69,6 +69,7 @@ class AgentReaction:
         "arm",
         "reaction_distribution",
         "conversion_p",
+        "conversion_unblinded",
     )
 
     def __init__(
@@ -82,6 +83,7 @@ class AgentReaction:
         arm: str | None = None,
         reaction_distribution: list[tuple[str, float]] | None = None,
         conversion_p: float | None = None,
+        conversion_unblinded: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -94,6 +96,10 @@ class AgentReaction:
         # a conversion metric; None when no metric was set OR the per-agent
         # conversion elicitation failed. Scored as a paired delta, never a level.
         self.conversion_p = conversion_p
+        # #221 §3b: True when this (treatment) agent's conversion metric ran on
+        # the UNBLINDED fallback prompt (no faithful standalone view). Any such
+        # contributor makes the whole run's conversion lift low-confidence.
+        self.conversion_unblinded = conversion_unblinded
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -492,6 +498,7 @@ class ScoringService:
                     "conversion_lift_elicitation_failure_drops": (conv.elicitation_failure_drops),
                     "conversion_regime": regime,
                     "conversion_lift_relative": relative,
+                    "conversion_lift_unblinded_fallback": conv.unblinded_fallback,
                 }
             )
         return composed, list(analyses)
@@ -1173,6 +1180,15 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
         "Synthetic conversion is a weak behavioral signal — read as rank/direction, "
         "not as a calibrated effect size."
     )
+    if lift_result.unblinded_fallback:
+        # §3b: the treatment metric pass ran unblinded (no faithful standalone
+        # view), so demand characteristics may have inflated the treatment side
+        # and the delta is even softer than the usual weak-behavioral caveat.
+        relative += (
+            " NOTE: the treatment conversion metric ran UNBLINDED (the change had "
+            "no faithful standalone view), so this direction is low-confidence and "
+            "may overstate the treatment arm."
+        )
     return CONVERSION_REGIME_WEAK, relative
 
 
@@ -1221,6 +1237,10 @@ def aggregate_conversion_lift(
     result = ConversionLiftResult(
         unpaired_treatment=len(treatment_keys - control_keys),
         unpaired_control=len(control_keys - treatment_keys),
+        # #221 §3b: any treatment agent forced onto the unblinded fallback prompt
+        # taints the whole run's lift as low-confidence (control is always
+        # blinded, so only the treatment side carries the flag).
+        unblinded_fallback=any(r.conversion_unblinded for r in treatment_reactions),
     )
 
     # Sort matched keys for deterministic resample ordering (same rationale as

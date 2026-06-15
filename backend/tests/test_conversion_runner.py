@@ -12,6 +12,7 @@ Asserts the gating contract end-to-end through SimulationRunner:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -34,13 +35,14 @@ _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 
 
 class _ConversionChat:
-    """Canned reaction + classifications + a fixed conversion allocation.
+    """Canned reaction + classifications + a complete conversion allocation.
 
-    The allocation is {convert: 6, alt: 4} → p_conv = 0.6 for every agent, so a
-    paired treatment−control delta is exactly 0 (same allocation both arms) —
-    which is the honest expectation for an identical-behavior stub and keeps the
-    assertions about *presence* of conversion_p independent of any contrived
-    arm asymmetry.
+    A compliant model: it reads the offered option labels out of the question and
+    returns a count for EVERY one (conversion = 6, the first alternative = 4, the
+    rest 0) → p_conv = 0.6 for every agent, summing to 10. Returning all offered
+    labels matters now that the elicitor rejects incomplete allocations (codex
+    P2). The same allocation in both arms → a paired delta of exactly 0, the
+    honest expectation for an identical-behavior stub.
     """
 
     def __init__(self, *, conversion_label: str = "check out now") -> None:
@@ -50,10 +52,24 @@ class _ConversionChat:
     def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):
         return "Stubbed reaction prose."
 
+    def _complete_allocation(self, messages) -> _ConversionAllocation:
+        """Build a complete allocation over exactly the labels the question
+        offered (parsed from the STRICT-JSON `"<label>": <int>` example)."""
+        user_turn = next(m["content"] for m in messages if m["role"] == "user")
+        labels = re.findall(r'"([^"]*)": <int>', user_turn)
+        counts = {lbl: 0 for lbl in labels}
+        counts[self._label] = 6
+        others = [lbl for lbl in labels if lbl != self._label]
+        if others:
+            counts[others[0]] = 4
+        else:  # no alternatives offered → all weight on the conversion option
+            counts[self._label] = 10
+        return _ConversionAllocation(action_counts=counts)
+
     def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
         if schema is _ConversionAllocation:
             self.conversion_calls += 1
-            return _ConversionAllocation(action_counts={self._label: 6, "keep browsing": 4})
+            return self._complete_allocation(messages)
         if schema is WeaknessClassification:
             return WeaknessClassification(categories=[], primary_reason="stub")
         if schema is SentimentClassification:
@@ -451,3 +467,107 @@ async def test_conversion_action_filtered_from_grounded_alternatives() -> None:
         assert '"tap reorder and check out": <int>' not in turn
         # The genuine non-conversion alternative survives the filter.
         assert '"browse the full menu": <int>' in turn
+
+
+# ── §3b blinding wiring (the metric pass runs on a blinded prompt) ─────────────
+
+
+class _CapturingSystemChat(_ConversionChat):
+    """Captures the SYSTEM message of every conversion elicitation so a test can
+    assert the metric pass runs on a blinded prompt (no change framing)."""
+
+    def __init__(self, *, conversion_label: str = "check out now") -> None:
+        super().__init__(conversion_label=conversion_label)
+        self.conversion_system_prompts: list[str] = []
+        self.conversion_message_rolesets: list[list[str]] = []
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        if schema is _ConversionAllocation:
+            self.conversion_system_prompts.append(
+                next(m["content"] for m in messages if m["role"] == "system")
+            )
+            self.conversion_message_rolesets.append([m["role"] for m in messages])
+        return super().chat_json(messages, schema, max_tokens, temperature, seed)
+
+
+@pytest.mark.asyncio
+async def test_conversion_metric_runs_on_blinded_prompt() -> None:
+    """With a proposed_figma (a faithful standalone view exists), the conversion
+    metric pass runs on a BLINDED system prompt — no change-framing markers in
+    either arm — and the conversation has no prior assistant (reaction) turn (§3b)."""
+    store, persona_pack, capability, feature_pack_version = _load()
+    chat = _CapturingSystemChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    proposed = ReverseFigma(
+        screens=[Screen(id="home", name="Home"), Screen(id="checkout", name="Checkout")],
+        transitions=[
+            Transition(
+                trigger="tap reorder and check out", from_screen="home", to_screen="checkout"
+            ),
+        ],
+    )
+    hypothesis = Hypothesis(
+        capability_name="reorder",
+        prose="Add a one-tap reorder button to the home tab.",
+        metric_name="conversion",
+        conversion_action="tap reorder and check out",
+        conversion_action_label="check out now",
+        decision_point="home",
+        proposed_figma=proposed,
+    )
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=hypothesis,
+        population_size=4,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    assert chat.conversion_system_prompts
+    for sys_prompt in chat.conversion_system_prompts:
+        for marker in ("## What's changing", "### Explicitly NOT changing", "## Your task"):
+            assert marker not in sys_prompt, f"metric pass not blinded: {marker!r} present"
+    # No prior assistant (unblinded reaction) turn conditions the metric.
+    for roles in chat.conversion_message_rolesets:
+        assert roles == ["system", "user"]
+    # A faithful standalone view existed → the run is NOT flagged unblinded.
+    records = runner._last_run_agent_records
+    assert all(not r.conversion_unblinded for r in records if r.arm in ("treatment", "control"))
+    assert simulation.result.conversion_lift_unblinded_fallback is False
+
+
+@pytest.mark.asyncio
+async def test_conversion_unblinded_fallback_flagged_for_prose_only_change() -> None:
+    """A prose-only conversion change (no proposed_figma → no faithful standalone
+    view) forces the treatment metric pass onto the UNBLINDED fallback. The
+    treatment records carry conversion_unblinded; control stays blinded; the
+    composed result is flagged and the relative statement carries the caveat."""
+    store, persona_pack, capability, feature_pack_version = _load()
+    chat = _ConversionChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_conversion_hypothesis(),  # prose-only, no proposed_figma
+        population_size=4,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    records = runner._last_run_agent_records
+    treatment = [r for r in records if r.arm == "treatment"]
+    control = [r for r in records if r.arm == "control"]
+    assert treatment and control
+    # Treatment fell back to unblinded; control is always blinded.
+    assert all(r.conversion_unblinded for r in treatment)
+    assert all(not r.conversion_unblinded for r in control)
+    # Surfaced on the result + an explicit low-confidence caveat.
+    assert simulation.result.conversion_lift_unblinded_fallback is True
+    assert "UNBLINDED" in (simulation.result.conversion_lift_relative or "")

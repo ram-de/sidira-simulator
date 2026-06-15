@@ -195,6 +195,12 @@ class ConversionLiftResult(BaseModel):
     unpaired_treatment: int = 0
     unpaired_control: int = 0
     elicitation_failure_drops: int = 0
+    # #221 §3b: True when at least one treatment contributor's conversion metric
+    # ran on the UNBLINDED fallback prompt (no faithful standalone view —
+    # removal / pure-mechanic / prose-only change). The treatment side was then
+    # exposed to change framing, which can inflate p_conv and does NOT cancel in
+    # the delta, so the lift is low-confidence; `conversion_lift_honesty` flags it.
+    unblinded_fallback: bool = False
 
 
 # ── Refinement ────────────────────────────────────────────────────────

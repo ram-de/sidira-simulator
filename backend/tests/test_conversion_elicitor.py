@@ -224,7 +224,7 @@ def test_user_turn_escapes_quotes_in_option_labels() -> None:
 # ── elicit_conversion_decision (end-to-end through the fake) ──────────────────
 
 
-def test_elicit_builds_three_message_conversation_and_returns_p_conv() -> None:
+def test_elicit_builds_blinded_two_message_conversation_and_returns_p_conv() -> None:
     chat = _RecordingChat(
         _ConversionAllocation(
             action_counts={"check out now": 2, "keep browsing / decide later": 8},
@@ -235,37 +235,77 @@ def test_elicit_builds_three_message_conversation_and_returns_p_conv() -> None:
     decision = elicit_conversion_decision(
         chat,
         system_prompt="SYSTEM",
-        reaction_text="REACTION",
         capability_name="Reorder",
         conversion_action="complete checkout",
         conversion_action_label="check out now",
         decision_point="cart has 2 items",
+        # complete allocation: every offered label present (codex P2)
+        choice_set=["keep browsing / decide later"],
     )
     assert decision.p_conv == pytest.approx(0.2)
     assert decision.primary_reason == "I rarely buy on first visit"
 
-    # The conversation is [system, assistant(reaction), user(decision ask)] so
-    # the turn-1 reaction conditions the turn-2 decision (reason-then-decide).
+    # BLINDED pass (§3b): the conversation is [system(blinded), user(decision)]
+    # ONLY — NO assistant prior turn. The unblinded turn-1 reaction must not
+    # condition the metric, or the change framing leaks back and inflates the
+    # treatment arm (the bias that does not cancel in the delta).
     (call,) = chat.calls
     roles = [m["role"] for m in call["messages"]]
-    assert roles == ["system", "assistant", "user"]
+    assert roles == ["system", "user"]
+    assert "assistant" not in roles
     assert call["messages"][0]["content"] == "SYSTEM"
-    assert call["messages"][1]["content"] == "REACTION"
     assert call["schema"] is _ConversionAllocation
 
 
-def test_elicit_uses_default_choice_set_when_none_supplied() -> None:
-    chat = _RecordingChat(_ConversionAllocation(action_counts={"check out now": 5, "x": 5}))
+def test_elicit_metric_prompt_carries_no_change_framing() -> None:
+    """The decision ask must be blinded: no language that signals an intervention
+    is under test or presumes a prior reaction (§3b). A regression here silently
+    re-unblinds the metric and corrupts the conversion lift."""
+    chat = _RecordingChat(_ConversionAllocation(action_counts={"check out now": 5, "leave": 5}))
     elicit_conversion_decision(
         chat,
         system_prompt="S",
-        reaction_text="R",
+        capability_name="Reorder",
+        conversion_action="complete checkout",
+        conversion_action_label="check out now",
+        decision_point="cart has 2 items",
+        choice_set=["leave"],
+    )
+    user_turn = chat.calls[0]["messages"][1]["content"].lower()
+    for banned in (
+        "you just saw",
+        "the change",
+        "proposed change",
+        "the team is considering",
+        "what's changing",
+        "as described",
+    ):
+        assert banned not in user_turn, f"change framing leaked into metric ask: {banned!r}"
+
+
+def test_elicit_uses_default_choice_set_when_none_supplied() -> None:
+    # A complete allocation over the conversion label + the full default set, so
+    # the offered-options coverage check (codex P2) passes and we can assert the
+    # default alternatives reached the question.
+    chat = _RecordingChat(
+        _ConversionAllocation(
+            action_counts={
+                "check out now": 4,
+                "keep browsing / decide later": 2,
+                "leave without doing anything": 2,
+                "compare with a competitor first": 2,
+            }
+        )
+    )
+    elicit_conversion_decision(
+        chat,
+        system_prompt="S",
         capability_name="C",
         conversion_action="complete checkout",
         conversion_action_label="check out now",
         decision_point="now",
     )
-    user_turn = chat.calls[0]["messages"][2]["content"]
+    user_turn = chat.calls[0]["messages"][1]["content"]
     for alt in DEFAULT_CONVERSION_CHOICE_SET:
         assert alt in user_turn
 
@@ -277,7 +317,6 @@ def test_elicit_case_insensitive_label_does_not_drop_agent() -> None:
     decision = elicit_conversion_decision(
         chat,
         system_prompt="S",
-        reaction_text="R",
         capability_name="C",
         conversion_action="complete checkout",
         conversion_action_label="check out now",
@@ -293,7 +332,6 @@ def test_elicit_raises_on_missing_conversion_label() -> None:
         elicit_conversion_decision(
             chat,
             system_prompt="S",
-            reaction_text="R",
             capability_name="C",
             conversion_action="complete checkout",
             conversion_action_label="check out now",
@@ -307,9 +345,28 @@ def test_elicit_raises_on_zero_total() -> None:
         elicit_conversion_decision(
             chat,
             system_prompt="S",
-            reaction_text="R",
             capability_name="C",
             conversion_action="complete checkout",
             conversion_action_label="check out now",
             decision_point="now",
+            # complete allocation (all offered labels present) so the raise comes
+            # from the zero-total guard, not the incomplete-allocation check.
+            choice_set=["leave"],
+        )
+
+
+def test_elicit_raises_on_incomplete_allocation() -> None:
+    """codex P2: a response that omits an offered non-conversion option (so the
+    denominator shrinks and p_conv inflates) is a degenerate allocation → raise,
+    rather than silently reporting an inflated propensity."""
+    chat = _RecordingChat(_ConversionAllocation(action_counts={"check out now": 6}))
+    with pytest.raises(ValueError, match="omitted offered option"):
+        elicit_conversion_decision(
+            chat,
+            system_prompt="S",
+            capability_name="C",
+            conversion_action="complete checkout",
+            conversion_action_label="check out now",
+            decision_point="now",
+            choice_set=["leave", "compare first"],
         )

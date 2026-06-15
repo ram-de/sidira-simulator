@@ -351,6 +351,11 @@ class SimulationResult(BaseModel):
     conversion_lift_elicitation_failure_drops: int = 0
     conversion_regime: str | None = None
     conversion_lift_relative: str | None = None
+    # #221 §3b: True when the conversion metric fell back to the UNBLINDED prompt
+    # for at least one treatment agent (the change had no faithful standalone
+    # view). Defaults False so non-conversion / fully-blinded runs and older rows
+    # are byte-identical; `conversion_lift_relative` also carries the caveat text.
+    conversion_lift_unblinded_fallback: bool = False
 
 
 class Simulation(BaseModel):
