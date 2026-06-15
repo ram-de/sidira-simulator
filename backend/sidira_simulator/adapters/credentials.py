@@ -8,9 +8,21 @@ Envelope encryption pattern:
 - At decrypt time, KMS is called to unwrap the DEK; the DEK then unwraps the
   blob in memory. KMS access is logged for audit.
 
-MVP: a local-symmetric-key fallback (env var `SIDIRA_LOCAL_CRED_KEY`, base64
-AESGCM key) for dev only. Production MUST use KMS. The KMS code path is
-stubbed and intentionally raises until Phase 5 lands.
+Modes (``SIDIRA_CRED_MODE`` / legacy ``PYTHIA_CRED_MODE``):
+- ``local`` (default): a local-symmetric-key fallback (env var
+  ``SIDIRA_LOCAL_CRED_KEY``, base64 AESGCM key) for dev only.
+- ``kms``: production envelope encryption. A fresh 256-bit DEK is minted per
+  blob via ``KMS:GenerateDataKey``; the plaintext DEK encrypts the credential
+  blob (AESGCM) and is then discarded, and only the KMS-wrapped DEK is
+  persisted (``wrapped_dek``). At decrypt time ``KMS:Decrypt`` unwraps the DEK
+  in memory. The CMK is referenced by id/alias via ``SIDIRA_KMS_KEY_ID``;
+  **key rotation is transparent** — KMS selects the right backing key from the
+  wrapped-DEK ciphertext, so rotating (or auto-rotating) the CMK never strands
+  previously-written blobs.
+
+Every write (:func:`encrypt`) and read (:func:`decrypt`) emits a structured
+audit log entry (``customer_id``, ``key_id``, ``action``, ``at`` timestamp) so
+credential access is traceable. Pass ``customer_id`` to attribute the access.
 """
 
 from __future__ import annotations
@@ -19,9 +31,16 @@ import base64
 import json
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
+import structlog
+
 from sidira_simulator.services.runtime_config import resolve_sidira_env
+
+#: Dedicated channel so credential access can be shipped to an audit sink
+#: independently of application logs.
+_audit_log = structlog.get_logger("sidira.credentials.audit")
 
 
 class CredentialError(RuntimeError):
@@ -38,23 +57,36 @@ class EncryptedBlob:
     wrapped_dek: bytes | None = None  # KMS-only; None for local-key mode
 
 
-def encrypt(plaintext: dict[str, Any]) -> EncryptedBlob:
-    """Encrypt a credentials dict for at-rest storage."""
+def encrypt(plaintext: dict[str, Any], *, customer_id: str | None = None) -> EncryptedBlob:
+    """Encrypt a credentials dict for at-rest storage.
+
+    ``customer_id`` is optional and used only to attribute the audit-log entry;
+    it is never persisted in the blob.
+    """
     mode = resolve_sidira_env("CRED_MODE", "local")
     if mode == "local":
-        return _encrypt_local(plaintext)
-    if mode == "kms":
-        raise NotImplementedError("Phase 5 — KMS-backed envelope encryption")
-    raise CredentialError(f"Unknown SIDIRA_CRED_MODE/PYTHIA_CRED_MODE: {mode}")
+        blob = _encrypt_local(plaintext)
+    elif mode == "kms":
+        blob = _encrypt_kms(plaintext)
+    else:
+        raise CredentialError(f"Unknown SIDIRA_CRED_MODE/PYTHIA_CRED_MODE: {mode}")
+    _audit("encrypt", blob.kek_id, customer_id)
+    return blob
 
 
-def decrypt(blob: EncryptedBlob) -> dict[str, Any]:
-    """Decrypt a previously-encrypted credentials dict. In-memory only."""
+def decrypt(blob: EncryptedBlob, *, customer_id: str | None = None) -> dict[str, Any]:
+    """Decrypt a previously-encrypted credentials dict. In-memory only.
+
+    ``customer_id`` is optional and used only to attribute the audit-log entry.
+    """
     if blob.kek_id == "local":
-        return _decrypt_local(blob)
-    if blob.kek_id.startswith("kms:"):
-        raise NotImplementedError("Phase 5 — KMS-backed envelope decryption")
-    raise CredentialError(f"Unknown kek_id: {blob.kek_id}")
+        plaintext = _decrypt_local(blob)
+    elif blob.kek_id.startswith("kms:"):
+        plaintext = _decrypt_kms(blob)
+    else:
+        raise CredentialError(f"Unknown kek_id: {blob.kek_id}")
+    _audit("decrypt", blob.kek_id, customer_id)
+    return plaintext
 
 
 def serialize_blob(blob: EncryptedBlob) -> dict[str, str | None]:
@@ -144,3 +176,105 @@ def _decrypt_local(blob: EncryptedBlob) -> dict[str, Any]:
     except (ValueError, UnicodeDecodeError) as exc:
         # json.loads / utf-8 decode on a corrupted-but-authentic plaintext.
         raise CredentialError(f"decrypted credential payload is malformed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+
+
+def _audit(action: str, kek_id: str, customer_id: str | None) -> None:
+    """Emit one structured audit entry per credential access.
+
+    Records ``action`` (encrypt/decrypt), ``key_id`` (the KEK that wrapped the
+    blob — ``local`` or ``kms:<cmk>``), the attributed ``customer_id``, and an
+    ISO-8601 ``at`` timestamp. Never raises — auditing must not break the
+    credential path.
+    """
+    try:
+        _audit_log.info(
+            "credential_access",
+            action=action,
+            key_id=kek_id,
+            customer_id=customer_id,
+            at=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception:  # pragma: no cover - logging must never break encryption
+        pass
+
+
+# ---------------------------------------------------------------------------
+# KMS envelope encryption (production)
+# ---------------------------------------------------------------------------
+
+
+def _kms_key_id() -> str:
+    key_id = resolve_sidira_env("KMS_KEY_ID")
+    if not key_id:
+        raise CredentialError(
+            "SIDIRA_KMS_KEY_ID not set — required for SIDIRA_CRED_MODE=kms "
+            "(a KMS key id, ARN, or alias/<name>)"
+        )
+    return key_id
+
+
+def _kms_client():  # type: ignore[no-untyped-def]
+    """Build a KMS client. Region comes from the standard AWS env
+    (``AWS_REGION`` / ``AWS_DEFAULT_REGION``) or instance metadata."""
+    try:
+        import boto3  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - boto3 is a runtime dep
+        raise CredentialError("boto3 is required for SIDIRA_CRED_MODE=kms") from exc
+    return boto3.client("kms")
+
+
+def _encrypt_kms(plaintext: dict[str, Any]) -> EncryptedBlob:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
+
+    key_id = _kms_key_id()
+    client = _kms_client()
+    try:
+        resp = client.generate_data_key(KeyId=key_id, KeySpec="AES_256")
+    except Exception as exc:
+        # botocore ClientError (auth / key disabled / throttling) — surface as a
+        # controlled CredentialError so callers 503 rather than 500.
+        raise CredentialError(f"KMS GenerateDataKey failed: {exc}") from exc
+    dek = resp["Plaintext"]
+    wrapped_dek = resp["CiphertextBlob"]
+    try:
+        nonce = os.urandom(12)
+        data = json.dumps(plaintext).encode("utf-8")
+        ct = AESGCM(dek).encrypt(nonce, data, associated_data=None)
+    finally:
+        # Best-effort scrub of the plaintext DEK reference.
+        del dek
+    return EncryptedBlob(
+        kek_id=f"kms:{key_id}", ciphertext=ct, nonce=nonce, wrapped_dek=wrapped_dek
+    )
+
+
+def _decrypt_kms(blob: EncryptedBlob) -> dict[str, Any]:
+    from cryptography.exceptions import InvalidTag  # type: ignore[import-not-found]
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
+
+    if not blob.wrapped_dek:
+        raise CredentialError("kms blob is missing wrapped_dek")
+    client = _kms_client()
+    try:
+        # KMS picks the right backing key from the ciphertext, so rotation is
+        # transparent and we do not pass KeyId on decrypt.
+        resp = client.decrypt(CiphertextBlob=blob.wrapped_dek)
+    except Exception as exc:
+        raise CredentialError(f"KMS Decrypt failed: {exc}") from exc
+    dek = resp["Plaintext"]
+    try:
+        pt = AESGCM(dek).decrypt(blob.nonce, blob.ciphertext, associated_data=None)
+        return json.loads(pt.decode("utf-8"))
+    except InvalidTag as exc:
+        raise CredentialError(
+            "cannot decrypt credentials — corrupted ciphertext or DEK mismatch"
+        ) from exc
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise CredentialError(f"decrypted credential payload is malformed: {exc}") from exc
+    finally:
+        del dek

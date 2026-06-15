@@ -100,7 +100,7 @@ async def get_crawl_credentials(
         raise HTTPException(status_code=404, detail="no credentials saved for customer")
     try:
         setup = CrawlSetup.model_validate(row["config_json"])
-        secrets = credentials.decrypt(credentials.deserialize_blob(enc))
+        secrets = credentials.decrypt(credentials.deserialize_blob(enc), customer_id=customer)
     except credentials.CredentialError as exc:
         raise HTTPException(
             status_code=503, detail="credential storage is not configured"
