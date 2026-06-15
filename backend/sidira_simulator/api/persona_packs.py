@@ -8,10 +8,18 @@ from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from sidira_simulator.api.deps import current_customer_id
+from sidira_simulator.adapters.base import ArtifactNotFound
+from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+from sidira_simulator.api.deps import current_customer_id, get_persona_loader
 from sidira_simulator.schemas.persona import PersonaPack
 
 router = APIRouter(prefix="/persona-packs", tags=["persona-packs"])
+
+# Sentinel pack_id that resolves to the customer's active pack via the `latest`
+# pointer, so the Library can deep-link to "the current pack" without first
+# fetching its version. Mirrors how the Feature Pack browse page addresses the
+# latest snapshot (#207).
+LATEST = "latest"
 
 
 class PackStatus(str, Enum):
@@ -43,12 +51,29 @@ async def list_packs(customer_id: str = Depends(current_customer_id)) -> list[Pa
 
 
 @router.get("/{pack_id}", response_model=PersonaPack)
-async def get_pack(pack_id: str, customer_id: str = Depends(current_customer_id)) -> PersonaPack:
-    """Full pack contents including persona descriptions, weights, stability."""
-    raise HTTPException(
-        status_code=501,
-        detail="Phase 4.5 — read persona_pack.json from R2 at the pack's version path",
-    )
+async def get_pack(
+    pack_id: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+) -> PersonaPack:
+    """Full pack contents including persona descriptions, weights, stability.
+
+    Powers the Library's persona-pack detail page (#207). `pack_id="latest"`
+    resolves the active pack via the `latest` pointer — the same in-memory
+    starter fallback as `GET /personas` (#212): a tenant with no pack yet gets
+    the generic starter pack (`is_starter=True`) so the page renders rather than
+    404-ing. An explicit version loads that exact snapshot and 404s if it is
+    missing (a real not-found, not an empty tenant).
+    """
+    try:
+        if pack_id == LATEST:
+            return loader.load_latest(customer_id)
+        return loader.load_at_version(customer_id, pack_id)
+    except ArtifactNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No persona pack {pack_id!r} for customer {customer_id!r}.",
+        ) from exc
 
 
 @router.post("/{pack_id}/promote", response_model=PackSummary)
