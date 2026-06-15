@@ -194,6 +194,13 @@ export default function NewPersonaPackPage() {
   const [evalPack, setEvalPack] = useState<PersonaPackDetail | null>(null);
   const [evalPhase, setEvalPhase] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [evalError, setEvalError] = useState<string | null>(null);
+  // The version whose pack read is currently in flight. A rerun/reconfigure
+  // changes build.pack_version and supersedes any earlier read — when an older
+  // request resolves we drop it rather than show build A's personas under
+  // build B (the Evaluate effect only refires on evalPhase==="idle", so a late
+  // A response could otherwise stick). clearBuild() nulls this to invalidate
+  // any read in flight at reset time.
+  const evalReqRef = useRef<string | null>(null);
 
   // ── Step 5 · Promote (#28) ──────────────────────────────────────────────
   const [promoting, setPromoting] = useState(false);
@@ -219,6 +226,9 @@ export default function NewPersonaPackPage() {
     setEvalPack(null);
     setEvalPhase("idle");
     setEvalError(null);
+    // Invalidate any in-flight pack read so a late response for the cleared
+    // build can't reapply itself after the reset (see loadEvaluation guard).
+    evalReqRef.current = null;
     setPromoted(null);
     setPromoteError(null);
   }, []);
@@ -416,13 +426,16 @@ export default function NewPersonaPackPage() {
   // PRE-PROMOTE — getPersonaPackDetail resolves an explicit version regardless
   // of the latest pointer — which is the whole point: read before you promote.
   const loadEvaluation = useCallback(async (version: string) => {
+    evalReqRef.current = version;
     setEvalError(null);
     setEvalPhase("loading");
     try {
       const detail = await getPersonaPackDetail(version);
+      if (evalReqRef.current !== version) return; // superseded — ignore
       setEvalPack(detail);
       setEvalPhase("ready");
     } catch (e) {
+      if (evalReqRef.current !== version) return; // superseded — ignore
       setEvalError(apiErrorMessage(e));
       setEvalPhase("error");
     }
@@ -464,7 +477,11 @@ export default function NewPersonaPackPage() {
       case 3:
         return build?.status === "complete"; // Continue→Evaluate only when done
       case 4:
-        return true; // Evaluate: continuing IS the accept (the reading was the gate)
+        // Evaluate gates Promote: continuing IS the accept — but only of
+        // something you were actually shown. Promote stays out of reach while
+        // the pack is loading, on a read error, or if the loaded pack is a
+        // stale read for a superseded build (version must match the build).
+        return evalPhase === "ready" && !!evalPack && evalPack.version === build?.pack_version;
       case 5:
         return false; // terminal — Promote has no Next
       default:
