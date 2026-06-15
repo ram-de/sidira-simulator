@@ -17,7 +17,8 @@ from sidira_simulator.adapters.feature_stores import (
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
 from sidira_simulator.adapters.repositories import FeatureStoreConnectionRepo
 from sidira_simulator.api.deps import current_customer_id, get_feature_store_connection_repo
-from sidira_simulator.services.column_mapper import MappingSuggestion
+from sidira_simulator.services import column_mapper
+from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
 
 router = APIRouter(prefix="/feature-stores", tags=["feature-stores"])
 
@@ -220,7 +221,12 @@ async def suggest_mapping(
     payload: SuggestMappingRequest,
     customer_id: str = Depends(current_customer_id),
 ) -> MappingSuggestion:
-    raise HTTPException(
-        status_code=501,
-        detail="Phase 4.5 — call services/column_mapper.suggest_mapping with the provided columns",
-    )
+    """One deterministic LLM call suggests how the supplied columns map into the
+    7 canonical feature groups, with a per-column confidence (high/med/low) and
+    an ``unmapped`` bucket. Pure suggestion — stateless w.r.t. the connection,
+    so Snowflake is not hit; the user overrides any suggestion in the wizard.
+    Returns 502 if the upstream LLM call fails."""
+    try:
+        return column_mapper.suggest_mapping(payload.columns)
+    except ColumnMappingError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

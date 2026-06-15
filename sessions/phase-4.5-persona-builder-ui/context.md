@@ -39,9 +39,22 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] #23 — column_mapper LLM service (next)
+- [ ] #24 — persona-builds endpoint (running in subagent; shares R2/repos)
+- [ ] #25 — persona-packs endpoint (queued after #24 — shares R2/pack-loader)
 
 ## Completed
+- [x] **#23 — column_mapper LLM service + suggest-mapping endpoint** (commit on this branch).
+  - `services/column_mapper.py`: `suggest_mapping(columns, llm=None) -> MappingSuggestion`,
+    one-shot temp=0 via existing `get_chat_client()` (no hardcoded model), defensive parse —
+    every input column lands in exactly one bucket; omitted/uncertain/out-of-canon → `unmapped`.
+  - `ColumnMappingError` → HTTP 502. suggest-mapping endpoint in feature_stores.py wired (no longer 501).
+  - **FeatureGroup keys kept UNCHANGED** (long form) — `persona_builder.BuildConfig.column_mapping`
+    depends on them. ⚠️ FRONTEND (#27) MUST use these exact MappingSuggestion keys:
+    `demographic_identity, behavioral_patterns, motivations_jtbd, pain_points_friction,
+    value_sensitivity, channel_tech_behavior, loyalty_lifecycle, unmapped`. Each is a list of
+    `{column, confidence: high|med|low, rationale}`.
+  - Tests: `tests/test_column_mapper.py` (11) + 2 wiring tests in test_feature_stores_api.py.
+    24 of #23's tests pass; ruff clean. (Full-suite count deferred — #24 mid-flight in worktree.)
 - [x] **#22 — Snowflake adapter: connect/test/preview** (commit on this branch).
   - Endpoints in `api/feature_stores.py`: create (encrypt pw via credentials, persist
     sanitized row), list (customer-scoped, never leaks pw), test (204 / structured error),

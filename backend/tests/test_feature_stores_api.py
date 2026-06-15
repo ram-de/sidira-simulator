@@ -234,10 +234,58 @@ def test_feature_store_error_default_kind():
     assert FeatureStoreConnectionError("x").kind == "unknown"
 
 
-# ── suggest-mapping stays stubbed (issue #23) ──────────────────────────
+# ── suggest-mapping endpoint (issue #23) ───────────────────────────────
 
 
-def test_suggest_mapping_still_501(client):
+_SUGGEST_COLUMNS = [
+    {"name": "age", "dtype": "INT", "non_null_count": 100, "null_fraction": 0.0},
+    {"name": "order_count", "dtype": "INT", "non_null_count": 100, "null_fraction": 0.0},
+    {"name": "user_id", "dtype": "TEXT", "non_null_count": 100, "null_fraction": 0.0},
+]
+
+
+def test_suggest_mapping_returns_grouped_shape(client, monkeypatch):
+    """Endpoint calls the mapper and returns the grouped MappingSuggestion shape.
+
+    The LLM is never hit: the mapper itself is patched to return a canned
+    MappingSuggestion. (The LLM-mocking depth is covered in test_column_mapper.)
+    """
+    from sidira_simulator.api import feature_stores as fs_mod
+    from sidira_simulator.services.column_mapper import ColumnAssignment, MappingSuggestion
+
+    canned = MappingSuggestion(
+        demographic_identity=[ColumnAssignment(column="age", confidence="high")],
+        behavioral_patterns=[ColumnAssignment(column="order_count", confidence="med")],
+        unmapped=[ColumnAssignment(column="user_id", confidence="low")],
+    )
+    monkeypatch.setattr(fs_mod.column_mapper, "suggest_mapping", lambda columns: canned)
+
     cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
-    resp = client.post(f"/feature-stores/{cid}/suggest-mapping", json={"columns": []})
-    assert resp.status_code == 501
+    resp = client.post(
+        f"/feature-stores/{cid}/suggest-mapping", json={"columns": _SUGGEST_COLUMNS}
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["demographic_identity"][0] == {
+        "column": "age",
+        "confidence": "high",
+        "rationale": "",
+    }
+    assert body["behavioral_patterns"][0]["column"] == "order_count"
+    assert body["unmapped"][0]["column"] == "user_id"
+
+
+def test_suggest_mapping_llm_failure_is_502(client, monkeypatch):
+    from sidira_simulator.api import feature_stores as fs_mod
+    from sidira_simulator.services.column_mapper import ColumnMappingError
+
+    def _boom(columns):
+        raise ColumnMappingError("provider down")
+
+    monkeypatch.setattr(fs_mod.column_mapper, "suggest_mapping", _boom)
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    resp = client.post(
+        f"/feature-stores/{cid}/suggest-mapping", json={"columns": _SUGGEST_COLUMNS}
+    )
+    assert resp.status_code == 502
