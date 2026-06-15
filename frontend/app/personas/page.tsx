@@ -371,6 +371,7 @@ function PersonaPacksSection({ personas }: { personas: Fetchable<ActivePersonasR
               aren&apos;t built from your data — build a real pack, or seed the sample
               workspace below, before trusting any reading.
             </CardNote>
+            <CardLink href="/personas/latest">BROWSE PERSONAS →</CardLink>
           </Card>
         )}
         {personas.state === "ready" && !personas.data.is_starter && (
@@ -386,10 +387,7 @@ function PersonaPacksSection({ personas }: { personas: Fetchable<ActivePersonasR
                 ["Graded", "UNGRADED — CALIBRATION LEDGER EMPTY"],
               ]}
             />
-            <CardNote>
-              Persona descriptions aren&apos;t browsable from the Library yet — runs sample
-              this pack directly.
-            </CardNote>
+            <CardLink href="/personas/latest">BROWSE PERSONAS →</CardLink>
           </Card>
         )}
         <Card ghost>

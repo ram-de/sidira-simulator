@@ -55,6 +55,35 @@ export type FeaturePackSummary = {
 };
 export type PersonaSummary = components["schemas"]["PersonaSummary"];
 export type ActivePersonasResponse = components["schemas"]["ActivePersonasResponse"];
+// Full persona-pack detail shapes for the Library's pack detail page (#207).
+// `GET /personas` returns the wizard-shaped PersonaSummary (id/name/weight only);
+// the detail page needs the full bodies — description, JTBD, behavioral snapshot —
+// which only `GET /persona-packs/{id}` carries. Hand-mirrored like Capability
+// above (api-types.ts is stale); collapse to components["schemas"] when it's
+// regenerated.
+export type WeightSchemes = {
+  head_count: Record<string, number>;
+  order_weighted?: Record<string, number> | null;
+  revenue_weighted?: Record<string, number> | null;
+};
+export type Persona = {
+  id: string;
+  name: string;
+  description: string;
+  jtbd?: string | null;
+  behavioral_snapshot: Record<string, number | string>;
+  centroid_features: Record<string, number>;
+};
+export type PersonaPack = {
+  version: string;
+  customer_id: string;
+  generated_at: string;
+  schema_version: "1.0" | "1.1";
+  personas: Persona[];
+  weights: WeightSchemes;
+  stability_score: number;
+  is_starter: boolean;
+};
 export type Hypothesis = components["schemas"]["Hypothesis"];
 export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
@@ -142,6 +171,12 @@ export const getSimulationLimits = () =>
 // persona-filter checkbox list.
 export const getActivePersonas = () =>
   apiGet<ActivePersonasResponse>("/personas");
+
+// #207: full pack contents for the Library's pack detail page. `id="latest"`
+// resolves the active pack (with the #212 starter fallback for empty tenants);
+// an explicit version loads that snapshot and 404s when genuinely missing.
+export const getPersonaPack = (id: string) =>
+  apiGet<PersonaPack>(`/persona-packs/${encodeURIComponent(id)}`);
 
 // Sample-workspace seeding (sessions/sample-workspace): clone the Streamly
 // sample persona + feature packs into the caller's own tenant. Backend 409s
