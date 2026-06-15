@@ -30,6 +30,12 @@ class Transition(BaseModel):
     from_screen: str
     to_screen: str
     role_gated: list[str] | None = None
+    # Mirrors sidira-crawler#14: True when this is a boundary edge whose target
+    # screen lives in a *different* capability (the clustering split the user's
+    # observed path across a seam). ``to_screen`` still names the external
+    # target. Optional and back-compat — packs predating the crawler change omit
+    # it and default to an in-capability hop.
+    external: bool = False
 
 
 class Screen(BaseModel):
