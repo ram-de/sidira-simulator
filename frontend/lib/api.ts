@@ -414,7 +414,225 @@ export const sendPersonaGroupTurnFeedback = (
     { realistic_flag: realisticFlag },
   );
 
+// ── Phase 4.5 · Persona Builder (#21–#28) ────────────────────────────────
+// The self-serve wizard: connect a Snowflake feature store, map its columns
+// onto the 7 fixed feature groups, trigger a build, watch it, promote the
+// resulting pack. Inline types (same codegen caveat as CrawlSummary above —
+// api-types.ts predates these routes); collapse to components["schemas"] when
+// it's regenerated. Field shapes mirror the backend exactly:
+//   feature_stores.py · persona_builds.py · persona_packs.py · column_mapper.py
+
+export type FeatureStoreKind = "snowflake";
+
+// POST body. `schema` is optional (Snowflake default schema otherwise). The
+// password goes in here but never comes back out — ConnectionSummary omits it.
+export interface SnowflakeConnectionRequest {
+  name: string;
+  kind: "snowflake";
+  account: string;
+  user: string;
+  password: string;
+  warehouse: string;
+  role: string;
+  database: string;
+  schema?: string | null;
+}
+
+// Sanitized connection row — never carries the password.
+export interface ConnectionSummary {
+  id: string;
+  name: string;
+  kind: FeatureStoreKind;
+  account: string;
+  user: string;
+  warehouse: string;
+  role: string;
+  database: string;
+  schema?: string | null;
+}
+
+// Per-column profile from a preview sample (dtype/nulls/sample values).
+export interface ColumnProfile {
+  name: string;
+  dtype: string;
+  non_null_count: number;
+  null_fraction: number;
+  distinct_count?: number | null;
+  sample_values?: (string | number | boolean | null)[] | null;
+}
+
+export interface PreviewRequest {
+  table_fqn?: string | null;
+  sql?: string | null;
+  sample_size?: number;
+}
+
+export interface PreviewResponse {
+  row_count: number;
+  columns: ColumnProfile[];
+}
+
+// The 7 canonical feature groups (column_mapper.FeatureGroup) — do NOT rename;
+// these exact ids are what the build's column_mapping is keyed on.
+export type FeatureGroup =
+  | "demographic_identity"
+  | "behavioral_patterns"
+  | "motivations_jtbd"
+  | "pain_points_friction"
+  | "value_sensitivity"
+  | "channel_tech_behavior"
+  | "loyalty_lifecycle";
+
+export const FEATURE_GROUPS: FeatureGroup[] = [
+  "demographic_identity",
+  "behavioral_patterns",
+  "motivations_jtbd",
+  "pain_points_friction",
+  "value_sensitivity",
+  "channel_tech_behavior",
+  "loyalty_lifecycle",
+];
+
+export type MappingConfidence = "high" | "med" | "low";
+
+export interface ColumnAssignment {
+  column: string;
+  confidence: MappingConfidence;
+  rationale: string;
+}
+
+// Wizard-facing grouped suggestion: each canonical group + `unmapped`, every
+// input column appears in exactly one bucket.
+export type MappingSuggestion = Record<FeatureGroup, ColumnAssignment[]> & {
+  unmapped: ColumnAssignment[];
+};
+
+// Build config — the POST /persona-builds body. `column_mapping` maps each
+// column name to a group id, or null to ignore it. `k` is the persona target
+// (a number, or "auto" to let the pipeline choose).
+export type BuildK = number | "auto";
+export type LlmProvider = "groq" | "anthropic";
+export type WeightScheme = "head_count" | "order_weighted" | "revenue_weighted";
+
+export interface BuildConfig {
+  connection_id: string;
+  source_query: string;
+  column_mapping: Record<string, FeatureGroup | null>;
+  k?: BuildK;
+  stability_threshold?: number;
+  llm_provider?: LlmProvider;
+  weight_schemes?: WeightScheme[];
+}
+
+export type BuildStatus = "pending" | "running" | "complete" | "failed";
+
+export interface BuildSummary {
+  id: string;
+  customer_id: string;
+  connection_id: string;
+  status: BuildStatus;
+  pack_version: string | null;
+  stability_score: number | null;
+  persona_count: number | null;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+// One line of the build's events.jsonl (RunEvent shape, reused from the
+// simulation runner). `payload` carries event-specific fields (row_count,
+// stability_score, persona_count, pack_version, error).
+export type BuildEventType =
+  | "run.started"
+  | "packs.loaded"
+  | "score.updated"
+  | "run.complete"
+  | "run.failed";
+
+export interface BuildEvent {
+  type: BuildEventType | string;
+  at: string;
+  payload: Record<string, string | number | null>;
+}
+
+export type PackStatus = "draft" | "promoted" | "retired";
+
+export interface PackSummary {
+  id: string;
+  version: string;
+  status: PackStatus;
+  stability_score: number;
+  persona_count: number;
+  created_at: string;
+  promoted_at: string | null;
+  is_latest: boolean;
+}
+
+// ── feature-store connections ──
+export const createFeatureStore = (req: SnowflakeConnectionRequest) =>
+  apiPost<SnowflakeConnectionRequest, ConnectionSummary>("/feature-stores", req);
+
+export const listFeatureStores = () =>
+  apiGet<ConnectionSummary[]>("/feature-stores");
+
+// 204 on success; throws ApiError with a structured {error_kind, message}
+// detail body on failure (400 auth/permission, 502 network/unknown).
+export const testFeatureStore = (id: string) =>
+  apiPost<Record<string, never>, void>(
+    `/feature-stores/${encodeURIComponent(id)}/test`,
+    {},
+  );
+
+export const previewFeatureStore = (id: string, body: PreviewRequest) =>
+  apiPost<PreviewRequest, PreviewResponse>(
+    `/feature-stores/${encodeURIComponent(id)}/preview`,
+    body,
+  );
+
+export const suggestMapping = (id: string, columns: ColumnProfile[]) =>
+  apiPost<{ columns: ColumnProfile[] }, MappingSuggestion>(
+    `/feature-stores/${encodeURIComponent(id)}/suggest-mapping`,
+    { columns },
+  );
+
+// ── persona builds ──
+export const createPersonaBuild = (config: BuildConfig) =>
+  apiPost<BuildConfig, BuildSummary>("/persona-builds", config);
+
+export const getPersonaBuild = (id: string) =>
+  apiGet<BuildSummary>(`/persona-builds/${encodeURIComponent(id)}`);
+
+export const listPersonaBuilds = () =>
+  apiGet<BuildSummary[]>("/persona-builds");
+
+// The events endpoint streams NDJSON (one RunEvent per line), not a JSON array,
+// so it bypasses the JSON-parsing _req helper: fetch raw text and split lines.
+export const getPersonaBuildEvents = async (id: string): Promise<BuildEvent[]> => {
+  const res = await fetch(
+    `${API_BASE}/persona-builds/${encodeURIComponent(id)}/events`,
+  );
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const text = await res.text();
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as BuildEvent);
+};
+
+// ── persona packs (list + promote; reads live in getPersonaPack[Detail]) ──
+export const listPersonaPacks = () => apiGet<PackSummary[]>("/persona-packs");
+
+export const promotePersonaPack = (version: string) =>
+  apiPost<Record<string, never>, PackSummary>(
+    `/persona-packs/${encodeURIComponent(version)}/promote`,
+    {},
+  );
+
 // ── UX helpers ─────────────────────────────────────────────────────────
 
 export const isTerminalStatus = (s: SimulationStatus | undefined | null) =>
+  s === "complete" || s === "failed";
+
+export const isBuildTerminal = (s: BuildStatus | undefined | null) =>
   s === "complete" || s === "failed";

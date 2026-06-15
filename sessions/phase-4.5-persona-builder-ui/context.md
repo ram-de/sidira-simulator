@@ -39,8 +39,12 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] #27 frontend: wizard step 2 (column mapping UI) — next.
+- [x] Frontend worktree `phase-4.5+persona-builder-frontend` created off backend HEAD (02e50ab); stacked.
+- [x] lib/api.ts: Phase 4.5 client wrappers added (feature-stores create/list/test/preview/suggest-mapping; persona-builds create/get/list/events-NDJSON; persona-packs list/promote) + inline types incl. FEATURE_GROUPS, MappingSuggestion, BuildConfig, BuildEvent.
+- [ ] #26 step 1 connect form — issue is CLOSED but the page was only a STUB; wiring it functionally now (create connection + test, Continue gated on test OK).
+- [ ] #27 frontend: wizard step 2 (column mapping UI).
 - [ ] #28 frontend: wizard steps 3-7.
+- Build: 7-step wizard at app/personas/new (Connect→Map→Review→Trigger→Watch→Promote→Done). Design template = app/personas/crawl-setup/page.tsx (instrument posture, honest text not spinners, TOKENS). Done-step links: pack detail /personas/<version>, run-a-sim /simulations/new.
 
 ### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
   (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
