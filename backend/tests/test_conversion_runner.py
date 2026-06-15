@@ -144,6 +144,41 @@ async def test_dual_arm_conversion_elicits_per_persona_arm() -> None:
 
 
 @pytest.mark.asyncio
+async def test_paraphrase_ensemble_issues_k_calls_per_agent(monkeypatch) -> None:
+    """§3e opt-in: with SIDIRA_CONVERSION_PARAPHRASES=3 the runner fires K turn-2
+    calls per persona-arm agent (the ensemble), the mean p_conv is still computed,
+    and — since every paraphrase returns the same 0.6 allocation (no spread) — the
+    run is NOT flagged paraphrase-unstable. Exercises the K>1 path end-to-end,
+    including the K-scaled per-agent timeout (the calls complete, never dropped)."""
+    monkeypatch.setenv("SIDIRA_CONVERSION_PARAPHRASES", "3")
+    store, persona_pack, capability, feature_pack_version = _load()
+    chat = _ConversionChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_conversion_hypothesis(),
+        population_size=4,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    persona_arm_records = [
+        r for r in runner._last_run_agent_records if r.arm in ("treatment", "control")
+    ]
+    assert persona_arm_records, "expected treatment/control records"
+    # K=3 conversion calls per persona-arm agent (the ensemble), not one.
+    assert chat.conversion_calls == 3 * len(persona_arm_records)
+    # mean over 3 identical 0.6 answers = 0.6; no spread → stable.
+    assert all(r.conversion_p == pytest.approx(0.6) for r in persona_arm_records)
+    assert all(not r.conversion_paraphrase_unstable for r in persona_arm_records)
+    assert simulation.result.conversion_lift_paraphrase_unstable is False
+
+
+@pytest.mark.asyncio
 async def test_single_arm_conversion_does_not_elicit() -> None:
     """No paired control → no conversion lift to compute, so the runner skips
     the turn-2 call entirely (it only fires for treatment/control arms)."""

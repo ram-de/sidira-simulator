@@ -39,6 +39,7 @@ def _r(
     arm: str,
     conversion_p: float | None,
     conversion_unblinded: bool = False,
+    conversion_paraphrase_unstable: bool = False,
 ) -> AgentReaction:
     return AgentReaction(
         agent_id=f"{arm}-{persona_id}-{sample_index}",
@@ -49,6 +50,7 @@ def _r(
         arm=arm,
         conversion_p=conversion_p,
         conversion_unblinded=conversion_unblinded,
+        conversion_paraphrase_unstable=conversion_paraphrase_unstable,
     )
 
 
@@ -214,6 +216,85 @@ def test_honesty_no_unblinded_caveat_when_blinded() -> None:
     assert "UNBLINDED" not in relative
 
 
+# ── §3e paraphrase-instability flag ───────────────────────────────────────────
+
+
+def test_aggregate_flags_paraphrase_instability_from_treatment() -> None:
+    treatment = [
+        _r(persona_id="p0", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
+        _r(persona_id="p1", arm="treatment", conversion_p=0.5),
+    ]
+    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.paraphrase_unstable is True
+
+
+def test_aggregate_flags_paraphrase_instability_from_control() -> None:
+    """Unlike unblinding (treatment-only), a CONTROL agent's flip also taints the
+    pair's delta, so instability is collected from either arm."""
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(2)]
+    control = [
+        _r(persona_id="p0", arm="control", conversion_p=0.2, conversion_paraphrase_unstable=True),
+        _r(persona_id="p1", arm="control", conversion_p=0.2),
+    ]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.paraphrase_unstable is True
+
+
+def test_aggregate_paraphrase_stable_when_no_flips() -> None:
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(2)]
+    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.paraphrase_unstable is False
+
+
+def test_aggregate_ignores_paraphrase_flip_on_unpaired_agent() -> None:
+    """codex P2: a flagged agent with no twin never enters the delta, so it must
+    NOT taint the lift caveat."""
+    treatment = [
+        _r(persona_id="p0", arm="treatment", conversion_p=0.5),  # paired, stable
+        # p9 has no control twin → unpaired; its flip is irrelevant to the delta.
+        _r(persona_id="p9", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
+    ]
+    control = [_r(persona_id="p0", arm="control", conversion_p=0.2)]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.paired_n == 1
+    assert res.unpaired_treatment == 1
+    assert res.paraphrase_unstable is False
+
+
+def test_aggregate_ignores_paraphrase_flip_on_dropped_pair() -> None:
+    """codex P2: a flagged agent whose pair is DROPPED (the other side has no
+    usable p_conv) never enters the delta, so it must NOT taint the lift caveat."""
+    treatment = [
+        _r(persona_id="p0", arm="treatment", conversion_p=0.5),  # paired, stable
+        _r(persona_id="p1", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
+    ]
+    control = [
+        _r(persona_id="p0", arm="control", conversion_p=0.2),
+        _r(persona_id="p1", arm="control", conversion_p=None),  # drops the p1 pair
+    ]
+    res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
+    assert res.paired_n == 1
+    assert res.elicitation_failure_drops == 1
+    assert res.paraphrase_unstable is False
+
+
+def test_honesty_appends_paraphrase_caveat_when_flagged() -> None:
+    res = ConversionLiftResult(
+        lift_pp=12.0, lift_ci_pp=(3.0, 21.0), paired_n=5, paraphrase_unstable=True
+    )
+    _regime, relative = conversion_lift_honesty(res)
+    assert "paraphrase" in relative
+    assert "low-confidence" in relative
+
+
+def test_honesty_no_paraphrase_caveat_when_stable() -> None:
+    res = ConversionLiftResult(lift_pp=12.0, lift_ci_pp=(3.0, 21.0), paired_n=5)
+    _regime, relative = conversion_lift_honesty(res)
+    assert "paraphrase" not in relative
+
+
 # ── score_ab wiring ───────────────────────────────────────────────────────────
 
 
@@ -290,6 +371,45 @@ async def test_score_ab_grafts_conversion_fields_when_metric_set() -> None:
     assert result.conversion_regime == "weak_behavioral"
     assert result.conversion_lift_relative is not None
     assert "higher" in result.conversion_lift_relative
+    # §3e: no agent flagged → the run is paraphrase-stable
+    assert result.conversion_lift_paraphrase_unstable is False
+
+
+@pytest.mark.asyncio
+async def test_score_ab_grafts_paraphrase_instability_flag() -> None:
+    """§3e: a flagged contributor surfaces on the result + its caveat in the
+    PM-facing relative statement."""
+    svc = ScoringService(chat_client=_ScriptedChat())
+    treatment = [
+        AgentReaction(
+            agent_id=f"t{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="TREATMENT_REACTION",
+            sample_index=0,
+            arm="treatment",
+            conversion_p=0.6,
+            conversion_paraphrase_unstable=(i == 0),
+        )
+        for i in range(5)
+    ]
+    control = [
+        AgentReaction(
+            agent_id=f"c{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="CONTROL_REACTION",
+            sample_index=0,
+            arm="control",
+            conversion_p=0.2,
+        )
+        for i in range(5)
+    ]
+    result, _ = await svc.score_ab(
+        _conversion_hypothesis(), treatment, control, run_seed=42, config=_CI_CFG
+    )
+    assert result.conversion_lift_paraphrase_unstable is True
+    assert "paraphrase" in result.conversion_lift_relative
 
 
 @pytest.mark.asyncio

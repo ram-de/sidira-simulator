@@ -70,6 +70,7 @@ class AgentReaction:
         "reaction_distribution",
         "conversion_p",
         "conversion_unblinded",
+        "conversion_paraphrase_unstable",
     )
 
     def __init__(
@@ -84,6 +85,7 @@ class AgentReaction:
         reaction_distribution: list[tuple[str, float]] | None = None,
         conversion_p: float | None = None,
         conversion_unblinded: bool = False,
+        conversion_paraphrase_unstable: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -100,6 +102,11 @@ class AgentReaction:
         # the UNBLINDED fallback prompt (no faithful standalone view). Any such
         # contributor makes the whole run's conversion lift low-confidence.
         self.conversion_unblinded = conversion_unblinded
+        # #221 §3e: True when this agent's conversion propensity (p_conv) moved
+        # materially across the K question paraphrases (spread > threshold). Set on
+        # EITHER arm; any such contributor in a usable pair makes the run's
+        # conversion lift low-confidence (the pair's delta is wording-driven).
+        self.conversion_paraphrase_unstable = conversion_paraphrase_unstable
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -499,6 +506,7 @@ class ScoringService:
                     "conversion_regime": regime,
                     "conversion_lift_relative": relative,
                     "conversion_lift_unblinded_fallback": conv.unblinded_fallback,
+                    "conversion_lift_paraphrase_unstable": conv.paraphrase_unstable,
                 }
             )
         return composed, list(analyses)
@@ -1189,6 +1197,14 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
             "no faithful standalone view), so this direction is low-confidence and "
             "may overstate the treatment arm."
         )
+    if lift_result.paraphrase_unstable:
+        # §3e: at least one identity's conversion propensity (p_conv) moved
+        # materially when the question was merely reworded, so the delta partly
+        # reflects prompt wording rather than behavior — read with extra caution.
+        relative += (
+            " NOTE: at least one identity's conversion propensity moved materially "
+            "under paraphrase (wording-driven), so this direction is low-confidence."
+        )
     return CONVERSION_REGIME_WEAK, relative
 
 
@@ -1248,14 +1264,26 @@ def aggregate_conversion_lift(
     # otherwise perturb the bootstrap across processes).
     deltas: list[float] = []
     failure_drops = 0
+    # #221 §3e: paraphrase instability only matters for pairs that actually feed
+    # the reported delta. An agent flagged unstable on an UNPAIRED identity (no
+    # twin) or a DROPPED pair (the other side has no usable p_conv) never enters
+    # `deltas`, so it must not taint the lift caveat (codex P2). Collected from
+    # EITHER arm of a usable pair, though — a control flip corrupts that pair's
+    # delta as much as a treatment flip (unlike unblinding, which is treatment-only).
+    paraphrase_unstable = False
     for key in sorted(matched_keys):
-        t_p = treatment_by_key[key].conversion_p
-        c_p = control_by_key[key].conversion_p
+        t = treatment_by_key[key]
+        c = control_by_key[key]
+        t_p = t.conversion_p
+        c_p = c.conversion_p
         if t_p is None or c_p is None:
             failure_drops += 1
             continue
         deltas.append(t_p - c_p)
+        if t.conversion_paraphrase_unstable or c.conversion_paraphrase_unstable:
+            paraphrase_unstable = True
 
+    result.paraphrase_unstable = paraphrase_unstable
     result.elicitation_failure_drops = failure_drops
     result.paired_n = len(deltas)
 

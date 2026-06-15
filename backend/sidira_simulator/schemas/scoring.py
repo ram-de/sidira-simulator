@@ -201,6 +201,12 @@ class ConversionLiftResult(BaseModel):
     # exposed to change framing, which can inflate p_conv and does NOT cancel in
     # the delta, so the lift is low-confidence; `conversion_lift_honesty` flags it.
     unblinded_fallback: bool = False
+    # #221 §3e: True when at least one contributor (in a usable pair) had its
+    # conversion propensity (p_conv) move materially across the K question
+    # paraphrases — its answer was prompt-driven, not behavior-driven. Set from
+    # EITHER arm. The paired delta then reflects wording noise, so the lift is
+    # low-confidence; `conversion_lift_honesty` flags it.
+    paraphrase_unstable: bool = False
 
 
 # ── Refinement ────────────────────────────────────────────────────────
