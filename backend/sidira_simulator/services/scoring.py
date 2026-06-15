@@ -30,6 +30,10 @@ from sidira_simulator.schemas.scoring import (
     WeaknessClassification,
 )
 from sidira_simulator.schemas.simulation import Hypothesis, SimulationResult, Weakness
+from sidira_simulator.services.conversion_calibrator import (
+    ConversionCalibrator,
+    resolve_conversion_calibrator,
+)
 from sidira_simulator.services.statistics import bootstrap_percentile_ci, wilson_interval
 
 # Arbitrary integer XOR mask used to derive a bootstrap-specific RNG seed
@@ -507,6 +511,7 @@ class ScoringService:
                     "conversion_lift_relative": relative,
                     "conversion_lift_unblinded_fallback": conv.unblinded_fallback,
                     "conversion_lift_paraphrase_unstable": conv.paraphrase_unstable,
+                    "conversion_lift_calibrated": conv.calibrated,
                 }
             )
         return composed, list(analyses)
@@ -1183,10 +1188,24 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
     else:
         separation = "no interval available"
 
+    # #221 shrinkage seam: pre-#222 the magnitude is uncalibrated, so the caveat
+    # confines the read to rank/direction. Once a FITTED calibrator has mapped
+    # the lift onto the real-world scale (`calibrated=True`), the magnitude is
+    # reportable and the caveat softens — but an uncalibrated number is NEVER
+    # presented as a calibrated effect size.
+    if lift_result.calibrated:
+        magnitude_caveat = (
+            "Magnitude calibrated to the real-world effect-size scale by the "
+            "#222 shrinkage layer."
+        )
+    else:
+        magnitude_caveat = (
+            "Synthetic conversion is a weak behavioral signal — read as "
+            "rank/direction, not as a calibrated effect size."
+        )
     relative = (
         f"{direction} on {lift_result.paired_n} paired identities; {separation}. "
-        "Synthetic conversion is a weak behavioral signal — read as rank/direction, "
-        "not as a calibrated effect size."
+        f"{magnitude_caveat}"
     )
     if lift_result.unblinded_fallback:
         # §3b: the treatment metric pass ran unblinded (no faithful standalone
@@ -1214,6 +1233,7 @@ def aggregate_conversion_lift(
     config: ScoringConfig | None = None,
     *,
     run_seed: int | None = None,
+    calibrator: ConversionCalibrator | None = None,
 ) -> ConversionLiftResult:
     """Paired conversion-lift (agent-behavior-spec §3a / #221).
 
@@ -1237,8 +1257,14 @@ def aggregate_conversion_lift(
     `elicitation_failure_drops` and never imputed to zero. Degenerate runs (no
     usable pairs) surface honestly: `lift_pp`/`lift_ci_pp` stay None and the drop
     counters explain what was excluded.
+
+    The raw result is routed through a `ConversionCalibrator` (#221 shrinkage
+    seam) before it is returned. The wired default is the identity no-op, so the
+    magnitude is unchanged and `calibrated` stays False until #222 fits a real
+    shrinkage layer; an injected `calibrator` lets tests assert the routing.
     """
     cfg = config or ScoringConfig()
+    cal = calibrator or resolve_conversion_calibrator()
 
     treatment_by_key: dict[tuple[str, int], AgentReaction] = {
         (r.persona_id, r.sample_index): r for r in treatment_reactions
@@ -1287,36 +1313,38 @@ def aggregate_conversion_lift(
     result.elicitation_failure_drops = failure_drops
     result.paired_n = len(deltas)
 
-    if not deltas:
-        # No usable pairs — conversion lift is genuinely not computable.
-        return result
-
     def _mean_pp(sample: Sequence[float]) -> float:
         return (sum(sample) / len(sample)) * 100.0
 
-    point = _mean_pp(deltas)
-    result.lift_pp = round(point, cfg.confidence_rounding)
+    # No usable pairs → `lift_pp`/`lift_ci_pp` stay None (conversion lift is
+    # genuinely not computable); the calibrator still runs (the identity no-op
+    # is a copy, and a fitted calibrator may want to flag the empty case).
+    if deltas:
+        point = _mean_pp(deltas)
+        result.lift_pp = round(point, cfg.confidence_rounding)
 
-    if cfg.bootstrap_resamples > 0:
-        effective_seed = (
-            run_seed if run_seed is not None else secrets.randbits(53)
-        ) ^ _BOOTSTRAP_SEED_MIX
-        rng = random.Random(effective_seed)
-        ci_low, ci_high = bootstrap_percentile_ci(
-            deltas,
-            _mean_pp,
-            n_resamples=cfg.bootstrap_resamples,
-            rng=rng,
-        )
-        ci_low_r = round(ci_low, cfg.confidence_rounding)
-        ci_high_r = round(ci_high, cfg.confidence_rounding)
-        # Mirror `_paired_lift`'s edge clamp: independent rounding (and discrete
-        # percentile boundaries at small B/N) can violate
-        # ci_low <= lift_pp <= ci_high. Widen by at most one rounding step so a
-        # caller inspecting both always sees a bracketing CI.
-        result.lift_ci_pp = (
-            min(ci_low_r, result.lift_pp),
-            max(ci_high_r, result.lift_pp),
-        )
+        if cfg.bootstrap_resamples > 0:
+            effective_seed = (
+                run_seed if run_seed is not None else secrets.randbits(53)
+            ) ^ _BOOTSTRAP_SEED_MIX
+            rng = random.Random(effective_seed)
+            ci_low, ci_high = bootstrap_percentile_ci(
+                deltas,
+                _mean_pp,
+                n_resamples=cfg.bootstrap_resamples,
+                rng=rng,
+            )
+            ci_low_r = round(ci_low, cfg.confidence_rounding)
+            ci_high_r = round(ci_high, cfg.confidence_rounding)
+            # Mirror `_paired_lift`'s edge clamp: independent rounding (and discrete
+            # percentile boundaries at small B/N) can violate
+            # ci_low <= lift_pp <= ci_high. Widen by at most one rounding step so a
+            # caller inspecting both always sees a bracketing CI.
+            result.lift_ci_pp = (
+                min(ci_low_r, result.lift_pp),
+                max(ci_high_r, result.lift_pp),
+            )
 
-    return result
+    # #221 shrinkage seam: route the raw lift through the calibrator. Identity
+    # default → byte-identical magnitude, `calibrated` stays False.
+    return cal.calibrate(result)

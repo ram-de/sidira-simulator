@@ -362,6 +362,13 @@ class SimulationResult(BaseModel):
     # single-prompt path, and older rows are byte-identical; `conversion_lift_relative`
     # also carries the caveat text.
     conversion_lift_paraphrase_unstable: bool = False
+    # #221 shrinkage layer: True only when a FITTED calibrator (services.
+    # conversion_calibrator) has mapped the raw `conversion_lift_pp` onto the
+    # real-world effect-size scale. The wired default is the identity no-op, so
+    # this is False for every current run and older `result_json` rows load
+    # unchanged; while False, `conversion_lift_relative` carries the "uncalibrated
+    # — read as rank/direction, not effect size" caveat. The fit is #222-gated.
+    conversion_lift_calibrated: bool = False
 
 
 class Simulation(BaseModel):
