@@ -48,6 +48,72 @@ def wilson_interval(k: int, n: int, *, z: float = 1.96) -> tuple[float, float]:
     return ci_low, ci_high
 
 
+def _average_ranks(values: Sequence[float]) -> list[float]:
+    """Rank `values` ascending, assigning the AVERAGE rank to tied groups.
+
+    Ranks are 1-based. For a tie spanning positions i..j (0-based, inclusive),
+    every member gets the mean of the 1-based ranks (i+1)..(j+1). This is the
+    standard fractional-ranking ("rankdata") convention scipy uses, and the one
+    Spearman's ρ requires so ties don't bias the correlation.
+
+    Pure and deterministic: the sort is stable, and tied values are detected by
+    exact equality, so the output depends only on the input ordering of values.
+    """
+    n = len(values)
+    order = sorted(range(n), key=lambda i: values[i])
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        # Extend the tie group while the next sorted value is exactly equal.
+        while j + 1 < n and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        # 1-based ranks for positions i..j average to (i + j + 2) / 2.
+        avg_rank = (i + j + 2) / 2.0
+        for k in range(i, j + 1):
+            ranks[order[k]] = avg_rank
+        i = j + 1
+    return ranks
+
+
+def spearman_rho(x: Sequence[float], y: Sequence[float]) -> float:
+    """Spearman rank-correlation ρ between paired sequences `x` and `y`.
+
+    Computes Pearson correlation on the AVERAGE ranks of each sequence, which
+    is the tie-correct definition of Spearman's ρ (the simple 1 − 6Σd²/(n(n²−1))
+    shortcut is only valid with no ties). Returns a value in [-1, 1].
+
+    Degenerate cases — when either ranked sequence has zero variance (e.g. all
+    values equal, or n == 1) the correlation is undefined; we return 0.0, the
+    honest "no monotone association detectable" answer, rather than raising.
+
+    Pure, deterministic, dependency-free (no scipy/numpy).
+
+    Raises ValueError on length mismatch or empty input.
+    """
+    if len(x) != len(y):
+        raise ValueError(f"spearman_rho requires equal-length inputs, got {len(x)} and {len(y)}")
+    n = len(x)
+    if n == 0:
+        raise ValueError("spearman_rho requires non-empty input")
+    if n == 1:
+        # A single pair has no rank variation → correlation undefined.
+        return 0.0
+
+    rx = _average_ranks(x)
+    ry = _average_ranks(y)
+    mean_rx = sum(rx) / n
+    mean_ry = sum(ry) / n
+
+    cov = sum((a - mean_rx) * (b - mean_ry) for a, b in zip(rx, ry))
+    var_x = sum((a - mean_rx) ** 2 for a in rx)
+    var_y = sum((b - mean_ry) ** 2 for b in ry)
+    if var_x == 0.0 or var_y == 0.0:
+        # At least one sequence is all-ties → no monotone signal to measure.
+        return 0.0
+    return cov / math.sqrt(var_x * var_y)
+
+
 def bootstrap_percentile_ci(
     data: Sequence[T],
     statistic: Callable[[Sequence[T]], float],
