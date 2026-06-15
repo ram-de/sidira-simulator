@@ -41,10 +41,21 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 ## In Progress
 - [x] Frontend worktree `phase-4.5+persona-builder-frontend` created off backend HEAD (02e50ab); stacked.
 - [x] lib/api.ts: Phase 4.5 client wrappers added (feature-stores create/list/test/preview/suggest-mapping; persona-builds create/get/list/events-NDJSON; persona-packs list/promote) + inline types incl. FEATURE_GROUPS, MappingSuggestion, BuildConfig, BuildEvent.
-- [ ] #26 step 1 connect form — issue is CLOSED but the page was only a STUB; wiring it functionally now (create connection + test, Continue gated on test OK).
-- [ ] #27 frontend: wizard step 2 (column mapping UI).
-- [ ] #28 frontend: wizard steps 3-7.
-- Build: 7-step wizard at app/personas/new (Connect→Map→Review→Trigger→Watch→Promote→Done). Design template = app/personas/crawl-setup/page.tsx (instrument posture, honest text not spinners, TOKENS). Done-step links: pack detail /personas/<version>, run-a-sim /simulations/new.
+- [x] #26 step 1 connect form — wired functionally (issue was CLOSED but page was only a STUB). Create connection + test, Continue gated on test OK for current values (cred fingerprint).
+- [x] #27 frontend: wizard step 2 (column mapping UI) — preview→suggest-mapping, grouped + confidence chips, per-column select+Ignore, Unmapped section, Continue gated until all resolved.
+- [x] #28 frontend: wizard steps 3-7 — review/trigger/watch(poll+readable events)/promote/done.
+- Build: 7-step wizard at app/personas/new (page.tsx + wizard-ui.tsx). Design template = crawl-setup (instrument posture, honest text, TOKENS). Done-step links: /personas/<version>, /simulations/new.
+
+### ✅ FRONTEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/254
+  Commits: a9b0466 api client · 94c37f9 wizard · b7f07b3 codex P2 fix. Base = backend branch
+  (stacked; auto-retargets to main when #253 merges). tsc clean; next build clean (/personas/new 10.8kB).
+  codex review: no P1; one P2 (stale promotion state on new-build-after-promote) → FIXED b7f07b3.
+
+## ⏭️ REMAINING (needs user / merge decisions)
+1. Review + merge **#253 (backend)** FIRST, then **#254 (frontend)** auto-retargets to main.
+2. After #253 merges → **BACKEND REDEPLOY** (api.sidira.ai is manual-deploy). Migrations **011+012**
+   (alembic) + set **SIDIRA_KMS_KEY_ID** if running cred mode=kms. Run deploy/REDEPLOY.md via codex.
+   #254 is frontend-only → Amplify auto-rebuilds on merge to main, no manual deploy.
 
 ### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
   (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
