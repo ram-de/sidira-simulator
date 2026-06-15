@@ -1,0 +1,261 @@
+{
+  "schema_version": "1.1",
+  "company_id": "doordash",
+  "run_id": "dd-20260615T045341",
+  "created_at": "2026-06-15T04:53:42.749299",
+  "n_users": 2555,
+  "feature_groups": [
+    "demographic_identity",
+    "behavioral_patterns",
+    "motivations_jtbd",
+    "pain_points_friction",
+    "value_sensitivity",
+    "channel_tech_behavior",
+    "loyalty_lifecycle"
+  ],
+  "personas": [
+    {
+      "id": "P01",
+      "name": "Persona01",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: demographic_identity.dashpass_status_non_subscriber (+1.15\u03c3); demographic_identity.consumer_experience_experienced (-1.15\u03c3); demographic_identity.dashpass_status_subscribed (-1.15\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 1102,
+      "weights": {
+        "by_headcount": 0.43131115459882585,
+        "by_orders": 0.12975340204294541,
+        "by_revenue": null
+      },
+      "stability": 0.7981887499996965,
+      "top_features": [
+        {
+          "feature": "dashpass_status_subscribed",
+          "group": "demographic_identity",
+          "centroid_value": 0.0,
+          "population_mean": 0.5686888454011741,
+          "population_std": 0.49535631703550015,
+          "z_delta": -1.148039957993346
+        },
+        {
+          "feature": "health_of_subscription_jtbd",
+          "group": "motivations_jtbd",
+          "centroid_value": -0.9879203094123736,
+          "population_mean": 3.4901414222267153e-16,
+          "population_std": 1.0000000000000002,
+          "z_delta": -0.9879203094123737
+        },
+        {
+          "feature": "high_fee_order_rate",
+          "group": "pain_points_friction",
+          "centroid_value": 0.4688527614455691,
+          "population_mean": 0.300770334049644,
+          "population_std": 0.18174462460244875,
+          "z_delta": 0.924827503226527
+        },
+        {
+          "feature": "mark_as_spam_within_24h",
+          "group": "pain_points_friction",
+          "centroid_value": 0.14353982926996275,
+          "population_mean": 0.08232324082489081,
+          "population_std": 0.06907054384835419,
+          "z_delta": 0.8862908127591151
+        },
+        {
+          "feature": "device_unsubscribe_within_24h",
+          "group": "channel_tech_behavior",
+          "centroid_value": 0.10651668996396678,
+          "population_mean": 0.06336630094786845,
+          "population_std": 0.0472397034019128,
+          "z_delta": 0.9134347997271953
+        },
+        {
+          "feature": "open_within_24h",
+          "group": "channel_tech_behavior",
+          "centroid_value": 0.24958474327642569,
+          "population_mean": 0.40960370786060113,
+          "population_std": 0.1759294096411774,
+          "z_delta": -0.9095634715682124
+        }
+      ],
+      "centroid": {
+        "dashpass_status_subscribed": 0.0,
+        "health_of_subscription_jtbd": -0.9879203094123736,
+        "high_fee_order_rate": 0.4688527614455691,
+        "mark_as_spam_within_24h": 0.14353982926996275,
+        "device_unsubscribe_within_24h": 0.10651668996396678,
+        "open_within_24h": 0.24958474327642569,
+        "visit_within_24h": 0.2026579873829258
+      },
+      "centroid_full": {
+        "dashpass_status_subscribed": 0.0,
+        "day_of_week_order_profile__mon": 0.20925589836660619,
+        "device_unsubscribe_within_24h": 0.10651668996396678,
+        "health_of_subscription_jtbd": -0.9879203094123736,
+        "high_fee_order_rate": 0.4688527614455691,
+        "mark_as_spam_within_24h": 0.14353982926996275,
+        "notification_unsubscribe_rate": 0.26365348968082725,
+        "open_within_24h": 0.24958474327642569,
+        "time_of_day_order_profile__dinner_17_21": 0.3399274047186933,
+        "time_of_day_order_profile__late_night_21_4": 0.2825317604355717,
+        "total_orders_lifetime": -0.8143530623640838,
+        "visit_within_24h": 0.2026579873829258
+      },
+      "feature_scale": {
+        "dashpass_status_subscribed": 1e-09,
+        "day_of_week_order_profile__mon": 0.13660914955772993,
+        "device_unsubscribe_within_24h": 0.03660497883645611,
+        "health_of_subscription_jtbd": 0.5234890002216173,
+        "high_fee_order_rate": 0.1098961678840379,
+        "mark_as_spam_within_24h": 0.05812773666337858,
+        "notification_unsubscribe_rate": 0.11152150088861403,
+        "open_within_24h": 0.10177155372765988,
+        "time_of_day_order_profile__dinner_17_21": 0.1437701905409562,
+        "time_of_day_order_profile__late_night_21_4": 0.18490257499535684,
+        "total_orders_lifetime": 0.9804078652218463,
+        "visit_within_24h": 0.09576589245403194
+      },
+      "sample_rows": [
+        {
+          "dashpass_status_subscribed": 0.00023985286647272374,
+          "day_of_week_order_profile__mon": 0.0,
+          "device_unsubscribe_within_24h": 0.04591035906066142,
+          "health_of_subscription_jtbd": -0.09249654991643563,
+          "high_fee_order_rate": 0.2978710756093395,
+          "mark_as_spam_within_24h": 0.04283282070233302,
+          "notification_unsubscribe_rate": 0.08630254114355587,
+          "open_within_24h": 0.5514685786027803,
+          "time_of_day_order_profile__dinner_17_21": 0.5931236002246765,
+          "time_of_day_order_profile__late_night_21_4": 0.0,
+          "total_orders_lifetime": 0.8280146040464871,
+          "visit_within_24h": 0.35444635373518973
+        },
+        {
+          "dashpass_status_subscribed": 0.000168524815607068,
+          "day_of_week_order_profile__mon": 0.37388783310763096,
+          "device_unsubscribe_within_24h": 0.1568966278600311,
+          "health_of_subscription_jtbd": -1.164291818686955,
+          "high_fee_order_rate": 0.6172960144741967,
+          "mark_as_spam_within_24h": 0.19898678843130257,
+          "notification_unsubscribe_rate": 0.25294494275581325,
+          "open_within_24h": 0.1612382311924494,
+          "time_of_day_order_profile__dinner_17_21": 0.10032003945905851,
+          "time_of_day_order_profile__late_night_21_4": 0.6779960931101825,
+          "total_orders_lifetime": -0.8904729604291857,
+          "visit_within_24h": 0.20643162893799002
+        },
+        {
+          "dashpass_status_subscribed": 0.0,
+          "day_of_week_order_profile__mon": 0.4948189953531977,
+          "device_unsubscribe_within_24h": 0.14765178792452718,
+          "health_of_subscription_jtbd": -1.546775595584013,
+          "high_fee_order_rate": 0.5878441535125845,
+          "mark_as_spam_within_24h": 0.22258720807758936,
+          "notification_unsubscribe_rate": 0.3604186434938787,
+          "open_within_24h": 0.24113694690726642,
+          "time_of_day_order_profile__dinner_17_21": 0.32926159972358615,
+          "time_of_day_order_profile__late_night_21_4": 0.42311004363535665,
+          "total_orders_lifetime": -1.0748807108693892,
+          "visit_within_24h": 0.044485101371037034
+        }
+      ],
+      "posterior_mean": {
+        "P01": 1.0,
+        "P02": 0.0,
+        "P03": 4.767523969175944e-138
+      }
+    },
+    {
+      "id": "FIXED_DORMANT",
+      "name": "Fixed \u2014 Dormant",
+      "description": "Pre-defined segment from prefilter column cx_lifestage_detailed_status = Dormant. NOT discovered via clustering.",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 244,
+      "weights": {
+        "by_headcount": 0.08133333333333333,
+        "by_orders": 0.0842055078262158,
+        "by_revenue": null
+      },
+      "stability": 1.0,
+      "top_features": [],
+      "centroid": {},
+      "centroid_full": {
+        "dashpass_status_subscribed": 0.6229508196721312,
+        "day_of_week_order_profile__mon": 0.15348360655737706,
+        "device_unsubscribe_within_24h": 0.056106395546084736,
+        "health_of_subscription_jtbd": 0.014113167344297878,
+        "high_fee_order_rate": 0.28209651278662345,
+        "mark_as_spam_within_24h": 0.07426939212217305,
+        "notification_unsubscribe_rate": 0.14206705305469358,
+        "open_within_24h": 0.42135210911528387,
+        "time_of_day_order_profile__dinner_17_21": 0.3256147540983606,
+        "time_of_day_order_profile__late_night_21_4": 0.13934426229508198,
+        "total_orders_lifetime": -0.011792781464171202,
+        "visit_within_24h": 0.35283644257047625
+      },
+      "feature_scale": {
+        "dashpass_status_subscribed": 0.4846473934129339,
+        "day_of_week_order_profile__mon": 0.11170326129399291,
+        "device_unsubscribe_within_24h": 0.04303182272891126,
+        "health_of_subscription_jtbd": 0.9578825640596221,
+        "high_fee_order_rate": 0.1681225923842089,
+        "mark_as_spam_within_24h": 0.06179976823124624,
+        "notification_unsubscribe_rate": 0.12268848779255545,
+        "open_within_24h": 0.16537729017791472,
+        "time_of_day_order_profile__dinner_17_21": 0.12326513784743069,
+        "time_of_day_order_profile__late_night_21_4": 0.149963043015129,
+        "total_orders_lifetime": 0.9945907332847997,
+        "visit_within_24h": 0.15416482228234943
+      },
+      "sample_rows": [
+        {
+          "dashpass_status_subscribed": 0.4259357177668967,
+          "day_of_week_order_profile__mon": 0.26490900296519204,
+          "device_unsubscribe_within_24h": 0.09793688636671202,
+          "health_of_subscription_jtbd": -0.7815027801989632,
+          "high_fee_order_rate": 0.402968922537895,
+          "mark_as_spam_within_24h": 0.12128644016715903,
+          "notification_unsubscribe_rate": 0.30818493130955155,
+          "open_within_24h": 0.26398869916294176,
+          "time_of_day_order_profile__dinner_17_21": 0.5206780566119373,
+          "time_of_day_order_profile__late_night_21_4": 0.13895447478465717,
+          "total_orders_lifetime": -0.4658584300611541,
+          "visit_within_24h": 0.1886069082276727
+        },
+        {
+          "dashpass_status_subscribed": 0.2560417981049038,
+          "day_of_week_order_profile__mon": 0.2726749742247262,
+          "device_unsubscribe_within_24h": 0.063377867695726,
+          "health_of_subscription_jtbd": -0.34975116156986674,
+          "high_fee_order_rate": 0.31386356544712934,
+          "mark_as_spam_within_24h": 0.10195427458740514,
+          "notification_unsubscribe_rate": 0.23419024681600875,
+          "open_within_24h": 0.4078905704977612,
+          "time_of_day_order_profile__dinner_17_21": 0.590990473074533,
+          "time_of_day_order_profile__late_night_21_4": 0.18710815621490345,
+          "total_orders_lifetime": -1.280016829256288,
+          "visit_within_24h": 0.365360501305183
+        },
+        {
+          "dashpass_status_subscribed": 0.8785346027971553,
+          "day_of_week_order_profile__mon": 0.08595295589724923,
+          "device_unsubscribe_within_24h": 0.020277850628218193,
+          "health_of_subscription_jtbd": 0.4843409336442547,
+          "high_fee_order_rate": 0.07109088348529238,
+          "mark_as_spam_within_24h": 0.06345238963987494,
+          "notification_unsubscribe_rate": 0.1319645763831625,
+          "open_within_24h": 0.5879322704769872,
+          "time_of_day_order_profile__dinner_17_21": 0.39604614142293426,
+          "time_of_day_order_profile__late_night_21_4": 0.0026902324882698836,
+          "total_orders_lifetime": 1.1377166164871193,
+          "visit_within_24h": 0.5352393083896496
+        }
+      ],
+      "posterior_mean": null
+    }
+  ],
+  "cluster_method": "gmm",
+  "k_selected": 3,
+  "encoder_method": "pca",
+  "embedding_dim_per_group": 8,
+  "overall_stability": 0.7981887499996965,
+  "notes": {}
+}

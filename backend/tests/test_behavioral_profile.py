@@ -379,8 +379,7 @@ def test_individual_row_skips_non_finite_values() -> None:
 
 
 def test_individual_row_skips_non_positive_scale() -> None:
-    # A zero or negative feature_scale would divide-by-zero / flip the sign; the
-    # producer floors std to epsilon, so this only trips on a malformed pack.
+    # A zero or negative feature_scale would divide-by-zero / flip the sign — skip.
     p = _persona_v11(
         centroid_full={"good_feat": 0.0, "zero_scale": 0.0},
         feature_scale={"good_feat": 1.0, "zero_scale": 0.0},
@@ -388,6 +387,53 @@ def test_individual_row_skips_non_positive_scale() -> None:
     )
     profile = render_individual_row(p, sample_index=0)
     assert {d.feature for d in profile.deltas} == {"good_feat"}
+
+
+def test_individual_row_skips_degenerate_floored_scale() -> None:
+    # On a REAL v1.1 pack the producer floors a constant-in-cluster feature's
+    # within-cluster std to ~1e-9. A sampled row's micro-deviation / 1e-9 would
+    # explode into an astronomical z and rank as the agent's "most distinctive"
+    # trait. Such degenerate-scale features carry no individual signal and must
+    # be skipped, leaving only the genuinely-varying feature.
+    p = _persona_v11(
+        centroid_full={"real_feat": 10.0, "constant_feat": 0.0},
+        feature_scale={"real_feat": 2.0, "constant_feat": 1e-9},
+        sample_rows=[{"real_feat": 16.0, "constant_feat": 0.00024}],
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert {d.feature for d in profile.deltas} == {"real_feat"}
+    # the degenerate feature never reaches the rendered block.
+    assert all(abs(d.z) < 1e3 for d in profile.deltas)
+
+
+def test_individual_row_block_caps_distinctive_features() -> None:
+    # On a real 100+-feature pack a single sampled row clears the salience
+    # threshold on dozens of features. The block renders only the most divergent
+    # handful and truthfully tail-counts the rest (never silent truncation).
+    n = 12
+    p = _persona_v11(
+        centroid_full={f"f{i:02d}": 0.0 for i in range(n)},
+        feature_scale={f"f{i:02d}": 1.0 for i in range(n)},
+        sample_rows=[{f"f{i:02d}": 2.0 for i in range(n)}],  # z=2.0 on every feature
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert len(profile.deltas) == n  # the model keeps the full set...
+    block = profile.render()
+    assert block is not None
+    bullet_lines = [ln for ln in block.splitlines() if ln.startswith("- ")]
+    assert len(bullet_lines) == 8  # ...but the block shows only the top 8
+    assert "plus 4 further" in block
+
+
+def test_individual_row_block_no_tail_when_within_cap() -> None:
+    # With <= cap distinctive features, no "further differences" tail appears.
+    p = _persona_v11(
+        centroid_full={"a": 0.0, "b": 0.0},
+        feature_scale={"a": 1.0, "b": 1.0},
+        sample_rows=[{"a": 2.0, "b": 2.0}],
+    )
+    block = render_individual_row(p, sample_index=0).render()
+    assert block is not None and "further" not in block
 
 
 def test_individual_row_skips_features_missing_from_row_or_scale() -> None:

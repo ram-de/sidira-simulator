@@ -82,6 +82,26 @@ SourceTier = Literal[
 # Default salience threshold (§2 / open Q1): start at 0.5, treat as tunable.
 DEFAULT_SALIENCE_THRESHOLD = 0.5
 
+# Within-cluster scale at or below this is treated as "no individual-variation
+# signal" and the feature is skipped (see render_individual_row). The producer
+# (sidira-personas) floors a zero within-cluster std to ~1e-9 for features that
+# are CONSTANT across a cluster's members (e.g. a one-hot every member shares).
+# A sampled row's tiny deviation from that constant divided by ~1e-9 explodes
+# into a meaningless astronomical z that would otherwise rank as the agent's
+# "most distinctive" trait. This floor sits three orders of magnitude above the
+# producer's 1e-9 zero-floor and well below any genuine within-cluster std, so
+# it drops only the degenerate (constant-in-cluster) features.
+_DEGENERATE_SCALE = 1e-6
+
+# Max distinctive features the individual-row block lists. The centroid tier
+# draws from the producer's already-small top_features subset, but this tier
+# draws from centroid_full (ALL adapted features — 100+ on a real pack), and a
+# single sampled row naturally clears the salience threshold on dozens of them.
+# Listing 60+ "distinctive" traits is noise, not signal, so we render the most
+# divergent handful (deltas are pre-sorted by |z|) and truthfully tail-count the
+# rest — "distinctive" means the standouts, not an inventory.
+_MAX_INDIVIDUAL_ROW_DELTAS = 8
+
 # |z| bucket edges → magnitude word. Ordered low→high; the first edge a feature
 # clears from the top sets its word.
 _MAGNITUDE_EDGES: tuple[tuple[float, Magnitude], ...] = (
@@ -194,7 +214,15 @@ class BehavioralProfile(BaseModel):
             ),
             "",
         ]
-        lines += [f"- {d.line()}" for d in self.deltas]
+        shown = self.deltas[:_MAX_INDIVIDUAL_ROW_DELTAS]
+        lines += [f"- {d.line()}" for d in shown]
+        remaining = len(self.deltas) - len(shown)
+        if remaining:
+            lines += [
+                "",
+                f"(…plus {remaining} further, smaller differences — these are just "
+                "the most pronounced.)",
+            ]
         lines += [
             "",
             "(This is the behavioral texture of one individual like you, not an "
@@ -335,8 +363,10 @@ def render_individual_row(
     (`sample_rows` / `centroid_full` / `feature_scale` empty — i.e. a v1.0 pack)
     or no feature has usable finite values, returns an ungrounded profile whose
     `render()` is None, so the composer cleanly falls back to the centroid tier.
-    Non-finite or non-positive-scale features are skipped, never rendered (the
-    FM-3 rule shared with `render_behavioral_profile` and identity_seed).
+    Non-finite, non-positive-scale, and degenerate-scale features (the producer's
+    zero-floor on a constant-in-cluster feature — see `_DEGENERATE_SCALE`) are
+    skipped, never rendered (the FM-3 rule shared with `render_behavioral_profile`
+    and identity_seed).
 
     `source_tier` is `individual_row_synthetic`: `sample_rows` are GMM-sampled,
     privacy-clean draws, never real user rows. The `individual_row_real` tier
@@ -371,10 +401,13 @@ def render_individual_row(
         c_val = float(centroid_raw)
         if not (math.isfinite(s) and math.isfinite(row_val) and math.isfinite(c_val)):
             continue
-        if s <= 0.0:
-            # Non-positive scale would divide-by-zero or flip the sign; the
-            # producer floors std to a tiny epsilon, so this only trips on a
-            # malformed pack. Skip rather than emit a bogus delta.
+        if s <= _DEGENERATE_SCALE:
+            # Non-positive scale divides-by-zero or flips the sign; a tiny
+            # positive scale is the producer's zero-floor for a feature that is
+            # CONSTANT within the cluster (no within-cluster variation), where a
+            # sampled row's micro-deviation divided by ~1e-9 explodes into a
+            # meaningless astronomical z. Either way there is no individual
+            # signal here — skip rather than emit a bogus delta.
             continue
         z = (row_val - c_val) / s
         if not math.isfinite(z):
