@@ -323,6 +323,12 @@ export default function NewPersonaPackPage() {
       const summary = await createPersonaBuild(config);
       setBuild(summary);
       setEvents([]);
+      // A new build supersedes any prior promotion — otherwise the stale
+      // `promoted` would disable the new Promote button (while Continue stays
+      // enabled) and the Done page would report the OLD pack version. Reset it
+      // so this build promotes its own pack. (codex P2)
+      setPromoted(null);
+      setPromoteError(null);
       setStep(5); // auto-advance to Watch
     } catch (e) {
       setTriggerError(apiErrorMessage(e));
