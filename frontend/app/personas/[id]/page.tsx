@@ -339,8 +339,8 @@ function ComparisonBlock({ block }: { block: ProfileBlockView }) {
       )}
       {block.suppressed_count > 0 && (
         <p style={{ margin: "6px 0 0", fontSize: 13, color: TOKENS.inkMuted }}>
-          {block.suppressed_count} further trait{block.suppressed_count === 1 ? "" : "s"} sit within
-          the typical range.
+          {block.suppressed_count} further trait{block.suppressed_count === 1 ? "" : "s"} sit
+          {block.suppressed_count === 1 ? "s" : ""} within the typical range.
         </p>
       )}
       <p style={{ margin: "10px 0 0", fontSize: 13, lineHeight: 1.5, color: TOKENS.inkMuted }}>
