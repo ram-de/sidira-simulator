@@ -24,6 +24,7 @@ from sidira_simulator.adapters.db_models import (
     CrawlConfig,
     CrawlRun,
     Customer,
+    FeatureStoreConnection,
     Simulation,
 )
 
@@ -602,8 +603,96 @@ class InMemoryCrawlRunRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# FeatureStoreConnection (#22)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class FeatureStoreConnectionRepo(Protocol):
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None: ...
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]: ...
+
+
+class PostgresFeatureStoreConnectionRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        row = FeatureStoreConnection(**connection)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _feature_store_connection_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        # Scope by customer: never hand back another tenant's row even on a
+        # correct id guess.
+        result = (
+            _feature_store_connection_to_dict(row)
+            if row is not None and row.customer_id == customer_id
+            else None
+        )
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        stmt = (
+            select(FeatureStoreConnection)
+            .where(FeatureStoreConnection.customer_id == customer_id)
+            .order_by(FeatureStoreConnection.updated_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_feature_store_connection_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryFeatureStoreConnectionRepo:
+    def __init__(self) -> None:
+        self._connections: dict[str, dict[str, Any]] = {}
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        row = {**connection, "updated_at": datetime.now(timezone.utc)}
+        self._connections[row["id"]] = row
+        return dict(row)
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        return dict(row)
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        rows = [r for r in self._connections.values() if r["customer_id"] == customer_id]
+        rows.sort(key=lambda r: r["updated_at"], reverse=True)
+        return [dict(r) for r in rows]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _feature_store_connection_to_dict(row: FeatureStoreConnection) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "name": row.name,
+        "kind": row.kind,
+        "account": row.account,
+        "user": row.user,
+        "warehouse": row.warehouse,
+        "role": row.role,
+        "database": row.database,
+        "schema": row.schema,
+        "password_enc": row.password_enc,
+        "updated_at": row.updated_at,
+    }
 
 
 def _crawl_run_to_dict(row: CrawlRun) -> dict[str, Any]:
@@ -696,6 +785,18 @@ def get_in_memory_crawl_run_repo() -> InMemoryCrawlRunRepo:
     if _in_memory_crawl_runs is None:
         _in_memory_crawl_runs = InMemoryCrawlRunRepo()
     return _in_memory_crawl_runs
+
+
+_in_memory_feature_store_connections: InMemoryFeatureStoreConnectionRepo | None = None
+
+
+def get_in_memory_feature_store_connection_repo() -> InMemoryFeatureStoreConnectionRepo:
+    """Process-wide in-memory feature-store-connection repo (#22), same pattern
+    as crawl configs/runs. Reset in tests via ``._connections.clear()``."""
+    global _in_memory_feature_store_connections
+    if _in_memory_feature_store_connections is None:
+        _in_memory_feature_store_connections = InMemoryFeatureStoreConnectionRepo()
+    return _in_memory_feature_store_connections
 
 
 def get_in_memory_repos() -> tuple[

@@ -39,9 +39,23 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] #22 — Snowflake adapter (next)
+- [ ] #23 — column_mapper LLM service (next)
 
 ## Completed
+- [x] **#22 — Snowflake adapter: connect/test/preview** (commit on this branch).
+  - Endpoints in `api/feature_stores.py`: create (encrypt pw via credentials, persist
+    sanitized row), list (customer-scoped, never leaks pw), test (204 / structured error),
+    preview (table or SQL, row_count + per-column profile). suggest-mapping LEFT 501 (#23).
+  - `SnowflakeStore` list_schemas/list_tables/preview/run_query done; `_classify_error`
+    maps snowflake errno/SQLSTATE/message → auth/permission/network/unknown;
+    `FeatureStoreConnectionError.kind`. run_query rejects non-read SQL.
+  - New `FeatureStoreConnection` db model + `FeatureStoreConnectionRepo` (Protocol/Postgres/
+    InMemory) + deps wiring + **migration 011** (down_revision 010).
+  - Error→HTTP: auth/permission→400, network/unknown→502 (body `{error_kind,message}`);
+    undecryptable blob→503; unknown id→404; missing table+sql→422. ID scheme `fs-<uuid12>`.
+  - Tests: `tests/test_feature_stores_api.py` (14, snowflake faked). ruff clean.
+    Full suite **775 passed** (+pre-existing deploy_config failure only).
+  - ⚠️ Added migration 011 → backend redeploy reminder applies at merge (SIDIRA_AUTO_MIGRATE).
 - [x] **#21 — envelope encryption for feature-store credentials** (commit on this branch).
   - Implemented KMS envelope path in `adapters/credentials.py`: per-blob DEK via
     `KMS:GenerateDataKey`, AESGCM-encrypt blob with DEK, persist only KMS-wrapped DEK;

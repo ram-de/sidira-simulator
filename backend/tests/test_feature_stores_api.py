@@ -1,0 +1,243 @@
+"""API tests for the feature-store connection wizard (#22).
+
+Covers connection CRUD (create/list — password never leaks), the connectivity
+test (success + auth/permission/network classification), and table preview
+(row count + per-column profile). Snowflake is never hit: ``_connect`` is
+monkeypatched to return a fake connection/cursor with canned rows, and the
+error-kind tests raise fake snowflake exceptions from the fake connect.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+_FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
+os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
+# Encrypting the connection password at rest needs the local-key fallback set
+# before the app imports. Test-only fixed base64 32-byte AESGCM key.
+os.environ.setdefault(
+    "SIDIRA_LOCAL_CRED_KEY", "c2lkaXJhLXRlc3QtY3JlZC1rZXktMzJieXRlcyEhISE="
+)
+
+from sidira_simulator.adapters.feature_stores import (  # noqa: E402
+    FeatureStoreConnectionError,
+)
+from sidira_simulator.adapters.feature_stores import snowflake as sf_mod  # noqa: E402
+from sidira_simulator.adapters.repositories import (  # noqa: E402
+    get_in_memory_feature_store_connection_repo,
+    get_in_memory_repos,
+)
+from sidira_simulator.main import app  # noqa: E402
+
+
+@pytest.fixture
+def client():
+    customer_repo, _, _, _ = get_in_memory_repos()
+    customer_repo._customers.clear()
+    get_in_memory_feature_store_connection_repo()._connections.clear()
+    with TestClient(app) as c:
+        yield c
+
+
+_CREATE_PAYLOAD = {
+    "name": "Prod warehouse",
+    "kind": "snowflake",
+    "account": "acme-xy12345",
+    "user": "SVC_SIDIRA",
+    "password": "super-secret-pw",
+    "warehouse": "ANALYTICS_WH",
+    "role": "SIDIRA_RO",
+    "database": "PROD",
+    "schema": "PUBLIC",
+}
+
+
+# ── Fakes ──────────────────────────────────────────────────────────────
+
+
+class _FakeCursor:
+    def __init__(self, script):
+        self._script = script  # list of (description, rows) keyed by call order
+        self._i = 0
+        self.description = None
+        self._rows: list = []
+
+    def execute(self, sql):
+        desc, rows = self._script[self._i]
+        self._i += 1
+        self.description = desc
+        self._rows = rows
+
+    def fetchone(self):
+        return self._rows[0]
+
+    def fetchall(self):
+        return self._rows
+
+    def close(self):
+        pass
+
+
+class _FakeConn:
+    def __init__(self, script):
+        self._script = script
+
+    def cursor(self):
+        return _FakeCursor(self._script)
+
+    def close(self):
+        pass
+
+
+def _patch_connect(monkeypatch, script):
+    monkeypatch.setattr(sf_mod.SnowflakeStore, "_connect", lambda self: _FakeConn(list(script)))
+
+
+def _patch_connect_raises(monkeypatch, exc):
+    def _boom(self):
+        raise sf_mod._wrap(exc, "Snowflake connect failed")
+
+    monkeypatch.setattr(sf_mod.SnowflakeStore, "_connect", _boom)
+
+
+# ── create / list ──────────────────────────────────────────────────────
+
+
+def test_create_returns_sanitized_summary_without_password(client):
+    resp = client.post("/feature-stores", json=_CREATE_PAYLOAD)
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["id"].startswith("fs-")
+    assert body["account"] == "acme-xy12345"
+    assert body["schema"] == "PUBLIC"
+    # The password must never appear anywhere in the response.
+    assert "password" not in body
+    assert "super-secret-pw" not in resp.text
+
+
+def test_password_never_stored_in_cleartext(client):
+    resp = client.post("/feature-stores", json=_CREATE_PAYLOAD)
+    cid = resp.json()["id"]
+    row = get_in_memory_feature_store_connection_repo()._connections[cid]
+    assert "password" not in row  # only the encrypted blob is persisted
+    assert "super-secret-pw" not in str(row["password_enc"])
+
+
+def test_list_scoped_and_password_free(client):
+    client.post("/feature-stores", json=_CREATE_PAYLOAD)
+    client.post("/feature-stores", json={**_CREATE_PAYLOAD, "name": "Second"})
+    resp = client.get("/feature-stores")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 2
+    assert "super-secret-pw" not in resp.text
+    for item in body:
+        assert "password" not in item
+
+
+# ── test connection ──────────────────────────────────────────────────────
+
+
+def test_connection_success_is_204(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    _patch_connect(monkeypatch, [([("1",)], [(1,)])])  # SELECT 1 -> one row
+    resp = client.post(f"/feature-stores/{cid}/test")
+    assert resp.status_code == 204
+
+
+def test_connection_unknown_id_is_404(client):
+    resp = client.post("/feature-stores/fs-nope/test")
+    assert resp.status_code == 404
+
+
+def test_connection_auth_error_is_400(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("Incorrect username or password was specified.")
+    _patch_connect_raises(monkeypatch, exc)
+    resp = client.post(f"/feature-stores/{cid}/test")
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error_kind"] == "auth"
+
+
+def test_connection_permission_error_is_400(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("Insufficient privileges to operate on warehouse")
+    _patch_connect_raises(monkeypatch, exc)
+    resp = client.post(f"/feature-stores/{cid}/test")
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error_kind"] == "permission"
+
+
+def test_connection_network_error_is_502(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("Could not connect to Snowflake backend: getaddrinfo failed")
+    _patch_connect_raises(monkeypatch, exc)
+    resp = client.post(f"/feature-stores/{cid}/test")
+    assert resp.status_code == 502
+    assert resp.json()["detail"]["error_kind"] == "network"
+
+
+# ── preview ──────────────────────────────────────────────────────────────
+
+
+def test_preview_returns_row_count_and_column_profile(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    # First execute = COUNT(*), second = SELECT * sample.
+    count_desc = [("COUNT",)]
+    count_rows = [(1000,)]
+    sample_desc = [("user_id",), ("plan",)]
+    sample_rows = [(1, "pro"), (2, "free"), (3, None), (4, "pro")]
+    _patch_connect(monkeypatch, [(count_desc, count_rows), (sample_desc, sample_rows)])
+
+    resp = client.post(f"/feature-stores/{cid}/preview", json={"table_fqn": "PROD.PUBLIC.USERS"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["row_count"] == 1000
+    cols = {c["name"]: c for c in body["columns"]}
+    assert cols["user_id"]["non_null_count"] == 4
+    assert cols["user_id"]["null_fraction"] == 0.0
+    assert cols["plan"]["non_null_count"] == 3
+    assert cols["plan"]["null_fraction"] == 0.25
+    assert cols["plan"]["distinct_count"] == 2
+
+
+def test_preview_requires_table_or_sql(client):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    resp = client.post(f"/feature-stores/{cid}/preview", json={})
+    assert resp.status_code == 422
+
+
+def test_preview_propagates_error_kind(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("timed out")
+    _patch_connect_raises(monkeypatch, exc)
+    resp = client.post(f"/feature-stores/{cid}/preview", json={"table_fqn": "PROD.PUBLIC.USERS"})
+    assert resp.status_code == 502
+    assert resp.json()["detail"]["error_kind"] == "network"
+
+
+# ── classification unit coverage ───────────────────────────────────────
+
+
+def test_classify_error_kinds():
+    assert sf_mod._classify_error(RuntimeError("incorrect username or password")) == "auth"
+    assert sf_mod._classify_error(RuntimeError("insufficient privileges")) == "permission"
+    assert sf_mod._classify_error(RuntimeError("connection refused")) == "network"
+    assert sf_mod._classify_error(RuntimeError("something weird")) == "unknown"
+
+
+def test_feature_store_error_default_kind():
+    assert FeatureStoreConnectionError("x").kind == "unknown"
+
+
+# ── suggest-mapping stays stubbed (issue #23) ──────────────────────────
+
+
+def test_suggest_mapping_still_501(client):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    resp = client.post(f"/feature-stores/{cid}/suggest-mapping", json={"columns": []})
+    assert resp.status_code == 501

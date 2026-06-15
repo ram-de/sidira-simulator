@@ -128,6 +128,37 @@ class CrawlRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class FeatureStoreConnection(Base):
+    """A saved feature-store connection (#22). One row per connection the
+    customer's wizard creates (today: Snowflake only). Sanitized connection
+    fields live in their own columns; the password is NEVER stored in
+    cleartext — only the serialized envelope-encrypted blob in
+    ``password_enc`` (see adapters/credentials.py). GET/list never returns
+    the password or the blob.
+    """
+
+    __tablename__ = "feature_store_connections"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(256))
+    kind: Mapped[str] = mapped_column(String(32))
+    account: Mapped[str] = mapped_column(String(256))
+    user: Mapped[str] = mapped_column(String(256))
+    warehouse: Mapped[str] = mapped_column(String(256))
+    role: Mapped[str] = mapped_column(String(256))
+    database: Mapped[str] = mapped_column(String(256))
+    schema: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    # Serialized credentials.EncryptedBlob (base64'd byte fields). Never the
+    # cleartext password.
+    password_enc: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AgentInstance(Base):
     """Metadata for one AgentInstance. Identity + reaction + chat live in R2.
 
