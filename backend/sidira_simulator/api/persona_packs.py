@@ -92,7 +92,11 @@ async def list_packs(
     `latest` pointer flags the matching version PROMOTED; an empty tenant
     returns `[]` (not a 404)."""
     latest_version = _resolve_latest_version(loader, customer_id)
-    builds = await build_repo.list_recent(customer_id)
+    # Every pack version is one COMPLETE build; the default 50-row recent page
+    # would hide older versions for a heavy customer. Raise the cap so the
+    # Library lists all versions (smaller change than a new "list all" path; the
+    # bound stays generous rather than unbounded).
+    builds = await build_repo.list_recent(customer_id, limit=1000)
     return [
         _summary_from_build(row, latest_version)
         for row in builds
@@ -177,15 +181,10 @@ async def promote_pack(
             status_code=400, detail="Promote a concrete pack version, not the 'latest' sentinel."
         )
 
-    builds = await build_repo.list_recent(customer_id)
-    match = next(
-        (
-            row
-            for row in builds
-            if row.get("status") == "complete" and row.get("pack_version") == pack_id
-        ),
-        None,
-    )
+    # Direct (customer, version) lookup with no recent-page cap, so promoting an
+    # older complete version still resolves its build row (correct PackSummary
+    # metadata) for customers with >50 builds.
+    match = await build_repo.get_by_pack_version(customer_id, pack_id)
     if match is None:
         # No build row, but the snapshot may still exist in R2 — accept it iff
         # the versioned pack is readable; otherwise it is a genuine not-found.

@@ -127,6 +127,26 @@ def test_password_never_stored_in_cleartext(client):
     assert "super-secret-pw" not in str(row["password_enc"])
 
 
+def test_password_blob_bound_to_connection_id(client):
+    """The stored blob is AAD-bound to (customer, connection_id): copying it to
+    another connection row makes it undecryptable (defeats blob-swap attacks)."""
+    from sidira_simulator.adapters import credentials
+
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    row = get_in_memory_feature_store_connection_repo()._connections[cid]
+    customer_id = row["customer_id"]
+    blob = credentials.deserialize_blob(row["password_enc"])
+
+    # Correct binding decrypts.
+    assert credentials.decrypt(blob, aad=f"{customer_id}:{cid}".encode())["password"]
+    # A different connection id (the blob-copy attack) fails.
+    with pytest.raises(credentials.CredentialError):
+        credentials.decrypt(blob, aad=f"{customer_id}:fs-otherrow0001".encode())
+    # A different customer fails too.
+    with pytest.raises(credentials.CredentialError):
+        credentials.decrypt(blob, aad=f"intruder:{cid}".encode())
+
+
 def test_list_scoped_and_password_free(client):
     client.post("/feature-stores", json=_CREATE_PAYLOAD)
     client.post("/feature-stores", json={**_CREATE_PAYLOAD, "name": "Second"})
@@ -209,6 +229,71 @@ def test_preview_requires_table_or_sql(client):
     cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
     resp = client.post(f"/feature-stores/{cid}/preview", json={})
     assert resp.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "bad_fqn",
+    [
+        "t; DROP TABLE x",
+        "(SELECT secret FROM other)",
+        "PROD.PUBLIC.USERS; DROP TABLE x",
+        "PROD..USERS",
+        "a.b.c.d",  # too many parts
+        "PROD.PUBLIC.USERS WHERE 1=1",
+        "PROD.PUBLIC.`USERS`",
+    ],
+)
+def test_preview_rejects_injection_table_fqn(client, monkeypatch, bad_fqn):
+    """A crafted table_fqn is rejected as a 400 before any SQL runs."""
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+
+    # _connect must never be reached: validation happens first.
+    def _should_not_connect(self):  # pragma: no cover - asserts it isn't called
+        raise AssertionError("preview reached _connect with an unsafe table_fqn")
+
+    monkeypatch.setattr(sf_mod.SnowflakeStore, "_connect", _should_not_connect)
+    resp = client.post(f"/feature-stores/{cid}/preview", json={"table_fqn": bad_fqn})
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error_kind"] == "permission"
+
+
+def test_preview_quotes_validated_fqn(monkeypatch):
+    """A normal DB.SCHEMA.TABLE is validated and interpolated double-quoted."""
+    executed: list[str] = []
+
+    class _RecordingCursor(_FakeCursor):
+        def execute(self, sql):
+            executed.append(sql)
+            super().execute(sql)
+
+    class _RecordingConn(_FakeConn):
+        def cursor(self):
+            return _RecordingCursor(self._script)
+
+    script = [([("COUNT",)], [(7,)]), ([("user_id",)], [(1,), (2,)])]
+    monkeypatch.setattr(
+        sf_mod.SnowflakeStore, "_connect", lambda self: _RecordingConn(list(script))
+    )
+    store = sf_mod.SnowflakeStore(
+        sf_mod.SnowflakeCreds(
+            account="a", user="u", password="p", warehouse="w", role="r", database="PROD"
+        )
+    )
+    result = store.preview("PROD.PUBLIC.USERS")
+    assert result.row_count == 7
+    assert executed[0] == 'SELECT COUNT(*) FROM "PROD"."PUBLIC"."USERS"'
+    assert executed[1].startswith('SELECT * FROM "PROD"."PUBLIC"."USERS" LIMIT')
+
+
+def test_list_tables_rejects_injection_schema(monkeypatch):
+    store = sf_mod.SnowflakeStore(
+        sf_mod.SnowflakeCreds(
+            account="a", user="u", password="p", warehouse="w", role="r", database="PROD"
+        )
+    )
+    with pytest.raises(FeatureStoreConnectionError) as exc_info:
+        store.list_tables("PUBLIC'; DROP TABLE x; --")
+    assert exc_info.value.kind == "permission"
 
 
 def test_preview_propagates_error_kind(client, monkeypatch):

@@ -705,6 +705,10 @@ class PersonaBuildRepo(Protocol):
 
     async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict[str, Any]]: ...
 
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None: ...
+
 
 class PostgresPersonaBuildRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -784,6 +788,28 @@ class PostgresPersonaBuildRepo:
         await _release_read_transaction(self._session)
         return result
 
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None:
+        """Resolve a COMPLETE build by its exact (customer, pack_version) with no
+        row cap, so promoting/listing an older version still finds its metadata.
+        Returns the newest match if (rarely) more than one build shares a
+        version."""
+        stmt = (
+            select(PersonaBuildRun)
+            .where(
+                PersonaBuildRun.customer_id == customer_id,
+                PersonaBuildRun.pack_version == pack_version,
+                PersonaBuildRun.status == "complete",
+            )
+            .order_by(PersonaBuildRun.created_at.desc())
+            .limit(1)
+        )
+        row = (await self._session.execute(stmt)).scalars().first()
+        result = _persona_build_to_dict(row) if row is not None else None
+        await _release_read_transaction(self._session)
+        return result
+
 
 class InMemoryPersonaBuildRepo:
     def __init__(self) -> None:
@@ -852,6 +878,22 @@ class InMemoryPersonaBuildRepo:
             reverse=True,
         )
         return rows[:limit]
+
+    async def get_by_pack_version(
+        self, customer_id: str, pack_version: str
+    ) -> dict[str, Any] | None:
+        matches = [
+            dict(r)
+            for r in self._builds.values()
+            if r["customer_id"] == customer_id
+            and r.get("pack_version") == pack_version
+            and r.get("status") == "complete"
+        ]
+        matches.sort(
+            key=lambda r: r.get("created_at") or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        return matches[0] if matches else None
 
 
 # ──────────────────────────────────────────────────────────────────────

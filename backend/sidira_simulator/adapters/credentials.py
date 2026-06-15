@@ -57,32 +57,51 @@ class EncryptedBlob:
     wrapped_dek: bytes | None = None  # KMS-only; None for local-key mode
 
 
-def encrypt(plaintext: dict[str, Any], *, customer_id: str | None = None) -> EncryptedBlob:
+def encrypt(
+    plaintext: dict[str, Any],
+    *,
+    customer_id: str | None = None,
+    aad: bytes | None = None,
+) -> EncryptedBlob:
     """Encrypt a credentials dict for at-rest storage.
 
     ``customer_id`` is optional and used only to attribute the audit-log entry;
     it is never persisted in the blob.
+
+    ``aad`` (associated data) cryptographically binds the blob to a context
+    (e.g. ``customer_id:connection_id``). When set, the same ``aad`` MUST be
+    supplied to :func:`decrypt` or decryption fails — this prevents a blob
+    copied to another tenant/row from decrypting. ``aad=None`` preserves the
+    original behavior (so existing crawl-credential blobs keep decrypting).
     """
     mode = resolve_sidira_env("CRED_MODE", "local")
     if mode == "local":
-        blob = _encrypt_local(plaintext)
+        blob = _encrypt_local(plaintext, aad=aad)
     elif mode == "kms":
-        blob = _encrypt_kms(plaintext)
+        blob = _encrypt_kms(plaintext, aad=aad)
     else:
         raise CredentialError(f"Unknown SIDIRA_CRED_MODE/PYTHIA_CRED_MODE: {mode}")
     _audit("encrypt", blob.kek_id, customer_id)
     return blob
 
 
-def decrypt(blob: EncryptedBlob, *, customer_id: str | None = None) -> dict[str, Any]:
+def decrypt(
+    blob: EncryptedBlob,
+    *,
+    customer_id: str | None = None,
+    aad: bytes | None = None,
+) -> dict[str, Any]:
     """Decrypt a previously-encrypted credentials dict. In-memory only.
 
     ``customer_id`` is optional and used only to attribute the audit-log entry.
+
+    ``aad`` must match the value passed to :func:`encrypt`; a mismatch (or a
+    blob written under a different binding) raises ``CredentialError``.
     """
     if blob.kek_id == "local":
-        plaintext = _decrypt_local(blob)
+        plaintext = _decrypt_local(blob, aad=aad)
     elif blob.kek_id.startswith("kms:"):
-        plaintext = _decrypt_kms(blob)
+        plaintext = _decrypt_kms(blob, aad=aad)
     else:
         raise CredentialError(f"Unknown kek_id: {blob.kek_id}")
     _audit("decrypt", blob.kek_id, customer_id)
@@ -146,24 +165,24 @@ def _local_key() -> bytes:
     return key
 
 
-def _encrypt_local(plaintext: dict[str, Any]) -> EncryptedBlob:
+def _encrypt_local(plaintext: dict[str, Any], *, aad: bytes | None = None) -> EncryptedBlob:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
 
     key = _local_key()
     aes = AESGCM(key)
     nonce = os.urandom(12)
     data = json.dumps(plaintext).encode("utf-8")
-    ct = aes.encrypt(nonce, data, associated_data=None)
+    ct = aes.encrypt(nonce, data, associated_data=aad)
     return EncryptedBlob(kek_id="local", ciphertext=ct, nonce=nonce)
 
 
-def _decrypt_local(blob: EncryptedBlob) -> dict[str, Any]:
+def _decrypt_local(blob: EncryptedBlob, *, aad: bytes | None = None) -> dict[str, Any]:
     from cryptography.exceptions import InvalidTag  # type: ignore[import-not-found]
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
 
     aes = AESGCM(_local_key())
     try:
-        pt = aes.decrypt(blob.nonce, blob.ciphertext, associated_data=None)
+        pt = aes.decrypt(blob.nonce, blob.ciphertext, associated_data=aad)
         return json.loads(pt.decode("utf-8"))
     except InvalidTag as exc:
         # Wrong key (e.g. SIDIRA_LOCAL_CRED_KEY rotated after the blob was
@@ -228,13 +247,19 @@ def _kms_client():  # type: ignore[no-untyped-def]
     return boto3.client("kms")
 
 
-def _encrypt_kms(plaintext: dict[str, Any]) -> EncryptedBlob:
+def _encrypt_kms(plaintext: dict[str, Any], *, aad: bytes | None = None) -> EncryptedBlob:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
 
     key_id = _kms_key_id()
     client = _kms_client()
+    # KMS requires the same EncryptionContext on GenerateDataKey + Decrypt; bind
+    # the aad into it (and into the AESGCM layer) so the wrapped DEK is itself
+    # scoped to the context. None preserves the original (unscoped) behavior.
+    gdk_kwargs: dict[str, Any] = {"KeyId": key_id, "KeySpec": "AES_256"}
+    if aad is not None:
+        gdk_kwargs["EncryptionContext"] = {"aad": aad.hex()}
     try:
-        resp = client.generate_data_key(KeyId=key_id, KeySpec="AES_256")
+        resp = client.generate_data_key(**gdk_kwargs)
     except Exception as exc:
         # botocore ClientError (auth / key disabled / throttling) — surface as a
         # controlled CredentialError so callers 503 rather than 500.
@@ -244,7 +269,7 @@ def _encrypt_kms(plaintext: dict[str, Any]) -> EncryptedBlob:
     try:
         nonce = os.urandom(12)
         data = json.dumps(plaintext).encode("utf-8")
-        ct = AESGCM(dek).encrypt(nonce, data, associated_data=None)
+        ct = AESGCM(dek).encrypt(nonce, data, associated_data=aad)
     finally:
         # Best-effort scrub of the plaintext DEK reference.
         del dek
@@ -253,22 +278,27 @@ def _encrypt_kms(plaintext: dict[str, Any]) -> EncryptedBlob:
     )
 
 
-def _decrypt_kms(blob: EncryptedBlob) -> dict[str, Any]:
+def _decrypt_kms(blob: EncryptedBlob, *, aad: bytes | None = None) -> dict[str, Any]:
     from cryptography.exceptions import InvalidTag  # type: ignore[import-not-found]
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore[import-not-found]
 
     if not blob.wrapped_dek:
         raise CredentialError("kms blob is missing wrapped_dek")
     client = _kms_client()
+    # The same EncryptionContext used on GenerateDataKey must be supplied here,
+    # or KMS refuses to unwrap the DEK. None preserves the original behavior.
+    decrypt_kwargs: dict[str, Any] = {"CiphertextBlob": blob.wrapped_dek}
+    if aad is not None:
+        decrypt_kwargs["EncryptionContext"] = {"aad": aad.hex()}
     try:
         # KMS picks the right backing key from the ciphertext, so rotation is
         # transparent and we do not pass KeyId on decrypt.
-        resp = client.decrypt(CiphertextBlob=blob.wrapped_dek)
+        resp = client.decrypt(**decrypt_kwargs)
     except Exception as exc:
         raise CredentialError(f"KMS Decrypt failed: {exc}") from exc
     dek = resp["Plaintext"]
     try:
-        pt = AESGCM(dek).decrypt(blob.nonce, blob.ciphertext, associated_data=None)
+        pt = AESGCM(dek).decrypt(blob.nonce, blob.ciphertext, associated_data=aad)
         return json.loads(pt.decode("utf-8"))
     except InvalidTag as exc:
         raise CredentialError(

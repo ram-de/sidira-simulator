@@ -39,10 +39,9 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] Apply codex review fixes (subagent running) → re-verify → open ONE backend PR.
-- [ ] #27/#28 frontend on a branch based off this backend branch.
+- [ ] Open ONE backend PR (#21–#25 + codex fixes). Then #27/#28 frontend off this branch.
 
-## Codex review (full backend diff vs main) — GATE: FAIL (1 P1), being fixed
+## Codex review (full backend diff vs main) — GATE: FAIL (1 P1) → ALL FIXED ✅ (815 passed, ruff clean)
 - **[P1] Snowflake SQL injection** snowflake.py preview: `table_fqn` interpolated raw.
   FIX: validate as 1-3 part dotted identifier (`^[A-Za-z0-9_$]+$` per part) + double-quote. (fixing)
 - **[P2] KMS/local creds not tenant-bound** credentials.py: no AAD/EncryptionContext → a

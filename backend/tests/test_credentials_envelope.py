@@ -28,13 +28,13 @@ class _FakeKMS:
     """Models KMS envelope semantics: GenerateDataKey mints a DEK and returns it
     alongside an opaque wrapped form; Decrypt reverses the wrap. No real AWS."""
 
-    def generate_data_key(self, KeyId, KeySpec):  # noqa: N803 (boto3 casing)
+    def generate_data_key(self, KeyId, KeySpec, EncryptionContext=None):  # noqa: N803 (boto3 casing)
         assert KeySpec == "AES_256"
         dek = os.urandom(32)
         wrapped = b"wrapped:" + KeyId.encode() + b":" + base64.b64encode(dek)
         return {"Plaintext": dek, "CiphertextBlob": wrapped}
 
-    def decrypt(self, CiphertextBlob):  # noqa: N803
+    def decrypt(self, CiphertextBlob, EncryptionContext=None):  # noqa: N803
         assert CiphertextBlob.startswith(b"wrapped:")
         dek = base64.b64decode(CiphertextBlob.rsplit(b":", 1)[1])
         return {"Plaintext": dek}
@@ -109,6 +109,71 @@ def test_kms_tampered_ciphertext_is_credential_error(kms_mode):
     blob.ciphertext = b"\x00" * len(blob.ciphertext)  # break AESGCM auth tag
     with pytest.raises(credentials.CredentialError, match="corrupted ciphertext"):
         credentials.decrypt(blob)
+
+
+# --- associated data (tenant binding) --------------------------------------
+
+
+def test_local_aad_round_trips_with_matching_aad(local_mode):
+    aad = b"org_42:fs-abc123"
+    blob = credentials.encrypt({"password": "pw"}, aad=aad)
+    assert credentials.decrypt(blob, aad=aad) == {"password": "pw"}
+
+
+def test_local_aad_mismatch_fails_to_decrypt(local_mode):
+    blob = credentials.encrypt({"password": "pw"}, aad=b"org_42:fs-abc123")
+    # A blob copied to another connection/customer (different aad) must not open.
+    with pytest.raises(credentials.CredentialError):
+        credentials.decrypt(blob, aad=b"org_99:fs-zzz999")
+    # And decrypting with no aad (the legacy path) also fails for an aad blob.
+    with pytest.raises(credentials.CredentialError):
+        credentials.decrypt(blob)
+
+
+def test_local_no_aad_still_round_trips(local_mode):
+    """Crawl-cred blobs are written without aad — they must keep decrypting."""
+    blob = credentials.encrypt({"password": "pw"})
+    assert credentials.decrypt(blob) == {"password": "pw"}
+
+
+def test_kms_aad_round_trips_with_matching_aad(kms_mode):
+    aad = b"org_42:fs-abc123"
+    blob = credentials.encrypt({"password": "pw"}, aad=aad)
+    assert credentials.decrypt(blob, aad=aad) == {"password": "pw"}
+
+
+def test_kms_aad_mismatch_fails_to_decrypt(monkeypatch):
+    """A faithful fake KMS that enforces EncryptionContext (as real KMS does)
+    refuses to unwrap the DEK under a different aad, and the AESGCM layer would
+    also reject it."""
+    monkeypatch.setenv("SIDIRA_CRED_MODE", "kms")
+    monkeypatch.setenv("SIDIRA_KMS_KEY_ID", "alias/sidira-test")
+
+    class _ContextKMS:
+        def generate_data_key(self, KeyId, KeySpec, EncryptionContext=None):  # noqa: N803
+            dek = os.urandom(32)
+            ctx = base64.b64encode(repr(EncryptionContext).encode())
+            wrapped = b"wrapped:" + ctx + b":" + base64.b64encode(dek)
+            return {"Plaintext": dek, "CiphertextBlob": wrapped}
+
+        def decrypt(self, CiphertextBlob, EncryptionContext=None):  # noqa: N803
+            _, ctx_b64, dek_b64 = CiphertextBlob.split(b":", 2)
+            expected = base64.b64decode(ctx_b64).decode()
+            if repr(EncryptionContext) != expected:
+                raise RuntimeError("InvalidCiphertextException: EncryptionContext mismatch")
+            return {"Plaintext": base64.b64decode(dek_b64)}
+
+    monkeypatch.setattr(credentials, "_kms_client", lambda: _ContextKMS())
+    blob = credentials.encrypt({"password": "pw"}, aad=b"org_42:fs-abc123")
+    assert credentials.decrypt(blob, aad=b"org_42:fs-abc123") == {"password": "pw"}
+    with pytest.raises(credentials.CredentialError):
+        credentials.decrypt(blob, aad=b"org_99:fs-zzz999")
+
+
+def test_kms_no_aad_still_round_trips(kms_mode):
+    """No-aad KMS blobs (e.g. crawl creds) keep their original behavior."""
+    blob = credentials.encrypt({"password": "pw"})
+    assert credentials.decrypt(blob) == {"password": "pw"}
 
 
 # --- mode dispatch / errors ------------------------------------------------

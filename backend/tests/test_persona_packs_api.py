@@ -261,3 +261,91 @@ def test_promote_unknown_version_404(packs_client) -> None:
 
 def test_promote_latest_sentinel_rejected(packs_client) -> None:
     assert packs_client.post("/persona-packs/latest/promote").status_code == 400
+
+
+def test_promote_version_beyond_recent_page_resolves_metadata(packs_client) -> None:
+    """A complete version older than the 50-row recent page still promotes with
+    its real metadata (stability/persona_count), not a zeroed PackSummary.
+
+    Seed >50 newer builds so the target falls off `list_recent`'s default page;
+    `get_by_pack_version` must still find it.
+    """
+    base = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    # The old target version, with a readable snapshot + populated metadata.
+    _write_pack(packs_client._store, "v_old")
+    _seed_build(
+        build_id="b-old",
+        status="complete",
+        pack_version="v_old",
+        created_at=base,
+        stability=0.91,
+        persona_count=5,
+    )
+    # 60 newer complete builds bury it past the default 50-row recent page.
+    for i in range(60):
+        _seed_build(
+            build_id=f"b{i}",
+            status="complete",
+            pack_version=f"v_new_{i}",
+            created_at=base + timedelta(hours=i + 1),
+        )
+
+    resp = packs_client.post("/persona-packs/v_old/promote")
+    assert resp.status_code == 200, resp.text
+    promoted = resp.json()
+    assert promoted["version"] == "v_old"
+    assert promoted["status"] == "promoted"
+    assert promoted["is_latest"] is True
+    # Metadata is the real build's, not a zeroed fallback.
+    assert promoted["stability_score"] == 0.91
+    assert promoted["persona_count"] == 5
+
+
+def test_get_by_pack_version_ignores_incomplete_and_other_customers() -> None:
+    """Unit coverage for the new repo method: only this customer's COMPLETE build
+    with the exact version is returned."""
+    import asyncio
+
+    repo = get_in_memory_persona_build_repo()
+    repo._builds.clear()
+    base = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    repo._builds["x1"] = {
+        "id": "x1",
+        "customer_id": _CUSTOMER_ID,
+        "connection_id": "c",
+        "status": "running",
+        "pack_version": "v_x",
+        "stability_score": 0.5,
+        "persona_count": 1,
+        "error": None,
+        "created_at": base,
+        "completed_at": None,
+    }
+    repo._builds["x2"] = {
+        "id": "x2",
+        "customer_id": "other",
+        "connection_id": "c",
+        "status": "complete",
+        "pack_version": "v_x",
+        "stability_score": 0.5,
+        "persona_count": 1,
+        "error": None,
+        "created_at": base,
+        "completed_at": base,
+    }
+    repo._builds["x3"] = {
+        "id": "x3",
+        "customer_id": _CUSTOMER_ID,
+        "connection_id": "c",
+        "status": "complete",
+        "pack_version": "v_x",
+        "stability_score": 0.77,
+        "persona_count": 4,
+        "error": None,
+        "created_at": base,
+        "completed_at": base,
+    }
+
+    found = asyncio.run(repo.get_by_pack_version(_CUSTOMER_ID, "v_x"))
+    assert found is not None and found["id"] == "x3"
+    assert asyncio.run(repo.get_by_pack_version(_CUSTOMER_ID, "v_missing")) is None

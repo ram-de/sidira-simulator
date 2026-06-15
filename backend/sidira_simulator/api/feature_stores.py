@@ -93,9 +93,12 @@ def _store_from_row(row: dict, customer_id: str) -> SnowflakeStore:
     """Decrypt the password blob and build a SnowflakeStore. Decryption is
     fresh per call; the cleartext password never leaves this function's scope.
     Raises 503 on a credential/key problem (never an opaque 500)."""
+    aad = f"{customer_id}:{row['id']}".encode()
     try:
         secrets = credentials.decrypt(
-            credentials.deserialize_blob(row["password_enc"]), customer_id=customer_id
+            credentials.deserialize_blob(row["password_enc"]),
+            customer_id=customer_id,
+            aad=aad,
         )
     except CredentialError as exc:
         raise HTTPException(
@@ -131,15 +134,22 @@ async def create_connection(
     repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
 ) -> ConnectionSummary:
     """Encrypt the password at rest and persist a sanitized connection row."""
+    # Bind the blob to (customer_id, connection_id) via AAD so a password_enc
+    # copied to another tenant/connection row cannot decrypt. The id is minted
+    # here (not inside the repo) so the same value is the AAD and the row id.
+    connection_id = f"fs-{uuid4().hex[:12]}"
+    aad = f"{customer_id}:{connection_id}".encode()
     try:
-        blob = credentials.encrypt({"password": payload.password}, customer_id=customer_id)
+        blob = credentials.encrypt(
+            {"password": payload.password}, customer_id=customer_id, aad=aad
+        )
     except CredentialError as exc:
         raise HTTPException(
             status_code=503, detail="credential encryption is not configured"
         ) from exc
     row = await repo.insert(
         {
-            "id": f"fs-{uuid4().hex[:12]}",
+            "id": connection_id,
             "customer_id": customer_id,
             "name": payload.name,
             "kind": payload.kind,

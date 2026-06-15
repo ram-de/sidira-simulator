@@ -11,6 +11,7 @@ return a structured, actionable error to the connection wizard.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -21,6 +22,36 @@ from sidira_simulator.adapters.feature_stores import (
 )
 
 ErrorKind = Literal["auth", "permission", "network", "unknown"]
+
+#: A single unquoted Snowflake identifier part: letters, digits, underscore,
+#: dollar sign. We accept a dotted FQN of 1-3 such parts (db.schema.table).
+_IDENT_PART = re.compile(r"^[A-Za-z0-9_$]+$")
+
+
+def _validate_identifier(value: str, *, label: str = "identifier") -> list[str]:
+    """Validate a dotted Snowflake identifier (1-3 parts) and return its parts.
+
+    Each part must match the unquoted-identifier charset ``[A-Za-z0-9_$]+``.
+    Anything else (subqueries, stacked statements, whitespace, quotes,
+    parentheses) is rejected with a ``permission``-kind FeatureStoreConnectionError
+    so the endpoint maps it to a 400 instead of letting it reach SQL.
+    """
+    parts = value.split(".")
+    if not (1 <= len(parts) <= 3) or not all(_IDENT_PART.match(p) for p in parts):
+        err = FeatureStoreConnectionError(
+            f"Invalid {label} {value!r}: expected a dotted identifier of 1-3 parts, "
+            "each matching [A-Za-z0-9_$]+."
+        )
+        err.kind = "permission"
+        raise err
+    return parts
+
+
+def _quote_fqn(value: str, *, label: str = "identifier") -> str:
+    """Validate then double-quote each part of a dotted identifier so it is a
+    safe Snowflake object reference (``"DB"."SCHEMA"."TABLE"``)."""
+    parts = _validate_identifier(value, label=label)
+    return ".".join(f'"{p}"' for p in parts)
 
 
 @dataclass
@@ -154,6 +185,10 @@ class SnowflakeStore:
         return [str(r["SCHEMA_NAME"]) for r in rows if r.get("SCHEMA_NAME") is not None]
 
     def list_tables(self, schema: str) -> list[str]:
+        # The schema name is compared as a string literal here, but validate it
+        # as a single identifier first so a crafted value cannot break out of
+        # the literal (defense in depth alongside the literal-escaping _quote).
+        _validate_identifier(schema, label="schema")
         rows = self.run_query(
             "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
             f"WHERE TABLE_SCHEMA = '{_quote(schema)}' ORDER BY TABLE_NAME"
@@ -163,15 +198,20 @@ class SnowflakeStore:
     def preview(self, table_fqn: str, sample_size: int = 100) -> TablePreview:
         """Inspect a table: total row count + a sample of up to ``sample_size``
         rows, plus a per-column profile (dtype, non-null count, null fraction,
-        best-effort distinct count + sample values)."""
+        best-effort distinct count + sample values).
+
+        ``table_fqn`` is validated as a dotted Snowflake identifier (1-3 parts)
+        and re-quoted before interpolation — Snowflake does not bind identifiers,
+        so validation + quoting is the safe path against injection."""
+        safe_fqn = _quote_fqn(table_fqn, label="table_fqn")
         conn = self._connect()
         try:
             cur = conn.cursor()
             try:
-                cur.execute(f"SELECT COUNT(*) FROM {table_fqn}")
+                cur.execute(f"SELECT COUNT(*) FROM {safe_fqn}")
                 row_count = int(cur.fetchone()[0])
 
-                cur.execute(f"SELECT * FROM {table_fqn} LIMIT {int(sample_size)}")
+                cur.execute(f"SELECT * FROM {safe_fqn} LIMIT {int(sample_size)}")
                 col_names = [d[0] for d in cur.description]
                 rows = cur.fetchall()
             finally:
