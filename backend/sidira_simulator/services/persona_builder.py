@@ -305,7 +305,9 @@ def run_personas_pipeline(
 
     cfg = _build_pipeline_config(rows, column_mapping, config, customer_id)
     df = pd.DataFrame(rows)
-    result = run_pipeline(df, cfg, run_id=run_id, no_llm=False)
+    result = run_pipeline(
+        df, cfg, run_id=run_id, no_llm=False, provider=config.llm_provider
+    )
 
     pack = result.pack
     return PipelineOutput(
