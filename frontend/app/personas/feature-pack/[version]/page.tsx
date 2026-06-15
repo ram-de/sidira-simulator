@@ -4,17 +4,17 @@
 //
 // The Library landing previews a bounded handful of capabilities; this page
 // holds the whole pack and stays readable as the crawler finds more — search
-// (name substring), group toggles (A–Z / by role), and dependency-free
-// pagination. Each capability row links to its reverse-PRD + reverse-Figma
-// record at /personas/capability/{name} (the #236 detail route).
+// (name substring), group toggles (A–Z / by role / by domain), and
+// dependency-free pagination. Each capability row links to its reverse-PRD +
+// reverse-Figma record at /personas/capability/{name} (the #236 detail route).
 //
 // Data source: GET /feature-pack/summary (FeaturePackSummary — version,
-// generated_at, and each capability's name + synthesized roles, no PRD/Figma
-// body). It serves the LATEST snapshot, so only the latest version is reachable
-// today; the [version] segment matches the IA's future multi-version shape, and
-// a mismatched version renders an honest note rather than a wrong pack. Roles
-// power the by-role grouping; grouping by product *domain* still waits on the
-// crawler (sidira-crawler#18), so A–Z and roles are the interim views.
+// generated_at, and each capability's name + synthesized roles + domain, no
+// PRD/Figma body). It serves the LATEST snapshot, so only the latest version is
+// reachable today; the [version] segment matches the IA's future multi-version
+// shape, and a mismatched version renders an honest note rather than a wrong
+// pack. Roles power by-role grouping; the crawler's synthesized per-capability
+// domain (sidira-crawler#18) powers by-domain grouping (#244).
 
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -37,15 +37,28 @@ import {
 } from "@/components/library/furniture";
 
 const PAGE_SIZE = 24;
-// Capabilities with no roles bucket here, sorted last, under the by-role view.
+// Capabilities with no role (by-role view) or no domain (by-domain view) bucket
+// here, sorted last.
 const UNSCOPED = "UNSCOPED";
 
-type GroupBy = "none" | "alpha" | "role";
+type GroupBy = "none" | "alpha" | "role" | "domain";
 
 // One displayed row: a capability under a heading bucket. Under "role" a
 // multi-role capability expands to one entry per role (it genuinely belongs to
-// each), so a name can appear more than once; key on bucket+name.
+// each), so a name can appear more than once; key on bucket+name. "domain" is
+// single-membership (one bucket per capability).
 type Entry = { name: string; bucket: string };
+
+// Named buckets sort alphabetically, UNSCOPED always last, then by capability
+// name within a bucket. Shared by the by-role and by-domain views.
+function byBucketThenName(a: Entry, b: Entry): number {
+  if (a.bucket !== b.bucket) {
+    if (a.bucket === UNSCOPED) return 1;
+    if (b.bucket === UNSCOPED) return -1;
+    return a.bucket.localeCompare(b.bucket);
+  }
+  return a.name.localeCompare(b.name);
+}
 
 type Fetchable<T> =
   | { state: "loading" }
@@ -105,14 +118,14 @@ export default function FeaturePackPage({ params }: { params: { version: string 
         if (c.roles.length === 0) entries.push({ name: c.name, bucket: UNSCOPED });
         else for (const role of c.roles) entries.push({ name: c.name, bucket: role });
       }
-      return entries.sort((a, b) => {
-        if (a.bucket !== b.bucket) {
-          if (a.bucket === UNSCOPED) return 1; // UNSCOPED always last
-          if (b.bucket === UNSCOPED) return -1;
-          return a.bucket.localeCompare(b.bucket);
-        }
-        return a.name.localeCompare(b.name);
-      });
+      return entries.sort(byBucketThenName);
+    }
+
+    if (groupBy === "domain") {
+      // Single-membership: each capability sits under its synthesized domain;
+      // domainless → UNSCOPED.
+      const entries: Entry[] = caps.map((c) => ({ name: c.name, bucket: c.domain || UNSCOPED }));
+      return entries.sort(byBucketThenName);
     }
 
     const entries = caps.map((c) => ({ name: c.name, bucket: bucketOf(c.name) }));
@@ -202,8 +215,9 @@ export default function FeaturePackPage({ params }: { params: { version: string 
               onGroupBy={setGroupBy}
             />
             <BodyNote>
-              Grouping by product domain is pending the crawler (sidira-crawler#18); A–Z and by
-              role are interim views — role grouping lists a capability under each role it serves.
+              Group by product domain, role, or A–Z. Role grouping lists a capability under each
+              role it serves; domain grouping places it under the one product area the crawler
+              synthesized for it, with anything ungrouped under {UNSCOPED}.
             </BodyNote>
 
             {total === 0 ? (
@@ -361,6 +375,9 @@ function Controls({
           </GroupToggle>
           <GroupToggle active={groupBy === "role"} onClick={() => onGroupBy("role")}>
             ROLES
+          </GroupToggle>
+          <GroupToggle active={groupBy === "domain"} onClick={() => onGroupBy("domain")}>
+            DOMAIN
           </GroupToggle>
         </div>
       </div>

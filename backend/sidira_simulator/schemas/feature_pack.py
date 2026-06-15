@@ -52,6 +52,10 @@ class Capability(BaseModel):
     reverse_prd: str
     reverse_figma: ReverseFigma
     implicit_metric: str | None = None
+    # Mirrors sidira-crawler#18: the second-level grouping label (capability →
+    # domain). Optional and back-compat — packs predating the crawler change omit
+    # it, and the Library buckets a domainless capability under "Ungrouped".
+    domain: str | None = None
 
 
 class FeaturePackManifest(BaseModel):
@@ -60,6 +64,11 @@ class FeaturePackManifest(BaseModel):
     generated_at: datetime
     schema_version: Literal["1.0"] = "1.0"
     capabilities: list[str]
+    # Persisted grouping index (capability name → domain) written by the crawler
+    # (sidira-crawler#18). The per-capability artifacts carry only the
+    # reverse-PRD/Figma, so this map is how the summary endpoint reads `domain`
+    # in a single manifest read. Optional/back-compat: empty on older packs.
+    capability_domains: dict[str, str] = Field(default_factory=dict)
     crawl_metadata: dict[str, str] = Field(default_factory=dict)
 
 
@@ -84,10 +93,13 @@ class CapabilitySummary(BaseModel):
     The names-only :class:`FeaturePackManifest` can't drive a group-by-role view,
     and shipping every full :class:`Capability` to the Library browse page just to
     read `roles` would be wasteful. This is the lightweight projection in between.
+    `domain` (#244) rides along from the manifest's `capability_domains` map so the
+    browse page can also group by domain; ``None`` means the capability is ungrouped.
     """
 
     name: str
     roles: list[str]
+    domain: str | None = None
 
 
 class FeaturePackSummary(BaseModel):
