@@ -38,13 +38,15 @@ export type CapabilityRecord = {
   generated_at: string;
   capability: Capability;
 };
-// Lightweight per-capability projection (name + roles, no PRD/Figma body) so the
-// Library browse page can group by role from a single fetch. Hand-mirrored like
-// Capability above; collapse to components["schemas"] when api-types.ts is
-// regenerated.
+// Lightweight per-capability projection (name + roles + domain, no PRD/Figma
+// body) so the Library browse page can group by role or domain from a single
+// fetch. Hand-mirrored like Capability above; collapse to components["schemas"]
+// when api-types.ts is regenerated. `domain` is null when the capability is
+// ungrouped (pack predates sidira-crawler#18, or its domain pass degraded).
 export type CapabilitySummary = {
   name: string;
   roles: string[];
+  domain?: string | null;
 };
 export type FeaturePackSummary = {
   customer_id: string;

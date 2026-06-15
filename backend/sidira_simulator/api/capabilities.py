@@ -67,9 +67,11 @@ async def list_capabilities_summary(
     detail route surfaces the real error on open.
 
     Cost: O(N) artifact reads per request (loads each capability fully to project
-    name + roles). Fine at today's pack size (~tens of capabilities). The proper
-    fix is to persist `roles` into the manifest at synthesis time and collapse this
-    to a single manifest read — folded into the sidira-crawler#18 work.
+    `roles`). `domain` is now free — it rides the manifest's `capability_domains`
+    map (sidira-crawler#18), no per-capability read. Fully collapsing this to a
+    single manifest read still needs `roles` persisted in the manifest too (a
+    `capability_roles` field, a small crawler follow-up); fine at today's pack
+    size (~tens of capabilities) until then.
     """
     try:
         manifest = loader.load_latest_manifest(customer_id)
@@ -77,12 +79,17 @@ async def list_capabilities_summary(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     summaries: list[CapabilitySummary] = []
     for name in manifest.capabilities:
+        # `domain` rides along from the manifest's grouping index (#244 / crawler
+        # #18) — no extra read, and it survives even when the body is missing.
+        domain = manifest.capability_domains.get(name)
         try:
             capability = loader.load_capability(customer_id, manifest.snapshot_version, name)
-            summaries.append(CapabilitySummary(name=capability.name, roles=capability.roles))
+            summaries.append(
+                CapabilitySummary(name=capability.name, roles=capability.roles, domain=domain)
+            )
         except (ArtifactNotFound, ArtifactSchemaError):
             # Keep the list complete; the detail route surfaces the real error.
-            summaries.append(CapabilitySummary(name=name, roles=[]))
+            summaries.append(CapabilitySummary(name=name, roles=[], domain=domain))
     return FeaturePackSummary(
         customer_id=customer_id,
         snapshot_version=manifest.snapshot_version,

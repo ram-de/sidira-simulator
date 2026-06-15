@@ -32,19 +32,25 @@ def _use_loader(store: LocalArtifactStore) -> None:
     app.dependency_overrides[get_feature_pack_loader] = lambda: FeaturePackLoader(store)
 
 
-def _write_manifest(store: LocalArtifactStore, version: str, capabilities: list[str]) -> None:
+def _write_manifest(
+    store: LocalArtifactStore,
+    version: str,
+    capabilities: list[str],
+    capability_domains: dict[str, str] | None = None,
+) -> None:
     """Write a `latest` pointer + manifest listing `capabilities` for tenant demo."""
+    manifest: dict = {
+        "customer_id": "demo",
+        "snapshot_version": version,
+        "generated_at": "2026-05-25T00:00:00Z",
+        "capabilities": capabilities,
+    }
+    if capability_domains is not None:
+        manifest["capability_domains"] = capability_domains
     store.write_text("customers/demo/featurepacks/latest", version)
     store.write_text(
         f"customers/demo/featurepacks/{version}/manifest.json",
-        json.dumps(
-            {
-                "customer_id": "demo",
-                "snapshot_version": version,
-                "generated_at": "2026-05-25T00:00:00Z",
-                "capabilities": capabilities,
-            }
-        ),
+        json.dumps(manifest),
     )
 
 
@@ -135,14 +141,40 @@ def test_summary_resilient_to_corrupt_capability(tmp_path: Path) -> None:
     """
     store = LocalArtifactStore(tmp_path)
     base = "customers/demo/featurepacks/2026-W21/capabilities/broken"
-    _write_manifest(store, "2026-W21", ["broken"])
+    # The domain rides the manifest, so it must survive even a corrupt body.
+    _write_manifest(store, "2026-W21", ["broken"], capability_domains={"broken": "Ops"})
     store.write_text(f"{base}/reverse-prd.md", "# Broken\n")
     store.write_text(f"{base}/reverse-figma.json", '{"screens": "not-a-list"}')
     _use_loader(store)
     resp = TestClient(app).get("/feature-pack/summary")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["capabilities"] == [{"name": "broken", "roles": []}]
+    assert body["capabilities"] == [{"name": "broken", "roles": [], "domain": "Ops"}]
+
+
+def test_summary_surfaces_domain_from_manifest(tmp_path: Path) -> None:
+    """`domain` rides from the manifest's `capability_domains` map (#244 / crawler #18).
+
+    It comes from the manifest, not a per-capability read, so it surfaces even
+    when the body is absent (no `load_capability`); a capability missing from the
+    map is ungrouped (`domain` is None).
+    """
+    store = LocalArtifactStore(tmp_path)
+    _write_manifest(
+        store,
+        "2026-W21",
+        ["account", "account_plan", "browse"],
+        capability_domains={
+            "account": "Account & billing",
+            "account_plan": "Account & billing",
+        },
+    )
+    _use_loader(store)
+    body = TestClient(app).get("/feature-pack/summary").json()
+    by_name = {c["name"]: c for c in body["capabilities"]}
+    assert by_name["account"]["domain"] == "Account & billing"
+    assert by_name["account_plan"]["domain"] == "Account & billing"
+    assert by_name["browse"]["domain"] is None  # not in the map → ungrouped
 
 
 def test_capability_named_summary_resolves_to_detail_not_projection(tmp_path: Path) -> None:
