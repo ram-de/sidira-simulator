@@ -6,9 +6,21 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from sidira_simulator.schemas.feature_pack import ReverseFigma
+
+# agent-behavior-spec §3a / #221: the curated fallback choice set for the
+# conversion question when the rendered screen doesn't enumerate the on-screen
+# paths. Kept here (not in the elicitor) so it's part of the API contract a
+# Hypothesis is validated against. The conversion option itself is prepended by
+# the elicitor from `conversion_action_label`; these are the realistic
+# *non*-conversion alternatives a real user actually takes.
+DEFAULT_CONVERSION_CHOICE_SET: tuple[str, ...] = (
+    "keep browsing / decide later",
+    "leave without doing anything",
+    "compare with a competitor first",
+)
 
 
 class Hypothesis(BaseModel):
@@ -18,6 +30,53 @@ class Hypothesis(BaseModel):
     prose: str
     proposed_prd: str | None = None
     proposed_figma: ReverseFigma | None = None
+
+    # ── Per-metric outcome elicitation (agent-behavior-spec §3a / #221) ──
+    # OPTIONAL structured target metric. When `metric_name` is None (the
+    # default), the simulator behaves byte-identically to the historical
+    # sentiment-only path — these fields are never read. When
+    # `metric_name == "conversion"`, the runner adds a turn-2 in-character
+    # decision elicitation and the scorer reports a paired conversion-lift
+    # delta ALONGSIDE the sentiment confidence_score (never replacing it).
+    # Sibling metrics (retention, CTR) will reuse the same template; conversion
+    # is the load-bearing first case, so `metric_name` is a closed Literal until
+    # the siblings land (an unknown metric must fail loudly, not silently
+    # degrade to sentiment).
+    metric_name: Literal["conversion"] | None = None
+    # The conversion event + its in-character phrasing ("complete checkout",
+    # "start your free trial"). Required when metric_name == "conversion".
+    conversion_action: str | None = None
+    conversion_action_label: str | None = None
+    # The moment the user is at ("you've added 2 items to your cart"). Required
+    # when metric_name == "conversion".
+    decision_point: str | None = None
+    # Realistic non-conversion alternatives, sourced from the rendered screen
+    # (treatment-rendering layer). Empty → DEFAULT_CONVERSION_CHOICE_SET.
+    choice_set: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_metric(self) -> Hypothesis:
+        """When a metric is selected, its template fields must be present.
+
+        Fail loud rather than silently eliciting a malformed conversion
+        question (§3a no-silent-degradation). `choice_set` is allowed to be
+        empty — the elicitor falls back to DEFAULT_CONVERSION_CHOICE_SET.
+        """
+        if self.metric_name == "conversion":
+            missing = [
+                name
+                for name, val in (
+                    ("conversion_action", self.conversion_action),
+                    ("conversion_action_label", self.conversion_action_label),
+                    ("decision_point", self.decision_point),
+                )
+                if not (val and val.strip())
+            ]
+            if missing:
+                raise ValueError(
+                    "metric_name='conversion' requires non-empty " f"{', '.join(missing)}"
+                )
+        return self
 
 
 class ArmSplit(BaseModel):
@@ -269,6 +328,29 @@ class SimulationResult(BaseModel):
     current_state_delta_unpaired_persona: int = 0
     current_state_delta_unpaired_current_state: int = 0
     current_state_delta_sentiment_failure_drops: int = 0
+
+    # ── Conversion-lift fields (agent-behavior-spec §3a / #221) ──
+    # Populated only when the run is A/B mode AND the Hypothesis carried
+    # `metric_name == "conversion"`. All None / 0 otherwise, so older
+    # `result_json` rows load unchanged and a non-conversion run is byte-
+    # identical. `conversion_lift_pp` is the paired treatment−control delta in
+    # p_conv (`action_counts[label] / total`), expressed in PERCENTAGE POINTS
+    # ([-100, +100]); it is the same agent identity (#90 paired seed) deciding
+    # against control vs treatment, so the agent's inflated absolute propensity
+    # cancels in the delta. The number is stored for the eval, but PRE-#222 the
+    # PM-facing headline is `conversion_lift_relative` (rank + direction +
+    # CI-excludes-zero) — never the bare pp as truth (§5: magnitude is
+    # uncalibrated until the shrinkage layer is fit). `conversion_regime` names
+    # the weak behavioral regime so the card never presents conversion with the
+    # confidence of a copy/CTR test. Drop counters mirror the A/B lift counters.
+    conversion_lift_pp: float | None = None
+    conversion_lift_ci_pp: tuple[float, float] | None = None
+    conversion_lift_paired_n: int | None = None
+    conversion_lift_unpaired_treatment: int = 0
+    conversion_lift_unpaired_control: int = 0
+    conversion_lift_elicitation_failure_drops: int = 0
+    conversion_regime: str | None = None
+    conversion_lift_relative: str | None = None
 
 
 class Simulation(BaseModel):

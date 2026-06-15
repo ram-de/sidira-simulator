@@ -41,6 +41,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     Weakness,
 )
+from sidira_simulator.services.conversion_elicitor import elicit_conversion_decision
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
 from sidira_simulator.services.prompt_composer import compose_identity_prompt
@@ -53,6 +54,10 @@ from sidira_simulator.services.run_state import (
 from sidira_simulator.services.runtime_config import (
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
+)
+from sidira_simulator.services.treatment_renderer import (
+    extract_choice_set,
+    render_state_diff,
 )
 
 log = structlog.get_logger()
@@ -85,6 +90,13 @@ class AgentRecord:
     # the scorer's hierarchical path stays dormant. With samples>1 the scorer
     # classifies every reaction and folds within-agent variance into the CI.
     reaction_distribution: list[tuple[str, float]] = field(default_factory=list)
+    # #221 §3a conversion metric: the agent's elicited conversion propensity
+    # (p_conv) from the turn-2 allocation, when the Hypothesis carried
+    # `metric_name == "conversion"` and this is a persona arm. None when no
+    # conversion metric was set OR the per-agent conversion elicitation failed
+    # (the run stays alive; the pair is dropped honestly at aggregation). Scored
+    # only as a paired treatment−control delta, never as an absolute level.
+    conversion_p: float | None = None
 
 
 class _LazyModelChatClient:
@@ -523,6 +535,95 @@ class SimulationRunner:
             # the single reaction the historical path produced.
             initial_reaction = distribution.modal.text
 
+            # #221 §3a turn-2: per-metric conversion elicitation. Only when the
+            # Hypothesis carried a conversion metric AND this is a persona arm
+            # that feeds the paired A/B comparison (treatment/control). The
+            # ephemeral shadows (no_persona / current_state) drive sentiment
+            # baselines only, never the conversion headline, so we don't spend a
+            # turn-2 call on them. Conditioned on the agent's own turn-1 reaction
+            # (reason-then-decide) and its frozen identity prompt. A failure here
+            # is per-agent: conversion_p stays None, the agent (and its sentiment
+            # contribution) survives, and the pair is dropped honestly at
+            # aggregation (elicitation_failure_drops) — never imputed to zero.
+            conversion_p: float | None = None
+            if hypothesis.metric_name == "conversion" and arm in ("treatment", "control"):
+                # §3a choice set (spec §"the on-screen options"): prefer the
+                # PM-supplied choice_set; otherwise ground the alternatives in the
+                # actual reachable actions at the decision point in the rendered
+                # proposed state (treatment_renderer.extract_choice_set), so the
+                # question reflects the screen the agent saw rather than generic
+                # fallbacks. The SAME proposed-state option set is used for both
+                # arms so p_conv is comparable across the paired seed (a treatment-
+                # only action the control product lacks correctly draws ~0 from the
+                # control agent → honest lift). The elicitor still falls back to
+                # DEFAULT_CONVERSION_CHOICE_SET when nothing grounds (prose-only
+                # change, thin crawl). Pure + cheap (no LLM), so computing it
+                # per-agent is dwarfed by the elicitation call that follows.
+                #
+                # The conversion action/label is filtered out of the ALTERNATIVES
+                # regardless of source (PM-supplied or extracted): the elicitor
+                # always prepends the canonical conversion_action_label, so any
+                # alternative equal to the conversion action/label would offer two
+                # conversion-like options while p_conv counts only the canonical
+                # one — agents could split conversion intent into the unlabeled
+                # twin and undercount the lift.
+                conv_terms = {
+                    (hypothesis.conversion_action or "").strip().lower(),
+                    (hypothesis.conversion_action_label or "").strip().lower(),
+                }
+                conv_terms.discard("")
+                grounded_choice_set: list[str] | None = None
+                if hypothesis.choice_set:
+                    grounded_choice_set = [
+                        lbl
+                        for lbl in hypothesis.choice_set
+                        if lbl.strip().lower() not in conv_terms
+                    ] or None
+                elif hypothesis.proposed_figma is not None:
+                    rendered = render_state_diff(capability, hypothesis)
+                    extracted = extract_choice_set(rendered, hypothesis.decision_point or "")
+                    # Only forward GROUNDED choices. When the decision point has no
+                    # reachable transitions, extract_choice_set substitutes its own
+                    # fallback set — which includes a generic "convert" option — so
+                    # on fallback we leave it None and let the elicitor use its
+                    # curated NON-conversion DEFAULT_CONVERSION_CHOICE_SET.
+                    if extracted.grounded:
+                        grounded_choice_set = [
+                            c.action
+                            for c in extracted.choices
+                            if c.action.strip().lower() not in conv_terms
+                        ] or None
+                try:
+                    decision = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            elicit_conversion_decision,
+                            chat_client,
+                            system_prompt=identity_prompt,
+                            reaction_text=initial_reaction,
+                            capability_name=capability.name,
+                            conversion_action=hypothesis.conversion_action or "",
+                            conversion_action_label=hypothesis.conversion_action_label or "",
+                            decision_point=hypothesis.decision_point or "",
+                            choice_set=grounded_choice_set,
+                        ),
+                        timeout=self._per_agent_timeout_s,
+                    )
+                    conversion_p = decision.p_conv
+                except Exception as exc:
+                    # Per-agent conversion failure — do NOT fail the agent. We
+                    # log (rather than emit a RunEvent) because the SSE event
+                    # contract has no conversion-failure type and the agent's
+                    # sentiment contribution still stands; the dropped pair is
+                    # surfaced honestly downstream via
+                    # conversion_lift_elicitation_failure_drops.
+                    log.warning(
+                        "agent.conversion.failed",
+                        sim_id=sim_id,
+                        agent_id=agent_id,
+                        persona=persona.name,
+                        error=str(exc)[:500],
+                    )
+
             now = datetime.now(timezone.utc)
 
             # #221 persona-lift / delta-mode: both shadow arms (no_persona and
@@ -578,6 +679,7 @@ class SimulationRunner:
                 sample_index=sample_index,
                 arm=arm,
                 reaction_distribution=[(s.text, s.probability) for s in distribution.samples],
+                conversion_p=conversion_p,
             )
 
     async def _score(
@@ -627,6 +729,7 @@ class SimulationRunner:
                 sample_index=r.sample_index,
                 arm=r.arm,
                 reaction_distribution=r.reaction_distribution or None,
+                conversion_p=r.conversion_p,
             )
             for r in agent_records
         ]

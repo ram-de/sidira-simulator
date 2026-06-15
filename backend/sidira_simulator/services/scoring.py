@@ -23,6 +23,7 @@ from sidira_simulator.adapters.llm import ChatClient, get_chat_client
 from sidira_simulator.schemas.scoring import (
     ABLiftResult,
     AgentAnalysis,
+    ConversionLiftResult,
     ScoringConfig,
     Sentiment,
     SentimentClassification,
@@ -67,6 +68,7 @@ class AgentReaction:
         "sample_index",
         "arm",
         "reaction_distribution",
+        "conversion_p",
     )
 
     def __init__(
@@ -79,6 +81,7 @@ class AgentReaction:
         sample_index: int = 0,
         arm: str | None = None,
         reaction_distribution: list[tuple[str, float]] | None = None,
+        conversion_p: float | None = None,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -87,6 +90,10 @@ class AgentReaction:
         self.sample_index = sample_index
         self.arm = arm
         self.reaction_distribution = reaction_distribution
+        # #221 §3a: the agent's conversion propensity (p_conv) when the run used
+        # a conversion metric; None when no metric was set OR the per-agent
+        # conversion elicitation failed. Scored as a paired delta, never a level.
+        self.conversion_p = conversion_p
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -391,6 +398,18 @@ class ScoringService:
         # calls on a half-broken run.
         if not treatment_reactions or not control_reactions:
             missing = "treatment" if not treatment_reactions else "control"
+            # §3a: a conversion-metric run must surface the same honest
+            # uncomputable state on the conversion fields (paired_n=0 + the weak
+            # regime), or a missing-arm conversion run would be indistinguishable
+            # from a non-conversion run (all conversion_* at schema default None).
+            conversion_fields: dict[str, object] = {}
+            if hypothesis.metric_name == "conversion":
+                regime, relative = conversion_lift_honesty(ConversionLiftResult())
+                conversion_fields = {
+                    "conversion_lift_paired_n": 0,
+                    "conversion_regime": regime,
+                    "conversion_lift_relative": relative,
+                }
             return (
                 SimulationResult(
                     confidence_score=0.0,
@@ -405,6 +424,7 @@ class ScoringService:
                     ],
                     refinement_suggestions=[],
                     lift_paired_n=0,
+                    **conversion_fields,
                 ),
                 [],
             )
@@ -447,6 +467,33 @@ class ScoringService:
                 "lift_sentiment_failure_drops": lift.sentiment_failure_drops,
             }
         )
+
+        # §3a conversion lift: only when the Hypothesis carried a conversion
+        # metric. The per-agent `conversion_p` rides on the AgentReactions
+        # (turn-2 elicitation in the runner); aggregate the paired delta and
+        # graft the conversion_* fields on. A non-conversion run skips this
+        # entirely, leaving every conversion_* field at its schema default —
+        # byte-identical to today's A/B path.
+        if hypothesis.metric_name == "conversion":
+            conv = aggregate_conversion_lift(
+                treatment_reactions,
+                control_reactions,
+                config,
+                run_seed=run_seed,
+            )
+            regime, relative = conversion_lift_honesty(conv)
+            composed = composed.model_copy(
+                update={
+                    "conversion_lift_pp": conv.lift_pp,
+                    "conversion_lift_ci_pp": conv.lift_ci_pp,
+                    "conversion_lift_paired_n": conv.paired_n,
+                    "conversion_lift_unpaired_treatment": conv.unpaired_treatment,
+                    "conversion_lift_unpaired_control": conv.unpaired_control,
+                    "conversion_lift_elicitation_failure_drops": (conv.elicitation_failure_drops),
+                    "conversion_regime": regime,
+                    "conversion_lift_relative": relative,
+                }
+            )
         return composed, list(analyses)
 
     # — Pack-level scoring ——————————————————————————————————————————
@@ -1082,3 +1129,146 @@ def aggregate_current_state_delta(
     # treatment − current_state.
     delta_result = _paired_lift(treatment_analyses, current_state_analyses, cfg, run_seed=run_seed)
     return current_state_result, delta_result
+
+
+# §5 honesty: conversion is a WEAK behavioral regime (the modality cliff —
+# simulated purchase-intent correlates with real behavior at only r≈0.25–0.34,
+# vs r≈0.7–0.9 for the copy/CTR regime). This label rides on the result so the
+# downstream card never renders conversion lift with the confidence of a
+# calibrated A/B test, and so the magnitude is treated as rank/direction signal
+# (not a fabricated true effect size) until the #222 shrinkage layer is fit.
+CONVERSION_REGIME_WEAK = "weak_behavioral"
+
+
+def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str | None]:
+    """Map a `ConversionLiftResult` to (regime, relative-statement) per §5.
+
+    `regime` is always the weak-behavioral label (conversion never escapes the
+    modality cliff pre-#222). `relative` is a direction/rank statement — NOT the
+    bare pp value presented as a true effect size — describing which arm
+    converts more on the paired identities and whether the paired-bootstrap CI
+    excludes zero. Returns `(regime, None)` when no lift is computable so the
+    caller can leave the PM-facing line blank rather than assert a direction.
+    """
+    if lift_result.lift_pp is None:
+        return CONVERSION_REGIME_WEAK, None
+
+    if lift_result.lift_pp > 0:
+        direction = "Treatment converts directionally higher than control"
+    elif lift_result.lift_pp < 0:
+        direction = "Treatment converts directionally lower than control"
+    else:
+        direction = "Treatment and control convert at the same directional rate"
+
+    ci = lift_result.lift_ci_pp
+    if ci is not None and (ci[0] > 0 or ci[1] < 0):
+        separation = "the paired-bootstrap interval excludes zero"
+    elif ci is not None:
+        separation = "the paired-bootstrap interval straddles zero (not separable)"
+    else:
+        separation = "no interval available"
+
+    relative = (
+        f"{direction} on {lift_result.paired_n} paired identities; {separation}. "
+        "Synthetic conversion is a weak behavioral signal — read as rank/direction, "
+        "not as a calibrated effect size."
+    )
+    return CONVERSION_REGIME_WEAK, relative
+
+
+def aggregate_conversion_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+) -> ConversionLiftResult:
+    """Paired conversion-lift (agent-behavior-spec §3a / #221).
+
+    The conversion analog of `_paired_lift`, but the per-agent quantity is the
+    elicited `conversion_p` scalar carried on each `AgentReaction` (turn-2
+    allocation), not a sentiment classification. Matches treatment/control by
+    `(persona_id, sample_index)` (the #90 paired key), then the statistic is the
+    mean per-pair delta `p_conv(treatment) − p_conv(control)`, expressed in
+    PERCENTAGE POINTS (×100). The sign is `treatment − control`: positive means
+    the treatment arm converts more than the control arm on the same identities.
+
+    Why a paired delta and never a level: the absolute `p_conv` is a synthetic,
+    uncalibrated number (the §5 modality cliff — conversion is a weak behavioral
+    regime), but the per-agent inflation is shared across both arms of a paired
+    seed, so it cancels in the delta. The point estimate and the bootstrap CI are
+    computed off the SAME statistic (mean paired delta in pp) so the CI brackets
+    the point by construction — mirroring `_paired_lift` (codex R1-P1 PR #96).
+
+    A matched pair is usable only when BOTH sides carry a `conversion_p`; a None
+    on either side is a per-agent conversion-elicitation failure, counted in
+    `elicitation_failure_drops` and never imputed to zero. Degenerate runs (no
+    usable pairs) surface honestly: `lift_pp`/`lift_ci_pp` stay None and the drop
+    counters explain what was excluded.
+    """
+    cfg = config or ScoringConfig()
+
+    treatment_by_key: dict[tuple[str, int], AgentReaction] = {
+        (r.persona_id, r.sample_index): r for r in treatment_reactions
+    }
+    control_by_key: dict[tuple[str, int], AgentReaction] = {
+        (r.persona_id, r.sample_index): r for r in control_reactions
+    }
+    treatment_keys = set(treatment_by_key)
+    control_keys = set(control_by_key)
+    matched_keys = treatment_keys & control_keys
+
+    result = ConversionLiftResult(
+        unpaired_treatment=len(treatment_keys - control_keys),
+        unpaired_control=len(control_keys - treatment_keys),
+    )
+
+    # Sort matched keys for deterministic resample ordering (same rationale as
+    # `_match_paired_analyses`: `set` order is hash-seed dependent and would
+    # otherwise perturb the bootstrap across processes).
+    deltas: list[float] = []
+    failure_drops = 0
+    for key in sorted(matched_keys):
+        t_p = treatment_by_key[key].conversion_p
+        c_p = control_by_key[key].conversion_p
+        if t_p is None or c_p is None:
+            failure_drops += 1
+            continue
+        deltas.append(t_p - c_p)
+
+    result.elicitation_failure_drops = failure_drops
+    result.paired_n = len(deltas)
+
+    if not deltas:
+        # No usable pairs — conversion lift is genuinely not computable.
+        return result
+
+    def _mean_pp(sample: Sequence[float]) -> float:
+        return (sum(sample) / len(sample)) * 100.0
+
+    point = _mean_pp(deltas)
+    result.lift_pp = round(point, cfg.confidence_rounding)
+
+    if cfg.bootstrap_resamples > 0:
+        effective_seed = (
+            run_seed if run_seed is not None else secrets.randbits(53)
+        ) ^ _BOOTSTRAP_SEED_MIX
+        rng = random.Random(effective_seed)
+        ci_low, ci_high = bootstrap_percentile_ci(
+            deltas,
+            _mean_pp,
+            n_resamples=cfg.bootstrap_resamples,
+            rng=rng,
+        )
+        ci_low_r = round(ci_low, cfg.confidence_rounding)
+        ci_high_r = round(ci_high, cfg.confidence_rounding)
+        # Mirror `_paired_lift`'s edge clamp: independent rounding (and discrete
+        # percentile boundaries at small B/N) can violate
+        # ci_low <= lift_pp <= ci_high. Widen by at most one rounding step so a
+        # caller inspecting both always sees a bracketing CI.
+        result.lift_ci_pp = (
+            min(ci_low_r, result.lift_pp),
+            max(ci_high_r, result.lift_pp),
+        )
+
+    return result

@@ -174,6 +174,29 @@ class ABLiftResult(BaseModel):
     sentiment_failure_drops: int = 0
 
 
+# ── Conversion lift result (agent-behavior-spec §3a / #221) ────────────
+
+
+class ConversionLiftResult(BaseModel):
+    """Paired conversion-lift between treatment and control arms (§3a).
+
+    Returned by `services.scoring.aggregate_conversion_lift`. `lift_pp` is the
+    paired treatment−control delta in p_conv expressed in PERCENTAGE POINTS
+    ([-100, +100]); `lift_ci_pp` is the paired-bootstrap CI in the same units,
+    computed off the SAME statistic so it brackets the point by construction.
+    `paired_n` is the matched-pair count that fed the bootstrap; the drop
+    counters surface what was excluded (no twin, or a per-agent conversion
+    elicitation failure on either side) so a partial run reads honestly.
+    """
+
+    lift_pp: float | None = None
+    lift_ci_pp: tuple[float, float] | None = None
+    paired_n: int = 0
+    unpaired_treatment: int = 0
+    unpaired_control: int = 0
+    elicitation_failure_drops: int = 0
+
+
 # ── Refinement ────────────────────────────────────────────────────────
 
 
