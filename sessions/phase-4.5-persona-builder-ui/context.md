@@ -39,8 +39,22 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] Backend PR: /codex review on full #21–#25 diff → open ONE backend PR.
+- [ ] Apply codex review fixes (subagent running) → re-verify → open ONE backend PR.
 - [ ] #27/#28 frontend on a branch based off this backend branch.
+
+## Codex review (full backend diff vs main) — GATE: FAIL (1 P1), being fixed
+- **[P1] Snowflake SQL injection** snowflake.py preview: `table_fqn` interpolated raw.
+  FIX: validate as 1-3 part dotted identifier (`^[A-Za-z0-9_$]+$` per part) + double-quote. (fixing)
+- **[P2] KMS/local creds not tenant-bound** credentials.py: no AAD/EncryptionContext → a
+  password_enc blob copied across rows still decrypts. FIX: add optional `aad` kwarg to
+  encrypt/decrypt (AESGCM associated_data + KMS EncryptionContext), bind
+  `customer_id:connection_id` — SCOPED TO FEATURE-STORE PATH ONLY so existing prod crawl-cred
+  blobs (written w/o aad) keep decrypting (no legacy breakage). (fixing)
+- **[P2] promote/list capped at 50** persona_packs.py: >50 builds → promoting older pack returns
+  zeroed metadata + list omits it. FIX: add unbounded `PersonaBuildRepo.get_by_pack_version`. (fixing)
+- **[P2] version-race** persona_builder._next_version: two concurrent same-customer builds can pick
+  same v_N. DEFERRED (documented in PR) — true atomic reservation needs a DB counter/schema change.
+  Already flagged in #24 notes.
 
 ## Completed
 - [x] **#25 — persona-packs endpoint (list/get/promote)** (commit on this branch).
