@@ -96,7 +96,7 @@ def client(tmp_path, monkeypatch):
 
 
 def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
-    def _fake(feature_rows, column_mapping, config):
+    def _fake(rows, column_mapping, config, customer_id, run_id):
         return PipelineOutput(
             persona_pack={"personas": [{"id": f"p{i}"} for i in range(persona_count)]},
             stability_score=stability,
