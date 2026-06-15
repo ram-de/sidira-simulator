@@ -39,7 +39,16 @@ Note: #26 (wizard step 1, Snowflake connect form) is already CLOSED. Scaffolding
 `frontend/app/personas/`. A prior worktree `persona-pack-v11-ui` exists — check it for reuse.
 
 ## In Progress
-- [ ] Open ONE backend PR (#21–#25 + codex fixes). Then #27/#28 frontend off this branch.
+- [ ] #27 frontend: wizard step 2 (column mapping UI) — next.
+- [ ] #28 frontend: wizard steps 3-7.
+
+### ✅ BACKEND PR OPEN: https://github.com/ram-de/sidira-simulator/pull/253
+  (#21–#25 + codex fixes `22bbd5a`). Base main. Migrations 011+012 → redeploy after merge.
+  Frontend is STACKED: branch off this backend branch, frontend PR base = backend branch
+  (clean frontend-only diff; GitHub auto-retargets to main when #253 merges).
+  Frontend MUST read DESIGN.md + reuse lib/design.ts TOKENS + components/SidiraLockup.
+  suggest-mapping keys (exact): demographic_identity, behavioral_patterns, motivations_jtbd,
+  pain_points_friction, value_sensitivity, channel_tech_behavior, loyalty_lifecycle, unmapped.
 
 ## Codex review (full backend diff vs main) — GATE: FAIL (1 P1) → ALL FIXED ✅ (815 passed, ruff clean)
 - **[P1] Snowflake SQL injection** snowflake.py preview: `table_fqn` interpolated raw.
