@@ -15,6 +15,7 @@ from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.services.behavioral_profile import (
     DEFAULT_SALIENCE_THRESHOLD,
     render_behavioral_profile,
+    render_individual_row,
 )
 
 
@@ -205,3 +206,236 @@ def test_deterministic_across_calls() -> None:
     first = render_behavioral_profile(p)
     second = render_behavioral_profile(p)
     assert first.model_dump() == second.model_dump()
+
+
+# ── agent-behavior-spec §2 step-2: the per-agent individual row (layer 4) ─────
+#
+# render_individual_row z-scores ONE sample row against the persona centroid in
+# ADAPTED-FEATURE space (raw units): z = (row[f] - centroid_full[f]) /
+# feature_scale[f]. These are the v1.1 fields (centroid_full / feature_scale /
+# sample_rows) — distinct from centroid_features (population z-scores) the
+# centroid tier uses. The reference frame is agent-vs-persona, not
+# persona-vs-population.
+
+
+# Sentinel so a caller can pass an EMPTY field (the v1.0-degradation cases)
+# distinctly from "not passed" (use the default) — `field or default` would
+# wrongly substitute the default for a falsy empty dict/list.
+_UNSET: object = object()
+
+
+def _persona_v11(
+    *,
+    centroid_full: object = _UNSET,
+    feature_scale: object = _UNSET,
+    sample_rows: object = _UNSET,
+) -> Persona:
+    """A v1.1 persona carrying the individual-row inputs (raw adapted units).
+
+    Defaults give two features and two rows, with integer-divisible values so the
+    z-scores land exactly on bucket/threshold edges (no float drift): row 0 is
+    distinctive (order frequency +2.0 SD, browse dependency -0.5 SD off the
+    cluster mean), row 1 is an average member (both features at the centroid → all
+    sub-threshold).
+    """
+    return Persona(
+        id="p_v11",
+        name="DashPass Power",
+        description="Heavy weekly user who orders for the family.",
+        # centroid_features (population z-scores) is intentionally present but
+        # MUST NOT be read by render_individual_row — the tiers never mix.
+        centroid_features={"order_frequency_z": 99.0},
+        centroid_full=(
+            {"order_frequency_28d": 10.0, "browse_dependency": 4.0}
+            if centroid_full is _UNSET
+            else centroid_full
+        ),
+        feature_scale=(
+            {"order_frequency_28d": 2.0, "browse_dependency": 2.0}
+            if feature_scale is _UNSET
+            else feature_scale
+        ),
+        sample_rows=(
+            [
+                {"order_frequency_28d": 14.0, "browse_dependency": 3.0},  # +2.0, -0.5
+                {"order_frequency_28d": 10.0, "browse_dependency": 4.0},  # 0, 0 typical
+            ]
+            if sample_rows is _UNSET
+            else sample_rows
+        ),
+    )
+
+
+def test_individual_row_z_scores_against_centroid_full() -> None:
+    profile = render_individual_row(_persona_v11(), sample_index=0)
+
+    assert profile.grounded is True
+    assert profile.source_tier == "individual_row_synthetic"
+    assert profile.suppressed_count == 0
+    by_feature = {d.feature: d for d in profile.deltas}
+
+    # z = (14.0 - 10.0) / 2.0 = +2.0 → dramatically higher.
+    assert by_feature["order_frequency_28d"].z == 2.0
+    assert by_feature["order_frequency_28d"].direction == "higher"
+    assert by_feature["order_frequency_28d"].magnitude == "dramatically"
+    assert by_feature["order_frequency_28d"].label == "order frequency 28d"
+
+    # z = (3.0 - 4.0) / 2.0 = -0.5 → somewhat lower (exactly at the threshold edge).
+    assert by_feature["browse_dependency"].z == -0.5
+    assert by_feature["browse_dependency"].direction == "lower"
+    assert by_feature["browse_dependency"].magnitude == "somewhat"
+
+
+def test_individual_row_ignores_centroid_features_namespace() -> None:
+    # centroid_features carries a wild z (99.0) under a *_z key; the individual
+    # row must z-score ONLY the adapted-feature-space fields and never surface it.
+    profile = render_individual_row(_persona_v11(), sample_index=0)
+    assert "order_frequency_z" not in {d.feature for d in profile.deltas}
+    assert all(d.z != 99.0 for d in profile.deltas)
+
+
+def test_individual_row_render_block_shape() -> None:
+    block = render_individual_row(_persona_v11(), sample_index=0).render()
+    assert block is not None
+    assert block.startswith("## What's distinctive about you")
+    assert "**dramatically higher** order frequency 28d" in block
+    assert "DashPass Power" in block
+    # The GMM-synthetic honesty hedge: a representative individual, not a record.
+    assert "not an exact personal record" in block
+
+
+def test_individual_row_suppresses_sub_threshold_but_counts() -> None:
+    # Row 1 sits exactly at the centroid on both features → both |z| = 0.0,
+    # suppressed, nothing rendered, but it is a real (grounded) average member.
+    profile = render_individual_row(_persona_v11(), sample_index=1)
+    assert profile.deltas == []
+    assert profile.suppressed_count == 2
+    assert profile.grounded is True
+    assert profile.source_tier == "individual_row_synthetic"
+    assert profile.render() is None
+
+
+def test_individual_row_selection_is_deterministic_by_sample_index() -> None:
+    p = _persona_v11()
+    first = render_individual_row(p, sample_index=0)
+    again = render_individual_row(p, sample_index=0)
+    assert first.model_dump() == again.model_dump()
+
+
+def test_individual_row_selection_wraps_modulo_len() -> None:
+    # Two rows: index 2 wraps to row 0 (the distinctive one); index 1 is row 1
+    # (the typical one). Selection is sample_index % len(sample_rows).
+    p = _persona_v11()
+    assert (
+        render_individual_row(p, sample_index=2).model_dump()
+        == render_individual_row(p, sample_index=0).model_dump()
+    )
+    assert (
+        render_individual_row(p, sample_index=1).model_dump()
+        != render_individual_row(p, sample_index=0).model_dump()
+    )
+
+
+def test_individual_row_paired_twins_draw_identical_row() -> None:
+    # The #90 paired invariant: selection keys on sample_index ALONE (not the
+    # arm), so a treatment agent and its control twin — which share sample_index
+    # — render the byte-identical individual row.
+    p = _persona_v11()
+    treatment = render_individual_row(p, sample_index=7)
+    control = render_individual_row(p, sample_index=7)
+    assert treatment.render() == control.render()
+
+
+def test_individual_row_absent_v11_fields_is_ungrounded() -> None:
+    # A v1.0 pack (no centroid_full / feature_scale / sample_rows) degrades to an
+    # ungrounded profile whose render() is None, so the composer falls back to
+    # the centroid tier. Each missing field independently triggers the fallback.
+    base = _persona(None)  # plain v1.0 persona, no v1.1 fields at all
+    profile = render_individual_row(base, sample_index=0)
+    assert profile.grounded is False
+    assert profile.source_tier == "none"
+    assert profile.deltas == []
+    assert profile.render() is None
+
+    no_rows = render_individual_row(_persona_v11(sample_rows=[]), sample_index=0)
+    assert no_rows.source_tier == "none"
+    no_centroid = render_individual_row(_persona_v11(centroid_full={}), sample_index=0)
+    assert no_centroid.source_tier == "none"
+    no_scale = render_individual_row(_persona_v11(feature_scale={}), sample_index=0)
+    assert no_scale.source_tier == "none"
+
+
+def test_individual_row_skips_non_finite_values() -> None:
+    # NaN/inf in the row, centroid, or scale must be skipped — never rendered as
+    # a half-formed delta (the FM-3 honesty rule). good_feat survives.
+    p = _persona_v11(
+        centroid_full={"good_feat": 0.0, "nan_c": 1.0, "inf_s": 1.0},
+        feature_scale={"good_feat": 1.0, "nan_c": 1.0, "inf_s": math.inf},
+        sample_rows=[{"good_feat": 1.5, "nan_c": math.nan, "inf_s": 5.0}],
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert {d.feature for d in profile.deltas} == {"good_feat"}
+    assert profile.suppressed_count == 0
+
+
+def test_individual_row_skips_non_positive_scale() -> None:
+    # A zero or negative feature_scale would divide-by-zero / flip the sign; the
+    # producer floors std to epsilon, so this only trips on a malformed pack.
+    p = _persona_v11(
+        centroid_full={"good_feat": 0.0, "zero_scale": 0.0},
+        feature_scale={"good_feat": 1.0, "zero_scale": 0.0},
+        sample_rows=[{"good_feat": 1.5, "zero_scale": 9.0}],
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert {d.feature for d in profile.deltas} == {"good_feat"}
+
+
+def test_individual_row_skips_features_missing_from_row_or_scale() -> None:
+    # A feature must appear in all three of centroid_full / row / feature_scale
+    # to be z-scored; a partial key set is skipped, not fabricated.
+    p = _persona_v11(
+        centroid_full={"in_all": 0.0, "missing_from_row": 0.0, "missing_from_scale": 0.0},
+        feature_scale={"in_all": 1.0, "missing_from_row": 1.0},
+        sample_rows=[{"in_all": 2.0, "missing_from_scale": 2.0}],
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert {d.feature for d in profile.deltas} == {"in_all"}
+
+
+def test_individual_row_all_malformed_is_ungrounded() -> None:
+    # Row inputs present but no feature yields a usable delta (all non-finite):
+    # report ungrounded so a broken row can't masquerade as a real draw.
+    p = _persona_v11(
+        centroid_full={"a": math.nan, "b": 1.0},
+        feature_scale={"a": 1.0, "b": math.inf},
+        sample_rows=[{"a": 1.0, "b": 2.0}],
+    )
+    profile = render_individual_row(p, sample_index=0)
+    assert profile.grounded is False
+    assert profile.source_tier == "none"
+    assert profile.deltas == []
+    assert profile.suppressed_count == 0
+    assert profile.render() is None
+
+
+def test_individual_row_deltas_sorted_most_salient_first() -> None:
+    p = _persona_v11(
+        centroid_full={"big": 0.0, "alpha": 0.0, "zeta": 0.0},
+        feature_scale={"big": 1.0, "alpha": 1.0, "zeta": 1.0},
+        # |z|: big=3.0, alpha=1.0, zeta=1.0 → big first, then the 1.0 tie sorts
+        # alpha before zeta by name.
+        sample_rows=[{"big": 3.0, "alpha": -1.0, "zeta": 1.0}],
+    )
+    order = [d.feature for d in render_individual_row(p, sample_index=0).deltas]
+    assert order == ["big", "alpha", "zeta"]
+
+
+def test_individual_row_tunable_threshold() -> None:
+    p = _persona_v11(
+        centroid_full={"a": 0.0, "b": 0.0},
+        feature_scale={"a": 1.0, "b": 1.0},
+        sample_rows=[{"a": 0.7, "b": 1.3}],  # |z|: a=0.7, b=1.3
+    )
+    profile = render_individual_row(p, sample_index=0, salience_threshold=1.0)
+    assert {d.feature for d in profile.deltas} == {"b"}
+    assert profile.suppressed_count == 1

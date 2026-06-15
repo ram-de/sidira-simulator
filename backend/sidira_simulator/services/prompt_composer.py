@@ -42,7 +42,10 @@ from sidira_simulator.schemas.feature_pack import Capability
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
 from sidira_simulator.schemas.simulation import Hypothesis
-from sidira_simulator.services.behavioral_profile import render_behavioral_profile
+from sidira_simulator.services.behavioral_profile import (
+    render_behavioral_profile,
+    render_individual_row,
+)
 from sidira_simulator.services.treatment_renderer import render_state_diff
 
 Arm = Literal["treatment", "control"]
@@ -200,6 +203,7 @@ def compose_identity_prompt(
     identity_seed: IdentitySeed | None = None,
     arm: Arm = "treatment",
     use_persona: bool = True,
+    sample_index: int | None = None,
 ) -> str:
     """Build the frozen system prompt that defines this AgentInstance forever.
 
@@ -222,6 +226,15 @@ def compose_identity_prompt(
     identity, which is what makes the persona-lift baseline falsifiable. The
     runner pairs the no-persona shadow against the treatment arm, so callers
     that pass `use_persona=False` also pass `arm="treatment"`.
+
+    agent-behavior-spec §2 layer 4: `sample_index` (the agent's per-persona
+    index, same value identity_seed is keyed on) selects this agent's individual
+    behavioral row when the persona carries Persona Pack v1.1 row inputs,
+    rendering its within-cluster deltas in the §2 section (within-persona
+    variety). When None — or on a v1.0 pack — the section degrades to the shared
+    persona-centroid profile, byte-identical to pre-step-2. Keyed on
+    `sample_index` alone (not the arm), so paired treatment/control twins draw
+    the same row and the preamble stays byte-identical across arms.
 
     Identity continuity (memory/agent_memory.py): this output is persisted
     to R2 as `identity.md` and never recomputed. An agent created with
@@ -248,7 +261,7 @@ def compose_identity_prompt(
             jtbd_section=jtbd_section,
             about_you_section=_about_you_section(identity_seed),
             behavioral_snapshot=snapshot_lines,
-            behavioral_profile_section=_behavioral_profile_section(persona),
+            behavioral_profile_section=_behavioral_profile_section(persona, sample_index),
             capability_name=capability.name,
             reverse_prd=capability.reverse_prd,
             reverse_figma_summary=_summarize_figma(capability),
@@ -280,23 +293,35 @@ def compose_identity_prompt(
     return preamble + "\n" + task_block
 
 
-def _behavioral_profile_section(persona: Persona) -> str:
-    """agent-behavior-spec §2: the persona's population-relative behavioral
-    profile, rendered as salient natural-language deltas from `centroid_features`
-    (services.behavioral_profile.render_behavioral_profile).
+def _behavioral_profile_section(persona: Persona, sample_index: int | None = None) -> str:
+    """agent-behavior-spec §2: this agent's behavioral-comparison block, rendered
+    as salient natural-language deltas (services.behavioral_profile).
+
+    Picks the most *individual* signal available (the SourceTier degradation
+    contract), always answering "what is distinctive about THIS agent":
+
+    - **Layer 4 — individual row** (`render_individual_row`): when a `sample_index`
+      is supplied AND the persona carries Persona Pack v1.1 row inputs
+      (`sample_rows` + `centroid_full` + `feature_scale`), render this agent's
+      within-cluster deviation from the persona centroid — UNIQUE per agent, the
+      §2 headline that creates within-persona variety.
+    - **Centroid fallback** (`render_behavioral_profile`): otherwise (no
+      `sample_index`, a v1.0 pack, or an all-typical row) render the persona's
+      population-relative profile from `centroid_features` — shared by every agent
+      in the persona. This is the pre-step-2 behavior, preserved unchanged.
 
     Additive and gated on real data: returns "" — so the prompt is byte-identical
-    to pre-§2 — whenever the persona carries no centroid_features or none of them
-    clear the salience threshold. Both arms see it (it is identity, not change
-    framing), so the #90 pairing invariant — treatment and control differ only in
-    task framing — still holds. The trailing blank line keeps the spacing before
-    "## The product today" identical to the no-block case.
-
-    NOTE (#7 seam): this renders the persona *centroid* (a segment statistic
-    shared by every agent in the persona) — it closes the unused-centroid gap but
-    does NOT yet add the per-agent individual row that creates within-persona
-    variety; that needs the behavioral row + per-feature scale #7 ships.
+    to the no-block case — when neither tier has anything salient. Both arms see
+    whatever renders (it is identity, not change framing), and the individual-row
+    selection is keyed on `sample_index` alone (not the arm), so the #90 pairing
+    invariant — treatment and control preambles differ only in task framing —
+    still holds. The trailing blank line keeps the spacing before "## The product
+    today" identical to the no-block case.
     """
+    if sample_index is not None:
+        row_block = render_individual_row(persona, sample_index).render()
+        if row_block:
+            return f"{row_block}\n\n"
     block = render_behavioral_profile(persona).render()
     return f"{block}\n\n" if block else ""
 

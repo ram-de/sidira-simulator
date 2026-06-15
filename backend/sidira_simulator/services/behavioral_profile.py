@@ -17,22 +17,23 @@ is the **reference frame** layer 4 (the per-agent individual row) deviates from
 — so building it now builds the reusable delta core, and closes the dangling
 `centroid_features` gap with real data, not fabricated precision.
 
-What this module does NOT ship yet (the #7-gated step 2). The spec's headline
-win is the per-agent *individual row* (layer 4) — one real or GMM-sampled user
-row rendered as its deviation *from this centroid*, which is what creates
-within-persona variety. That needs two things v1.0 packs do not carry:
+What this module ALSO ships now (the formerly #7-gated step 2). `render_individual_row`
+renders the spec's headline win — the per-agent *individual row* (layer 4): one
+GMM-sampled user row rendered as its deviation *from this centroid*, which is
+what creates within-persona variety. It consumes the Persona Pack **v1.1** fields
+(sidira-personas#7 producer side, shipped 2026-06-14) that v1.0 packs do not carry:
 
-  - a behavioral **row** (real anonymized, or sampled from the fitted GMM
-    component), and
-  - per-feature **scale** (within-cluster dispersion) to z-score the row's
-    deviation from the centroid.
+  - `sample_rows` — N privacy-clean synthetic behavioral rows (GMM-sampled), and
+  - `centroid_full` + `feature_scale` — the cluster mean and per-feature
+    within-cluster dispersion, both in adapted-feature space, to z-score the
+    row's deviation from the centroid.
 
-Both arrive with #7 (personas hygiene). Until then there is no honest per-agent
-row to render — fabricating one from the centroid would manufacture exactly the
-confabulated precision the whole spec is built to prevent — so the individual
-row degrades to "not available" and only the centroid reference frame renders.
-The seam is explicit: `SourceTier` already names the row tiers, and
-`render_behavioral_profile` takes the same shape they will plug into.
+On a v1.0 pack (no row inputs) the individual row degrades to "not available" and
+the composer falls back to the centroid reference frame — fabricating a row from
+the centroid would manufacture exactly the confabulated precision the whole spec
+is built to prevent. `posterior_mean` is carried on the schema but its named
+soft-membership hedge is a follow-up (it needs a component→persona-id map the
+pack doesn't yet provide).
 
 Like the §1 renderer this module is deliberately pure and side-effect-free: no
 LLM, no I/O, deterministic given its inputs, and unit-testable against fixture
@@ -135,14 +136,28 @@ class BehavioralProfile(BaseModel):
     source_tier: SourceTier
 
     def render(self) -> str | None:
-        """The "How you compare" block, or None when there is nothing salient.
+        """The behavioral-comparison block, or None when there is nothing salient.
 
         Returns None — so the composer emits no block — when no feature cleared
-        the salience threshold (whether the centroid was absent, all-typical, or
-        all-suppressed). A block only appears when the segment genuinely diverges.
+        the salience threshold (whether the source was absent, all-typical, or
+        all-suppressed). A block only appears when there is genuine divergence.
+
+        The heading and framing follow `source_tier`: the centroid tier renders
+        the **persona-vs-population** comparison ("How you compare"), shared by
+        every agent in the persona; the individual-row tiers render the
+        **agent-vs-persona** comparison ("What's distinctive about you"), unique
+        to this agent. The two answer different questions on different reference
+        frames, so the composer picks the most individual tier available rather
+        than stacking both (avoiding a redundant double "compare" block).
         """
         if not self.deltas:
             return None
+        if self.source_tier in ("individual_row_real", "individual_row_synthetic"):
+            return self._render_individual_row()
+        return self._render_centroid()
+
+    def _render_centroid(self) -> str:
+        """Persona-vs-population block ("How you compare") — the centroid tier."""
         lines = [
             "## How you compare",
             "",
@@ -157,6 +172,34 @@ class BehavioralProfile(BaseModel):
             "",
             "(These are tendencies of your segment, not exact personal numbers — "
             "react as someone who behaves this way, not by quoting figures.)",
+        ]
+        return "\n".join(lines)
+
+    def _render_individual_row(self) -> str:
+        """Agent-vs-persona block ("What's distinctive about you") — layer 4.
+
+        Frames the deltas as how THIS specific agent diverges from its segment's
+        norm, not as a segment-vs-population tendency. The honesty hedge names
+        the row as a representative behavioral draw (it is GMM-synthetic, not the
+        agent's literal history), so the agent acts the texture without quoting
+        figures it does not actually own.
+        """
+        lines = [
+            "## What's distinctive about you",
+            "",
+            (
+                f"You belong to the **{self.persona_name}** segment, but you're "
+                "not an average member of it. Compared with the typical "
+                f"**{self.persona_name}**, you specifically tend to show:"
+            ),
+            "",
+        ]
+        lines += [f"- {d.line()}" for d in self.deltas]
+        lines += [
+            "",
+            "(This is the behavioral texture of one individual like you, not an "
+            "exact personal record — react as this specific person would, without "
+            "quoting figures.)",
         ]
         return "\n".join(lines)
 
@@ -252,4 +295,122 @@ def render_behavioral_profile(
         # grounded finding — suppressed > 0).
         grounded=True,
         source_tier="centroid_population",
+    )
+
+
+def render_individual_row(
+    persona: Persona,
+    sample_index: int,
+    *,
+    salience_threshold: float = DEFAULT_SALIENCE_THRESHOLD,
+) -> BehavioralProfile:
+    """Render one agent's individual-row behavioral profile (pure — layer 4).
+
+    This is the agent-behavior-spec §2 headline: the per-agent *individual row*
+    that creates within-persona variety. It selects ONE synthetic row from
+    `persona.sample_rows` deterministically by `sample_index`, then renders that
+    row's **within-cluster** deviation from the persona centroid as salient
+    natural-language deltas — the same delta core `render_behavioral_profile`
+    uses, on a different reference frame.
+
+    Reference frame (the key distinction from the centroid tier): the centroid
+    tier compares the *persona* to the *population* (`centroid_features`,
+    population z-scores). This tier compares *this agent* to its *persona*, using
+    the v1.1 adapted-feature-space fields, which are mutually consistent so the
+    within-cluster z is computed directly::
+
+        z = (sample_row[f] - centroid_full[f]) / feature_scale[f]
+
+    It never touches `centroid_features` (different units, different key
+    namespace), so the two tiers cannot cross-contaminate.
+
+    Selection determinism: `sample_rows[sample_index % len(sample_rows)]`. Keyed
+    on `sample_index` ALONE — not the arm — so a treatment agent and its control
+    twin (which share `sample_index`) draw the identical row, preserving the #90
+    paired-comparison invariant. `run_seed` is not folded in: the rows are a
+    fixed per-persona pool and `sample_index` is already the stable per-agent
+    identifier, so identity stays reproducible across re-runs.
+
+    Degradation (honesty): when the persona carries no v1.1 row inputs
+    (`sample_rows` / `centroid_full` / `feature_scale` empty — i.e. a v1.0 pack)
+    or no feature has usable finite values, returns an ungrounded profile whose
+    `render()` is None, so the composer cleanly falls back to the centroid tier.
+    Non-finite or non-positive-scale features are skipped, never rendered (the
+    FM-3 rule shared with `render_behavioral_profile` and identity_seed).
+
+    `source_tier` is `individual_row_synthetic`: `sample_rows` are GMM-sampled,
+    privacy-clean draws, never real user rows. The `individual_row_real` tier
+    (Hillstrom/Criteo benchmark) is a separate, out-of-scope source.
+    """
+    rows = persona.sample_rows or []
+    centroid = persona.centroid_full or {}
+    scale = persona.feature_scale or {}
+    if not rows or not centroid or not scale:
+        # No v1.1 row inputs (v1.0 pack) — the composer degrades to the
+        # centroid-population tier. Ungrounded so the honesty flags never let a
+        # missing row masquerade as a real individual draw.
+        return BehavioralProfile(
+            persona_name=persona.name,
+            deltas=[],
+            suppressed_count=0,
+            grounded=False,
+            source_tier="none",
+        )
+
+    row = rows[sample_index % len(rows)]
+
+    deltas: list[BehavioralDelta] = []
+    suppressed = 0
+    for feature, centroid_raw in centroid.items():
+        if feature not in row or feature not in scale:
+            # A feature must appear in all three (centroid, row, scale) to z-score
+            # it; a partial key set is a malformed pack — skip, don't fabricate.
+            continue
+        s = float(scale[feature])
+        row_val = float(row[feature])
+        c_val = float(centroid_raw)
+        if not (math.isfinite(s) and math.isfinite(row_val) and math.isfinite(c_val)):
+            continue
+        if s <= 0.0:
+            # Non-positive scale would divide-by-zero or flip the sign; the
+            # producer floors std to a tiny epsilon, so this only trips on a
+            # malformed pack. Skip rather than emit a bogus delta.
+            continue
+        z = (row_val - c_val) / s
+        if not math.isfinite(z):
+            continue
+        if abs(z) < salience_threshold:
+            suppressed += 1
+            continue
+        deltas.append(
+            BehavioralDelta(
+                feature=feature,
+                label=_humanize(feature),
+                z=z,
+                direction="higher" if z > 0 else "lower",
+                magnitude=_magnitude(abs(z)),
+            )
+        )
+
+    deltas.sort(key=lambda d: (-abs(d.z), d.feature))
+
+    if not deltas and suppressed == 0:
+        # Row inputs were present but no feature had a usable (finite,
+        # positive-scale, overlapping) value — a malformed pack. Report it as
+        # ungrounded so a broken row can't masquerade as a real individual draw
+        # (mirrors the centroid tier's all-non-finite guard).
+        return BehavioralProfile(
+            persona_name=persona.name,
+            deltas=[],
+            suppressed_count=0,
+            grounded=False,
+            source_tier="none",
+        )
+
+    return BehavioralProfile(
+        persona_name=persona.name,
+        deltas=deltas,
+        suppressed_count=suppressed,
+        grounded=True,
+        source_tier="individual_row_synthetic",
     )

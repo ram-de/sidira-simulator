@@ -468,6 +468,136 @@ def test_behavioral_profile_block_in_both_arms() -> None:
     assert "## How you compare" in control
 
 
+# ── agent-behavior-spec §2 step-2: individual-row tier upgrade (layer 4) ──────
+
+
+def _persona_v11() -> Persona:
+    """A v1.1 persona carrying the individual-row inputs (raw adapted units).
+
+    centroid_features (population z-scores) is present so the centroid tier is
+    *available* as a fallback; the v1.1 fields let the composer upgrade to the
+    per-agent individual row when a sample_index is supplied. Row 0 diverges
+    sharply from the cluster mean; row 1 is an average member.
+    """
+    p = _persona_with_centroid()
+    p.centroid_full = {"order_frequency_28d": 10.0, "browse_dependency": 4.0}
+    p.feature_scale = {"order_frequency_28d": 2.0, "browse_dependency": 2.0}
+    # Both rows are distinctive (integer-divisible → exact z), so any sample_index
+    # renders an individual-row block — the tier-upgrade assertions don't depend on
+    # which row a given index happens to select.
+    p.sample_rows = [
+        {"order_frequency_28d": 16.0, "browse_dependency": 8.0},  # +3.0, +2.0
+        {"order_frequency_28d": 4.0, "browse_dependency": 0.0},  # -3.0, -2.0
+    ]
+    return p
+
+
+def test_individual_row_block_upgrades_when_sample_index_and_v11_present() -> None:
+    """With v1.1 fields and a sample_index, the composer renders the per-agent
+    individual-row block ('What's distinctive about you') INSTEAD of the
+    persona-vs-population centroid block — the most-individual tier wins."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_v11(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        sample_index=0,
+    )
+    assert "## What's distinctive about you" in prompt
+    assert "**dramatically higher** order frequency 28d" in prompt
+    # The two tiers are mutually exclusive — no redundant double "compare" block.
+    assert "## How you compare" not in prompt
+
+
+def test_individual_row_block_degrades_to_centroid_on_v10_pack() -> None:
+    """A v1.0 persona (no v1.1 fields) WITH a sample_index falls back to the
+    centroid tier — render_individual_row returns nothing, so the composer emits
+    'How you compare', never a fabricated individual row."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_with_centroid(),  # centroid only, no v1.1 fields
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        sample_index=0,
+    )
+    assert "## What's distinctive about you" not in prompt
+    assert "## How you compare" in prompt
+
+
+def test_individual_row_block_absent_without_sample_index() -> None:
+    """Even on a v1.1 pack, no sample_index means no per-agent row — the composer
+    renders the persona-level centroid tier (back-compat for callers that don't
+    thread sample_index)."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_v11(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+    )
+    assert "## What's distinctive about you" not in prompt
+    assert "## How you compare" in prompt
+
+
+def test_individual_row_block_positioned_after_snapshot_before_product() -> None:
+    """The individual-row block occupies the same layer-4 slot as the centroid
+    block: between the behavioral snapshot and the product-today section."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_v11(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        sample_index=0,
+    )
+    snapshot_idx = prompt.index("## Behavioral snapshot")
+    row_idx = prompt.index("## What's distinctive about you")
+    product_idx = prompt.index("## The product today")
+    assert snapshot_idx < row_idx < product_idx
+
+
+def test_individual_row_block_identical_across_arms_for_same_sample_index() -> None:
+    """The #90 paired invariant at the composer level: a treatment agent and its
+    control twin share sample_index, so the individual-row block they render is
+    byte-identical (the arms differ only in the trailing task framing)."""
+    args = dict(
+        customer_id="acme",
+        persona=_persona_v11(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        sample_index=3,
+    )
+    treatment = compose_identity_prompt(**args, arm="treatment")
+    control = compose_identity_prompt(**args, arm="control")
+    marker = "## What's distinctive about you"
+    assert marker in treatment and marker in control
+    # The identity preamble (through the product-today section) is shared; isolate
+    # and compare the individual-row block verbatim across the two arms.
+    block_t = treatment.split(marker, 1)[1].split("## The product today", 1)[0]
+    block_c = control.split(marker, 1)[1].split("## The product today", 1)[0]
+    assert block_t == block_c
+
+
+def test_individual_row_block_stripped_when_use_persona_false() -> None:
+    """The no-persona baseline (#221) strips ALL persona conditioning, including
+    the v1.1 individual-row block — a sample_index must not leak persona texture
+    into the shadow prompt."""
+    prompt = compose_identity_prompt(
+        customer_id="acme",
+        persona=_persona_v11(),
+        capability=_capability(),
+        hypothesis=_hypothesis(),
+        identity_seed=_seed(),
+        sample_index=0,
+        use_persona=False,
+    )
+    assert "## What's distinctive about you" not in prompt
+    assert "## How you compare" not in prompt
+
+
 # ── #221 §4.1 persona-lift: use_persona flag ──────────────────────────────
 
 

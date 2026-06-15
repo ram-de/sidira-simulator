@@ -1125,6 +1125,34 @@ export interface components {
                 [key: string]: number;
             };
             behavioral_seeds?: components["schemas"]["BehavioralSeedSchema"] | null;
+            /**
+             * Centroid Full
+             * @description Cluster mean over ALL adapted features (raw units). The subtrahend for the per-agent within-cluster z-score — distinct from centroid_features (population z-scores). Empty on v1.0 packs.
+             */
+            centroid_full?: {
+                [key: string]: number;
+            };
+            /**
+             * Feature Scale
+             * @description Within-cluster std per feature (zero-floored by the producer), same keys as centroid_full. The z-score denominator. Empty on v1.0 packs.
+             */
+            feature_scale?: {
+                [key: string]: number;
+            };
+            /**
+             * Sample Rows
+             * @description N privacy-clean synthetic rows (covariance-aware GMM draws) in adapted-feature space, keyed by raw feature name. Selected per-agent by (sample_index) to render layer 4. Empty on v1.0 packs.
+             */
+            sample_rows?: {
+                [key: string]: number;
+            }[];
+            /**
+             * Posterior Mean
+             * @description Mean GMM soft-membership vector for this cluster, keyed by component index (P01, P02, …) — NOT persona id. Carried for forward compatibility; the named soft-membership hedge is a follow-up pending a component→persona-id map. None for FIXED_* / v1.0 packs.
+             */
+            posterior_mean?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * PersonaGroupChatRequest
