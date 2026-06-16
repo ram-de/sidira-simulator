@@ -500,6 +500,10 @@ export interface SnowflakeConnectionRequest {
   schema?: string | null;
 }
 
+// Last connectivity-test outcome persisted on a connection (#328). Null on a
+// row that has never been tested (the register renders that as UNTESTED).
+export type ConnectionTestStatus = "ok" | "failed";
+
 // Sanitized connection row — never carries the password.
 export interface ConnectionSummary {
   id: string;
@@ -511,6 +515,14 @@ export interface ConnectionSummary {
   role: string;
   database: string;
   schema?: string | null;
+  // Per-connection HEALTH (#328) — the persisted outcome of the last test, so
+  // the saved-connections register can show a last-known state in words without
+  // re-testing. All null on a never-tested row. The password is still never
+  // returned.
+  last_tested_at?: string | null;
+  last_test_status?: ConnectionTestStatus | null;
+  last_error_kind?: string | null;
+  last_error_message?: string | null;
 }
 
 // Per-column profile from a preview sample (dtype/nulls/sample values).

@@ -620,6 +620,17 @@ class FeatureStoreConnectionRepo(Protocol):
 
     async def delete(self, connection_id: str, customer_id: str) -> bool: ...
 
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool: ...
+
 
 class PostgresFeatureStoreConnectionRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -684,13 +695,50 @@ class PostgresFeatureStoreConnectionRepo:
         await _commit(self._session)
         return True
 
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Persist the outcome of a connectivity test (#328). Customer-scoped:
+        only a row this customer OWNS is updated; an unknown id OR another
+        tenant's id returns False and writes nothing (security requirement —
+        never touch another tenant's health). On success the caller passes
+        status='ok' with cleared error fields; on failure status='failed' with
+        the classified ``error_kind`` and human-readable ``error_message``."""
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        row.last_test_status = status
+        row.last_tested_at = tested_at
+        row.last_error_kind = error_kind
+        row.last_error_message = error_message
+        await _commit(self._session)
+        return True
+
 
 class InMemoryFeatureStoreConnectionRepo:
     def __init__(self) -> None:
         self._connections: dict[str, dict[str, Any]] = {}
 
     async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
-        row = {**connection, "updated_at": datetime.now(timezone.utc)}
+        # Seed the health columns (#328) as None so a freshly-inserted row reads
+        # as UNTESTED, matching the Postgres nullable columns. `connection` never
+        # carries them on the create path; record_test_result fills them later.
+        row = {
+            "last_tested_at": None,
+            "last_test_status": None,
+            "last_error_kind": None,
+            "last_error_message": None,
+            **connection,
+            "updated_at": datetime.now(timezone.utc),
+        }
         self._connections[row["id"]] = row
         return dict(row)
 
@@ -723,6 +771,29 @@ class InMemoryFeatureStoreConnectionRepo:
         if row is None or row["customer_id"] != customer_id:
             return False
         del self._connections[connection_id]
+        return True
+
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Mirror of the Postgres test-result persistence (#328). Customer-
+        scoped: an unknown id OR another tenant's id returns False and mutates
+        nothing. Writes status/timestamp + (cleared on ok / set on failed) the
+        error fields onto the owned row."""
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        row["last_test_status"] = status
+        row["last_tested_at"] = tested_at
+        row["last_error_kind"] = error_kind
+        row["last_error_message"] = error_message
         return True
 
 
@@ -1065,6 +1136,12 @@ def _feature_store_connection_to_dict(row: FeatureStoreConnection) -> dict[str, 
         "schema": row.schema,
         "password_enc": row.password_enc,
         "updated_at": row.updated_at,
+        # Per-connection health (#328) — last connectivity-test outcome. NULL on a
+        # row that has never been tested (reads as UNTESTED in the register).
+        "last_tested_at": row.last_tested_at,
+        "last_test_status": row.last_test_status,
+        "last_error_kind": row.last_error_kind,
+        "last_error_message": row.last_error_message,
     }
 
 

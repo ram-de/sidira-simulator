@@ -14,6 +14,7 @@ from sidira_simulator.adapters.repositories import (
     InMemoryAgentFeedbackRepo,
     InMemoryAgentInstanceRepo,
     InMemoryCustomerRepo,
+    InMemoryFeatureStoreConnectionRepo,
     InMemorySimulationRepo,
 )
 
@@ -21,6 +22,26 @@ from sidira_simulator.adapters.repositories import (
 @pytest.fixture
 def customers() -> InMemoryCustomerRepo:
     return InMemoryCustomerRepo()
+
+
+@pytest.fixture
+def feature_stores() -> InMemoryFeatureStoreConnectionRepo:
+    return InMemoryFeatureStoreConnectionRepo()
+
+
+_FS_ROW = {
+    "id": "fs-abc",
+    "customer_id": "demo",
+    "name": "prod",
+    "kind": "snowflake",
+    "account": "acct",
+    "user": "u",
+    "warehouse": "wh",
+    "role": "ro",
+    "database": "db",
+    "schema": None,
+    "password_enc": {"blob": "x"},
+}
 
 
 @pytest.fixture
@@ -165,3 +186,65 @@ async def test_feedback_record(feedback: InMemoryAgentFeedbackRepo) -> None:
     )
     assert len(feedback._feedback) == 1
     assert feedback._feedback[0]["realistic_flag"] is True
+
+
+# ── feature-store connection health (#328) ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fs_insert_seeds_null_health(
+    feature_stores: InMemoryFeatureStoreConnectionRepo,
+) -> None:
+    """A freshly-inserted row reads as UNTESTED — all health fields null."""
+    row = await feature_stores.insert(dict(_FS_ROW))
+    assert row["last_test_status"] is None
+    assert row["last_tested_at"] is None
+    assert row["last_error_kind"] is None
+    assert row["last_error_message"] is None
+
+
+@pytest.mark.asyncio
+async def test_fs_record_test_result_ok_and_failed(
+    feature_stores: InMemoryFeatureStoreConnectionRepo,
+) -> None:
+    await feature_stores.insert(dict(_FS_ROW))
+    now = datetime.now(timezone.utc)
+    assert await feature_stores.record_test_result(
+        "fs-abc", "demo", status="failed", tested_at=now,
+        error_kind="auth", error_message="bad creds",
+    )
+    row = await feature_stores.get("fs-abc", "demo")
+    assert row["last_test_status"] == "failed"
+    assert row["last_tested_at"] == now
+    assert row["last_error_kind"] == "auth"
+    # A passing test clears the error fields.
+    assert await feature_stores.record_test_result(
+        "fs-abc", "demo", status="ok", tested_at=now,
+        error_kind=None, error_message=None,
+    )
+    row = await feature_stores.get("fs-abc", "demo")
+    assert row["last_test_status"] == "ok"
+    assert row["last_error_kind"] is None
+    assert row["last_error_message"] is None
+
+
+@pytest.mark.asyncio
+async def test_fs_record_test_result_is_customer_scoped(
+    feature_stores: InMemoryFeatureStoreConnectionRepo,
+) -> None:
+    """Another tenant cannot write health onto a row they don't own (security
+    requirement): the call returns False and mutates nothing."""
+    await feature_stores.insert(dict(_FS_ROW))
+    now = datetime.now(timezone.utc)
+    assert not await feature_stores.record_test_result(
+        "fs-abc", "intruder", status="ok", tested_at=now,
+        error_kind=None, error_message=None,
+    )
+    # Unknown id is also a no-op False.
+    assert not await feature_stores.record_test_result(
+        "fs-nope", "demo", status="ok", tested_at=now,
+        error_kind=None, error_message=None,
+    )
+    # The owned row was untouched.
+    row = await feature_stores.get("fs-abc", "demo")
+    assert row["last_test_status"] is None

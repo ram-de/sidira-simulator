@@ -184,6 +184,44 @@ const connectionSubline = (c: ConnectionSummary): string => {
   return `${c.account} · ${c.user} · ${idTail}`;
 };
 
+// ── per-connection health, in words (#328) ──────────────────────────────────
+// Users reported "some connections don't work" with nothing signalling WHICH
+// until the Test step. The register now carries the last-known state of each
+// row as TEXT (DESIGN.md §4.3/§10: no green/red dots, no color-coded fill — the
+// words carry the meaning). Derived purely from the persisted health fields.
+
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+// Terse absolute date — `JUN 15` (today/yesterday spelled out when close, since
+// "TESTED TODAY" reads faster than a date for the common just-tested case). No
+// time-of-day: the register is scanned, not audited to the minute. There's no
+// shared date helper in the codebase, so this is the minimal local one.
+const terseTestedDate = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+  if (dayDiff === 0) return "TODAY";
+  if (dayDiff === 1) return "YESTERDAY";
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+};
+
+// The honest-text status line for one row. UNTESTED when never tested;
+// `OK · TESTED JUN 15` on a pass; `FAILED · AUTH` (or the raw kind) on a fail.
+// Returned uppercase to sit in the mono caption rail.
+const connectionHealthLine = (c: ConnectionSummary): string => {
+  if (c.last_test_status === "ok") {
+    const when = c.last_tested_at ? terseTestedDate(c.last_tested_at) : "";
+    return when ? `OK · TESTED ${when}` : "OK";
+  }
+  if (c.last_test_status === "failed") {
+    const kind = (c.last_error_kind ?? "").trim().toUpperCase();
+    return kind ? `FAILED · ${kind}` : "FAILED";
+  }
+  return "UNTESTED";
+};
+
 // When two saved rows share the same `name` (case-insensitively, trimmed —
 // DISPLAY normalization only; the stored values are never touched), append a
 // stable duplicate designator (`01`, `02`, …) so the eye stops decoding casing.
@@ -247,6 +285,18 @@ export default function NewPersonaPackPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
+  // Per-row connectivity test (#328). `testingRowId` is the row whose in-place
+  // TEST is in flight (disables just that affordance; null when none). The
+  // server persists the outcome and GET returns it, so a successful test re-
+  // fetches the list and the row's status line updates without leaving the
+  // picker or selecting the connection.
+  const [testingRowId, setTestingRowId] = useState<string | null>(null);
+  // Per-row test failure surfaced ONLY as a fallback (#328): normally a failed
+  // row-test is shown by the refreshed status line (FAILED · KIND), since the
+  // server persists the outcome. But that persistence is best-effort and the
+  // refresh can fail — if the refreshed row doesn't reflect the failure, we keep
+  // the caught error here so the verdict is never silently swallowed. Keyed by id.
+  const [rowTestError, setRowTestError] = useState<{ id: string; message: string } | null>(null);
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -490,9 +540,67 @@ export default function NewPersonaPackPage() {
     }
   };
 
+  // Test a saved connection IN PLACE from its register row (#328). This does NOT
+  // select the row or leave the picker — it just re-runs the connectivity test
+  // (testFeatureStore is a no-body POST against the stored credential) and lets
+  // the server persist the outcome. We then re-fetch the list so the row's
+  // status line reflects the new state (OK · TESTED … or FAILED · KIND). The
+  // route returns the same 204/structured-error contract whether or not the
+  // test passes; either way the persisted health changed, so we refresh
+  // regardless. A failed test surfaces only through the refreshed row's
+  // FAILED · … line — no banner, since this is one row in a register, not the
+  // wizard's own 03 · Test step (which keeps its existing testError banner).
+  const handleTestRow = async (id: string) => {
+    setTestingRowId(id);
+    setRowTestError(null);
+    // Capture the connectivity verdict locally so it's never lost: normally the
+    // refreshed status line carries it, but if persistence/refresh fails we fall
+    // back to surfacing this error inline (the row must never silently swallow a
+    // failed test — the prior masking gap).
+    let caught: string | null = null;
+    // Remember this row's last_tested_at BEFORE the test so we can tell whether
+    // the refresh actually captured THIS run. A row already FAILED from an
+    // earlier test would otherwise mask a fresh, unpersisted failure (codex P2).
+    const priorTestedAt = savedConns.find((r) => r.id === id)?.last_tested_at ?? null;
+    try {
+      await testFeatureStore(id); // 204 on success, throws on failure
+    } catch (e) {
+      caught = apiErrorMessage(e);
+    }
+    let refreshed: ConnectionSummary[] | null = null;
+    try {
+      refreshed = await listFeatureStores();
+      setSavedConns(refreshed);
+    } catch {
+      // A failed refresh leaves the prior status line in place — the wizard is
+      // never blocked by it (mirrors the mount-load graceful fallback).
+    }
+    // Surface the inline fallback ONLY when the test failed and the refreshed
+    // row does NOT reflect THIS run as failed. "This run" means the row is
+    // FAILED *and* its last_tested_at advanced past the pre-test value — so a
+    // stale prior FAILED from an earlier test (with an unpersisted new failure)
+    // still surfaces the fresh verdict. On the clean path the status line shows
+    // it and we stay quiet.
+    if (caught) {
+      const fresh = refreshed?.find((r) => r.id === id);
+      const capturedThisRun =
+        fresh?.last_test_status === "failed" &&
+        fresh.last_tested_at != null &&
+        fresh.last_tested_at !== priorTestedAt;
+      if (!capturedThisRun) {
+        setRowTestError({ id, message: caught });
+      }
+    }
+    setTestingRowId(null);
+  };
+
   const handleTest = async () => {
     setTestError(null);
     setTesting(true);
+    // The id actually tested (set once `active` is resolved/minted below) — the
+    // finally uses it to refresh that row's health (#328), since the `connection`
+    // state captured in this closure is stale after a fresh mint.
+    let testedId: string | null = null;
     try {
       // Reuse the stored id if no CREDENTIAL changed since the last create /
       // saved-connection select; otherwise mint a fresh connection (#26). A
@@ -530,6 +638,7 @@ export default function NewPersonaPackPage() {
         // re-profile on next Map entry and drop any stale build.
         invalidateConnection();
       }
+      testedId = active.id;
       await testFeatureStore(active.id); // 204 on success, throws on failure
       // Continue gates on the full test fingerprint (creds + source), so a later
       // source edit re-gates Continue (existing behavior).
@@ -539,6 +648,31 @@ export default function NewPersonaPackPage() {
       setOkFingerprint(null);
     } finally {
       setTesting(false);
+      // The server persisted this test's outcome (#328) whether it passed or
+      // failed. Refresh the saved list so the register row / collapsed summary
+      // for the active connection shows its new health state (OK · TESTED … or
+      // FAILED · KIND) instead of a stale UNTESTED — otherwise the wizard's own
+      // 03 · Test path would leave the picker behind it out of date. We also
+      // re-point `connection` at the refreshed row so the collapsed summary's
+      // health chip updates in place. Best-effort: a failed refresh leaves the
+      // prior state and never blocks the wizard (mirrors the mount-load
+      // fallback). `testedId` is the id actually tested (incl. a fresh mint),
+      // so the refresh is correct even when `connection` (closure) was stale.
+      // Only re-point `connection` when it still refers to the tested row — a
+      // mid-flight switch must not be clobbered.
+      if (testedId) {
+        const refreshId = testedId;
+        void (async () => {
+          try {
+            const rows = await listFeatureStores();
+            setSavedConns(rows);
+            const fresh = rows.find((r) => r.id === refreshId);
+            if (fresh) setConnection((prev) => (prev?.id === refreshId ? fresh : prev));
+          } catch {
+            // leave prior state; never block
+          }
+        })();
+      }
     }
   };
 
@@ -831,6 +965,9 @@ export default function NewPersonaPackPage() {
             confirmDeleteId={confirmDeleteId}
             deletingId={deletingId}
             deleteError={deleteError}
+            testingRowId={testingRowId}
+            rowTestError={rowTestError}
+            onTestRow={handleTestRow}
             onSelectSaved={handleSelectSaved}
             onNewConnection={handleNewConnection}
             onRequestDelete={(id) => {
@@ -1054,6 +1191,9 @@ function StepConnect({
   confirmDeleteId,
   deletingId,
   deleteError,
+  testingRowId,
+  rowTestError,
+  onTestRow,
   onSelectSaved,
   onNewConnection,
   onRequestDelete,
@@ -1081,6 +1221,9 @@ function StepConnect({
   confirmDeleteId: string | null;
   deletingId: string | null;
   deleteError: { id: string; message: string } | null;
+  testingRowId: string | null;
+  rowTestError: { id: string; message: string } | null;
+  onTestRow: (id: string) => void;
   onSelectSaved: (c: ConnectionSummary) => void;
   onNewConnection: () => void;
   onRequestDelete: (id: string) => void;
@@ -1222,7 +1365,10 @@ function StepConnect({
                 confirmingDelete={confirmDeleteId === c.id}
                 deleting={deletingId === c.id}
                 deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
+                testing={testingRowId === c.id}
+                testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
                 onSelect={() => onSelectSaved(c)}
+                onTest={() => onTestRow(c.id)}
                 onRequestDelete={() => onRequestDelete(c.id)}
                 onCancelDelete={onCancelDelete}
                 onConfirmDelete={() => onConfirmDelete(c.id)}
@@ -1377,7 +1523,10 @@ function SavedConnectionRow({
   confirmingDelete,
   deleting,
   deleteError,
+  testing,
+  testError,
   onSelect,
+  onTest,
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
@@ -1388,7 +1537,10 @@ function SavedConnectionRow({
   confirmingDelete: boolean;
   deleting: boolean;
   deleteError: string | null;
+  testing: boolean;
+  testError: string | null;
   onSelect: () => void;
+  onTest: () => void;
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
@@ -1412,6 +1564,9 @@ function SavedConnectionRow({
 
   const identity = connectionIdentity(conn);
   const subline = connectionSubline(conn);
+  // Last-known health in words (#328) — never a dot or colored fill (§4.3/§10).
+  // While a per-row test is in flight we say so honestly (§8.6: no spinners).
+  const healthLine = testing ? "TESTING…" : connectionHealthLine(conn);
 
   // The inline confirm replaces the row's clickable body so a mis-click can't
   // select-and-delete in one motion. Honest text states the exact scope (§7.7).
@@ -1510,15 +1665,42 @@ function SavedConnectionRow({
         >
           {subline}
         </div>
+        {/* Health line (#328) — honest text in the mono caption rail. The
+            status reads in WORDS (OK · TESTED … / FAILED · AUTH / UNTESTED);
+            meaning never rides on color or a dot (§4.3/§10). */}
+        <div style={{ ...railCaptionStyle, textTransform: "uppercase" }}>{healthLine}</div>
+        {/* Fallback verdict (#328): only shown when a row-test failed but the
+            persisted/refreshed status line didn't pick it up (best-effort
+            persistence or a failed refresh) — so the verdict is never silently
+            lost. Honest text, ink (no color-coded fill). */}
+        {testError && (
+          <div style={{ ...railCaptionStyle, color: TOKENS.ink }}>
+            TEST FAILED · {testError.toUpperCase()}
+          </div>
+        )}
       </button>
-      <button
-        type="button"
-        onClick={onRequestDelete}
-        aria-label={`Delete saved connection ${conn.name}`}
-        style={{ ...rowActionStyle, marginRight: 12 }}
-      >
-        Delete
-      </button>
+      {/* Row actions: a quiet in-place TEST (re-runs the connectivity test and
+          refreshes this row's status without selecting it), then Delete. Both
+          are hairline mono text buttons — no fills, no icons (§7.7/§10). */}
+      <div style={{ display: "flex", gap: 6, marginRight: 12 }}>
+        <button
+          type="button"
+          onClick={onTest}
+          disabled={testing}
+          aria-label={`Test saved connection ${conn.name}`}
+          style={{ ...rowActionStyle, opacity: testing ? 0.5 : 1, cursor: testing ? "not-allowed" : "pointer" }}
+        >
+          {testing ? "Testing…" : "Test"}
+        </button>
+        <button
+          type="button"
+          onClick={onRequestDelete}
+          aria-label={`Delete saved connection ${conn.name}`}
+          style={rowActionStyle}
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
@@ -1566,6 +1748,9 @@ function SavedConnectionSummary({
           </span>
           <Chip>{conn.kind.toUpperCase()}</Chip>
           <Chip>REUSING — NO PASSWORD NEEDED</Chip>
+          {/* Last-known health in words (#328) — a bordered mono chip, not a
+              colored dot (§4.3/§10). Re-test from the 03 · Test step below. */}
+          <Chip>{connectionHealthLine(conn)}</Chip>
         </div>
         <dl
           style={{

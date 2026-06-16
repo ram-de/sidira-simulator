@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
 
@@ -20,7 +22,39 @@ from sidira_simulator.api.deps import current_customer_id, get_feature_store_con
 from sidira_simulator.services import column_mapper
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/feature-stores", tags=["feature-stores"])
+
+
+async def _record_test_result_best_effort(
+    repo: FeatureStoreConnectionRepo,
+    connection_id: str,
+    customer_id: str,
+    *,
+    status: str,
+    tested_at: datetime,
+    error_kind: str | None,
+    error_message: str | None,
+) -> None:
+    """Persist a connectivity-test outcome (#328) WITHOUT ever changing the
+    route's HTTP contract. The connectivity result (204 / structured error) has
+    already been determined by the time this runs; the persisted health is
+    metadata. A write failure here (DB hiccup) must not become a 500 that masks
+    the real connectivity verdict — so we log and swallow."""
+    try:
+        await repo.record_test_result(
+            connection_id,
+            customer_id,
+            status=status,
+            tested_at=tested_at,
+            error_kind=error_kind,
+            error_message=error_message,
+        )
+    except Exception:  # noqa: BLE001 — best-effort metadata, never fail the route
+        logger.warning(
+            "failed to persist test result for connection %s", connection_id, exc_info=True
+        )
 
 #: HTTP status codes per classified connection-failure kind. Client-fixable
 #: problems (bad creds / missing grants) are 400; problems on the store/network
@@ -57,6 +91,14 @@ class ConnectionSummary(BaseModel):
     role: str
     database: str
     schema_: str | None = Field(default=None, alias="schema")
+    # Per-connection health (#328) — the persisted outcome of the last
+    # connectivity test, so the saved-connections register (#327) can show a
+    # last-known state in words (OK · TESTED … / FAILED · AUTH / UNTESTED). All
+    # null on a never-tested row. ``last_test_status`` is 'ok' | 'failed'.
+    last_tested_at: datetime | None = None
+    last_test_status: Literal["ok", "failed"] | None = None
+    last_error_kind: str | None = None
+    last_error_message: str | None = None
 
 
 class PreviewRequest(BaseModel):
@@ -86,6 +128,11 @@ def _summary_from_row(row: dict) -> ConnectionSummary:
         role=row["role"],
         database=row["database"],
         schema=row["schema"],
+        # Health fields (#328). Surfaced read-only; never include the password.
+        last_tested_at=row.get("last_tested_at"),
+        last_test_status=row.get("last_test_status"),
+        last_error_kind=row.get("last_error_kind"),
+        last_error_message=row.get("last_error_message"),
     )
 
 
@@ -211,15 +258,43 @@ async def test_connection(
 ) -> None:
     """Round-trip a trivial query. 204 on success; on failure a structured
     body {"error_kind", "message"} with 400 for auth/permission, 502 for
-    network/unknown."""
+    network/unknown.
+
+    Either outcome is PERSISTED to the row (#328) so the saved-connections
+    register can show a last-known state without re-testing: on success
+    last_test_status='ok' with the error fields cleared; on failure 'failed'
+    with the classified error_kind/message. record_test_result is customer-
+    scoped — it only ever updates THIS customer's owned row. The persisted
+    state is best-effort metadata: the HTTP contract (204 / structured error)
+    is unchanged and never gated on the write succeeding."""
     row = await repo.get(connection_id, customer_id)
     if row is None:
         raise HTTPException(status_code=404, detail="connection not found")
     store = _store_from_row(row, customer_id)
+    tested_at = datetime.now(timezone.utc)
     try:
         store.test_connection()
     except FeatureStoreConnectionError as exc:
+        kind = getattr(exc, "kind", "unknown")
+        await _record_test_result_best_effort(
+            repo,
+            connection_id,
+            customer_id,
+            status="failed",
+            tested_at=tested_at,
+            error_kind=kind,
+            error_message=str(exc),
+        )
         raise _connection_error(exc) from exc
+    await _record_test_result_best_effort(
+        repo,
+        connection_id,
+        customer_id,
+        status="ok",
+        tested_at=tested_at,
+        error_kind=None,
+        error_message=None,
+    )
 
 
 @router.post("/{connection_id}/preview", response_model=PreviewResponse)
