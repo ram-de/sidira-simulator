@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hypothesis Register — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   SIDIRA — THE READING CONSOLE v2 · Hypothesis Register (WORKING-class page)
+   design-system-v2.md. This page's job is COMPARISON · SORTING · RESUMING.
+   It does NOT earn the full Population Field (§0.2 impact budget): WebGL is
+   spent on results/manifest/evaluate/landing only. Here the one live reading
+   gets a SMALL STATIC DISTRIBUTION POSTER (Tier-3 SVG, §5.5). 80% brutally
+   quiet — ink, hairline, negative space — so the register scans.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root{
+  /* Console (dark) — primary */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  /* Ink — AA-clear (text-mut darkened to #929BAE; text-faint = DISABLED ONLY) */
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; --text-faint:#646E84;
+  /* Signal = LIVE reading only (one carrier per region) */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  /* Spread = doubt */
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  /* Arm tints = identity, never valence. Treatment = calm magenta (NOT red). */
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4;
+  /* Semantic = 1px border + word, never fill. No --verdict-* token: a verdict
+     is not a color. */
+  --edge-warn:#C9A227; --alert:#F0683C;
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,monospace;
+  --rail:56px; --topbar:52px; --content-max:1320px;
+}
+*{box-sizing:border-box; margin:0; padding:0; font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  background:var(--console-850); color:var(--text);
+  font-family:var(--font-sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+a{color:inherit; text-decoration:none;}
+::selection{background:rgba(72,239,202,.22); color:var(--text-hi);}
+
+.designator{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-mut);
+}
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+.shell{display:grid; grid-template-columns:var(--rail) 1fr; min-height:100vh;}
+
+/* Left icon rail */
+.rail{
+  position:fixed; left:0; top:0; bottom:0; width:var(--rail); z-index:40;
+  background:var(--console-850); border-right:1px solid rgba(51,64,92,.5);
+  display:flex; flex-direction:column; align-items:center; padding:10px 0;
+}
+.rail .mark{width:40px; height:40px; display:grid; place-items:center; margin-bottom:14px;}
+.rail .mark svg{width:22px; height:22px;}
+.rail-btn{
+  width:40px; height:40px; border-radius:var(--r-well); display:grid; place-items:center;
+  color:var(--text-mut); position:relative; margin:2px 0; cursor:pointer;
+  transition:color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.rail-btn svg{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.6;}
+.rail-btn:hover{color:var(--text-hi); background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:""; position:absolute; left:-10px; top:9px; bottom:9px; width:2px;
+  background:var(--signal-dim); border-radius:1px;
+}
+.rail-btn:focus-visible{outline:2px solid var(--signal-dim); outline-offset:2px;}
+.rail-spacer{flex:1;}
+.rail-avatar{
+  width:30px; height:30px; border-radius:var(--r-well); margin-top:6px;
+  background:linear-gradient(140deg,var(--console-700),var(--console-750));
+  border:1px solid var(--console-line); display:grid; place-items:center;
+  font-family:var(--font-mono); font-size:11px; color:var(--text); font-weight:500;
+}
+
+.main{grid-column:2; min-width:0;}
+
+/* Top bar — a SINGLE global provenance reference when a run is live (§4.5) */
+.topbar{
+  position:sticky; top:0; z-index:30; height:var(--topbar);
+  background:rgba(16,25,42,.92); backdrop-filter:saturate(140%) blur(8px);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex; align-items:center; gap:16px; padding:0 32px;
+}
+.wordmark{font-family:var(--font-sans); font-weight:600; font-size:14px;
+  letter-spacing:.06em; color:var(--text-hi); text-transform:uppercase;}
+.topbar .crumb{color:var(--text-mut); font-family:var(--font-mono); font-size:11px; letter-spacing:.04em;}
+.topbar .crumb b{color:var(--text); font-weight:500;}
+/* one compact live reference — not a second full legend, and NOT a second
+   signal carrier. The latest-reading STRIP below owns the one live reading;
+   the topbar carries only a quiet ◇ provenance token (no lime word, no breath)
+   so the region carriers don't echo (R3-2). */
+.live-ref{
+  margin-left:auto; display:flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.03em; color:var(--text-mut);
+  white-space:nowrap;
+}
+.live-ref .sep{color:var(--text-mut); opacity:.5;}
+/* resting reference dot: ink, no breath — the strip below is the live carrier */
+.ref-dot{
+  width:6px; height:6px; border-radius:var(--r-dot); background:var(--text-mut);
+}
+.live-ref .ch{color:var(--text); font-weight:500;}
+.live-ref .gly{color:var(--spread-dim);}      /* ◇ glyph only */
+.live-ref .word{color:var(--text-mut);}        /* P7: running word in --text-mut */
+
+/* ── Page header ──────────────────────────────────────────────────────────── */
+.content{max-width:var(--content-max); margin:0 auto; padding:48px 32px 96px;}
+
+.page-head{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;}
+.page-head h1{font-family:var(--font-sans); font-weight:600; font-size:2.0rem;
+  line-height:1.08; letter-spacing:-.025em; color:var(--text-hi); text-wrap:balance;}
+.page-head .sub{color:var(--text-mut); font-size:14px; max-width:56ch; line-height:1.5; margin-top:8px;}
+.page-head .sub b{color:var(--text); font-weight:500;}
+
+/* ── The ONE live reading region — a quiet latest-reading STRIP ────────────
+   This is the only place signal lives in the body. Static distribution poster
+   (Tier-3 SVG), one Provenance Bar, no WebGL. Occupies a narrow band, not a
+   masthead — the register below is the real work. ─────────────────────────── */
+.latest{
+  margin-top:32px; background:var(--console-900);
+  border:1px solid var(--console-line); border-radius:var(--r-frame); overflow:hidden;
+}
+/* the ONE Provenance Bar for this reading region (§7.3) */
+.prov-bar{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--text-mut);
+  padding:9px 18px; border-bottom:1px solid var(--console-line);
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:rgba(22,31,50,.5);
+}
+.prov-bar .sep{color:var(--text-mut); opacity:.5;}
+/* P7: ◇ glyph stays --spread-dim; the running WORD is --text-mut (AA-clear). */
+.prov-bar .gly{color:var(--spread-dim);}
+.prov-bar .uncal{color:var(--text-mut);}
+.prov-bar .ch{color:var(--text); font-weight:500;}
+/* R3-2/P3: the ONE live cue on the page. This strip owns the live reading, so
+   its status dot is the page's single sanctioned infinite loop (§5.4). */
+.prov-bar .live-dot{
+  width:7px; height:7px; border-radius:var(--r-dot); background:var(--signal); flex:none;
+  animation:breath 2s ease-in-out infinite;
+}
+.prov-bar .live-word{color:var(--signal); font-weight:500; letter-spacing:.05em;}
+@keyframes breath{0%,100%{opacity:.5;} 50%{opacity:1;}}
+@media (prefers-reduced-motion:reduce){ .prov-bar .live-dot{animation:none; opacity:1;} }
+.latest-body{
+  display:grid; grid-template-columns:1fr 232px; gap:36px; align-items:start;
+  padding:24px 24px 26px;
+}
+.latest-left{min-width:0;}
+.latest .what{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.latest .what .hid{font-family:var(--font-mono); font-size:12px; color:var(--text); white-space:nowrap;}
+.latest .what .ttl{font-weight:500; color:var(--text-hi); font-size:14px; line-height:1.35;}
+.latest .figure-row{display:flex; align-items:flex-end; gap:36px; flex-wrap:wrap;}
+.latest .fig{display:flex; flex-direction:column; gap:6px;}
+.latest .flabel{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text-mut);}
+/* P10/band: the MARQUEE reading dominates first paint at data-xl scale (3.4rem)
+   so the inferred figure — not any exempt fact — is the focal object. The two
+   hero figures (agreement, lift) share ONE stamp grammar (R4-3): identical ±
+   scale (.stamp, 1rem), identical --spread amber, same baseline offset. The ◇
+   honesty glyph sits ONCE, on the primary agreement figure (R4-2); the lift
+   inherits the region's calibration state and does not restamp it. */
+.latest .num{font-family:var(--font-mono); font-weight:500; font-size:3.4rem; line-height:.92;
+  color:var(--text-hi); letter-spacing:-.02em; display:inline-flex; align-items:baseline; gap:8px;}
+/* ONE stamp grammar: the ± unit is .3em of its figure on BOTH the marquee and the
+   lift, so it scales proportionally and reads as the same component (R4-3). */
+.latest .stamp{display:inline-flex; align-items:baseline; gap:.12em; font-size:.3em;
+  font-weight:500; letter-spacing:0; transform:translateY(-1.7em);}
+.latest .stamp .pm{color:var(--spread);}
+.latest .stamp .unit{color:var(--text-mut); margin-left:1px;}
+.latest .stamp .gl{font-size:.86em; color:var(--spread-dim);}
+/* lift: secondary to the marquee (P10 keeps ONE reading dominant), but it shares
+   the SAME .stamp unit so the two ± reads have one grammar (R4-3). Direction is a
+   SOLID up-glyph in ink (--text, not the weaker --text-mut) so the arrow stands
+   with the 11 instead of receding; no valence color. */
+.latest .lift{font-family:var(--font-mono); font-weight:500; font-size:2.0rem; line-height:1;
+  color:var(--text-hi); letter-spacing:-.01em; display:inline-flex; align-items:baseline; gap:7px;}
+.latest .lift .arrow{color:var(--text); font-size:.62em; transform:translateY(-.12em);}
+
+/* The control-vs-treatment comparison is carried by the static histogram poster
+   alone (one comparative object, not two). The poster's arm-tinted bins + the
+   arm key beneath it ARE the paired-arm reading; the earlier .armcompare bar
+   pair restated the same +11pp the marquee .lift already prints — dropped so the
+   marquee breathes (R4-1) and the ◇ count falls (R4-2). */
+/* static distribution poster (Tier-3) — frozen settled reading, no motion.
+   Sized up so the binned arms are genuinely interrogable; an arm key sits below. */
+.poster-wrap{display:flex; flex-direction:column; gap:8px;}
+.poster{display:block; width:232px; height:128px;}
+.poster-key{display:flex; align-items:center; gap:16px;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; color:var(--text-mut);}
+.poster-key .k{display:inline-flex; align-items:center; gap:6px; white-space:nowrap;}
+.poster-key .sw{width:9px; height:9px; border-radius:2px; flex:none;}
+.poster-key .sw.ctrl{background:var(--arm-control);}
+.poster-key .sw.treat{background:var(--arm-treat);}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.reg-head{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:48px; padding-bottom:14px;}
+.reg-head h2{font-family:var(--font-sans); font-weight:600; font-size:1.5rem;
+  letter-spacing:-.02em; color:var(--text-hi);}
+.reg-meta{font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; color:var(--text-mut);}
+/* P7: running WORD is --text-mut; only the ◇ glyph carries --spread-dim. */
+.reg-meta .uncal{color:var(--text-mut);}
+.reg-meta .gly{color:var(--spread-dim);}
+.spacer{flex:1;}
+
+.toolbar{display:flex; align-items:center; gap:8px;}
+.seg{display:flex; border:1px solid var(--console-line); border-radius:var(--r-well); overflow:hidden;}
+.seg button{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+  background:transparent; color:var(--text-mut); border:0; padding:7px 12px; cursor:pointer;
+  border-right:1px solid var(--console-line);
+  transition:color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.seg button:last-child{border-right:0;}
+.seg button:hover{color:var(--text-hi); background:var(--console-800);}
+.seg button.on{color:var(--text-hi); background:var(--console-750);}
+.seg button .cnt{margin-left:6px; color:var(--text-mut); opacity:.7;}
+.seg button:focus-visible{outline:2px solid var(--signal-dim); outline-offset:-2px;}
+
+.btn{
+  font-family:var(--font-sans); font-weight:500; font-size:13.5px;
+  height:36px; padding:0 16px; border-radius:var(--r-well); cursor:pointer;
+  display:inline-flex; align-items:center; gap:8px;
+  transition:background 140ms var(--ease-out), transform 80ms var(--ease-out);
+}
+.btn:active{transform:translateY(1px);}
+.btn:focus-visible{outline:2px solid var(--signal-dim); outline-offset:2px;}
+.btn-secondary{background:transparent; border:1px solid var(--console-line); color:var(--text);}
+.btn-secondary:hover{background:var(--console-800);}
+/* the ONE button that may carry signal — it initiates a live reading (§4.1) */
+.btn-run{background:transparent; border:1px solid var(--signal); color:var(--signal);}
+.btn-run:hover{background:var(--signal-wash);}
+.btn svg{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.7;}
+
+/* policy note — caution border + word (§1.6), low volume */
+.policy-note{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; color:var(--text-mut);
+  margin-top:10px; display:inline-flex; align-items:center; gap:7px;
+}
+.policy-note .w{color:var(--edge-warn);}
+
+/* ── The logbook table ───────────────────────────────────────────────────── */
+table{width:100%; border-collapse:collapse;}
+thead th{
+  font-family:var(--font-mono); font-size:11px; font-weight:500; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-mut); text-align:left;
+  padding:11px 16px 9px 0; border-bottom:1px solid var(--console-line); white-space:nowrap;
+  position:sticky; top:var(--topbar); background:var(--console-850); z-index:10;
+}
+thead th.num{text-align:right;}
+thead th.sortable{cursor:pointer;}
+thead th.active{color:var(--text);}
+/* column widths as classes (system-grade markup, not inline overrides) */
+thead th.col-id{width:122px;}
+thead th.col-agree{width:188px;}
+thead th.col-verdict{width:230px;}
+thead th.col-lastrun{width:108px;}
+thead th .arr{color:var(--text-mut); margin-left:4px;}
+tbody tr{cursor:pointer; transition:background 80ms var(--ease-out);}
+tbody tr:hover{background:var(--console-750);}
+tbody tr:focus-visible{outline:none; background:var(--console-750); box-shadow:inset 2px 0 0 var(--signal-dim);}
+tbody td{
+  padding:13px 16px 13px 0; border-bottom:1px solid rgba(51,64,92,.42);
+  vertical-align:baseline; font-size:14px;
+}
+td.id{font-family:var(--font-mono); font-size:12px; color:var(--text); white-space:nowrap;}
+td.hyp .title{font-weight:500; color:var(--text-hi); display:block; line-height:1.35; max-width:62ch;}
+td.hyp .cap{display:block; margin-top:4px; font-family:var(--font-mono); font-size:11px;
+  letter-spacing:.03em; color:var(--text-mut);}
+/* arm flag = identity, plain mut ink (NOT valence) */
+td.hyp .cap .arm-flag{color:var(--text-mut);}
+
+/* agreement reading cell — value ± ci + spark + glyph (inferred → Spread Stamp) */
+td.agree{white-space:nowrap; text-align:right; font-family:var(--font-mono);}
+.reading{display:inline-flex; align-items:center; gap:10px; justify-content:flex-end;}
+.reading .num{font-size:14.5px; color:var(--text-hi);}
+.reading .num .pm{color:var(--spread); font-size:11.5px; margin-left:3px;}
+td.agree .placeholder{color:var(--text-mut); font-size:14px; opacity:.7;}
+td.agree .drift{color:var(--text-mut);}
+
+/* verdict / policy cell */
+td.verdict{font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; white-space:nowrap;}
+.no-policy{color:var(--text-mut);}
+.no-policy .dim{color:var(--text-mut); opacity:.5;}
+/* status chips — border + word only, never filled pill */
+.chip{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+  border:1px solid var(--console-line); border-radius:var(--r-well); padding:2px 8px;
+  color:var(--text-mut); display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+/* P2/R3-2: the live reading is OWNED by the latest-reading strip (its prov-bar
+   breathes the one live dot). The table merely lists that same run as a row, so
+   the running chip is demoted to INK + a static ◇ — it does NOT echo a third
+   lime. The only signal in the toolbar/table region is the "Read now" button. */
+.chip.running{color:var(--text); border-color:var(--console-line);}
+.chip.running .gly{color:var(--spread-dim);}
+.chip.failed{color:var(--alert); border-color:rgba(240,104,60,.55);}
+td.lastrun{font-family:var(--font-mono); font-size:11.5px; color:var(--text-mut); white-space:nowrap;}
+/* P2: "LIVE" in the last-run cell is INK — the running chip already names this
+   row's state and the strip owns the live signal. */
+td.lastrun .live{color:var(--text);}
+
+/* sparkline strokes (phosphor underdraw + 1.5px line, never glow) */
+.spark .under{stroke-width:5; opacity:.16; fill:none; stroke-linecap:round;}
+.spark .line{stroke-width:1.5; fill:none; stroke-linecap:round;}
+/* completed readings are a settled record — neutral spread-dim trace, no valence */
+.spark.settled .line{stroke:var(--spread-dim);} .spark.settled .under{stroke:var(--spread-dim);}
+.spark.ctrl .line{stroke:var(--arm-control);} .spark.ctrl .under{stroke:var(--arm-control);}
+/* uncalibrated / in-progress → dim dashed drift (§5.6) */
+.spark.drift .line{stroke:var(--spread-dim); stroke-dasharray:3 3; opacity:.8;}
+.spark.drift .under{display:none;}
+
+/* DRIFT LAW (§5.6) — finite, freezes on hover/focus, pauses idle */
+@keyframes uncal-drift{0%,100%{transform:translateY(0);} 50%{transform:translateY(2px);}}
+.uncalibrated{opacity:.45; animation:uncal-drift 15s var(--ease-settle) infinite;}
+.uncalibrated.idle-paused{animation-play-state:paused;}
+tr:hover .uncalibrated, tr:focus-visible .uncalibrated, .uncalibrated:hover{
+  animation-play-state:paused; opacity:.75;}
+
+/* footer ledger note */
+.ledger-foot{
+  margin-top:24px; padding-top:14px; border-top:1px solid rgba(51,64,92,.42);
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--text-mut);
+}
+/* P7: running WORD is --text-mut; only the ◇ glyph carries --spread-dim. */
+.ledger-foot .uncal{color:var(--text-mut);}
+.ledger-foot .gly{color:var(--spread-dim);}
+.ledger-foot a.more{color:var(--text); border-bottom:1px solid var(--console-line); padding-bottom:1px;}
+.ledger-foot a.more:hover{color:var(--text-hi);}
+
+@media (max-width:1080px){
+  .latest-body{grid-template-columns:1fr;}
+  .poster{margin-top:4px;}
+  td.hyp .title{max-width:none;}
+}
+@media (max-width:760px){
+  .live-ref{display:none;}
+  .reg-meta{display:none;}
+  thead th.col-id, td.id{display:none;}
+  .content{padding:32px 20px 80px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important; transition-duration:1ms!important;}
+  .uncalibrated{opacity:.75;}   /* frozen poster, readable */
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Left icon rail ──────────────────────────────────────────────────── -->
+  <nav class="rail" aria-label="Primary">
+    <!-- P1: resting brand mark is INK, never lime. The dual/lime mark is a
+         brand-mode surface only (DESIGN.md); in the persistent rail it rests in
+         --text-hi ring + --text-mut spokes. Lime in a viewport = a live reading. -->
+    <div class="mark" title="Sidira">
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="#F2F4F8" stroke-width="1.4"/>
+        <circle cx="12" cy="12" r="3.2" fill="#F2F4F8" opacity=".92"/>
+        <path d="M12 3.2 L12 8.4 M19.6 8.2 L15.1 10.6 M19.6 15.8 L15.1 13.4 M12 20.8 L12 15.6 M4.4 15.8 L8.9 13.4 M4.4 8.2 L8.9 10.6"
+              stroke="#929BAE" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <a class="rail-btn active" title="Hypotheses" aria-current="page" tabindex="0">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/><circle cx="19" cy="19" r="2"/></svg>
+    </a>
+    <a class="rail-btn" title="Personas" tabindex="0">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19c.6-3 3-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/></svg>
+    </a>
+    <a class="rail-btn" title="Agents" tabindex="0">
+      <svg viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="12" rx="2"/><path d="M9 11h.01M15 11h.01M9 15h6"/><path d="M12 3v3"/></svg>
+    </a>
+    <a class="rail-btn" title="Capabilities" tabindex="0">
+      <svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"/><path d="M14 4v4h4M9 13h6M9 16h4"/></svg>
+    </a>
+    <a class="rail-btn" title="Crawls" tabindex="0">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg>
+    </a>
+    <div class="rail-spacer"></div>
+    <a class="rail-btn" title="Settings" tabindex="0">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg>
+    </a>
+    <div class="rail-avatar" title="Streamly · Founders org">SF</div>
+  </nav>
+
+  <div class="main">
+
+    <!-- ── Top bar — ONE global live reference (§4.5) ─────────────────────── -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="crumb"><b>Streamly</b> &nbsp;·&nbsp; HYPOTHESES</span>
+      <!-- P2/R3-2: the live reading is owned by the strip below. Here the topbar
+           is a quiet provenance reference only — ink dot (no breath), CH1 label,
+           and a ◇ glyph (spread-dim) with its WORD in --text-mut per P7. -->
+      <div class="live-ref" title="Run CH1 — full provenance in the reading strip below">
+        <span class="ref-dot"></span><span class="ch">CH1</span>
+        <span class="sep">·</span> n=400
+        <span class="sep">·</span> 2026-W25
+        <span class="sep">·</span> <span class="gly">◇</span> <span class="word">UNCAL</span>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ── Page header — quiet, ink only ──────────────────────────────── -->
+      <div class="page-head">
+        <div>
+          <h1>Hypothesis register</h1>
+          <p class="sub">
+            Every bet Streamly has put to its synthetic listeners — newest first.
+            <b>One reading is live now.</b> Readings are raw until the calibration
+            ledger has a graded run; a verdict never renders without a persisted policy.
+          </p>
+        </div>
+      </div>
+
+      <!-- ── The ONE live reading region: a quiet latest-reading strip ──────
+           Static distribution poster (no WebGL). One Provenance Bar. Signal
+           lives here and nowhere else in the body. ───────────────────────── -->
+      <section class="latest elevated" aria-label="Latest live reading">
+        <div class="prov-bar">
+          <span class="live-dot"></span><span class="live-word">LIVE</span><span class="sep">·</span>
+          <span class="ch">CH1</span><span class="sep">·</span> TREAT▸CONTROL
+          <span class="sep">·</span> n=400 <span class="sep">·</span> seed 0x4f
+          <span class="sep">·</span> groq/llama-3.3 <span class="sep">·</span> 2026-W25
+          <span class="sep">·</span> <span class="gly">◇</span> <span class="uncal">UNCALIBRATED</span>
+        </div>
+        <div class="latest-body">
+          <div class="latest-left">
+            <div class="what">
+              <span class="hid">HYP-9C7A12B4</span>
+              <span class="ttl">Surface a daily AI-curated mix on the home tab.</span>
+            </div>
+            <div class="figure-row">
+              <div class="fig">
+                <span class="flabel">Sim agreement · raw</span>
+                <!-- MARQUEE reading (P10): the dominant object. The region's ONE ◇
+                     honesty glyph sits here (R4-2). ± shares the .stamp grammar. -->
+                <span class="num">68<span class="stamp"><span class="pm">±9</span><span class="gl">◇</span></span></span>
+              </div>
+              <div class="fig">
+                <span class="flabel">Lift vs control</span>
+                <!-- secondary figure; solid up-glyph in ink (no valence color).
+                     Shares the marquee's .stamp unit; inherits the region's ◇. -->
+                <span class="lift"><span class="arrow">▲</span>11<span class="stamp"><span class="pm">±6</span><span class="unit">pp</span></span></span>
+              </div>
+            </div>
+          </div>
+          <!-- Tier-3 static distribution poster (§5.5) — frozen settled reading.
+               This is now the ONLY comparative object in the strip; its arm-tinted
+               bins + the key below ARE the control-vs-treatment reading (R4-1). -->
+          <div class="poster-wrap">
+            <svg class="poster" viewBox="0 0 232 128" aria-label="Settled reaction distribution by arm">
+              <!-- baseline -->
+              <line x1="8" y1="106" x2="224" y2="106" stroke="#33405C" stroke-width="1"/>
+              <!-- CI ribbon (spread-wash) around the pooled mean -->
+              <rect x="128" y="16" width="36" height="90" fill="rgba(200,182,138,.14)"/>
+              <line x1="128" y1="16" x2="128" y2="106" stroke="#C8B68A" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/>
+              <line x1="164" y1="16" x2="164" y2="106" stroke="#C8B68A" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/>
+              <!-- histogram bins: control (left/reject) blue, treatment (right/adopt)
+                   magenta. Arm opacity ≥.65 so the binned shape is interrogable (P10). -->
+              <g>
+                <rect x="16"  y="90"  width="13" height="16" fill="#4FA8E0" opacity=".72"/>
+                <rect x="33"  y="76"  width="13" height="30" fill="#4FA8E0" opacity=".82"/>
+                <rect x="50"  y="60"  width="13" height="46" fill="#4FA8E0" opacity=".88"/>
+                <rect x="67"  y="72"  width="13" height="34" fill="#4FA8E0" opacity=".82"/>
+                <rect x="84"  y="84"  width="13" height="22" fill="#4FA8E0" opacity=".72"/>
+                <rect x="116" y="80"  width="13" height="26" fill="#E08BC4" opacity=".72"/>
+                <rect x="133" y="56"  width="13" height="50" fill="#E08BC4" opacity=".88"/>
+                <rect x="150" y="42"  width="13" height="64" fill="#E08BC4" opacity=".92"/>
+                <rect x="167" y="58"  width="13" height="48" fill="#E08BC4" opacity=".88"/>
+                <rect x="184" y="74"  width="13" height="32" fill="#E08BC4" opacity=".78"/>
+                <rect x="201" y="88"  width="13" height="18" fill="#E08BC4" opacity=".68"/>
+              </g>
+              <!-- P5/P2: the static settled poster is a figure, not the live cue.
+                   The strip's ONE signal carrier is the breathing LIVE dot in the
+                   prov-bar; the pooled-mean line rests in ink (--text-mut), not
+                   --signal-dim. The mean label keeps the poster interrogable (P10);
+                   the region's ◇ is carried by the prov-bar, so no glyph here (R4-2). -->
+              <line x1="146" y1="16" x2="146" y2="106" stroke="#929BAE" stroke-width="1.5"/>
+              <text x="146" y="11" text-anchor="middle" font-family="Geist Mono, monospace"
+                    font-size="9" letter-spacing=".04em" fill="#929BAE">POOLED μ 68</text>
+              <!-- axis poles, so left=reject / right=adopt is legible -->
+              <text x="8" y="122" text-anchor="start" font-family="Geist Mono, monospace"
+                    font-size="8.5" letter-spacing=".06em" fill="#929BAE">REJECT</text>
+              <text x="224" y="122" text-anchor="end" font-family="Geist Mono, monospace"
+                    font-size="8.5" letter-spacing=".06em" fill="#929BAE">ADOPT</text>
+            </svg>
+            <!-- arm key — ties the bin tints to control/treatment (legibility) -->
+            <div class="poster-key">
+              <span class="k"><span class="sw ctrl"></span>Control 62</span>
+              <span class="k"><span class="sw treat"></span>Treatment 73</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Register toolbar + table ─────────────────────────────────────── -->
+      <div class="reg-head">
+        <h2>Logbook</h2>
+        <span class="reg-meta">12 HYPOTHESES · SIM AGREEMENT — RAW · <span class="gly">◇</span> <span class="uncal">UNCALIBRATED</span></span>
+        <span class="spacer"></span>
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Filter by state">
+            <button class="on">All <span class="cnt">12</span></button>
+            <button>Live <span class="cnt">1</span></button>
+            <button>Complete <span class="cnt">8</span></button>
+            <button>Failed <span class="cnt">1</span></button>
+          </div>
+          <button class="btn btn-secondary"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Sort</button>
+          <!-- P2: "New hypothesis" composes a draft — it does NOT initiate a live
+               reading, so it wears INK (.btn-secondary), not signal. -->
+          <button class="btn btn-secondary"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New hypothesis</button>
+          <!-- P2/§4.1: lime is reserved for the ONE control that initiates a live
+               reading. "Read now" runs the selected hypothesis → it earns --signal.
+               This is the single signal carrier for the toolbar/table region. -->
+          <button class="btn btn-run"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Read now</button>
+        </div>
+      </div>
+
+      <table aria-label="Hypothesis register">
+        <thead>
+          <tr>
+            <th class="col-id">ID</th>
+            <th>Hypothesis</th>
+            <!-- R4-2: per-cell readings keep their ± stamp but do NOT each restamp
+                 the ◇; the logbook region's calibration glyph is carried ONCE by
+                 the reg-meta marker beside the "Logbook" head. -->
+            <th class="num active sortable col-agree">Sim agreement · raw <span class="arr">↓</span></th>
+            <th class="col-verdict">Verdict · policy</th>
+            <th class="col-lastrun">Last run</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><!-- injected --></tbody>
+      </table>
+
+      <div class="ledger-foot">
+        <span>SHOWING 12 OF 12 · CALIBRATION LEDGER <span class="uncal">EMPTY (0 GRADED)</span> · <span class="gly">◇</span> <span class="uncal">ALL READINGS RAW</span></span>
+        <a class="more" href="#">Open the calibration ledger →</a>
+      </div>
+
+      <p class="policy-note"><span class="w">▲</span> A VERDICT NEVER RENDERS WITHOUT ITS PERSISTED DECISION POLICY</p>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   REGISTER ROWS — real-feeling Streamly hypotheses. CANDOR SCOPED (§1.10):
+   inferred readings (sim agreement) carry value ±ci + ◇ glyph + spark; exempt
+   facts (id, last-run date, n) print bare. Completed rows show NO verdict (no
+   persisted policy). The running row drifts (dim, dashed); no-reading rows hold
+   a placeholder. NO WebGL on this WORKING-class page.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  const tbody = document.getElementById('rows');
+
+  // settled sparkline from a value series, with phosphor underdraw (drawn once)
+  function spark(series, cls){
+    const w=54,h=18, n=series.length;
+    const mn=Math.min(...series), mx=Math.max(...series), rg=(mx-mn)||1;
+    const pts=series.map((v,i)=>[ (i/(n-1))*w, h-2 - ((v-mn)/rg)*(h-4) ]);
+    const d='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L');
+    return `<svg class="spark ${cls||''}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+      <path class="under" d="${d}"/><path class="line" d="${d}"/></svg>`;
+  }
+  // dim drifting sparkline for the in-progress reading (uncalibrated)
+  function driftSpark(){
+    const w=54,h=18; let d='M2 9';
+    for(let i=1;i<=8;i++){ d+=` L${(i/8*w).toFixed(0)} ${(9+Math.sin(i*1.7)*4+(i%2?1:-1)).toFixed(1)}`; }
+    return `<svg class="spark drift" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><path class="line" d="${d}"/></svg>`;
+  }
+
+  // [id, hypothesis, capability, arm, state, agreement, ci, series, lastrun]
+  const DATA = [
+    ['HYP-9C7A12B4','Surface a daily AI-curated mix on the home tab.','streamly · home-discovery','A/B','running',null,null,null,'LIVE'],
+    ['HYP-4F0E8821','Move the “save for later” action into the now-playing bar.','streamly · player-ergonomics','—','complete',74,7,[.40,.52,.61,.66,.71,.73,.74],'2026-06-15'],
+    ['HYP-2D77A0C9','Auto-skip recaps on episodes the listener already started.','streamly · resume-friction','—','complete',81,5,[.55,.64,.70,.76,.79,.80,.81],'2026-06-14'],
+    ['HYP-B81C5530','Inject a mid-roll house ad after the 3rd track of a free session.','streamly · monetization','A/B','complete',39,11,[.62,.55,.49,.45,.42,.40,.39],'2026-06-14'],
+    ['HYP-6A3F19DD','Replace star ratings with a single “play again” signal.','streamly · feedback-loops','—','complete',58,9,[.50,.55,.54,.57,.56,.58,.58],'2026-06-12'],
+    ['HYP-EE40B712','Promote follow-podcast above download on the show page.','streamly · retention','A/B','complete',66,8,[.44,.51,.57,.61,.64,.65,.66],'2026-06-11'],
+    ['HYP-13C9F2A0','Default new accounts into the “commute” listening profile.','streamly · onboarding','—','complete',52,10,[.48,.50,.49,.53,.51,.52,.52],'2026-06-10'],
+    ['HYP-7B2E66F4','Bundle audiobooks into the Plus tier at current price.','streamly · pricing','A/B','complete',45,12,[.58,.52,.49,.47,.46,.45,.45],'2026-06-09'],
+    ['HYP-A009D3C1','Add an offline “download next 5” one-tap on Wi-Fi.','streamly · offline','—','complete',77,6,[.52,.61,.68,.72,.75,.76,.77],'2026-06-08'],
+    ['HYP-5C8170BE','Re-rank search to favor recent over all-time popularity.','streamly · search-quality','—','failed',null,null,null,'2026-06-07'],
+    ['HYP-3F91A2D7','Show a weekly listening recap card every Sunday morning.','streamly · engagement','—','complete',63,8,[.46,.53,.58,.60,.62,.63,.63],'2026-06-06'],
+    ['HYP-22F0E5A1','Add a “skip intro” control to long-form episodes.','streamly · resume-friction','—','pending',null,null,null,'—'],
+  ];
+
+  /* R4-2: the column header carries the region's ◇ ONCE, so a per-cell glyph is
+     dropped. Each cell still wears its ± stamp (the inferred reading's spread);
+     the uncalibrated state is read off the column, not stamped 8× down the page. */
+  function readingCell(state, agree, ci, series){
+    if(state==='running'){
+      return `<td class="agree"><span class="reading uncalibrated">${driftSpark()}<span class="drift">——<span class="pm">±—</span></span></span></td>`;
+    }
+    // no-reading states (pending/failed) get a NEUTRAL em-dash mark — a missing
+    // reading is not an inferred reading, so it carries no spread and no glyph.
+    if(state==='pending'){
+      return `<td class="agree"><span class="reading"><span class="placeholder" title="no reading yet">—</span></span></td>`;
+    }
+    if(state==='failed'){
+      return `<td class="agree"><span class="reading"><span class="placeholder" title="run failed · no reading">—</span></span></td>`;
+    }
+    // complete: inferred reading → value ±ci + settled spark (◇ is the column's)
+    return `<td class="agree"><span class="reading">${spark(series,'settled')}<span class="num">${agree}<span class="pm">±${ci}</span></span></span></td>`;
+  }
+
+  function verdictCell(state){
+    if(state==='running') return `<td class="verdict"><span class="chip running">READING IN PROGRESS</span></td>`;
+    if(state==='pending') return `<td class="verdict"><span class="chip">QUEUED</span></td>`;
+    if(state==='failed')  return `<td class="verdict"><span class="chip failed">RUN FAILED</span></td>`;
+    return `<td class="verdict"><span class="no-policy">NO PERSISTED POLICY <span class="dim">·</span> NO VERDICT</span></td>`;
+  }
+
+  function lastrunCell(state, last){
+    if(state==='running') return `<td class="lastrun"><span class="live">LIVE</span></td>`;
+    return `<td class="lastrun">${last}</td>`;   // date is an exempt fact → bare
+  }
+
+  tbody.innerHTML = DATA.map(([id,hyp,cap,arm,state,agree,ci,series,last])=>{
+    const armFlag = arm==='A/B' ? ` · A/B · 2 ARMS` : '';
+    return `<tr tabindex="0">
+      <td class="id">${id}</td>
+      <td class="hyp"><span class="title">${hyp}</span><span class="cap">${cap}<span class="arm-flag">${armFlag}</span></span></td>
+      ${readingCell(state,agree,ci,series)}
+      ${verdictCell(state)}
+      ${lastrunCell(state,last)}
+    </tr>`;
+  }).join('');
+
+  /* DRIFT LAW idle-pause (§5.6): pause the drift after 20s of no interaction,
+     resume on activity. Freeze-on-hover/focus is handled in CSS. */
+  const drifters = ()=>document.querySelectorAll('.uncalibrated');
+  let idleTimer;
+  function resetIdle(){
+    drifters().forEach(el=>el.classList.remove('idle-paused'));
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(()=>drifters().forEach(el=>el.classList.add('idle-paused')), 20000);
+  }
+  ['mousemove','keydown','scroll','pointerdown'].forEach(ev=>
+    addEventListener(ev, resetIdle, {passive:true}));
+  resetIdle();
+})();
+</script>
+</body>
+</html>

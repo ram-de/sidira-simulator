@@ -1,0 +1,146 @@
+{
+ "app-shell": {
+  "score": 84,
+  "verdict": "Disciplined, law-clean WORKING-class ledger that correctly edits the decorative hero down to a working triage object \u2014 but the signature spark isn't legible at its chosen size and the topbar isn't as quiet as the system demands, so it lands premium-not-elite.",
+  "issues": [
+   "The separation spark \u2014 the one Sidira-only artifact \u2014 is illegible at 112x30px with sd=0.085: at c=0.40/t=0.66 the two crests overlap into a blurry double-hump barely distinguishable from the no-separation row (0.52/0.54), and there's no key tying blue/magenta to control/treatment. Size it up (or use a marginal-gap annotation) and add a faint arm-color legend so 'you SEE the arms pull apart' is true, not aspirational.",
+   "The topbar over-instruments for a brutally-quiet WORKING page: wordmark + FOUNDERS/ORG_3EV route-desig + 4 tabs + '1 live' status + 2 icon buttons is more chrome than the mandate wants, and it puts a static --signal dot alongside the --signal-dim tab underline and rail active bar (a per-region P2 carrier count of 2 in the chrome). Drop the org designator or fold tabs, and let the static live-pointer be the topbar's only signal-family element.",
+   "Replace mock-grade inline style= attributes in the table (padding-left:20px, per-cell text-align, color:var(--text-mut) on the flat-dir glyph) with classes, and fix the undefined token in margin-top:var(--space,40px) \u2014 system-grade markup, not one-off overrides."
+  ]
+ },
+ "personas-new": {
+  "score": 84,
+  "verdict": "Mechanically clean and genuinely thoughtful \u2014 the field-as-headcount-histogram and the refuse-to-report-Jaccard candor are elite-grade \u2014 but it borrows the A/B shader's CONTROL/TREATMENT arms and \"reaction\" semantics into a clustering step that has no experiment, a category error that caps it below elite.",
+  "issues": [
+   "Kill the A/B arm semantics here: this is persona-build (clustering), not an experiment \u2014 drop CONTROL/TREATMENT labels and --arm-control/--arm-treat tints from the tooltip/field, and recolor by the perceptual ramp alone. 'reaction: rejects on price' is simulation behavior that doesn't exist yet at evaluate time; replace with the cluster's real distinguishing trait.",
+   "Resolve the two-statistic frame: the marquee 0.71 is cluster STABILITY (resample reproducibility) but the field's x-axis is per-persona DISTINCTIVENESS \u2014 unrelated quantities sharing one instrument. Either tie the hero figure to the axis it sits over, or visually separate the stability stamp from the distribution so a reader doesn't infer the big number describes the histogram.",
+   "Remove the hand-tuned field-reading scrim at left:34% (the source itself carries a collision apology) \u2014 anchor the hero label to the layout grid / field headroom deterministically so it can't overlap the tall edge columns at other viewport widths."
+  ]
+ },
+ "agent-detail": {
+  "score": 84,
+  "verdict": "Disciplined, law-clean instrument page that correctly makes the thread the hero and exiles analytics to a drawer \u2014 but a timid marquee figure and a duplicated cohort distribution keep it premium, not elite.",
+  "issues": [
+   "Commit the marquee reading to actually dominate first paint (true data-lg masthead scale/weight) or cut it \u2014 at 2rem/0.92 in a 200px side column it loses the focal contest to the page title and thread, so P10 is met on paper but not in the eye.",
+   "Kill one of the two near-identical cohort distributions: the posmark mini-dist (header) and the evidence poster (drawer) tell the same +0.71-at-P82 story twice with the same bell math and signal-dim marker \u2014 redundant instrumentation v2 explicitly retired.",
+   "Sharpen craft: 'Run reading' and 'Send' share the same arrow glyph (no iconographic distinction); thin the four repeated 3px senti-tracks; reduce the four stacked info densities inside the identity panel (blurb + marquee + dl + provbar) toward the brutal-quiet/depth-2 spirit."
+  ]
+ },
+ "about": {
+  "score": 84,
+  "verdict": "A disciplined, genuinely coherent \"printed record\" page that passes all 10 mechanical laws \u2014 but the specimen poster contradicts its own first law (smooth gaussian blobs, zero agent marks) and a borrowed-authority founder name undercuts the honesty pitch, holding it at strong-premium rather than elite.",
+  "issues": [
+   "The 'specimen' SVG is two hand-drawn symmetric bezier humps, not a binned distribution \u2014 it has zero agent marks on a page whose Law 1 is 'the visualization IS the computation / one mark per simulated agent.' Redraw it as an actual histogram of binned dots (or at minimum a stepped density built from real-looking bins) so it is genuinely interrogable, not decorative.",
+   "'A. Kohavi \u00b7 CO-FOUNDER \u00b7 SCIENCE' reads as a fictional placeholder borrowing Ron Kohavi's experimentation authority \u2014 a buyer-level juror clocks it instantly and it undercuts the 'won't ship a number it can't defend' line. Use a real defensible name or drop the surname.",
+   "Remove the decorative empty `.spine` aside in the closing section (an aria-hidden 180px ghost column used only for grid alignment); restructure the close so the dead binder-margin isn't carrying nothing."
+  ]
+ },
+ "auth": {
+  "score": 84,
+  "verdict": "Distinctive \"frozen reading card\" concept executed with real craft, but the lime Sign-in button leaks signal into a primary action that initiates no live reading (P2/\u00a71.9 break), and the left card over-instruments for a mood surface.",
+  "issues": [
+   "Submit button uses --signal border+text (lines 335-336) for a Sign-in/Request-access action that does NOT initiate a live reading \u2014 this leaks signal into 'primary CTA', the exact emphasis-leak \u00a71.3/\u00a71.9/P2 forbid. Make it ink (--console-700 primary); reserve lime strictly for Run/Read-now. The 'live access' framing is a rationalization, not a live reading.",
+   "Edit the left card down. Figure + caption + full SVG poster + poster-foot + arm-key + 5-field provenance bar + editorial footline is near-maximal density on a surface whose only job is to set mood during sign-in. Drop poster-foot or arm-key; the system preaches 'brutal quiet everywhere else' and this region instruments because it can, not because it must.",
+   "Three competing atmosphere layers (engraved grid + CRT scanline + radial vignette/gradient, stage::before/::after) muddy the 'frozen printed artifact' read. Pick two; the scanline mix-blend screen over the vignette is the most droppable and the least Stripe/Linear-inevitable."
+  ]
+ },
+ "product": {
+  "score": 84,
+  "verdict": "Law-clean and intelligent \u2014 the symmetry diff is genuinely trust-building \u2014 but the body runs three near-identical bordered grids and the quiet artifact-browser hero is premium, not arresting; strong-premium, not elite.",
+  "issues": [
+   "Edit down the repeating grid cadence: inputs(3-col)/pipe(4-col)/specs(3-col) are three near-identical bordered-cell panels back-to-back. Cut or restructure the weakest \u2014 the 'specs' section's three \u203a-bulleted lists restate the artifact browser/PRD content and add density without a new idea.",
+   "Raise the hero ceiling. The tabbed artifact card is tasteful but is a stock SaaS pattern; the page's whole 'stop scrolling' moment rests on it. Give the cohort-reaction poster more crafted singularity (it is the real product output) so the showpiece lands as an object, not a component.",
+   "Tighten the SVG poster: 'MEAN 0.62' prints bare inside the SVG while the same pooled mean is stamped 0.62 \u00b10.08 \u25c7 above (minor P8 inconsistency); arm-label text at y=142 crowds the axis (REJECTS/ADOPTS at y=124) and three mean lines + two curves + ribbon in 150px reads slightly muddy."
+  ]
+ },
+ "feature-pack": {
+  "score": 85,
+  "verdict": "Rule-perfect, genuinely edited-down WORKING page \u2014 exemplary signal budget and a truly interrogable poster \u2014 but premium-correct rather than stop-scrolling elite; the cramped covbar and a slightly disconnected hero/table keep it just under the 90 line.",
+  "issues": [
+   "The 5px covbar with an overlaid translucent --spread-wash CI ribbon (lines 332-337) is near-illegible at 60px and reads as a second bar, not an error band \u2014 either drop the per-row ribbon and let the \u00b1ci text + glyph carry spread, or widen/raise it so the band is unambiguously an interval around the fill.",
+   "The hero is two well-made but disconnected halves: the left column (eyebrow/title/lede/4 facts) and the right reading well don't visually rhyme with the table below. Tie the table to the hero \u2014 e.g. echo the poster's graded/ungraded split or floor into the logbook's coverage column so the page reads as one instrument, not a header plus a list.",
+   "The four-fact row (lines 488-509) is flat \u2014 four equal-weight right-bordered facts read as a spec sheet, and mono values like 'cr-924718699c21' / 'Jun 12 \u00b7 clean' are cramped at 1.125rem. Give the row hierarchy (lead with Capabilities/Domains as the counts that matter, demote Source/Snapshot to a quieter provenance line)."
+  ]
+ },
+ "simulations-new": {
+  "score": 85,
+  "verdict": "Law-clean, beautifully candor-grammared draft console whose full-bleed field spends 56vh on ambient drift that carries almost no readable signal at draft stage, and whose right-rail manifest triplicates provenance the eye already passed \u2014 premium, not yet elite.",
+  "issues": [
+   "The showpiece earns its size on results, not here: a curl-noise graphite cloud over a form conveys nothing actionable at draft (the arm split is legible only via the legend). Either shrink the field to ~40vh and let the form/manifest breathe, or make the preview READ \u2014 e.g. dot density tracking the selected persona weights so deselecting a chip visibly thins that band.",
+   "Kill the provenance triplication: the stage-foot pbar, the A/B fork total, and the right-rail manifest all restate '320 \u00b7 paired \u00b7 \u25c7' plus mode/capability/cohort/model/seed. The manifest is a receipt of things just declared. Cut it to the 2-3 facts NOT visible elsewhere (or drop it and let the fork + pbar carry provenance).",
+   "Edit down the drift-truth, which is stated four times (lede 'drifting, because a draft has not been read', axis 'preview drifts, settles only on a graded run', draft-tag, pbar 'DRIFTING', plus the est line). Say it once with authority; the repetition reads as the page protesting its own honesty \u2014 the exact over-lawyering v2 set out to retire."
+  ]
+ },
+ "crawl-setup": {
+  "score": 85,
+  "verdict": "Disciplined, law-clean WORKING-class config screen \u2014 premium and shippable, but the over-instrumented right rail and a tangential cohort poster keep it just short of elite.",
+  "issues": [
+   "Right audit rail is at/over the \u00a73.2 3-panel ceiling: manifest + save + in-flight watch (running dot, progress, CI link, caption) compete for attention, so the 'manifest dominates, rest recedes' intent only half-lands \u2014 collapse the watch block to a one-line summary that expands, or move it below the manifest with a clearer demotion.",
+   "The 144px cohort distribution poster is the most expensive element on a page whose actual job is URL/auth config; it's static (passes P9) but reads as showpiece-instinct bleeding into a WORKING surface against the impact budget's own thesis \u2014 justify its relevance or shrink/drop it here and let it live on results/manifest.",
+   "Minor polish: the two password fields use inconsistent rest states (visible-ish value vs placeholder) for the same 'never shown again' semantics; x\u0304 0.74 label (--text-mut) duplicates the caption read (--text-hi); 10.5px axis text sits at the legibility floor."
+  ]
+ },
+ "capability-detail": {
+  "score": 86,
+  "verdict": "Law-clean, genuinely premium record page \u2014 the R2 inverted-hierarchy break is fixed and the editorial concept holds; held below elite by a documentation-heavy lower half and no single arresting moment.",
+  "issues": [
+   "Reverse Figma section is the weakest surface: dense .comp/.states/.sname chip lists read as a spec dump, not a designed record \u2014 edit down to the load-bearing components, push the rest into a collapsible, and let the screens breathe.",
+   "The Console well's two-column body crowds the poster against the hero reading on narrower viewports near the 760px break; give the poster more left padding / a wider gutter so the lone live moment lands with the authority the page builds toward.",
+   "Lower half is a long, even-toned run of Newsreader prose + hairline meta-grid + logbook with no change in rhythm \u2014 introduce one deliberate editorial beat (a pulled callout figure, or surfacing the +3.6pp lift as a small inline stamp in the logbook header) so the record has a second focal point after the well."
+  ]
+ },
+ "simulations-list": {
+  "score": 86,
+  "verdict": "Law-perfect, genuinely disciplined WORKING-class register with real bespoke craft \u2014 but the latest-reading strip over-instruments (bracket + poster + two figures) and the page is peppered with \u25c7 glyphs, keeping it premium rather than elite.",
+  "issues": [
+   "Edit down the latest strip: showing BOTH the paired-arm bracket-gap AND a settled histogram poster for the same single reading is redundant instrumentation \u2014 drop one so the marquee figure breathes (it currently fights 4 sibling sub-objects in one 'quiet' band).",
+   "Cut \u25c7 density: the diamond appears ~9 times across topbar/strip/armcompare/poster/reg-meta/every table cell/footer\u00d72. Carry uncalibrated state once per region via the provenance marker; stop stamping every individual figure \u2014 the visual reads as glyph-peppering even though each is technically scoped-correct.",
+   "Unify the \u00b1 treatment: the marquee \u00b19 and the lift \u00b16 sit side-by-side with different scales/weights, and the text-mut \u25b2 arrow reads weak against the text-hi 11 \u2014 tighten so the two hero figures share one stamp grammar."
+  ]
+ },
+ "personas-list": {
+  "score": 86,
+  "verdict": "Disciplined, law-clean WORKING list page with a genuinely crafted distribution poster (interrogable axistick, correct reading>fact hierarchy); strong premium tier but not elite \u2014 visible rubric-effort and a couple of redundant honesty channels in one viewport keep it shy of 90.",
+  "issues": [
+   "Resolve estimate-channel redundancy in the first viewport: the eyebrow '\u25c7 UNGRADED' chip (edge-warn), the poster's '\u25c7 UNCALIBRATED' stamp (spread-dim), and the signal-dim trace all say 'not calibrated' within ~30% of screen \u2014 say it once, structurally, and let the others go quiet.",
+   "Strip the rubric scaffolding: the CSS/JS is saturated with self-justifying 'P2/P5/P10' law citations \u2014 elite work reads as settled instinct, not a page narrating its own compliance. Also implement the missing '20s idle pause' half of the drift law (\u00a75.6/P4), not just hover/focus freeze.",
+   "Add a second beat of editorial tension below the poster \u2014 toolbar\u2192wtabs\u2192table\u2192panel\u2192ledger\u2192footnote is a flat, even-weight stack; the lower half reads as a competent admin list with no focal moment after the marquee."
+  ]
+ },
+ "simulation-results": {
+  "score": 87,
+  "verdict": "Law-clean, genuinely differentiated (the paired-arm \"same cohort, two worlds\" artifact earns its place) and disciplined on candor \u2014 held just below elite by designator wallpaper and a thrice-stated verdict.",
+  "issues": [
+   "Thin the mono-uppercase silkscreen labels by ~30% \u2014 every panel head, legend, axis, foot and kv carries one, which reads as telemetry wallpaper the system's own \u00a72.3/\u00a77.3 warns against; keep them on reading regions, demote sub-labels to sentence-case caption ink.",
+   "Kill the verdict triplication: 'DIRECTIONAL +11.8 \u00b14.1 \u00b7 TEST FIRST' appears in the field tag, the header vchip, and is foreshadowed in the whyline within two viewports. Keep it once (the masthead), let the whyline reason and the header carry only POLICY DR-1.",
+   "De-crowd the field masthead: the 86px figure, the verdict tag, and the right-side REJECTS/ADOPTS axis + 71/18/11 split compete in the same band \u2014 give the marquee figure clear dominance and move the reaction split into the readout line or a quieter inset so one reading leads on first paint."
+  ]
+ },
+ "agent-transcript": {
+  "score": 87,
+  "verdict": "Law-clean and genuinely editorial \u2014 a transcript that reads as product thinking, not a dashboard \u2014 but the over-explained verdict block and a make-work scope-particle keep it premium rather than elite.",
+  "issues": [
+   "Cut the verdict-region clutter: TEST FIRST \u25c7 + verdict-note + verdict-sub is three stacked explainer lines under one figure. Drop .verdict-sub entirely ('this gate is the whole bet\u2026' is editorializing the synthesis already states) so the one marquee figure truly dominates per P10/\u00a73.2.",
+   "The 64px iso-particle (scope rings + one settled dot, 'agent_07a3 \u00b7 pulled') carries near-zero information beside a strong title \u2014 it reads as 'a graphic was needed here.' Either make it interrogable (thread visibly to the showpiece field, or carry the agent's actual reaction value) or remove it and let the title + provenance bar breathe.",
+   "The conversation column runs four parallel rule treatments \u2014 signal-dim coll-body rail, spread syn-line rail, dashed fan-out dividers, dotted cite underlines. Collapse to two: pick one accent rail register for collective vs synthesis, and let the rest be plain hairline + negative space to honor the 'brutally quiet' WORKING ceiling."
+  ]
+ },
+ "landing": {
+  "score": 87,
+  "verdict": "All ten mechanical laws pass and the field-as-hero concept is genuinely distinctive and disciplined \u2014 premium, conceptually coherent, but a notch below elite on craft polish: a couple of timing/legibility seams and slightly over-instrumented copy keep it from a clean 90.",
+  "issues": [
+   "Verdict count-up is decoupled from the field settle: the figure counts up at a hardcoded setTimeout(2700ms) while the field settles at SWEEP_T1=3.0s (3000ms) \u2014 a 300ms gap means the marquee number resolves BEFORE the population comes to rest, breaking the 'comes to rest like a needle in one beat' promise the comment claims. Drive both off the same t0 clock (fire countUp at SWEEP_T1, or pass the field's settle event to init).",
+   "The hero is over-instrumented in the lower-right: kicker + big figure + \u00b1stamp + \u25c7 glyph + 2-line sub (retention \u25b2 + sentiment 0.71 \u00b10.05) + a 7-token provenance bar all stack in one corner over a moving field. That is a lot of small mono competing with the marquee figure on first paint; edit the sub line down to one clause and drop one or two provenance tokens (seed 0x4f + groq/llama-3.3 is engineer-trivia for a landing hero) so the +3.6 actually dominates per P10's spirit.",
+   "Mobile collapse degrades the showpiece: at \u22641040px the field becomes a 42vh strip and the readout/provbar go static-stacked, so the single 'stop scrolling' moment \u2014 the sweep re-sorting into a distribution \u2014 is largely lost on phones where most cold traffic lands. The static mobile poster should still show the settled distribution + arm tints (per \u00a75.5 mobile rule), not just collapse the canvas to a thin drifting band."
+  ]
+ },
+ "persona-detail": {
+  "score": 89,
+  "verdict": "A genuinely elite lab-notebook record: all ten laws clean, candor scoped exactly where R2 broke it, and the Pack Reaction Map is a real artifact only this product could print \u2014 held back from 90 only by a slightly over-explained voice and a few craft nits.",
+  "issues": [
+   "Editorial over-talk in the captions: snap-cap, packmap-foot, and the cmp .note each re-narrate the same '\u25c7 uncalibrated \u00b7 within-segment spread' provenance the Spine already owns. The Spine is the page's ONE provenance device (\u00a77.4) \u2014 trust it and cut ~30% of the repeated hedging prose so the records read like a lab notebook, not a page apologizing for itself.",
+   "The two poster sub-distributions are drawn but never labeled with their means inside the figure, while the swatch legend (CONTROL/TREATMENT) repeats on all three identical posters \u2014 collapse the legend to once (or into the packmap) and let each poster instead surface its own mean tick value, which currently only the packmap carries.",
+   "Minor hierarchy/craft: the meta-strip focal gradient (rgba 111,94,51,.05) is so faint it barely reads as the focal cell on the #FBFBFD raised surface; and the 'V_2' desig in the eyebrow duplicates the route-desig 'v_2' in the topbar and the masthead title's job \u2014 one of the three is redundant chrome."
+  ]
+ }
+}

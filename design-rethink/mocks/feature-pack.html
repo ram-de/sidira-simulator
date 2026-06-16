@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Feature pack · 2026-W25 — SIDIRA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark, default) */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear [v2-fix] */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  background:var(--console-850);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+::selection{background:rgba(72,239,202,.22);color:var(--text-hi);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.mono{font-family:var(--font-mono);}
+
+/* ───────── App shell ───────── */
+.app{display:grid;grid-template-columns:56px 1fr;min-height:100vh;}
+
+/* left rail */
+.rail{
+  position:sticky;top:0;height:100vh;
+  background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;align-items:center;
+  padding:12px 0;gap:4px;z-index:30;
+}
+.rail .mark{
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+}
+.rail .mark svg{display:block;}
+.rail-btn{
+  width:40px;height:40px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-mut);cursor:pointer;position:relative;
+  transition:color .14s var(--ease-out),background .14s var(--ease-out);
+}
+.rail-btn:hover{color:var(--text-hi);background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:8px;bottom:8px;width:2px;
+  background:var(--signal-dim);border-radius:2px;
+}
+.rail-btn svg{width:19px;height:19px;}
+.rail-sp{flex:1;}
+
+/* top bar — ONE global provenance reference, not a second legend */
+.topbar{
+  position:sticky;top:0;z-index:20;height:52px;
+  background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:16px;padding:0 32px;
+}
+.wordmark{font-weight:600;letter-spacing:.06em;color:var(--text-hi);font-size:14px;}
+.route-desig{
+  font-family:var(--font-mono);font-size:11px;font-weight:500;
+  letter-spacing:.08em;color:var(--text-mut);text-transform:uppercase;
+}
+.route-desig .sep{color:var(--text-mut);opacity:.55;margin:0 8px;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:18px;}
+.idle{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;
+  color:var(--text-mut);text-transform:uppercase;
+}
+.idle .dot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--text-mut);opacity:.6;}
+
+/* content */
+.content{position:relative;}
+.wrap{max-width:1320px;margin:0 auto;padding:0 32px;}
+
+/* ═════════ HERO — the one reading dominates ═════════
+   WORKING-class page: NO full Population Field. The hero figure (coverage
+   estimate) is the single reading; a small static distribution POSTER is the
+   only canvas, framed as a contained instrument well — not a full-bleed sweep. */
+.hero{
+  position:relative;
+  padding:var(--space-bay) 0 var(--space-section);
+  border-bottom:1px solid rgba(51,64,92,.5);
+}
+.crumb{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:13px;font-weight:500;color:var(--text-mut);
+  text-decoration:none;transition:color .14s var(--ease-out);margin-bottom:24px;
+}
+.crumb:hover{color:var(--text-hi);}
+.crumb svg{width:14px;height:14px;}
+
+/* P10: the coverage well claims more of the first viewport — widened from 380px
+   to 440px so the marquee reading dominates rather than reads as a sidebar chip. */
+.hero-grid{
+  display:grid;grid-template-columns:1fr 440px;gap:56px;align-items:start;
+}
+@media(max-width:1080px){.hero-grid{grid-template-columns:1fr;gap:40px;}}
+
+.hero-left{max-width:600px;}
+.eyebrow{
+  font-family:var(--font-mono);font-size:11px;font-weight:500;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--text-mut);
+  margin-bottom:18px;
+}
+h1.title{
+  font-size:2.0rem;font-weight:600;letter-spacing:-.025em;line-height:1.08;
+  color:var(--text-hi);text-wrap:balance;
+}
+.lede{
+  margin-top:16px;font-size:1.0625rem;line-height:1.6;color:var(--text);
+  max-width:58ch;font-weight:450;
+}
+
+/* R5 fix (R4 issue #3): the four equal-weight bordered facts read as a flat
+   spec sheet. Now hierarchical — the two COUNTS that matter (Capabilities /
+   Domains) lead at full scale; Snapshot + Source demote to a single quiet
+   provenance line below, ending the four-cell flatness. ALL bare (exempt §1.10). */
+.facts{margin-top:32px;border-top:1px solid rgba(51,64,92,.5);padding-top:20px;}
+.facts-lead{display:flex;gap:0;}
+.fact{padding:0 36px 0 0;margin-right:36px;border-right:1px solid rgba(51,64,92,.35);}
+.fact:last-child{border-right:none;margin-right:0;}
+.fact .k{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-mut);margin-bottom:10px;
+}
+.fact .n{
+  font-family:var(--font-mono);font-size:2.25rem;font-weight:500;line-height:.95;
+  color:var(--text-hi);letter-spacing:-.015em;
+}
+.fact .sub{
+  font-family:var(--font-mono);font-size:11px;color:var(--text-mut);margin-top:9px;letter-spacing:.02em;
+}
+/* demoted provenance line — snapshot + source as quiet inline facts, not figures */
+.facts-prov{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-top:20px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;color:var(--text-mut);
+}
+.facts-prov .pk{letter-spacing:.1em;text-transform:uppercase;opacity:.8;}
+.facts-prov .pv{color:var(--text);}
+.facts-prov .pq{color:var(--text-mut);}
+.facts-prov .sep{opacity:.4;margin:0 4px;}
+
+/* THE hero reading — coverage estimate, the single SIGNAL carrier in this viewport */
+.reading-well{
+  background:var(--console-900);
+  border:1px solid rgba(51,64,92,.6);
+  border-radius:var(--r-frame);
+  overflow:hidden;
+}
+.reading-well.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+/* the one provenance bar for this reading region */
+.prov-bar{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;
+  color:var(--text-mut);text-transform:uppercase;
+  padding:10px 16px;border-bottom:1px solid rgba(51,64,92,.5);
+  background:var(--console-850);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.prov-bar .tk{color:var(--text-mut);opacity:.6;}
+.prov-bar .v{color:var(--text);}
+/* P7: running WORD is --text-mut (AA); --spread-dim reserved for the ◇ glyph only. */
+.prov-bar .unc{color:var(--text-mut);}
+.prov-bar .gly{color:var(--spread-dim);}
+.reading-body{padding:26px 24px 10px;}
+.reading-label{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-mut);margin-bottom:14px;
+}
+.reading-figure{display:flex;align-items:baseline;gap:12px;}
+/* P10: marquee figure is the page's visual focus on first paint — lifted to
+   data-xl scale (~4.25rem). The ONE bright --signal carrier in this region. */
+.reading-figure .big{
+  font-family:var(--font-mono);font-size:4.25rem;font-weight:500;line-height:.95;
+  color:var(--signal);letter-spacing:-.015em;          /* signal = THE live reading */
+}
+.reading-figure .ci{font-family:var(--font-mono);font-size:1.25rem;color:var(--spread);}
+.reading-figure .gly{font-family:var(--font-mono);font-size:1.3rem;color:var(--spread-dim);}
+.reading-cap{
+  font-size:12.5px;color:var(--text-mut);margin-top:14px;line-height:1.5;max-width:42ch;
+}
+/* static distribution poster (the only canvas on this WORKING page) —
+   an interrogable binned coverage histogram: real bins, a labeled mean tick,
+   the CI ribbon annotated, and a graded/ungraded split readout. Not a glance
+   graphic; a figure you can read. (R4 craft showpiece) */
+.poster{position:relative;margin-top:8px;padding:4px 24px 16px;}
+svg.poster-svg{width:100%;height:132px;display:block;overflow:visible;}
+.poster-axis{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-mut);
+  padding:3px 0 0;
+}
+.poster-axis .mid{letter-spacing:.05em;}
+.poster-foot{
+  display:flex;align-items:center;gap:8px;margin-top:9px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-mut);
+}
+.poster-foot b{color:var(--text);font-weight:500;}
+.poster-foot .sep{opacity:.45;}
+.poster-foot .lo{color:var(--text-mut);}
+
+/* ═════════ BODY ═════════ */
+.body{padding:var(--space-section) 0 var(--space-bay);}
+
+/* section header */
+.sec-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:24px;
+  flex-wrap:wrap;border-bottom:1px solid rgba(51,64,92,.5);padding-bottom:14px;margin-bottom:var(--space-room);
+}
+.sec-title{font-size:1.125rem;font-weight:550;color:var(--text-hi);letter-spacing:-.01em;}
+.sec-count{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--text-mut);text-transform:uppercase;}
+/* R5 fix (R4 issue #2): tie the table to the hero. The hero poster splits the
+   147 caps into graded ◆ / uncalibrated ◇ / below-floor — the logbook now echoes
+   that exact split as a compact calibration tally on its header, so the table
+   reads as the same instrument's row-level view of the poster, not a detached
+   list. Same vocabulary (◆/◇, floor 0.58) carries the rhyme. */
+.calib-tally{
+  display:flex;align-items:center;gap:0;font-family:var(--font-mono);font-size:11px;
+  letter-spacing:.04em;color:var(--text-mut);
+}
+.calib-tally .ct{display:inline-flex;align-items:baseline;gap:5px;padding:0 14px;border-right:1px solid rgba(51,64,92,.35);}
+.calib-tally .ct:last-child{border-right:none;padding-right:0;}
+.calib-tally .ct:first-child{padding-left:0;}
+.calib-tally .ct b{color:var(--text);font-weight:500;}
+.calib-tally .g-filled{color:var(--text-mut);}   /* ◆ graded — ink, per candor grammar */
+.calib-tally .g-hollow{color:var(--spread-dim);}  /* ◇ uncalibrated glyph */
+.calib-tally .ct.floor b{color:var(--edge-warn);}
+
+/* controls */
+.controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:var(--space-room);}
+.search{position:relative;flex:1 1 280px;max-width:360px;min-width:200px;}
+.search input{
+  width:100%;height:36px;background:var(--console-700);
+  border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);
+  color:var(--text-hi);font-family:var(--font-sans);font-size:14px;
+  padding:0 12px 0 34px;outline:none;transition:border-color .14s var(--ease-out);
+}
+.search input::placeholder{color:rgba(146,155,174,.7);}
+.search input:focus{border-color:var(--signal-dim);}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-mut);}
+
+.grp{display:flex;align-items:center;gap:10px;}
+.grp .glab{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-mut);
+}
+.seg-toggle{display:flex;border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);overflow:hidden;}
+.seg-toggle button{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  background:transparent;color:var(--text-mut);border:none;
+  padding:7px 13px;cursor:pointer;border-right:1px solid rgba(51,64,92,.5);
+  transition:color .14s var(--ease-out),background .14s var(--ease-out);
+}
+.seg-toggle button:last-child{border-right:none;}
+.seg-toggle button:hover{color:var(--text-hi);background:var(--console-800);}
+.seg-toggle button.on{color:var(--text-hi);background:var(--console-750);}
+.seg-toggle button.on::after{content:"";}
+
+/* ───────── capability logbook (table) ───────── */
+.logbook{
+  border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);
+  overflow:hidden;background:var(--console-800);
+}
+/* R4: the per-row Domain column is dropped under grouped view — it merely
+   restated the group heading the row already sits under (redundant taxonomy).
+   The reclaimed width goes to the capability name + roles, so rows breathe. */
+.lb-head,.lb-row{
+  display:grid;
+  grid-template-columns:minmax(320px,2fr) 210px 148px 84px;
+  align-items:center;gap:18px;padding:0 22px;
+}
+.lb-head{
+  height:38px;border-bottom:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text-mut);background:var(--console-850);
+}
+.lb-head .sortable{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--text-mut);}
+.lb-head .sortable.active{color:var(--text-hi);}
+.lb-head .arr{color:var(--text-mut);}
+.r-num{text-align:right;justify-self:end;}
+.cov-head{display:inline-flex;align-items:baseline;gap:7px;}
+.cov-head .floor-ref{font-size:9.5px;letter-spacing:.06em;color:var(--text-mut);opacity:.7;text-transform:none;}
+.lb-row{
+  height:52px;border-bottom:1px solid rgba(51,64,92,.3);
+  cursor:pointer;text-decoration:none;color:inherit;position:relative;
+  transition:background .12s var(--ease-out);
+}
+.lb-row:last-child{border-bottom:none;}
+.lb-row:hover{background:var(--console-750);}
+.cap-name{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.cap-name .nm{
+  font-size:14.5px;font-weight:500;color:var(--text-hi);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:flex;align-items:center;min-width:0;
+}
+.cap-name .nm-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.unscoped-tag{flex-shrink:0;}
+/* P2/P5: no live search is running, so the resting row carries no decorative
+   signal wash. A persistent highlight is ink emphasis, not a live-reading carrier. */
+.cap-name .nm em{font-style:normal;color:var(--text-hi);background:rgba(146,155,174,.14);padding:0 2px;border-radius:2px;}
+.cap-name .meta{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--text-mut);letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* inline caution marker for a capability with no domain partition — a status
+   fact (border + word, never a fill), folded into the name so the grouped view
+   carries no redundant Domain column. --edge-warn per §1.6 (uncalibrated/unscoped). */
+.unscoped-tag{
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--edge-warn);border:1px solid rgba(201,162,39,.45);border-radius:var(--r-well);
+  padding:1px 5px;margin-left:8px;vertical-align:1px;white-space:nowrap;font-weight:500;
+}
+.roles{display:flex;gap:5px;flex-wrap:wrap;}
+.role-chip{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--text-mut);border:1px solid rgba(51,64,92,.55);border-radius:var(--r-well);
+  padding:2px 6px;white-space:nowrap;
+}
+.role-chip.more{color:var(--text-mut);opacity:.7;border-color:rgba(51,64,92,.4);}
+
+/* reading cell: coverage with spread stamp (INFERRED → ± + glyph, §1.10) */
+.reading{display:flex;align-items:center;justify-content:flex-end;gap:9px;font-family:var(--font-mono);}
+.reading .val{font-size:14px;color:var(--text-hi);}
+/* a below-floor coverage reading drops to body ink (not hi) — weaker, not alarmed */
+.reading .val.weak{color:var(--text);}
+.reading .ci{font-size:11px;color:var(--spread);}
+.reading .glyph{font-size:12px;}
+/* P2: the hero 0.84 is the page's SOLE signal carrier. The per-row calibration
+   glyph must not echo the signal family across the table — graded ◆ renders in
+   ink (--text-mut), ungraded ◇ in --spread-dim per the candor grammar. The
+   ◆/◇ distinction stays legible by fill/outline, not by a second lime carrier. */
+.glyph.hollow{color:var(--spread-dim);}
+.glyph.filled{color:var(--text-mut);}
+/* R5 fix (R4 issue #1): the 5px covbar carried an overlaid translucent CI
+   ribbon that, at 60px, read as a SECOND bar rather than an interval. Widened
+   to 72px and raised to 7px so the band is unambiguously an interval around the
+   fill: the ±ci now renders as two amber cap-ticks bracketing the fill on the
+   SAME track (error-bar caps), with a faint spread-wash only INSIDE the caps —
+   never a free-floating second bar. The ±value text still carries the number. */
+.covbar{position:relative;width:72px;height:7px;border-radius:2px;background:var(--console-700);overflow:visible;}
+/* P2: covbar fill is ALWAYS ink (--text-mut) — graded vs ungraded is carried
+   solely by the ◆/◇ glyph, not by a second signal-dim element per row. */
+.covbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--text-mut);}
+.covbar .fill.graded{background:var(--text-mut);}
+/* CI = a bracketed interval ON the track: wash fill between two 1px amber caps
+   that extend 2px above/below so they read as error-bar end-caps, not a bar. */
+.covbar .ci{position:absolute;top:0;bottom:0;background:var(--spread-wash);}
+.covbar .ci::before,.covbar .ci::after{
+  content:"";position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--spread);
+}
+.covbar .ci::before{left:0;}
+.covbar .ci::after{right:0;}
+/* the reconstruction floor (0.58) marked on the track itself — the same floor
+   the hero poster draws, so a row's coverage is read against it (R4 issue #2). */
+.covbar .floor{position:absolute;left:58%;top:-2px;bottom:-2px;width:1px;
+  background:var(--spread-dim);opacity:.55;}
+
+.artifacts{font-family:var(--font-mono);font-size:11.5px;color:var(--text-mut);letter-spacing:.03em;}
+.artifacts .none{color:var(--text-mut);opacity:.55;}
+.openlink{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);
+  display:inline-flex;align-items:center;gap:5px;justify-self:end;
+  transition:color .14s var(--ease-out);
+}
+.lb-row:hover .openlink{color:var(--text-hi);}
+.openlink svg{width:13px;height:13px;}
+
+/* group heading row — domain partition, carried by the artifact not a numeral */
+.grp-head{
+  grid-column:1/-1;display:flex;align-items:center;gap:12px;
+  padding:14px 20px 8px;background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);border-top:1px solid rgba(51,64,92,.3);
+}
+.grp-head:first-child{border-top:none;}
+.grp-head .gname{
+  font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--text-hi);
+}
+.grp-head .gcount{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);}
+.grp-head .grule{flex:1;height:1px;background:rgba(51,64,92,.4);}
+
+/* pager */
+.pager{
+  display:flex;align-items:center;gap:14px;margin-top:var(--space-room);padding-top:16px;
+  border-top:1px solid rgba(51,64,92,.5);
+}
+.pbtn{
+  background:transparent;color:var(--text);border:1px solid rgba(51,64,92,.7);
+  border-radius:var(--r-well);height:34px;padding:0 14px;font-family:var(--font-sans);
+  font-size:13px;font-weight:500;cursor:pointer;transition:background .14s var(--ease-out);
+}
+.pbtn:hover:not(:disabled){background:var(--console-800);color:var(--text-hi);}
+.pbtn:disabled{color:var(--text-faint);border-color:rgba(51,64,92,.4);cursor:not-allowed;}
+.pmeta{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);margin-left:4px;
+}
+.pmeta .strong{color:var(--text);}
+
+/* P10: stale-snapshot caution collapsed to ONE inline line (was a 3-line padded
+   block in a stack of footer blocks competing with the hero). Border-left + word,
+   never a fill, never a multi-line panel. */
+.note-line{
+  margin-top:var(--space-room);display:flex;align-items:center;gap:10px;
+  padding:9px 14px;border-left:2px solid var(--edge-warn);
+  font-size:12.5px;color:var(--text);line-height:1.4;
+}
+.note-line svg{width:15px;height:15px;color:var(--edge-warn);flex-shrink:0;}
+.note-line .desig{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--edge-warn);flex-shrink:0;
+}
+.note-line .v{font-family:var(--font-mono);font-size:12px;color:var(--text-hi);}
+.note-line a{color:var(--text-hi);text-decoration:underline;text-underline-offset:2px;
+  text-decoration-color:rgba(146,155,174,.4);}
+.note-line a:hover{text-decoration-color:var(--text-hi);}
+
+/* record-link row — quiet, single line */
+.record-link{
+  margin-top:var(--space-section);display:flex;align-items:center;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;padding-top:var(--space-room);border-top:1px solid rgba(51,64,92,.5);
+}
+.record-link .rl-text{max-width:54ch;}
+.record-link .rl-text .h{font-size:14px;font-weight:550;color:var(--text-hi);margin-bottom:3px;}
+.record-link .rl-text .s{font-size:12.5px;color:var(--text-mut);line-height:1.5;}
+.rl-btn{
+  display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;flex-shrink:0;
+  border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);background:var(--console-700);
+  font-family:var(--font-mono);font-size:11.5px;letter-spacing:.05em;color:var(--text-hi);
+  text-decoration:none;transition:background .14s var(--ease-out);
+}
+.rl-btn:hover{background:var(--console-750);}
+.rl-btn svg{width:13px;height:13px;}
+
+.foot{
+  max-width:1320px;margin:0 auto;padding:var(--space-section) 32px var(--space-bay);
+  display:flex;align-items:center;gap:10px;color:var(--text-mut);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;flex-wrap:wrap;
+}
+.foot .sep{opacity:.5;}
+/* P7: the honesty clause is a running sentence — --text-mut (AA, 5.4:1).
+   --spread-dim is reserved strictly for the ◇ glyph, isolated below. */
+.foot .gly{color:var(--text-mut);}
+.foot .gly .glyph{color:var(--spread-dim);}
+
+@media(max-width:760px){
+  .lb-head{display:none;}
+  .lb-row{grid-template-columns:1fr auto;height:auto;padding:14px 16px;gap:8px;}
+  .lb-row .col-roles{display:none;}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:1ms!important;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ░░ left icon rail ░░ -->
+  <nav class="rail">
+    <div class="mark" title="SIDIRA">
+      <!-- P1: resting brand mark is ink (--text-mut / --console-line), never --signal.
+           Lime in a viewport means a live reading; a resting rail mark is not one. -->
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="13" cy="13" r="11" stroke="#929BAE" stroke-width="1.4" opacity=".85"/>
+        <circle cx="13" cy="13" r="4.4" fill="#929BAE" opacity=".9"/>
+        <path d="M13 2 L13 8.6 M13 17.4 L13 24 M2 13 L8.6 13 M17.4 13 L24 13" stroke="#33405C" stroke-width="1.2"/>
+      </svg>
+    </div>
+    <div class="rail-btn" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></div>
+    <div class="rail-btn" title="Run simulation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 5l11 7-11 7z"/></svg></div>
+    <div class="rail-btn active" title="Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h5v14H4zM10 5h4v14h-4zM16 6l4 1-3 13-4-1z"/></svg></div>
+    <div class="rail-btn" title="Personas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.5a3 3 0 0 1 0 5.8M17 20a5.5 5.5 0 0 0-2.5-4.6"/></svg></div>
+    <div class="rail-btn" title="Crawls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg></div>
+    <div class="rail-sp"></div>
+    <div class="rail-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M19 19l-2.1-2.1M7.1 7.1 5 5M19 5l-2.1 2.1M7.1 16.9 5 19"/></svg></div>
+    <div class="rail-btn" title="Account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></div>
+  </nav>
+
+  <div class="content">
+
+    <!-- ░░ top bar — ONE global reference, no second legend ░░ -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="route-desig">LIBRARY<span class="sep">/</span>FEATURE&nbsp;PACK</span>
+      <div class="topbar-right">
+        <span class="idle"><span class="dot"></span>CRAWL&nbsp;IDLE</span>
+      </div>
+    </header>
+
+    <!-- ░░ HERO — the one reading dominates; quiet WORKING page ░░ -->
+    <section class="hero">
+      <div class="wrap">
+        <a class="crumb" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6"/></svg>
+          Library
+        </a>
+
+        <div class="hero-grid">
+          <div class="hero-left">
+            <div class="eyebrow">As-built capability ledger</div>
+            <h1 class="title">Streamly feature pack</h1>
+            <p class="lede">
+              A generated snapshot of Streamly as it is actually built — every capability the
+              crawler observed, reverse-engineered into a PRD and a Figma record. This is the
+              as-built surface the simulated population reacts to.
+            </p>
+
+            <!-- bare facts: counts, snapshot, source — exempt, NO ± (§1.10).
+                 Counts lead; snapshot/source demote to a quiet provenance line. -->
+            <div class="facts">
+              <div class="facts-lead">
+                <div class="fact">
+                  <div class="k">Capabilities</div>
+                  <div class="n">147</div>
+                  <div class="sub">observed</div>
+                </div>
+                <div class="fact">
+                  <div class="k">Domains</div>
+                  <div class="n">9</div>
+                  <div class="sub">synthesized</div>
+                </div>
+              </div>
+              <div class="facts-prov">
+                <span class="pk">Snapshot</span><span class="pv">2026‑W25</span>
+                <span class="pq">· Jun 12 · clean</span>
+                <span class="sep">·</span>
+                <span class="pk">Source</span><span class="pv">app.streamly.fm</span>
+                <span class="pq">· cr-924718699c21</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- THE hero reading: coverage estimate (inferred → ± + ◇) -->
+          <div class="reading-well elevated">
+            <div class="prov-bar">
+              <span class="v">CH1</span><span class="tk">·</span>
+              <span class="tk">seed</span><span class="v">0x4f</span><span class="tk">·</span>
+              <span class="v">groq/llama-3.3</span><span class="tk">·</span>
+              <span class="gly">◇</span><span class="unc">UNCALIBRATED</span>
+            </div>
+            <div class="reading-body">
+              <div class="reading-label">Reconstruction coverage · μ</div>
+              <div class="reading-figure">
+                <span class="big">0.84</span>
+                <span class="ci">±0.04</span>
+                <span class="gly">◇</span>
+              </div>
+              <p class="reading-cap">
+                How completely the reverse-PRD reconstructs live behavior, averaged
+                across the pack. An estimate — uncalibrated until graded against source.
+              </p>
+            </div>
+            <div class="poster">
+              <svg class="poster-svg" id="poster" viewBox="0 0 320 132" aria-label="Coverage distribution across 147 capabilities, mean 0.84"></svg>
+              <div class="poster-axis">
+                <span>0.40</span>
+                <span class="mid">per-capability coverage · n=147</span>
+                <span>1.00</span>
+              </div>
+              <div class="poster-foot">
+                <span><b>38</b> graded ◆</span>
+                <span class="sep">·</span>
+                <span><b>109</b> uncalibrated ◇</span>
+                <span class="sep">·</span>
+                <span class="lo">14 below floor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ░░ body — the pack model ░░ -->
+    <section class="body">
+      <div class="wrap">
+
+        <div class="sec-head">
+          <div class="sec-title">All capabilities</div>
+          <!-- echoes the hero poster's graded/ungraded/floor split — the table is
+               the same instrument's row-level view (R4 issue #2) -->
+          <div class="calib-tally" aria-label="Calibration split across 147 capabilities">
+            <span class="ct"><b>38</b> graded <span class="g-filled">◆</span></span>
+            <span class="ct"><b>109</b> uncalibrated <span class="g-hollow">◇</span></span>
+            <span class="ct floor"><b>14</b> below floor</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+            <input type="text" placeholder="Search capabilities…" aria-label="Search capabilities" />
+          </label>
+          <div class="grp">
+            <span class="glab">Group</span>
+            <div class="seg-toggle" role="tablist">
+              <button>None</button>
+              <button>A–Z</button>
+              <button>Roles</button>
+              <button class="on">Domain</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- logbook -->
+        <div class="logbook elevated">
+          <div class="lb-head">
+            <span class="sortable active">Capability <span class="arr">↓</span></span>
+            <span>Roles</span>
+            <!-- column header carries the same floor 0.58 the poster marks, so the
+                 covbar track reads against the hero's reconstruction floor -->
+            <span class="r-num cov-head">Coverage <span class="floor-ref">floor 0.58</span></span>
+            <span></span>
+          </div>
+
+          <!-- DOMAIN: Playback & Listening -->
+          <div class="grp-head"><span class="gname">Playback &amp; Listening</span><span class="gcount">31</span><span class="grule"></span></div>
+
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Gapless queue playback</span><span class="meta">player.queue · crossfade</span></span>
+            <span class="col-roles roles"><span class="role-chip">Listener</span><span class="role-chip">Driver</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill graded" style="width:94%"></span><span class="ci" style="left:88%;width:12%"></span><span class="floor"></span></span><span class="val">0.94</span><span class="ci">±0.03</span><span class="glyph filled">◆</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Adaptive bitrate streaming</span><span class="meta">stream.abr · 96–320kbps</span></span>
+            <span class="col-roles roles"><span class="role-chip">Listener</span><span class="role-chip more">+1</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:89%"></span><span class="ci" style="left:81%;width:16%"></span><span class="floor"></span></span><span class="val">0.89</span><span class="ci">±0.05</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Offline download &amp; sync</span><span class="meta">library.offline · 5-device</span></span>
+            <span class="col-roles roles"><span class="role-chip">Listener</span><span class="role-chip">Commuter</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:82%"></span><span class="ci" style="left:72%;width:19%"></span><span class="floor"></span></span><span class="val">0.82</span><span class="ci">±0.07</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+
+          <!-- DOMAIN: Discovery & Recommendation -->
+          <div class="grp-head"><span class="gname">Discovery &amp; Recommendation</span><span class="gcount">24</span><span class="grule"></span></div>
+
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm"><em>Daily</em> Mix radio generation</span><span class="meta">reco.dailymix · taste-graph</span></span>
+            <span class="col-roles roles"><span class="role-chip">Listener</span><span class="role-chip">Explorer</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:78%"></span><span class="ci" style="left:64%;width:24%"></span><span class="floor"></span></span><span class="val">0.78</span><span class="ci">±0.09</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Collaborative playlist co-edit</span><span class="meta">social.playlist · realtime</span></span>
+            <span class="col-roles roles"><span class="role-chip">Curator</span><span class="role-chip more">+2</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill graded" style="width:91%"></span><span class="ci" style="left:85%;width:11%"></span><span class="floor"></span></span><span class="val">0.91</span><span class="ci">±0.04</span><span class="glyph filled">◆</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Search w/ semantic lyric match</span><span class="meta">search.semantic · embeddings</span></span>
+            <span class="col-roles roles"><span class="role-chip">Explorer</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:73%"></span><span class="ci" style="left:58%;width:26%"></span><span class="floor"></span></span><span class="val">0.73</span><span class="ci">±0.11</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+
+          <!-- DOMAIN: Monetization & Ads -->
+          <div class="grp-head"><span class="gname">Monetization &amp; Ads</span><span class="gcount">18</span><span class="grule"></span></div>
+
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Interstitial audio ad insertion</span><span class="meta">ads.audio · free-tier</span></span>
+            <span class="col-roles roles"><span class="role-chip">Free user</span><span class="role-chip more">+1</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:86%"></span><span class="ci" style="left:78%;width:16%"></span><span class="floor"></span></span><span class="val">0.86</span><span class="ci">±0.06</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Premium upgrade paywall flow</span><span class="meta">billing.upgrade · trial</span></span>
+            <span class="col-roles roles"><span class="role-chip">Free user</span><span class="role-chip">Subscriber</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill graded" style="width:88%"></span><span class="ci" style="left:80%;width:15%"></span><span class="floor"></span></span><span class="val">0.88</span><span class="ci">±0.05</span><span class="glyph filled">◆</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Annual plan discount nudge</span><span class="meta">billing.retention · email</span></span>
+            <span class="col-roles roles"><span class="role-chip">Subscriber</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:69%"></span><span class="ci" style="left:52%;width:30%"></span><span class="floor"></span></span><span class="val">0.69</span><span class="ci">±0.12</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+
+          <!-- DOMAIN: Library & Organization -->
+          <div class="grp-head"><span class="gname">Library &amp; Organization</span><span class="gcount">21</span><span class="grule"></span></div>
+
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Smart playlist auto-tagging</span><span class="meta">library.tags · genre+mood</span></span>
+            <span class="col-roles roles"><span class="role-chip">Curator</span><span class="role-chip">Listener</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:80%"></span><span class="ci" style="left:70%;width:20%"></span><span class="floor"></span></span><span class="val">0.80</span><span class="ci">±0.08</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm">Liked-songs cross-device merge</span><span class="meta">library.sync · conflict</span></span>
+            <span class="col-roles roles"><span class="role-chip">Listener</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill graded" style="width:92%"></span><span class="ci" style="left:86%;width:10%"></span><span class="floor"></span></span><span class="val">0.92</span><span class="ci">±0.03</span><span class="glyph filled">◆</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="lb-row" href="#">
+            <span class="cap-name"><span class="nm"><span class="nm-t">Bulk import from CSV / OPML</span><span class="unscoped-tag">unscoped</span></span><span class="meta">library.import · no domain partition</span></span>
+            <span class="col-roles roles"><span class="role-chip more">none</span></span>
+            <span class="reading r-num"><span class="covbar"><span class="fill" style="width:51%"></span><span class="ci" style="left:34%;width:34%"></span><span class="floor"></span></span><span class="val weak">0.51</span><span class="ci">±0.17</span><span class="glyph hollow">◇</span></span>
+            <span class="openlink">OPEN<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </a>
+
+        </div><!-- /logbook -->
+
+        <!-- pager -->
+        <div class="pager">
+          <button class="pbtn" disabled>← Prev</button>
+          <button class="pbtn">Next →</button>
+          <span class="pmeta">SHOWING <span class="strong">1–24</span> OF <span class="strong">147</span> · PAGE 1/7</span>
+        </div>
+
+        <!-- P10: stale-snapshot collapsed to a single inline caution line -->
+        <div class="note-line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 9v4M12 17h.01M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <span class="desig">Stale snapshot</span>
+          <span>Requested <span class="v">2026-W23</span> isn't served — showing the latest pack <span class="v">2026-W25</span>. <a href="#">Open latest</a>.</span>
+        </div>
+
+        <!-- record link — quiet single row -->
+        <div class="record-link">
+          <div class="rl-text">
+            <div class="h">Open the full PRD record</div>
+            <div class="s">Each capability prints to a light blueprint Sheet — its reverse-PRD and reverse-Figma, with the provenance spine down the binder margin.</div>
+          </div>
+          <a class="rl-btn" href="#">
+            BROWSE RECORDS
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="foot">
+      <span>SIDIRA</span><span class="sep">·</span>
+      <span>READING CONSOLE</span><span class="sep">·</span>
+      <span>org_3F9pXz</span><span class="sep">·</span>
+      <span>cr-924718699c21</span><span class="sep">·</span>
+      <span>FEATURE-PACK 2026-W25</span><span class="sep">·</span>
+      <span class="gly"><span class="glyph">◇</span> UNCALIBRATED — coverage readings are uncertain by design</span>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+/* ════════ STATIC COVERAGE-DISTRIBUTION POSTER (interrogable) ════════
+   WORKING-class page: NO live Population Field — this is a list of records, not a
+   computation. The hero reading gets a single static SVG figure: a BINNED coverage
+   histogram across the 147 capabilities, with a labeled mean tick (μ 0.84), an
+   annotated ±0.04 CI ribbon, and a dashed noise-floor at the reconstruction floor.
+   It self-draws ONCE (700ms --ease-mech), then is still. Uncalibrated truth is
+   carried by the ◇ glyph + copy, never perpetual motion.
+   P5: a settled poster is not a live reading — every trace/mean/bar uses
+   --signal-dim (#39B894), never the bright live --signal. The ONE bright-signal
+   carrier in this hero region is the resting 0.84 figure above; the poster is its
+   settled echo, anchored to the same value so the marquee dominates. */
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const svg = document.getElementById('poster');
+  if(!svg) return;
+  const W=320, H=132, padB=20, padT=10;          // padB leaves room for the mean label
+  const BINS=14, x0=0.40, x1=1.00;               // coverage axis 0.40 → 1.00
+  const ax = (s)=> ((s-x0)/(x1-x0))*W;           // value → x
+  // 147 per-capability coverage scores: right-skewed, μ≈0.84, a small low tail.
+  let seed=0x4f17; const rnd=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return ((seed>>>0)/4294967296);};
+  const scores=[];
+  for(let i=0;i<147;i++){
+    const u=rnd(), base = 0.86 + 0.11*(rnd()+rnd()-1);     // tight bell near μ
+    const v = u<0.10 ? 0.50 + 0.16*rnd() : base;           // ~10% low tail toward the floor
+    scores.push(Math.max(x0, Math.min(0.995, v)));
+  }
+  // bin
+  const counts=new Array(BINS).fill(0);
+  scores.forEach(v=>{ let b=Math.floor((v-x0)/(x1-x0)*BINS); if(b>=BINS)b=BINS-1; if(b<0)b=0; counts[b]++; });
+  const cmax=Math.max(...counts);
+  const bw = W/BINS, gap=2;
+  const meanX = ax(0.84), ciX0=ax(0.80), ciX1=ax(0.88), floorX=ax(0.58);
+  const barY=(c)=> (padT) + (1 - c/cmax)*(H-padB-padT);
+  // bars (the histogram body)
+  let bars='';
+  for(let b=0;b<BINS;b++){
+    if(!counts[b]) continue;
+    const bx=b*bw+gap/2, by=barY(counts[b]), bh=(H-padB)-by;
+    // bins below the dashed floor read dimmer (toward ink) — they're the weak tail
+    const center=x0+(b+0.5)/BINS*(x1-x0);
+    const dim = center<0.62;
+    bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${(bw-gap).toFixed(1)}" height="${bh.toFixed(1)}" rx="1"
+      fill="${dim?'#929BAE':'#39B894'}" fill-opacity="${dim?0.22:0.30}"
+      stroke="${dim?'#929BAE':'#39B894'}" stroke-opacity="${dim?0.45:0.7}" stroke-width="1"/>`;
+  }
+  svg.innerHTML = `
+    <!-- ±0.04 CI ribbon, amber spread -->
+    <rect x="${ciX0}" y="${padT}" width="${ciX1-ciX0}" height="${H-padB-padT}" fill="rgba(200,182,138,0.14)"/>
+    <!-- baseline rule -->
+    <line x1="0" y1="${H-padB}" x2="${W}" y2="${H-padB}" stroke="#33405C" stroke-width="1" opacity="0.6"/>
+    <!-- dashed reconstruction noise-floor (spread-amber) -->
+    <line x1="${floorX}" y1="${padT}" x2="${floorX}" y2="${H-padB}" stroke="#90815F" stroke-width="1" stroke-dasharray="3 3" opacity="0.7"/>
+    <g id="bars" opacity="0">${bars}</g>
+    <!-- labeled mean tick (the marquee value, anchored into the figure) -->
+    <line x1="${meanX}" y1="${padT-4}" x2="${meanX}" y2="${H-padB}" stroke="#39B894" stroke-width="1.25" opacity="0.85"/>
+    <rect x="${meanX+4}" y="${padT-9}" width="38" height="13" rx="2" fill="#0B1220" opacity="0.85"/>
+    <text x="${meanX+8}" y="${padT+1}" font-family="Geist Mono, monospace" font-size="10" fill="#39B894" opacity="0.98">μ 0.84</text>
+    <text x="${ciX0-4}" y="${padT+8}" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" letter-spacing="0.04em" fill="#929BAE">±0.04</text>
+    <text x="${floorX-4}" y="${H-padB+13}" text-anchor="end" font-family="Geist Mono, monospace" font-size="9" letter-spacing="0.06em" fill="#929BAE">FLOOR 0.58</text>
+  `;
+  const bg = svg.querySelector('#bars');
+  if(bg && !reduce){
+    bg.style.transformOrigin = `0px ${H-padB}px`;
+    bg.style.transform = 'scaleY(0.04)';
+    bg.style.transition = 'transform 700ms cubic-bezier(.32,.72,0,1), opacity 320ms ease-out';
+    requestAnimationFrame(()=> requestAnimationFrame(()=>{ bg.style.opacity='1'; bg.style.transform='scaleY(1)'; }));
+  } else if(bg){ bg.style.opacity='1'; }
+})();
+</script>
+</body>
+</html>

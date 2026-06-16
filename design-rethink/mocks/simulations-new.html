@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>New hypothesis · SIDIRA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; --text-faint:#646E84;
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4;
+  --edge-warn:#C9A227; --alert:#F0683C;
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--console-850);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+::selection{background:var(--signal-wash);color:var(--text-hi);}
+h1,h2,h3{margin:0;text-wrap:balance;}
+button{font-family:inherit;}
+input,select,textarea{font-family:inherit;}
+.mono{font-family:var(--font-mono);}
+
+/* ── app shell ──────────────────────────────────────────── */
+.app{display:flex;min-height:100vh;}
+.rail{
+  width:56px;flex:none;background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;align-items:center;
+  padding-top:12px;gap:4px;position:sticky;top:0;height:100vh;z-index:30;
+}
+.rail .mark{width:30px;height:30px;margin-bottom:14px;display:grid;place-items:center;}
+.rail .mark svg{width:26px;height:26px;display:block;}
+.rail-btn{
+  width:40px;height:40px;border-radius:var(--r-well);display:grid;place-items:center;
+  color:var(--text-mut);background:transparent;border:none;cursor:pointer;position:relative;
+  transition:color 140ms var(--ease-out),background 140ms var(--ease-out);
+}
+.rail-btn svg{width:19px;height:19px;}
+.rail-btn:hover{color:var(--text);background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:2px;border-radius:1px;
+  background:var(--signal-dim);
+}
+.rail-btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.rail-spacer{flex:1;}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+/* ── top bar — ONE global provenance reference ── */
+.topbar{
+  height:52px;flex:none;background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:14px;padding:0 28px;
+  position:sticky;top:0;z-index:20;
+}
+.wordmark{font-weight:600;letter-spacing:.06em;color:var(--text-hi);font-size:14px;}
+.crumb{color:var(--text-mut);font-size:13px;}
+.crumb .cur{color:var(--text);}
+.topbar .prov{
+  margin-left:auto;display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-mut);
+}
+.topbar .prov .glyph{color:var(--spread);}
+.topbar .prov .word{color:var(--text-mut);}
+.topbar .prov .sep{color:var(--text-mut);}
+.dot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--signal);display:inline-block;}
+.dot.draft{background:var(--spread-dim);}
+
+/* ════════════════════════════════════════════════════════════
+   THE SHOWPIECE — full-bleed Population Field hero.
+   ≥55% of the first viewport. The field IS the manifest preview:
+   the cohort you are composing, drifting because it is a DRAFT.
+   ═══════════════════════════════════════════════════════════ */
+.stage{
+  position:relative;height:clamp(420px,56vh,640px);flex:none;overflow:hidden;
+  background:var(--console-900);border-bottom:1px solid rgba(51,64,92,.5);
+}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.stage::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 90% at 50% 18%,transparent 38%,rgba(11,18,32,.55) 100%);
+}
+
+/* hero label overlaid into the field like an instrument silkscreen */
+.stage-head{
+  position:absolute;left:0;right:0;top:0;z-index:3;
+  display:flex;align-items:flex-start;gap:18px;
+  padding:30px 36px 0;
+}
+.stage-head .title{min-width:0;}
+.stage-head h1{
+  font-size:clamp(1.9rem,3.2vw,2.55rem);font-weight:600;letter-spacing:-.025em;
+  color:var(--text-hi);line-height:1.04;
+}
+.stage-head .lede{
+  margin-top:9px;max-width:46ch;color:var(--text);font-size:15px;line-height:1.5;
+}
+.stage-head .draft-tag{
+  margin-left:auto;flex:none;font-family:var(--font-mono);font-size:10.5px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);padding:5px 10px;
+  display:flex;align-items:center;gap:7px;background:rgba(11,18,32,.4);
+}
+.stage-head .draft-tag .glyph{color:var(--spread);}
+.stage-head .draft-tag .word{color:var(--text-mut);}
+
+/* ONE provenance bar for the field reading region (bottom silkscreen) */
+.stage-foot{
+  position:absolute;left:0;right:0;bottom:0;z-index:3;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:0 36px 22px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-mut);
+}
+.stage-foot .axis{
+  display:flex;align-items:center;justify-content:space-between;width:100%;
+  margin-bottom:13px;padding-top:10px;border-top:1px solid rgba(51,64,92,.5);
+}
+.stage-foot .axis .end{color:var(--text);}
+.stage-foot .axis .ctr{color:var(--text-mut);letter-spacing:.04em;}
+.stage-foot .pbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+/* provenance separators ride at --text-mut (AA) — never sub-AA chrome (P7 sweep) */
+.stage-foot .pbar .sep{color:var(--text-mut);}
+.stage-foot .pbar .glyph{color:var(--spread);}
+.stage-foot .pbar .word{color:var(--text-mut);}
+.swatch{display:inline-flex;align-items:center;gap:6px;color:var(--text-mut);}
+.swatch i{width:8px;height:8px;border-radius:var(--r-dot);display:inline-block;}
+.swatch i.c{background:var(--arm-control);} .swatch i.t{background:var(--arm-treat);}
+/* grid-cell min-width guard, as a class (no inline style= overrides) */
+.col{min-width:0;}
+
+/* ── quiet work area below the showpiece ── */
+.work{
+  display:grid;grid-template-columns:1fr 372px;align-items:start;
+  max-width:1320px;margin:0 auto;width:100%;
+}
+.form-col{min-width:0;padding:48px 40px 96px;}
+.field-form{max-width:600px;}
+
+/* WORKING regions — grouped by hairline + air, NOT numbered scaffolds */
+.region{margin-top:48px;}
+.region:first-child{margin-top:0;}
+.region-label{
+  display:flex;align-items:baseline;gap:12px;
+  font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--text-mut);
+  padding-bottom:11px;border-bottom:1px solid rgba(51,64,92,.5);
+}
+/* editorializing tail = sentence-case ink, NOT a machine designator */
+.region-label .tail{
+  margin-left:auto;font-family:var(--font-sans);font-weight:400;font-size:12px;
+  letter-spacing:0;text-transform:none;color:var(--text-mut);align-self:center;
+}
+
+.field{margin-top:22px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+/* field labels = caption (Geist), per §4.2 — not mono-UPPER designators */
+label.sub,.sub{
+  display:block;font-family:var(--font-sans);font-size:12.5px;font-weight:450;
+  letter-spacing:0;text-transform:none;color:var(--text-mut);margin-bottom:8px;
+}
+/* sub-note: clarifies that a labelled region carries config, not an inferred reading
+   (keeps the candor grammar unambiguous — these % are declared pack weights, exempt) */
+.sub-note{color:var(--text-mut);font-weight:400;font-size:11.5px;}
+.hint{font-size:12.5px;color:var(--text-mut);margin-top:8px;line-height:1.5;max-width:56ch;}
+.hint strong{color:var(--text);font-weight:500;}
+.hint .num{font-family:var(--font-mono);color:var(--text-hi);}
+
+textarea,input[type=text],input[type=number],select{
+  width:100%;background:var(--console-700);color:var(--text-hi);
+  border:1px solid rgba(51,64,92,.5);border-radius:var(--r-well);
+  padding:0 12px;height:36px;font-size:14px;outline:none;
+  transition:border-color 140ms var(--ease-out),box-shadow 140ms var(--ease-out);
+}
+textarea{height:auto;padding:9px 12px;line-height:1.55;resize:vertical;}
+input::placeholder,textarea::placeholder{color:rgba(146,155,174,.7);}
+input[type=number],select.mono{font-family:var(--font-mono);font-size:13px;}
+textarea:focus,input:focus,select:focus{
+  border-color:var(--signal-dim);box-shadow:0 0 0 2px rgba(57,184,148,.28);
+}
+select{
+  appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23929BAE' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center;padding-right:34px;
+  font-family:var(--font-mono);font-size:13px;
+}
+
+/* stimulus authoring well */
+.stim-well{
+  margin-top:18px;padding:18px 20px 16px;border:1px dashed rgba(51,64,92,.7);
+  border-radius:var(--r-well);background:var(--console-900);
+}
+/* explanatory foot = sentence-case ink, not silkscreen designator */
+.stim-well .ctrl-foot{
+  font-family:var(--font-sans);font-size:12.5px;letter-spacing:0;color:var(--text-mut);
+  margin-top:16px;padding-top:12px;border-top:1px solid rgba(51,64,92,.5);line-height:1.5;
+}
+.stim-well .ctrl-foot b{color:var(--arm-control);font-weight:500;}
+
+/* segmented mode control */
+.seg{
+  display:inline-flex;border:1px solid rgba(51,64,92,.5);border-radius:var(--r-well);overflow:hidden;
+}
+.seg button{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;border:none;
+  padding:9px 16px;cursor:pointer;background:transparent;color:var(--text-mut);
+  transition:background 140ms var(--ease-out),color 140ms var(--ease-out);position:relative;
+}
+.seg button + button{border-left:1px solid rgba(51,64,92,.5);}
+.seg button[aria-pressed=true]{color:var(--text-hi);background:var(--console-750);}
+.seg button:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-2px;}
+/* arm-identity underline (provenance, not valence) */
+.seg button.treat[aria-pressed=true]::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:2px;
+  background:linear-gradient(90deg,var(--arm-control),var(--arm-treat));
+}
+
+/* persona chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
+.chip{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;cursor:pointer;
+  border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);padding:6px 10px;
+  color:var(--text-mut);background:var(--console-800);
+  transition:border-color 140ms var(--ease-out),color 140ms var(--ease-out),background 140ms var(--ease-out),opacity 140ms var(--ease-out);
+  display:inline-flex;align-items:center;gap:8px;
+}
+.chip .w{color:var(--text-mut);}
+.chip[aria-pressed=true]{color:var(--text-hi);border-color:var(--console-line);background:var(--console-750);}
+.chip[aria-pressed=true] .w{color:var(--text);}
+.chip[aria-pressed=false]{opacity:.55;text-decoration:line-through;text-decoration-color:rgba(146,155,174,.4);}
+.chip:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.chip-actions{display:flex;gap:16px;margin-top:12px;font-size:12.5px;}
+.chip-actions button{background:none;border:none;color:var(--text-mut);cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;font-size:12.5px;}
+.chip-actions button:hover{color:var(--text-hi);}
+
+.cohort-meta{font-family:var(--font-mono);font-size:13px;color:var(--text-hi);}
+.cohort-meta .mut{color:var(--text-mut);}
+/* inline mono value lifted to a class (no mock-grade style= overrides) */
+.mono-hi{font-family:var(--font-mono);color:var(--text-hi);}
+.mono-mut{font-family:var(--font-mono);color:var(--text-mut);}
+.mono-text{font-family:var(--font-mono);color:var(--text);}
+.prov-inline{font-size:12.5px;color:var(--text-mut);padding-top:8px;}
+
+/* ── A/B paired-arm cost figure — the page's one CRAFTED comparative mark.
+   A bespoke fork that makes the 2× cost FELT, not buried (§7.5 spirit): one
+   persona stream forks into two arms (control blue / treatment magenta), each
+   sampling the SAME 160 paired identities, summing to 320. Arm tints are
+   identity (calm magenta, no valence); the figures are exempt config counts. */
+.ab-cost{
+  margin-top:14px;padding:16px 16px 14px;border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-well);background:var(--console-800);
+}
+.fork{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:0 14px;}
+.fork .src{
+  font-family:var(--font-mono);font-size:12px;color:var(--text-mut);
+  text-align:right;line-height:1.3;
+}
+.fork .src .n{display:block;font-size:17px;color:var(--text-hi);letter-spacing:-.01em;}
+.fork svg{width:100%;height:46px;display:block;}
+.fork .arms{display:flex;flex-direction:column;gap:8px;}
+.fork .arm{
+  display:flex;align-items:baseline;gap:8px;font-family:var(--font-mono);font-size:12px;
+}
+.fork .arm .n{font-size:17px;letter-spacing:-.01em;line-height:1;}
+.fork .arm.c .n{color:var(--arm-control);} .fork .arm.c .lab{color:var(--arm-control);}
+.fork .arm.t .n{color:var(--arm-treat);}   .fork .arm.t .lab{color:var(--arm-treat);}
+.fork .arm .lab{font-size:11px;letter-spacing:.04em;}
+.fork .arm .of{color:var(--text-mut);font-size:11px;}
+.ab-total{
+  margin-top:13px;padding-top:12px;border-top:1px solid rgba(51,64,92,.5);
+  font-size:12.5px;color:var(--text);line-height:1.55;
+}
+.ab-total .sum{font-family:var(--font-mono);color:var(--text-hi);}
+.ab-total strong{color:var(--text);font-weight:500;}
+.ab-cost .arm-c{color:var(--arm-control);} .ab-cost .arm-t{color:var(--arm-treat);}
+
+/* ── manifest receipt (the quiet supporting panel) ── */
+.manifest-panel{
+  position:sticky;top:76px;align-self:start;margin:48px 40px 48px 0;
+  background:var(--console-800);border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);
+}
+.manifest-head{
+  padding:15px 20px 13px;border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:10px;
+}
+.manifest-head .t{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--text-mut);}
+.manifest-head .live{margin-left:auto;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--text-mut);display:flex;align-items:center;gap:7px;}
+
+/* commit receipt — not a field mirror; what FREEZES / PAIRS / COSTS on run */
+.commit-list{margin:0;padding:16px 20px 4px;list-style:none;display:flex;flex-direction:column;gap:14px;}
+.commit-list li{display:grid;grid-template-columns:62px 1fr;gap:14px;align-items:baseline;}
+.commit-list .k{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-mut);padding-top:1px;
+}
+.commit-list .v{font-size:12.5px;line-height:1.5;color:var(--text);min-width:0;overflow-wrap:break-word;}
+.commit-list .v .mono{font-family:var(--font-mono);color:var(--text-hi);}
+.commit-list .v .arm-c{color:var(--arm-control);}
+.commit-list .v .arm-t{color:var(--arm-treat);}
+
+.commit{
+  padding:18px 20px 20px;border-top:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;gap:11px;
+}
+/* THE one signal carrier for this region: the Live/Run button */
+.btn-run{
+  height:44px;border:1px solid var(--signal);background:transparent;color:var(--signal);
+  border-radius:var(--r-well);font-size:14px;font-weight:500;letter-spacing:.01em;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  transition:background 140ms var(--ease-out),transform 90ms var(--ease-out);
+}
+.btn-run:hover{background:var(--signal-wash);}
+.btn-run:active{transform:translateY(1px);}
+.btn-run:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.btn-run svg{width:15px;height:15px;}
+/* commit caption = sentence-case ink prose; the duration stays bare-mono */
+.commit .est{font-family:var(--font-sans);font-size:12.5px;letter-spacing:0;color:var(--text-mut);line-height:1.55;}
+.commit .est .num{font-family:var(--font-mono);color:var(--text);}
+.commit .est .glyph{color:var(--spread);}
+
+@media (max-width:1080px){
+  .work{grid-template-columns:1fr;}
+  .form-col{padding:40px 28px 64px;}
+  .manifest-panel{position:static;margin:0 28px 64px;order:2;}
+  .form-col{order:1;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── left icon rail ── -->
+  <nav class="rail" aria-label="Primary">
+    <div class="mark" title="Sidira">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="#929BAE" stroke-width="1.4" opacity=".85"/>
+        <circle cx="12" cy="12" r="3.1" fill="#C6CCD8"/>
+        <path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3" stroke="#646E84" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <button class="rail-btn" title="Dashboard" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></button>
+    <button class="rail-btn active" title="Simulations" aria-label="Simulations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l5-6 4 3 5-8 4 5"/><path d="M3 21h18" opacity=".5"/></svg></button>
+    <button class="rail-btn" title="Personas" aria-label="Personas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="9" r="2.4" opacity=".55"/><path d="M16 19a4 4 0 0 1 5.5-3.6" opacity=".55"/></svg></button>
+    <button class="rail-btn" title="Capabilities" aria-label="Capabilities"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16M4 12h16M4 19h10"/></svg></button>
+    <button class="rail-btn" title="Crawls" aria-label="Crawls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.3 3.6 8.5S14.4 18.2 12 20.5C9.6 18.2 8.4 15.2 8.4 12S9.6 5.8 12 3.5z"/></svg></button>
+    <div class="rail-spacer"></div>
+    <button class="rail-btn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
+  </nav>
+
+  <div class="main">
+
+    <!-- ── top bar — one global provenance reference for the draft ── -->
+    <div class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="crumb">Simulations&nbsp; / &nbsp;<span class="cur">New hypothesis</span></span>
+      <div class="prov">
+        <span class="dot draft"></span> DRAFT
+        <span class="sep">·</span>
+        <span class="glyph">◇</span>&nbsp;<span class="word">UNCALIBRATED</span>
+      </div>
+    </div>
+
+    <!-- ════════ THE SHOWPIECE: full-bleed Population Field ════════ -->
+    <section class="stage" aria-label="Live preview of the cohort being composed">
+      <canvas id="popfield" aria-label="Live preview of the agent population that will be sampled when this reading runs"></canvas>
+
+      <div class="stage-head">
+        <div class="title">
+          <h1>New hypothesis</h1>
+          <p class="lede">Compose the bet below. The field above previews the exact cohort this reading would sample — every dot one agent, every band one persona.</p>
+        </div>
+        <span class="draft-tag"><span class="glyph">◇</span> <span class="word">DRAFT</span></span>
+      </div>
+
+      <div class="stage-foot">
+        <div class="axis">
+          <span class="end">← rejects</span>
+          <span class="ctr">reaction axis · a draft drifts; it settles only on a graded run</span>
+          <span class="end">adopts →</span>
+        </div>
+        <!-- ONE Provenance Bar for the entire field reading region -->
+        <div class="pbar">
+          <span>CH1 · LIVE PREVIEW · n=320</span>
+          <span class="sep">·</span>
+          <span class="swatch"><i class="c"></i> control 160</span>
+          <span class="swatch"><i class="t"></i> treatment 160</span>
+          <span class="sep">·</span>
+          <span>seed 0x4f · groq/llama-3.3 · 2026-W25</span>
+          <span class="sep">·</span>
+          <span><span class="glyph">◇</span> <span class="word">UNCALIBRATED</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ brutally quiet work area ════════ -->
+    <div class="work">
+
+      <!-- ─────────── compose the bet ─────────── -->
+      <div class="form-col">
+        <form class="field-form" onsubmit="return false">
+
+          <!-- Claim -->
+          <section class="region">
+            <div class="region-label">Claim<span class="tail">a falsifiable prediction</span></div>
+            <div class="field">
+              <label class="sub" for="hypothesis">Hypothesis</label>
+              <textarea id="hypothesis" rows="3" spellcheck="false">If we surface a one-tap reorder CTA on the home screen for users who ordered in the last 14 days, weekly reorder rate will increase without depressing average order value.</textarea>
+              <div class="hint">State a falsifiable prediction — be specific about <strong>who</strong> and <strong>what</strong>, since the verdict prints against it.</div>
+            </div>
+          </section>
+
+          <!-- Subject -->
+          <section class="region">
+            <div class="region-label">Subject<span class="tail">capability + stimulus</span></div>
+            <div class="field field-row">
+              <div class="col">
+                <label class="sub" for="capability">Capability under test</label>
+                <select id="capability" class="mono">
+                  <option>home-feed.reorder-cta</option>
+                  <option>checkout.express-pay</option>
+                  <option>search.semantic-ranking</option>
+                  <option>onboarding.cohort-quiz</option>
+                </select>
+                <div class="hint">From the feature pack — agents read its as-built capability as context.</div>
+              </div>
+              <div class="col">
+                <label class="sub" for="stimulus">Stimulus</label>
+                <select id="stimulus" class="mono">
+                  <option value="new">+ new stimulus…</option>
+                  <option value="prose">Claim text only — no PRD delta</option>
+                </select>
+                <div class="hint">What agents react to — a new stimulus adds a PRD-delta describing the proposed change.</div>
+              </div>
+            </div>
+
+            <!-- stimulus authoring well (open state) -->
+            <div class="stim-well" id="stimWell">
+              <div class="field-row">
+                <div class="col">
+                  <label class="sub" for="stim-name">Name</label>
+                  <input id="stim-name" type="text" class="mono" value="reorder-cta-v2" spellcheck="false" />
+                </div>
+                <div class="col">
+                  <label class="sub">Provenance</label>
+                  <div class="prov-inline">Delta vs frozen slice <span class="mono mono-text">2026-W25</span></div>
+                </div>
+              </div>
+              <div class="hint">The name prints on the reading manifest — the treatment text below is what agents actually read.</div>
+              <div class="field">
+                <label class="sub" for="proposed-prd">Treatment — proposed change</label>
+                <textarea id="proposed-prd" rows="4" spellcheck="false">Add a persistent "Reorder" chip above the home feed for any account with a delivered order in the trailing 14 days. One tap re-adds the prior basket and routes to express checkout. Chip is dismissible per-session; never shown to first-order users.</textarea>
+                <div class="hint">Written like a PRD delta — treatment-arm agents read this alongside the capability's as-built PRD.</div>
+              </div>
+              <div class="ctrl-foot">The <b>control arm</b> is the as-built capability from the frozen slice <span class="mono mono-mut">2026-W25</span> — never authored.</div>
+            </div>
+
+            <!-- A/B mode -->
+            <div class="field">
+              <span class="sub">Mode</span>
+              <span class="seg" role="group" aria-label="Run mode">
+                <button type="button" data-mode="single" aria-pressed="false">SINGLE ARM</button>
+                <button type="button" class="treat" data-mode="ab" aria-pressed="true">A/B — TREATMENT VS CONTROL</button>
+              </span>
+              <div class="ab-cost" id="abCost">
+                <div class="fork" aria-hidden="true">
+                  <div class="src"><span class="n">160</span>paired<br/>identities</div>
+                  <svg viewBox="0 0 100 46" preserveAspectRatio="none">
+                    <!-- one stream forks into two arms; same 160 sampled in each -->
+                    <path d="M0 23 H30" stroke="#929BAE" stroke-width="1.25" fill="none"/>
+                    <path d="M30 23 C46 23 50 9 70 9 H100" stroke="#4FA8E0" stroke-width="1.25" fill="none"/>
+                    <path d="M30 23 C46 23 50 37 70 37 H100" stroke="#E08BC4" stroke-width="1.25" fill="none"/>
+                    <circle cx="30" cy="23" r="2.1" fill="#929BAE"/>
+                    <circle cx="100" cy="9" r="2.1" fill="#4FA8E0"/>
+                    <circle cx="100" cy="37" r="2.1" fill="#E08BC4"/>
+                  </svg>
+                  <div class="arms">
+                    <div class="arm c"><span class="n">160</span><span class="lab">CONTROL</span><span class="of">as-built</span></div>
+                    <div class="arm t"><span class="n">160</span><span class="lab">TREATMENT</span><span class="of">proposed</span></div>
+                  </div>
+                </div>
+                <div class="ab-total">
+                  <span class="sum">320 agents</span> · <strong>same identities</strong> sample both arms, so the lift is a within-persona delta. Pairing costs ~2× a single-arm run.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Cohort -->
+          <section class="region">
+            <div class="region-label">Cohort<span class="tail">persona filter</span></div>
+            <div class="field">
+              <span class="sub">Persona pack</span>
+              <div class="cohort-meta">v_2 · 2026-W25 &nbsp;<span class="mut">·</span>&nbsp; 8 personas &nbsp;<span class="mut">· <span id="selCount">6</span> selected</span></div>
+            </div>
+            <div class="field">
+              <span class="sub">Filter <span class="sub-note">— declared pack weights, not a reading</span></span>
+              <div class="chips" id="chips">
+                <button type="button" class="chip" aria-pressed="true"  data-w="24" data-lean="-0.34">Lapsed Weekly Buyer <span class="w">24%</span></button>
+                <button type="button" class="chip" aria-pressed="true"  data-w="19" data-lean="0.46">Deal-Seeker <span class="w">19%</span></button>
+                <button type="button" class="chip" aria-pressed="true"  data-w="16" data-lean="0.28">Premium Loyalist <span class="w">16%</span></button>
+                <button type="button" class="chip" aria-pressed="true"  data-w="13" data-lean="-0.12">First-Order Cautious <span class="w">13%</span></button>
+                <button type="button" class="chip" aria-pressed="true"  data-w="11" data-lean="0.18">Convenience-First <span class="w">11%</span></button>
+                <button type="button" class="chip" aria-pressed="false" data-w="9"  data-lean="0.04">Price-Insensitive Pro <span class="w">9%</span></button>
+                <button type="button" class="chip" aria-pressed="true"  data-w="5"  data-lean="-0.40">Subscription Holdout <span class="w">5%</span></button>
+                <button type="button" class="chip" aria-pressed="false" data-w="3"  data-lean="-0.06">Gift-Only Occasional <span class="w">3%</span></button>
+              </div>
+              <div class="chip-actions">
+                <button type="button">Select all</button>
+                <button type="button">Clear all</button>
+              </div>
+              <div class="hint">Each percentage is the pack's <strong>declared composition weight</strong> — a recorded property of <span class="mono mono-hi">v_2</span>, not a sampled share, so it prints bare. Deselecting a persona thins its band in the field above; Hamilton allocation renormalizes the remaining weights across the subset. Selected: <strong class="num"><span id="selCountHint">6</span></strong> of <strong class="num">8</strong>.</div>
+            </div>
+          </section>
+
+          <!-- Reading -->
+          <section class="region">
+            <div class="region-label">Reading<span class="tail">population + model</span></div>
+            <div class="field field-row">
+              <div class="col">
+                <label class="sub" for="population-size">Population</label>
+                <input id="population-size" type="number" min="1" max="10000" value="1000" />
+              </div>
+              <div class="col">
+                <label class="sub" for="model-id">Model</label>
+                <select id="model-id" class="mono">
+                  <option>groq / llama-3.3-70b (default)</option>
+                  <option>anthropic / claude-opus-4</option>
+                  <option>anthropic / claude-sonnet-4</option>
+                  <option>openai / gpt-4.1</option>
+                </select>
+              </div>
+            </div>
+            <div class="hint">How many users this hypothesis affects. We stratify down to <strong class="num">160</strong> sampled agents per arm in proportion to your persona weights (Hamilton allocation). Backend cap: <strong class="num">160</strong> agents/arm. A/B simulations use this same model for both arms.</div>
+          </section>
+
+        </form>
+      </div>
+
+      <!-- ─────────── manifest receipt (quiet supporting panel) ─────────── -->
+      <aside class="manifest-panel elevated" aria-label="What this run commits">
+        <div class="manifest-head">
+          <span class="t">On commit</span>
+          <span class="live"><span class="dot draft"></span> NOT YET RUN</span>
+        </div>
+
+        <!-- Not a mirror of the form. The receipt carries only what the eye has
+             NOT already passed: what FREEZES the instant you commit, and the
+             one-line settled identity of the reading. Everything else (cohort,
+             population, model, seed, agent counts) is already legible in the
+             form and the fork above. -->
+        <ul class="commit-list">
+          <li><span class="k">Freezes</span><span class="v">capability slice <span class="mono">2026-W25</span> + stimulus <span class="mono">reorder-cta-v2</span> — neither can change once batches land.</span></li>
+          <li><span class="k">Pairs</span><span class="v"><span class="arm-c">control</span> reads the as-built; <span class="arm-t">treatment</span> reads your delta. Same identities, so the lift is within-persona.</span></li>
+          <li><span class="k">Costs</span><span class="v"><span class="mono">320</span> agent-reads — <span class="arm-t">2× a single arm</span>, the price of the paired comparison.</span></li>
+        </ul>
+
+        <div class="commit">
+          <button type="button" class="btn-run" id="runBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4l14 8-14 8V4z" fill="currentColor" stroke="none"/></svg>
+            Begin reading
+          </button>
+          <div class="est">Est. <span class="num">4–6 min</span> — the trace plots as batches land, no spinners.</div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ═══════════════════════════════════════════════════════════════════
+     THE POPULATION FIELD — the SHOWPIECE.
+     N points = the previewed cohort (320 = 160 control + 160 treatment).
+     Each point is one synthetic person, drifting in a curl-noise flow-field
+     — a calm, breathing population. Because this is a DRAFT (uncalibrated),
+     the field DRIFTS by the finite Drift law (§5.6): gentle amplitude, never
+     LOCKS, no settle bloom, no ◆. A faint signal wavefront sweeps as the
+     "live preview" pulse; arm tints (control/treatment) name identity, the
+     spread-amber CI ribbon ghosts where the mean WOULD land.
+
+     Color budget: graphite dust, lime only on the wavefront seam (the one
+     signal carrier), arm tints only on the dots' resting identity, amber for
+     the ghost CI. Treatment is calm magenta — identity, not alarm.
+
+     Drift law compliance: FREEZES on hover/focus (you look → it holds),
+     PAUSES after 20s idle, FREEZES under prefers-reduced-motion → poster.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  const C = {
+    bg:[11,18,32], faint:[100,110,132], control:[79,168,224], treat:[224,139,196],
+    signal:[72,239,202], spread:[200,182,138], hi:[242,244,248]
+  };
+  // 160 paired identities per arm, 320 reads total — the field shows the
+  // CONTROL arm's 160 individuals (one dot = one sampled agent). Each carries
+  // a persona, so the field IS the cohort composition, not ambient dust.
+  const N = 160;
+
+  // personas read live from the chip group — the field is a true preview:
+  // deselect a chip and that persona's band visibly thins; remaining bands
+  // renormalize (Hamilton) and re-spread to fill. lean = where the persona
+  // tends on the reject↔adopt axis (a draft prior; never a settled reading).
+  const chipEls = Array.from(document.querySelectorAll('#chips .chip'));
+  const PERSONAS = chipEls.map((el,i)=>({
+    i,
+    w: parseFloat(el.getAttribute('data-w')),
+    lean: parseFloat(el.getAttribute('data-lean')),
+    on: el.getAttribute('aria-pressed') === 'true',
+    el
+  }));
+
+  const cv = document.getElementById("popfield");
+  const ctx = cv.getContext("2d", { alpha:false });
+  let W=0, H=0, DPR=1;
+
+  function resize(){
+    const r = cv.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    W = Math.max(1, Math.round(r.width));
+    H = Math.max(1, Math.round(r.height));
+    cv.width = W*DPR; cv.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  // cheap value-noise gradient for the curl flow-field
+  function hash(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
+  function noise(x,y){
+    const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+    const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+    const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1);
+    return a*(1-u)*(1-v)+b*u*(1-v)+c*(1-u)*v+d*u*v;
+  }
+  function curl(x,y,t){
+    const e=0.12;
+    const n1=noise(x, y+e+t*0.05), n2=noise(x, y-e+t*0.05);
+    const n3=noise(x+e, y+t*0.05), n4=noise(x-e, y+t*0.05);
+    return { x:(n1-n2)/(2*e), y:-(n3-n4)/(2*e) };
+  }
+
+  function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(6.2831853*v); }
+
+  // Build 160 agents. Each is bound to a persona; we allocate dots to personas
+  // in proportion to declared weight via Hamilton (largest-remainder) over the
+  // SELECTED subset, so the dot count per band is exactly the renormalized share.
+  // jx/jy are the agent's fixed jitter within its band — only the band's CENTER
+  // and WIDTH move when selection changes, so dots glide rather than teleport.
+  const agents = [];
+  for(let i=0;i<N;i++){
+    agents.push({
+      persona:0,
+      jx: Math.random(),       // 0..1 position within the band's current width
+      jy: gauss()*0.20,        // vertical spread within the field band
+      ph: Math.random()*6.2831853,
+      sp: 0.5 + Math.random()*0.9,
+      // animated band geometry (lerped toward target each frame)
+      bandC: 0.5, bandW: 0.4, alive: 1,
+      tC: 0.5, tW: 0.4, tAlive: 1,
+      x:0, y:0
+    });
+  }
+
+  // Hamilton allocation of N dots across the selected personas, then assign each
+  // persona a horizontal sub-region centered on its lean. Called on every
+  // selection change; recomputes targets, and agents lerp toward them.
+  function reallocate(){
+    const on = PERSONAS.filter(p=>p.on);
+    if(on.length === 0) return 0;          // caller restores ≥1 persona, no reshuffle
+    const total = on.reduce((s,p)=>s+p.w,0) || 1;
+    // largest-remainder rounding so counts sum to exactly N
+    const raw = on.map(p=>({p, exact:N*p.w/total}));
+    raw.forEach(r=>{ r.floor=Math.floor(r.exact); r.rem=r.exact-r.floor; });
+    let used = raw.reduce((s,r)=>s+r.floor,0);
+    raw.sort((a,b)=>b.rem-a.rem);
+    for(let k=0; k<raw.length && used<N; k++,used++) raw[k].floor++;
+    const countFor = new Map(raw.map(r=>[r.p.i, r.floor]));
+
+    // lay selected personas left→right by lean so the field reads as a real axis;
+    // each band's WIDTH ∝ its renormalized share, centered on (lean mapped to 0..1)
+    const ordered = on.slice().sort((a,b)=>a.lean-b.lean);
+    const bandOf = new Map();
+    ordered.forEach(p=>{
+      const cx = 0.10 + (p.lean+1)/2*0.80;          // lean −1..1 → 0.10..0.90
+      const share = (countFor.get(p.i)||0)/N;
+      const w = 0.06 + share*0.34;                   // wider band = more agents
+      bandOf.set(p.i, {cx, w});
+    });
+
+    // hand out agents to personas by count: one slot per dot, in weight order,
+    // so each band holds exactly its Hamilton-allocated share.
+    const slot = [];
+    raw.forEach(r=>{ for(let k=0;k<r.floor;k++) slot.push(r.p.i); });
+    for(let i=0;i<N;i++){
+      const pid = slot[i % slot.length];
+      const a = agents[i];
+      a.persona = pid;
+      const band = bandOf.get(pid);
+      a.tC = band.cx; a.tW = band.w; a.tAlive = 1;
+    }
+    return on.length;
+  }
+
+  // weighted-mean lean of the SELECTED cohort, mapped to the same 0.10..0.90
+  // axis the bands use — the position a graded mean would print at.
+  function cohortMeanPos(){
+    const on = PERSONAS.filter(p=>p.on);
+    const total = on.reduce((s,p)=>s+p.w,0) || 1;
+    const lean = on.reduce((s,p)=>s+p.w*p.lean,0)/total;   // −1..1
+    return 0.10 + (lean+1)/2*0.80;
+  }
+  let meanLeanX = 0;   // animated px target for the ghost mean line (lerped in draw)
+
+  // keep the form's selected-count labels truthful as chips toggle
+  const selCountEl = document.getElementById('selCount');
+  const selCountHintEl = document.getElementById('selCountHint');
+  function syncCounts(){
+    const n = PERSONAS.filter(p=>p.on).length;
+    if(selCountEl) selCountEl.textContent = n;
+    if(selCountHintEl) selCountHintEl.textContent = n;
+  }
+  reallocate();
+  syncCounts();
+
+  let last = 0;
+  const FPS = 30, FRAME = 1000/FPS;
+  let running = true;
+
+  // ── finite Drift law: freeze on hover/focus, pause after 20s idle ──
+  let frozen = false;             // hover/focus hold
+  let lastInteract = performance.now();
+  function markInteract(){ lastInteract = performance.now(); }
+  cv.addEventListener("mouseenter", ()=>{ frozen = true; });
+  cv.addEventListener("mouseleave", ()=>{ frozen = false; markInteract(); });
+  cv.addEventListener("focus", ()=>{ frozen = true; });
+  cv.addEventListener("blur", ()=>{ frozen = false; markInteract(); });
+  // re-seed/focus fires ONE wavefront (P3): a deliberate re-focus on the field
+  // re-previews the cohort. The seam sweeps once, then the field rests to drift.
+  cv.addEventListener("pointerdown", ()=>{ fire(); });
+  ["pointermove","keydown","pointerdown"].forEach(ev=>window.addEventListener(ev, markInteract, {passive:true}));
+  cv.setAttribute("tabindex","0");
+
+  document.addEventListener("visibilitychange", ()=>{
+    running = !document.hidden; if(running){ last=0; requestAnimationFrame(loop);} });
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function rgba(c,a){ return "rgba("+c[0]+","+c[1]+","+c[2]+","+a+")"; }
+
+  // time the field is allowed to evolve by — stops advancing while frozen/idle,
+  // so the population HOLDS STILL for reading rather than twitching forever.
+  let fieldTime = 0;
+  let prevReal = performance.now();
+
+  // ── one-shot wavefront (patch P3) ──
+  // fireStart >= 0 means a sweep is in flight; it self-clears when complete.
+  let fireStart = -1;
+  function fire(){
+    // launch a single wavefront — the "live preview" pulse that re-reads the
+    // current cohort composition. Band targets are set by reallocate(); the
+    // sweep just announces the change. Honoured even while frozen (it's an event).
+    if(reduce){ draw(performance.now()); return; }   // RM → repaint settled poster
+    fireStart = performance.now();
+    if(!running){ running = true; last = 0; requestAnimationFrame(loop); }
+  }
+
+  function draw(realNow){
+    // advance field time only when not frozen and not idle (>20s no interaction)
+    const idle = (realNow - lastInteract) > 20000;
+    const dt = realNow - prevReal; prevReal = realNow;
+    if(!frozen && !idle && !reduce){ fieldTime += dt; }
+    const time = fieldTime*0.001;
+
+    ctx.fillStyle = "#0B1220";
+    ctx.fillRect(0,0,W,H);
+
+    const padX = 40, padTop = 96, padBot = 96;
+    const fieldW = W - padX*2;
+    const fieldH = Math.max(80, H - padTop - padBot);
+    const cy = padTop + fieldH*0.5;
+
+    // faint CI ribbon ghost (spread-amber) — where the cohort's mean WOULD land
+    // IF this draft were graded. It tracks the live selection: drop the adopt-
+    // leaning personas and the ghost drifts toward reject. Dim + dashed because a
+    // draft never resolves to it (uncalibrated noise-floor marker, §4.7).
+    const meanTarget = padX + cohortMeanPos()*fieldW;
+    meanLeanX = (meanLeanX===0) ? meanTarget
+              : lerp(meanLeanX, meanTarget, (frozen||idle)?1:(1-Math.pow(0.001,Math.min(dt,100)/1000)));
+    const meanX = meanLeanX;
+    const ciW = fieldW*0.11;
+    const grd = ctx.createLinearGradient(meanX-ciW,0,meanX+ciW,0);
+    grd.addColorStop(0, rgba(C.spread,0));
+    grd.addColorStop(0.5, "rgba(200,182,138,0.06)");
+    grd.addColorStop(1, rgba(C.spread,0));
+    ctx.fillStyle = grd;
+    ctx.fillRect(meanX-ciW, padTop, ciW*2, fieldH);
+    // dashed noise-floor mean line (uncalibrated marker)
+    ctx.save();
+    ctx.setLineDash([3,5]);
+    ctx.strokeStyle = "rgba(200,182,138,0.24)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(meanX, padTop+6); ctx.lineTo(meanX, padTop+fieldH-6); ctx.stroke();
+    ctx.restore();
+    // annotate the ghost line so the field READS — a draft's mean can't settle,
+    // so it carries the ◇ glyph + a hedged label, never a settled value.
+    ctx.save();
+    ctx.font = "10px 'Geist Mono', ui-monospace, monospace";
+    ctx.fillStyle = "rgba(200,182,138,0.62)";   // spread-dim, AA-legible on glass
+    ctx.textAlign = (meanX > W-padX-120) ? "right" : "left";
+    const lblX = ctx.textAlign === "right" ? meanX-8 : meanX+8;
+    ctx.fillText("◇ est. mean · drifts until graded", lblX, padTop+16);
+    ctx.restore();
+
+    // ── signal wavefront — ONE-SHOT (patch P3): fires on re-seed / focus /
+    // chip-change / mode-change, sweeps the field ONCE, then rests to pure
+    // curl-drift. Idle = drift only, NO perpetual lime. The status dot is the
+    // page's only forever-loop. ──
+    const SWEEP_MS = 1500;
+    let waveProg = -1;                       // <0 → no wavefront drawn (resting)
+    if(fireStart >= 0){
+      const e = realNow - fireStart;
+      if(e <= SWEEP_MS){ waveProg = e/SWEEP_MS; }
+      else { fireStart = -1; }               // fire complete → rest to drift
+    }
+    const hasWave = waveProg >= 0;
+    // ease the sweep in/out so the seam glides, overshoot-free
+    const sEase = hasWave ? waveProg*waveProg*(3-2*waveProg) : 0;
+    const waveX = padX - fieldW*0.15 + sEase*fieldW*1.3;
+    const waveBand = fieldW*0.15;
+
+    // lerp each agent's band geometry toward its target (set by reallocate()),
+    // so a chip toggle GLIDES the band rather than snapping. Frame-rate-robust.
+    const k = (frozen||idle) ? 1 : (1 - Math.pow(0.001, Math.min(dt,100)/1000));
+    // arm-tint pull: the field shows the CONTROL arm's 160; a faint magenta
+    // treatment-pull is overlaid only during a wavefront, so the A/B pairing is
+    // legible as motion, not a second 160-dot cloud (which would double-count).
+    const treatPull = hasWave ? Math.sin(Math.PI*waveProg)*0.5 : 0;
+
+    ctx.globalCompositeOperation = "lighter";
+    for(let i=0;i<N;i++){
+      const a = agents[i];
+      a.bandC = lerp(a.bandC, a.tC, k);
+      a.bandW = lerp(a.bandW, a.tW, k);
+      a.alive = lerp(a.alive, a.tAlive, k);
+
+      // horizontal: within the persona's band [bandC ± bandW/2]; vertical: spread
+      const px = a.bandC + (a.jx-0.5)*a.bandW;
+      let bx = padX + px*fieldW;
+      let by = cy + a.jy*fieldH;
+
+      // curl drift — finite amplitude, never locks. HARD ≤2px ceiling (Drift §5.6 / P4).
+      const c = curl(px*3.0, a.jy*3.0 + 1.5, time*a.sp);
+      const driftAmp = 2;
+      const breath = 0.6 + 0.4*Math.sin(time*0.5 + a.ph);
+      bx += Math.max(-driftAmp, Math.min(driftAmp, c.x*driftAmp*breath));
+      by += Math.max(-driftAmp, Math.min(driftAmp, c.y*driftAmp*breath));
+      a.x = bx; a.y = by;
+
+      // distance to wavefront → tint toward signal as it passes (one-shot only)
+      const d = Math.abs(bx - waveX);
+      const hit = (hasWave && d < waveBand) ? (1 - d/waveBand) : 0;
+      const hitS = hit*hit*(3-2*hit);
+
+      // identity color: control-blue at rest, with a faint magenta treatment-pull
+      // during the sweep (the paired arm made visible), then signal on the seam.
+      let ar = lerp(C.control[0], C.treat[0], treatPull*hitS);
+      let ag = lerp(C.control[1], C.treat[1], treatPull*hitS);
+      let ab = lerp(C.control[2], C.treat[2], treatPull*hitS);
+      let r = lerp(C.faint[0], ar, 0.5);
+      let g = lerp(C.faint[1], ag, 0.5);
+      let b = lerp(C.faint[2], ab, 0.5);
+      r = lerp(r, C.signal[0], hitS*0.85);
+      g = lerp(g, C.signal[1], hitS*0.85);
+      b = lerp(b, C.signal[2], hitS*0.85);
+
+      // alpha fades a deselected band out (alive→0) and lifts the seam crest.
+      const baseA = (0.55 + hitS*0.32) * a.alive;
+      if(baseA < 0.01) continue;
+      const size = 1.5 + hitS*1.6;
+
+      ctx.beginPath();
+      ctx.fillStyle = "rgba("+(r|0)+","+(g|0)+","+(b|0)+","+(baseA*0.30).toFixed(3)+")";
+      ctx.arc(bx, by, size*2.1, 0, 6.2831853);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.fillStyle = "rgba("+(r|0)+","+(g|0)+","+(b|0)+","+baseA.toFixed(3)+")";
+      ctx.arc(bx, by, size, 0, 6.2831853);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+
+    // the wavefront leading edge — a thin signal seam (the one lime carrier),
+    // drawn ONLY during a one-shot fire; fades at the head/tail of the sweep so
+    // it appears and dissolves rather than blinking on/off.
+    if(hasWave && waveX > padX-10 && waveX < W-padX+10){
+      const env = Math.sin(Math.PI*waveProg);            // 0→1→0 across the sweep
+      const seamA = (0.45*env).toFixed(3);
+      const wg = ctx.createLinearGradient(waveX-3,0,waveX+3,0);
+      wg.addColorStop(0,"rgba(72,239,202,0)");
+      wg.addColorStop(0.5,"rgba(72,239,202,"+seamA+")");
+      wg.addColorStop(1,"rgba(72,239,202,0)");
+      ctx.fillStyle = wg;
+      ctx.fillRect(waveX-3, padTop, 6, fieldH);
+    }
+
+    // axis baseline hairline
+    ctx.strokeStyle = "rgba(51,64,92,0.5)";
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padX, padTop+fieldH+1); ctx.lineTo(W-padX, padTop+fieldH+1); ctx.stroke();
+  }
+
+  function loop(t){
+    if(!running) return;
+    if(reduce){ draw(performance.now()); return; }
+    if(!last) last = t;
+    if(t-last >= FRAME){ last = t - ((t-last)%FRAME); draw(t); }
+    requestAnimationFrame(loop);
+  }
+
+  if(reduce){ draw(performance.now()); }   // frozen poster
+  else { requestAnimationFrame(loop); }
+
+  /* ── interactivity so the still reads as composed, not canned.
+       Each composition change FIRES one wavefront (P3): the field re-previews
+       the cohort, sweeps once, and rests. No change → no lime. ── */
+  const seg = document.querySelectorAll('.seg [data-mode]');
+  seg.forEach(b=>b.addEventListener('click',()=>{
+    if(b.getAttribute('aria-pressed')==='true') return;   // no-op → no fire
+    seg.forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    fire();                                               // mode-change re-seed
+  }));
+  // chip toggle → update persona state, renormalize the cohort (Hamilton),
+  // and fire one wavefront. The deselected band visibly thins; the rest re-spread.
+  PERSONAS.forEach(p=>p.el.addEventListener('click',()=>{
+    p.on = p.el.getAttribute('aria-pressed')==='true'?false:true;
+    p.el.setAttribute('aria-pressed', p.on?'true':'false');
+    if(reallocate() === 0){            // never let the cohort empty out
+      p.on = true; p.el.setAttribute('aria-pressed','true'); reallocate();
+    }
+    syncCounts(); fire();
+  }));
+  // chip-actions (select all / clear all) keep the field truthful too
+  const chipActions = document.querySelectorAll('.chip-actions button');
+  if(chipActions[0]) chipActions[0].addEventListener('click',()=>{
+    PERSONAS.forEach(p=>{ p.on=true; p.el.setAttribute('aria-pressed','true'); });
+    reallocate(); syncCounts(); fire();
+  });
+  if(chipActions[1]) chipActions[1].addEventListener('click',()=>{
+    // "Clear all" leaves the single heaviest persona so the field never empties
+    let heavy = PERSONAS.reduce((m,p)=>p.w>m.w?p:m, PERSONAS[0]);
+    PERSONAS.forEach(p=>{ p.on=(p===heavy); p.el.setAttribute('aria-pressed', p.on?'true':'false'); });
+    reallocate(); syncCounts(); fire();
+  });
+
+  // ONE wavefront on entry so the preview announces itself, then rests to drift.
+  if(!reduce){ setTimeout(fire, 420); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+{
+ "agent-detail": {
+  "score": 88,
+  "verdict": "Disciplined, law-clean WORKING-class transcript: analytics collapsed into an evidence drawer, two real countable figures, candor scoped correctly both ways \u2014 held just under elite by a dual-masthead hierarchy tension and one bright-lime \"LIVE\" status leak.",
+  "issues": [
+   "Two competing mastheads: the data-xl +0.71 figure (~3.4rem) lives inside the identity panel and outsizes the semantic h1 'Marcus Webb' (2rem). Either let the reading BE the title (demote the name to an eyebrow) or pull the marquee figure up into the page-head so the subject and the figure stop competing for first-paint.",
+   "Topbar .live-pill renders 'LIVE 1:1' in bright --signal but pairs it with a .rest (non-breathing --signal-dim) dot \u2014 bright-lime LIVE with a resting dot is self-contradictory. The genuine live carrier is the composing cdot below; make the topbar label --text ink (or breathe its dot to match its own claim).",
+   "The posmark-head 'P82' and the in-drawer driver coefficients (+0.44 \u00b10.09) are inferred but don't each carry the \u25c7 glyph (only the region/section label does). Defensible as region-scoped candor, but a per-value \u25c7 on those two would close the last P8 gap a juror would poke at."
+  ]
+ },
+ "persona-detail": {
+  "score": 87,
+  "verdict": "Disciplined, law-clean lab-notebook record \u2014 candor scoping is mechanically exact and the Pack Map is a real parts\u2192whole artifact \u2014 but poster redundancy and an under-weighted signature figure keep it elite-adjacent, not elite.",
+  "issues": [
+   "The three per-persona posters read as the same small chart three times; the distinguishing shapes (esp. the bimodal Background split, the page's most important cohort) are too subtle at 236x132 \u2014 enlarge or differentiate the bimodal poster, or cut the redundant two and let the Pack Map carry decomposition.",
+   "The Pack Reaction Map's top stepped density is the page's signature object yet sits underweighted (~104px of a 268 viewBox, faint spread-wash) and partly duplicates the decomposition rows beneath it; give the silhouette more vertical authority and resolve the pooled-mean label's near-collision with the peak.",
+   "First viewport is dominated by receipt chrome (lede, meta-strip, scheme chips, honesty note) before the one artifact only Sidira prints; tighten the stack so the Pack Map (or its top silhouette) reaches above the fold."
+  ]
+ },
+ "capability-detail": {
+  "score": 87,
+  "verdict": "A disciplined, genuinely premium RECORD page that resolves every prior-round fail (no mid-scroll inversion, legible resting hero, real binned histogram) \u2014 held just below elite by a stretched-distribution SVG bug and a soft candor-scope mislabel.",
+  "issues": [
+   "Poster SVG uses preserveAspectRatio=\"none\" on a 460x172 viewBox rendered at width:100% \u2014 the histogram bars, CI ribbon, and smoothed mean trace are non-uniformly stretched horizontally, distorting the one viz the page is built to make trustworthy. Drop to a meet/slice fit or compute geometry against the real render width.",
+   "The noise floor 0.58 is framed as a bare 'recorded threshold / fixed fact' but its own comment calls it 'the resume rate a shuffled control would post by chance' \u2014 that is a computed/inferred baseline, so per P8 it should wear \u25c7 (like the +0.13 gap already does) rather than print as an exempt fact.",
+   "Within the well region two elements render in --signal (the hero figure and the breathing status dot). Defensible as one co-located live-reading carrier, but to be airtight against P2's literal count, keep the dot as the sole loop and ensure the figure is the region's single counted signal carrier."
+  ]
+ },
+ "simulations-list": {
+  "score": 87,
+  "verdict": "Law-clean, genuinely disciplined working-class register that scans well; held below elite by optical-alignment fragility in the twin hero stamps and a redundant-provenance read that fights its own \"edited-down\" thesis.",
+  "issues": [
+   "Twin hero figures share one .stamp class but sit at 3.4rem (lh .92) vs 2.0rem (lh 1) with a hand-tuned translateY(-1.7em); the \u00b1 superscripts and the \u25b2 glyph-arrow won't land at the identical optical baseline across the two cap-heights \u2014 align them with a shared anchor, not a magic em offset.",
+   "Four separate 'UNCALIBRATED' restatements on one page (topbar live-ref, prov-bar, reg-meta, ledger-foot) plus an 8-token prov-bar chain is the telemetry-wallpaper read v2 set out to cut (\u00a77.3); carry it once per region and drop the topbar/reg-meta echoes.",
+   "The poster's pooled-\u03bc line lands mid-treatment (x=146) with the CI ribbon overlapping the magenta arm, so the one comparative figure doesn't cleanly show control-vs-treatment separation the key promises \u2014 rebalance bins/mean so the arm split is self-evident."
+  ]
+ },
+ "personas-list": {
+  "score": 87,
+  "verdict": "Disciplined, law-clean WORKING list page with a genuinely real binned histogram and an earned editorial split \u2014 premium, but a thin poster figure and an inconsistent Spread Stamp keep it just below elite.",
+  "issues": [
+   "Unify the Spread Stamp geometry: the poster marquee stacks \u00b1/\u25c7 in a column while every table cell puts \u25c7 inline beside the value with \u00b1ci below \u2014 \u00a77.2 demands ONE stamp pattern product-wide; pick one (value \u25c7 inline, \u00b1ci beneath) and apply it to the marquee too.",
+   "The histogram fill is rgba(57,184,148,0.13) \u2014 near-invisible bars carried entirely by the 0.78 stroke outline; the one figure on the page reads thin. Lift bar fill toward P10's \u22650.6 interrogability or drop the bars and own the stepped trace, so the population shape actually reads.",
+   "Edit down the poster axis legends: '\u2190 rejects / indifferent / adopts \u2192' on the figure, the axistick's rejects/adopts ring, and the axiscap repeat the same axis three times in one region \u2014 collapse to one. (Also fix the stale '+0.16' comment on line 108; the figure is +0.20.)"
+  ]
+ },
+ "feature-pack": {
+  "score": 87,
+  "verdict": "Disciplined, law-clean WORKING-class ledger; premium but a few over-instrumented/duplicated marks keep it shy of elite.",
+  "issues": [
+   "Covbar is over-instrumented: fill + spread-wash CI + two amber caps + a 1px floor tick crammed into a 72px\u00d77px track that already sits beside the numeric stamp (0.94 \u00b10.03 \u25c6). Drop the per-row floor tick (the column header already states 'floor 0.58') so the bar reads as fill+CI only, or cut the bar and keep the stamp \u2014 this is the one spot that breaks the page's own 'edited-down' rule.",
+   "The hero poster foot and the section .calib-tally restate the identical triple '38 graded \u25c6 \u00b7 109 uncalibrated \u25c7 \u00b7 14 below floor' verbatim ~600px apart. As built it reads as duplication, not an echo \u2014 differentiate them (poster = distribution shape, header = filter/scan affordance) or cut one.",
+   "Hero entry point is a tie: a 2.0rem h1 on the left and the 4.25rem 0.84 reading on the right both start at the same vertical baseline (align-items:start), so the eye has no single first fixation. Stagger the start or drop the reading well lower so the title reads first, then the marquee figure."
+  ]
+ },
+ "simulations-new": {
+  "score": 87,
+  "verdict": "Law-clean, genuinely disciplined manifest showpiece \u2014 all 10 P-laws pass and the candor scoping is exemplary \u2014 but the hero field reads as atmospheric dust rather than the legible reaction-axis distribution its own axis labels promise, holding it just below elite.",
+  "issues": [
+   "Make the field a LEGIBLE binned distribution, not a curl-drift smear: the axis says 'rejects \u2192 adopts' but jx-random gaussian bands give no countable bins or histogram edge to read. Give each persona band a real binned silhouette so 'the distribution IS the preview' is actually parseable.",
+   "Cut the redundant draft/uncalibrated stamping in the first viewport: topbar 'DRAFT \u00b7 \u25c7 UNCALIBRATED' + stage-head '\u25c7 DRAFT' tag + stage-foot '\u25c7 UNCALIBRATED' = the same state three times. Drop the stage-head draft-tag (line 398); the region provenance bar already carries it once.",
+   "Stabilize the one inferred hero figure: the canvas-drawn 'est. mean \u00b7 drifts until graded' label sits at 10px / 0.62\u03b1 amber over moving dust \u2014 the faintest, least-accessible thing in the hero, the exact inverted-emphasis P10 warns against. Render it as a DOM annotation pinned to the mean line, fully legible and non-jittering."
+  ]
+ },
+ "app-shell": {
+  "score": 87,
+  "verdict": "Disciplined, law-clean WORKING ledger with genuine editorial restraint \u2014 held below elite only because its one signature figure (the separation spark) is a faked gaussian that fails to resolve on near-overlapping rows.",
+  "issues": [
+   "Separation spark isn't a real histogram of agents \u2014 it plots an analytic gaussian (Math.exp(-z\u00b2/2)) sampled at bin centers, identical idealized bell every row with zero sampling texture, while the code comment claims '1,200 agents dropped into bins.' Either actually sample/bin a seeded population (so bin-to-bin noise and arm shape differ per bet) or drop the overclaiming comment; right now it's a bezier blob wearing histogram clothing.",
+   "The figure fails on the row it most needs to work: row 4 (c=0.52/t=0.54) has a 3.36px mean gap at 168px width \u2014 the separation bracket is ~3px and the two identical bells fully superimpose, indistinguishable from a true no-separation row. The verdict WORD carries the meaning, not the spark. Add a labeled gap value or a minimum-perceptible-separation treatment so a glance distinguishes tiny-real from zero.",
+   "Calibration/UNCALIBRATED state is stated three times in one viewport (eyebrow \u00b7 section meta '0/14 graded' \u00b7 ledger-prov segment). Cut the eyebrow's UNCALIBRATED \u2014 the ledger Provenance Bar already owns it \u2014 so the chrome reads edited-down, not repetitive."
+  ]
+ },
+ "personas-new": {
+  "score": 87,
+  "verdict": "A disciplined, law-clean evaluate screen with a genuinely earned binned-histogram showpiece and honest candor scoping \u2014 held just below elite by an asserted (not read-from-the-bars) hero figure, optimistic overlay-collision math, and a thrice-repeated stability stat.",
+  "issues": [
+   "Hero integrity: the marquee '23.2%' and the canvas 'MODAL \u00b7 23.2%' tick are hard-coded, but the tallest column is drawn from a stochastic R() assignment of 2,481 agents \u2014 so the asserted number can disagree with the bars actually rendered. Derive the modal share from binMeta[modalI].count and feed the same value to verdictNum, the peak label, and the count-up, so 'the histogram IS the verdict' is literally true.",
+   "Edit down the stability stat: 0.71 \u00b10.04 \u25c7 appears three times (field-legend gate strip, honesty note, build log). State it authoritatively once (the honesty note), drop the run-on '\u00b7 floor 0.65 \u00b7 clears' from the legend gate \u2014 that dense segment reads as the over-instrumented clutter the system explicitly forbids.",
+   "Vertical collision math is optimistic: TOP_HEADROOM=0.30 reserves only ~144px at the 1180px breakpoint (canvas \u2192 min(56vh,480px)), while the eyebrow + clamp(4.4rem) figure + 2-line sub + floor exceed the commented '~120px'. On short viewports the .floor line can touch the tallest column. Reserve headroom from the label's measured height (or pin the label's max-height), not a fixed fraction."
+  ]
+ },
+ "simulation-results": {
+  "score": 86,
+  "verdict": "Disciplined, law-abiding instrument with a genuine binned-distribution signature and scoped candor \u2014 premium and shippable, but it preaches \"the verdict lives once\" while printing the lift three times and the agreement twice, and the paired-arm artifact's dot counts don't reconcile under inspection.",
+  "issues": [
+   "De-duplicate the readings the doc claims are de-triplicated: +11.8 \u00b14.1 appears in the masthead verdict-tag, the arm-gap LIFT label, AND the cohort footer cell; 83.4 \u00b15.2 prints in the masthead and again at 40px in the agreement cell. Let each inferred figure lead exactly once and demote the echoes to bare context.",
+   "Reconcile the paired-arm showpiece numerics: the strip shows 10 dots per arm captioned 'the same 6 personas, two worlds / 176 paired' \u2014 the visible dot count ties to neither 6 nor 176, and a stray ~47-48% point in each arm collides with the opposite cluster. Bin to real per-persona settle positions so the signature artifact survives interrogation.",
+   "Drop or neutralize the hardcoded #A797C9 'neutral' bar in the reaction split-strip \u2014 it injects a third inline hue into a region meant to read on the two arm poles; a neutral reaction should sit in --text-mut, not earn its own ramp-midpoint color."
+  ]
+ },
+ "landing": {
+  "score": 86,
+  "verdict": "Rigorously law-abiding and intellectually distinctive instrument hero \u2014 all ten mechanical laws pass and the candor/signal discipline is rare \u2014 but a flat ink headline and a histogram that's silhouette-decorative rather than count-true keep it premium, not yet Linear/Stripe-elite.",
+  "issues": [
+   "Hero headline is generic and typographically flat: 'Read the population before you build it' is a competent label, not an arresting category-defining line, and the H1 em is explicitly neutralized to plain ink so the loudest pixels have zero focal tension. Sharpen the line and/or reintroduce a disciplined emphasis (spread/ink weight-shift, not lime).",
+   "The hero histogram fakes its own thesis: settled column height is cos(react*3)*colHeight with random stackJit vertical scatter, not actual bin counts \u2014 so the 'emergent histogram IS the verdict / countable, binned' claim is a plausible silhouette, not a count-true distribution. Drive column height from real per-bin counts so the picture is interrogable.",
+   "The lower-right reading region over-concentrates: marquee figure + stamp + arm-gap bracket + sub line all stack above the full provenance bar in one corner, competing with the settling arms beneath. Give the marquee figure more isolation or push provenance away from the readout so the +3.6 dominates without crowding."
+  ]
+ },
+ "crawl-setup": {
+  "score": 86,
+  "verdict": "Law-clean, genuinely disciplined config page \u2014 no mechanical break \u2014 but redundant chrome and a manifest that mirrors the form keep it premium-strong, not elite.",
+  "issues": [
+   "Kill the duplicate in-flight designator: the topbar 'IN FLIGHT \u00b7 cr-924718699c21' restates the exact run + id the rail-watch already owns (with the live dot) in the same viewport. One run, one in-flight statement \u2014 drop the topbar gref or reduce it to a bare route reference with no run-state.",
+   "Edit the manifest to carry the DIFF, not a receipt. Rows like Capabilities 5 / Depth 6 hops / Cadence MON 04:00 / Roles admin\u00b7member just echo form fields sitting 400px to the left. A true audit surface shows what changes vs 2026-W25 (added/removed caps, depth delta), so the RECORD earns its raised, heavier-contrast prominence instead of mirroring inputs.",
+   "Tighten form rhythm and tokenize the stray hex: the per-role grid2 puts a full-width password under a 2-col row, making an asymmetric L per role; and the select chevron data-URI hardcodes %23929BAE instead of referencing --text-mut, on a page that explicitly forbids inline hex."
+  ]
+ },
+ "about": {
+  "score": 86,
+  "verdict": "Law-clean RECORD page with a genuinely interrogable histogram and surgical candor scope \u2014 premium and shippable, but the mixed-encoding viz, over-earned founder seals, and thrice-restated hedge keep it just below elite.",
+  "issues": [
+   "Unify the specimen viz encoding: control is filled columns, treatment is a stepped polyline \u2014 at 158x250px the magenta line fights the bar tops and the 18px CI ribbon hides behind both. Render both arms as the same low-alpha stepped fill (or small-multiples) and lift the CI ribbon to a legible weight so the distribution reads in one glance.",
+   "Rework the founders section: the wax-seal/coat-of-arms motif borrows gravitas the company hasn't earned, the 6.5px 'RD'/'MN' initials are illegible at 64px (signature-figure legibility), and the bios are generic filler. Make each bio one specific verifiable line or cut the seal to a plain monogram.",
+   "Edit down the triple hedge \u2014 '.well-sub' ('directional read, not a graded verdict'), '.well-verdict' chip ('DIRECTIONAL'), and '.well-note' all restate the same uncalibrated caveat. State it once; the \u25c7 glyph + one line carries it."
+  ]
+ },
+ "auth": {
+  "score": 86,
+  "verdict": "Law-clean, conceptually distinctive frozen-reading-card auth that's genuinely premium \u2014 held back from elite by a viz/copy contradiction (an A/B split on a card that says \"no bet running\") and a talkier-than-Stripe left stage.",
+  "issues": [
+   "Poster shows a two-arm control-vs-treatment distribution while the card explicitly states 'Frozen \u00b7 no bet running' \u2014 a resting cohort with no experiment should render ONE baseline distribution, not a Sid/Avira A/B split. Drop the treatment arm (or relabel to a true baseline histogram) so the figure stops asserting something the copy denies.",
+   "Poster bin gradients bottom out at 0.42 alpha (lines 473-480), under P10's \u22650.6 interrogability floor; raise the gradient's low stop to ~0.6 so the bins stay readable to the baseline.",
+   "Provenance prints three times across one viewport (card-prov, auth-foot, mobile-strip) and the left stage carries 6+ stacked elements for a sign-in job; cut one provenance instance and let the 54px reading + one promise line dominate \u2014 the best sign-in screens are near-silent beside the form."
+  ]
+ },
+ "product": {
+  "score": 86,
+  "verdict": "Disciplined, law-clean instrument page with a genuinely real histogram and correct candor scoping \u2014 premium and intelligent, but the flat headline/artifact focal hierarchy and eyeballed (not data-precise) bins keep it just below elite.",
+  "issues": [
+   "Flat focal hierarchy: the hero is a co-equal 1fr/512px split between a dense 11-word headline and a dense artifact console, so first paint has no single climax to lock onto. Demote one side \u2014 let the artifact (or the 0.62 figure) clearly dominate and quiet the headline weight/length \u2014 so the eye stops, the way a Stripe/Linear hero does.",
+   "The histogram bins are hand-placed, not data-derived: control (12 bars @ x=20,40\u2026) and treatment (13 bars @ x=28,48\u2026) use offset, inconsistent bin grids and the per-arm mean ticks (x=123/151) don't map consistently to the 0.59/0.66 axis positions. It's far better than a blob but not provably a real binned render; align bins to a single shared grid and place mean ticks on the actual axis scale.",
+   "Trim the artifact provenance strip: 5 mono segments (CAP \u00b7 n \u00b7 seed \u00b7 model \u00b7 \u25c7 UNCAL) at 10.5px wrap awkwardly in the 512\u2192560px column at the 1080px breakpoint. Edit to \u22644 segments so provenance reads as silkscreen, not a cramped wrapping row."
+  ]
+ },
+ "agent-transcript": {
+  "score": 85,
+  "verdict": "Rigorously restrained, substance-rich transcript that nails signal-budget and verdict-gating \u2014 but a bare inferred cohort-mean inside its own signature figure trips the candor-scope law it preaches.",
+  "issues": [
+   "P8 miss: the canvas cohort-mean `x\u0304 +0.49` is an inferred estimate printed bare (no \u00b1 / \u25c7) \u2014 the patch explicitly requires cohort-mean deltas to wear \u25c7; color-spread alone is not the stamp. Render it `x\u0304 +0.49 \u00b10.NN \u25c7` or drop it to a structural unlabeled reference tick.",
+   "Arm-tint category leak: the adopt/reject split-bar paints adopt=--arm-treat, reject=--arm-control, mapping experiment-arm identity color onto a reaction valence (\u00a71.5 forbids arm tints carrying valence). Use neutral ink/spread for the split, reserve arm tints for true control/treatment.",
+   "Provenance receipt-fatigue: topbar `n=240 \u00b7 \u25c7 UNCAL` restates the full prov-bar's `n=240 \u00b7 \u25c7 UNCALIBRATED` plus a third foot-note stamp in one eyeful \u2014 edit to one canonical region bar + a compact inherited reference, per \u00a77.3."
+  ]
+ }
+}

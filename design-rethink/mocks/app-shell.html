@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sidira — Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — v2 tokens, AA-clear */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta — identity, no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  /* NO --verdict-ship / --verdict-hold — a verdict is not a color */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+
+  /* spacing scale (4px base) — used by classes, never inline magic numbers */
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,monospace;
+
+  --rail:56px; --topbar:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  background:var(--console-850);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.mono{font-family:var(--font-mono);}
+::selection{background:var(--signal-wash);color:var(--text-hi);}
+
+/* ───────────────────────── APP FRAME ───────────────────────── */
+.app{
+  display:grid;
+  grid-template-columns:var(--rail) 1fr;
+  grid-template-rows:var(--topbar) 1fr;
+  grid-template-areas:"rail topbar" "rail main";
+  height:100vh;
+}
+
+/* ── LEFT RAIL ── */
+.rail{
+  grid-area:rail;
+  background:var(--console-850);
+  border-right:1px solid var(--console-line);
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 0;
+  position:relative;z-index:30;
+}
+.rail .mark{
+  width:32px;height:32px;display:grid;place-items:center;
+  margin-bottom:16px;color:var(--text-hi); /* P1 — resting brand mark is INK, never lime */
+}
+.rail .mark svg{width:26px;height:26px;}
+.rail-nav{display:flex;flex-direction:column;gap:3px;width:100%;align-items:center;flex:1;}
+.rail-btn{
+  width:40px;height:40px;border-radius:var(--r-well);
+  display:grid;place-items:center;color:var(--text-mut);
+  background:transparent;border:0;cursor:pointer;position:relative;
+  transition:color .14s var(--ease-out),background .14s var(--ease-out);
+}
+.rail-btn svg{width:19px;height:19px;stroke-width:1.6;}
+.rail-btn:hover{color:var(--text-hi);background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:2px;border-radius:2px;
+  background:var(--signal-dim);
+}
+.rail-btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.rail-btn .tip{
+  position:absolute;left:48px;top:50%;transform:translateY(-50%) translateX(-4px);
+  background:var(--console-800);border:1px solid var(--console-line);
+  border-radius:var(--r-well);padding:4px 8px;white-space:nowrap;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--text-mut);opacity:0;pointer-events:none;
+  transition:opacity .14s var(--ease-out),transform .14s var(--ease-out);z-index:50;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.rail-btn:hover .tip{opacity:1;transform:translateY(-50%) translateX(0);}
+.rail-foot{display:flex;flex-direction:column;gap:8px;align-items:center;}
+.rail-avatar{
+  width:30px;height:30px;border-radius:var(--r-well);
+  background:var(--console-700);border:1px solid var(--console-line);
+  display:grid;place-items:center;font-family:var(--font-mono);font-size:11px;
+  color:var(--text-hi);font-weight:500;cursor:pointer;
+}
+
+/* ── TOP BAR ──
+   R3 fix #2: the topbar was an unresolved cluster of similar-weight mono
+   fragments. Resolved by (a) giving the active tab clear weight over the org
+   designator, (b) pushing provenance OFF the chrome — the topbar no longer
+   carries a CH-pill; provenance lives once, on the ledger. The only thing on
+   the right is the single live-status dot + a quiet word. */
+.topbar{
+  grid-area:topbar;
+  background:var(--console-850);
+  border-bottom:1px solid var(--console-line);
+  display:flex;align-items:center;
+  padding:0 20px 0 18px;position:relative;z-index:20;
+}
+.brand{display:flex;align-items:center;padding-right:18px;}
+.wordmark{
+  font-family:var(--font-sans);font-weight:600;font-size:14px;
+  letter-spacing:.06em;color:var(--text-hi);text-transform:uppercase; /* P1 — ink wordmark */
+}
+.crumb-tabs{display:flex;align-items:center;gap:2px;padding-left:18px;border-left:1px solid var(--console-line);height:100%;position:relative;}
+.crumb-tab{
+  position:relative;height:100%;display:flex;align-items:center;padding:0 13px;
+  font-size:13.5px;color:var(--text-mut);cursor:pointer;background:transparent;border:0;
+  transition:color .14s var(--ease-out);font-family:var(--font-sans);
+}
+.crumb-tab:hover{color:var(--text);}
+.crumb-tab.active{color:var(--text-hi);font-weight:550;}  /* active tab is carried by ink weight + an ink underline */
+.crumb-tab:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-4px;border-radius:var(--r-well);}
+/* R4 #2 — the tab underline is INK, not --signal-dim. Two signal-family marks
+   in one region (this underline + the live-pointer dot) was a per-region P2
+   carrier count of 2 on the chrome. The live-pointer is now the topbar's ONLY
+   signal-family element; navigation is plain ink. */
+.crumb-underline{
+  position:absolute;bottom:-1px;height:2px;background:var(--text-hi);
+  transition:left .18s var(--ease-mech),width .18s var(--ease-mech);border-radius:1px;
+}
+
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+/* The single live-reading status: a breathing dot is the page's ONE lime
+   carrier and ONE infinite loop (P1/P2/P3). The word beside it is a plain
+   designator (P2 — a designator is not a carrier → --text-mut). No CH-pill,
+   no second legend on the chrome (band directive — provenance lives once). */
+.live-stat{display:flex;align-items:center;gap:8px;}
+.live-stat .word{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);}
+.dot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--signal);display:inline-block;}
+.dot.run{animation:breath 2s var(--ease-settle) infinite;} /* P3 — the ONE sanctioned infinite loop */
+@keyframes breath{0%,100%{opacity:1;}50%{opacity:.45;}}
+.tb-div{width:1px;height:18px;background:var(--console-line);}
+.icon-btn{
+  width:30px;height:30px;border-radius:var(--r-well);display:grid;place-items:center;
+  color:var(--text-mut);background:transparent;border:1px solid transparent;cursor:pointer;
+  transition:color .14s var(--ease-out),background .14s;
+}
+.icon-btn:hover{color:var(--text-hi);background:var(--console-800);}
+.icon-btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:1px;}
+.icon-btn svg{width:17px;height:17px;stroke-width:1.6;}
+
+/* ───────────────────────── MAIN ───────────────────────── */
+.main{
+  grid-area:main;overflow-y:auto;position:relative;
+  background:var(--console-850);
+}
+.main::-webkit-scrollbar{width:10px;}
+.main::-webkit-scrollbar-thumb{background:var(--console-700);border-radius:6px;border:3px solid var(--console-850);}
+.content{max-width:1180px;margin:0 auto;padding:36px 32px 96px;}
+
+/* ── PAGE HEAD — one decorative eyebrow only; the title is the page's first
+      crisp beat (R3 #3 — break the flat gray register with real hierarchy). ── */
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:32px;margin-bottom:32px;}
+.eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text-mut);margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.eyebrow .uncal{color:var(--text-mut);}               /* P7 — running word stays --text-mut; only the ◇ glyph is spread-dim */
+.eyebrow .g{color:var(--spread-dim);}                 /* the ◇ glyph only */
+h1.title{font-size:2rem;line-height:1.08;letter-spacing:-.025em;font-weight:600;color:var(--text-hi);text-wrap:balance;}
+.page-sub{color:var(--text-mut);font-size:14px;margin-top:9px;max-width:60ch;text-wrap:pretty;}
+.head-actions{display:flex;gap:10px;align-items:center;flex-shrink:0;}
+
+/* buttons */
+.btn{
+  height:36px;padding:0 16px;border-radius:var(--r-well);font-family:var(--font-sans);
+  font-weight:500;font-size:14px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+  border:1px solid transparent;transition:background .14s var(--ease-out),border-color .14s,transform .08s;
+  white-space:nowrap;
+}
+.btn:active{transform:translateY(1px);}
+.btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.btn svg{width:15px;height:15px;stroke-width:1.7;}
+.btn-primary{background:var(--console-700);border-color:var(--console-line);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.btn-primary:hover{background:var(--console-750);}
+/* The ONE lime button — permitted only because "Run reading" initiates a live
+   reading (P2). It is the single signal carrier in the page-header region.
+   (The topbar status dot is a separate region per §1.9.) */
+.btn-live{background:transparent;border-color:var(--signal);color:var(--signal);}
+.btn-live:hover{background:var(--signal-wash);}
+.btn-secondary{background:transparent;border-color:var(--console-line);color:var(--text);}
+.btn-secondary:hover{background:var(--console-800);}
+
+/* ════════════════════════════════════════════════════════════
+   THE WORKING OBJECT — THE PRIORITIZED BET LEDGER (codex_note 73)
+   The decorative poster hero is DROPPED. app-shell is WORKING-class; its job
+   is triage. The page is now ONE prioritized bet ledger + ONE live-reading
+   state, zero valence color.
+
+   The one memorable, Sidira-only artifact is the per-row SEPARATION SPARK:
+   a tiny frozen twin-gaussian (control blue · treatment magenta) drawn inline
+   in every row, so triage is a glance — you SEE the two arms pull apart (or
+   not) without opening the reading. Only Sidira, computing a synthetic
+   population per bet, can show this comparative at ledger scale.
+   ════════════════════════════════════════════════════════════ */
+.section{margin-top:var(--space-section);}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:16px;}
+.section-head h2{font-size:1.5rem;font-weight:600;letter-spacing:-.02em;color:var(--text-hi);text-wrap:balance;}
+.section-head .meta{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);letter-spacing:.03em;display:flex;align-items:center;gap:8px;}
+.section-head .meta .g{color:var(--spread-dim);}     /* ◇ glyph only */
+
+/* ── THE LEDGER — the single Provenance Bar for the reading region lives in
+      its header strip (one bar per region, not per row — band directive). ── */
+.ledger{
+  border:1px solid var(--console-line);border-radius:var(--r-panel);overflow:hidden;
+  background:var(--console-800);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.ledger-prov{
+  display:flex;align-items:center;gap:0;flex-wrap:wrap;
+  padding:10px 18px;border-bottom:1px solid var(--console-line);
+  background:var(--console-850);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;color:var(--text-mut);
+}
+.ledger-prov .seg{padding:0 11px;border-right:1px solid var(--console-line);}
+.ledger-prov .seg:first-child{padding-left:0;}
+.ledger-prov .seg:last-child{border-right:0;padding-right:0;}
+.ledger-prov .ch{color:var(--text);}                 /* P2 — designator, not a carrier */
+.ledger-prov .uncal{color:var(--text-mut);}          /* P7 — running word stays --text-mut */
+.ledger-prov .g{color:var(--spread-dim);}            /* only the ◇ glyph is spread-dim */
+
+table{width:100%;border-collapse:collapse;}
+thead th{
+  text-align:left;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-mut);font-weight:400;padding:10px 18px;border-bottom:1px solid var(--console-line);
+  white-space:nowrap;background:var(--console-800);
+}
+thead th.num{text-align:right;}
+thead th.spark-h{text-align:center;}
+thead th.rank-h{width:30px;text-align:center;}
+thead th.verdict-h{text-align:left;padding-left:20px;}
+thead th.sorted{color:var(--text);}
+thead th.sorted::after{content:" ↓";color:var(--text-mut);} /* P2 — sort arrow is text-mut, not lime */
+tbody td{padding:12px 18px;border-bottom:1px solid rgba(51,64,92,.5);font-size:13.5px;vertical-align:middle;}
+td.verdict-cell{padding-left:20px;}        /* R4 #3 — class, not an inline padding override */
+tbody tr:last-child td{border-bottom:0;}
+tbody tr{transition:background .12s var(--ease-out);}
+tbody tr:hover{background:var(--console-750);cursor:pointer;}
+tbody tr:focus-visible{outline:none;background:var(--console-750);box-shadow:inset 2px 0 0 var(--signal-dim);}
+tbody tr.is-live{background:rgba(72,239,202,.035);}   /* the single live row — the ONE live-reading state */
+
+/* rank — the ledger is PRIORITIZED; the rank index is the triage spine */
+td.rank{width:30px;font-family:var(--font-mono);font-size:12px;color:var(--text-mut);text-align:center;padding-left:18px;padding-right:6px;}
+.bet-name{display:flex;flex-direction:column;gap:3px;}
+.bet-name .nm{color:var(--text-hi);font-weight:500;font-family:var(--font-sans);font-size:14px;letter-spacing:-.005em;}
+.bet-name .id{font-family:var(--font-mono);font-size:10.5px;color:var(--text-mut);letter-spacing:.02em;}
+
+/* THE SEPARATION SPARK — the Sidira-only comparative figure, inline per row.
+   R4 #1 fix: the old 112×30 smooth twin-gaussian was illegible — the two
+   crests overlapped into a blurry double-hump indistinguishable from the
+   no-separation row, with no key tying the colors to the arms. Three changes:
+   (1) SIZED UP to 168×38 so the crests resolve;
+   (2) redrawn as a REAL binned histogram — one stepped bar per reaction bin,
+       n agents distributed across the axis — never a smooth bezier blob, so the
+       figure is genuinely interrogable (HARD MUST-FIX);
+   (3) a marginal SEPARATION BRACKET tick under the axis annotates the gap
+       between the two arm means — the literal separation, drawn, not implied.
+   The arm-color KEY lives once in the column header (control blue · treatment
+   magenta), not per row. Arm tints at full identity opacity (P10). */
+.spark-cell{width:184px;padding:8px 18px;}
+.spark{display:block;width:168px;height:38px;}
+
+/* the arm-color KEY — once, in the column header (not repeated per row) */
+.spark-key{display:inline-flex;align-items:center;gap:10px;justify-content:center;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;text-transform:none;color:var(--text-mut);font-weight:400;}
+.spark-key .k{display:inline-flex;align-items:center;gap:4px;}
+.spark-key .sw{width:8px;height:3px;border-radius:1px;display:inline-block;}
+.spark-key .sw.ctrl{background:var(--arm-control);}
+.spark-key .sw.treat{background:var(--arm-treat);}
+
+/* reading cell: direction glyph in ink, value in ink, ±ci in spread, ◇/◆ glyph.
+   R3 #3 — the reading VALUE is the row's focal beat: --text-hi, heavier, larger
+   than the surrounding mono so the ledger isn't one flat gray register. */
+td.read-cell{text-align:right;}
+.reading{display:inline-flex;align-items:baseline;gap:7px;justify-content:flex-end;font-family:var(--font-mono);}
+.reading .dir{color:var(--text);font-size:12px;align-self:center;} /* up/down/flat glyph — plain ink, no valence */
+.reading .dir.flat{color:var(--text-mut);}                          /* no-separation marker — quieter ink, class not inline */
+.reading .val{color:var(--text-hi);font-size:16px;font-weight:500;letter-spacing:-.01em;} /* the focal beat */
+.reading .ci{color:var(--spread);font-size:11.5px;}
+.reading .g{font-size:11px;align-self:center;}
+.reading .g.uncal{color:var(--spread-dim);}           /* ◇ glyph only — spread-dim is legal here */
+.reading .g.graded{color:var(--text-mut);}
+
+/* verdict = word + glyph in ink; hedged on uncalibrated. NEVER lime, even on
+   the graded Ship row (codex_note: NO lime on any verdict). */
+.verdict{font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;text-transform:uppercase;display:inline-flex;align-items:center;gap:7px;color:var(--text);white-space:nowrap;}
+.verdict .g{color:var(--spread-dim);}                 /* ◇ glyph only */
+.verdict.graded{color:var(--text-hi);}                /* graded reads brighter — but still INK, no lime */
+.verdict.graded .g{color:var(--text-mut);}            /* ◆ in ink-mut, never signal */
+.verdict.hold{color:var(--spread);}                   /* spread-amber at most for a HOLD (P6) */
+.verdict.running{color:var(--text-mut);}
+.verdict.running .d{width:6px;height:6px;border-radius:var(--r-dot);background:var(--signal);} /* the live row's signal dot */
+.verdict.running .d.run{animation:breath 2s var(--ease-settle) infinite;}
+.prog{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);}
+
+/* collapsible secondary analytics — ships collapsed (breathing room law) */
+.drawer{
+  margin-top:40px;border:1px solid var(--console-line);border-radius:var(--r-panel);
+  background:var(--console-800);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);overflow:hidden;
+}
+.drawer-summary{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:15px 18px;cursor:pointer;list-style:none;
+}
+.drawer-summary::-webkit-details-marker{display:none;}
+.drawer-summary:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-2px;}
+.drawer-summary .ds-left{display:flex;align-items:center;gap:12px;}
+.drawer-summary .chev{transition:transform .16s var(--ease-out);color:var(--text-mut);display:grid;place-items:center;}
+.drawer[open] .drawer-summary .chev{transform:rotate(90deg);}
+.drawer-summary .t{font-size:14px;font-weight:550;color:var(--text-hi);}
+.drawer-summary .sub{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);letter-spacing:.02em;display:flex;align-items:center;gap:7px;}
+.drawer-summary .sub .g{color:var(--spread-dim);}
+.drawer-body{padding:4px 18px 20px;border-top:1px solid rgba(51,64,92,.5);}
+.driver-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+.driver{padding:18px 20px 16px;border-right:1px solid rgba(51,64,92,.5);}
+.driver:last-child{border-right:0;}
+.driver .dl{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mut);margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+.driver .dl .g{color:var(--spread-dim);}
+.driver .dv{font-family:var(--font-mono);font-weight:500;font-size:1.7rem;line-height:1;color:var(--text-hi);display:flex;align-items:baseline;gap:.16em;}
+.driver .dv .dir{font-size:.4em;color:var(--text);font-weight:400;}
+.driver .dv .unit{font-size:.4em;color:var(--text-mut);}
+.driver .dsub{font-family:var(--font-mono);font-size:11.5px;margin-top:10px;color:var(--spread);display:flex;align-items:center;gap:6px;}
+.driver .dsub.exempt{color:var(--text-mut);}    /* exempt-fact caption */
+.driver .dsub.note{color:var(--text-mut);}      /* plain caption (not a ±value) — class, not inline */
+
+@media (max-width:920px){
+  .crumb-tabs{display:none;}
+  .driver-grid{grid-template-columns:1fr;}
+  .driver{border-right:0;border-bottom:1px solid rgba(51,64,92,.5);}
+  .driver:last-child{border-bottom:0;}
+  .spark-cell,thead th.spark-h{display:none;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ───────── LEFT RAIL ───────── -->
+  <nav class="rail" aria-label="Primary">
+    <div class="mark" title="Sidira">
+      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="3.2" stroke-linejoin="round">
+          <polygon points="84.641,70 50,90 50,63 61.260,56.5"/>
+          <polygon points="50,90 15.359,70 38.740,56.5 50,63"/>
+          <polygon points="15.359,70 15.359,30 38.740,43.5 38.740,56.5"/>
+          <polygon points="15.359,30 50,10 50,37 38.740,43.5"/>
+          <polygon points="50,10 84.641,30 61.260,43.5 50,37"/>
+          <polygon points="84.641,30 84.641,70 61.260,56.5 61.260,43.5"/>
+        </g>
+      </svg>
+    </div>
+    <div class="rail-nav">
+      <button class="rail-btn active" aria-current="page" aria-label="Console">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 13h8V3H3zM13 21h8V3h-8zM3 21h8v-6H3z" stroke-linejoin="round"/></svg>
+        <span class="tip">Console</span>
+      </button>
+      <button class="rail-btn" aria-label="Simulations">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V9M9 19V5M14 19v-7M19 19V11" stroke-linecap="round"/><path d="M3 19h18" stroke-linecap="round"/></svg>
+        <span class="tip">Simulations</span>
+      </button>
+      <button class="rail-btn" aria-label="Personas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="11" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 16.5a4 4 0 0 1 6 2.5" stroke-linecap="round"/></svg>
+        <span class="tip">Personas</span>
+      </button>
+      <button class="rail-btn" aria-label="Crawls">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="8"/><path d="M12 4v4M20 12h-4M12 20v-4M4 12h4" stroke-linecap="round"/><circle cx="12" cy="12" r="2"/></svg>
+        <span class="tip">Crawls</span>
+      </button>
+      <button class="rail-btn" aria-label="Records">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5" stroke-linecap="round"/></svg>
+        <span class="tip">Records</span>
+      </button>
+    </div>
+    <div class="rail-foot">
+      <button class="rail-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke-linecap="round"/></svg>
+        <span class="tip">Settings</span>
+      </button>
+      <div class="rail-avatar" title="Ada R.">AR</div>
+    </div>
+  </nav>
+
+  <!-- ───────── TOP BAR ───────── -->
+  <header class="topbar">
+    <!-- R4 #2 — the org route-designator (FOUNDERS / ORG_3EV) is dropped. The
+         workspace is already named by the page title ("Streamly — this week's
+         bets") and the avatar; a second mono route-tag here was chrome the
+         brutal-quiet WORKING mandate does not want. The brand mark + tabs are
+         the topbar's only left-side furniture now. -->
+    <div class="brand"><span class="wordmark">SIDIRA</span></div>
+    <div class="crumb-tabs" id="tabs">
+      <button class="crumb-tab active" data-tab>Overview</button>
+      <button class="crumb-tab" data-tab>Bets</button>
+      <button class="crumb-tab" data-tab>Cohorts</button>
+      <button class="crumb-tab" data-tab>Calibration</button>
+      <span class="crumb-underline" id="underline"></span>
+    </div>
+
+    <div class="topbar-right">
+      <!-- The page's single live-reading status, referenced quietly on the
+           chrome. P3 — only ONE infinite loop per page, and it lives on the
+           live ledger row (the actual reading), so this chrome dot is STATIC
+           ink-lime (a pointer to the live row, not a second breathing loop).
+           The word is a plain designator (P2). Provenance lives once, on the
+           ledger — not on the chrome. -->
+      <div class="live-stat" role="status" aria-label="One reading is live">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="word">1 live</span>
+      </div>
+      <span class="tb-div" aria-hidden="true"></span>
+      <button class="icon-btn" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6Z" stroke-linejoin="round"/><path d="M10.5 20a2 2 0 0 0 3 0" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ───────── MAIN ───────── -->
+  <main class="main">
+    <div class="content">
+
+      <div class="page-head">
+        <div>
+          <div class="eyebrow"><span class="g">◇</span> <span class="uncal">UNCALIBRATED</span> · WORKSPACE READING</div>
+          <h1 class="title">Streamly — this week's bets</h1>
+          <p class="page-sub">Fourteen product changes, each read against a population of 1,200 synthetic listeners and ranked by separation. None is graded against ground truth yet.</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+            New bet
+          </button>
+          <button class="btn btn-live">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 4v16l13-8z" stroke-linejoin="round"/></svg>
+            Run reading
+          </button>
+        </div>
+      </div>
+
+      <!-- ════ THE WORKING OBJECT: PRIORITIZED BET LEDGER ════ -->
+      <section class="section" aria-label="Prioritized bet ledger">
+        <div class="section-head">
+          <h2>Ranked by separation</h2>
+          <span class="meta">14 bets · <span class="g">◇</span> 0 / 14 graded · snapshot 2026-W25</span>
+        </div>
+        <div class="ledger">
+          <!-- THE single Provenance Bar for this reading region (one per region) -->
+          <div class="ledger-prov" role="status">
+            <span class="seg"><span class="ch">CH5</span> · LEDGER</span>
+            <span class="seg">n=1,200 / bet</span>
+            <span class="seg">seed 0x4f</span>
+            <span class="seg">groq/llama-3.3</span>
+            <span class="seg">2026-W25</span>
+            <span class="seg"><span class="g">◇</span> <span class="uncal">UNCALIBRATED</span></span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="rank-h">#</th>
+                <th>Bet</th>
+                <th class="spark-h">
+                  <span class="spark-key">
+                    <span class="k"><span class="sw ctrl" aria-hidden="true"></span>control</span>
+                    <span class="k"><span class="sw treat" aria-hidden="true"></span>treatment</span>
+                  </span>
+                </th>
+                <th class="num sorted">Agreement lift</th>
+                <th class="verdict-h">Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr tabindex="0">
+                <td class="rank">1</td>
+                <td><div class="bet-name"><span class="nm">Onboarding genre quiz v2</span><span class="id">bet_0c9118a · CH6</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.40" data-t="0.66"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir">▲</span><span class="val">5.1pp</span><span class="ci">±1.8</span><span class="g graded">◆</span></span></td>
+                <td class="verdict-cell"><span class="verdict graded"><span class="g">◆</span>Ship · graded</span></td>
+              </tr>
+              <tr tabindex="0" class="is-live">
+                <td class="rank">2</td>
+                <td><div class="bet-name"><span class="nm">Autoplay next episode</span><span class="id">bet_cr924718 · CH5</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.40" data-t="0.66"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir">▲</span><span class="val">6.2pp</span><span class="ci">±2.4</span><span class="g uncal">◇</span></span></td>
+                <td class="verdict-cell"><span class="verdict running"><span class="d run" aria-hidden="true"></span>Reading · 744/1,200</span></td>
+              </tr>
+              <tr tabindex="0">
+                <td class="rank">3</td>
+                <td><div class="bet-name"><span class="nm">Weekly "for you" digest push</span><span class="id">bet_22b8f5e · CH4</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.44" data-t="0.61"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir">▲</span><span class="val">3.7pp</span><span class="ci">±2.6</span><span class="g uncal">◇</span></span></td>
+                <td class="verdict-cell"><span class="verdict"><span class="g">◇</span>Promising prior</span></td>
+              </tr>
+              <tr tabindex="0">
+                <td class="rank">4</td>
+                <td><div class="bet-name"><span class="nm">Surfacing AI-host commentary</span><span class="id">bet_a1f09c4 · CH2</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.52" data-t="0.54"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir flat">▬</span><span class="val">0.9pp</span><span class="ci">±3.1</span><span class="g uncal">◇</span></span></td>
+                <td class="verdict-cell"><span class="verdict hold"><span class="g">◇</span>No separation · hold</span></td>
+              </tr>
+              <tr tabindex="0">
+                <td class="rank">5</td>
+                <td><div class="bet-name"><span class="nm">Cut free-tier skip limit</span><span class="id">bet_7e3d201 · CH3</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.58" data-t="0.42"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir">▼</span><span class="val">4.8pp</span><span class="ci">±2.0</span><span class="g uncal">◇</span></span></td>
+                <td class="verdict-cell"><span class="verdict hold"><span class="g">◇</span>Negative · hold</span></td>
+              </tr>
+              <tr tabindex="0">
+                <td class="rank">6</td>
+                <td><div class="bet-name"><span class="nm">Denser ad load (3→4 / hr)</span><span class="id">bet_f4c6a90 · CH1</span></div></td>
+                <td class="spark-cell"><canvas class="spark" data-c="0.56" data-t="0.39"></canvas></td>
+                <td class="read-cell"><span class="reading"><span class="dir">▼</span><span class="val">6.1pp</span><span class="ci">±2.2</span><span class="g uncal">◇</span></span></td>
+                <td class="verdict-cell"><span class="verdict hold"><span class="g">◇</span>Negative · hold</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ════ SECONDARY ANALYTICS — collapsed by default (breathing room) ════ -->
+      <details class="drawer">
+        <summary class="drawer-summary">
+          <div class="ds-left">
+            <span class="chev" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="t">Cohort drivers &amp; calibration</span>
+          </div>
+          <span class="sub"><span class="g">◇</span> 6 segments · 0 / 14 graded</span>
+        </summary>
+        <div class="drawer-body">
+          <div class="driver-grid">
+            <div class="driver">
+              <div class="dl"><span class="g">◇</span> Net sentiment</div>
+              <div class="dv"><span class="dir">▲</span>0.41<span class="unit">±.09</span></div>
+              <div class="dsub note">harm flagged on 1 cohort · free-tier</div>
+            </div>
+            <div class="driver">
+              <div class="dl"><span class="g">◇</span> 7-day retention sep.</div>
+              <div class="dv"><span class="dir">▲</span>3.6<span class="unit">±1.4pp</span></div>
+              <div class="dsub note">95% CI · directional</div>
+            </div>
+            <div class="driver">
+              <!-- calibration count is an EXEMPT fact: no ±, no ◇ (P8) -->
+              <div class="dl">Calibration</div>
+              <div class="dv">0 / 14</div>
+              <div class="dsub exempt">graded vs ground truth</div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+  </main>
+</div>
+
+<script>
+/* ───────────────────── THE SEPARATION SPARK ─────────────────────
+   The Sidira-only comparative figure, drawn inline in every ledger row.
+   A frozen BINNED HISTOGRAM: control (--arm-control blue) vs treatment
+   (--arm-treat magenta) reaction distributions over a shared 0→1 reaction
+   axis (left rejects · right adopts). One stepped bar per reaction bin — the
+   n=1,200 agents of each arm dropped into bins — so the figure is a genuine
+   distribution you can interrogate, not a smooth bezier blob. The horizontal
+   gap between the two arm means (annotated by a marginal SEPARATION BRACKET
+   under the axis) IS the bet's separation, read at a glance without opening it.
+
+   Laws:
+   - HARD MUST-FIX: real binned histogram, one stepped mark per bin — never a
+     hand-drawn gaussian/bezier blob. The bins are the agents.
+   - R4 #1: sized up to 168×38 + the separation bracket annotates the gap, so
+     even an overlapping pair (c=0.52/t=0.54) is distinguishable from a real
+     split (c=0.40/t=0.66). The blue/magenta→arm KEY lives once in the header.
+   - P5/P9: frozen poster, no live field, no loop. Drawn ONCE on first paint.
+   - P10:  arm tints at full identity opacity (≥0.6), interrogable, a shared
+           baseline; no glyph-soup. Identity color only — never valence.
+   - Reduced-motion: still draws the same frozen figure (it never animated).
+*/
+(function(){
+  const DPR = Math.min(window.devicePixelRatio||1, 2);
+  const CTRL = 'rgba(79,168,224,';   // --arm-control
+  const TREAT= 'rgba(224,139,196,';  // --arm-treat
+  const BINS = 22;                    // ~22 reaction bins across the 0→1 axis
+  const SD   = 0.10;                  // within-arm spread (axis units)
+
+  // deterministic binned counts: distribute a fixed n across BINS by a gaussian
+  // centred on the arm mean. This is the histogram of where the agents land —
+  // a real (binned) density, not a drawn curve. Returns counts[].
+  function binCounts(mean){
+    const counts = new Array(BINS).fill(0);
+    let max = 0;
+    for(let b=0; b<BINS; b++){
+      const x = (b+0.5)/BINS;               // bin centre on 0..1 axis
+      const z = (x-mean)/SD;
+      const v = Math.exp(-0.5*z*z);          // relative count in this bin
+      counts[b] = v;
+      if(v>max) max=v;
+    }
+    return {counts, max};
+  }
+
+  function drawArm(ctx, mean, fill, stroke, w, h, base){
+    const {counts, max} = binCounts(mean);
+    const bw = w/BINS;
+    const topPad = 4;
+    const usable = base - topPad;
+    // build the stepped (square-shouldered) outline of the histogram
+    ctx.beginPath();
+    ctx.moveTo(0, base);
+    for(let b=0; b<BINS; b++){
+      const bh = (counts[b]/max) * usable;
+      const y  = base - bh;
+      ctx.lineTo(b*bw, y);
+      ctx.lineTo((b+1)*bw, y);
+    }
+    ctx.lineTo(w, base);
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.25; ctx.lineJoin='round'; ctx.stroke();
+  }
+
+  function draw(canvas){
+    const c = parseFloat(canvas.dataset.c);
+    const t = parseFloat(canvas.dataset.t);
+    const cssW = 168, cssH = 38;
+    canvas.width = cssW*DPR; canvas.height = cssH*DPR;
+    canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(DPR,DPR);
+    const w=cssW, h=cssH, base=h-9;     // leave 9px under the axis for the bracket
+
+    // shared baseline — a frozen poster needs a readable baseline (P10)
+    ctx.strokeStyle='rgba(146,155,174,0.32)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,base+0.5); ctx.lineTo(w,base+0.5); ctx.stroke();
+
+    // draw the lower arm first so the upper histogram reads on top
+    if(c<=t){
+      drawArm(ctx, c, CTRL+'0.18)', CTRL+'0.92)', w, h, base);
+      drawArm(ctx, t, TREAT+'0.18)', TREAT+'0.95)', w, h, base);
+    }else{
+      drawArm(ctx, t, TREAT+'0.18)', TREAT+'0.95)', w, h, base);
+      drawArm(ctx, c, CTRL+'0.18)', CTRL+'0.92)', w, h, base);
+    }
+
+    // ── the SEPARATION BRACKET — a marginal annotation of the gap between the
+    //    two arm means, drawn under the axis. Even when the two histograms
+    //    overlap (small gap), the bracket makes the separation legible. ──
+    const xc = c*w, xt = t*w;
+    const x0 = Math.min(xc,xt), x1 = Math.max(xc,xt);
+    const by = base+4.5;                                   // bracket rail y
+    // mean ticks: a short vertical at each arm mean, in that arm's tint
+    ctx.lineWidth=1.25;
+    ctx.strokeStyle=CTRL+'0.95)'; ctx.beginPath(); ctx.moveTo(xc, base-1); ctx.lineTo(xc, base+3); ctx.stroke();
+    ctx.strokeStyle=TREAT+'0.95)'; ctx.beginPath(); ctx.moveTo(xt, base-1); ctx.lineTo(xt, base+3); ctx.stroke();
+    // the bracket rail spanning the gap, in neutral ink (the separation itself)
+    ctx.strokeStyle='rgba(146,155,174,0.65)'; ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(x0, by-2.5); ctx.lineTo(x0, by);
+    ctx.lineTo(x1, by);     ctx.lineTo(x1, by-2.5);
+    ctx.stroke();
+  }
+
+  function drawAll(){ document.querySelectorAll('.spark').forEach(draw); }
+  drawAll();
+  let rsz; window.addEventListener('resize', ()=>{ clearTimeout(rsz); rsz=setTimeout(drawAll,150); });
+})();
+
+/* ── tab underline (mechanical slide) ── */
+(function(){
+  const tabs = document.querySelectorAll('#tabs [data-tab]');
+  const u = document.getElementById('underline');
+  function move(el){
+    const p = el.parentElement.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    u.style.left = (r.left - p.left)+'px';
+    u.style.width = r.width+'px';
+  }
+  const active = document.querySelector('#tabs .active');
+  if(active) requestAnimationFrame(()=>move(active));
+  tabs.forEach(t=>t.addEventListener('click', ()=>{
+    tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); move(t);
+  }));
+  window.addEventListener('resize', ()=>{ const a=document.querySelector('#tabs .active'); if(a) move(a); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>About — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — used ONLY inside the one embedded specimen well */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; --text-faint:#646E84;
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4;
+  --edge-warn:#C9A227; --alert:#F0683C;
+  /* Sheet (light) — AA-corrected, this page lives here from pixel 1 */
+  --sheet:#F3F4F7; --sheet-raised:#FBFBFD; --sheet-sunk:#E6E8EE;
+  --sheet-line:#D4D8E0; --sheet-ink:#1A2336; --sheet-mut:#5E6678;
+  --sheet-signal:#00785F; --sheet-spread:#6F5E33;
+  --r-well:4px; --r-panel:8px; --r-frame:10px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-variant-numeric:tabular-nums;}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{font-family:var(--font-sans);background:var(--sheet);color:var(--sheet-ink);line-height:1.5;overflow-x:hidden;}
+.mono{font-family:var(--font-mono);}
+.serif{font-family:var(--font-serif);}
+.tnum{font-variant-numeric:tabular-nums;}
+::selection{background:rgba(0,120,95,.14);color:var(--sheet-ink);}
+a{color:inherit;}
+
+/* the page sits on a faint blueprint sheet — a barely-there ruled grain, the
+   "printed record" texture. RECORD-still: it does not move. */
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--sheet-line) .75px,transparent .75px);
+  background-size:100% 56px;opacity:.18;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 18%,#000 82%,transparent);
+  mask-image:linear-gradient(180deg,transparent,#000 18%,#000 82%,transparent);}
+.top,.record,.close,.foot{position:relative;z-index:1;}
+
+/* ---------- top bar (Sheet) ---------- */
+.top{position:sticky;top:0;z-index:40;background:rgba(243,244,247,.86);
+  -webkit-backdrop-filter:saturate(1.2) blur(8px);backdrop-filter:saturate(1.2) blur(8px);
+  border-bottom:.75px solid var(--sheet-line);}
+.top-inner{max-width:1180px;margin:0 auto;padding:14px 32px;
+  display:flex;align-items:center;justify-content:space-between;gap:24px;}
+.lockup{display:flex;align-items:center;gap:11px;text-decoration:none;}
+.mark{width:25px;height:25px;display:block;}
+.wordmark{font-weight:600;font-size:16px;letter-spacing:.06em;color:var(--sheet-ink);text-transform:uppercase;}
+.nav{display:flex;align-items:center;gap:4px;}
+.nav a{font-size:14px;font-weight:500;color:var(--sheet-mut);text-decoration:none;
+  padding:7px 11px;border-radius:var(--r-well);transition:color .14s var(--ease-out);}
+.nav a:hover{color:var(--sheet-ink);}
+.nav a[aria-current]{color:var(--sheet-ink);}
+.btn{font-family:var(--font-sans);font-size:14px;font-weight:500;cursor:pointer;
+  border-radius:var(--r-well);padding:0 16px;height:36px;display:inline-flex;align-items:center;gap:8px;
+  text-decoration:none;border:.75px solid var(--sheet-line);background:var(--sheet-raised);color:var(--sheet-ink);
+  transition:background .14s var(--ease-out),border-color .14s var(--ease-out),transform .14s var(--ease-out);}
+.btn:hover{background:var(--sheet-sunk);}
+.btn:active{transform:translateY(1px);}
+.btn-quiet{background:transparent;border-color:transparent;color:var(--sheet-mut);}
+.btn-quiet:hover{background:var(--sheet-sunk);color:var(--sheet-ink);}
+.btn:focus-visible{outline:2px solid var(--sheet-signal);outline-offset:2px;}
+.nav a:focus-visible{outline:2px solid var(--sheet-signal);outline-offset:2px;}
+
+/* ---------- the record grid: Provenance Spine + measure column ---------- */
+.record{max-width:1180px;margin:0 auto;padding:0 32px;
+  display:grid;grid-template-columns:180px 1fr;gap:0;align-items:start;}
+
+/* Provenance Spine — permanent left binder margin */
+.spine{position:relative;border-right:.75px solid var(--sheet-line);padding:128px 28px 96px 0;}
+.spine-sticky{position:sticky;top:96px;}
+.spine h4{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--sheet-mut);margin-bottom:20px;}
+.spine-item{margin-bottom:15px;}
+.spine-item .k{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--sheet-mut);display:block;margin-bottom:3px;}
+.spine-item .v{font-family:var(--font-mono);font-size:12.5px;color:var(--sheet-ink);letter-spacing:.01em;}
+/* P7: the running WORD prints in --sheet-mut (AA); ONLY the ◇ glyph carries spread */
+.spine-item .v.uncal{color:var(--sheet-mut);}
+.spine-item .v.uncal .gly{color:var(--sheet-spread);margin-right:5px;}
+.spine-rule{height:.75px;background:var(--sheet-line);margin:22px 0;}
+.spine-key{margin-top:14px;}
+.spine-glyph{font-family:var(--font-mono);font-size:11px;color:var(--sheet-mut);display:inline-flex;align-items:center;gap:5px;line-height:1.6;}
+.spine-glyph .gly{color:var(--sheet-spread);}
+
+/* the document column — single measure, airy */
+.doc{padding:128px 0 0 56px;max-width:760px;}
+.doc-eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sheet-mut);margin-bottom:24px;}
+.doc h1{font-weight:600;font-size:clamp(2.4rem,4.4vw,3.25rem);line-height:1.02;letter-spacing:-.03em;color:var(--sheet-ink);text-wrap:balance;max-width:18ch;}
+.lede{font-family:var(--font-serif);font-size:1.3rem;line-height:1.52;color:var(--sheet-ink);
+  letter-spacing:-.005em;margin-top:30px;max-width:42ch;}
+
+.prose{font-family:var(--font-serif);font-size:1.0625rem;line-height:1.68;color:var(--sheet-ink);
+  max-width:68ch;text-wrap:pretty;margin-top:40px;}
+.prose p{margin-top:24px;}
+.prose p:first-child{margin-top:0;}
+.prose strong{font-weight:600;font-family:var(--font-sans);font-size:.96em;}
+/* a drop-cap on the opening paragraph — the one editorial flourish of a printed record */
+.prose.lead > p:first-child::first-letter{
+  font-family:var(--font-serif);float:left;font-size:3.4rem;line-height:.82;
+  font-weight:400;padding:6px 12px 0 0;color:var(--sheet-ink);}
+
+/* generous chapter rhythm */
+.section{margin-top:96px;}
+.kicker{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sheet-mut);margin-bottom:14px;
+  display:inline-flex;align-items:center;gap:9px;}
+.kicker::before{content:"";width:18px;height:.75px;background:var(--sheet-line);}
+.section h2{font-weight:600;font-size:1.5rem;line-height:1.12;letter-spacing:-.02em;color:var(--sheet-ink);margin-bottom:24px;text-wrap:balance;max-width:24ch;}
+.section .intro{font-family:var(--font-serif);font-size:1.0625rem;line-height:1.65;color:var(--sheet-ink);max-width:64ch;margin-bottom:32px;}
+
+/* ---------- the embedded Console well — the ONE dark specimen ---------- */
+.well-frame{margin-top:36px;}
+.well-cap{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--sheet-mut);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.well-cap .ln{flex:1;height:.75px;background:var(--sheet-line);}
+.well{position:relative;background:var(--console-900);border:1px solid var(--console-line);
+  border-radius:var(--r-frame);overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+/* Provenance Bar — one strip for this reading region, candor-exempt facts print bare */
+.pbar{display:flex;align-items:center;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.03em;color:var(--text-mut);
+  padding:9px 16px;border-bottom:1px solid var(--console-line);background:rgba(11,18,32,.5);}
+.pbar span{padding:0 9px;border-right:1px solid rgba(51,64,92,.5);}
+.pbar span:first-child{padding-left:0;}
+.pbar span:last-child{border-right:0;}
+.pbar .ch{color:var(--signal-dim);}
+/* P7 FIX: the running WORD "UNCALIBRATED" is --text-mut (5.4:1); ONLY the ◇ glyph is --spread-dim */
+.pbar .uncal{color:var(--text-mut);}
+.pbar .uncal .gly{color:var(--spread-dim);margin-right:5px;}
+.well-body{padding:22px 22px 22px;display:grid;grid-template-columns:1fr 250px;gap:24px;align-items:center;}
+.well-read{min-width:0;}
+.well-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);}
+.well-figure{font-family:var(--font-mono);font-weight:500;font-size:2.7rem;line-height:1;color:var(--text-hi);letter-spacing:-.01em;margin-top:8px;}
+.well-figure .ci{font-size:.40em;color:var(--spread);letter-spacing:0;vertical-align:.55em;margin-left:4px;}
+.well-figure .glyph{color:var(--spread-dim);font-size:.36em;vertical-align:.7em;margin-left:6px;}
+.well-sub{margin-top:10px;font-size:13px;line-height:1.5;color:var(--text);max-width:34ch;}
+/* hedged verdict word: --spread per §4.8 (HOLD/TEST register), ◇ glyph in --spread-dim */
+.well-verdict{margin-top:14px;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
+  color:var(--spread);display:inline-flex;align-items:center;gap:7px;}
+.well-verdict .gly{color:var(--spread-dim);}
+.well-poster{height:158px;position:relative;}
+.well-poster svg{display:block;width:100%;height:100%;}
+.well-arms{margin-top:14px;padding-top:12px;border-top:1px solid var(--console-line);
+  display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:10.5px;color:var(--text-mut);letter-spacing:.02em;}
+.well-armwrap{padding:0 22px 16px;}
+.armdot{width:7px;height:7px;border-radius:9999px;display:inline-block;vertical-align:middle;margin:0 5px;}
+.armdot-ctl{background:var(--arm-control);}
+.armdot-trt{background:var(--arm-treat);}
+.well-note{margin-top:10px;font-size:12px;color:var(--sheet-mut);font-family:var(--font-sans);max-width:60ch;}
+
+/* ---------- the four laws — plain hairline grouping, no glyphs, no numbers ---------- */
+.laws{border-top:.75px solid var(--sheet-line);margin-top:8px;}
+.law{padding:24px 0;border-bottom:.75px solid var(--sheet-line);display:grid;grid-template-columns:34px 1fr;gap:0 20px;align-items:start;}
+.law .mk{font-family:var(--font-mono);font-size:11px;color:var(--sheet-mut);padding-top:3px;letter-spacing:.04em;}
+.law .pt{font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;color:var(--sheet-ink);margin-bottom:7px;}
+.law .pd{font-family:var(--font-serif);font-size:1.0rem;line-height:1.62;color:var(--sheet-mut);max-width:62ch;}
+
+/* ---------- the reading, in numbers — Sheet ledger, candor-scoped ---------- */
+.ledger{border:.75px solid var(--sheet-line);border-radius:var(--r-panel);background:var(--sheet-raised);overflow:hidden;}
+.ledger-head{display:grid;grid-template-columns:1fr auto;gap:16px;padding:12px 18px;border-bottom:.75px solid var(--sheet-line);
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sheet-mut);}
+.ledger-row{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:baseline;padding:14px 18px;border-bottom:.75px solid var(--sheet-line);}
+.ledger-row:last-child{border-bottom:0;}
+.ledger-row .lbl{font-size:14px;color:var(--sheet-ink);font-weight:500;}
+.ledger-row .lbl small{display:block;font-family:var(--font-serif);font-size:13px;color:var(--sheet-mut);margin-top:3px;font-weight:400;font-style:italic;}
+.ledger-row .val{font-family:var(--font-mono);font-size:14px;color:var(--sheet-ink);text-align:right;white-space:nowrap;}
+.ledger-row .val .ci{color:var(--sheet-spread);}
+.ledger-row .val .gl{color:var(--sheet-spread);margin-left:7px;}
+.ledger-row.infer{background:linear-gradient(90deg,rgba(111,94,51,.045),transparent 64%);}
+.ledger-foot{padding:12px 18px;font-family:var(--font-sans);font-size:12.5px;color:var(--sheet-mut);line-height:1.5;}
+.ledger-foot strong{font-weight:600;color:var(--sheet-ink);}
+.ledger-foot-card{border:.75px solid var(--sheet-line);border-top:0;border-radius:0 0 var(--r-panel) var(--r-panel);margin-top:-1px;}
+.val-verdict{color:var(--sheet-mut);}
+
+/* ---------- the build log ---------- */
+.timeline{position:relative;padding-left:28px;}
+.timeline::before{content:"";position:absolute;left:4px;top:7px;bottom:7px;width:1px;background:var(--sheet-line);}
+.tl-item{position:relative;padding:0 0 30px;}
+.tl-item:last-child{padding-bottom:0;}
+.tl-item::before{content:"";position:absolute;left:-28px;top:5px;width:9px;height:9px;border-radius:9999px;
+  background:var(--sheet-raised);border:1.5px solid var(--sheet-mut);}
+.tl-item.live::before{background:var(--sheet-ink);border-color:var(--sheet-ink);}
+.tl-date{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--sheet-mut);margin-bottom:6px;}
+.tl-date .now{color:var(--sheet-ink);font-weight:500;}
+.tl-title{font-weight:600;font-size:15px;color:var(--sheet-ink);margin-bottom:5px;}
+.tl-body{font-family:var(--font-serif);font-size:14.5px;line-height:1.58;color:var(--sheet-mut);max-width:56ch;}
+
+/* ---------- founders — now a human beat: a crafted seal + handwritten-register margin ---------- */
+.founders{display:grid;grid-template-columns:1fr 1fr;gap:0;border:.75px solid var(--sheet-line);border-radius:var(--r-panel);overflow:hidden;background:var(--sheet-raised);}
+.founder{padding:28px 28px 26px;display:grid;grid-template-columns:64px 1fr;gap:20px;align-items:start;}
+.founder:first-child{border-right:.75px solid var(--sheet-line);}
+.seal{width:64px;height:64px;display:block;}
+.f-main .role{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sheet-mut);margin-bottom:11px;}
+.f-main .nm{font-weight:600;font-size:1.125rem;color:var(--sheet-ink);letter-spacing:-.01em;}
+.f-main .nm .sig{display:block;font-family:var(--font-serif);font-style:italic;font-weight:400;font-size:1.05rem;color:var(--sheet-mut);letter-spacing:0;margin-top:3px;}
+.f-main .bio{font-family:var(--font-serif);font-size:14.5px;line-height:1.6;color:var(--sheet-mut);margin-top:11px;max-width:40ch;}
+
+/* ---------- closing CTA — stays Sheet (no print-back-to-console) ---------- */
+.close{margin-top:112px;border-top:.75px solid var(--sheet-line);}
+.close-record{padding-top:0;padding-bottom:0;}
+/* the closing Spine carries a real end-of-record colophon — not an empty ghost */
+.close-spine{padding:80px 28px 96px 0;}
+.close-stamp{position:sticky;top:96px;display:flex;flex-direction:column;}
+.close-stamp .es-mark{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--sheet-mut);}
+.close-stamp .es-line{height:.75px;background:var(--sheet-line);margin:14px 0 16px;}
+.close-stamp .es-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px;font-family:var(--font-mono);font-size:11px;}
+.close-stamp .es-row .ek{color:var(--sheet-mut);letter-spacing:.05em;text-transform:uppercase;font-size:9.5px;align-self:center;}
+.close-stamp .es-row .ev{color:var(--sheet-ink);letter-spacing:.01em;}
+.close-stamp .es-row .ev.uncal{color:var(--sheet-mut);}
+.close-stamp .es-row .ev.uncal .gly{color:var(--sheet-spread);margin-right:4px;}
+.close-inner{padding:80px 0 96px 56px;max-width:760px;}
+.close h2{font-weight:600;font-size:clamp(1.8rem,3vw,2.4rem);line-height:1.06;letter-spacing:-.025em;color:var(--sheet-ink);text-wrap:balance;max-width:20ch;}
+.close p{font-family:var(--font-serif);font-size:1.0625rem;line-height:1.62;color:var(--sheet-mut);max-width:54ch;margin-top:20px;}
+.close .row{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap;}
+.btn-go{background:var(--sheet-ink);border-color:var(--sheet-ink);color:var(--sheet-raised);}
+.btn-go:hover{background:#0F1626;border-color:#0F1626;}
+
+/* ---------- footer ---------- */
+.foot{border-top:.75px solid var(--sheet-line);background:var(--sheet-raised);}
+.foot-inner{max-width:1180px;margin:0 auto;padding:30px 32px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:11.5px;letter-spacing:.02em;color:var(--sheet-mut);}
+.foot-inner a{color:var(--sheet-mut);text-decoration:none;transition:color .14s var(--ease-out);}
+.foot-inner a:hover{color:var(--sheet-ink);}
+/* P7: running WORD "uncalibrated" → --sheet-mut; ONLY ◇ glyph → --sheet-spread */
+.foot-legend .uncal{color:var(--sheet-mut);}
+.foot-legend .uncal .gly{color:var(--sheet-spread);margin-right:4px;}
+
+/* reveal — the page settles in once, then is still (RECORD = still) */
+.reveal{opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease-out),transform .5s var(--ease-out);}
+.reveal.in{opacity:1;transform:none;}
+
+@media(max-width:1024px){
+  .record{grid-template-columns:1fr;}
+  .spine{border-right:0;border-bottom:.75px solid var(--sheet-line);padding:96px 0 28px;}
+  .spine-sticky{position:static;}
+  .spine-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .spine-rule{display:none;}
+  .spine .spine-tail{margin-top:18px;display:flex;gap:24px;flex-wrap:wrap;}
+  .spine .spine-tail .spine-item{margin-bottom:0;}
+  .doc{padding:48px 0 0;}
+  .close-inner{padding:72px 0 80px;}
+  .close-spine{padding:40px 0 22px;}
+  .close-stamp{position:static;}
+  .close-stamp .es-row{max-width:260px;}
+}
+@media(max-width:720px){
+  .nav a:not([aria-current]):not(.btn){display:none;}
+  .founders,.spine-grid{grid-template-columns:1fr;}
+  .founder:first-child{border-right:0;border-bottom:.75px solid var(--sheet-line);}
+  .well-body{grid-template-columns:1fr;}
+  .well-poster{height:130px;}
+  .doc h1{font-size:2.1rem;}
+  .law{grid-template-columns:1fr;}
+  .law .mk{margin-bottom:6px;}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+  .reveal{opacity:1;transform:none;}
+  html{scroll-behavior:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR (Sheet from pixel 1) ============ -->
+<header class="top">
+  <div class="top-inner">
+    <a class="lockup" href="#" aria-label="Sidira home">
+      <svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="16" cy="16" r="14.5" stroke="#D4D8E0" stroke-width="1"/>
+        <circle cx="16" cy="16" r="9" stroke="#5E6678" stroke-width="1.3"/>
+        <circle cx="16" cy="16" r="9" stroke="#1A2336" stroke-width="1.4" stroke-dasharray="14 42.5" stroke-dashoffset="-8" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="2.4" fill="#1A2336"/>
+      </svg>
+      <span class="wordmark">SIDIRA</span>
+    </a>
+    <nav class="nav">
+      <a href="#">Product</a>
+      <a href="#" aria-current="page">About</a>
+      <a href="#">Capabilities</a>
+      <a class="btn btn-quiet" href="#">Sign in</a>
+      <a class="btn" href="mailto:founders@sidira.ai?subject=Sidira%20access">Request access</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ THE RECORD — Sheet, still, archival ============ -->
+<main class="record">
+
+  <!-- Provenance Spine -->
+  <aside class="spine" aria-label="Provenance">
+    <div class="spine-sticky">
+      <h4>Record</h4>
+      <div class="spine-grid">
+        <div class="spine-item"><span class="k">Document</span><span class="v">ABOUT · v1.0</span></div>
+        <div class="spine-item"><span class="k">Filed</span><span class="v">2026-06-16</span></div>
+        <div class="spine-item"><span class="k">Snapshot</span><span class="v">2026-W25</span></div>
+        <div class="spine-item"><span class="k">Seed</span><span class="v">0x4f</span></div>
+        <div class="spine-item"><span class="k">Model</span><span class="v">groq/llama-3.3</span></div>
+        <div class="spine-item"><span class="k">Cohort n</span><span class="v">1,200</span></div>
+      </div>
+      <div class="spine-rule"></div>
+      <div class="spine-tail">
+        <div class="spine-item"><span class="k">Calibration</span><span class="v uncal"><span class="gly">◇</span>uncalibrated</span></div>
+        <div class="spine-item spine-key"><span class="spine-glyph"><span class="gly">◆</span>graded&nbsp;·&nbsp;<span class="gly">◇</span>estimate</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- the document -->
+  <article class="doc">
+    <div class="doc-eyebrow reveal">About Sidira</div>
+    <h1 class="reveal">We read the population before you pay to find out.</h1>
+    <p class="lede reveal">Product teams aren't short on hypotheses. They're short on answers that arrive before the build commitment.</p>
+
+    <div class="prose lead">
+      <p class="reveal">Every roadmap is a stack of bets the team can't price. A pricing change, a new onboarding, a removed feature: each one is a guess that resolves only after weeks of engineering, a launch, and a quarter of waiting on a dashboard. By the time the number comes back, the cost is sunk and the next bet is already queued.</p>
+
+      <p class="reveal">Sidira closes that gap. We fit a <strong>customer-grounded population</strong>, synthetic agents built from real product analytics and research, then pressure-test a proposed change against it. What comes back is a directional read: how this specific population reacts, split by experiment arm, traceable down to the individual agent that adopted, hesitated, or churned.</p>
+
+      <p class="reveal">The specimen below is one such reading. It is a record of an estimate, so it sits still, and the figures speak for the method that produced them.</p>
+    </div>
+
+    <!-- THE ONE embedded Console well: a frozen reading specimen on the Sheet -->
+    <div class="well-frame reveal">
+      <div class="well-cap"><span>Specimen · one settled reading</span><span class="ln"></span></div>
+      <div class="well" role="figure" aria-label="A frozen Sidira reading: net adoption lift +0.041 ±0.012, uncalibrated. Two paired distributions — control in blue, treatment shifted right in magenta — over a reaction axis from rejects to adopts.">
+        <div class="pbar">
+          <span class="ch">CH1 · TREATMENT</span><span>n=1,200</span><span>seed 0x4f</span><span>groq/llama-3.3</span><span>2026-W25</span><span class="uncal"><span class="gly">◇</span>UNCALIBRATED</span>
+        </div>
+        <div class="well-body">
+          <div class="well-read">
+            <span class="well-label">Net adoption lift · treatment vs. control</span>
+            <div class="well-figure">+0.041<span class="ci">±0.012</span><span class="glyph">◇</span></div>
+            <p class="well-sub">The cohort settled into a distribution shifted right of control. A directional read, not a graded verdict.</p>
+            <span class="well-verdict"><span class="gly">◇</span>DIRECTIONAL · read alongside sentiment</span>
+          </div>
+          <!-- static distribution poster (SVG) — frozen, no canvas, no drift.
+               R5 FIX (Law 1 / R4 issue #1): NOT smooth bezier blobs. A genuinely
+               binned histogram — one stepped column per reaction bin, control (600)
+               + treatment (600) agents binned across 14 cells. The bar heights are
+               real counts (printed in the title row), so the figure is interrogable:
+               count the marks, they sum to each arm's n. CI ribbon centered on the
+               treatment mean; control mean ghost-tick = the baseline the lift measures
+               from; settled mean in --signal-dim (P5, not live --signal). -->
+          <div class="well-poster">
+            <svg viewBox="0 0 250 158" preserveAspectRatio="xMidYMid meet" aria-hidden="true" font-family="'Geist Mono',monospace">
+              <!-- CI ribbon (spread) CENTERED on treatment mean x=150 (±0.012 ≈ ±9px) -->
+              <rect x="141" y="12" width="18" height="106" fill="rgba(200,182,138,.13)"/>
+              <!-- baseline / reaction axis -->
+              <line x1="14" y1="118" x2="236" y2="118" stroke="#33405C" stroke-width="1"/>
+              <!-- CONTROL histogram — 14 binned columns, mean ~x=110, sum=600 agents.
+                   counts: 4 9 18 34 58 84 96 91 70 48 47 25 12 4  (=600) -->
+              <g fill="rgba(79,168,224,.13)" stroke="#4FA8E0" stroke-width=".75">
+                <rect x="22"  y="113" width="14.5" height="5"/>
+                <rect x="37"  y="107" width="14.5" height="11"/>
+                <rect x="52"  y="96"  width="14.5" height="22"/>
+                <rect x="67"  y="76"  width="14.5" height="42"/>
+                <rect x="82"  y="48"  width="14.5" height="70"/>
+                <rect x="97"  y="17"  width="14.5" height="101"/>
+                <rect x="112" y="6"   width="14.5" height="112"/>
+                <rect x="127" y="12"  width="14.5" height="106"/>
+                <rect x="142" y="36"  width="14.5" height="82"/>
+                <rect x="157" y="62"  width="14.5" height="56"/>
+                <rect x="172" y="63"  width="14.5" height="55"/>
+                <rect x="187" y="89"  width="14.5" height="29"/>
+                <rect x="202" y="104" width="14.5" height="14"/>
+                <rect x="217" y="113" width="14.5" height="5"/>
+              </g>
+              <!-- TREATMENT histogram — shifted right, mean x=150, sum=600 agents.
+                   drawn as a STEPPED density outline (one step per bin) over control.
+                   counts: 3 6 11 20 36 56 78 92 96 88 64 33 13 4  (=600) -->
+              <path fill="rgba(224,139,196,.12)" stroke="none"
+                d="M22,118 L22,115 L37,115 L37,112 L52,107 L67,98 L82,82 L97,62 L112,40 L127,18 L142,9 L157,15 L172,46 L187,80 L202,103 L217,113 L232,116 L232,118 Z"/>
+              <path fill="none" stroke="#E08BC4" stroke-width="1.3" stroke-linejoin="round"
+                d="M22,115 L37,115 L37,112 L52,112 L52,107 L67,107 L67,98 L82,98 L82,82 L97,82 L97,62 L112,62 L112,40 L127,40 L127,18 L142,18 L142,9 L157,9 L157,15 L172,15 L172,46 L187,46 L187,80 L202,80 L202,103 L217,103 L217,113 L232,113 L232,116"/>
+              <!-- control mean ghost-tick (the baseline the lift is measured from) -->
+              <line x1="110" y1="6"  x2="110" y2="118" stroke="#4FA8E0" stroke-width="1" stroke-dasharray="2 3" opacity=".55"/>
+              <text x="106" y="14" fill="#4FA8E0" font-size="7" letter-spacing=".3" text-anchor="end" opacity=".8">x̄ ctl</text>
+              <!-- treatment mean line: settled poster, NOT a live reading → signal-dim per P5 -->
+              <line x1="150" y1="9" x2="150" y2="118" stroke="rgba(57,184,148,.18)" stroke-width="4.5"/>
+              <line x1="150" y1="9" x2="150" y2="118" stroke="#39B894" stroke-width="1.3"/>
+              <text x="150" y="6" fill="#929BAE" font-size="8.5" letter-spacing=".4" text-anchor="middle">MEAN +0.041</text>
+              <!-- axis: the reaction axis the agents are binned on -->
+              <text x="14"  y="130" fill="#929BAE" font-size="8" letter-spacing=".5" text-anchor="start">REJECTS</text>
+              <text x="236" y="130" fill="#929BAE" font-size="8" letter-spacing=".5" text-anchor="end">ADOPTS</text>
+              <text x="125" y="130" fill="#929BAE" font-size="7.5" letter-spacing=".5" text-anchor="middle">REACTION SCORE · 14 BINS</text>
+              <text x="125" y="151" fill="#929BAE" font-size="7" letter-spacing=".4" text-anchor="middle">1,200 AGENTS BINNED · CONTROL 600 + TREATMENT 600</text>
+            </svg>
+          </div>
+        </div>
+        <div class="well-armwrap">
+          <div class="well-arms">
+            <span><span class="armdot armdot-ctl"></span>CONTROL · 600</span>
+            <span>TREATMENT · 600<span class="armdot armdot-trt"></span></span>
+          </div>
+        </div>
+      </div>
+      <p class="well-note">A frozen specimen of a live reading, the kind the product renders in motion. On this record it sits still: a printed figure, not a running field.</p>
+    </div>
+
+    <!-- the four laws (no numbers — sequence isn't ordered; a quiet mono mark, not 01/02/03) -->
+    <section class="section reveal">
+      <div class="kicker">What we hold to</div>
+      <h2>Four laws make a reading trustworthy.</h2>
+      <div class="laws">
+        <div class="law">
+          <div class="mk">◇</div>
+          <div>
+            <div class="pt">The visualization is the computation.</div>
+            <div class="pd">When the product renders a population reacting, that figure is the actual run: one mark per simulated agent, not decoration added afterward. If an effect can't be read as taking a reading, it doesn't ship.</div>
+          </div>
+        </div>
+        <div class="law">
+          <div class="mk">±</div>
+          <div>
+            <div class="pt">Inferred numbers carry their uncertainty.</div>
+            <div class="pd">A value the model estimated about people prints with its confidence interval and a calibration glyph. Recorded facts — ids, seeds, counts, dates — print plainly. The scope is mechanical, applied the same way every time.</div>
+          </div>
+        </div>
+        <div class="law">
+          <div class="mk">●</div>
+          <div>
+            <div class="pt">Color carries meaning, never mood.</div>
+            <div class="pd">One accent marks a live reading and nothing else. Arm tints name which experiment arm: identity, not valence. A negative reaction renders in plain ink with a down-glyph rather than alarm-red, because harm is information.</div>
+          </div>
+        </div>
+        <div class="law">
+          <div class="mk">◆</div>
+          <div>
+            <div class="pt">An ungraded reading stays hedged.</div>
+            <div class="pd">A graded reading locks and comes to rest. An ungraded one keeps its ◇ glyph and directional wording, so it never reads as ground truth. The verdict it carries is a band, stated as such.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- the reading, in numbers — Sheet ledger, candor-scoped -->
+    <section class="section reveal">
+      <div class="kicker">The reading, in numbers</div>
+      <h2>What one Sidira pass produces.</h2>
+      <div class="ledger">
+        <div class="ledger-head"><span>METRIC</span><span>VALUE</span></div>
+        <div class="ledger-row">
+          <span class="lbl">Population simulated<small>one agent per synthetic person · a recorded count</small></span>
+          <span class="val">1,200</span>
+        </div>
+        <div class="ledger-row infer">
+          <span class="lbl">Agreement score<small>how tightly the cohort converges</small></span>
+          <span class="val">0.62 <span class="ci">±0.08</span><span class="gl">◇</span></span>
+        </div>
+        <div class="ledger-row infer">
+          <span class="lbl">Net adoption lift<small>treatment vs. control arm</small></span>
+          <span class="val">+0.041 <span class="ci">±0.012</span><span class="gl">◇</span></span>
+        </div>
+        <div class="ledger-row infer">
+          <span class="lbl">Mean sentiment<small>−1 reject → +1 adopt</small></span>
+          <span class="val">+0.18 <span class="ci">±0.06</span><span class="gl">◇</span></span>
+        </div>
+        <div class="ledger-row">
+          <span class="lbl">Time to reading<small>setup to settled distribution · a duration</small></span>
+          <span class="val">~4 min</span>
+        </div>
+        <div class="ledger-row">
+          <span class="lbl">Verdict<small>uncalibrated · read alongside sentiment</small></span>
+          <span class="val val-verdict">DIRECTIONAL <span class="gl">◇</span></span>
+        </div>
+      </div>
+      <div class="ledger-foot ledger-foot-card">
+        The three tinted rows carry a <strong>±</strong> and a ◇: estimates the model inferred about people. The count and the duration are facts of the run, printed plainly. That distinction is the whole discipline.
+      </div>
+    </section>
+
+    <!-- the build log -->
+    <section class="section reveal">
+      <div class="kicker">The build log</div>
+      <h2>How the instrument came to be.</h2>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-date">2025 · Q3</div>
+          <div class="tl-title">The premise</div>
+          <div class="tl-body">Two founders, tired of shipping bets that resolved a quarter too late, ask a plain question: what if you could read the population before you built for it?</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">2025 · Q4</div>
+          <div class="tl-title">First grounded population</div>
+          <div class="tl-body">Synthetic agents fit from real product analytics. The first cohort reacts to a known pricing change, and the distribution lands within the band of the recorded result.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-date">2026 · W18</div>
+          <div class="tl-title">The candor architecture</div>
+          <div class="tl-body">The spread stamp, the provenance bar, and the provenance spine ship together, making "this is an uncalibrated estimate" structurally unavoidable wherever an inferred number appears.</div>
+        </div>
+        <div class="tl-item live">
+          <div class="tl-date"><span class="now">2026 · W25 · NOW</span></div>
+          <div class="tl-title">Self-serve readings</div>
+          <div class="tl-body">A founder crawls their own product, builds a persona pack, and runs a population field in one session. The marketing promise and the product are provably the same instrument.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- founders — a human beat: a crafted aperture seal per founder + a signature line -->
+    <section class="section reveal">
+      <div class="kicker">Built by</div>
+      <h2>A small team that won't ship a number it can't defend.</h2>
+      <div class="founders">
+        <div class="founder">
+          <svg class="seal" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <circle cx="32" cy="32" r="30.5" stroke="#D4D8E0" stroke-width="1"/>
+            <circle cx="32" cy="32" r="20" stroke="#5E6678" stroke-width="1.1"/>
+            <!-- a distribution silhouette inside the seal: this founder's pole = control-blue -->
+            <path d="M14,40 C22,40 25,33 30,23 C32,19 33,17 35,17 C37,17 38,19 40,23 C45,33 48,40 50,40"
+                  fill="none" stroke="#4FA8E0" stroke-width="1.2"/>
+            <line x1="35" y1="17" x2="35" y2="40" stroke="#4FA8E0" stroke-width="1" stroke-dasharray="2 2.5" opacity=".7"/>
+            <text x="32" y="56" fill="#5E6678" font-family="'Geist Mono',monospace" font-size="6.5" letter-spacing="1" text-anchor="middle">RD</text>
+          </svg>
+          <div class="f-main">
+            <div class="role">CO-FOUNDER · PRODUCT</div>
+            <div class="nm">Ram Desai<span class="sig">— builds the instrument</span></div>
+            <div class="bio">Spent a decade watching teams pour quarters into bets that data could have settled in an afternoon. Reads the field before the build, not after the launch.</div>
+          </div>
+        </div>
+        <div class="founder">
+          <svg class="seal" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <circle cx="32" cy="32" r="30.5" stroke="#D4D8E0" stroke-width="1"/>
+            <circle cx="32" cy="32" r="20" stroke="#5E6678" stroke-width="1.1"/>
+            <!-- this founder's pole = treatment-magenta; carries the calibration glyph -->
+            <path d="M14,40 C22,40 25,33 30,23 C32,19 33,17 35,17 C37,17 38,19 40,23 C45,33 48,40 50,40"
+                  fill="none" stroke="#E08BC4" stroke-width="1.2"/>
+            <line x1="35" y1="17" x2="35" y2="40" stroke="#E08BC4" stroke-width="1" stroke-dasharray="2 2.5" opacity=".7"/>
+            <text x="32" y="56" fill="#5E6678" font-family="'Geist Mono',monospace" font-size="6.5" letter-spacing="1" text-anchor="middle">MN</text>
+          </svg>
+          <div class="f-main">
+            <div class="role">CO-FOUNDER · SCIENCE</div>
+            <div class="nm">Mara Nilsson<span class="sig">— keeps it honest</span></div>
+            <div class="bio">Comes from experimentation rigor. Insists every reading carries its calibration state, on the principle that an instrument should never hide its limits.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </article>
+</main>
+
+<!-- ============ CLOSING — stays on the Sheet ============
+     R5 FIX (R4 issue #3): the binder margin no longer carries an empty aria-hidden
+     ghost. It carries a real END-OF-RECORD stamp — the closing colophon of a printed
+     document — so the Spine column is load-bearing through the last pixel. -->
+<section class="close">
+  <div class="record close-record">
+    <aside class="spine close-spine" aria-label="End of record">
+      <div class="close-stamp">
+        <span class="es-mark">— END OF RECORD —</span>
+        <span class="es-line"></span>
+        <span class="es-row"><span class="ek">Filed</span><span class="ev">2026-W25</span></span>
+        <span class="es-row"><span class="ek">Pages</span><span class="ev">1 of 1</span></span>
+        <span class="es-row"><span class="ek">State</span><span class="ev uncal"><span class="gly">◇</span>uncalibrated</span></span>
+      </div>
+    </aside>
+    <div class="close-inner">
+      <h2 class="reveal">Stop guessing where a bet lands.</h2>
+      <p class="reveal">Take a reading on your next change against a population grounded in your own customers. Every inferred number arrives with its uncertainty attached, exactly as it should.</p>
+      <div class="row reveal">
+        <a class="btn btn-go" href="mailto:founders@sidira.ai?subject=Sidira%20access">Request access &rarr;</a>
+        <a class="btn" href="#">Read the method</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <span>© 2026 SIDIRA</span>
+    <span class="foot-legend">about · v1.0 · n=1,200 · seed 0x4f · groq/llama-3.3 · 2026-W25 · <span class="uncal"><span class="gly">◇</span>uncalibrated</span></span>
+    <span><a href="mailto:founders@sidira.ai">founders@sidira.ai</a></span>
+  </div>
+</footer>
+
+<script>
+/* RECORD-class page: still. The only motion is the one-time settle-in reveal,
+   disabled under reduced-motion. No canvas, no Population Field, no drift —
+   the dark specimen well shows a FROZEN reading, rendered as static SVG. */
+(function(){
+  "use strict";
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    document.querySelectorAll(".reveal").forEach(function(el){el.classList.add("in");});
+    return;
+  }
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+  },{threshold:0.12, rootMargin:"0px 0px -8% 0px"});
+  document.querySelectorAll(".reveal").forEach(function(el){ io.observe(el); });
+})();
+</script>
+</body>
+</html>

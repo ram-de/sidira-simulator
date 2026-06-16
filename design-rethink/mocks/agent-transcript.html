@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sidira · Agent transcript — Time-pressed Streamer (CH2 · Treatment)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                   /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  background:var(--console-900);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+::selection{background:rgba(72,239,202,.18);color:var(--text-hi);}
+.mono{font-family:var(--font-mono);}
+.designator{font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--text-mut);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+
+/* ─── App shell ─── */
+.shell{display:flex;min-height:100vh;}
+.rail{
+  width:56px;flex:0 0 56px;background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 0;gap:6px;position:sticky;top:0;height:100vh;z-index:30;
+}
+.rail .mark{width:30px;height:30px;margin-bottom:14px;flex:0 0 auto;}
+.rail .mark svg{display:block;}
+.rail-btn{
+  width:40px;height:40px;border-radius:var(--r-well);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-mut);cursor:pointer;position:relative;
+  transition:color 140ms var(--ease-out),background 140ms var(--ease-out);
+}
+.rail-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;}
+.rail-btn:hover{color:var(--text);background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:1px;
+  background:var(--signal-dim);
+}
+.rail-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--console-850),0 0 0 4px var(--signal-dim);}
+.rail-spacer{flex:1;}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+/* ─── Top bar ─── */
+.topbar{
+  height:52px;flex:0 0 52px;background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:16px;padding:0 24px;
+  position:sticky;top:0;z-index:20;
+}
+.wordmark{font-weight:600;letter-spacing:.06em;color:var(--text-hi);font-size:.875rem;}
+.crumb{display:flex;align-items:center;gap:8px;color:var(--text-mut);font-size:.8125rem;min-width:0;}
+.crumb a{color:var(--text-mut);text-decoration:none;transition:color 140ms;white-space:nowrap;}
+.crumb a:hover{color:var(--text);}
+.crumb .sep{color:var(--text-mut);opacity:.55;}
+.crumb .here{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:18px;flex:0 0 auto;}
+/* ONE global provenance reference — the single live-run carrier in this bar */
+/* P7: the running WORD is --text-mut (AA-clear); only the ◇ glyph is --spread-dim */
+.global-prov .designator{color:var(--text-mut);}
+.global-prov .uncal{color:var(--text-mut);}
+.gly{color:var(--spread-dim);}
+.livewrap{display:flex;align-items:center;gap:7px;}
+.live-dot{
+  width:7px;height:7px;border-radius:var(--r-dot);background:var(--signal);
+  animation:breathe 2s var(--ease-settle) infinite;
+}
+@keyframes breathe{0%,100%{opacity:.5;}50%{opacity:1;}}
+.live-word{color:var(--signal);font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.08em;font-weight:500;}
+
+/* ─── Content layout — reading dominates, side rail is brutally quiet ─── */
+/* §3.3: app shell max-width 1320px (rail 56px + fluid content). The reading
+   thread caps at 72ch for readability; the 1320px ceiling governs the shell. */
+.content{
+  max-width:1320px;margin:0 auto;width:100%;
+  padding:48px 32px 96px;
+}
+.backlink{
+  display:inline-flex;align-items:center;gap:7px;color:var(--text-mut);
+  text-decoration:none;font-size:.8125rem;margin-bottom:28px;
+  transition:color 140ms;
+}
+.backlink:hover{color:var(--text);}
+.backlink svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;}
+
+/* ─── Identity / hero reading region ─── */
+.identity{margin-bottom:var(--space-section);}
+
+/* ONE provenance bar for the whole reading region (§7.3) */
+.prov-bar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:0 0;
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text-mut);margin-bottom:22px;
+}
+.prov-bar .seg{padding:0 12px;border-right:1px solid rgba(51,64,92,.5);}
+.prov-bar .seg:first-child{padding-left:0;}
+.prov-bar .seg:last-child{border-right:none;}
+.prov-bar .ch{color:var(--arm-treat);}
+/* P7: running WORD is --text-mut; only the ◇ glyph keeps --spread-dim */
+.prov-bar .uncal{color:var(--text-mut);}
+
+.identity-head{display:flex;align-items:flex-start;gap:24px;}
+.identity-main{min-width:0;flex:1;}
+.persona-title{
+  font-size:2.0rem;line-height:1.08;letter-spacing:-.025em;font-weight:600;
+  color:var(--text-hi);text-wrap:balance;
+}
+.persona-id{font-family:var(--font-mono);font-size:.75rem;color:var(--text-mut);margin-top:8px;letter-spacing:0;}
+.hyp-label{margin-top:22px;}
+.hyp-prose{
+  font-size:1.0625rem;line-height:1.6;color:var(--text);font-weight:450;
+  margin-top:7px;max-width:62ch;text-wrap:pretty;
+}
+.hyp-prose .arm-pole-c{color:var(--arm-control);font-weight:500;}
+.hyp-prose .arm-pole-t{color:var(--arm-treat);font-weight:500;}
+
+/* THE PULLED-AGENT TICK — the ONE permitted canvas on this WORKING page, and
+   the page's single crafted signature moment.
+   R4-fix: the old 64px scope-ring graphic carried near-zero information ("a
+   graphic was needed here"). It is now INTERROGABLE and threads to the showpiece:
+   a single agent settled on the SAME reject→adopt reaction axis the results-page
+   Population Field re-sorts into, with the cohort mean drawn as a reference tick
+   so you SEE this one agent (agent_07a3, the loudest adopter in the fan-out) sit
+   above the group. One mark = one simulated agent (Law 1).
+   It is NOT the live field: the dot is --signal-dim (settled poster, P5), it
+   settles ONCE then holds (P3), and the hero verdict owns the region's signal
+   budget (P2). The value is annotated, so the signature is legible (R4 §"illegible
+   signature is not a signature"). */
+.iso-fig{flex:0 0 232px;width:232px;margin-top:2px;}
+.iso-particle{position:relative;width:232px;height:84px;}
+.iso-particle canvas{display:block;width:232px;height:84px;border-radius:var(--r-panel);
+  background:linear-gradient(180deg,#0c1422,#0a1019);
+  border:1px solid rgba(51,64,92,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.iso-cap{
+  margin-top:8px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  font-family:var(--font-mono);font-size:.625rem;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--text-mut);
+}
+.iso-cap b{color:var(--text);font-weight:500;}
+.iso-cap .read{color:var(--text-hi);font-weight:500;display:inline-flex;align-items:baseline;gap:5px;}
+.iso-cap .read .ci{color:var(--spread);}
+.iso-cap .read .gly{color:var(--spread-dim);}
+
+/* ─── Hero reading — ONE dominant figure (P10), supporting line secondary ─── */
+/* R2-fix: the consensus verdict leads as the marquee figure; lift / sentiment /
+   adopt-reject demote to a quiet secondary metric row so the region has a clear
+   focal point instead of four co-equal cells. */
+.reading-block{
+  margin-top:28px;padding:22px 0 4px;
+  border-top:1px solid rgba(51,64,92,.5);
+}
+/* PRIMARY: the per-group consensus verdict, hedged (◇), in ink + spread word */
+.verdict-primary{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;}
+.verdict-primary .vp-main{min-width:0;}
+.verdict-primary .lab{display:block;margin-bottom:8px;}
+.verdict-figure{
+  font-family:var(--font-mono);font-size:2.5rem;line-height:1.0;font-weight:500;
+  color:var(--spread);letter-spacing:-.01em;display:flex;align-items:baseline;gap:12px;
+}
+.verdict-figure .vglyph{font-size:1.6rem;color:var(--spread-dim);}
+.verdict-note{
+  font-family:var(--font-mono);font-size:.75rem;color:var(--text-mut);
+  letter-spacing:.03em;margin-top:10px;display:block;max-width:46ch;
+}
+/* the headline lift sits beside the verdict as the supporting magnitude */
+.verdict-lift{
+  margin-left:auto;text-align:right;flex:0 0 auto;padding-left:24px;
+  border-left:1px solid rgba(51,64,92,.4);align-self:stretch;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.verdict-lift .lab{display:block;margin-bottom:7px;}
+.verdict-lift .val{
+  font-family:var(--font-mono);font-size:1.5rem;font-weight:500;color:var(--text-hi);
+  display:inline-flex;align-items:baseline;gap:7px;letter-spacing:-.01em;justify-content:flex-end;
+}
+.verdict-lift .ci{font-family:var(--font-mono);font-size:.8125rem;color:var(--spread);font-weight:400;}
+.verdict-lift .glyph{font-size:.9rem;color:var(--spread-dim);}
+
+/* SECONDARY: the rest of the readings as a quiet inline metric row */
+.metric-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:24px 40px;margin-top:20px;padding-top:16px;
+  border-top:1px solid rgba(51,64,92,.4);
+}
+.metric{display:flex;align-items:baseline;gap:8px;font-size:.8125rem;}
+.metric .mlab{
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-mut);
+}
+.metric .mval{font-family:var(--font-mono);font-size:.9375rem;color:var(--text-hi);font-weight:500;
+  display:inline-flex;align-items:baseline;gap:5px;}
+.metric .ci{color:var(--spread);font-size:.75rem;}
+.metric .glyph{color:var(--spread-dim);font-size:.8rem;}
+.metric .slash{color:var(--text-mut);padding:0 1px;}
+/* drift wrapper: ONLY inferred, uncalibrated readings drift (§5.6) */
+.uncal-read{display:inline-flex;align-items:baseline;gap:5px;}
+
+/* ─── Adopt/reject split — the one crafted comparative figure (band directive) ───
+   A recorded count, NOT an inferred estimate, so it prints BARE (no ±, no ◇) per
+   §1.10 / P8. Arm tints carry identity only — never valence. The bar makes the
+   163/77 split legible-at-a-glance as a proportion the eye can read against the
+   midline, instead of two bare integers. */
+.split{display:flex;flex-direction:column;gap:7px;min-width:240px;}
+.split-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.split-head .mlab{
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-mut);
+}
+.split-head .tot{font-family:var(--font-mono);font-size:.6875rem;color:var(--text-mut);letter-spacing:.04em;}
+.split-bar{
+  position:relative;height:8px;border-radius:2px;overflow:hidden;
+  background:var(--console-700);box-shadow:inset 0 1px 0 rgba(0,0,0,.2);
+  display:flex;
+}
+.split-bar .seg-adopt{width:var(--w);background:var(--arm-treat);opacity:.85;}
+.split-bar .seg-reject{width:var(--w);background:var(--arm-control);opacity:.62;}
+.split-bar .mid{
+  position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;
+  background:var(--text-mut);opacity:.55;
+}
+.split-legend{display:flex;gap:18px;font-family:var(--font-mono);font-size:.75rem;}
+.split-legend .it{display:inline-flex;align-items:baseline;gap:6px;color:var(--text-mut);}
+.split-legend .sw{align-self:center;width:8px;height:8px;border-radius:2px;}
+.split-legend .sw.a{background:var(--arm-treat);opacity:.85;}
+.split-legend .sw.r{background:var(--arm-control);opacity:.62;}
+.split-legend .num{color:var(--text-hi);font-weight:500;}
+.split-legend .pct{color:var(--text-mut);}
+
+/* ─── Conversation ─── */
+.section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;}
+.section-head h2{font-size:1.5rem;letter-spacing:-.02em;font-weight:600;color:var(--text-hi);}
+.section-head .meta{font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);}
+
+.thread{display:flex;flex-direction:column;max-width:72ch;}
+.turn{padding:24px 0;border-top:1px solid rgba(51,64,92,.5);}
+.turn:first-child{border-top:none;}
+.turn-head{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+.turn-role{
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:500;color:var(--text);
+}
+.turn-role.pm{color:var(--text-mut);}
+.turn-role.coll{color:var(--text-hi);}
+.turn-role.coll .sub{color:var(--text-mut);}
+.turn-role.syn{color:var(--text-mut);}
+.turn-time{font-family:var(--font-mono);font-size:.625rem;color:var(--text-mut);letter-spacing:.04em;}
+.turn-head .spacer{flex:1;}
+
+/* PM turn */
+.pm-body{font-size:1.0625rem;line-height:1.6;color:var(--text);font-weight:450;max-width:64ch;}
+
+/* collective turn */
+.coll-body{
+  border-left:2px solid var(--signal-dim);
+  padding:4px 0 4px 18px;
+  font-size:1.0625rem;line-height:1.62;color:var(--text);max-width:66ch;
+}
+.coll-body p+p{margin-top:12px;}
+.cite{
+  color:var(--text-hi);text-decoration:none;
+  border-bottom:1px solid rgba(51,64,92,.6);
+  padding-bottom:1px;font-weight:500;cursor:pointer;
+  transition:border-color 140ms,color 140ms;white-space:nowrap;
+}
+.cite:hover{color:var(--text-hi);border-color:var(--text-mut);}
+.cite .dot{display:inline-block;width:5px;height:5px;border-radius:var(--r-dot);margin-right:4px;vertical-align:middle;}
+.cite.ct .dot{background:var(--arm-control);}
+.cite.tr .dot{background:var(--arm-treat);}
+
+/* thumbs — quiet, no signal as "good" */
+.thumbs{display:inline-flex;gap:4px;align-items:center;}
+.thumb{
+  width:26px;height:26px;border-radius:var(--r-well);border:1px solid rgba(51,64,92,.5);
+  background:transparent;color:var(--text-mut);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:color 140ms,border-color 140ms,background 140ms;
+}
+.thumb svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.5;}
+.thumb:hover{color:var(--text);border-color:var(--console-line);}
+.thumb.on{color:var(--text-hi);border-color:var(--console-line);background:var(--console-750);}
+.thumb:focus-visible{outline:none;box-shadow:0 0 0 2px var(--signal-dim);}
+.flag-cap{font-family:var(--font-mono);font-size:.625rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mut);}
+
+/* synthesis turn */
+.syn-line{
+  font-size:1.0625rem;line-height:1.55;color:var(--text);font-weight:450;
+  border-left:2px solid var(--spread);
+  padding:4px 0 4px 16px;max-width:66ch;
+}
+.syn-line b{color:var(--text-hi);font-weight:600;}
+.fanout{margin-top:20px;display:flex;flex-direction:column;}
+.agent-reply{padding:16px 0;border-top:1px solid rgba(51,64,92,.5);}
+.agent-reply:first-child{border-top:none;}
+.agent-reply-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.agent-tag{
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;font-weight:500;
+  display:inline-flex;align-items:center;gap:6px;color:var(--text);
+}
+.agent-tag .dot{width:6px;height:6px;border-radius:var(--r-dot);}
+.agent-tag.ct .dot{background:var(--arm-control);}
+.agent-tag.tr .dot{background:var(--arm-treat);}
+.agent-meta{font-family:var(--font-mono);font-size:.625rem;color:var(--text-mut);letter-spacing:.04em;}
+.agent-1to1{
+  margin-left:auto;font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--text-mut);text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+  transition:color 140ms;
+}
+.agent-1to1:hover{color:var(--text-hi);}
+.agent-1to1:focus-visible{outline:none;color:var(--text-hi);box-shadow:0 0 0 2px var(--signal-dim);border-radius:2px;}
+.agent-1to1 svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;}
+.agent-body{font-size:1rem;line-height:1.58;color:var(--text);max-width:64ch;}
+/* sentiment: inferred → ± + ◇; direction in plain ink + glyph, no valence color */
+.agent-sent{
+  display:inline-flex;align-items:baseline;gap:6px;margin-top:10px;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.04em;color:var(--text-mut);
+}
+.agent-sent .v{color:var(--text-hi);}
+.agent-sent .ci{color:var(--spread);}
+.agent-sent .glyph{color:var(--spread-dim);}
+.agent-sent .sep{color:var(--text-mut);opacity:.5;padding:0 2px;}
+.agent-fail{
+  font-size:.875rem;color:var(--text);
+  border:1px solid var(--alert);border-radius:var(--r-well);padding:8px 12px;
+}
+.agent-fail .tag{font-family:var(--font-mono);font-size:.625rem;letter-spacing:.08em;text-transform:uppercase;color:var(--alert);margin-right:8px;}
+
+/* ─── Composer ─── */
+.composer{
+  margin-top:var(--space-section);
+  border-top:1px solid rgba(51,64,92,.5);
+  padding-top:24px;max-width:72ch;
+}
+.unavail{
+  font-size:.8125rem;color:var(--text);
+  border:1px solid var(--edge-warn);border-radius:var(--r-well);
+  padding:9px 13px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;
+}
+.unavail .tag{font-family:var(--font-mono);font-size:.625rem;letter-spacing:.08em;text-transform:uppercase;color:var(--edge-warn);white-space:nowrap;margin-top:2px;}
+.unavail strong{color:var(--text-hi);font-weight:600;}
+.unavail .mono{color:var(--text-hi);}
+.modeline{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.modeline .lab{font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);margin-right:2px;}
+.mode-pill{
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);padding:5px 11px;
+  color:var(--text-mut);cursor:pointer;transition:all 140ms var(--ease-out);background:transparent;
+}
+.mode-pill:hover{color:var(--text);border-color:var(--console-line);}
+.mode-pill.on{color:var(--text-hi);border-color:var(--console-line);background:var(--console-750);}
+.mode-pill:focus-visible{outline:none;box-shadow:0 0 0 2px var(--signal-dim);}
+.mode-pill .cost{color:var(--spread);}
+.composer textarea{
+  width:100%;background:var(--console-700);border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-well);color:var(--text-hi);font-family:var(--font-sans);
+  font-size:.9375rem;line-height:1.55;padding:12px 14px;resize:vertical;min-height:78px;
+  transition:border-color 140ms var(--ease-out),box-shadow 140ms var(--ease-out);
+  box-shadow:inset 0 1px 0 rgba(0,0,0,.18);
+}
+.composer textarea::placeholder{color:rgba(146,155,174,.7);}
+.composer textarea:focus{outline:none;border-color:var(--signal-dim);box-shadow:inset 0 1px 0 rgba(0,0,0,.18),0 0 0 2px var(--signal-dim);}
+.composer-foot{display:flex;align-items:center;margin-top:12px;gap:14px;}
+.composer-hint{font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.03em;color:var(--text-mut);}
+.composer-hint kbd{
+  font-family:var(--font-mono);background:var(--console-700);border:1px solid rgba(51,64,92,.6);
+  border-radius:3px;padding:1px 5px;color:var(--text-mut);font-size:.625rem;
+}
+/* The ONE live/run button — it initiates a live reading, so it carries signal */
+.send-btn{
+  margin-left:auto;height:36px;padding:0 18px;border-radius:var(--r-well);
+  background:transparent;border:1px solid var(--signal);color:var(--signal);
+  font-family:var(--font-sans);font-size:.875rem;font-weight:500;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;
+  transition:background 140ms var(--ease-out),transform 80ms var(--ease-out);
+}
+.send-btn:hover{background:var(--signal-wash);}
+.send-btn:active{transform:translateY(1px);}
+.send-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--signal-dim);}
+.send-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;}
+
+/* ─── Footer provenance line ─── */
+.foot-note{
+  margin-top:var(--space-section);padding-top:18px;border-top:1px solid rgba(51,64,92,.4);
+  font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.04em;color:var(--text-mut);
+  display:flex;gap:18px;flex-wrap:wrap;max-width:72ch;
+}
+/* P7: honesty clause runs at --text-mut; only the leading ◇ glyph is --spread-dim */
+.foot-note .stamp{color:var(--text-mut);}
+.foot-note .stamp .gly{color:var(--spread-dim);}
+
+@media (max-width:760px){
+  .identity-head{flex-direction:column-reverse;align-items:flex-start;}
+  .iso-particle{align-self:flex-start;}
+  .verdict-primary{flex-direction:column;gap:18px;}
+  .verdict-lift{margin-left:0;text-align:left;padding-left:0;border-left:none;
+    border-top:1px solid rgba(51,64,92,.4);padding-top:16px;width:100%;align-items:flex-start;}
+  .verdict-lift .val{justify-content:flex-start;}
+  .verdict-figure{font-size:2.1rem;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+  .uncal-read{opacity:.7!important;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- Left rail -->
+  <nav class="rail" aria-label="Primary">
+    <div class="mark" title="Sidira">
+      <!-- P1: resting brand mark is ALWAYS ink — never --signal. The mark is
+           brand chrome, not a live reading. Ring + dot render in ink/hairline. -->
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <circle cx="15" cy="15" r="13" stroke="#33405C" stroke-width="1"/>
+        <circle cx="15" cy="15" r="6.5" stroke="#929BAE" stroke-width="1.4"/>
+        <circle cx="15" cy="15" r="1.7" fill="#F2F4F8"/>
+        <path d="M15 2 L15 8.5 M15 21.5 L15 28 M2 15 L8.5 15 M21.5 15 L28 15" stroke="#33405C" stroke-width="1"/>
+      </svg>
+    </div>
+    <a class="rail-btn" title="Dashboard" href="#"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z"/></svg></a>
+    <a class="rail-btn active" title="Simulations" href="#" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-9 2 4h4"/></svg></a>
+    <a class="rail-btn" title="Personas" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></a>
+    <a class="rail-btn" title="Crawls" href="#"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></svg></a>
+    <div class="rail-spacer"></div>
+    <a class="rail-btn" title="Settings" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></a>
+  </nav>
+
+  <div class="main">
+    <!-- Top bar — a single global provenance reference (the one live carrier) -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <nav class="crumb" aria-label="Breadcrumb">
+        <a href="#">Streamly · winback</a>
+        <span class="sep">/</span>
+        <a href="#">sim_8f3a</a>
+        <span class="sep">/</span>
+        <span class="here">Time-pressed Streamer · transcript</span>
+      </nav>
+      <div class="topbar-right">
+        <div class="global-prov">
+          <span class="designator">CH2 · n=240 · <span class="uncal"><span class="gly">◇</span> UNCAL</span></span>
+        </div>
+        <div class="livewrap">
+          <span class="live-dot"></span>
+          <span class="live-word">RUN LIVE</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <a class="backlink" href="#">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        back to simulation
+      </a>
+
+      <!-- ───────────── IDENTITY + HERO READING (the one loud region) ───────────── -->
+      <section class="identity" aria-label="Persona group identity and reading">
+        <!-- ONE provenance bar for this whole reading region. It is the sole
+             place arm identity (CH2 · TREATMENT · Avira) and cohort n=240 are
+             stated; the title above reads as a plain name, not a restated
+             receipt (R3 redundancy fix). -->
+        <div class="prov-bar" aria-label="Provenance">
+          <span class="seg"><span class="ch">CH2 · TREATMENT · AVIRA</span></span>
+          <span class="seg">n=240</span>
+          <span class="seg">seed 0x4f8c</span>
+          <span class="seg">groq/llama-3.3-70b</span>
+          <span class="seg">2026-W25</span>
+          <span class="seg"><span class="uncal"><span class="gly">◇</span> UNCALIBRATED</span></span>
+        </div>
+
+        <div class="identity-head">
+          <div class="identity-main">
+            <h1 class="persona-title">Time-pressed Streamer</h1>
+            <div class="persona-id">persona_3ev_streamly_time_pressed · v_2</div>
+
+            <div class="designator hyp-label">Hypothesis under test</div>
+            <p class="hyp-prose">
+              If we surface a <span class="arm-pole-t">one-tap “Continue where you left off”</span>
+              shelf on the home row the instant a session resumes — replacing the
+              <span class="arm-pole-c">current “For you” grid</span> — time-pressed streamers
+              resume a partially-watched title in under 8 seconds and lapse less in week one.
+            </p>
+          </div>
+
+          <!-- the pulled-agent tick: one agent settled on the reject→adopt
+               reaction axis (the same axis the results-page field re-sorts into),
+               with the cohort mean as a reference tick so the single agent is read
+               against the group. Threads to the showpiece field. -->
+          <div class="iso-fig">
+            <div class="iso-particle">
+              <canvas id="iso" role="img"
+                aria-label="agent_07a3 settled at +0.74 on the reject-to-adopt reaction axis, sitting above the cohort mean of +0.49"></canvas>
+            </div>
+            <div class="iso-cap">
+              <span><b>agent_07a3</b> · pulled</span>
+              <span class="read">+0.74 <span class="ci">±0.08</span> <span class="gly">◇</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- the per-group reading: ONE dominant figure (the hedged consensus
+             verdict), with the inferred magnitudes demoted to a secondary row.
+             Candor SCOPED — inferred values wear ± + ◇; raw n prints bare. -->
+        <div class="reading-block" aria-label="Group reading">
+          <div class="verdict-primary">
+            <div class="vp-main">
+              <span class="designator lab">Group consensus</span>
+              <!-- P6: uncalibrated → hedged verdict register, ink + spread word,
+                   never "SHIP" and never lime for approval -->
+              <span class="verdict-figure">TEST FIRST <span class="vglyph">◇</span></span>
+              <span class="verdict-note">conditional adopt · low stability · gated on a sticky per-profile dismiss</span>
+            </div>
+            <div class="verdict-lift">
+              <span class="designator lab">Resume-intent lift</span>
+              <span class="val">
+                <span class="uncal-read" tabindex="0">+0.21 <span class="ci">±0.09pp</span> <span class="glyph">◇</span></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <span class="metric">
+              <span class="mlab">Mean sentiment</span>
+              <span class="mval"><span class="uncal-read" tabindex="0">0.58 <span class="ci">±0.12</span> <span class="glyph">◇</span></span></span>
+            </span>
+
+            <!-- the crafted comparative figure: a recorded split (bare, no ±/◇) -->
+            <div class="split" aria-label="Adopt versus reject — recorded count of 240 agents">
+              <div class="split-head">
+                <span class="mlab">Adopt / reject · recorded n</span>
+                <span class="tot">240 of 240 responded</span>
+              </div>
+              <div class="split-bar" role="img"
+                   aria-label="163 adopt, 77 reject of 240">
+                <span class="seg-adopt" style="--w:67.9%"></span>
+                <span class="seg-reject" style="--w:32.1%"></span>
+                <span class="mid" title="50% midline"></span>
+              </div>
+              <div class="split-legend">
+                <span class="it"><span class="sw a"></span>adopt <span class="num">163</span> <span class="pct">68%</span></span>
+                <span class="it"><span class="sw r"></span>reject <span class="num">77</span> <span class="pct">32%</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────── CONVERSATION (brutally quiet, dominant content) ───────────── -->
+      <section aria-label="Conversation">
+        <div class="section-head">
+          <h2>Transcript</h2>
+          <span class="meta">4 turns · collective + 1 fan-out</span>
+        </div>
+
+        <div class="thread">
+          <!-- PM 1 -->
+          <article class="turn">
+            <div class="turn-head">
+              <span class="turn-role pm">You · PM</span>
+              <span class="spacer"></span>
+              <span class="turn-time">10:42:08</span>
+            </div>
+            <p class="pm-body">When you open Streamly with ten minutes before bed, what actually makes you tap something versus close the app?</p>
+          </article>
+
+          <!-- Collective 1 -->
+          <article class="turn">
+            <div class="turn-head">
+              <span class="turn-role coll">Time-pressed Streamer <span class="sub">· collective voice of 240</span></span>
+              <span class="spacer"></span>
+              <div class="thumbs" role="group" aria-label="Was this collective reply realistic?">
+                <span class="flag-cap">realistic</span>
+                <button class="thumb on" aria-pressed="true" title="Realistic"><svg viewBox="0 0 24 24"><path d="M7 11v9H4v-9h3Zm3 0 3-7c1.6 0 2.4 1 2 2.6L17 9h3.2c1 0 1.7 1 1.5 2l-1.3 6c-.2.9-1 1.6-2 1.6H10v-9Z"/></svg></button>
+                <button class="thumb" aria-pressed="false" title="Not realistic"><svg viewBox="0 0 24 24"><path d="M17 13V4h3v9h-3Zm-3 0-3 7c-1.6 0-2.4-1-2-2.6L7 15H3.8c-1 0-1.7-1-1.5-2l1.3-6c.2-.9 1-1.6 2-1.6H14v9Z"/></svg></button>
+              </div>
+            </div>
+            <div class="coll-body">
+              <p>Honestly it's whether the thing I half-watched last night is <em>right there</em>. Most of us open the app already knowing what we want — we just don't want to hunt for it. The current “For you” grid makes me re-scan a wall of thumbnails, and nine times in ten I bail before I find the row I actually paused on.</p>
+              <p>If you put a resume shelf at the very top, <a class="cite tr" href="#"><span class="dot"></span>agent_07a3</a> and <a class="cite tr" href="#"><span class="dot"></span>agent_1c2f</a> said they'd tap in basically one motion. But <a class="cite ct" href="#"><span class="dot"></span>agent_0d91</a> pushed back — she watches with her partner, and a loud “Continue” shelf feels presumptuous when last night's pick wasn't a joint decision. So: strong pull for the solo crowd, friction for shared accounts.</p>
+            </div>
+          </article>
+
+          <!-- PM 2 -->
+          <article class="turn">
+            <div class="turn-head">
+              <span class="turn-role pm">You · PM</span>
+              <span class="spacer"></span>
+              <span class="turn-time">10:43:51</span>
+            </div>
+            <p class="pm-body">Fair. If I held the shelf to a single dismissible row above the grid — not replacing it — would the shared-account folks still feel pushed?</p>
+          </article>
+
+          <!-- Synthesis / fan-out 1 -->
+          <article class="turn">
+            <div class="turn-head">
+              <span class="turn-role syn">Synthesis · individual fan-out</span>
+              <span class="spacer"></span>
+              <span class="turn-time">10:44:20</span>
+              <div class="thumbs" role="group" aria-label="Was this synthesis accurate?">
+                <span class="flag-cap">accurate</span>
+                <button class="thumb on" aria-pressed="true" title="Accurate"><svg viewBox="0 0 24 24"><path d="M7 11v9H4v-9h3Zm3 0 3-7c1.6 0 2.4 1 2 2.6L17 9h3.2c1 0 1.7 1 1.5 2l-1.3 6c-.2.9-1 1.6-2 1.6H10v-9Z"/></svg></button>
+                <button class="thumb" aria-pressed="false" title="Inaccurate"><svg viewBox="0 0 24 24"><path d="M17 13V4h3v9h-3Zm-3 0-3 7c-1.6 0-2.4-1-2-2.6L7 15H3.8c-1 0-1.7-1-1.5-2l1.3-6c.2-.9 1-1.6 2-1.6H14v9Z"/></svg></button>
+              </div>
+            </div>
+            <p class="syn-line">
+              <b>3 of 4</b> warmed to a dismissible single row — the solo viewers
+              tap in one motion. The split is entirely about <b>who shares an account</b>:
+              the lone holdout will adopt only if "not now" sticks <b>per-profile</b>,
+              not per-session, so last night's pick doesn't greet her partner too.
+            </p>
+
+            <div class="fanout">
+              <!-- agent A -->
+              <div class="agent-reply">
+                <div class="agent-reply-head">
+                  <span class="agent-tag tr"><span class="dot"></span>agent_07a3</span>
+                  <span class="agent-meta">treatment</span>
+                  <a class="agent-1to1" href="#"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-6a8.4 8.4 0 1 1 16.1-3.5Z"/></svg>chat 1:1</a>
+                </div>
+                <p class="agent-body">Yes — that's the version I'd actually use. One row, top of the home screen, and I'm back into my show before the autoplay trailer even loads. Keep it to one row though; a second “Because you watched” row right under it and it stops feeling like resume and starts feeling like the grid again.</p>
+                <span class="agent-sent">sentiment <span class="v">+0.74</span> <span class="ci">±0.08</span> <span class="glyph">◇</span><span class="sep">·</span>resume-tap <span class="v">likely</span></span>
+              </div>
+
+              <!-- agent B -->
+              <div class="agent-reply">
+                <div class="agent-reply-head">
+                  <span class="agent-tag ct"><span class="dot"></span>agent_0d91</span>
+                  <span class="agent-meta">control</span>
+                  <a class="agent-1to1" href="#"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-6a8.4 8.4 0 1 1 16.1-3.5Z"/></svg>chat 1:1</a>
+                </div>
+                <p class="agent-body">A single dismissible row is fine — much better than swapping the whole grid. My one ask: if I close it once, keep it closed on my profile. We share an account and I don't want last night's true-crime binge greeting both of us at the top every night. Make “not now” mean “not on me,” and I'm in.</p>
+                <span class="agent-sent">sentiment <span class="v">+0.31</span> <span class="ci">±0.14</span> <span class="glyph">◇</span><span class="sep">·</span>resume-tap <span class="v">conditional</span></span>
+              </div>
+
+              <!-- agent C -->
+              <div class="agent-reply">
+                <div class="agent-reply-head">
+                  <span class="agent-tag tr"><span class="dot"></span>agent_1c2f</span>
+                  <span class="agent-meta">treatment</span>
+                  <a class="agent-1to1" href="#"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12 7.6L3 21l1.9-6a8.4 8.4 0 1 1 16.1-3.5Z"/></svg>chat 1:1</a>
+                </div>
+                <p class="agent-body">Above the grid, dismissible — that threads it. The only thing that'd lose me is if “Continue” shows a title I finished. Track completion, not just last-opened, or it surfaces the credits of something I already wrapped and I lose trust in the row fast.</p>
+                <span class="agent-sent">sentiment <span class="v">+0.62</span> <span class="ci">±0.10</span> <span class="glyph">◇</span><span class="sep">·</span>resume-tap <span class="v">likely</span></span>
+              </div>
+
+              <!-- agent D — failed slot (error state, border + word, no banner fill) -->
+              <div class="agent-reply">
+                <div class="agent-reply-head">
+                  <span class="agent-tag ct"><span class="dot"></span>agent_4b80</span>
+                  <span class="agent-meta">control</span>
+                </div>
+                <div class="agent-fail"><span class="tag">FAILED</span>upstream timeout after 30s — agent did not respond. Retry this slot to include it in the synthesis.</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ───────────── COMPOSER ───────────── -->
+      <section class="composer" aria-label="Send a message to the group">
+        <div class="unavail" aria-live="polite">
+          <span class="tag">Heads up</span>
+          <span>The last fan-out reflects <strong>3 of 4</strong> agents. One agent could not be loaded: <span class="mono">agent_4b80</span>. Its reaction is excluded from the synthesis above.</span>
+        </div>
+
+        <div class="modeline" role="group" aria-label="Ask the group as">
+          <span class="lab">Ask the group as</span>
+          <button class="mode-pill" type="button" aria-pressed="false">collective · 1 voice</button>
+          <button class="mode-pill on" type="button" aria-pressed="true">individual fan-out <span class="cost">· 240× cost</span></button>
+        </div>
+
+        <textarea placeholder="Ask each of the 240 agents…  (Enter to send · Shift+Enter for newline)" aria-label="Message to the persona group (individual fan-out)">Could the resume row auto-collapse to a single thumbnail after you scroll past it once, instead of needing a dismiss?</textarea>
+
+        <div class="composer-foot">
+          <span class="composer-hint"><kbd>↵</kbd> send · <kbd>⇧↵</kbd> newline · draft saved</span>
+          <button class="send-btn" type="button">
+            Fan out to 240
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <div class="foot-note">
+        <span>RENDERED 2026-06-16 10:44 UTC</span>
+        <span class="stamp"><span class="gly">◇</span> NO GROUND TRUTH · reading will not lock until graded</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  const RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ───────────────────────────────────────────────────────────────────
+  // THE PULLED-AGENT TICK — the ONE canvas on this WORKING page, and the
+  // page's single crafted signature. ONE agent (agent_07a3) settled on the
+  // SAME reject→adopt reaction axis the results-page Population Field re-sorts
+  // into — so this WORKING figure and the SHOWPIECE field are provably the
+  // same instrument. The cohort mean is drawn as a reference tick, so the
+  // single agent is read AGAINST the group (it sits well above the mean).
+  // One mark = one simulated agent (Law 1). It is interrogable, not decorative.
+  //
+  // It is NOT the live Population Field — that showpiece is earned only on
+  // results / manifest / evaluate.
+  // Laws:
+  //   P3  → SETTLE ONCE then STATIC. No looping drift; the only infinite loop
+  //         on the page is the status dot.
+  //   P5  → the agent dot is --signal-dim (#39B894), not bright live --signal:
+  //         a settled poster, not a live reading. The hero verdict owns the
+  //         region's one signal carrier (P2).
+  //   §5.4 → no phosphor glow; a faint --signal-dim halo (the settled-mark echo)
+  //         only, never a CSS blur.
+  //   P8  → the value is INFERRED → it wears ± + ◇ (in the caption); the axis
+  //         endpoints (REJECT/ADOPT) and 0-midline are bare structural labels.
+  // ───────────────────────────────────────────────────────────────────
+  const iso = document.getElementById('iso');
+  if (!iso) return;
+  const ictx = iso.getContext('2d');
+  const IW = 232, IH = 84, IDPR = Math.min(window.devicePixelRatio || 1, 2);
+  iso.width = IW*IDPR; iso.height = IH*IDPR; ictx.setTransform(IDPR,0,0,IDPR,0,0);
+
+  // axis geometry — a horizontal reject(−1) → adopt(+1) reaction axis
+  const padX = 16, axY = 40, axL = padX, axR = IW - padX, axW = axR - axL;
+  const xFor = (v) => axL + (v + 1) / 2 * axW;   // v in [-1,1] → pixel
+  const AGENT = 0.74;   // agent_07a3 reaction (matches the caption +0.74)
+  const MEAN  = 0.49;   // cohort mean reference (this agent sits above it)
+  const xMean = xFor(MEAN), xAgent = xFor(AGENT), x0 = xFor(0);
+
+  function label(txt, x, y, align){
+    ictx.font = '500 8px "Geist Mono", ui-monospace, monospace';
+    ictx.fillStyle = '#929BAE'; ictx.textAlign = align; ictx.textBaseline = 'alphabetic';
+    ictx.fillText(txt, x, y);
+  }
+
+  function render(settle){
+    ictx.clearRect(0,0,IW,IH);
+
+    // axis rule (ink hairline)
+    ictx.strokeStyle = 'rgba(51,64,92,0.7)'; ictx.lineWidth = 1;
+    ictx.beginPath(); ictx.moveTo(axL, axY+0.5); ictx.lineTo(axR, axY+0.5); ictx.stroke();
+
+    // end caps + 0 midline (structural ticks)
+    ictx.strokeStyle = 'rgba(51,64,92,0.7)';
+    for (const x of [axL, axR]){ ictx.beginPath(); ictx.moveTo(x+0.5,axY-4); ictx.lineTo(x+0.5,axY+4); ictx.stroke(); }
+    ictx.strokeStyle = 'rgba(51,64,92,0.55)'; ictx.setLineDash([2,2]);
+    ictx.beginPath(); ictx.moveTo(x0+0.5,axY-7); ictx.lineTo(x0+0.5,axY+7); ictx.stroke();
+    ictx.setLineDash([]);
+
+    // axis endpoint labels (bare structural facts — no ±/◇)
+    label('REJECT', axL, IH-8, 'left');
+    label('ADOPT',  axR, IH-8, 'right');
+    label('0', x0, IH-8, 'center');
+
+    // cohort-mean reference tick — an inferred estimate, so it wears --spread
+    // amber (the group this one agent is read against), not the ◇-glyph dim
+    ictx.strokeStyle = '#C8B68A'; ictx.lineWidth = 1;
+    ictx.beginPath(); ictx.moveTo(xMean+0.5, axY-9); ictx.lineTo(xMean+0.5, axY+9); ictx.stroke();
+    label('x̄ +0.49', xMean, axY-13, 'center');
+
+    // the agent dot streams from the 0-midline to its settled reaction — once.
+    const dx = x0 + (xAgent - x0) * settle;
+    const dy = axY;
+    // faint settled-mark echo (no CSS glow), then the solid --signal-dim dot
+    ictx.beginPath(); ictx.arc(dx,dy,6.5,0,6.2832); ictx.fillStyle = 'rgba(57,184,148,0.14)'; ictx.fill();
+    ictx.beginPath(); ictx.arc(dx,dy,3.1,0,6.2832); ictx.fillStyle = '#39B894'; ictx.fill();
+  }
+
+  // settle ONCE (~900ms ease) then hold static forever. Reduced-motion → instant.
+  if (RM){ render(1); return; }
+  let istart = null;
+  const DUR = 900;
+  function step(now){
+    if (istart === null) istart = now;
+    const t = Math.min(1, (now - istart) / DUR);
+    const e = 1 - Math.pow(1 - t, 3);   // easeOutCubic ≈ --ease-settle
+    render(e);
+    if (t < 1) requestAnimationFrame(step);   // stops at settle — no loop
+  }
+  function boot(){ istart = null; requestAnimationFrame(step); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive'){ boot(); }
+  else { window.addEventListener('DOMContentLoaded', boot); }
+  if (document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>render(1)); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Continue Watching shelf · Capability record — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   SIDIRA — THE READING CONSOLE · design-system-v2
+   CAPABILITY DETAIL = a RECORD ⇒ SHEET (light blueprint), CLASS = RECORD.
+   v2 LAW: route-locked to Sheet from first pixel to last. The ONE live
+   estimate is embedded as a single restrained CONSOLE WELL inset into the
+   Sheet — never a dark masthead that inverts mid-scroll (§6.4 fix for this
+   exact page). Population Field is NOT earned here → a frozen SVG poster.
+   80% brutally quiet so the one reading lands.
+   ============================================================ */
+:root{
+  /* Console (dark) — ONLY the embedded reading well uses these */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear [v2-fix] */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn:#C9A227; --alert:#F0683C;
+
+  /* Sheet (light blueprint — the record surface) — AA-corrected */
+  --sheet:#F3F4F7; --sheet-raised:#FBFBFD; --sheet-sunk:#E6E8EE;
+  --sheet-line:#D4D8E0; --sheet-ink:#1A2336; --sheet-mut:#5E6678;
+  --sheet-signal:#00785F; /* 4.8:1 text [v2-fix] */
+  --sheet-spread:#6F5E33; /* 5.6:1 text [v2-fix] */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-rest:96px; --space-vast:128px;
+
+  --spine-w:180px; --measure:68ch;
+}
+*{box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{
+  margin:0; background:var(--sheet); color:var(--sheet-ink);
+  font-family:var(--font-sans); font-size:15px; line-height:1.55;
+}
+::selection{background:rgba(0,120,95,.14);}
+a{color:inherit;}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.6);} /* light inner highlight */
+
+/* ---- the cool blueprint grid wash (very faint, top-anchored) ---- */
+.sheet-bg{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    linear-gradient(transparent 0,transparent calc(100% - 1px), rgba(26,35,54,.016) 100%),
+    linear-gradient(90deg, transparent 0,transparent calc(100% - 1px), rgba(26,35,54,.016) 100%);
+  background-size:34px 34px, 34px 34px;
+  mask-image:radial-gradient(150% 100% at 72% 0%, #000 26%, transparent 88%);
+}
+
+/* ====================== SHEET TOP BAR (light, route-locked) ====================== */
+.sheetbar{
+  position:relative; z-index:3;
+  height:52px; display:flex; align-items:center; gap:16px;
+  max-width:1180px; margin:0 auto; padding:0 28px;
+  border-bottom:1px solid var(--sheet-line);
+}
+.wordmark{font-family:var(--font-sans); font-weight:600; letter-spacing:.06em; font-size:14px; color:var(--sheet-ink);}
+.route-desig{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--sheet-mut); padding-left:14px; margin-left:2px; border-left:1px solid var(--sheet-line);
+}
+.crumb{
+  margin-left:auto;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--sheet-mut); text-decoration:none;
+  border-bottom:1px solid transparent; transition:color .14s var(--ease-out), border-color .14s var(--ease-out);
+}
+.crumb:hover{color:var(--sheet-ink); border-bottom-color:var(--sheet-line);}
+
+/* ====================== RECORD GRID ====================== */
+.record{
+  position:relative; z-index:1;
+  max-width:1180px; margin:0 auto; padding:0 28px var(--space-vast);
+  display:grid; grid-template-columns:var(--spine-w) minmax(0,1fr); gap:0;
+}
+
+/* --- §7.4 The Provenance Spine (left binder-margin, always-on, quiet) --- */
+.spine{
+  position:relative;
+  border-right:1px solid var(--sheet-line);
+  padding:var(--space-section) var(--space-room) var(--space-section) 0;
+}
+.spine-sticky{position:sticky; top:var(--space-room); display:flex; flex-direction:column;}
+.spine-tab{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--sheet-mut);
+  padding-bottom:14px; margin-bottom:2px;
+}
+.prov{
+  display:flex; flex-direction:column; gap:3px;
+  padding:11px 0; border-top:1px solid var(--sheet-line);
+}
+.prov:first-of-type{border-top:none;}
+.prov .pk{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--sheet-mut);}
+.prov .pv{font-family:var(--font-mono); font-size:13px; color:var(--sheet-ink);}
+/* a provenance id is a fact — render it whole, never mid-truncated. The full id
+   wraps on its natural hyphen group rather than eliding into a "…". */
+.prov .pv.crawl-id{font-size:12px; letter-spacing:-.01em; word-break:break-all;}
+/* P7 grammar: word in readable ink, ◇ glyph carries the spread hue. */
+.prov .pv.cal{color:var(--sheet-mut); display:flex; align-items:center; gap:6px;}
+.prov .pv.cal .g{color:var(--sheet-spread);}
+.spine-rule{height:1px; background:var(--sheet-line); margin:18px 0;}
+.spine-note{
+  font-family:var(--font-serif); font-size:13px; line-height:1.6;
+  color:var(--sheet-mut); text-wrap:pretty;
+}
+
+/* --- main reading column --- */
+.col{padding:var(--space-section) 0 0 var(--space-section); min-width:0;}
+
+/* ====================== RECORD HEADER (Sheet, the title block) ====================== */
+.rec-head{margin-bottom:var(--space-section);}
+.rec-kicker{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--sheet-mut); display:flex; align-items:center; gap:10px;
+}
+.rec-h1{
+  margin:16px 0 0; font-family:var(--font-sans); font-size:2.0rem; line-height:1.08;
+  font-weight:600; letter-spacing:-.025em; color:var(--sheet-ink); text-wrap:balance; max-width:18ch;
+}
+.rec-lede{
+  margin:18px 0 0; max-width:62ch;
+  font-family:var(--font-serif); font-size:1.375rem; line-height:1.5;
+  color:var(--sheet-ink); font-weight:400; text-wrap:pretty; letter-spacing:-.005em;
+}
+
+/* ====================== §6.4 THE CONSOLE WELL — the one live estimate, inset ====================== */
+/* A single --console-900 framed reading inset into the Sheet. The ONLY dark
+   surface on this page. It carries the page's lone signal carrier + the lone
+   live reading. The uncalibrated readings inside it obey the Drift law. */
+.well{
+  position:relative; margin:0 0 var(--space-section);
+  background:var(--console-900); color:var(--text-hi);
+  border:1px solid var(--console-line); border-radius:var(--r-frame);
+  overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+/* §7.3 ONE Provenance Bar for this reading region (the only legend on the page) */
+.well-bar{
+  display:flex; align-items:center; gap:0; flex-wrap:wrap;
+  padding:11px 22px; border-bottom:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  color:var(--text-mut); background:var(--console-850);
+}
+.well-bar .dot{
+  width:6px;height:6px;border-radius:var(--r-dot);background:var(--signal);
+  margin-right:9px; flex:none; animation:breath 2s var(--ease-out) infinite;}
+@keyframes breath{0%,100%{opacity:1}50%{opacity:.5}}
+/* P7: separators are --text-mut, never --text-faint (disabled-only) */
+.well-bar .sep{color:var(--text-mut); opacity:.55; margin:0 8px;}
+/* P7: the running WORD "UNCALIBRATED" is --text-mut (AA); only the ◇ glyph
+   carries --spread-dim. Never paint running provenance words sub-AA. */
+.well-bar .u{color:var(--text-mut);}
+.well-bar .u .g{color:var(--spread-dim);}
+.well-body{
+  display:grid; grid-template-columns:minmax(0,1.08fr) minmax(0,1fr); gap:0;
+}
+@media (max-width:760px){ .well-body{grid-template-columns:1fr;} }
+
+/* left: the hero reading — dominates the region */
+.well-read{padding:26px 26px 24px 24px; display:flex; flex-direction:column;}
+.well-eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-mut); margin-bottom:16px;}
+/* R3 fix 2 — the marquee figure lands as ONE object. The big lime number is the
+   reading; ± and ◇ are tightened into a single quiet stamp unit on a baseline of
+   their own, beneath the number, not three competing colors/sizes on one line. */
+.hero-fig{display:flex; flex-direction:column; gap:7px;}
+/* drift law: the hero reading is uncalibrated ◇ → drifts, freezes on hover/focus */
+.hero-num{
+  font-family:var(--font-mono); font-weight:500; font-size:clamp(3.2rem,7.4vw,4.7rem);
+  line-height:.92; letter-spacing:-.018em; color:var(--signal);
+  font-feature-settings:"ss01","cv01","tnum"; display:block;
+}
+/* the stamp unit — ± and ◇ read as one quiet metadata object below the figure */
+.hero-stamp{
+  display:inline-flex; align-items:baseline; gap:7px; align-self:flex-start;
+  font-family:var(--font-mono); font-size:.95rem; letter-spacing:.01em;
+  padding-left:2px;}
+.hero-stamp .ci{color:var(--spread);}
+.hero-stamp .gl{color:var(--spread-dim); font-size:.85em;}
+.hero-stamp .lab{color:var(--text-mut); font-size:.72em; letter-spacing:.1em; text-transform:uppercase; margin-left:3px;}
+.hero-cap{
+  margin:18px 0 0; font-family:var(--font-sans); font-size:13px; line-height:1.55;
+  color:var(--text-mut); max-width:42ch;}
+.hero-cap b{color:var(--text); font-weight:450;}
+/* R3 fix 1 — the noise floor is a RECORDED decision threshold, not an estimate.
+   Reframed as a labelled floor token so it reads as a fact (bare, no ±/◇) and
+   stops impersonating an unstamped reading. --text-mut label, --text value. */
+.floor-row{
+  display:flex; align-items:baseline; gap:10px; margin-top:16px;
+  padding-top:14px; border-top:1px solid rgba(51,64,92,.5);}
+.floor-row .fk{
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--text-mut); white-space:nowrap;}
+.floor-row .fv{font-family:var(--font-mono); font-size:1rem; color:var(--text);}
+.floor-row .sep-sub{
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-mut); margin-left:auto;}
+/* the separation between reading and floor — a sharper comparative figure (craft).
+   This is an INFERRED gap (reading − floor) → it wears ◇. */
+.floor-row .gap{font-family:var(--font-mono); font-size:1rem; color:var(--text-hi); font-weight:500;}
+.floor-row .gap .gl{color:var(--spread-dim); font-size:.82em; margin-left:3px;}
+/* the well now carries ONE reading (§3.2): provenance bar + hero figure + poster.
+   The former 3-stat strip moved into the Sheet meta-grid ("Readings to date"). */
+
+/* right: the settled distribution — a FROZEN SVG poster (no Population Field).
+   R4 fix 2: a wider gutter (32px left) so the poster never crowds the hero
+   reading against the divider at the 760px break — the lone live moment is
+   given room to land with the authority the page builds toward. */
+.well-poster{
+  padding:22px 22px 22px 32px; border-left:1px solid rgba(51,64,92,.5);
+  display:flex; flex-direction:column;
+}
+@media (max-width:760px){ .well-poster{padding:22px; border-left:none; border-top:1px solid rgba(51,64,92,.5);} }
+.poster-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:14px;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--text-mut);}
+.poster-head .n b{color:var(--text); font-weight:500;}
+#poster{display:block; width:100%; height:172px;}
+/* P10: legend is interrogable, not glyph-soup — each row names one encoding,
+   the mean is labelled with its value + spread inline. */
+.poster-legend{
+  display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:13px;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; color:var(--text-mut);}
+.poster-legend .sw{display:inline-flex; align-items:center; gap:6px;}
+.poster-legend .b{width:10px; height:10px; border-radius:2px; flex:none;}
+.poster-legend .b.c{background:var(--arm-control);}
+.poster-legend .b.t{background:var(--arm-treat);}
+.poster-legend .ln{width:14px; height:0; border-top:2px solid var(--signal-dim); flex:none;}
+.poster-legend .rib{width:10px; height:10px; border-radius:2px; flex:none; background:var(--spread-wash); border:1px dashed var(--spread);}
+.poster-legend .mn{color:var(--text);}
+.poster-legend .mn b{color:var(--text-hi); font-weight:500;}
+.poster-legend .mn .ci{color:var(--spread);}
+.poster-legend .mn .g{color:var(--spread-dim);}
+
+/* ====================== META RECORD (Sheet, grouped by hairlines — no card) ====================== */
+.meta{margin-bottom:var(--space-section);}
+.sec-eyebrow{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--sheet-mut); display:flex; align-items:center; gap:12px; margin:0 0 20px;}
+.sec-eyebrow::after{content:""; flex:1; height:1px; background:var(--sheet-line);}
+.meta-grid{display:grid; grid-template-columns:1fr 1fr; gap:22px 36px;}
+.meta-grid .full{grid-column:1/-1;}
+.lbl{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--sheet-mut); display:block; margin-bottom:9px;}
+.chips{display:flex; flex-wrap:wrap; gap:6px;}
+.chip{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.03em;
+  border:1px solid var(--sheet-line); color:var(--sheet-mut);
+  border-radius:var(--r-well); padding:3px 8px; white-space:nowrap; background:var(--sheet-raised);
+}
+.chip.role{color:var(--sheet-ink); border-color:#C3C8D2;}
+.metric-line{
+  font-family:var(--font-serif); font-size:1.0625rem; line-height:1.6; color:var(--sheet-ink);
+  margin:0; max-width:64ch; text-wrap:pretty;}
+.metric-line b{font-weight:500;}
+.metric-line .mono{font-family:var(--font-mono); font-size:.9em;}
+
+/* ====================== REVERSE PRD (the document of record) ====================== */
+.prd{margin-bottom:var(--space-section);}
+.prd-prov{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--sheet-mut); padding-bottom:14px; margin-bottom:30px; border-bottom:1px solid var(--sheet-line);
+  display:flex; flex-wrap:wrap; gap:0 6px;}
+.prd-prov .sep{color:var(--sheet-line);}
+.prd-body{max-width:var(--measure);}
+.prd-body h2{
+  font-family:var(--font-sans); font-size:1.5rem; font-weight:600; letter-spacing:-.02em;
+  margin:var(--space-section) 0 14px; line-height:1.12; color:var(--sheet-ink); text-wrap:balance;}
+.prd-body h2:first-child{margin-top:0;}
+.prd-body .lede{
+  font-family:var(--font-serif); font-size:1.375rem; line-height:1.5; font-weight:400;
+  color:var(--sheet-ink); margin:0 0 var(--space-room); letter-spacing:-.005em; text-wrap:pretty;}
+.prd-body p{
+  font-family:var(--font-serif); font-size:1.0625rem; line-height:1.65;
+  margin:0 0 16px; color:var(--sheet-ink); text-wrap:pretty;}
+.prd-body ul,.prd-body ol{
+  font-family:var(--font-serif); font-size:1.0625rem; line-height:1.65;
+  margin:0 0 16px; padding-left:24px; color:var(--sheet-ink);}
+.prd-body li{margin-bottom:8px;}
+.prd-body li::marker{color:var(--sheet-mut);}
+.prd-body strong{font-weight:500;}
+.prd-body em{font-style:italic; color:var(--sheet-ink);}
+.prd-body code{
+  font-family:var(--font-mono); font-size:.86em;
+  background:var(--sheet-sunk); border-radius:3px; padding:1px 5px; color:var(--sheet-ink);}
+.prd-body .callout{
+  border-left:2px solid var(--sheet-spread); background:var(--spread-wash);
+  padding:14px 18px; border-radius:0 var(--r-well) var(--r-well) 0; margin:0 0 20px;}
+.prd-body .callout p{margin:0; font-size:1rem; line-height:1.6;}
+.prd-body .callout .tag{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--sheet-mut); display:block; margin-bottom:7px;}
+.prd-body .callout .tag .g{color:var(--sheet-spread);}
+.prd-body .callout .mono{font-family:var(--font-mono);}
+
+/* ====================== REVERSE FIGMA (companion spec, grouped by hairlines) ====================== */
+.figma{margin-bottom:var(--space-section);}
+.figma-prov{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--sheet-mut); padding-bottom:14px; margin-bottom:var(--space-room); border-bottom:1px solid var(--sheet-line);}
+.screen{
+  border-top:1px solid var(--sheet-line); padding:var(--space-room) 0;}
+.screen:first-of-type{border-top:none; padding-top:0;}
+.screen-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+.screen-head .nm{font-family:var(--font-sans); font-size:1.125rem; font-weight:600; letter-spacing:-.01em; color:var(--sheet-ink);}
+.comp-list{margin-top:16px; padding-left:18px; border-left:1px solid var(--sheet-line);
+  display:flex; flex-direction:column; gap:16px;}
+.comp .row{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
+.comp .crole{font-size:12px; color:var(--sheet-mut);}
+.comp .ctext{font-family:var(--font-serif); font-size:.9375rem; line-height:1.5; margin:6px 0 0; color:var(--sheet-ink);}
+.comp .states{
+  font-family:var(--font-mono); font-size:11px; color:var(--sheet-mut); margin:6px 0 0;
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+.comp .states .skey{letter-spacing:.1em; text-transform:uppercase; font-size:9.5px;}
+.comp .states .sname{
+  border:1px solid var(--sheet-line); border-radius:var(--r-well);
+  padding:1px 6px; color:var(--sheet-ink); background:var(--sheet);}
+.gate{ /* role-gated marker — arm tint = IDENTITY, never valence */
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+  padding:2px 6px; border-radius:var(--r-well); white-space:nowrap; border:1px solid; background:transparent;}
+.gate.c{color:#2C6B97; border-color:rgba(79,168,224,.55);}
+.gate.t{color:#9A4F7E; border-color:rgba(224,139,196,.6);}
+/* R4 fix 1 — the Reverse Figma was a spec dump: 3 screens × dense .comp/.states
+   chip lists read as a manifest, not a designed record. The load-bearing screen
+   (Home rail + the hypothesis-seam component) stays inline and breathes; the
+   secondary screens + exhaustive component states collapse behind a one-line
+   disclosure (§3.2 "collapse by default"). */
+.figdetails{border-top:1px solid var(--sheet-line); margin-top:4px;}
+.figdetails > summary{
+  list-style:none; cursor:pointer; padding:16px 0 0;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--sheet-mut); display:flex; align-items:baseline; gap:10px;
+  transition:color .14s var(--ease-out);}
+.figdetails > summary:hover{color:var(--sheet-ink);}
+.figdetails > summary::-webkit-details-marker{display:none;}
+.figdetails > summary .tw{
+  font-size:13px; line-height:1; transition:transform .18s var(--ease-out); color:var(--sheet-mut);}
+.figdetails[open] > summary .tw{transform:rotate(90deg);}
+.figdetails > summary .ct{margin-left:auto; color:var(--sheet-mut); letter-spacing:.04em;}
+.figdetails[open] > summary{color:var(--sheet-ink);}
+.figdetails .screen:first-of-type{border-top:1px solid var(--sheet-line); padding-top:var(--space-room); margin-top:16px;}
+.transitions{margin-top:var(--space-room);}
+.transitions .lbl{margin-bottom:12px;}
+.trans-row{
+  display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  padding:10px 0; border-top:1px solid var(--sheet-line);}
+.trans-row:first-of-type{border-top:none;}
+.trans-row .trig{font-size:.9375rem; color:var(--sheet-ink);}
+.trans-row .flow{font-family:var(--font-mono); font-size:12px; color:var(--sheet-mut);}
+.trans-row .flow .ar{color:var(--sheet-spread);}
+
+/* ====================== LINKED SIMULATIONS (the logbook) ====================== */
+.linkrail{margin-bottom:var(--space-section);}
+/* R4 fix 3 — the second editorial beat. The lower half was a flat, even-toned
+   run; the logbook header now carries a small focal LIFT STAMP (the latest A/B
+   lift on the seam) so the record has a focal point after the well. It is an
+   INFERRED reading → it wears ± + ◇ (§7.2/P8); rendered in ink + glyph, no
+   valence color (§1.8). The eyebrow rule yields to the stamp on its right. */
+.log-head{
+  display:flex; align-items:baseline; gap:16px; margin:0 0 22px;}
+.log-head .ttl{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--sheet-mut); white-space:nowrap; flex:none;}
+.log-head .rule{flex:1; height:1px; background:var(--sheet-line); align-self:center;}
+.lift-stamp{
+  display:inline-flex; align-items:baseline; gap:8px; flex:none;
+  padding-left:16px; border-left:1px solid var(--sheet-line);}
+.lift-stamp .sk{
+  font-family:var(--font-mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--sheet-mut); align-self:center;}
+.lift-stamp .num{
+  font-family:var(--font-mono); font-size:1.5rem; font-weight:500; line-height:1;
+  letter-spacing:-.01em; color:var(--sheet-ink); font-feature-settings:"tnum";}
+.lift-stamp .ci{font-family:var(--font-mono); font-size:.8125rem; color:var(--sheet-spread);}
+.lift-stamp .g{font-family:var(--font-mono); font-size:.8125rem; color:var(--sheet-spread);}
+.simrow{
+  display:grid; grid-template-columns:1fr auto auto; gap:20px; align-items:center;
+  padding:13px 6px; border-top:1px solid var(--sheet-line);
+  text-decoration:none; color:inherit; transition:background .14s var(--ease-out);}
+.simrow:hover{background:var(--sheet-sunk);}
+.simrow .hyp{font-size:.9375rem; color:var(--sheet-ink); min-width:0;}
+.simrow .when{font-family:var(--font-mono); font-size:11px; color:var(--sheet-mut); white-space:nowrap;}
+/* verdict in INK + glyph + provenance — NO valence color. ◆ graded, ◇ uncal. */
+.simrow .verdict{
+  font-family:var(--font-mono); font-size:13px; color:var(--sheet-ink);
+  display:flex; align-items:baseline; gap:8px; justify-content:flex-end; min-width:178px; white-space:nowrap;}
+.simrow .verdict .cls{letter-spacing:.04em; text-transform:uppercase; font-size:11px; color:var(--sheet-mut);}
+.simrow .verdict .g{color:var(--sheet-spread);}
+.simrow .verdict .num{color:var(--sheet-ink);}
+.simrow .verdict .ci{color:var(--sheet-spread); font-size:11px;}
+
+footer.recfoot{
+  padding-top:var(--space-room); border-top:1px solid var(--sheet-line);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--sheet-mut);
+  display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap;}
+footer.recfoot a{text-decoration:none; border-bottom:1px solid transparent; color:var(--sheet-ink);}
+footer.recfoot a:hover{border-bottom-color:var(--sheet-ink);}
+
+@media (max-width:1000px){
+  .record{grid-template-columns:1fr;}
+  .spine{border-right:none; border-bottom:1px solid var(--sheet-line); padding:var(--space-room) 0;}
+  .spine-sticky{position:static;}
+  .col{padding:var(--space-room) 0 0;}
+  .meta-grid{grid-template-columns:1fr;}
+}
+
+/* ---- §5.6 DRIFT LAW + P10: the resting hero reading is LEGIBLE (the page's
+   reason-to-exist must be the visual focus, not the faintest thing). The marquee
+   figure rests at full ink/signal; the ONLY uncalibrated cue is the ≤2px drift.
+   The glyph ◇ + the provenance bar carry "uncalibrated", not a faded figure. ---- */
+@keyframes uncal-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
+.uncalibrated{animation:uncal-drift 15s var(--ease-settle) infinite;}
+.uncalibrated:hover, .uncalibrated:focus-within{animation-play-state:paused;}
+/* pause drift after 20s idle (added via JS) */
+.uncalibrated.idle{animation-play-state:paused;}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important; transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="sheet-bg"></div>
+
+<!-- ===================== SHEET TOP BAR (route-locked light) ===================== -->
+<div class="sheetbar">
+  <span class="wordmark">SIDIRA</span>
+  <span class="route-desig">Library · Capability record</span>
+  <a class="crumb" href="#">← All capabilities</a>
+</div>
+
+<!-- ===================== RECORD ===================== -->
+<div class="record">
+
+  <!-- §7.4 Provenance Spine -->
+  <aside class="spine">
+    <div class="spine-sticky">
+      <div class="spine-tab">Provenance Spine</div>
+      <div class="prov"><span class="pk">Snapshot</span><span class="pv">2026-W25</span></div>
+      <div class="prov"><span class="pk">Captured</span><span class="pv">2026-06-12</span></div>
+      <div class="prov"><span class="pk">Source crawl</span><span class="pv crawl-id">cr-924718-699c21</span></div>
+      <div class="prov"><span class="pk">Customer</span><span class="pv">org_3F9pXz</span></div>
+      <div class="prov"><span class="pk">Pack version</span><span class="pv">feat · v_4</span></div>
+      <div class="prov"><span class="pk">Seed</span><span class="pv">0x4f</span></div>
+      <div class="prov"><span class="pk">Model</span><span class="pv">llama-3.3-70b</span></div>
+      <div class="prov"><span class="pk">Sample n</span><span class="pv">1,240</span></div>
+      <div class="prov"><span class="pk">Calibration</span><span class="pv cal"><span class="g">◇</span> Uncalibrated</span></div>
+      <div class="spine-rule"></div>
+      <p class="spine-note">Provenance comes from the same read that served this record. The header can never label a capability with another snapshot's date.</p>
+    </div>
+  </aside>
+
+  <!-- main reading column -->
+  <main class="col">
+
+    <!-- record title block (Sheet ink) -->
+    <header class="rec-head">
+      <div class="rec-kicker">Discovery domain · As-built record</div>
+      <h1 class="rec-h1">Continue&nbsp;Watching shelf</h1>
+      <p class="rec-lede">The resume rail on the Streamly home screen — the single most-used path back into a partially-watched title. Below is what was crawled; one live estimate of how the population behaves around it is held in the well.</p>
+    </header>
+
+    <!-- §6.4 THE CONSOLE WELL — the one live estimate, inset into the Sheet -->
+    <section class="well elevated" aria-label="Live reading">
+      <!-- §7.3 the page's ONE Provenance Bar -->
+      <div class="well-bar">
+        <span class="dot" aria-hidden="true"></span>
+        CH1<span class="sep">·</span>STREAMLY<span class="sep">·</span>n=1,240<span class="sep">·</span>seed 0x4f<span class="sep">·</span>groq/llama-3.3-70b<span class="sep">·</span>2026-W25<span class="sep">·</span><span class="u"><span class="g">◇</span> UNCALIBRATED</span>
+      </div>
+
+      <div class="well-body">
+        <!-- left: hero reading (dominates) -->
+        <div class="well-read">
+          <div class="well-eyebrow">Implicit metric · resume rate · live estimate</div>
+
+          <div class="hero-fig uncalibrated" tabindex="0">
+            <span class="hero-num">0.71</span>
+            <span class="hero-stamp"><span class="ci">±0.05</span><span class="gl">◇</span><span class="lab">Uncalibrated</span></span>
+          </div>
+          <p class="hero-cap">Share of returning viewers who restart a partially-watched title from the shelf within a day's first session. <b>Estimated</b>, not measured.</p>
+
+          <!-- R3 fix 1 + craft: the noise floor is a recorded threshold (bare fact),
+               and the reading−floor SEPARATION is the sharper comparative figure. -->
+          <div class="floor-row">
+            <span class="fk">Noise floor</span>
+            <span class="fv">0.58</span>
+            <span class="gap">+0.13<span class="gl">◇</span></span>
+            <span class="sep-sub">above floor</span>
+          </div>
+        </div>
+
+        <!-- right: settled distribution = frozen SVG poster (NO Population Field) -->
+        <div class="well-poster">
+          <div class="poster-head">
+            <span>Settled distribution</span>
+            <span class="n"><b>620</b>/<b>620</b> arm split</span>
+          </div>
+          <svg id="poster" viewBox="0 0 460 172" preserveAspectRatio="none" role="img"
+               aria-label="Settled reaction distribution: control arm centered near 0.30 and treatment arm near 0.42, with a spread confidence band around the population mean of 0.36 ±0.06. Static poster."></svg>
+          <div class="poster-legend">
+            <span class="sw"><span class="b c"></span>Control · μ 0.30</span>
+            <span class="sw"><span class="b t"></span>Treatment · μ 0.42</span>
+            <span class="sw"><span class="ln"></span>Mean</span>
+            <span class="sw"><span class="rib"></span>Spread band</span>
+            <span class="sw mn">Pop mean <b>0.36</b><span class="ci">±0.06</span> <span class="g">◇</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== META RECORD (grouped by hairlines, no card) ===================== -->
+    <section class="meta">
+      <div class="sec-eyebrow">Capability map</div>
+      <div class="meta-grid">
+        <div>
+          <span class="lbl">Roles</span>
+          <div class="chips">
+            <span class="chip role">VIEWER</span>
+            <span class="chip role">RETURNING_VIEWER</span>
+            <span class="chip role">KIDS_PROFILE</span>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Surfaces</span>
+          <div class="chips">
+            <span class="chip">home/web</span>
+            <span class="chip">home/tv-ctv</span>
+            <span class="chip">home/mobile</span>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Entry points</span>
+          <div class="chips">
+            <span class="chip">app_launch → home</span>
+            <span class="chip">tab:Home</span>
+            <span class="chip">deep_link:resume</span>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Domain</span>
+          <div class="chips"><span class="chip">Discovery &amp; resume</span></div>
+        </div>
+        <div class="full">
+          <span class="lbl">Implicit metric</span>
+          <p class="metric-line"><b>Resume rate</b> — share of returning viewers who restart a partially-watched title from the shelf within the first session of a calendar day. Held as a live estimate in the well above: <span class="mono">0.71 ±0.05 ◇</span>. The recorded <b>noise floor</b> — the resume rate a shuffled control would post by chance — is a fixed threshold of <span class="mono">0.58</span>; the reading sits <span class="mono">+0.13 ◇</span> above it.</p>
+        </div>
+        <div class="full">
+          <span class="lbl">Readings to date</span>
+          <p class="metric-line"><b>7 simulations</b> run against this capability, modeling a cohort of <span class="mono">1,240 agents</span>. The most recent A/B lift on the resume seam is <span class="mono">+3.6 ±1.4pp ◇</span> — directional, not graded. Sims and cohort size are recorded counts; the lift is inferred.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== REVERSE PRD ===================== -->
+    <section class="prd">
+      <div class="prd-prov">
+        Reverse PRD<span class="sep">·</span>Continue Watching shelf<span class="sep">·</span>Snapshot 2026-W25<span class="sep">·</span>2026-06-12
+      </div>
+      <div class="prd-body">
+        <p class="lede">A returning viewer should land on Streamly and reach the thing they were already watching in one move: no search, no scroll, no re-deciding.</p>
+
+        <h2>Problem</h2>
+        <p>Most Streamly sessions are resumptions, not discoveries. A viewer who paused episode 4 the night before does not want to be re-sold the catalog; they want to press play. When the resume path sits below promoted carousels, the cost shows up as abandoned sessions and a slow erosion of the habit that makes the service sticky.</p>
+        <p>The shelf exists to collapse that path to a single, predictable gesture. It is the first horizontally-scrolling rail on the home screen for any viewer with an in-progress title, ordered by recency of last interaction rather than editorial weight.</p>
+
+        <h2>Who it serves</h2>
+        <ul>
+          <li><strong>Returning viewers</strong> mid-series — the dominant case. Resume to the exact timecode, with a progress bar showing how far they are.</li>
+          <li><strong>Multi-device viewers</strong> who start on TV and continue on mobile. Cross-device progress reconciles within about 30s of the paused session ending.</li>
+          <li><strong>Kids profiles</strong>, where the shelf is filtered to age-rated in-progress titles and shows no new-and-trending bleed-through.</li>
+        </ul>
+
+        <h2>Behavior</h2>
+        <p>Each card shows poster art, a thin progress fill at the lower edge, and a resume label (<code>S4·E4 · 18m left</code>). Tapping a card resumes playback at the stored timecode. The card is not a route to the title's detail page — a deliberate, debated choice, since the capability is about removing a step.</p>
+        <p>A long-press (or the overflow control on web) opens a small menu: remove from row, start over, and go to series. Removing a title is permanent for that profile and is the only way a finished title leaves the shelf early.</p>
+
+        <div class="callout">
+          <span class="tag"><span class="g">◇</span> Reading note · uncalibrated</span>
+          <p>The resume rate is a simulated estimate against the W25 persona pack, not a measured production figure. It tracks direction reliably but is not yet graded against live telemetry. Treat the <span class="mono">±0.05</span> band as the floor of what we know, not the ceiling.</p>
+        </div>
+
+        <h2>Ordering and eviction</h2>
+        <ol>
+          <li>Titles are sorted by <code>last_watched_at</code> descending; ties broken by <code>updated_progress_at</code>.</li>
+          <li>A title is evicted when it reaches 95% complete and the next episode has been surfaced, or when manually removed.</li>
+          <li>The shelf is capped at 20 titles; the tail is dropped silently rather than paginated.</li>
+        </ol>
+
+        <h2>Open questions</h2>
+        <p>Whether a card should route to the next episode rather than resume the current one once a title is 95% complete is the live hypothesis under test. Three of the seven readings below probe exactly this seam. The population splits on it, and the split is itself the finding.</p>
+      </div>
+    </section>
+
+    <!-- ===================== REVERSE FIGMA ===================== -->
+    <section class="figma">
+      <div class="figma-prov">Reverse Figma · 3 screens · 4 transitions · role-gated components marked</div>
+
+      <!-- the load-bearing screen, given room: the two components the record
+           actually turns on — the card itself, and the next-episode seam the
+           live hypothesis tests. The rest collapses below. -->
+      <div class="screen">
+        <div class="screen-head">
+          <span class="nm">Home — Continue Watching rail</span>
+          <span class="chip">scr_home_cw</span>
+          <span class="gate c">VIEWER</span>
+        </div>
+        <div class="comp-list">
+          <div class="comp">
+            <div class="row">
+              <span class="chip">cmp_cw_card</span>
+              <span class="crole">title card · resumes at stored timecode</span>
+            </div>
+            <p class="ctext">Poster · progress fill · “S4·E4 · 18m left”. The card resumes playback rather than routing to detail — the deliberate one-gesture choice the capability is built on.</p>
+            <p class="states"><span class="skey">States</span><span class="sname">in-progress</span><span class="sname">near-complete</span><span class="sname">cross-device-synced</span></p>
+          </div>
+          <div class="comp">
+            <div class="row">
+              <span class="chip">cmp_next_ep_cta</span>
+              <span class="crole">next-episode prompt · ≥95% complete</span>
+            </div>
+            <p class="ctext">Surfaces only when the resumed title is near-complete — the seam the live hypothesis splits on, and the reason three of the seven readings exist.</p>
+          </div>
+        </div>
+      </div>
+
+      <details class="figdetails">
+        <summary><span class="tw">›</span>Full component states &amp; secondary screens<span class="ct">2 screens · 5 components</span></summary>
+
+        <div class="screen">
+          <div class="screen-head">
+            <span class="nm">Home — Continue Watching rail</span>
+            <span class="chip">scr_home_cw</span>
+            <span class="gate c">VIEWER</span>
+          </div>
+          <div class="comp-list">
+            <div class="comp">
+              <div class="row">
+                <span class="chip">cmp_cw_overflow</span>
+                <span class="crole">long-press / ⋯ menu</span>
+              </div>
+              <p class="ctext">Remove from row · Start over · Go to series</p>
+              <p class="states"><span class="skey">States</span><span class="sname">closed</span><span class="sname">open</span><span class="sname">confirm-remove</span></p>
+            </div>
+            <div class="comp">
+              <div class="row">
+                <span class="chip">cmp_cw_empty</span>
+                <span class="crole">empty rail · suppresses the entire shelf</span>
+              </div>
+              <p class="ctext">The shelf is suppressed when no in-progress titles exist — never shown empty.</p>
+            </div>
+            <div class="comp">
+              <div class="row">
+                <span class="chip">cmp_cw_kids_filter</span>
+                <span class="crole">age-rated filter</span>
+                <span class="gate t">KIDS_PROFILE</span>
+              </div>
+              <p class="ctext">Filters to age-rated in-progress titles; suppresses new-and-trending bleed-through.</p>
+              <p class="states"><span class="skey">States</span><span class="sname">active</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="screen">
+          <div class="screen-head">
+            <span class="nm">Player — resume from timecode</span>
+            <span class="chip">scr_player_resume</span>
+            <span class="gate c">VIEWER</span>
+          </div>
+          <div class="comp-list">
+            <div class="comp">
+              <div class="row">
+                <span class="chip">cmp_resume_toast</span>
+                <span class="crole">resume confirmation</span>
+              </div>
+              <p class="ctext">“Resuming from 18:42” · auto-dismiss 4s · tap to restart</p>
+              <p class="states"><span class="skey">States</span><span class="sname">shown</span><span class="sname">restart-tapped</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="screen">
+          <div class="screen-head">
+            <span class="nm">Kids — filtered home</span>
+            <span class="chip">scr_home_kids</span>
+            <span class="gate t">KIDS_PROFILE</span>
+          </div>
+          <div class="comp-list">
+            <div class="comp">
+              <div class="row">
+                <span class="chip">cmp_cw_card</span>
+                <span class="crole">card · age-rated only</span>
+                <span class="gate t">KIDS_PROFILE</span>
+              </div>
+              <p class="ctext">Same card component, gated to the kids catalog; the overflow menu hides “Go to series”.</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="transitions">
+        <span class="lbl">Transitions</span>
+        <div class="trans-row">
+          <span class="trig">Tap card</span>
+          <span class="flow">scr_home_cw <span class="ar">→</span> scr_player_resume</span>
+        </div>
+        <div class="trans-row">
+          <span class="trig">Long-press → Remove</span>
+          <span class="flow">scr_home_cw <span class="ar">→</span> scr_home_cw</span>
+          <span class="gate c">VIEWER</span>
+        </div>
+        <div class="trans-row">
+          <span class="trig">Title ≥95% → next episode</span>
+          <span class="flow">scr_player_resume <span class="ar">→</span> scr_player_resume</span>
+        </div>
+        <div class="trans-row">
+          <span class="trig">Switch to kids profile</span>
+          <span class="flow">scr_home_cw <span class="ar">→</span> scr_home_kids</span>
+          <span class="gate t">KIDS_PROFILE</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== LINKED SIMULATIONS (logbook) ===================== -->
+    <section class="linkrail">
+      <div class="log-head">
+        <span class="ttl">Readings against this capability · 7 simulations</span>
+        <span class="rule"></span>
+        <span class="lift-stamp">
+          <span class="sk">Latest&nbsp;lift</span>
+          <span class="num">+3.6</span><span class="ci">±1.4pp</span><span class="g">◇</span>
+        </span>
+      </div>
+      <a class="simrow" href="#">
+        <span class="hyp">Route near-complete card to next episode instead of resume</span>
+        <span class="when">2026-W25 · 2d ago</span>
+        <span class="verdict"><span class="cls">Directional</span> <span class="num">+3.6</span><span class="ci">±1.4pp</span> <span class="g">◇</span></span>
+      </a>
+      <a class="simrow" href="#">
+        <span class="hyp">Promote shelf above the editorial hero on TV</span>
+        <span class="when">2026-W25 · 4d ago</span>
+        <span class="verdict"><span class="cls">Test first</span> <span class="num">+0.9</span><span class="ci">±2.1pp</span> <span class="g">◇</span></span>
+      </a>
+      <a class="simrow" href="#">
+        <span class="hyp">Show “new episodes” badge on in-progress series</span>
+        <span class="when">2026-W24 · 9d ago</span>
+        <span class="verdict"><span class="cls">Directional</span> <span class="num">+2.2</span><span class="ci">±0.9pp</span> <span class="g">◇</span></span>
+      </a>
+      <a class="simrow" href="#">
+        <span class="hyp">Cap shelf at 12 titles, drop the long tail</span>
+        <span class="when">2026-W24 · 11d ago</span>
+        <span class="verdict"><span class="cls">Test first</span> <span class="num">−0.4</span><span class="ci">±1.7pp</span> <span class="g">◇</span></span>
+      </a>
+    </section>
+
+    <footer class="recfoot">
+      <span>RECORD · CONTINUE WATCHING SHELF · 2026-W25 · ◇ UNCALIBRATED</span>
+      <span><a href="#">← Back to the Library</a></span>
+    </footer>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   THE SETTLED DISTRIBUTION POSTER — Tier-3 static SVG (§5.5).
+   This page is a RECORD; it does NOT earn the live Population Field.
+   We render the SAME value-series → polyline math as a FROZEN poster:
+   control/treatment arm-tint histogram + a --spread CI ribbon + a
+   phosphor-underdraw mean trace that self-draws ONCE (700ms). No drift,
+   no wavefront, no looping canvas. One reading, settled.
+   ============================================================ */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* shared reaction model: each agent has a reaction score in [-1,1] */
+const N = 1240;
+const agents = [];
+let seed = 0x4f9a2;
+function rng(){ seed^=seed<<13; seed^=seed>>>17; seed^=seed<<5; return ((seed>>>0)/4294967296); }
+function gauss(){ let u=0,v=0; while(!u)u=rng(); while(!v)v=rng();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+for(let i=0;i<N;i++){
+  const arm = i < N/2 ? 0 : 1;           // 0 control · 1 treatment
+  const center = arm===0 ? 0.30 : 0.42;  // treatment shifts right (+lift) — identity, not valence
+  let s = center + gauss()*0.30;
+  s = Math.max(-1, Math.min(1, s));
+  agents.push({ s, arm });
+}
+
+(function(){
+  const svg = document.getElementById('poster');
+  const NS='http://www.w3.org/2000/svg';
+  /* P10: an interrogable poster. Reserve a labelled axis strip at the bottom
+     (0 · 0.5 · 1.0 reaction) and headroom at top for the mean callout. */
+  const W=460,H=172, padB=30, padT=22, padX=4;
+  const BINS=44;
+  const counts=new Array(BINS).fill(0);
+  const armCounts=new Array(BINS).fill(0); // treatment per bin
+  agents.forEach(a=>{
+    const b=Math.min(BINS-1,Math.floor((a.s+1)/2*BINS));
+    counts[b]++; if(a.arm===1) armCounts[b]++;
+  });
+  const maxC=Math.max(...counts);
+  const bw=(W-padX*2)/BINS;
+  const x=b=>padX+b*bw;
+  const y=c=>H-padB-(c/maxC)*(H-padB-padT);
+
+  function add(tag,attrs,text){ const el=document.createElementNS(NS,tag);
+    for(const k in attrs) el.setAttribute(k,attrs[k]);
+    if(text!=null) el.textContent=text; svg.appendChild(el); return el; }
+
+  const mean=agents.reduce((s,a)=>s+a.s,0)/N;          // raw reaction-axis mean ≈ 0.36 in [0,1] frame below
+  const mean01=(mean+1)/2;                              // map [-1,1] → [0,1]
+  const meanB=mean01*BINS;
+  const ciHalf=0.06;                                    // ±0.06 on the [0,1] reaction axis
+
+  // CI ribbon around the mean — --spread-wash (drawn first, behind bars)
+  const ribX=padX+(mean01-ciHalf)*(W-padX*2);
+  const ribW=(2*ciHalf)*(W-padX*2);
+  add('rect',{x:ribX,y:padT,width:ribW,height:H-padB-padT,fill:'rgba(200,182,138,.16)',
+    stroke:'#C8B68A','stroke-width':1,'stroke-dasharray':'2 4','stroke-opacity':.5});
+
+  // noise-floor dashed line (uncalibrated marker) — --spread
+  const floorY=H-padB-0.18*(H-padB-padT);
+  add('line',{x1:padX,x2:W-padX,y1:floorY,y2:floorY,stroke:'#C8B68A','stroke-width':1,'stroke-dasharray':'3 5',opacity:.5});
+
+  // split-fill bars: control (blue) base + treatment (magenta) overlay — arm identity.
+  // P10: arms at ≥0.6 α so the settled distribution reads, not collapses to texture.
+  counts.forEach((c,b)=>{
+    if(c===0) return;
+    const ctrl=c-armCounts[b];
+    const x0=x(b)+0.5, w=Math.max(0.6,bw-1), fullH=(H-padB)-y(c);
+    const ch=(ctrl/c)*fullH;
+    add('rect',{x:x0,width:w,y:H-padB-ch,height:ch,fill:'#4FA8E0',opacity:.66});       // control
+    add('rect',{x:x0,width:w,y:y(c),height:fullH-ch,fill:'#E08BC4',opacity:.66});       // treatment
+  });
+
+  // baseline axis (hairline) + reaction-axis tick labels (P10: a baseline + scale)
+  add('line',{x1:padX,x2:W-padX,y1:H-padB,y2:H-padB,stroke:'#33405C','stroke-width':1,opacity:.6});
+  const axStyle={'font-family':'Geist Mono, monospace','font-size':'9.5px',fill:'#929BAE'};
+  [['0.0',padX,'start'],['0.5',padX+0.5*(W-padX*2),'middle'],['1.0',W-padX,'end']].forEach(([t,xx,anc])=>{
+    add('line',{x1:xx,x2:xx,y1:H-padB,y2:H-padB+4,stroke:'#33405C','stroke-width':1,opacity:.6});
+    add('text',{x:xx,y:H-padB+15,'text-anchor':anc,...axStyle},t);
+  });
+  add('text',{x:(padX+W-padX)/2,y:H-2,'text-anchor':'middle',...axStyle,fill:'#929BAE','letter-spacing':'.06em'},'REACTION  →  ADOPT');
+
+  // smoothed mean-envelope trace (the reading) with phosphor underdraw.
+  // P5: STATIC poster ⇒ --signal-dim, never the bright live --signal.
+  const pts=counts.map((c,b)=>[x(b)+bw/2,y(c)]);
+  let d='M'+pts[0][0]+','+pts[0][1];
+  for(let i=1;i<pts.length;i++){
+    const [px,py]=pts[i-1],[cx,cy]=pts[i];
+    const mx=(px+cx)/2; d+=` Q ${px},${py} ${mx},${(py+cy)/2}`;
+  }
+  d+=` L ${pts[pts.length-1][0]},${pts[pts.length-1][1]}`;
+  // underdraw (5px / 18% echo — CRT persistence, never CSS glow)
+  const under=add('path',{d,fill:'none',stroke:'#39B894','stroke-width':5,opacity:.16,'stroke-linecap':'round'});
+  const line=add('path',{d,fill:'none',stroke:'#39B894','stroke-width':1.6,'stroke-linecap':'round','stroke-linejoin':'round'});
+
+  // mean marker tick + label — settled, NOT a live reading ⇒ --signal-dim
+  const mx=x(meanB);
+  add('line',{x1:mx,x2:mx,y1:padT-2,y2:H-padB,stroke:'#39B894','stroke-width':1,opacity:.85});
+  add('text',{x:Math.min(mx+6,W-padX-2),y:padT+7,'text-anchor': mx>W*0.7?'end':'start',
+    'font-family':'Geist Mono, monospace','font-size':'10px',fill:'#C6CCD8'},'μ 0.36');
+  add('text',{x:Math.min(mx+6,W-padX-2),y:padT+19,'text-anchor': mx>W*0.7?'end':'start',
+    'font-family':'Geist Mono, monospace','font-size':'9px',fill:'#C8B68A'},'±0.06 ◇');
+
+  // trace self-draws ONCE on first paint (700ms --ease-mech), then rests. No loop.
+  if(!REDUCED){
+    const len=line.getTotalLength();
+    [line,under].forEach(el=>{
+      el.style.strokeDasharray=len; el.style.strokeDashoffset=len;
+      el.style.transition='stroke-dashoffset 700ms cubic-bezier(.32,.72,0,1)';
+    });
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      line.style.strokeDashoffset='0'; under.style.strokeDashoffset='0';
+    }));
+  }
+})();
+
+/* §5.6 DRIFT LAW — pause uncalibrated drift after 20s of idle (no interaction).
+   CSS already freezes on hover/focus + reduced-motion. */
+(function(){
+  if(REDUCED) return;
+  const drifters=document.querySelectorAll('.uncalibrated');
+  let timer=null;
+  function idle(){ drifters.forEach(el=>el.classList.add('idle')); }
+  function wake(){ drifters.forEach(el=>el.classList.remove('idle'));
+    clearTimeout(timer); timer=setTimeout(idle,20000); }
+  ['mousemove','keydown','scroll','pointerdown'].forEach(ev=>
+    window.addEventListener(ev,wake,{passive:true}));
+  wake();
+})();
+</script>
+</body>
+</html>

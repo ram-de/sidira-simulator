@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product · Grounded simulations — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────────────────────────────────────────────────
+   SIDIRA — THE READING CONSOLE · v2 · Product page (Console / WORKING)
+   IMPACT BUDGET: this page is WORKING-class. The crawler is infrastructure,
+   not the computation — so NO full-bleed Population Field. The hero showpiece
+   is a quiet, inspectable ARTIFACT BROWSER (the real product output). A single
+   static distribution poster (SVG) appears once, where a real reading lives.
+   80% of the page is brutally quiet: ink, hairline, negative space.
+   ─────────────────────────────────────────────────────────────────── */
+:root{
+  /* Console (dark) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear [v2-fix] */
+  --text-faint:#646E84;                                   /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  /* no --verdict-ship / --verdict-hold token — a verdict is not a color */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-variant-numeric:tabular-nums;}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{
+  background:var(--console-900);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+::selection{background:var(--signal-wash);color:var(--text-hi);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+a{color:inherit;text-decoration:none;}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px;}
+.mono{font-family:var(--font-mono);}
+.tnum{font-variant-numeric:tabular-nums;}
+
+/* designator chip — provenance, not decoration ─────────────────── */
+.desig{
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);
+}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);
+  padding:3px 8px;white-space:nowrap;
+}
+
+/* status dot — RESTING on an idle snapshot page (no run is live here),
+   so it is ink, not lime, and does NOT breathe. The page stamps
+   "NO READING RUNNING"; a perpetual live cue would contradict that (P2/P3). */
+.dot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--text-mut);flex:0 0 auto;opacity:.85;}
+
+/* glyphs — the ◇ glyph (and only the glyph / ± value) may wear spread-dim (P7).
+   Running WORDS never use spread-dim; they use --text-mut or brighter. */
+.gh{color:var(--spread-dim);}   /* ◇ uncalibrated glyph ONLY */
+.gf{color:var(--signal-dim);}   /* ◆ graded glyph */
+.word-unc{color:var(--text-mut);}  /* the running word "UNCALIBRATED" / "UNCAL" */
+
+/* ── TOP BAR ─────────────────────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:50;height:52px;
+  background:rgba(16,25,42,.86);backdrop-filter:blur(14px) saturate(140%);
+  -webkit-backdrop-filter:blur(14px) saturate(140%);
+  border-bottom:1px solid rgba(51,64,92,.5);
+}
+.topbar .wrap{height:100%;display:flex;align-items:center;gap:22px;}
+.wordmark{font-weight:600;letter-spacing:.06em;color:var(--text-hi);font-size:15px;}
+.topbar nav{display:flex;gap:2px;margin-left:8px;}
+.topbar nav a{
+  font-size:13.5px;color:var(--text-mut);padding:7px 12px;border-radius:var(--r-well);
+  transition:color .14s var(--ease-out);position:relative;
+}
+.topbar nav a:hover{color:var(--text-hi);}
+.topbar nav a.active{color:var(--text-hi);}
+.topbar nav a.active::after{
+  content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;
+  background:var(--signal-dim);border-radius:2px;
+}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.legend-global{
+  display:flex;align-items:center;gap:8px;font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.05em;color:var(--text-mut);
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:36px;padding:0 16px;border-radius:var(--r-well);font-family:var(--font-sans);
+  font-weight:500;font-size:14px;cursor:pointer;border:1px solid var(--console-line);
+  transition:background .14s var(--ease-out),color .14s var(--ease-out),transform .14s var(--ease-out);
+  white-space:nowrap;
+}
+.btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.btn-primary{background:var(--console-700);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.btn-primary:hover{background:var(--console-750);}
+.btn-primary:active{transform:translateY(1px);}
+.btn-live{background:transparent;border-color:var(--signal);color:var(--signal);}
+.btn-live:hover{background:var(--signal-wash);}
+.btn-live:active{transform:translateY(1px);}
+.btn-secondary{background:transparent;color:var(--text);border-color:var(--console-line);}
+.btn-secondary:hover{background:var(--console-800);color:var(--text-hi);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-mut);}
+.btn-ghost:hover{color:var(--text-hi);}
+.btn.hero{height:44px;padding:0 22px;font-size:15px;}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+/* One decorative eyebrow on the page lives here. The showpiece is the
+   artifact browser on the right — the actual thing the product emits. */
+.hero{position:relative;border-bottom:1px solid rgba(51,64,92,.5);overflow:hidden;}
+.hero-bg{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(80% 70% at 78% 16%, rgba(79,168,224,.05), transparent 60%),
+    linear-gradient(180deg, var(--console-850) 0%, var(--console-900) 100%);
+}
+.hero .wrap{position:relative;z-index:2;padding-top:104px;padding-bottom:104px;}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) 512px;gap:72px;align-items:center;}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:28px;}
+/* eyebrow rule is brand chrome, not a reading → neutral ink, not signal (P2) */
+.eyebrow .rule{width:34px;height:1px;background:linear-gradient(90deg,var(--text-mut),transparent);}
+h1.display{
+  font-size:clamp(2.6rem,5vw,4.2rem);line-height:1.0;letter-spacing:-.035em;
+  font-weight:700;color:var(--text-hi);text-wrap:balance;margin-bottom:26px;
+}
+.lede-c{font-size:1.18rem;line-height:1.55;color:var(--text);max-width:40ch;letter-spacing:-.005em;font-weight:450;}
+.lede-c b{color:var(--text-hi);font-weight:550;}
+.hero-cta{display:flex;gap:12px;margin-top:36px;align-items:center;flex-wrap:wrap;}
+.hero-meta{margin-top:44px;display:flex;gap:40px;flex-wrap:wrap;}
+.hero-meta .stat{display:flex;flex-direction:column;gap:5px;}
+.hero-meta .v{font-family:var(--font-mono);font-size:1.5rem;font-weight:500;color:var(--text-hi);line-height:1;}
+.hero-meta .v .u{font-size:.78rem;color:var(--text-mut);margin-left:5px;}
+.hero-meta .k{font-family:var(--font-mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-mut);}
+
+/* ── THE ARTIFACT BROWSER — the hero showpiece (quiet, inspectable) ── */
+/* This is the real product output: a capability snapshot the crawler emits,
+   shown the way the product shows it. One Provenance Bar. One reading region. */
+.artifact{
+  background:var(--console-850);border:1px solid rgba(51,64,92,.6);
+  border-radius:var(--r-frame);overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.art-bar{
+  display:flex;align-items:center;gap:0;flex-wrap:wrap;
+  padding:11px 16px;border-bottom:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-mut);
+  background:rgba(11,18,32,.5);
+}
+.art-bar .seg{padding:0 9px;border-left:1px solid rgba(51,64,92,.45);}
+.art-bar .seg:first-child{padding-left:0;border-left:none;}
+/* the UNCALIBRATED word rides --text-mut; only the ◇ glyph is spread-dim (P7) */
+.art-bar .seg.unc{color:var(--text-mut);margin-left:auto;border-left:none;}
+.art-tabs{display:flex;gap:0;border-bottom:1px solid rgba(51,64,92,.5);background:rgba(11,18,32,.25);}
+.art-tab{
+  flex:1;text-align:center;padding:10px 8px;font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);
+  cursor:pointer;position:relative;transition:color .14s var(--ease-out);border:none;background:none;
+}
+.art-tab:hover{color:var(--text);}
+.art-tab[aria-selected="true"]{color:var(--text-hi);}
+/* active-tab indicator is INK, not signal: the poster mean line is the artifact
+   region's one signal carrier (P2). A tab affordance is not a live reading. */
+.art-tab[aria-selected="true"]::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;
+  background:var(--text-hi);border-radius:2px;
+}
+.art-tab:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-2px;border-radius:2px;}
+.art-pane{display:none;padding:20px;min-height:296px;}
+.art-pane.on{display:block;}
+.art-code{
+  font-family:var(--font-mono);font-size:12px;line-height:1.75;color:var(--text);
+  white-space:pre-wrap;
+}
+.art-code .k{color:var(--text-mut);}
+.art-code .h{color:var(--text-hi);font-weight:500;}
+/* "added" diff marker is structural delta, not a live reading → ink, not signal
+   (signal never carries valence; green-as-"good/added" is a leak) */
+.art-code .add{color:var(--text-hi);}
+.art-code .chg{color:var(--spread);}
+.art-cap{
+  margin-top:16px;padding-top:13px;border-top:1px solid rgba(51,64,92,.4);
+  font-size:12.5px;color:var(--text-mut);line-height:1.5;
+}
+
+/* TEXTURE 1 — the reverse-PRD reads as a real DOCUMENT (prose), not key:value.
+   A reverse-PRD is generated weekly; here it is shown the way a PM would read it. */
+.prd-doc{font-family:var(--font-sans);}
+.prd-doc .prd-h{
+  font-size:15px;font-weight:600;color:var(--text-hi);letter-spacing:-.01em;
+  display:flex;align-items:baseline;gap:10px;
+}
+.prd-doc .prd-h .ver{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;color:var(--text-mut);}
+.prd-doc .prd-lede{
+  margin-top:10px;font-size:13.5px;line-height:1.62;color:var(--text);
+}
+.prd-doc .prd-lede b{color:var(--text-hi);font-weight:550;}
+.prd-doc .prd-sub{
+  margin-top:16px;display:flex;flex-direction:column;gap:11px;
+}
+.prd-doc .prd-row{display:flex;gap:12px;align-items:baseline;}
+.prd-doc .prd-row .lab{
+  flex:0 0 92px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-mut);padding-top:2px;
+}
+.prd-doc .prd-row .val{font-size:13px;line-height:1.5;color:var(--text);}
+.prd-doc .prd-row .val .tk{
+  font-family:var(--font-mono);font-size:11px;color:var(--text-mut);
+}
+.prd-doc .prd-delta{
+  margin-top:16px;padding-top:13px;border-top:1px solid rgba(51,64,92,.4);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;color:var(--text-mut);
+}
+.prd-doc .prd-delta b{color:var(--spread);font-weight:500;}
+
+/* TEXTURE 2 — the reverse-Figma reads as a STRUCTURE DIAGRAM (node tree), not key:value */
+.node-tree{font-family:var(--font-mono);font-size:11.5px;line-height:1;color:var(--text);}
+.node-tree .nt-row{display:flex;align-items:center;gap:0;height:26px;}
+.node-tree .nt-rail{flex:0 0 auto;color:var(--console-line);white-space:pre;}
+.node-tree .nt-glyph{flex:0 0 16px;text-align:center;}
+.node-tree .nt-label{color:var(--text-hi);font-weight:500;}
+.node-tree .nt-comp .nt-label{color:var(--text);font-weight:400;}
+.node-tree .nt-meta{margin-left:auto;display:flex;gap:6px;align-items:center;padding-left:14px;}
+.node-tree .nt-state{
+  font-size:8.5px;letter-spacing:.04em;color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.55);border-radius:2px;padding:1px 4px;
+}
+/* role-gate label is a structural designator, NOT an A/B arm → neutral mut,
+   not --arm-treat (arm tints are reserved for experiment identity) */
+.node-tree .nt-gate{font-size:8.5px;letter-spacing:.04em;color:var(--text-mut);}
+/* "added" node marker = structural delta, ink emphasis (not signal — no valence) */
+.node-tree .nt-add{color:var(--text-hi);}
+.node-tree .nt-legend{
+  margin-top:16px;padding-top:13px;border-top:1px solid rgba(51,64,92,.4);
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-mut);
+  display:flex;gap:16px;flex-wrap:wrap;
+}
+.node-tree .nt-legend .nt-add{color:var(--text-hi);}
+.node-tree .nt-delta{color:var(--text-mut);}
+/* reaction pane — the ONE static distribution poster on this page */
+.poster-wrap{display:flex;flex-direction:column;gap:14px;}
+/* the marquee reading is the page's focal climax — it dominates (P10) */
+.poster-fig{display:flex;align-items:baseline;gap:10px;}
+.poster-fig .big{font-family:var(--font-mono);font-weight:500;font-size:3.1rem;line-height:.92;color:var(--text-hi);letter-spacing:-.02em;}
+.poster-fig .pm{font-family:var(--font-mono);font-size:1.05rem;color:var(--spread);}
+.poster-fig .gl{color:var(--spread-dim);font-size:1.2rem;align-self:center;}
+.poster-fig .verdict{margin-left:auto;align-self:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--text-mut);}
+.poster svg{display:block;width:100%;height:auto;}
+/* compact arm key — keeps blue/magenta legible off the figure so the SVG isn't crowded */
+.poster-key{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-mut);}
+.poster-key .pk{display:inline-flex;align-items:center;gap:6px;text-transform:uppercase;}
+.poster-key .pk b{color:var(--text-hi);font-weight:500;}
+.poster-key .pk .pm{color:var(--spread);text-transform:none;}
+.poster-key .pk-gl{margin-left:auto;text-transform:none;letter-spacing:.02em;}
+.poster-key .sw{width:9px;height:9px;border-radius:2px;flex:0 0 auto;}
+.poster-key .sw-ctrl{background:#4FA8E0;}
+.poster-key .sw-treat{background:#E08BC4;}
+.poster-cap{font-size:12.5px;color:var(--text-mut);line-height:1.5;}
+.poster-cap b{color:var(--text);font-weight:500;}
+/* bare provenance bar under the figure — n is a recorded fact, prints bare (P8) */
+.poster-prov{
+  display:flex;align-items:center;gap:0;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-mut);
+}
+.poster-prov .seg{padding:0 9px;border-left:1px solid rgba(51,64,92,.45);}
+.poster-prov .seg:first-child{padding-left:0;border-left:none;}
+.poster-prov .seg b{color:var(--text);font-weight:500;}
+
+/* ── SECTIONS ───────────────────────────────────────────────────── */
+section.block{padding:96px 0;border-bottom:1px solid rgba(51,64,92,.4);}
+.sec-head{margin-bottom:56px;max-width:720px;}
+.sec-eyebrow{margin-bottom:18px;}
+h2.h2{font-size:2.05rem;line-height:1.1;letter-spacing:-.028em;font-weight:600;color:var(--text-hi);text-wrap:balance;}
+.sec-sub{margin-top:18px;font-size:1.075rem;line-height:1.62;color:var(--text-mut);max-width:60ch;}
+.sec-sub b{color:var(--text);font-weight:500;}
+
+/* the three inputs — quiet input ledger, no numbered scaffold ───── */
+.inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);overflow:hidden;background:var(--console-850);}
+.input-cell{padding:28px 26px 30px;border-left:1px solid rgba(51,64,92,.4);position:relative;}
+.input-cell:first-child{border-left:none;}
+/* "current product" cell ground-tint — neutral, not signal (no live reading here, P2) */
+.input-cell.now{background:linear-gradient(180deg,rgba(255,255,255,.025),transparent 62%);}
+.input-cell h3{font-size:1.15rem;font-weight:550;letter-spacing:-.01em;color:var(--text-hi);}
+.input-cell .role{margin-top:9px;}
+.input-cell p{margin-top:15px;font-size:14px;line-height:1.6;color:var(--text-mut);}
+.input-cell .tag{position:absolute;top:24px;right:24px;}
+/* the SNAPSHOT tag word stays --text-mut; only its ◇ glyph is spread-dim (P7) */
+.input-cell .tag.now{color:var(--text-mut);}
+
+/* symmetry — two-column compare (the load-bearing idea) ─────────── */
+.sym{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;}
+.sym-col{background:var(--console-850);border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.sym-head{padding:14px 18px;border-bottom:1px solid rgba(51,64,92,.5);display:flex;align-items:center;justify-content:space-between;gap:12px;background:rgba(11,18,32,.35);}
+.sym-head .t{font-size:14px;font-weight:550;color:var(--text-hi);}
+.sym-body{padding:20px;font-family:var(--font-mono);font-size:12px;line-height:1.75;color:var(--text);}
+.sym-body .ln{display:block;white-space:pre-wrap;padding:0 8px;margin:0 -8px;border-radius:2px;}
+.sym-body .k{color:var(--text-mut);}
+.sym-body .h{color:var(--text-hi);font-weight:500;}
+/* diff emphasis — the as-built column reads as a DIFF, not a second flat dump */
+.sym-body .ln.chg{background:rgba(200,182,138,.07);box-shadow:inset 2px 0 0 var(--spread);}
+.sym-body .ln .d{color:var(--spread);}
+.sym-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 28px;gap:14px;}
+.sym-mid .eq{font-family:var(--font-mono);font-size:22px;color:var(--text-mut);}
+.sym-mid .vline{flex:1;width:1px;background:linear-gradient(180deg,transparent,var(--console-line) 24%,var(--console-line) 76%,transparent);}
+.sym-mid .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;color:var(--text-mut);writing-mode:vertical-rl;text-orientation:mixed;}
+
+/* how it walks — a quiet flow, NO 01/02 numerals; arrows carry order */
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);overflow:hidden;background:var(--console-850);}
+.step{padding:24px 22px 26px;border-left:1px solid rgba(51,64,92,.4);position:relative;}
+.step:first-child{border-left:none;}
+.step .gl{font-family:var(--font-mono);font-size:13px;color:var(--text-mut);}
+.step h4{margin-top:14px;font-size:14.5px;font-weight:550;color:var(--text-hi);line-height:1.3;}
+.step p{margin-top:9px;font-size:13px;line-height:1.55;color:var(--text-mut);}
+.step .arrow{position:absolute;right:-7px;top:30px;width:13px;height:13px;color:var(--text-mut);z-index:2;}
+.pipe-foot{margin-top:18px;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);}
+
+/* capability manifest — a tiny two-file directory, NOT a third bordered grid.
+   Row-based, mono-keyed; breaks the inputs/pipe grid cadence (R4 #1). */
+.manifest{border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);overflow:hidden;background:var(--console-850);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.mf-row{display:grid;grid-template-columns:200px 88px 1fr;gap:18px;align-items:baseline;
+  padding:18px 24px;border-top:1px solid rgba(51,64,92,.4);}
+.mf-head{grid-template-columns:auto 1fr;border-top:none;background:rgba(11,18,32,.35);padding:13px 24px;}
+.mf-path{font-family:var(--font-mono);font-size:12.5px;color:var(--text-hi);font-weight:500;letter-spacing:.01em;}
+.mf-note{font-size:12.5px;color:var(--text-mut);line-height:1.5;text-align:right;}
+.mf-file{font-family:var(--font-mono);font-size:13px;color:var(--text-hi);font-weight:500;}
+.mf-fmt{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.55);border-radius:2px;padding:2px 6px;justify-self:start;}
+.mf-fields{font-family:var(--font-mono);font-size:11.5px;color:var(--text);line-height:1.65;letter-spacing:.01em;}
+.mf-foot{display:grid;grid-template-columns:200px 1fr;gap:18px;align-items:baseline;
+  padding:18px 24px;border-top:1px solid rgba(51,64,92,.4);background:rgba(11,18,32,.2);}
+.mf-byprod{font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--spread);text-transform:uppercase;}
+.mf-foot span:last-child{font-size:13px;color:var(--text-mut);line-height:1.55;}
+.mf-foot .fact{color:var(--text-mut);font-size:12px;}
+
+/* candor band — quiet, one stamp specimen ───────────────────────── */
+.candor{display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:center;}
+.candor-quote{font-size:1.35rem;line-height:1.5;color:var(--text-hi);letter-spacing:-.015em;font-weight:450;text-wrap:balance;}
+.candor-quote .em{color:var(--spread);}
+.candor-attrib{margin-top:20px;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);}
+.candor-card{background:var(--console-850);border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);padding:26px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.stamp-demo{display:flex;align-items:baseline;gap:12px;padding-bottom:20px;border-bottom:1px solid rgba(51,64,92,.4);}
+.stamp-demo .big{font-family:var(--font-mono);font-size:2.4rem;font-weight:500;color:var(--text-hi);line-height:1;}
+.stamp-demo .pm{font-family:var(--font-mono);font-size:1.05rem;color:var(--spread);}
+.stamp-demo .gl{font-size:1.25rem;color:var(--spread-dim);}
+.stamp-demo .meaning{font-size:12px;color:var(--text-mut);line-height:1.45;max-width:17ch;margin-left:auto;}
+.candor-rows{margin-top:6px;display:flex;flex-direction:column;}
+.crow{display:flex;align-items:flex-start;gap:14px;padding:15px 0;border-bottom:1px solid rgba(51,64,92,.3);}
+.crow:last-child{border-bottom:none;}
+.crow .g{font-family:var(--font-mono);font-size:1rem;flex:0 0 auto;width:18px;text-align:center;line-height:1.45;}
+.crow .g-fact{color:var(--text-mut);}
+.crow .fact{color:var(--text-mut);}
+.crow .txt b{color:var(--text-hi);font-weight:550;display:block;font-size:14px;}
+.crow .txt span{color:var(--text-mut);font-size:13px;line-height:1.5;}
+
+/* CTA close ─────────────────────────────────────────────────────── */
+.cta{padding:112px 0;text-align:center;}
+.cta-inner{max-width:640px;margin:0 auto;}
+.cta h2{font-size:2.5rem;line-height:1.08;letter-spacing:-.03em;font-weight:600;color:var(--text-hi);text-wrap:balance;}
+.cta p{margin-top:20px;font-size:1.1rem;color:var(--text-mut);line-height:1.6;max-width:48ch;margin-left:auto;margin-right:auto;}
+.cta .hero-cta{justify-content:center;margin-top:38px;}
+.cta-eyebrow{margin-bottom:22px;}
+.cta-meta{margin-top:28px;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-mut);}
+
+/* footer ───────────────────────────────────────────────────────── */
+footer{border-top:1px solid rgba(51,64,92,.5);padding:40px 0;}
+footer .wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+footer .desig{color:var(--text-mut);}
+footer .wm-foot{font-size:14px;}
+footer .sp{margin-left:auto;display:flex;gap:22px;}
+footer .sp a{font-size:13px;color:var(--text-mut);transition:color .14s var(--ease-out);}
+footer .sp a:hover{color:var(--text-hi);}
+
+/* reveal ───────────────────────────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(14px);}
+.reveal.in{opacity:1;transform:none;transition:opacity .5s var(--ease-out),transform .5s var(--ease-out);}
+
+/* responsive ───────────────────────────────────────────────────── */
+@media(max-width:1080px){
+  .hero-grid{grid-template-columns:1fr;gap:52px;}
+  .artifact{max-width:560px;}
+  .candor{grid-template-columns:1fr;gap:40px;}
+  .mf-row{grid-template-columns:160px 72px 1fr;gap:12px;}
+  .pipe{grid-template-columns:repeat(2,1fr);}
+  .step .arrow{display:none;}
+}
+@media(max-width:760px){
+  .topbar nav{display:none;}
+  .inputs{grid-template-columns:1fr;}
+  .input-cell{border-left:none;border-top:1px solid rgba(51,64,92,.4);}
+  .input-cell:first-child{border-top:none;}
+  .mf-row,.mf-foot,.mf-head{grid-template-columns:1fr;gap:8px;}
+  .mf-note{text-align:left;}
+  .sym{grid-template-columns:1fr;gap:16px;}
+  .sym-mid{flex-direction:row;padding:0;}
+  .sym-mid .vline{display:none;}
+  .sym-mid .lbl{writing-mode:horizontal-tb;}
+  .pipe{grid-template-columns:1fr;}
+  .step{border-left:none;border-top:1px solid rgba(51,64,92,.4);}
+  .step:first-child{border-top:none;}
+  .hero .wrap{padding-top:64px;padding-bottom:72px;}
+  section.block{padding:64px 0;}
+  .hero-meta{gap:28px;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+  .reveal{opacity:1;transform:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── TOP BAR ─────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="wrap">
+    <a class="wordmark" href="#">SIDIRA</a>
+    <nav>
+      <a href="#">Personas</a>
+      <a href="#" class="active">Product</a>
+      <a href="#">Simulations</a>
+      <a href="#">About</a>
+    </nav>
+    <div class="right">
+      <!-- single global provenance reference, not a second full legend.
+           Dot RESTS (ink, no breath): no run is live on this snapshot page. -->
+      <div class="legend-global desig">
+        <span class="dot"></span>
+        <span>SNAPSHOT 2026-W25 · <span class="gh">◇</span> <span class="word-unc">UNCAL</span></span>
+      </div>
+      <a class="btn btn-secondary" href="#">Sign in</a>
+    </div>
+  </div>
+</header>
+
+<!-- ── HERO ────────────────────────────────────────────────────────── -->
+<!-- Reframed (codex): the founder outcome — grounded reads — not "the crawler". -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">
+          <span class="rule"></span>
+          <span class="desig">PRODUCT CONTEXT · AUTO-CAPTURED</span>
+        </div>
+        <h1 class="display">A simulation is only as honest as its picture of the product today.</h1>
+        <p class="lede-c">
+          Sidira keeps a current, structured snapshot of what you actually shipped — so a synthetic
+          cohort reacts to the <b>real</b> product, not one the model invented. <b>Fewer hallucinated
+          reads. Grounded answers by Monday.</b>
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary hero" href="#">Connect a sandbox</a>
+          <a class="btn btn-ghost hero" href="#">Read the spec ↗</a>
+        </div>
+        <div class="hero-meta">
+          <div class="stat"><span class="v">8<span class="u">capabilities</span></span><span class="k">walked per snapshot</span></div>
+          <div class="stat"><span class="v">~40<span class="u">min</span></span><span class="k">weekly capture, in CI</span></div>
+          <div class="stat"><span class="v">3<span class="u">roles</span></span><span class="k">re-walked, role-gated</span></div>
+        </div>
+      </div>
+
+      <!-- THE ARTIFACT BROWSER — the real product output, inspectable.
+           One reading region · one Provenance Bar · one static poster. -->
+      <aside class="artifact elevated reveal" aria-label="Captured capability snapshot">
+        <div class="art-bar">
+          <span class="seg">CAP checkout</span>
+          <span class="seg">n=240</span>
+          <span class="seg">seed 0x4f</span>
+          <span class="seg">groq/llama-3.3</span>
+          <span class="seg unc"><span class="gh">◇</span> UNCALIBRATED</span>
+        </div>
+        <div class="art-tabs" role="tablist" aria-label="Artifact view">
+          <button class="art-tab" role="tab" aria-selected="true"  data-pane="p-rxn">Cohort reaction</button>
+          <button class="art-tab" role="tab" aria-selected="false" data-pane="p-prd">Reverse-PRD</button>
+          <button class="art-tab" role="tab" aria-selected="false" data-pane="p-fig">Reverse-Figma</button>
+        </div>
+
+        <!-- TEXTURE 1 of 3: PROSE. The reverse-PRD reads as a document a PM wrote. -->
+        <div class="art-pane" id="p-prd" role="tabpanel">
+          <div class="prd-doc">
+            <div class="prd-h">Checkout <span class="ver">· as-built · v.2026-W25</span></div>
+            <p class="prd-lede">
+              A returning customer completes a purchase with saved details. The surface is
+              <b>optimized for completion rate</b>: it minimises the steps between cart and a
+              placed order, and pushes failure states (declined card, address gap) inline rather
+              than to a separate screen.
+            </p>
+            <div class="prd-sub">
+              <div class="prd-row"><span class="lab">Flow</span><span class="val"><span class="tk">cart → address → pay → confirm</span>, then a receipt.</span></div>
+              <div class="prd-row"><span class="lab">Roles</span><span class="val">Guest, member, and <span class="tk">pro</span> — pro alone sees the saved-cards panel.</span></div>
+              <div class="prd-row"><span class="lab">Edge cases</span><span class="val">Empty cart, declined card, and a missing-address gap each resolve in place.</span></div>
+            </div>
+            <p class="prd-delta">Δ vs 2026-W24 — <b>~2 lines of copy</b> reworded; flow and structure unchanged.</p>
+          </div>
+          <p class="art-cap">A reverse-PRD: what a PM would write if documenting this surface from scratch — generated weekly, never hand-authored.</p>
+        </div>
+
+        <!-- TEXTURE 2 of 3: DIAGRAM. The reverse-Figma reads as a structure tree. -->
+        <div class="art-pane" id="p-fig" role="tabpanel">
+          <div class="node-tree" role="img" aria-label="Reverse-Figma structure tree for checkout: four screens — Cart, Address, Pay (with a role-gated saved-cards panel, newly added), and Confirm — each carrying default, error, and empty states.">
+            <div class="nt-row"><span class="nt-glyph">▦</span><span class="nt-label">Cart</span><span class="nt-meta"><span class="nt-state">default</span><span class="nt-state">empty</span></span></div>
+            <div class="nt-row"><span class="nt-rail"> └─</span><span class="nt-glyph">▢</span><span class="nt-label nt-comp">line-items · summary · checkout-cta</span></div>
+            <div class="nt-row"><span class="nt-glyph">▦</span><span class="nt-label">Address</span><span class="nt-meta"><span class="nt-state">default</span><span class="nt-state">error</span></span></div>
+            <div class="nt-row"><span class="nt-glyph">▦</span><span class="nt-label">Pay</span><span class="nt-meta"><span class="nt-gate">pro ▸ saved-cards</span><span class="nt-state">default</span><span class="nt-state">error</span></span></div>
+            <div class="nt-row"><span class="nt-rail"> └─</span><span class="nt-glyph nt-add">＋</span><span class="nt-label nt-add">saved-cards panel</span><span class="nt-meta"><span class="nt-state">role-gated</span></span></div>
+            <div class="nt-row"><span class="nt-glyph">▦</span><span class="nt-label">Confirm</span><span class="nt-meta"><span class="nt-state">default</span></span></div>
+            <div class="nt-legend">
+              <span>4 screens · 14 components</span>
+              <span><span class="nt-add">＋</span> 1 component <span class="nt-delta">Δ vs 2026-W24</span></span>
+            </div>
+          </div>
+          <p class="art-cap">A reverse-Figma: the visual + interactive spec at structure level — same shape as the Figma a PM submits for a proposed change. No pixels, by design.</p>
+        </div>
+
+        <!-- TEXTURE 3 of 3: A FIGURE. The settled distribution poster — a REAL
+             binned histogram (one stepped bar per bin, each bar = a count of the
+             240 agents who landed there), with the marquee inferred reading as the
+             focal climax. No hand-drawn bezier blobs — every bar is interrogable. -->
+        <div class="art-pane on" id="p-rxn" role="tabpanel">
+          <div class="poster-wrap">
+            <!-- Lead with the INFERRED reaction score (carries ± + ◇, P8).
+                 The raw count n=240 is a recorded FACT → bare provenance bar below. -->
+            <div class="poster-fig">
+              <span class="big tnum">0.62</span>
+              <span class="pm tnum">±0.08</span>
+              <span class="gl">◇</span>
+              <span class="verdict">DIRECTIONAL <span class="gh">◇</span></span>
+            </div>
+            <!-- A small arm key so the blue/magenta bins are legible without
+                 crowding the figure. Tints name the arm (provenance), not valence. -->
+            <div class="poster-key">
+              <span class="pk"><i class="sw sw-ctrl"></i>CONTROL <b class="tnum">0.59</b> <span class="pm tnum">±0.09</span></span>
+              <span class="pk"><i class="sw sw-treat"></i>TREATMENT <b class="tnum">0.66</b> <span class="pm tnum">±0.10</span></span>
+              <span class="pk pk-gl"><span class="gh">◇</span> uncalibrated · per-arm means inferred</span>
+            </div>
+            <!-- the ONE static distribution poster on this page (SVG, frozen).
+                 Each bar is a binned count of the 240 agents → a real histogram,
+                 dodged by arm. Same binned value-series the live field re-sorts into.
+                 Static poster → pooled mean uses --signal-dim, never bright signal (P5),
+                 and carries ◇ because the pooled mean is INFERRED about people (P8). -->
+            <div class="poster">
+              <svg viewBox="0 0 360 168" role="img" aria-label="Adoption reaction histogram across 240 grounded agents, binned on a reject-to-adopt axis. Control arm (blue) clusters near 0.59 and treatment arm (magenta) near 0.66; bars are agent counts per bin. Pooled mean 0.62, uncalibrated, with a confidence band.">
+                <defs>
+                  <linearGradient id="ci" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#C8B68A" stop-opacity="0.14"/>
+                    <stop offset="1" stop-color="#C8B68A" stop-opacity="0.015"/>
+                  </linearGradient>
+                </defs>
+                <!-- CI band behind the bars (spread): a single legible interval, not a blob -->
+                <rect x="124" y="22" width="60" height="104" fill="url(#ci)"/>
+                <!-- baseline axis: rejects ← reaction → adopts -->
+                <line x1="16" y1="126" x2="344" y2="126" stroke="#33405C" stroke-width="1"/>
+                <!-- tick marks at quartiles so a reader can locate a bin -->
+                <line x1="16"  y1="126" x2="16"  y2="130" stroke="#33405C" stroke-width="1"/>
+                <line x1="98"  y1="126" x2="98"  y2="129" stroke="#33405C" stroke-width="1"/>
+                <line x1="180" y1="126" x2="180" y2="130" stroke="#33405C" stroke-width="1"/>
+                <line x1="262" y1="126" x2="262" y2="129" stroke="#33405C" stroke-width="1"/>
+                <line x1="344" y1="126" x2="344" y2="130" stroke="#33405C" stroke-width="1"/>
+                <!-- ── HISTOGRAM BARS — dodged by arm, height = agents in that bin.
+                     16 bins across the axis; control (blue) + treatment (magenta)
+                     sit side-by-side in each bin so both densities are interrogable. -->
+                <g class="bars">
+                  <!-- bin centers at x=24,44,...; each bin holds a CTRL bar then a TREAT bar.
+                       y = 126 - height. Counts shape two overlapping humps. -->
+                  <!-- CONTROL (blue) — peak ~0.59 -->
+                  <g fill="#4FA8E0" fill-opacity="0.82">
+                    <rect x="20"  y="120" width="7" height="6"/>
+                    <rect x="40"  y="113" width="7" height="13"/>
+                    <rect x="60"  y="101" width="7" height="25"/>
+                    <rect x="80"  y="84"  width="7" height="42"/>
+                    <rect x="100" y="66"  width="7" height="60"/>
+                    <rect x="120" y="52"  width="7" height="74"/>
+                    <rect x="140" y="60"  width="7" height="66"/>
+                    <rect x="160" y="78"  width="7" height="48"/>
+                    <rect x="180" y="96"  width="7" height="30"/>
+                    <rect x="200" y="108" width="7" height="18"/>
+                    <rect x="220" y="116" width="7" height="10"/>
+                    <rect x="240" y="121" width="7" height="5"/>
+                  </g>
+                  <!-- TREATMENT (magenta) — peak ~0.66, shifted right -->
+                  <g fill="#E08BC4" fill-opacity="0.82">
+                    <rect x="28"  y="122" width="7" height="4"/>
+                    <rect x="48"  y="117" width="7" height="9"/>
+                    <rect x="68"  y="108" width="7" height="18"/>
+                    <rect x="88"  y="93"  width="7" height="33"/>
+                    <rect x="108" y="76"  width="7" height="50"/>
+                    <rect x="128" y="61"  width="7" height="65"/>
+                    <rect x="148" y="50"  width="7" height="76"/>
+                    <rect x="168" y="58"  width="7" height="68"/>
+                    <rect x="188" y="74"  width="7" height="52"/>
+                    <rect x="208" y="92"  width="7" height="34"/>
+                    <rect x="228" y="106" width="7" height="20"/>
+                    <rect x="248" y="116" width="7" height="10"/>
+                    <rect x="268" y="121" width="7" height="5"/>
+                  </g>
+                </g>
+                <!-- per-arm mean ticks (thin, dashed, arm-tinted) -->
+                <line x1="123" y1="34" x2="123" y2="126" stroke="#4FA8E0" stroke-width="1" stroke-dasharray="1.5 2.5" opacity="0.65"/>
+                <line x1="151" y1="34" x2="151" y2="126" stroke="#E08BC4" stroke-width="1" stroke-dasharray="1.5 2.5" opacity="0.65"/>
+                <!-- pooled mean — frozen poster, --signal-dim, carries ◇ (inferred, P8) -->
+                <line x1="138" y1="18" x2="138" y2="126" stroke="#39B894" stroke-width="1.4"/>
+                <circle cx="138" cy="22" r="2.6" fill="#39B894"/>
+                <text x="138" y="13" text-anchor="middle" font-family="Geist Mono" font-size="9" fill="#39B894">MEAN 0.62 <tspan fill="#90815F">◇</tspan></text>
+                <!-- axis labels, on their own baseline below the ticks (no crowding) -->
+                <text x="16"  y="150" font-family="Geist Mono" font-size="8.5" letter-spacing="0.5" fill="#929BAE">REJECTS</text>
+                <text x="180" y="150" text-anchor="middle" font-family="Geist Mono" font-size="8" letter-spacing="0.5" fill="#929BAE">reaction →</text>
+                <text x="344" y="150" text-anchor="end" font-family="Geist Mono" font-size="8.5" letter-spacing="0.5" fill="#929BAE">ADOPTS</text>
+                <text x="180" y="164" text-anchor="middle" font-family="Geist Mono" font-size="7.5" letter-spacing="0.4" fill="#929BAE">240 AGENTS · BINNED · BAR HEIGHT = AGENT COUNT</text>
+              </svg>
+            </div>
+            <!-- ONLY recorded facts print here → bare, no ± / no ◇ (P8). The inferred
+                 arm means live in the key + on the poster. -->
+            <div class="poster-prov">
+              <span class="seg"><b>n=240</b> agents</span>
+              <span class="seg">snapshot 2026-W25</span>
+              <span class="seg">STATIC · NO READING RUNNING</span>
+            </div>
+            <p class="poster-cap">Each bar is a count of the <b>240</b> agents that landed in that reaction bin — a real histogram, not a sketch. The pooled mean stays <span class="gh">◇</span> uncalibrated until a real outcome grades it; the count is recorded, the means are inferred.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHY: THE THREE INPUTS ───────────────────────────────────────── -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-eyebrow"><span class="desig">WHY IT EXISTS</span></div>
+      <h2 class="h2">Three inputs make a grounded read. Two are yours. We keep the third current.</h2>
+      <p class="sec-sub">
+        Without a current-product representation, a simulation is <b>ungrounded</b> — the model
+        invents the context and the resulting score is fiction. Sidira closes that gap on a schedule,
+        so no one hand-writes “how our product works today” before testing a change.
+      </p>
+    </div>
+
+    <div class="inputs reveal">
+      <div class="input-cell">
+        <h3>The persona pack</h3>
+        <div class="role"><span class="chip">YOUR POPULATION</span></div>
+        <p>Synthetic minds fit from your real user telemetry — segments, posteriors, and a sample of individuals who react. Built once, refit as your base shifts.</p>
+        <span class="tag desig"><span class="gf">◆</span> GRADED</span>
+      </div>
+      <div class="input-cell">
+        <h3>The proposed change</h3>
+        <div class="role"><span class="chip">YOUR PROPOSAL</span></div>
+        <p>The bet under test, submitted the way teams already work — a PRD plus a Figma. “Move saved-card selection above the address step in checkout.”</p>
+        <span class="tag desig">AUTHORED</span>
+      </div>
+      <div class="input-cell now">
+        <h3>The current product</h3>
+        <div class="role"><span class="chip">WE KEEP THIS CURRENT</span></div>
+        <p>A weekly snapshot of what you actually shipped, shaped exactly like a proposal — a reverse-PRD plus a reverse-Figma per capability. Generated, never authored.</p>
+        <span class="tag desig now"><span class="gh">◇</span> SNAPSHOT</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── THE SYMMETRY PRINCIPLE ──────────────────────────────────────── -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-eyebrow"><span class="desig">THE LOAD-BEARING IDEA · SYMMETRY</span></div>
+      <h2 class="h2">Compare like-shape to like-shape.</h2>
+      <p class="sec-sub">
+        A team submits a change as a PRD plus a Figma. Sidira produces the current state as a
+        <b>reverse-PRD plus a reverse-Figma</b> per capability. The simulation diffs one against the
+        other — apples to apples. This symmetry is the entire reason the snapshot is shaped the way it is.
+      </p>
+    </div>
+
+    <div class="sym reveal">
+      <div class="sym-col">
+        <div class="sym-head">
+          <span class="t">Proposed — what the team submits</span>
+          <span class="chip">PRD + FIGMA</span>
+        </div>
+        <div class="sym-body">
+<span class="ln"><span class="h"># checkout · saved-card-first</span></span>
+<span class="ln"><span class="k">user_goal:</span> "Pay faster with a saved card"</span>
+<span class="ln"><span class="k">roles:</span>      [guest, member, pro]</span>
+<span class="ln"><span class="k">flow:</span>       cart → pay → address → confirm</span>
+<span class="ln"><span class="k">success:</span>    fewer steps to a placed order</span>
+<span class="ln"><span class="k">figma:</span>      {screens:4, components:13,</span>
+<span class="ln">             states:[default,error,empty]}</span>
+        </div>
+      </div>
+
+      <div class="sym-mid">
+        <div class="vline"></div>
+        <span class="lbl">DIFFED IN-SIM</span>
+        <span class="eq">⇄</span>
+        <span class="lbl">SAME SHAPE</span>
+        <div class="vline"></div>
+      </div>
+
+      <div class="sym-col">
+        <div class="sym-head">
+          <span class="t">As-built — what Sidira captured</span>
+          <span class="chip">REVERSE</span>
+        </div>
+        <div class="sym-body">
+<span class="ln"><span class="h"># checkout · current</span></span>
+<span class="ln chg"><span class="k">user_goal:</span> "Complete a purchase"</span>
+<span class="ln"><span class="k">roles:</span>      [guest, member, pro]</span>
+<span class="ln chg"><span class="k">flow:</span>       cart → <span class="d">address → pay</span> → confirm</span>
+<span class="ln"><span class="k">implicit:</span>   optimized for completion</span>
+<span class="ln chg"><span class="k">figma:</span>      {screens:4, components:<span class="d">14</span>,</span>
+<span class="ln">             states:[default,error,empty]}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WALKS — flow, no 01/02 numerals; arrows carry order ───── -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-eyebrow"><span class="desig">HOW THE CAPTURE RUNS</span></div>
+      <h2 class="h2">A Playwright walker, authenticated per role, four passes to a snapshot.</h2>
+      <p class="sec-sub">
+        You name 5–10 priority capabilities, 1–3 entry URLs each, and one test login per role into a
+        <b>sandbox tenant</b> — never production. The walker does the rest, every Monday at 04:00 UTC,
+        in roughly 40 minutes of CI.
+      </p>
+    </div>
+
+    <div class="pipe reveal">
+      <div class="step">
+        <span class="gl">→</span>
+        <h4>Walk, per role</h4>
+        <p>Logs in as each declared role into the sandbox, then walks each flow ~3 hops deep — screens, components, states, copy, transitions.</p>
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="step">
+        <span class="gl">→</span>
+        <h4>Synthesize reverse-PRD</h4>
+        <p>Goal, roles, flow-per-role, success criteria, edge cases, and the implicit metric the surface optimizes for.</p>
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="step">
+        <span class="gl">→</span>
+        <h4>Emit reverse-Figma</h4>
+        <p>Structured screens, components with semantic roles, per-state copy, and prototype transitions — Figma-level abstraction, no pixels.</p>
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="step">
+        <span class="gl">▪</span>
+        <h4>Tag &amp; diff</h4>
+        <p>Versions the snapshot and diffs it against last week. Promotion to “latest” is gated on a human reviewing the diff.</p>
+      </div>
+    </div>
+    <p class="pipe-foot">SANDBOX TENANT ONLY · MON 04:00 UTC · ~40 MIN CI · PROMOTE → GATED ON REVIEW</p>
+  </div>
+</section>
+
+<!-- ── WHAT A CAPABILITY CAPTURES ──────────────────────────────────── -->
+<section class="block">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-eyebrow"><span class="desig">INSIDE A CAPABILITY</span></div>
+      <h2 class="h2">Two files per capability. Nothing more, nothing less.</h2>
+      <p class="sec-sub">
+        Screenshots and pixel data are <b>out</b> — a team doesn’t submit pixels for the proposed
+        change, so symmetry says we don’t capture them either. Copy lives inline in the component
+        nodes. The value is <b>this</b> product’s specifics, never generic UX advice.
+      </p>
+    </div>
+
+    <!-- Restructured (R4 #1): no third bordered 3-cell grid. A capability is a
+         tiny directory of exactly two files — shown as a manifest, not a spec
+         dump. Different shape from inputs/pipe so the page stops repeating itself.
+         The "diff" is named once as a by-product, not given its own equal cell. -->
+    <div class="manifest reveal">
+      <div class="mf-row mf-head">
+        <span class="mf-path">capability/checkout/</span>
+        <span class="mf-note">2 files · no screenshots, no pixels — by symmetry with a submitted change</span>
+      </div>
+      <div class="mf-row">
+        <span class="mf-file">reverse-prd.md</span>
+        <span class="mf-fmt">MARKDOWN</span>
+        <span class="mf-fields">goal · roles &amp; flow-per-role · success criteria · edge cases · dependencies · implicit metric</span>
+      </div>
+      <div class="mf-row">
+        <span class="mf-file">reverse-figma.json</span>
+        <span class="mf-fmt">JSON</span>
+        <span class="mf-fields">screens scoped per role · components w/ semantic role · states (default · error · empty) · inline copy · click→screen transitions · role-gating</span>
+      </div>
+      <div class="mf-foot">
+        <span class="mf-byprod">Δ DIFF vs prior</span>
+        <span>A by-product, not a third file: added / removed capabilities, copy &amp; component deltas, and flow-shape changes — computed on tag, and the gate on promoting a snapshot to <span class="fact mono">latest</span>.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CANDOR — one stamp specimen, scoped to inferred readings ─────── -->
+<section class="block">
+  <div class="wrap">
+    <div class="candor">
+      <div class="reveal">
+        <div class="sec-eyebrow"><span class="desig">CANDOR, SCOPED</span></div>
+        <p class="candor-quote">
+          The snapshot is a <span class="em">raw, uncalibrated</span> reading of your product — and it
+          says so, on every reading it touches. Identifiers, seeds, and dates print as plain fact.
+        </p>
+        <p class="candor-attrib">SPREAD ON INFERRED READINGS ONLY · IDS &amp; SEEDS PRINT BARE</p>
+      </div>
+
+      <div class="candor-card reveal elevated">
+        <div class="stamp-demo">
+          <span class="big tnum">0.62</span>
+          <span class="pm tnum">±0.08</span>
+          <span class="gl">◇</span>
+          <span class="meaning">an inferred reading carries its spread and its calibration glyph — always</span>
+        </div>
+        <div class="candor-rows">
+          <div class="crow">
+            <span class="g gh">◇</span>
+            <div class="txt"><b>Uncalibrated</b><span>No real outcome yet. The reading is directional, drifts faintly, and freezes the instant you look at it — it can’t lock a verdict.</span></div>
+          </div>
+          <div class="crow">
+            <span class="g gf">◆</span>
+            <div class="txt"><b>Graded</b><span>Validated against a real outcome. It snaps from noise to a stable reading, settles once, and comes to rest.</span></div>
+          </div>
+          <div class="crow">
+            <span class="g g-fact">·</span>
+            <div class="txt"><b>Facts print bare</b><span>Persona id, seed <span class="mono fact">0x4f</span>, snapshot <span class="mono fact">2026-W25</span>, and raw <span class="mono fact">n=240</span> wear no ± — they were recorded, not inferred.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ─────────────────────────────────────────────────────────── -->
+<section class="cta">
+  <div class="cta-inner reveal">
+    <div class="sec-eyebrow cta-eyebrow"><span class="desig">MVP · SIDIRA INFRA · YOUR SANDBOX</span></div>
+    <h2>Connect your sandbox. Get a grounded read by Monday.</h2>
+    <p>Name your capabilities, drop in entry URLs and one test login per role. The capture runs in CI and publishes on its own — closing the tab changes nothing.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary hero" href="#">Connect a sandbox</a>
+      <a class="btn btn-secondary hero" href="#">Talk to us</a>
+    </div>
+    <p class="cta-meta">NO PRODUCTION ACCESS · SANDBOX TENANT ONLY · <span class="gh">◇</span> UNCALIBRATED UNTIL GRADED</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="wordmark wm-foot">SIDIRA</span>
+    <span class="desig">A MEASUREMENT INSTRUMENT FOR HUMAN REACTION</span>
+    <div class="sp">
+      <a href="#">Spec</a>
+      <a href="#">Personas</a>
+      <a href="#">Simulations</a>
+      <a href="#">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── Artifact browser tabs (the hero showpiece) ─────────────────── */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".art-tab"));
+  var panes = {};
+  tabs.forEach(function(t){ panes[t.getAttribute("data-pane")] = document.getElementById(t.getAttribute("data-pane")); });
+  function selectTab(tab){
+    tabs.forEach(function(t){
+      var on = (t===tab);
+      t.setAttribute("aria-selected", on?"true":"false");
+      var p = panes[t.getAttribute("data-pane")];
+      if(p) p.classList.toggle("on", on);
+    });
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener("click", function(){ selectTab(t); });
+    t.addEventListener("keydown", function(e){
+      if(e.key==="ArrowRight"||e.key==="ArrowLeft"){
+        e.preventDefault();
+        var dir = e.key==="ArrowRight"?1:-1;
+        var next = tabs[(i+dir+tabs.length)%tabs.length];
+        next.focus(); selectTab(next);
+      }
+    });
+  });
+
+  /* ── Scroll reveals (settle-in once, no looping decoration) ──────── */
+  var revealEls = document.querySelectorAll(".reveal");
+  if("IntersectionObserver" in window && !prefersReduced){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, {rootMargin:"0px 0px -8% 0px", threshold:0.08});
+    revealEls.forEach(function(el){ io.observe(el); });
+  } else {
+    revealEls.forEach(function(el){ el.classList.add("in"); });
+  }
+  setTimeout(function(){
+    document.querySelectorAll(".reveal").forEach(function(el){
+      var r=el.getBoundingClientRect();
+      if(r.top < window.innerHeight*0.96) el.classList.add("in");
+    });
+  }, 60);
+})();
+</script>
+</body>
+</html>
