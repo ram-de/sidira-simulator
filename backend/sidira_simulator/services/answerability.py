@@ -65,15 +65,15 @@ AnswerabilityState = Literal["answerable", "needs_input"]
 REASON_STRUCTURALLY_INVISIBLE = "structurally_invisible_change"
 REASON_OEC_UNDECLARED = "oec_undeclared"
 
-# UI-structure / visual verbs and nouns. A prose change that talks about moving,
-# reordering, adding/removing on-screen elements, or changing layout/screens is
-# almost certainly a structural change that needs a wireframe to be legible to
-# the agents. Word-boundary matched so "remove" doesn't fire on "removed friction
-# from the copy" only by coincidence — we accept some false positives here
-# because the remedy (attach the structured change) is cheap and always correct
-# for a genuinely structural change, and the OEC override pattern is NOT offered
-# for this check precisely because there is no safe way to simulate an invisible
-# structural change. The list is intentionally small and append-only-with-
+# Unconditional UI-structure / layout terms. These describe *repositioning the
+# layout itself* — they are structural no matter what noun follows, so a wireframe
+# is genuinely needed for the agents to read the change. Deliberately does NOT
+# include bare UI *nouns* (button, banner, tab…): mentioning a "button" is not by
+# itself a structural change ("reword the checkout button label" is copy, not
+# layout). Bare nouns only trip the check when paired with an add/remove/move
+# action verb (see `_UI_NOUN_TERMS` + `_UI_ACTION_TERMS`). This keeps the block
+# set tiny and avoids hard-blocking copy-only changes that merely name an element
+# (codex P2 on #310). Word-boundary matched. The list is append-only-with-
 # evidence (the panel's "tiny block set" rule).
 _UI_STRUCTURE_TERMS: tuple[str, ...] = (
     "move",
@@ -97,17 +97,7 @@ _UI_STRUCTURE_TERMS: tuple[str, ...] = (
     "resized",
     "resizing",
     "layout",
-    "screen",
-    "screens",
     "wireframe",
-    "button",
-    "buttons",
-    "tab",
-    "tabs",
-    "menu",
-    "menus",
-    "modal",
-    "banner",
     "navbar",
     "sidebar",
     "carousel",
@@ -115,6 +105,8 @@ _UI_STRUCTURE_TERMS: tuple[str, ...] = (
 
 # Verbs that, combined with a UI noun, signal an add/remove/reposition of an
 # on-screen element. "add a button", "remove the tab", "reposition the CTA".
+# These add/remove/move actions on a structural element change the layout and so
+# need a wireframe; a copy edit that only *names* a button does not.
 _UI_ACTION_TERMS: tuple[str, ...] = (
     "add",
     "adds",

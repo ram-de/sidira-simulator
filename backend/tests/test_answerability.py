@@ -73,6 +73,19 @@ def test_non_structural_prose_without_figma_is_answerable() -> None:
     assert v.state == "answerable"
 
 
+def test_copy_edit_naming_a_ui_element_is_answerable() -> None:
+    # codex P2 (#310): merely NAMING a UI noun (button, banner) in a copy edit
+    # is not a structural change and must NOT hard-block. Only an action verb
+    # paired with the noun (or an unconditional layout term) is structural.
+    for prose in (
+        "Reword the checkout button label to be more action-oriented.",
+        "Change the banner headline copy.",
+        "Update the menu item text.",
+    ):
+        v = assess_answerability(_hyp(prose=prose), allow_generic_reception=True)
+        assert v.state == "answerable", prose
+
+
 # ── Check 2: OEC undeclared ─────────────────────────────────────────────────
 
 
