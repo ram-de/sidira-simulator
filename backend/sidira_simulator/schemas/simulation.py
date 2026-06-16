@@ -52,8 +52,9 @@ class Hypothesis(BaseModel):
     # metric fails loudly (no silent degradation to sentiment); a metric routes
     # end-to-end iff it is registered. `retention` is the first sibling (#275);
     # `conversion` keeps its byte-identical behavior; `ctr` (#276) is the
-    # on-screen click-through sibling, closest to conversion.
-    metric_name: Literal["conversion", "retention", "ctr"] | None = None
+    # on-screen click-through sibling, closest to conversion; `visit` (#222
+    # Hillstrom) is the post-touchpoint site-visit sibling of ctr.
+    metric_name: Literal["conversion", "retention", "ctr", "visit"] | None = None
     # The metric event + its in-character phrasing. For conversion: the
     # conversion action ("complete checkout") + its label ("check out now"). For
     # retention: the post-experience moment + the "return" label. Required fields

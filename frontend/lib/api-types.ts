@@ -1058,7 +1058,7 @@ export interface components {
              *     None = sentiment-only (today's default). A registered metric adds a
              *     turn-2 blinded decision elicitation + paired metric-lift delta.
              */
-            metric_name?: "conversion" | "retention" | "ctr" | null;
+            metric_name?: "conversion" | "retention" | "ctr" | "visit" | null;
             /** Conversion Action */
             conversion_action?: string | null;
             /** Conversion Action Label */

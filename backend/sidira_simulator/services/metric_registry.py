@@ -279,6 +279,87 @@ def _ctr_aggregator(*args, **kwargs) -> MetricLiftResult:
     return aggregate_ctr_lift(*args, **kwargs)
 
 
+# ── VISIT (#222 Hillstrom) ───────────────────────────────────────────────────
+
+
+def _visit_target_terms(hypothesis: Hypothesis) -> set[str]:
+    # VISIT's target is the "visit" label naming the site-visit event. The PM may
+    # name it via conversion_action_label (the generic metric label field) or rely
+    # on the registry default ("go to the site"). Filter that label out of the
+    # grounded alternatives so the elicitor — which always PREPENDS the canonical
+    # visit label — never offers the same target action twice (which would split
+    # p_metric across an uncounted twin and understate the visit rate). This mirrors
+    # CTR/conversion exactly: the PM identifies the TARGET action; OTHER actions
+    # reachable at the same touchpoint are LEGITIMATE competing alternatives and are
+    # intentionally NOT filtered, so they keep their share and the rate is not
+    # inflated.
+    from sidira_simulator.services.visit_elicitor import VISIT_LABEL
+
+    terms = {
+        (hypothesis.conversion_action_label or "").strip().lower(),
+        VISIT_LABEL.lower(),
+    }
+    terms.discard("")
+    return terms
+
+
+def _visit_visit_label(hypothesis: Hypothesis) -> str:
+    from sidira_simulator.services.visit_elicitor import VISIT_LABEL
+
+    label = (hypothesis.conversion_action_label or "").strip()
+    return label or VISIT_LABEL
+
+
+def _visit_elicit(
+    chat_client,
+    *,
+    system_prompt: str,
+    hypothesis: Hypothesis,
+    capability: Capability,
+    choice_set: Sequence[str] | None,
+    paraphrases: int,
+    timeout_scale_count: int,
+) -> tuple[float, bool]:
+    from sidira_simulator.services.visit_elicitor import elicit_visit_ensemble
+
+    ensemble = elicit_visit_ensemble(
+        chat_client,
+        system_prompt=system_prompt,
+        capability_name=capability.name,
+        visit_label=_visit_visit_label(hypothesis),
+        decision_point=hypothesis.decision_point or "",
+        choice_set=choice_set,
+        paraphrases=paraphrases,
+    )
+    return ensemble.mean_p_visit, ensemble.paraphrase_unstable
+
+
+def _visit_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
+    from sidira_simulator.services.scoring import VISIT_REGIME_STRONG, metric_lift_honesty
+
+    return metric_lift_honesty(
+        lift_result,
+        regime_label=VISIT_REGIME_STRONG,
+        verb_higher="visits the site directionally more often than control",
+        verb_lower="visits the site directionally less often than control",
+        verb_same="visit the site at the same directional rate",
+        weak_signal_noun="Synthetic visit rate",
+        # VISIT is a STRONG regime (§5), like CTR, so it must NOT inherit the
+        # weak-behavioral caveat wording — but its magnitude is still uncalibrated
+        # pre-#222, so the read-as-rank/direction caveat stays.
+        signal_strength_clause=(
+            "is a strong behavioral signal whose magnitude is not yet calibrated"
+        ),
+        propensity_noun="site-visit propensity",
+    )
+
+
+def _visit_aggregator(*args, **kwargs) -> MetricLiftResult:
+    from sidira_simulator.services.scoring import aggregate_visit_lift
+
+    return aggregate_visit_lift(*args, **kwargs)
+
+
 def _build_registry() -> dict[str, MetricDescriptor]:
     # Imported lazily inside the descriptor closures above to avoid an import
     # cycle (scoring ← registry ← scoring). Built once at module import.
@@ -290,6 +371,10 @@ def _build_registry() -> dict[str, MetricDescriptor]:
     from sidira_simulator.services.retention_elicitor import (
         DEFAULT_RETENTION_CHOICE_SET,
         RETENTION_PARAPHRASE_COUNT,
+    )
+    from sidira_simulator.services.visit_elicitor import (
+        DEFAULT_VISIT_CHOICE_SET,
+        VISIT_PARAPHRASE_COUNT,
     )
 
     return {
@@ -339,6 +424,23 @@ def _build_registry() -> dict[str, MetricDescriptor]:
             calibrator_resolver=lambda: resolve_metric_calibrator("ctr"),
             target_terms=_ctr_target_terms,
             paraphrase_count=CTR_PARAPHRASE_COUNT,
+        ),
+        "visit": MetricDescriptor(
+            name="visit",
+            # VISIT is the site-visit sibling of CTR (#222 Hillstrom): a binary
+            # "came to the site after the touchpoint" event. Like CTR/retention it
+            # reuses the generic label field (conversion_action_label) for the visit
+            # label, but it is OPTIONAL (the registry default "go to the site"
+            # applies when absent). The only hard requirement is decision_point —
+            # the touchpoint moment the visit follows from.
+            required_template_fields=("decision_point",),
+            default_choice_set=DEFAULT_VISIT_CHOICE_SET,
+            aggregator=_visit_aggregator,
+            honesty=_visit_honesty,
+            elicit=_visit_elicit,
+            calibrator_resolver=lambda: resolve_metric_calibrator("visit"),
+            target_terms=_visit_target_terms,
+            paraphrase_count=VISIT_PARAPHRASE_COUNT,
         ),
     }
 

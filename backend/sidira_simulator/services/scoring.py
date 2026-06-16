@@ -1285,6 +1285,13 @@ RETENTION_REGIME_WEAK = "weak_behavioral"
 # applies to CTR exactly as it does to conversion/retention — a stronger regime
 # does not mean a fitted effect size (#276).
 CTR_REGIME_STRONG = "strong_behavioral"
+# §5 / #222 (Hillstrom): VISIT is the site-visit sibling of CTR — a binary
+# "came to the site in the window after the touchpoint" event. Like CTR it is a
+# STRONG behavioral signal (a stated intent-to-visit tracks the real visit far
+# better than the conversion/retention modality cliff), so it shares the strong
+# regime label. Its magnitude is still uncalibrated pre-#222, so the uncalibrated
+# caveat (gated on `calibrated`) applies to VISIT exactly as to CTR.
+VISIT_REGIME_STRONG = "strong_behavioral"
 
 
 def metric_lift_honesty(
@@ -1613,5 +1620,27 @@ def aggregate_ctr_lift(
         config,
         run_seed=run_seed,
         metric_name="ctr",
+        calibrator=calibrator,
+    )
+
+
+def aggregate_visit_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired VISIT-lift (#222 Hillstrom). Thin wrapper over `aggregate_metric_lift`
+    pinning `metric_name="visit"` — the site-visit propensity `p_metric` is the
+    share allocated to the "visit" action, so the paired delta is the site-visit-
+    rate lift in percentage points."""
+    return aggregate_metric_lift(
+        treatment_reactions,
+        control_reactions,
+        config,
+        run_seed=run_seed,
+        metric_name="visit",
         calibrator=calibrator,
     )

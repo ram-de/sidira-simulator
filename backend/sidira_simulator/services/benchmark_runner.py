@@ -444,22 +444,35 @@ def eval_engine_blind(
     seed: int,
     n_permutations: int = 1000,
     n_resamples: int = _BOOTSTRAP_RESAMPLES,
+    metric_name: str = _ENGINE_METRIC_NAME,
+    hypothesis_builder: Callable[[BenchmarkCase], Hypothesis] = _ctr_hypothesis_for_case,
 ) -> BenchmarkRunResult:
     """Score the engine (an injected `CaseRunner`) as the blind predictor (§4).
 
     Builds a blind predictor closure around `runner` and hands it to
     `run_blind_eval`. The closure is the §4 "engine cell": for each case it runs
-    the engine ONCE and returns the predicted CTR delta.
+    the engine ONCE and returns the predicted metric delta.
+
+    METRIC PARAMETERIZATION (#222 Hillstrom). `metric_name` + `hypothesis_builder`
+    are injectable so a SECOND benchmark (Hillstrom email-uplift, conversion/visit)
+    reuses this exact eval core. They DEFAULT to the Upworthy CTR behavior
+    byte-for-byte — `metric_name="ctr"` (`_ENGINE_METRIC_NAME`) and
+    `hypothesis_builder=_ctr_hypothesis_for_case` — so the existing Upworthy harness
+    is unchanged. The builder turns a case into the VALIDATED metric Hypothesis the
+    live elicitor needs (forcing `metric_name` + the metric's required template
+    fields via `Hypothesis.model_validate`, never `model_copy`); the engine result
+    is then REQUIRED to carry that same `metric_name` and a non-None
+    `metric_lift_pp`, else the case DROPS.
 
     STRUCTURAL BLINDNESS (the load-bearing invariant). The predictor derives the
     engine's `run(...)` args ONLY from `case.capability` and `case.hypothesis`
-    (with `metric_name` forced to "ctr") — it NEVER reads `case.ground_truth`. The
-    engine is therefore label-invariant BY CONSTRUCTION: the answer key is not an
-    input to the run, so re-running on a scrambled-label copy of a case would
-    produce the IDENTICAL result. We exploit that by running the engine once per
-    case and CACHING the prediction keyed by `case_id` (NOT by the scrambled
-    labels). The null-cert `predict_fn` then returns the cached per-case value
-    independent of the shuffle.
+    (with the metric forced via `hypothesis_builder`) — it NEVER reads
+    `case.ground_truth`. The engine is therefore label-invariant BY CONSTRUCTION:
+    the answer key is not an input to the run, so re-running on a scrambled-label
+    copy of a case would produce the IDENTICAL result. We exploit that by running
+    the engine once per case and CACHING the prediction keyed by `case_id` (NOT by
+    the scrambled labels). The null-cert `predict_fn` then returns the cached
+    per-case value independent of the shuffle.
 
     Why this discharges the null-cert TRUST BOUNDARY (and is NOT the "frozen-vector
     stub" the cert docstring warns against): the cert cannot, in principle,
@@ -474,53 +487,53 @@ def eval_engine_blind(
     null at chance, exactly as the §4 protocol requires.
 
     Per-case scoring contract:
-      * `hypothesis = _ctr_hypothesis_for_case(case)` (metric forced to "ctr" with
-        a VALIDATED CTR decision_point + click label — `model_validate`, not
-        `model_copy`, so the registry's required CTR fields are enforced),
+      * `hypothesis = hypothesis_builder(case)` (metric forced to `metric_name`
+        with the metric's VALIDATED required template fields — `model_validate`,
+        not `model_copy`, so the registry's required fields are enforced),
         `treatment_fraction = 0.5`, `run_seed = _case_run_seed(case.case_id, seed)`.
       * The engine returns a `SimulationResult`; we REQUIRE
-        `result.metric_name == "ctr"` AND `result.metric_lift_pp is not None`,
+        `result.metric_name == metric_name` AND `result.metric_lift_pp is not None`,
         else the predictor RAISES — which `run_blind_eval` records as a DROPPED
         case (surfaced in `n_dropped` / `dropped_case_ids`), NEVER zero-filled.
       * Unit conversion: the engine reports `metric_lift_pp` in PERCENTAGE POINTS;
-        `GroundTruth.observed_lift` is a RAW CTR probability delta, so the
-        predicted effect is `metric_lift_pp / 100.0` to match units.
+        `GroundTruth.observed_lift` is a RAW probability delta, so the predicted
+        effect is `metric_lift_pp / 100.0` to match units.
 
     The cache makes the predictor deterministic for a fixed `seed` and means the
     expensive engine call happens exactly once per case (not once per case per
     null permutation), which is what makes the faithful §4 re-run affordable.
     """
     # Run-once-per-case cache keyed by case_id. The cached value is the predicted
-    # CTR delta (raw probability units). Built lazily by the predictor closure;
+    # metric delta (raw probability units). Built lazily by the predictor closure;
     # the null `predict_fn` reads it back keyed ONLY by case_id (never by label).
     prediction_cache: dict[str, float] = {}
 
     def _predict(case: BenchmarkCase) -> float:
         if case.case_id in prediction_cache:
             return prediction_cache[case.case_id]
-        # Force the CTR metric on the hypothesis (with the required, VALIDATED CTR
-        # decision_point + click label); everything else is taken verbatim from the
+        # Force the target metric on the hypothesis (with the metric's required,
+        # VALIDATED template fields); everything else is taken verbatim from the
         # case's (capability, hypothesis). ground_truth is NOT referenced —
         # structural blindness.
-        ctr_hypothesis = _ctr_hypothesis_for_case(case)
+        metric_hypothesis = hypothesis_builder(case)
         result = runner(
             capability=case.capability,
-            hypothesis=ctr_hypothesis,
+            hypothesis=metric_hypothesis,
             treatment_fraction=_ENGINE_TREATMENT_FRACTION,
             run_seed=_case_run_seed(case.case_id, seed),
             population_size=population_size,
             max_agents=max_agents,
             model_id=model_id,
         )
-        if result.metric_name != _ENGINE_METRIC_NAME or result.metric_lift_pp is None:
-            # No scorable CTR lift — DROP the case honestly (run_blind_eval turns a
-            # raised predictor into an n_dropped entry). Never impute a 0 effect.
+        if result.metric_name != metric_name or result.metric_lift_pp is None:
+            # No scorable metric lift — DROP the case honestly (run_blind_eval turns
+            # a raised predictor into an n_dropped entry). Never impute a 0 effect.
             raise ValueError(
-                f"engine returned no scorable CTR lift for case {case.case_id} "
-                f"(metric_name={result.metric_name!r}, "
+                f"engine returned no scorable {metric_name} lift for case "
+                f"{case.case_id} (metric_name={result.metric_name!r}, "
                 f"metric_lift_pp={result.metric_lift_pp!r})"
             )
-        # pp → raw CTR delta to match GroundTruth.observed_lift's units.
+        # pp → raw metric delta to match GroundTruth.observed_lift's units.
         effect = result.metric_lift_pp / 100.0
         prediction_cache[case.case_id] = effect
         return effect
@@ -553,6 +566,8 @@ def score_with_engine(
     seed: int = 0,
     n_permutations: int = 1000,
     n_resamples: int = _BOOTSTRAP_RESAMPLES,
+    metric_name: str = _ENGINE_METRIC_NAME,
+    hypothesis_builder: Callable[[BenchmarkCase], Hypothesis] = _ctr_hypothesis_for_case,
 ) -> BenchmarkRunResult:
     """GATED real-engine entry point — refuses to run under pytest / CI.
 
@@ -562,6 +577,10 @@ def score_with_engine(
     built; it needs live LLM keys at runtime, so it MUST NOT execute in CI / under
     pytest. The engine-free eval core is fully exercised in tests with a fake
     runner; this wrapper only adds the live wiring.
+
+    `metric_name` + `hypothesis_builder` are forwarded to `eval_engine_blind` and
+    DEFAULT to the Upworthy CTR behavior, so the Upworthy benchmark CLI path is
+    unchanged; the Hillstrom CLI (#222) passes the conversion/visit builder.
 
     Raises RuntimeError under pytest/CI (the guard), and ValueError if
     `cases`/`persona_pack` are missing when invoked for real.
@@ -637,4 +656,6 @@ def score_with_engine(
         seed=seed,
         n_permutations=n_permutations,
         n_resamples=n_resamples,
+        metric_name=metric_name,
+        hypothesis_builder=hypothesis_builder,
     )
