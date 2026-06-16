@@ -166,12 +166,22 @@ is below our certification floor of 8), so its numbers are *not* trusted; it exi
 only to validate the harness. It did surface three concrete things to settle before the
 real run:
 1. the full run needs finer stratification to clear the ≥8-case certification floor;
-2. an intriguing signal worth chasing — the probe's predicted *directions* on
-   conversion ran opposite the experiment (every sign flipped) while the *ranking*
-   correlated positively; we will determine whether this is a sign-convention detail
-   or a genuine "the audience treats a promo email as mildly off-putting for
-   conversion" effect (consistent with prior internal findings that the simulator can
-   read advertising as harm) — and report it honestly either way;
+2. **a genuine, important finding (now classified, not a bug).** The probe's predicted
+   conversion *directions* ran opposite the real experiment — *every* sign flipped —
+   while the *ranking* correlated positively. We confirmed it is real, not a
+   sign-convention error: the real experiment shows both emails *raise* conversion
+   (men's +0.68pp, women's +0.31pp), but the simulator predicts both emails *lower* it
+   (−0.01 to −0.03). The simulator systematically reads a promotional email as mildly
+   off-putting for conversion. This matches a prior independent internal finding that
+   the simulator can read advertising as harm. Two honest consequences: (a) a
+   *direction/sign* claim on conversion does **not** hold today — this is a real,
+   nameable limitation, and a fixable one (it points squarely at the outcome-elicitation
+   and calibration work on our roadmap); (b) the *relative ranking* survived the sign
+   error — the simulator still ranked the men's email above the women's email, matching
+   the experiment, which is why the rank correlation came out positive. The full run
+   will establish whether that ranking signal is real with adequate power, and will also
+   test the *visit* outcome (a stronger, larger real signal that may be less biased than
+   conversion);
 3. a minor audience-texture degradation to tidy up.
 
 **Status: the sealed, powered full run is next.** Result and verdict will be appended
