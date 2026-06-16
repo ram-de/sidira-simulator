@@ -193,9 +193,11 @@ def test_post_simulation_with_arm_split_persists_treatment_fraction(client_with_
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
             "arm_split": {"treatment_fraction": 0.5},
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -213,8 +215,10 @@ def test_post_simulation_without_arm_split_persists_null(client_with_stub) -> No
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202
@@ -231,6 +235,7 @@ def test_get_simulation_surfaces_arm_split_when_ab(client_with_stub) -> None:
             "hypothesis": {"capability_name": "reorder", "prose": "x"},
             "population_size": 3,
             "arm_split": {"treatment_fraction": 0.5},
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -248,6 +253,7 @@ def test_get_simulation_arm_split_none_for_single_arm(client_with_stub) -> None:
         json={
             "hypothesis": {"capability_name": "reorder", "prose": "x"},
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -268,6 +274,7 @@ def test_get_simulation_handles_legacy_row_without_treatment_fraction_key(
         json={
             "hypothesis": {"capability_name": "reorder", "prose": "x"},
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]

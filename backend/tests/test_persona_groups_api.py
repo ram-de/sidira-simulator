@@ -165,8 +165,10 @@ def _run_sim(client: TestClient, model_id: str | None = None) -> str:
         "hypothesis": {
             "capability_name": "reorder",
             "prose": "Surface a one-tap reorder banner for premium subscribers.",
+            "proposed_figma": {"screens": [], "transitions": []},
         },
         "population_size": 3,
+        "run_as_generic_reception": True,
     }
     if model_id is not None:
         payload["model_id"] = model_id
@@ -183,9 +185,11 @@ def _run_ab_sim(client: TestClient, population_size: int = 6) -> str:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": population_size,
             "arm_split": {"treatment_fraction": 0.5},
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -488,8 +492,10 @@ def test_persona_group_partial_failure_records_per_agent_error(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 15,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -1067,8 +1073,10 @@ def test_collective_surfaces_unavailable_agents_on_load_failure(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 15,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]

@@ -129,8 +129,10 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -138,6 +140,95 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
     assert body["status"] == "pending"
     assert body["id"]
     assert body["poll_url"] == f"/simulations/{body['id']}/state"
+
+
+# ── #310 / T1: pre-flight answerability gate ────────────────────────────────
+
+
+def test_oec_undeclared_blocks_with_override_payload(client_with_stub_llm) -> None:
+    """metric_name omitted (non-structural prose) -> 422 with a refinement-shaped
+    payload that advertises the generic-reception override."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "population_size": 3,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert detail["error"] == "needs_input"
+    assert "oec_undeclared" in detail["reason_codes"]
+    assert detail["allow_override"] is True
+    assert detail["override_field"] == "run_as_generic_reception"
+    assert detail["reasons"] and detail["fixes"]
+
+
+def test_oec_override_proceeds_to_202(client_with_stub_llm) -> None:
+    """Resubmitting with run_as_generic_reception=true proceeds past the gate."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    assert resp.json()["status"] == "pending"
+
+
+def test_structurally_invisible_change_blocks_without_override(
+    client_with_stub_llm,
+) -> None:
+    """UI-structure prose + no proposed_figma -> 422; the override does NOT
+    clear it (allow_override stays False even with the flag set)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Move the reorder button to the top of the home screen.",
+            },
+            "population_size": 3,
+            # Override the OEC defect; the structural defect must still block.
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert "structurally_invisible_change" in detail["reason_codes"]
+    assert detail["allow_override"] is False
+
+
+def test_happy_path_with_declared_metric_unaffected(client_with_stub_llm) -> None:
+    """A hypothesis with a declared OEC and no structural-invisibility passes
+    the gate unchanged (today's 202 path)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+            },
+            "population_size": 3,
+        },
+    )
+    assert resp.status_code == 202, resp.text
 
 
 def test_post_simulation_rejects_unavailable_model_id(monkeypatch) -> None:
@@ -151,9 +242,11 @@ def test_post_simulation_rejects_unavailable_model_id(monkeypatch) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
             "model_id": "gpt-5.5",
+            "run_as_generic_reception": True,
         },
     )
 
@@ -171,9 +264,11 @@ def test_post_simulation_persists_model_id(client_with_stub_llm, monkeypatch) ->
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
             "model_id": "llama-3.3-70b-versatile",
+            "run_as_generic_reception": True,
         },
     )
 
@@ -194,8 +289,10 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a 'reorder usual' banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -253,8 +350,10 @@ def test_per_agent_analyses_persisted_on_result_and_join_into_agent_summary(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -297,8 +396,10 @@ def test_agent_summary_fields_are_none_for_pre_51_result_json(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -326,8 +427,10 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
             # run_seed deliberately omitted.
         },
     )
@@ -363,8 +466,10 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 1000,  # would yield 50 agents under default cap
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -395,9 +500,11 @@ def test_post_simulation_with_unknown_persona_returns_400(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 5,
             "selected_personas": ["made_up_persona_id"],
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 400, resp.text
@@ -447,6 +554,7 @@ def test_simulation_with_persona_filter_completes_against_subset(
             },
             "population_size": 3,
             "selected_personas": chosen,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -481,6 +589,7 @@ def test_simulation_without_persona_filter_runs_against_all_personas(
                 "prose": "Unfiltered control case.",
             },
             "population_size": 5,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text

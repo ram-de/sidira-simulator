@@ -208,6 +208,19 @@ class SimulationRequest(BaseModel):
             "single-arm path supports it; A/B mode ignores it for now."
         ),
     )
+    run_as_generic_reception: bool = Field(
+        default=False,
+        description=(
+            "Answerability gate override (#310 / T1). When the pre-flight gate "
+            "blocks because no decision metric (OEC) was declared "
+            "(metric_name is None), the PM may resubmit with this flag to "
+            "proceed anyway — the run is then labeled generic-reception "
+            "(sentiment only, NOT OEC-aligned) rather than dead-ended. It does "
+            "NOT override the structurally-invisible-change block (there is no "
+            "faithful way to simulate a wireframe described as prose). Default "
+            "False → today's behavior. Does not touch confidence_score."
+        ),
+    )
 
     @field_validator("selected_personas")
     @classmethod
