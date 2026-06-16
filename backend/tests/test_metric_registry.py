@@ -145,6 +145,11 @@ def test_ctr_target_terms_includes_default_click_label() -> None:
     )
     terms = d.target_terms(h)
     assert "click it" in terms
+    # CTR also filters common click-verb phrasings a grounded trigger uses, so a
+    # rendered click transition never survives as an uncounted click twin that
+    # would split p_metric (codex P2). A genuine non-click alternative is not here.
+    assert {"click", "tap", "tap to open"} <= terms
+    assert "browse the full menu" not in terms
 
 
 def test_ctr_target_terms_includes_pm_supplied_label() -> None:

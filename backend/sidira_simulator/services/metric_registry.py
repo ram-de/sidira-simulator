@@ -203,11 +203,36 @@ def _ctr_target_terms(hypothesis: Hypothesis) -> set[str]:
     # conversion_action_label (the generic metric label field) or rely on the
     # registry default. Filter that and the registry's click label out of any
     # grounded alternatives so the question never offers two click-like options.
+    #
+    # CTR-specific hazard (codex P2): unlike conversion/retention — whose targets
+    # are distinctive PM-named phrases unlikely to recur as a generic transition
+    # trigger — CTR's target IS "a click", and a rendered/PM-supplied alternative
+    # is very likely to ALSO be a click action (a figma click transition, e.g.
+    # "click the headline", "tap to open"). If such a twin survives into the
+    # alternatives it is offered alongside the prepended canonical click label but
+    # p_metric counts ONLY the canonical label, so agents split click intent into
+    # the uncounted twin and p_metric UNDERSTATES the true CTR. To prevent that we
+    # filter not just the exact click label but the common click-verb phrasings a
+    # grounded trigger uses. The runner matches alternatives against this set by
+    # lowercased, stripped equality (`lbl.strip().lower() not in target_terms`);
+    # grounded triggers are human phrases ("click the headline", "tap to open"),
+    # so the enumerated phrasings below cover the realistic click triggers a crawl
+    # or PM supplies. A PM who needs a genuinely distinct NON-click alternative
+    # names it without a click verb; a click-action alternative is, by definition,
+    # the same CTR event as the target and must not become an uncounted twin.
     from sidira_simulator.services.ctr_elicitor import CTR_CLICK_LABEL
 
     terms = {
         (hypothesis.conversion_action_label or "").strip().lower(),
         CTR_CLICK_LABEL.lower(),
+        "click",
+        "click it",
+        "click here",
+        "click the headline",
+        "tap",
+        "tap it",
+        "tap to open",
+        "open it",
     }
     terms.discard("")
     return terms

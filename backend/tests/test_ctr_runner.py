@@ -41,6 +41,7 @@ class _CtrChat:
     def __init__(self) -> None:
         self.metric_calls = 0
         self.metric_system_prompts: list[str] = []
+        self.metric_user_turns: list[str] = []
 
     def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):
         return "Stubbed reaction prose."
@@ -62,6 +63,9 @@ class _CtrChat:
             self.metric_calls += 1
             self.metric_system_prompts.append(
                 next(m["content"] for m in messages if m["role"] == "system")
+            )
+            self.metric_user_turns.append(
+                next(m["content"] for m in messages if m["role"] == "user")
             )
             return self._alloc(messages)
         if schema is WeaknessClassification:
@@ -162,6 +166,59 @@ async def test_ctr_metric_runs_on_blinded_prompt() -> None:
     for sys_prompt in chat.metric_system_prompts:
         for marker in ("## What's changing", "### Explicitly NOT changing", "## Your task"):
             assert marker not in sys_prompt, f"CTR metric not blinded: {marker!r}"
+
+
+@pytest.mark.asyncio
+async def test_grounded_click_alternative_filtered_from_ctr_options() -> None:
+    """A reachable CLICK transition must be dropped from the alternatives even when
+    the PM relies on the default click label: the elicitor prepends the canonical
+    "click it", so forwarding a grounded click twin ("tap to open") would offer two
+    click-like options while p_metric counts only the canonical one — agents could
+    split click intent into the uncounted twin and understate CTR (codex P2). A
+    genuine non-click alternative ("browse the full menu") survives the filter."""
+    store, persona_pack, capability, feature_pack_version = _load()
+    chat = _CtrChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    proposed = ReverseFigma(
+        screens=[
+            Screen(id="home", name="Home"),
+            Screen(id="article", name="Article"),
+            Screen(id="menu", name="Menu"),
+        ],
+        transitions=[
+            # a grounded CLICK action — a twin of the canonical "click it" target
+            Transition(trigger="tap to open", from_screen="home", to_screen="article"),
+            # a genuine non-click alternative
+            Transition(trigger="browse the full menu", from_screen="home", to_screen="menu"),
+        ],
+    )
+    hypothesis = Hypothesis(
+        capability_name="reorder",
+        prose="Surface a headline banner on the home tab.",
+        metric_name="ctr",  # no conversion_action_label → default "click it"
+        decision_point="home",
+        proposed_figma=proposed,
+    )
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=hypothesis,
+        population_size=2,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    assert chat.metric_user_turns
+    for turn in chat.metric_user_turns:
+        # canonical click option present exactly once (prepended by the elicitor)
+        assert '"click it": <int>' in turn
+        # the grounded click twin is NOT also offered as a competing allocation key
+        assert '"tap to open": <int>' not in turn
+        # the genuine non-click alternative survives
+        assert '"browse the full menu": <int>' in turn
 
 
 @pytest.mark.asyncio
