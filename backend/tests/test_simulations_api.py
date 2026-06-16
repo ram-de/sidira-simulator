@@ -253,6 +253,147 @@ def test_structurally_invisible_change_blocks_without_override(
     assert detail["allow_override"] is False
 
 
+# ── #313 / T4: deterministic pre-flight preview endpoint ────────────────────
+
+
+def test_preflight_oec_undeclared_mirrors_post_block(client_with_stub_llm) -> None:
+    """The preview endpoint returns the SAME needs_input verdict the POST path
+    422s on — caught at the keyboard, before submit — with the override
+    advertised. Zero-LLM and never persists a sim."""
+    client, _, sim_repo, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "needs_input"
+    assert "oec_undeclared" in body["reason_codes"]
+    assert body["allow_override"] is True
+    assert body["override_field"] == "run_as_generic_reception"
+    assert body["reasons"] and body["fixes"]
+    # The preview must NOT persist a simulation.
+    assert sim_repo._sims == {}
+
+
+def test_preflight_override_clears_oec_block(client_with_stub_llm) -> None:
+    """run_as_generic_reception=true in the preview clears the OEC block, so the
+    wizard knows the override resubmit will proceed."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["state"] == "answerable"
+
+
+def test_preflight_structural_invisibility_not_overridable(client_with_stub_llm) -> None:
+    """UI-structure prose + no figma stays blocking in the preview even with the
+    override, mirroring the POST gate (no faithful prose-only structural run)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Move the reorder button to the top of the home screen.",
+            },
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "needs_input"
+    assert "structurally_invisible_change" in body["reason_codes"]
+    assert body["allow_override"] is False
+
+
+def test_preflight_out_of_scope_surfaced(client_with_stub_llm) -> None:
+    """A long-horizon OEC previews as out_of_scope (abstain) so the wizard can
+    warn the PM the verdict will be withheld — without running the sim."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Lift 90-day revenue by reordering the home feed.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+                "proposed_figma": {"screens": [], "transitions": []},
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "out_of_scope"
+    assert "out_of_scope_long_horizon" in body["reason_codes"]
+
+
+def test_preflight_leading_framing_surfaced_advisory(client_with_stub_llm) -> None:
+    """The deterministic leading-framing lint surfaces in the preview as advisory
+    reasons + neutralize fixes, alongside an otherwise-answerable verdict (it
+    does NOT block — the T3 LLM judge finalizes amber/red at submit, not here)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "We're excited to ship a reorder button users will love.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+                "proposed_figma": {"screens": [], "transitions": []},
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "answerable"
+    assert body["leading_framing_reasons"]
+    assert body["leading_framing_fixes"]
+
+
+def test_preflight_answerable_clean(client_with_stub_llm) -> None:
+    """A well-posed hypothesis with a declared OEC and no framing previews
+    answerable with empty reasons/framing."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to be more concise.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "answerable"
+    assert body["reasons"] == []
+    assert body["leading_framing_reasons"] == []
+
+
 def test_happy_path_with_declared_metric_unaffected(client_with_stub_llm) -> None:
     """A hypothesis with a declared OEC and no structural-invisibility passes
     the gate unchanged (today's 202 path)."""

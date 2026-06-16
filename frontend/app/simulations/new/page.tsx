@@ -9,11 +9,15 @@ import {
   getCapabilities,
   getSimulationLimits,
   listSupportedModels,
+  parseNeedsInput,
+  preflightSimulation,
   type ActivePersonasResponse,
   type FeaturePackManifest,
   type Hypothesis,
   type ModelInfo,
+  type NeedsInputDetail,
   type PersonaSummary,
+  type PreflightResponse,
   type SimulationLimitsResponse,
   type SimulationRequest,
 } from "@/lib/api";
@@ -67,6 +71,41 @@ const METRIC_FIELD_LABELS: Record<MetricFieldName, string> = {
   decision_point: "a decision point",
 };
 
+// ── #313 / T4: structured claim composer ────────────────────────────────────
+// Epic #309 found that free-text claims slide into vague or framing-led prose
+// that the answerability gate (T1) blocks. The wizard's default authoring mode
+// is now four structured fields following the falsifiable template:
+//   "If [change] for [cohort], then [OEC metric] [direction]."
+// `composeClaimProse` folds them into the single `prose` string the API still
+// expects — no schema change, byte-compatible with a hand-written claim. The
+// free-text escape hatch (`claimFreeText`) bypasses the composer verbatim so a
+// terse expert hypothesis is never over-constrained.
+type ClaimDirection = "increases" | "decreases" | "changes";
+
+const CLAIM_DIRECTION_LABELS: Record<ClaimDirection, string> = {
+  increases: "increases",
+  decreases: "decreases",
+  changes: "changes",
+};
+
+interface StructuredClaim {
+  change: string;
+  cohort: string;
+  metric: string;
+  direction: ClaimDirection;
+}
+
+function composeClaimProse(c: StructuredClaim): string {
+  const change = c.change.trim();
+  const cohort = c.cohort.trim();
+  const metric = c.metric.trim();
+  // The cohort clause is optional — a product-wide change reads "If [change],
+  // then…". Everything else is required for a falsifiable claim (enforced in
+  // handleSubmit before this runs).
+  const cohortClause = cohort ? ` for ${cohort}` : "";
+  return `If ${change}${cohortClause}, then ${metric} ${CLAIM_DIRECTION_LABELS[c.direction]}.`;
+}
+
 export default function NewSimulationPage() {
   const router = useRouter();
 
@@ -85,7 +124,33 @@ export default function NewSimulationPage() {
   const [personasAreStarter, setPersonasAreStarter] = useState(false);
 
   const [capability, setCapability] = useState<string>("");
+  // #313 / T4: structured claim authoring is the default; the free-text
+  // escape hatch (`claimMode === "freetext"`) bypasses the composer for terse
+  // expert hypotheses. `hypothesis` holds the composed/raw prose the API gets.
+  const [claimMode, setClaimMode] = useState<"structured" | "freetext">(
+    "structured",
+  );
+  const [claimChange, setClaimChange] = useState<string>("");
+  const [claimCohort, setClaimCohort] = useState<string>("");
+  const [claimMetric, setClaimMetric] = useState<string>("");
+  const [claimDirection, setClaimDirection] =
+    useState<ClaimDirection>("increases");
   const [hypothesis, setHypothesis] = useState<string>("");
+  // The prose actually submitted: composed from the structured fields, or the
+  // free-text box verbatim. Derived so the preflight lint + manifest + submit
+  // all read one source of truth.
+  const structuredClaim: StructuredClaim = {
+    change: claimChange,
+    cohort: claimCohort,
+    metric: claimMetric,
+    direction: claimDirection,
+  };
+  const composedProse =
+    claimMode === "structured"
+      ? claimChange.trim() && claimMetric.trim()
+        ? composeClaimProse(structuredClaim)
+        : ""
+      : hypothesis;
   // Population state is kept as a string so an empty field stays empty
   // (rather than briefly collapsing to "0" and rendering "0 sampled agents").
   // Parsed to a number only at submit time. Codex P2 (round 1).
@@ -134,9 +199,14 @@ export default function NewSimulationPage() {
   // structured target metric ALONGSIDE the sentiment confidence_score. None =
   // today's sentiment-only behavior and is the default — when `metricName` is
   // null the submit payload carries no metric_name and is byte-identical to a
-  // pre-#279 request. The paired metric-lift delta is only populated by the
-  // scorer when the run is A/B mode (treatment − control), so the picker is
-  // offered ONLY in A/B mode; flipping back to single-arm clears it.
+  // pre-#279 request.
+  //
+  // #313 / T4: the picker is NO LONGER gated to A/B mode. The answerability
+  // gate (epic #309 T1) blocks a run with `oec_undeclared` whenever no
+  // `metric_name` is declared, regardless of arm count — so a single-arm run
+  // must be able to declare an OEC to clear that block. The picker is now
+  // offered in both modes; the metric-lift DELTA is still A/B-only (a paired
+  // treatment − control number), but the OEC declaration itself is mode-free.
   const [metricName, setMetricName] = useState<MetricName>(null);
   // The metric's in-character template fields. `conversionAction` /
   // `conversionActionLabel` reuse the generic Hypothesis label fields the
@@ -159,6 +229,18 @@ export default function NewSimulationPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  // #313 / T4 (deliverable 3 — the deploy-unblocker): when POST /simulations
+  // returns the epic #309 T1 needs_input 422, the parsed detail lands here so
+  // the wizard renders the named reasons + fixes inline as authoring guidance
+  // (never a dead-end) and, when `allow_override`, offers a one-tap "run anyway
+  // as generic reception" affordance that resubmits with the override flag.
+  const [needsInput, setNeedsInput] = useState<NeedsInputDetail | null>(null);
+  // #313 / T4 (deliverable 4 — inline lint): the deterministic, zero-LLM
+  // POST /simulations/preflight verdict, refreshed (debounced) as the user
+  // authors. It surfaces the SAME answerability reasons/fixes + the separable
+  // leading-framing lint BEFORE submit, so authoring guidance is live.
+  const [preflight, setPreflight] = useState<PreflightResponse | null>(null);
+  const [preflightStale, setPreflightStale] = useState(false);
 
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [defaultModelId, setDefaultModelId] = useState<string | null>(null);
@@ -320,114 +402,23 @@ export default function NewSimulationPage() {
     totalPersonaCount > 0 && selectedCount === totalPersonaCount;
   const noPersonasSelected = totalPersonaCount > 0 && selectedCount === 0;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitError(null);
-    setValidationError(null);
+  // #313 / T4: the OEC metric declaration is no longer A/B-gated (see the
+  // metricName state note). A metric declared in either mode satisfies the
+  // answerability gate's `oec_undeclared` check; the paired metric-lift DELTA
+  // is still only meaningful (and computed) in A/B mode.
+  const effectiveMetric: MetricName = metricName;
 
-    if (!capability) {
-      setValidationError("Please select a capability.");
-      return;
-    }
-    const trimmedProse = hypothesis.trim();
-    if (trimmedProse.length < 20) {
-      setValidationError(
-        "Hypothesis must be at least 20 characters of prose.",
-      );
-      return;
-    }
-    if (
-      populationSize == null ||
-      populationSize < 1 ||
-      populationSize > 10_000
-    ) {
-      setValidationError("Population must be between 1 and 10,000.");
-      return;
-    }
-    // Phase 5 #101: if the persona pack loaded and the PM cleared every
-    // chip, refuse to submit -- the API would 422 and the wizard
-    // shouldn't trip that.
-    if (totalPersonaCount > 0 && noPersonasSelected) {
-      setValidationError(
-        "Select at least one persona to run the simulation against.",
-      );
-      return;
-    }
-    if (activePerArmCap == null) {
-      setValidationError(
-        "Simulation limits are unavailable. Reload after the backend is reachable.",
-      );
-      return;
-    }
+  // #313 / T4: single source of truth for the Hypothesis payload, shared by
+  // the live preflight lint and the real submit so the inline guidance matches
+  // exactly what the create path will route on. Returns null when the claim
+  // prose is too short to assess (the field-level validators handle that).
+  function buildHypothesis(): Hypothesis | null {
+    const prose = composedProse.trim();
+    if (!capability || prose.length < 20) return null;
 
-    // Phase 4.6 #88: when A/B mode is on, total agents = 2 × per_arm.
-    // The PM has to acknowledge the cost if total exceeds the threshold.
-    const perArmAgents = Math.min(populationSize, activePerArmCap);
-    const totalAgents = abMode ? 2 * perArmAgents : perArmAgents;
-    if (
-      abMode &&
-      totalAgents > CONFIRM_TOTAL_AGENTS_THRESHOLD &&
-      !acknowledgedLargeRun
-    ) {
-      setValidationError(
-        `This A/B run uses ≈ ${totalAgents} LLM agents (2× a single-arm sim). Tick the acknowledgement below to continue.`,
-      );
-      return;
-    }
-
-    // #279: when a metric is selected, the registry's required template fields
-    // must be non-empty — mirror the backend's `Hypothesis._validate_metric`
-    // (driven by `required_template_fields`) so the wizard never trips the
-    // API's 422. The metric is A/B-only, so an effective metric only exists in
-    // A/B mode (single-arm resets it to None on toggle, but guard here too).
-    const effectiveMetric: MetricName = abMode ? metricName : null;
-    const metricFieldValues: Record<MetricFieldName, string> = {
-      conversion_action: conversionAction,
-      conversion_action_label: conversionActionLabel,
-      decision_point: decisionPoint,
-    };
-    if (effectiveMetric) {
-      const missing = REQUIRED_METRIC_FIELDS[effectiveMetric].filter(
-        (f) => !metricFieldValues[f].trim(),
-      );
-      if (missing.length > 0) {
-        setValidationError(
-          `${METRIC_LABELS[effectiveMetric]} needs ${missing
-            .map((f) => METRIC_FIELD_LABELS[f])
-            .join(", ")}.`,
-        );
-        return;
-      }
-    }
-
-    // Phase 5 #101: send `selected_personas: null` when:
-    //   (1) ALL personas are checked (= "no filter"), OR
-    //   (2) the /personas fetch hasn't loaded yet / failed, so we don't
-    //       know the full set and the PM can't actually be filtering --
-    //       falling back to "null = all personas" is the correct
-    //       backwards-compat behavior. (codex R1-P2 on #101: without this,
-    //       a still-loading or errored /personas call left
-    //       selectedPersonas empty, and the wizard submitted
-    //       selected_personas: [] which the API 422-rejects -- breaking
-    //       the exact fallback path the error UI promised would "run
-    //       against all personas.")
-    // Send the explicit subset only when the PM has actually narrowed.
-    const personaFilter: string[] | null =
-      totalPersonaCount === 0 || allPersonasSelected
-        ? null
-        : Array.from(selectedPersonas);
-
-    // #279: assemble the optional per-metric outcome elicitation block. When no
-    // metric is selected, `metricFields` is empty and the hypothesis payload is
-    // byte-identical to a pre-#279 request (no metric_name key). Each metric
-    // sends ONLY the fields it actually uses — the registry-required template
-    // fields plus any provided optional label and the optional choice_set:
-    //   - conversion → conversion_action + conversion_action_label + decision_point
-    //   - retention / ctr → decision_point (+ the reused conversion_action_label
-    //     ONLY when the PM filled it; blank → the registry default applies
-    //     server-side, so we omit the key rather than send null).
-    // conversion_action is conversion-only, so retention/ctr never carry it.
-    // choice_set is one alternative per non-empty line (empty → registry default).
+    // Mirror the registry's required-template-fields contract (see
+    // REQUIRED_METRIC_FIELDS) — same assembly the pre-#313 submit used, now
+    // mode-free for the declaration. choice_set is one alternative per line.
     let metricFields: Partial<Hypothesis> = {};
     if (effectiveMetric) {
       const choiceSet = choiceSetText
@@ -443,36 +434,208 @@ export default function NewSimulationPage() {
         metricFields.conversion_action = conversionAction.trim();
         metricFields.conversion_action_label = conversionActionLabel.trim();
       } else if (conversionActionLabel.trim()) {
-        // retention / ctr: the reused label field is OPTIONAL — only send it
-        // when the PM named one (blank → registry default return/click label).
         metricFields.conversion_action_label = conversionActionLabel.trim();
       }
     }
 
-    const req: SimulationRequest = {
-      hypothesis: {
-        capability_name: capability,
-        prose: trimmedProse,
-        proposed_prd:
-          showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
-        proposed_figma: null,
-        ...metricFields,
-      },
+    return {
+      capability_name: capability,
+      prose,
+      proposed_prd:
+        showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
+      proposed_figma: null,
+      ...metricFields,
+    };
+  }
+
+  // #313 / T4 (deliverable 4): live inline lint. Debounced POST /preflight as
+  // the claim / metric fields change. Deterministic + zero-LLM + no persist
+  // (the backend endpoint runs ONLY assess_answerability + the separable
+  // leading-framing lint), so it is safe to call on every authoring pause.
+  // `run_as_generic_reception` is intentionally NOT sent here — the preview
+  // reflects the un-overridden state so the guidance shows what to fix; the
+  // override is an explicit post-submit choice (deliverable 3).
+  const preflightProse = composedProse.trim();
+  const preflightMetric = effectiveMetric;
+  const preflightDecision = decisionPoint.trim();
+  const preflightConvAction = conversionAction.trim();
+  const preflightConvLabel = conversionActionLabel.trim();
+  const preflightChoice = choiceSetText;
+  useEffect(() => {
+    const hyp = buildHypothesis();
+    if (!hyp) {
+      setPreflight(null);
+      setPreflightStale(false);
+      return;
+    }
+    setPreflightStale(true);
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const resp = await preflightSimulation({ hypothesis: hyp });
+        if (!cancelled) {
+          setPreflight(resp);
+          setPreflightStale(false);
+        }
+      } catch {
+        // Preflight is advisory — a transient failure must never block
+        // authoring. Drop the stale verdict and let the user submit; the POST
+        // path's own 422 (deliverable 3) is the authoritative gate.
+        if (!cancelled) {
+          setPreflight(null);
+          setPreflightStale(false);
+        }
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    capability,
+    preflightProse,
+    preflightMetric,
+    preflightDecision,
+    preflightConvAction,
+    preflightConvLabel,
+    preflightChoice,
+    showAdvanced,
+    proposedPrd,
+  ]);
+
+  // #313 / T4: build the create payload once, shared by the normal submit and
+  // the needs_input override resubmit. `runAsGenericReception` threads the
+  // epic #309 T1 override flag onto the request (the field name is supplied by
+  // the 422 payload's `override_field`, but it is always
+  // `run_as_generic_reception` for this gate). Returns null when a field-level
+  // validation fails (it sets the validation error itself).
+  function buildRequest(runAsGenericReception: boolean): SimulationRequest | null {
+    if (!capability) {
+      setValidationError("Please select a capability.");
+      return null;
+    }
+    const hyp = buildHypothesis();
+    if (!hyp) {
+      setValidationError(
+        claimMode === "structured"
+          ? "Fill in the change and the expected metric — the composed claim must be at least 20 characters."
+          : "Hypothesis must be at least 20 characters of prose.",
+      );
+      return null;
+    }
+    if (
+      populationSize == null ||
+      populationSize < 1 ||
+      populationSize > 10_000
+    ) {
+      setValidationError("Population must be between 1 and 10,000.");
+      return null;
+    }
+    // Phase 5 #101: if the persona pack loaded and the PM cleared every
+    // chip, refuse to submit -- the API would 422 and the wizard
+    // shouldn't trip that.
+    if (totalPersonaCount > 0 && noPersonasSelected) {
+      setValidationError(
+        "Select at least one persona to run the simulation against.",
+      );
+      return null;
+    }
+    if (activePerArmCap == null) {
+      setValidationError(
+        "Simulation limits are unavailable. Reload after the backend is reachable.",
+      );
+      return null;
+    }
+
+    // Phase 4.6 #88: when A/B mode is on, total agents = 2 × per_arm.
+    // The PM has to acknowledge the cost if total exceeds the threshold.
+    const perArmAgents = Math.min(populationSize, activePerArmCap);
+    const totalAgents = abMode ? 2 * perArmAgents : perArmAgents;
+    if (
+      abMode &&
+      totalAgents > CONFIRM_TOTAL_AGENTS_THRESHOLD &&
+      !acknowledgedLargeRun
+    ) {
+      setValidationError(
+        `This A/B run uses ≈ ${totalAgents} LLM agents (2× a single-arm sim). Tick the acknowledgement below to continue.`,
+      );
+      return null;
+    }
+
+    // #279: when a metric is selected, the registry's required template fields
+    // must be non-empty — mirror the backend's `Hypothesis._validate_metric`
+    // (driven by `required_template_fields`) so the wizard never trips the
+    // API's 422. #313: the metric is now mode-free, so validate whenever one
+    // is declared (not only in A/B mode).
+    const metricFieldValues: Record<MetricFieldName, string> = {
+      conversion_action: conversionAction,
+      conversion_action_label: conversionActionLabel,
+      decision_point: decisionPoint,
+    };
+    if (effectiveMetric) {
+      const missing = REQUIRED_METRIC_FIELDS[effectiveMetric].filter(
+        (f) => !metricFieldValues[f].trim(),
+      );
+      if (missing.length > 0) {
+        setValidationError(
+          `${METRIC_LABELS[effectiveMetric]} needs ${missing
+            .map((f) => METRIC_FIELD_LABELS[f])
+            .join(", ")}.`,
+        );
+        return null;
+      }
+    }
+
+    // Phase 5 #101: send `selected_personas: null` when:
+    //   (1) ALL personas are checked (= "no filter"), OR
+    //   (2) the /personas fetch hasn't loaded yet / failed, so we don't
+    //       know the full set and the PM can't actually be filtering --
+    //       falling back to "null = all personas" is the correct
+    //       backwards-compat behavior. (codex R1-P2 on #101)
+    const personaFilter: string[] | null =
+      totalPersonaCount === 0 || allPersonasSelected
+        ? null
+        : Array.from(selectedPersonas);
+
+    return {
+      hypothesis: hyp,
       population_size: populationSize,
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
       selected_personas: personaFilter,
       model_id: selectedModelId || null,
-    };
+      // #313 / T4: the epic #309 T1 override. Only set when the user took the
+      // explicit "run anyway as generic reception" affordance; otherwise the
+      // payload is byte-identical to a pre-#313 request (false is the default
+      // and the gate treats absent === false).
+      ...(runAsGenericReception
+        ? { run_as_generic_reception: true }
+        : {}),
+    } as SimulationRequest;
+  }
 
+  // Shared create + routing, used by both the normal submit and the override
+  // resubmit. Parses the epic #309 T1 needs_input 422 into inline guidance
+  // (deliverable 3) rather than dumping a raw error string.
+  async function submitRequest(req: SimulationRequest) {
     setSubmitting(true);
     try {
       const res = await createSimulation(req);
       router.push(`/simulations/${res.id}`);
     } catch (e) {
       if (e instanceof ApiError) {
-        setSubmitError(
-          `Submission failed (HTTP ${e.status}): ${e.body || e.message}`,
-        );
+        const detail = e.body ? parseNeedsInput(e.body) : null;
+        if (detail) {
+          // The deploy-unblocker: surface the named reasons + fixes inline as
+          // authoring guidance, NOT a dead-end. The override affordance (when
+          // allow_override) lets the user resubmit as generic reception.
+          setNeedsInput(detail);
+          setSubmitError(null);
+        } else {
+          setSubmitError(
+            `Submission failed (HTTP ${e.status}): ${e.body || e.message}`,
+          );
+        }
       } else if (e instanceof Error) {
         setSubmitError(`Submission failed: ${e.message}`);
       } else {
@@ -480,6 +643,29 @@ export default function NewSimulationPage() {
       }
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitError(null);
+    setValidationError(null);
+    setNeedsInput(null);
+
+    const req = buildRequest(false);
+    if (!req) return;
+    await submitRequest(req);
+  }
+
+  // #313 / T4 (deliverable 3): the "run anyway as generic reception" override.
+  // Resubmits the SAME request with the gate's override field set, clearing the
+  // needs_input guidance first so the user sees the run start, not stale text.
+  async function handleRunAnyway() {
+    setNeedsInput(null);
+    setSubmitError(null);
+    setValidationError(null);
+    const req = buildRequest(true);
+    if (!req) return;
+    await submitRequest(req);
   }
 
   // R2 #167: live manifest values — every row is a real, currently-configured
@@ -514,8 +700,10 @@ export default function NewSimulationPage() {
     ],
     [
       "Metric",
-      abMode && metricName
-        ? `${METRIC_LABELS[metricName].toUpperCase()} LIFT · PAIRED`
+      metricName
+        ? abMode
+          ? `${METRIC_LABELS[metricName].toUpperCase()} LIFT · PAIRED`
+          : `${METRIC_LABELS[metricName].toUpperCase()} · OEC`
         : "SENTIMENT ONLY",
     ],
     [
@@ -624,6 +812,20 @@ export default function NewSimulationPage() {
             </div>
           )}
 
+          {/* #313 / T4 (deliverable 3 — the deploy-unblocker): the epic #309
+              T1 needs_input 422 rendered as inline authoring guidance, NOT a
+              dead-end. §7.7 disclosure anatomy (rule border, paper-recessed,
+              message in ink). When allow_override, the "run anyway as generic
+              reception" affordance resubmits with the override flag. */}
+          {needsInput && (
+            <NeedsInputNote
+              detail={needsInput}
+              submitting={submitting}
+              onRunAnyway={handleRunAnyway}
+              onDismiss={() => setNeedsInput(null)}
+            />
+          )}
+
           <div
             style={{
               maxWidth: 620,
@@ -631,27 +833,153 @@ export default function NewSimulationPage() {
             }}
           >
             {/* ── 01 · Claim ─────────────────────────────── */}
+            {/* #313 / T4: structured falsifiable-claim authoring is the
+                default (deliverable 1). The four fields compose into the prose
+                the API expects via composeClaimProse; the free-text toggle is
+                the escape hatch so a terse expert claim is never
+                over-constrained. The live preflight lint (deliverable 4)
+                renders below as §7.7 disclosure notes. */}
             <section>
-              <div style={sectionLabelStyle}>01 · Claim</div>
-              <div style={fieldStyle}>
-                <label htmlFor="hypothesis" style={sublabelStyle}>
-                  Hypothesis
-                </label>
-                <textarea
-                  id="hypothesis"
-                  value={hypothesis}
-                  onChange={(e) => setHypothesis(e.target.value)}
+              <div
+                style={{
+                  ...sectionLabelStyle,
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>01 · Claim</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setClaimMode((m) =>
+                      m === "structured" ? "freetext" : "structured",
+                    )
+                  }
                   disabled={formDisabled}
-                  required
-                  rows={3}
-                  placeholder="e.g. If we surface a one-tap reorder CTA on the home screen for users who ordered in the last 14 days, weekly reorder rate will increase."
-                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.45 }}
-                />
-                <div style={hintStyle}>
-                  State a falsifiable prediction — be specific about who and
-                  what, since the verdict prints against it.
-                </div>
+                  style={claimModeToggleStyle}
+                >
+                  {claimMode === "structured"
+                    ? "Free-text instead →"
+                    : "← Guided fields"}
+                </button>
               </div>
+
+              {claimMode === "structured" ? (
+                <>
+                  <div style={fieldStyle}>
+                    <label htmlFor="claim-change" style={sublabelStyle}>
+                      If we change…
+                    </label>
+                    <input
+                      id="claim-change"
+                      type="text"
+                      value={claimChange}
+                      onChange={(e) => setClaimChange(e.target.value)}
+                      disabled={formDisabled}
+                      placeholder="e.g. surface a one-tap reorder CTA on the home screen"
+                      style={inputStyle}
+                    />
+                    <div style={hintStyle}>
+                      The concrete product change agents react to — be specific
+                      about what is different.
+                    </div>
+                  </div>
+                  <div style={fieldStyle}>
+                    <label htmlFor="claim-cohort" style={sublabelStyle}>
+                      For — cohort (optional)
+                    </label>
+                    <input
+                      id="claim-cohort"
+                      type="text"
+                      value={claimCohort}
+                      onChange={(e) => setClaimCohort(e.target.value)}
+                      disabled={formDisabled}
+                      placeholder="e.g. users who ordered in the last 14 days"
+                      style={inputStyle}
+                    />
+                    <div style={hintStyle}>
+                      Who the change targets. Leave blank for a product-wide
+                      change.
+                    </div>
+                  </div>
+                  <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+                    <div style={{ minWidth: 0 }}>
+                      <label htmlFor="claim-metric" style={sublabelStyle}>
+                        Then — outcome metric
+                      </label>
+                      <input
+                        id="claim-metric"
+                        type="text"
+                        value={claimMetric}
+                        onChange={(e) => setClaimMetric(e.target.value)}
+                        disabled={formDisabled}
+                        placeholder="e.g. weekly reorder rate"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <label htmlFor="claim-direction" style={sublabelStyle}>
+                        Direction
+                      </label>
+                      <select
+                        id="claim-direction"
+                        value={claimDirection}
+                        onChange={(e) =>
+                          setClaimDirection(
+                            e.target.value as ClaimDirection,
+                          )
+                        }
+                        disabled={formDisabled}
+                        style={selectStyle}
+                      >
+                        <option value="increases">increases</option>
+                        <option value="decreases">decreases</option>
+                        <option value="changes">changes</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={hintStyle}>
+                    The observable outcome the claim predicts moves — this is
+                    what the verdict prints against.
+                  </div>
+                  {/* Live composed preview — the exact prose the API receives. */}
+                  <div style={composedPreviewStyle}>
+                    <div style={composedPreviewLabelStyle}>Composed claim</div>
+                    <div style={composedPreviewBodyStyle}>
+                      {composedProse ||
+                        "Fill in the change and outcome metric to compose the claim."}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={fieldStyle}>
+                  <label htmlFor="hypothesis" style={sublabelStyle}>
+                    Hypothesis — free text
+                  </label>
+                  <textarea
+                    id="hypothesis"
+                    value={hypothesis}
+                    onChange={(e) => setHypothesis(e.target.value)}
+                    disabled={formDisabled}
+                    rows={3}
+                    placeholder="e.g. If we surface a one-tap reorder CTA on the home screen for users who ordered in the last 14 days, weekly reorder rate will increase."
+                    style={{
+                      ...inputStyle,
+                      resize: "vertical",
+                      lineHeight: 1.45,
+                    }}
+                  />
+                  <div style={hintStyle}>
+                    State a falsifiable prediction — be specific about who and
+                    what, since the verdict prints against it. Guided fields
+                    enforce the falsifiable shape if you prefer.
+                  </div>
+                </div>
+              )}
+
+              {/* #313 / T4 (deliverable 4): live inline answerability lint. */}
+              <ClaimLintNotes preflight={preflight} stale={preflightStale} />
             </section>
 
             {/* ── 02 · Subject ───────────────────────────── */}
@@ -805,13 +1133,14 @@ export default function NewSimulationPage() {
                 onToggle={(next) => {
                   setAbMode(next);
                   // Clear stale acknowledgement when the user flips the toggle.
-                  // #279: the metric picker is A/B-only (the paired metric-lift
-                  // delta has no meaning single-arm), so leaving A/B mode resets
-                  // the metric selection back to None — the payload returns to
-                  // sentiment-only, byte-identical to a pre-#279 request.
+                  // #313 / T4: the metric picker is NO LONGER A/B-only — a
+                  // single-arm run declares the metric as its OEC to clear the
+                  // answerability gate, so the selection is PRESERVED across the
+                  // toggle (only the A/B-specific large-run acknowledgement is
+                  // reset). Leaving A/B mode keeps the declared OEC; only the
+                  // paired-lift delta (vs. single-arm rate) changes.
                   if (!next) {
                     setAcknowledgedLargeRun(false);
-                    setMetricName(null);
                   }
                 }}
                 populationSize={populationSize}
@@ -1303,12 +1632,14 @@ function ABModeSection({
   );
 }
 
-// #279 — Per-metric outcome elicitation picker. OPTIONAL and A/B-only: the
-// paired metric-lift delta (treatment − control) only has meaning when both
-// arms run, so outside A/B mode the picker greys out with an explanatory note
-// (DESIGN.md §7.7 disabled = opacity 0.5 + not-allowed, honest about existing —
-// never hidden, never recolored). None is the default; selecting a metric
-// reveals exactly the registry-required template fields for it.
+// #279 / #313 — Per-metric outcome elicitation picker. OPTIONAL. Declaring a
+// metric here also declares the OEC, which clears the epic #309 T1
+// `oec_undeclared` answerability block (the deploy-unblocker) — so the picker
+// is now offered in BOTH single-arm and A/B mode (#313 / T4 decoupled it from
+// A/B). None is the default; selecting a metric reveals exactly the
+// registry-required template fields. The metric-lift DELTA (treatment −
+// control) is still only computed in A/B mode; outside it, the metric is the
+// OEC for the sentiment-aligned reading and a single-arm rate.
 function MetricSection({
   abMode,
   metricName,
@@ -1336,9 +1667,10 @@ function MetricSection({
   onChangeChoiceSet: (next: string) => void;
   disabled: boolean;
 }) {
-  // The picker is inert outside A/B mode (the metric-lift delta needs paired
-  // arms). Greyed, not hidden — DESIGN.md §7.7.
-  const pickerDisabled = disabled || !abMode;
+  // #313 / T4: the picker is no longer A/B-gated — declaring an OEC must work
+  // single-arm to clear the answerability gate. It is inert only while the
+  // form itself is loading/submitting.
+  const pickerDisabled = disabled;
 
   const segBtnBase: React.CSSProperties = {
     fontFamily: FONT_MONO,
@@ -1442,30 +1774,39 @@ function MetricSection({
         })}
       </span>
       <div id="metric-helper" style={hintStyle}>
-        {!abMode ? (
-          <>
-            Outcome metrics need A/B mode — the lift is a paired treatment −
-            control delta, so switch Mode to <strong>A/B</strong> above to
-            elicit one. Without a metric, the run reports sentiment only.
-          </>
-        ) : metricName == null ? (
+        {metricName == null ? (
           <>
             None reports the sentiment confidence score only (today&rsquo;s
-            default). Pick a metric to ALSO elicit a paired, in-character
-            decision and report its treatment − control lift alongside
-            sentiment.
+            default). Declaring a metric names the OEC the run is answerable
+            against and elicits a blinded, in-character decision.
+            {!abMode && (
+              <>
+                {" "}
+                In single-arm mode it reports the metric rate alongside
+                sentiment; switch Mode to <strong>A/B</strong> above to also get
+                the paired treatment − control lift.
+              </>
+            )}
           </>
         ) : (
           <>
             Agents answer a blinded in-character question on turn 2; the scorer
-            reports the paired {METRIC_LABELS[metricName].toLowerCase()} lift
-            alongside the sentiment score. Magnitude is uncalibrated — read it
-            as rank + direction.
+            reports the {METRIC_LABELS[metricName].toLowerCase()}{" "}
+            {abMode ? (
+              <>
+                lift as a paired treatment − control delta
+              </>
+            ) : (
+              <>
+                rate (single-arm) alongside the sentiment score
+              </>
+            )}
+            . Magnitude is uncalibrated — read it as rank + direction.
           </>
         )}
       </div>
 
-      {abMode && metricName != null && (
+      {metricName != null && (
         <div style={{ marginTop: 14 }}>
           {eventFieldShown && (
             <div style={fieldStyle}>
@@ -1551,6 +1892,159 @@ function MetricSection({
         </div>
       )}
     </div>
+  );
+}
+
+// #313 / T4 (deliverable 4) — live inline answerability lint. Renders the
+// deterministic POST /preflight verdict beside the claim as the user authors.
+// Pure §7.7 disclosure anatomy (rule border, paper-recessed fill, mono label,
+// ink body) — a data caution, never an alarm: no semantic fill, no pill, no
+// icon, no alert-red. The advisory state never blocks; it is guidance only.
+function ClaimLintNotes({
+  preflight,
+  stale,
+}: {
+  preflight: PreflightResponse | null;
+  stale: boolean;
+}) {
+  if (!preflight) return null;
+
+  // The answerability verdict's own reasons/fixes (needs_input / out_of_scope)
+  // and the separable leading-framing lint, surfaced as two notes. A clean
+  // answerable verdict with no framing flags renders a quiet confirmation.
+  const hasAnswerability = preflight.reasons.length > 0;
+  const hasFraming = preflight.leading_framing_reasons.length > 0;
+
+  const header =
+    preflight.state === "needs_input"
+      ? "needs a detail before it can be read"
+      : preflight.state === "out_of_scope"
+        ? "outside this instrument's measurement scope"
+        : "advisory — clarify before you run";
+
+  return (
+    <div style={{ marginTop: 14, opacity: stale ? 0.55 : 1 }}>
+      {hasAnswerability && (
+        <div style={disclosureNoteStyle}>
+          <div style={disclosureLabelStyle}>{header}</div>
+          <ReasonFixList
+            reasons={preflight.reasons}
+            fixes={preflight.fixes}
+          />
+        </div>
+      )}
+      {hasFraming && (
+        <div style={{ ...disclosureNoteStyle, marginTop: hasAnswerability ? 8 : 0 }}>
+          <div style={disclosureLabelStyle}>
+            leading framing — may bias the reading
+          </div>
+          <ReasonFixList
+            reasons={preflight.leading_framing_reasons}
+            fixes={preflight.leading_framing_fixes}
+          />
+        </div>
+      )}
+      {!hasAnswerability && !hasFraming && (
+        <div style={disclosureNoteStyle}>
+          <div style={disclosureLabelStyle}>reads cleanly</div>
+          <div style={disclosureBodyTextStyle}>
+            This claim is answerable as written — no missing detail and no
+            leading framing detected.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// #313 / T4 (deliverable 3) — the needs_input 422 surface. Same §7.7
+// disclosure anatomy as the inline lint. NOT a dead-end: it names the blocking
+// reasons + fixes, and when `allow_override` it offers the explicit "run anyway
+// as generic reception" affordance (resubmits with run_as_generic_reception).
+function NeedsInputNote({
+  detail,
+  submitting,
+  onRunAnyway,
+  onDismiss,
+}: {
+  detail: NeedsInputDetail;
+  submitting: boolean;
+  onRunAnyway: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={{ ...disclosureNoteStyle, maxWidth: 620, marginBottom: 16 }}
+    >
+      <div style={disclosureLabelStyle}>
+        one detail needed before this can be read
+      </div>
+      <ReasonFixList reasons={detail.reasons} fixes={detail.fixes} />
+      <div
+        style={{
+          marginTop: 12,
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onDismiss}
+          disabled={submitting}
+          style={quietBtnStyle}
+        >
+          Edit the claim
+        </button>
+        {detail.allow_override && (
+          <button
+            type="button"
+            onClick={onRunAnyway}
+            disabled={submitting}
+            style={quietBtnStyle}
+          >
+            {submitting ? "Submitting…" : "Run anyway as generic reception"}
+          </button>
+        )}
+      </div>
+      {detail.allow_override && (
+        <div style={{ ...disclosureBodyTextStyle, marginTop: 8 }}>
+          Running as generic reception reports sentiment only — it is not
+          aligned to a declared outcome metric.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shared reasons + fixes body for the §7.7 disclosure notes. Reasons read in
+// ink; fixes are the actionable guidance beneath them (ink-muted).
+function ReasonFixList({
+  reasons,
+  fixes,
+}: {
+  reasons: string[];
+  fixes: string[];
+}) {
+  return (
+    <>
+      {reasons.length > 0 && (
+        <ul style={disclosureListStyle}>
+          {reasons.map((r, i) => (
+            <li key={`r-${i}`}>{r}</li>
+          ))}
+        </ul>
+      )}
+      {fixes.length > 0 && (
+        <ul style={{ ...disclosureListStyle, color: TOKENS.inkMuted }}>
+          {fixes.map((f, i) => (
+            <li key={`f-${i}`}>{f}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -1852,4 +2346,96 @@ const emptyStateStyle: React.CSSProperties = {
   border: `0.75px solid ${TOKENS.rule}`,
   maxWidth: 620,
   boxSizing: "border-box",
+};
+
+// #313 / T4 — claim mode toggle: a quiet text link (DESIGN.md §7.7 quiet
+// control), not a button chrome. Sits in the section header.
+const claimModeToggleStyle: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  fontFamily: FONT_MONO,
+  fontSize: 10.5,
+  letterSpacing: "0.06em",
+  textTransform: "none",
+  color: TOKENS.inkMuted,
+  cursor: "pointer",
+  textDecoration: "underline",
+  textUnderlineOffset: 2,
+};
+
+// #313 / T4 — composed-claim preview: the exact prose the API receives, shown
+// so the structured fields are never a black box. Paper-recessed, mono body
+// (it is the literal payload string — a machine value per §5.4).
+const composedPreviewStyle: React.CSSProperties = {
+  marginTop: 14,
+  padding: "10px 12px",
+  border: `0.75px solid ${TOKENS.rule}`,
+  background: TOKENS.paperRecessed,
+  borderRadius: 2,
+};
+
+const composedPreviewLabelStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  fontWeight: 500,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: TOKENS.inkMuted,
+  marginBottom: 6,
+};
+
+const composedPreviewBodyStyle: React.CSSProperties = {
+  fontSize: 14,
+  color: TOKENS.ink,
+  lineHeight: 1.45,
+};
+
+// #313 / T4 — the §7.7 disclosure note anatomy, reused verbatim for BOTH the
+// live inline lint (deliverable 4) and the needs_input surface (deliverable 3):
+// 0.75px rule border, paper-recessed fill, mono label, ink body. A data
+// caution, never an alarm — no semantic fill, no pill, no icon, no alert-red.
+const disclosureNoteStyle: React.CSSProperties = {
+  border: `0.75px solid ${TOKENS.rule}`,
+  background: TOKENS.paperRecessed,
+  borderRadius: 2,
+  padding: "10px 12px",
+};
+
+const disclosureLabelStyle: React.CSSProperties = {
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  fontWeight: 500,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: TOKENS.inkMuted,
+};
+
+const disclosureBodyTextStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: TOKENS.ink,
+  lineHeight: 1.5,
+  marginTop: 6,
+};
+
+const disclosureListStyle: React.CSSProperties = {
+  margin: "6px 0 0",
+  paddingLeft: 18,
+  fontSize: 13,
+  color: TOKENS.ink,
+  lineHeight: 1.5,
+};
+
+// #313 / T4 — quiet secondary control for the needs_input affordances (DESIGN.md
+// §7.7 quiet/secondary): hairline rule border, ink text, no fill.
+const quietBtnStyle: React.CSSProperties = {
+  background: TOKENS.paper,
+  border: `0.75px solid ${TOKENS.rule}`,
+  borderRadius: 2,
+  padding: "6px 12px",
+  fontFamily: FONT_SANS,
+  fontSize: 13,
+  fontWeight: 500,
+  color: TOKENS.ink,
+  cursor: "pointer",
 };
