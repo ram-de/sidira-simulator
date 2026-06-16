@@ -32,7 +32,6 @@ concurrently across the runner's per-agent fan-out.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -76,16 +75,6 @@ class MetricDescriptor:
     # action — filtered out of grounded alternatives so the question never offers
     # two target-like options.
     target_terms: Callable[[Hypothesis], set[str]] = field(default=lambda h: set())
-    # Predicate over a single (lowercased, stripped) alternative label: True when
-    # the alternative is itself a TARGET-like action and must be dropped even if it
-    # is not in `target_terms`. `target_terms` is an exact-match set that can only
-    # enumerate KNOWN target phrasings; this predicate catches arbitrary grounded /
-    # PM-supplied phrasings of the same event (e.g. CTR's target is "a click", so
-    # any grounded "click …" / "tap …" transition is the same CTR event and must
-    # not become an uncounted twin that splits p_metric — codex P2). The default is
-    # a no-op (no alternative is target-like beyond the exact `target_terms`), so
-    # conversion/retention keep their exact-set-only filtering byte-identical.
-    is_target_like_alternative: Callable[[str], bool] = field(default=lambda label: False)
 
 
 # ── conversion ─────────────────────────────────────────────────────────────
@@ -209,23 +198,20 @@ def _retention_aggregator(*args, **kwargs) -> MetricLiftResult:
 # ── CTR (#276) ──────────────────────────────────────────────────────────────
 
 
-# The click verbs that mark a grounded/PM-supplied alternative as itself a CLICK
-# action (see `_ctr_is_click_alternative`). Word-boundary matched so "uptick" or
-# "untapped" never trip the filter while "click the headline" / "tap to open" /
-# "open the article" / "select it" do. Underscores/hyphens are normalized to
-# spaces first so a token trigger like "click_headline" is caught too.
-_CTR_CLICK_VERBS = ("click", "tap", "press", "open", "select")
-_CTR_WORD_RE = re.compile(r"[a-z0-9]+")
-
-
 def _ctr_target_terms(hypothesis: Hypothesis) -> set[str]:
-    # CTR's target is the "click" label. The PM may name it via
-    # conversion_action_label (the generic metric label field) or rely on the
-    # registry default. Filter that and the registry's click label out of any
-    # grounded alternatives so the question never offers two click-like options.
-    # Arbitrary click-verb phrasings are caught separately by
-    # `_ctr_is_click_alternative` (the exact set below can only enumerate the
-    # KNOWN labels; the predicate covers the open set of grounded phrasings).
+    # CTR's target is the "click" label naming the SPECIFIC element under test. The
+    # PM may name it via conversion_action_label (the generic metric label field)
+    # or rely on the registry default ("click it"). Filter that label out of the
+    # grounded alternatives so the elicitor — which always PREPENDS the canonical
+    # click label — never offers the same target element twice (which would split
+    # p_metric across an uncounted twin and understate CTR; codex P2). This mirrors
+    # conversion exactly (which filters its conversion_action / _label): the PM
+    # identifies the TARGET element; OTHER clickable actions reachable at the same
+    # decision point ("tap search", "open menu") are LEGITIMATE competing-click
+    # alternatives and are intentionally NOT filtered, so they keep their share of
+    # the allocation and CTR is not inflated (codex P2). To filter a grounded
+    # target trigger that differs from the display label, the PM names it via
+    # conversion_action_label, exactly as a conversion PM names conversion_action.
     from sidira_simulator.services.ctr_elicitor import CTR_CLICK_LABEL
 
     terms = {
@@ -234,27 +220,6 @@ def _ctr_target_terms(hypothesis: Hypothesis) -> set[str]:
     }
     terms.discard("")
     return terms
-
-
-def _ctr_is_click_alternative(label: str) -> bool:
-    """True when a grounded/PM-supplied alternative is itself a CLICK action (#276).
-
-    CTR-specific hazard (codex P2): unlike conversion/retention — whose targets are
-    distinctive PM-named phrases unlikely to recur as a generic transition trigger —
-    CTR's target IS "a click", so a rendered/PM-supplied alternative is very likely
-    to ALSO be a click action (a figma click transition, e.g. "click the headline",
-    "tap to open", "click_headline"). If such a twin survives into the alternatives
-    it is offered alongside the prepended canonical click label, but `p_metric`
-    counts ONLY the canonical label — so agents split click intent into the
-    uncounted twin and `p_metric` UNDERSTATES the true CTR. The exact-match
-    `target_terms` set can only enumerate KNOWN phrasings; this word-boundary verb
-    check catches the open set of grounded click phrasings (separators normalized so
-    a token trigger is caught), so any click-action alternative is dropped before
-    elicitation regardless of its exact wording. A PM who needs a genuinely distinct
-    NON-click alternative simply names it without a click verb.
-    """
-    words = set(_CTR_WORD_RE.findall(label.lower()))
-    return any(verb in words for verb in _CTR_CLICK_VERBS)
 
 
 def _ctr_click_label(hypothesis: Hypothesis) -> str:
@@ -373,7 +338,6 @@ def _build_registry() -> dict[str, MetricDescriptor]:
             elicit=_ctr_elicit,
             calibrator_resolver=lambda: resolve_metric_calibrator("ctr"),
             target_terms=_ctr_target_terms,
-            is_target_like_alternative=_ctr_is_click_alternative,
             paraphrase_count=CTR_PARAPHRASE_COUNT,
         ),
     }
