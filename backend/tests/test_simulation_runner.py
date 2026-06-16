@@ -866,3 +866,65 @@ async def test_current_state_control_ignored_in_ab_mode() -> None:
     assert result.current_state_delta_sentiment_failure_drops == 0
     # No current_state shadow leaked into the persisted A/B records.
     assert all(r.arm != "current_state" for r in runner._last_run_agent_records)
+
+
+# ── T2 (#311): instrument-fit abstention rides into the persisted result ─────
+
+
+@pytest.mark.asyncio
+async def test_out_of_scope_run_is_not_blocked_and_result_carries_abstention() -> None:
+    """A run whose OEC is out of scope (long-horizon / network / novelty) still
+    RUNS to completion (no block) and the persisted result carries the
+    categorical abstention flag + named reasons, while confidence_score is still
+    computed — the verdict is WITHHELD, not discounted (#311 / T2)."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    oos_hyp = Hypothesis(
+        capability_name="reorder",
+        prose="Will referral loops drive virality and lift 90-day revenue?",
+    )
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=oos_hyp,
+        population_size=3,
+        run_seed=11,
+    )
+
+    # The run was NOT blocked: agents materialized and a score was computed.
+    assert len(simulation.agent_instance_ids) == 3
+    result = simulation.result
+    assert result is not None
+    assert result.confidence_score is not None  # score still produced
+
+    # The abstention rode into the persisted result, categorically.
+    assert result.instrument_scope == "out_of_scope"
+    assert result.out_of_scope_reasons  # named, human-readable reasons
+    assert result.out_of_scope_reason_codes  # stable machine codes
+
+
+@pytest.mark.asyncio
+async def test_in_scope_run_leaves_instrument_scope_default() -> None:
+    """A normal first-exposure hypothesis leaves the abstention fields at their
+    flag-off defaults (byte-identical persisted result)."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),  # "Add a one-tap reorder button…" — in scope
+        population_size=3,
+        run_seed=1,
+    )
+    result = simulation.result
+    assert result is not None
+    assert result.instrument_scope == "in_scope"
+    assert result.out_of_scope_reasons == []
+    assert result.out_of_scope_reason_codes == []

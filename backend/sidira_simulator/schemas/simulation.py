@@ -312,6 +312,24 @@ class SimulationResult(BaseModel):
         ),
     )
 
+    # ── Abstention / instrument-fit (epic #309, T2 / #311) ──
+    # The sanctioned "fourth verdict state" carrier. CATEGORICAL only — a state
+    # flag + named reasons, NEVER a number or score (panel hard constraint: the
+    # abstention does not arithmetically discount confidence_score, it
+    # categorically WITHHOLDS the ship/no-ship verdict). Populated by the runner
+    # from the deterministic, zero-LLM instrument-fit detector
+    # (services.answerability._detect_out_of_scope) when the OEC is unresolvable
+    # by a first-exposure single-session panel (long-horizon / network /
+    # novelty-decay). Default `False` / empty so a flag-off run and every older
+    # `result_json` row load byte-identical and this is migration-free (it rides
+    # the result JSON blob, NOT a DB column). When `instrument_scope` is
+    # "out_of_scope", `verdictFor()` overrides the numeric verdict to
+    # "NOT ANSWERABLE BY THIS INSTRUMENT" and surfaces `out_of_scope_reasons`.
+    # The headline confidence_score is still computed and persisted unchanged.
+    instrument_scope: Literal["in_scope", "out_of_scope"] = "in_scope"
+    out_of_scope_reasons: list[str] = Field(default_factory=list)
+    out_of_scope_reason_codes: list[str] = Field(default_factory=list)
+
     # ── A/B mode fields (Phase 4.6 #90) ──
     # All None / 0 for single-arm sims so older `result_json` rows load.
     treatment_score: float | None = None
