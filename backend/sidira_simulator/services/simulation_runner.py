@@ -608,12 +608,22 @@ class SimulationRunner:
                 # could split target intent into the unlabeled twin and undercount
                 # the lift. The terms are supplied per-metric by the registry.
                 target_terms = descriptor.target_terms(hypothesis)
+
+                def _is_target_alternative(label: str) -> bool:
+                    # Drop an alternative that is the metric's TARGET action — by
+                    # exact-match against the known target term(s), OR by the
+                    # metric's predicate for arbitrary phrasings of the same event
+                    # (e.g. CTR's "any click action"; the predicate is a no-op for
+                    # conversion/retention, so their filtering is byte-identical).
+                    normalized = label.strip().lower()
+                    return normalized in target_terms or descriptor.is_target_like_alternative(
+                        normalized
+                    )
+
                 grounded_choice_set: list[str] | None = None
                 if hypothesis.choice_set:
                     grounded_choice_set = [
-                        lbl
-                        for lbl in hypothesis.choice_set
-                        if lbl.strip().lower() not in target_terms
+                        lbl for lbl in hypothesis.choice_set if not _is_target_alternative(lbl)
                     ] or None
                 elif hypothesis.proposed_figma is not None:
                     rendered = render_state_diff(capability, hypothesis)
@@ -627,7 +637,7 @@ class SimulationRunner:
                         grounded_choice_set = [
                             c.action
                             for c in extracted.choices
-                            if c.action.strip().lower() not in target_terms
+                            if not _is_target_alternative(c.action)
                         ] or None
                 # Blinded metric prompt (§3b): standalone state, no change
                 # framing — NOT the unblinded identity_prompt used for the

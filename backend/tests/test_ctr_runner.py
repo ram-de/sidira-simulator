@@ -222,6 +222,42 @@ async def test_grounded_click_alternative_filtered_from_ctr_options() -> None:
 
 
 @pytest.mark.asyncio
+async def test_pm_choice_set_click_twin_filtered_from_ctr_options() -> None:
+    """The same target-like filter applies to a PM-supplied choice_set: an arbitrary
+    click phrasing the PM lists ("click the headline") is dropped, while a genuine
+    non-click alternative survives (codex P2)."""
+    store, persona_pack, capability, feature_pack_version = _load()
+    chat = _CtrChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    hypothesis = Hypothesis(
+        capability_name="reorder",
+        prose="Surface a headline banner on the home tab.",
+        metric_name="ctr",  # default "click it"
+        decision_point="the headline banner is on your home tab",
+        choice_set=["click the headline", "keep scrolling", "leave"],
+    )
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=hypothesis,
+        population_size=2,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    assert chat.metric_user_turns
+    for turn in chat.metric_user_turns:
+        assert '"click it": <int>' in turn
+        # the PM's click twin is dropped (arbitrary phrasing, caught by predicate)
+        assert '"click the headline": <int>' not in turn
+        # genuine non-click alternatives survive
+        assert '"keep scrolling": <int>' in turn
+
+
+@pytest.mark.asyncio
 async def test_no_metric_never_elicits_ctr() -> None:
     store, persona_pack, capability, feature_pack_version = _load()
     chat = _CtrChat()

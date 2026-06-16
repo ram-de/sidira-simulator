@@ -145,11 +145,33 @@ def test_ctr_target_terms_includes_default_click_label() -> None:
     )
     terms = d.target_terms(h)
     assert "click it" in terms
-    # CTR also filters common click-verb phrasings a grounded trigger uses, so a
-    # rendered click transition never survives as an uncounted click twin that
-    # would split p_metric (codex P2). A genuine non-click alternative is not here.
-    assert {"click", "tap", "tap to open"} <= terms
-    assert "browse the full menu" not in terms
+
+
+def test_ctr_is_target_like_alternative_catches_click_phrasings() -> None:
+    """Arbitrary grounded/PM-supplied click phrasings are detected as target-like
+    (and so dropped from the alternatives), not just the exact target_terms — so a
+    rendered click transition never survives as an uncounted click twin that would
+    split p_metric (codex P2). The predicate is a no-op for the weak-behavioral
+    siblings, so their filtering is unperturbed."""
+    d = get_metric("ctr")
+    for click_like in (
+        "click the headline",
+        "tap to open",
+        "click_headline",  # token-format trigger (separators normalized)
+        "Tap The Banner",
+        "press play",
+        "open the article",
+        "select it",
+    ):
+        assert d.is_target_like_alternative(click_like.strip().lower()), click_like
+    # genuine non-click alternatives are NOT target-like → they survive
+    for non_click in ("browse the full menu", "keep scrolling", "leave", "compare prices"):
+        assert not d.is_target_like_alternative(non_click)
+    # word-boundary matched: a verb embedded in another word never trips it
+    assert not d.is_target_like_alternative("uptick in interest")
+    # the weak-behavioral siblings keep the default no-op predicate (unperturbed)
+    assert get_metric("conversion").is_target_like_alternative("click the headline") is False
+    assert get_metric("retention").is_target_like_alternative("tap to open") is False
 
 
 def test_ctr_target_terms_includes_pm_supplied_label() -> None:
