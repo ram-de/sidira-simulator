@@ -24,6 +24,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationResult,
     SimulationStatus,
 )
+from sidira_simulator.services.answerability import assess_answerability
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
@@ -89,6 +90,33 @@ async def create_simulation(
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
 ) -> CreateSimulationResponse:
     """Accepts a hypothesis. Returns 202 + simulation_id; runs after the response is sent."""
+    # #310 / T1: deterministic, zero-LLM pre-flight answerability gate. Runs
+    # PRE-PERSIST, before orchestrator.prepare and before any LLM token is
+    # spent. On `needs_input` (and no override set) we 422 with a
+    # refinement-shaped payload (reasons + fixes) so the wizard can guide the
+    # PM to a one-field fix, signalling whether a generic-reception override is
+    # available. It ROUTES on a categorical verdict and never touches
+    # confidence_score. See services/answerability.py for the two checks.
+    verdict = assess_answerability(
+        payload.hypothesis,
+        allow_generic_reception=payload.run_as_generic_reception,
+    )
+    if verdict.state == "needs_input":
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "needs_input",
+                "reasons": verdict.reasons,
+                "fixes": verdict.fixes,
+                "reason_codes": verdict.reason_codes,
+                # When True, the PM can resubmit with run_as_generic_reception=true
+                # to proceed (sentiment-only, not OEC-aligned). False means the
+                # blocking defect (structural-invisibility) must be fixed first.
+                "allow_override": verdict.allow_override,
+                "override_field": "run_as_generic_reception",
+            },
+        )
+
     # Phase 2.5: population_size is the modeled userbase; the materialized
     # sample is capped by the backend's effective max-agent setting. Phase 4.6
     # #100 shares this resolver with /config/limits so the wizard preview

@@ -133,6 +133,7 @@ def test_max_agents_env_defaults_when_malformed(monkeypatch: pytest.MonkeyPatch)
         json={
             "hypothesis": {"capability_name": "reorder", "prose": "x" * 20},
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     # 202 = the env-parse fallback worked; 500 = the unhandled ValueError leaked.
@@ -154,6 +155,7 @@ def test_max_agents_env_clamped_to_min_one(monkeypatch: pytest.MonkeyPatch) -> N
         json={
             "hypothesis": {"capability_name": "reorder", "prose": "x" * 20},
             "population_size": 5,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code in (202, 409), resp.text
