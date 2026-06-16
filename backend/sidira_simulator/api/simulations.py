@@ -15,6 +15,7 @@ from sidira_simulator.adapters.repositories import AgentInstanceRepo
 from sidira_simulator.api.deps import (
     current_customer_id,
     get_agent_repo,
+    get_input_lint_chat_client,
     get_orchestrator,
 )
 from sidira_simulator.schemas.simulation import (
@@ -25,6 +26,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
 )
 from sidira_simulator.services.answerability import assess_answerability
+from sidira_simulator.services.input_lint import assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
@@ -88,6 +90,7 @@ async def create_simulation(
     background_tasks: BackgroundTasks,
     customer_id: str = Depends(current_customer_id),
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+    input_lint_chat_client=Depends(get_input_lint_chat_client),
 ) -> CreateSimulationResponse:
     """Accepts a hypothesis. Returns 202 + simulation_id; runs after the response is sent."""
     # #310 / T1: deterministic, zero-LLM pre-flight answerability gate. Runs
@@ -126,6 +129,31 @@ async def create_simulation(
     # override is categorical (panel hard constraint). We deliberately fall
     # through to the normal run path here.
 
+    # Cheap synchronous validation (model_id) runs BEFORE the LLM input lint so an
+    # unsupported explicit model returns 400 without spending judge tokens.
+    try:
+        model_id = resolve_model_id(
+            payload.model_id,
+            require_available=payload.model_id is not None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # #312 / T3: pre-flight ORDINAL input lint (LLM judge + deterministic
+    # leading-framing lint + paraphrase-abstain). Runs AFTER the T1/T2 gate and
+    # the cheap model_id check so a structural `needs_input` 422 or a 400 bad
+    # model short-circuits before any token is spent. NEVER 422s — semantic
+    # judgments are disclose-and-run: green runs silently; amber/red/abstain
+    # stamp `input_flags` on the result card and offer refinement (the run always
+    # proceeds). The verdict is threaded through the orchestrator into the runner,
+    # which stamps `input_flags` onto SimulationResult and moves the refinement
+    # trigger earlier. It ROUTES and never touches confidence_score (panel hard
+    # constraint). On any judge failure the lint degrades to the deterministic
+    # framing lint alone — a paying user is never blocked on a semantic judgment.
+    input_lint = await assess_input_lint(
+        payload.hypothesis, chat_client=input_lint_chat_client
+    )
+
     # Phase 2.5: population_size is the modeled userbase; the materialized
     # sample is capped by the backend's effective max-agent setting. Phase 4.6
     # #100 shares this resolver with /config/limits so the wizard preview
@@ -138,13 +166,6 @@ async def create_simulation(
     # without using lets the row tell the truth from day one and avoids a
     # subsequent migration when #89 lands.
     treatment_fraction = payload.arm_split.treatment_fraction if payload.arm_split else None
-    try:
-        model_id = resolve_model_id(
-            payload.model_id,
-            require_available=payload.model_id is not None,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         sim_id, run = await orchestrator.prepare(
@@ -158,6 +179,7 @@ async def create_simulation(
             model_id=model_id,
             include_no_persona_control=payload.include_no_persona_control,
             include_current_state_control=payload.include_current_state_control,
+            input_lint=input_lint,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.

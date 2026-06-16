@@ -738,6 +738,76 @@ export default function SimulationDetailPage() {
                       </ul>
                     </div>
                   )}
+                {/* #312 / T3 — pre-flight input-lint disclosure (degrade-and-
+                    disclose). UNLIKE the T2 abstention above, this does NOT
+                    withhold the verdict — the run produced its normal reading
+                    and this note sits alongside as a disclosed INPUT limitation
+                    (vague / leading prose, or an indeterminate paraphrase-
+                    unstable verdict). A data caution, NOT an alarm: reuses the
+                    §7.7 note anatomy on a hairline `rule` border with the
+                    message in `ink` — no semantic tone (matches the verdict-chip
+                    law §8.2). */}
+                {completeResult?.input_flags &&
+                  (() => {
+                    const flags = completeResult.input_flags;
+                    const abstain = flags.state === "abstain";
+                    return (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          border: `0.75px solid ${TOKENS.rule}`,
+                          background: TOKENS.paperRecessed,
+                          borderRadius: 2,
+                          padding: "10px 12px",
+                        }}
+                      >
+                        <div style={{ ...monoLabelStyle, marginBottom: 6 }}>
+                          {abstain
+                            ? "INPUT LINT — INDETERMINATE, PLEASE CLARIFY"
+                            : "INPUT LINT — DISCLOSED LIMITATION"}
+                        </div>
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: 18,
+                            color: TOKENS.ink,
+                            fontFamily: FONT_SANS,
+                            fontSize: 13,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {(flags.reasons ?? []).map((r, i) => (
+                            <li key={i} style={{ marginBottom: 4 }}>
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                        {(flags.fixes ?? []).length > 0 && (
+                          <>
+                            <div style={{ ...monoLabelStyle, marginTop: 8, marginBottom: 6 }}>
+                              SUGGESTED FIXES
+                            </div>
+                            <ul
+                              style={{
+                                margin: 0,
+                                paddingLeft: 18,
+                                color: TOKENS.ink,
+                                fontFamily: FONT_SANS,
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {(flags.fixes ?? []).map((f, i) => (
+                                <li key={i} style={{ marginBottom: 4 }}>
+                                  {f}
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
               </div>
             </div>
 

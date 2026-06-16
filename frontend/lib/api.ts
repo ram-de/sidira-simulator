@@ -140,6 +140,7 @@ export type Hypothesis = components["schemas"]["Hypothesis"];
 export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
 export type SimulationResult = components["schemas"]["SimulationResult"];
+export type InputFlags = components["schemas"]["InputFlags"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type ModelInfo = components["schemas"]["ModelInfo"];
 export type ListModelsResponse = components["schemas"]["ListModelsResponse"];
