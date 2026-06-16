@@ -994,6 +994,21 @@ export interface components {
             /** Proposed Prd */
             proposed_prd?: string | null;
             proposed_figma?: components["schemas"]["ReverseFigma"] | null;
+            /**
+             * Metric Name
+             * @description OPTIONAL per-metric outcome elicitation target (#221/#275/#276).
+             *     None = sentiment-only (today's default). A registered metric adds a
+             *     turn-2 blinded decision elicitation + paired metric-lift delta.
+             */
+            metric_name?: "conversion" | "retention" | "ctr" | null;
+            /** Conversion Action */
+            conversion_action?: string | null;
+            /** Conversion Action Label */
+            conversion_action_label?: string | null;
+            /** Decision Point */
+            decision_point?: string | null;
+            /** Choice Set */
+            choice_set?: string[];
         };
         /**
          * IdentitySeed

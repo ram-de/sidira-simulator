@@ -11,6 +11,7 @@ import {
   listSupportedModels,
   type ActivePersonasResponse,
   type FeaturePackManifest,
+  type Hypothesis,
   type ModelInfo,
   type PersonaSummary,
   type SimulationLimitsResponse,
@@ -24,6 +25,47 @@ import SampleWorkspaceCard from "@/components/SampleWorkspaceCard";
 // Reading-manifest inspector rail). Presentational only — every field, its
 // state handling, validation, and the submit payload are unchanged from the
 // pre-R2 wizard.
+
+// ── #279 metric registry mirror ─────────────────────────────────────────────
+// A thin frontend mirror of `backend/sidira_simulator/services/metric_registry.py`.
+// `metric_name` is the closed Literal from `schemas.simulation.Hypothesis`
+// (conversion · retention · ctr); None = sentiment-only. `REQUIRED_METRIC_FIELDS`
+// mirrors each descriptor's `required_template_fields` 1:1 so the wizard's
+// validation matches the backend's `Hypothesis._validate_metric` exactly:
+//   - conversion → conversion_action + conversion_action_label + decision_point
+//   - retention  → decision_point only (the "return" label is OPTIONAL, reuses
+//                  conversion_action_label; registry default "return next week")
+//   - ctr        → decision_point only (the click label is OPTIONAL, reuses
+//                  conversion_action_label; registry default "click it")
+// `choice_set` is optional for every metric (empty → the registry default).
+type MetricKey = "conversion" | "retention" | "ctr";
+type MetricName = MetricKey | null;
+type MetricFieldName =
+  | "conversion_action"
+  | "conversion_action_label"
+  | "decision_point";
+
+const METRIC_LABELS: Record<MetricKey, string> = {
+  conversion: "Conversion",
+  retention: "Retention",
+  ctr: "CTR",
+};
+
+const REQUIRED_METRIC_FIELDS: Record<MetricKey, MetricFieldName[]> = {
+  conversion: [
+    "conversion_action",
+    "conversion_action_label",
+    "decision_point",
+  ],
+  retention: ["decision_point"],
+  ctr: ["decision_point"],
+};
+
+const METRIC_FIELD_LABELS: Record<MetricFieldName, string> = {
+  conversion_action: "a conversion event",
+  conversion_action_label: "an in-character label",
+  decision_point: "a decision point",
+};
 
 export default function NewSimulationPage() {
   const router = useRouter();
@@ -86,6 +128,28 @@ export default function NewSimulationPage() {
   // emergency rollback is a one-line flip.
   const AB_MODE_DISABLED_UNTIL_LIFT = false;
   const [abMode, setAbMode] = useState(false);
+
+  // #279: OPTIONAL per-metric outcome elicitation. The backend
+  // (services.metric_registry / schemas.simulation.Hypothesis) supports a
+  // structured target metric ALONGSIDE the sentiment confidence_score. None =
+  // today's sentiment-only behavior and is the default — when `metricName` is
+  // null the submit payload carries no metric_name and is byte-identical to a
+  // pre-#279 request. The paired metric-lift delta is only populated by the
+  // scorer when the run is A/B mode (treatment − control), so the picker is
+  // offered ONLY in A/B mode; flipping back to single-arm clears it.
+  const [metricName, setMetricName] = useState<MetricName>(null);
+  // The metric's in-character template fields. `conversionAction` /
+  // `conversionActionLabel` reuse the generic Hypothesis label fields the
+  // registry reads for every metric (conversion: action + label; retention:
+  // the "return" label via conversion_action_label; ctr: the click label via
+  // conversion_action_label). `decisionPoint` is required by every registered
+  // metric. `choiceSet` is optional (one alternative per line) — empty falls
+  // back to the metric's registry default choice set.
+  const [conversionAction, setConversionAction] = useState<string>("");
+  const [conversionActionLabel, setConversionActionLabel] = useState<string>("");
+  const [decisionPoint, setDecisionPoint] = useState<string>("");
+  const [choiceSetText, setChoiceSetText] = useState<string>("");
+
   // The "confirm-if-large" threshold from docs/4.6 Q4. When total agents
   // (across both arms) exceeds this, the PM gets an explicit
   // acknowledgement step before submit.
@@ -311,6 +375,31 @@ export default function NewSimulationPage() {
       return;
     }
 
+    // #279: when a metric is selected, the registry's required template fields
+    // must be non-empty — mirror the backend's `Hypothesis._validate_metric`
+    // (driven by `required_template_fields`) so the wizard never trips the
+    // API's 422. The metric is A/B-only, so an effective metric only exists in
+    // A/B mode (single-arm resets it to None on toggle, but guard here too).
+    const effectiveMetric: MetricName = abMode ? metricName : null;
+    const metricFieldValues: Record<MetricFieldName, string> = {
+      conversion_action: conversionAction,
+      conversion_action_label: conversionActionLabel,
+      decision_point: decisionPoint,
+    };
+    if (effectiveMetric) {
+      const missing = REQUIRED_METRIC_FIELDS[effectiveMetric].filter(
+        (f) => !metricFieldValues[f].trim(),
+      );
+      if (missing.length > 0) {
+        setValidationError(
+          `${METRIC_LABELS[effectiveMetric]} needs ${missing
+            .map((f) => METRIC_FIELD_LABELS[f])
+            .join(", ")}.`,
+        );
+        return;
+      }
+    }
+
     // Phase 5 #101: send `selected_personas: null` when:
     //   (1) ALL personas are checked (= "no filter"), OR
     //   (2) the /personas fetch hasn't loaded yet / failed, so we don't
@@ -328,6 +417,38 @@ export default function NewSimulationPage() {
         ? null
         : Array.from(selectedPersonas);
 
+    // #279: assemble the optional per-metric outcome elicitation block. When no
+    // metric is selected, `metricFields` is empty and the hypothesis payload is
+    // byte-identical to a pre-#279 request (no metric_name key). Each metric
+    // sends ONLY the fields it actually uses — the registry-required template
+    // fields plus any provided optional label and the optional choice_set:
+    //   - conversion → conversion_action + conversion_action_label + decision_point
+    //   - retention / ctr → decision_point (+ the reused conversion_action_label
+    //     ONLY when the PM filled it; blank → the registry default applies
+    //     server-side, so we omit the key rather than send null).
+    // conversion_action is conversion-only, so retention/ctr never carry it.
+    // choice_set is one alternative per non-empty line (empty → registry default).
+    let metricFields: Partial<Hypothesis> = {};
+    if (effectiveMetric) {
+      const choiceSet = choiceSetText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      metricFields = {
+        metric_name: effectiveMetric,
+        decision_point: decisionPoint.trim(),
+        choice_set: choiceSet,
+      };
+      if (effectiveMetric === "conversion") {
+        metricFields.conversion_action = conversionAction.trim();
+        metricFields.conversion_action_label = conversionActionLabel.trim();
+      } else if (conversionActionLabel.trim()) {
+        // retention / ctr: the reused label field is OPTIONAL — only send it
+        // when the PM named one (blank → registry default return/click label).
+        metricFields.conversion_action_label = conversionActionLabel.trim();
+      }
+    }
+
     const req: SimulationRequest = {
       hypothesis: {
         capability_name: capability,
@@ -335,6 +456,7 @@ export default function NewSimulationPage() {
         proposed_prd:
           showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
         proposed_figma: null,
+        ...metricFields,
       },
       population_size: populationSize,
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
@@ -389,6 +511,12 @@ export default function NewSimulationPage() {
       packVersion != null && totalPersonaCount > 0
         ? `${packVersion} · ${selectedCount} OF ${totalPersonaCount}`
         : "ALL PERSONAS",
+    ],
+    [
+      "Metric",
+      abMode && metricName
+        ? `${METRIC_LABELS[metricName].toUpperCase()} LIFT · PAIRED`
+        : "SENTIMENT ONLY",
     ],
     [
       "Population",
@@ -677,7 +805,14 @@ export default function NewSimulationPage() {
                 onToggle={(next) => {
                   setAbMode(next);
                   // Clear stale acknowledgement when the user flips the toggle.
-                  if (!next) setAcknowledgedLargeRun(false);
+                  // #279: the metric picker is A/B-only (the paired metric-lift
+                  // delta has no meaning single-arm), so leaving A/B mode resets
+                  // the metric selection back to None — the payload returns to
+                  // sentiment-only, byte-identical to a pre-#279 request.
+                  if (!next) {
+                    setAcknowledgedLargeRun(false);
+                    setMetricName(null);
+                  }
                 }}
                 populationSize={populationSize}
                 perArmCap={activePerArmCap}
@@ -770,6 +905,25 @@ export default function NewSimulationPage() {
                   {limitsError} Reload after the backend is reachable.
                 </div>
               )}
+            </section>
+
+            {/* ── 05 · Outcome metric ────────────────────── */}
+            <section style={sectionStyle}>
+              <div style={sectionLabelStyle}>05 · Outcome metric</div>
+              <MetricSection
+                abMode={abMode}
+                metricName={metricName}
+                onChangeMetric={setMetricName}
+                conversionAction={conversionAction}
+                onChangeConversionAction={setConversionAction}
+                conversionActionLabel={conversionActionLabel}
+                onChangeConversionActionLabel={setConversionActionLabel}
+                decisionPoint={decisionPoint}
+                onChangeDecisionPoint={setDecisionPoint}
+                choiceSetText={choiceSetText}
+                onChangeChoiceSet={setChoiceSetText}
+                disabled={formDisabled}
+              />
             </section>
           </div>
         </div>
@@ -1144,6 +1298,257 @@ function ABModeSection({
             acknowledge the ~2× LLM cost before submitting.
           </span>
         </label>
+      )}
+    </div>
+  );
+}
+
+// #279 — Per-metric outcome elicitation picker. OPTIONAL and A/B-only: the
+// paired metric-lift delta (treatment − control) only has meaning when both
+// arms run, so outside A/B mode the picker greys out with an explanatory note
+// (DESIGN.md §7.7 disabled = opacity 0.5 + not-allowed, honest about existing —
+// never hidden, never recolored). None is the default; selecting a metric
+// reveals exactly the registry-required template fields for it.
+function MetricSection({
+  abMode,
+  metricName,
+  onChangeMetric,
+  conversionAction,
+  onChangeConversionAction,
+  conversionActionLabel,
+  onChangeConversionActionLabel,
+  decisionPoint,
+  onChangeDecisionPoint,
+  choiceSetText,
+  onChangeChoiceSet,
+  disabled,
+}: {
+  abMode: boolean;
+  metricName: MetricName;
+  onChangeMetric: (next: MetricName) => void;
+  conversionAction: string;
+  onChangeConversionAction: (next: string) => void;
+  conversionActionLabel: string;
+  onChangeConversionActionLabel: (next: string) => void;
+  decisionPoint: string;
+  onChangeDecisionPoint: (next: string) => void;
+  choiceSetText: string;
+  onChangeChoiceSet: (next: string) => void;
+  disabled: boolean;
+}) {
+  // The picker is inert outside A/B mode (the metric-lift delta needs paired
+  // arms). Greyed, not hidden — DESIGN.md §7.7.
+  const pickerDisabled = disabled || !abMode;
+
+  const segBtnBase: React.CSSProperties = {
+    fontFamily: FONT_MONO,
+    fontSize: 11,
+    letterSpacing: "0.06em",
+    border: "none",
+    padding: "7px 14px",
+    transition: "background 80ms ease-out, color 80ms ease-out",
+    cursor: pickerDisabled ? "not-allowed" : "pointer",
+  };
+
+  // None + the three registered metrics, in registry order.
+  const options: Array<{ value: MetricName; label: string }> = [
+    { value: null, label: "NONE" },
+    { value: "conversion", label: "CONVERSION" },
+    { value: "retention", label: "RETENTION" },
+    { value: "ctr", label: "CTR" },
+  ];
+
+  const labelFieldShown = metricName != null;
+  // conversion_action (the machine event) is only required/shown for conversion.
+  const eventFieldShown = metricName === "conversion";
+  // The reused label field's prompt differs per metric (the registry reads
+  // conversion_action_label as the conversion label / retention "return" label /
+  // ctr click label). Conversion requires it; retention + ctr make it optional.
+  const labelMeta: Record<
+    MetricKey,
+    { label: string; placeholder: string; hint: string; required: boolean }
+  > = {
+    conversion: {
+      label: "Conversion label — in-character",
+      placeholder: "e.g. check out now",
+      hint: "How agents phrase the conversion choice in-character (prepended to the alternatives below).",
+      required: true,
+    },
+    retention: {
+      label: "Return label — optional",
+      placeholder: "e.g. return next week",
+      hint: 'The "return" choice agents pick to come back. Leave blank to use the default "return next week".',
+      required: false,
+    },
+    ctr: {
+      label: "Click label — optional",
+      placeholder: "e.g. tap the new banner",
+      hint: 'How agents phrase the click on the element under test. Leave blank to use the default "click it".',
+      required: false,
+    },
+  };
+  const decisionMeta: Record<MetricKey, { hint: string; placeholder: string }> =
+    {
+      conversion: {
+        placeholder: "e.g. you've added 2 items to your cart",
+        hint: "The moment the agent is at when the conversion choice is offered.",
+      },
+      retention: {
+        placeholder: "e.g. you've just finished tonight's session",
+        hint: "The post-experience moment — the agent decides whether to come back from here.",
+      },
+      ctr: {
+        placeholder: "e.g. the new banner is on screen above the feed",
+        hint: "The on-screen moment the rendered element sits at when the click choice is offered.",
+      },
+    };
+
+  return (
+    <div style={{ opacity: pickerDisabled ? 0.5 : 1 }}>
+      <span style={sublabelStyle} id="metric-label">
+        Target metric — optional
+      </span>
+      <span
+        role="group"
+        aria-labelledby="metric-label"
+        aria-describedby="metric-helper"
+        style={{
+          display: "inline-flex",
+          border: `0.75px solid ${TOKENS.rule}`,
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        {options.map((opt, i) => {
+          const active = metricName === opt.value;
+          return (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChangeMetric(opt.value)}
+              disabled={pickerDisabled}
+              aria-pressed={active}
+              style={{
+                ...segBtnBase,
+                borderLeft:
+                  i === 0 ? "none" : `0.75px solid ${TOKENS.rule}`,
+                background: active ? TOKENS.ink : TOKENS.paper,
+                color: active ? TOKENS.paper : TOKENS.inkMuted,
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </span>
+      <div id="metric-helper" style={hintStyle}>
+        {!abMode ? (
+          <>
+            Outcome metrics need A/B mode — the lift is a paired treatment −
+            control delta, so switch Mode to <strong>A/B</strong> above to
+            elicit one. Without a metric, the run reports sentiment only.
+          </>
+        ) : metricName == null ? (
+          <>
+            None reports the sentiment confidence score only (today&rsquo;s
+            default). Pick a metric to ALSO elicit a paired, in-character
+            decision and report its treatment − control lift alongside
+            sentiment.
+          </>
+        ) : (
+          <>
+            Agents answer a blinded in-character question on turn 2; the scorer
+            reports the paired {METRIC_LABELS[metricName].toLowerCase()} lift
+            alongside the sentiment score. Magnitude is uncalibrated — read it
+            as rank + direction.
+          </>
+        )}
+      </div>
+
+      {abMode && metricName != null && (
+        <div style={{ marginTop: 14 }}>
+          {eventFieldShown && (
+            <div style={fieldStyle}>
+              <label htmlFor="conversion-action" style={sublabelStyle}>
+                Conversion event
+              </label>
+              <input
+                id="conversion-action"
+                type="text"
+                value={conversionAction}
+                onChange={(e) => onChangeConversionAction(e.target.value)}
+                disabled={disabled}
+                placeholder="e.g. complete checkout"
+                style={inputStyle}
+              />
+              <div style={hintStyle}>
+                The event that counts as a conversion (the scorer measures its
+                paired rate).
+              </div>
+            </div>
+          )}
+          {labelFieldShown && metricName && (
+            <div style={fieldStyle}>
+              <label
+                htmlFor="conversion-action-label"
+                style={sublabelStyle}
+              >
+                {labelMeta[metricName].label}
+              </label>
+              <input
+                id="conversion-action-label"
+                type="text"
+                value={conversionActionLabel}
+                onChange={(e) =>
+                  onChangeConversionActionLabel(e.target.value)
+                }
+                disabled={disabled}
+                placeholder={labelMeta[metricName].placeholder}
+                style={inputStyle}
+              />
+              <div style={hintStyle}>{labelMeta[metricName].hint}</div>
+            </div>
+          )}
+          {metricName && (
+            <div style={fieldStyle}>
+              <label htmlFor="decision-point" style={sublabelStyle}>
+                Decision point
+              </label>
+              <input
+                id="decision-point"
+                type="text"
+                value={decisionPoint}
+                onChange={(e) => onChangeDecisionPoint(e.target.value)}
+                disabled={disabled}
+                placeholder={decisionMeta[metricName].placeholder}
+                style={inputStyle}
+              />
+              <div style={hintStyle}>{decisionMeta[metricName].hint}</div>
+            </div>
+          )}
+          <div style={fieldStyle}>
+            <label htmlFor="choice-set" style={sublabelStyle}>
+              Alternatives — optional
+            </label>
+            <textarea
+              id="choice-set"
+              value={choiceSetText}
+              onChange={(e) => onChangeChoiceSet(e.target.value)}
+              disabled={disabled}
+              rows={3}
+              placeholder={
+                "One non-target alternative per line —\n" +
+                "e.g. keep browsing / decide later\n" +
+                "leave without doing anything"
+              }
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.45 }}
+            />
+            <div style={hintStyle}>
+              Realistic choices an agent takes INSTEAD of the target, one per
+              line. Leave blank to use the metric&rsquo;s default set.
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

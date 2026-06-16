@@ -169,3 +169,12 @@ survive (an over-broad click-verb predicate was tried and reverted because it
 dropped legitimate competing clicks → would inflate CTR). simulation_runner.py is
 byte-identical to origin/main (0-line diff). Final codex: no P1/P2. Full suite
 1056 passed / 11 skipped / 1 pre-existing (test_deploy_config ProductHome).
+
+## #279 — wizard metric picker (frontend) — IN PROGRESS
+Added an OPTIONAL, A/B-only metric picker (None/Conversion/Retention/CTR) to
+frontend/app/simulations/new/page.tsx, mirroring metric_registry required
+template fields (conversion → conversion_action + conversion_action_label +
+decision_point; retention/ctr → decision_point only, label optional) + optional
+choice_set (one alt per line). None = byte-identical sentiment-only payload.
+api-types.ts hand-edited (gen-types needs live backend at :8000). tsc + next
+build clean. PR open on feat/279-metric-picker-wizard.
