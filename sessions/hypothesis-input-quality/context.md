@@ -1,9 +1,9 @@
 ---
 type: session
 domain: hypothesis-input-quality
-status: closed
+status: active
 started: 2026-06-15
-closed: 2026-06-16
+reopened: 2026-06-16
 owner: ram
 ---
 
@@ -65,9 +65,36 @@ deploy/Caddyfile.api). So a deploy is verified IN-CONTAINER: codex's FastAPI Tes
 /simulations/preflight returned 401 (route exists; a missing route 404s even in TestClient) and the
 deployed OpenAPI includes the route. Do NOT use bare external curl to confirm a route shipped.
 
-**LOOP COMPLETE.** #310–#313 merged + combined deploy live. #314 (T5) remains filed-but-BLOCKED on
+**WAVE 1 COMPLETE.** #310–#313 merged + combined deploy live. #314 (T5) remains filed-but-BLOCKED on
 the #222 backtest harness (validate gate labels against held-out real outcomes; cut any axis that
-doesn't earn its place). Nothing else pending in this session.
+doesn't earn its place).
+
+## Follow-up wave (REOPENED 2026-06-16) — the founder's "validate + score the input" instinct, done right
+The founder revisited the original scoring idea in refined form: *"an LLM call that validates the
+input, scores its completeness, and if below threshold warns the user with a proceed-to-execute
+gate."* Re-analysis: the **warn-then-proceed** ergonomics are right and worth shipping; the **scalar
+score** is still wrong for the same epic-#309 reasons (uncalibratable, Goodhart, paraphrase-wobble,
+"grades the customer's homework"). So we scratch the itch the right way — a glanceable *checklist*
+(deterministic, not a number) plus a *coherence* judge pass (categorical, folds into the existing
+T3 LLM call) — never a scalar fed to the decision.
+
+- [ ] **T6 (#337)** — Completeness checklist in the wizard (glanceable, deterministic — NOT a scalar).
+      `frontend/app/simulations/new/page.tsx`: "N of M essentials present" chip with per-item ✓/✗
+      (change, cohort, OEC metric, direction, conditional-design-attached, advisory mechanism),
+      derived from form state + T4's live `POST /simulations/preflight` reason_codes. Frontend-only,
+      ZERO LLM, no backend, **no manual redeploy** (Amplify auto-deploys frontend). DESIGN.md §7.7
+      quiet mono + changelog bump. No confidence_score touch; no scalar fed to the decision.
+- [ ] **T7 (#338)** — Coherence pass: extend T3's `input_lint.py` LLM judge to flag weak-but-present
+      fields (cohort="all users" → wrong_cohort; metric mismatched to change → wrong_metric; circular
+      mechanism → broken_mechanism), mapped onto the EXISTING weakness taxonomy via `_VALID_CATEGORIES`,
+      surfaced through the EXISTING amber `input_flags` disclosure note. **Fold into the same judge
+      call** (no new LLM round-trip — preserve T3 cost discipline). No scalar, no migration,
+      confidence_score byte-identical (keep the assertion green). Backend touched → ONE manual
+      redeploy after merge (NO migration).
+
+**Build order:** T6 first (frontend-only, no deploy, lowest risk), then T7 (backend → redeploy).
+Files are independent (T6 = new/page.tsx + DESIGN.md; T7 = input_lint.py + tests) so the two build
+agents can run in parallel; merge T6 first regardless.
 
 ## Tickets (FILED 2026-06-16, ram-de)
 - Epic **#309** — Hypothesis input answerability (pre-flight gate, not a score)
@@ -97,9 +124,13 @@ doesn't earn its place). Nothing else pending in this session.
 - Real leverage is UPSTREAM authoring (structured fields + inline lint).
 
 ## Next Steps
-1. File T1–T5 (T1=MVP deterministic gate; T2=abstain verdict; T3=ordinal lint;
-   T4=authoring; T5=blocked on #222 backtest validation)
-2. /loop build starting at T1; I handle merge + deploy (backend = manual deploy)
+1. Build T6 (#337, frontend completeness checklist) + T7 (#338, backend coherence pass) via /loop;
+   parallel build agents, merge T6 first.
+2. Verify constraints on each (no scoring.py, no migration, no scalar, confidence_score untouched,
+   codex clean) → squash-merge as ram-de → comment epic #309.
+3. After T7 merges: ONE manual backend redeploy via deploy/REDEPLOY.md (codex, NO migration). T6 is
+   frontend-only → Amplify auto-deploys, no manual step.
+4. Close the loop + session when both merged and T7 deploy is live.
 
 ## Key Files (grounding pass A — input→sim→decision pipeline)
 - `backend/sidira_simulator/schemas/simulation.py:26-79` — `Hypothesis` schema
