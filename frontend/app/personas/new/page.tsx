@@ -1961,10 +1961,13 @@ function SavedConnectionRow({
   // Keyboard focus handoff for the inline delete confirm (#332/codex P2).
   // Opening the confirm REPLACES the focused Delete button with the alertdialog,
   // which would drop focus to <body> — especially jarring inside the otherwise
-  // keyboard-managed picker popover. So we focus Cancel when the confirm mounts,
-  // and return focus to the row's Delete button when the confirm closes
-  // (cancel/error path; on a successful delete the whole row unmounts and there's
-  // nothing to return to). Effect runs on every confirmingDelete transition.
+  // keyboard-managed picker popover. So we focus Cancel when the confirm mounts.
+  // When the confirm CLOSES without unmounting the row — i.e. the user cancelled
+  // — we return focus to the row's Delete button. The other two outcomes need no
+  // restore: a successful delete unmounts the whole row (nothing to return to),
+  // and a delete ERROR keeps confirmingDelete true (the dialog stays open showing
+  // COULD NOT DELETE · …, with focus still on Cancel) — so this effect only fires
+  // on the cancel transition, which is exactly right. Runs on each transition.
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const deleteBtnRef = useRef<HTMLButtonElement | null>(null);
   const wasConfirming = useRef(false);
@@ -1972,8 +1975,8 @@ function SavedConnectionRow({
     if (confirmingDelete) {
       cancelRef.current?.focus();
     } else if (wasConfirming.current) {
-      // Confirm just closed without unmounting the row (cancel / delete error) —
-      // restore focus to the Delete affordance the user came from.
+      // Confirm closed without unmounting the row → the user cancelled; restore
+      // focus to the Delete affordance they came from.
       deleteBtnRef.current?.focus();
     }
     wasConfirming.current = confirmingDelete;
