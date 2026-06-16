@@ -20,7 +20,10 @@ _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
 from sidira_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
-from sidira_simulator.api.deps import get_orchestrator  # noqa: E402
+from sidira_simulator.api.deps import (  # noqa: E402
+    get_input_lint_chat_client,
+    get_orchestrator,
+)
 from sidira_simulator.main import app  # noqa: E402
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator  # noqa: E402
 from sidira_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
@@ -77,10 +80,40 @@ class _StubChat:
         raise NotImplementedError(f"stub has no canned response for {schema}")
 
 
+# Handle to the input-lint judge stub the active `client_with_stub_llm` fixture
+# installed, so the T3 (#312) input-lint tests can flip its verdict without
+# widening the 4-tuple every other test unpacks. Set/cleared by the fixture.
+_ACTIVE_LINT_JUDGE: "_StubInputLintJudgeChat | None" = None
+
+
+class _StubInputLintJudgeChat:
+    """Stubbed ChatClient for the T3 (#312) pre-flight input-lint judge.
+
+    Injected via `app.dependency_overrides[get_input_lint_chat_client]` so the
+    judge NEVER hits a live LLM in the suite. Mutable `verdict` / `reasons` let a
+    test flip the pre-flight lint between green (default — every existing test is
+    unaffected) and amber/red. `chat_json` builds the passed `_JudgeOutput`
+    schema so its taxonomy field-validator runs exactly as in prod.
+    """
+
+    def __init__(self) -> None:
+        self.verdict = "green"
+        self.reasons: list[str] = []
+        self.call_count = 0
+
+    def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):  # pragma: no cover
+        raise NotImplementedError("input-lint judge uses chat_json only")
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        self.call_count += 1
+        return schema(verdict=self.verdict, reasons=list(self.reasons))
+
+
 @pytest.fixture
 def client_with_stub_llm():
     """Override the orchestrator dep with one that uses a stub LLM."""
     chat = _StubChat()
+    lint_judge = _StubInputLintJudgeChat()
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     # Clear in-memory state between tests via fresh module-level singletons.
@@ -109,7 +142,17 @@ def client_with_stub_llm():
         )
 
     app.dependency_overrides[get_orchestrator] = _orch
+    # T3 (#312): stub the pre-flight input-lint judge so it never hits a live
+    # LLM. Default verdict is green (no input_flags) — every existing test is
+    # unaffected; the input-lint tests below reach the judge via
+    # `client.app` / the module-level `_LAST_LINT_JUDGE` handle to flip it.
+    app.dependency_overrides[get_input_lint_chat_client] = lambda: lint_judge
+    # Stash the active judge stub so the input-lint tests can mutate its verdict
+    # without widening the 4-tuple every other test unpacks.
+    global _ACTIVE_LINT_JUDGE
+    _ACTIVE_LINT_JUDGE = lint_judge
     yield TestClient(app), chat, sim_repo, agent_repo
+    _ACTIVE_LINT_JUDGE = None
     app.dependency_overrides.clear()
 
 
@@ -596,3 +639,103 @@ def test_simulation_without_persona_filter_runs_against_all_personas(
     sim_id = resp.json()["id"]
     final = client.get(f"/simulations/{sim_id}").json()
     assert final["selected_personas"] is None
+
+
+# ── #312 / T3: pre-flight ordinal input lint (disclose-and-run) ──────────────
+
+
+def test_flagged_input_stamps_result_flags_and_still_returns_202(
+    client_with_stub_llm,
+) -> None:
+    """A semantically-flagged input (judge amber) NEVER 422s — the create call
+    returns 202 and the persisted result carries `input_flags` (state + reasons),
+    while confidence_score is computed unchanged."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    _ACTIVE_LINT_JUDGE.verdict = "amber"
+    _ACTIVE_LINT_JUDGE.reasons = ["wrong_cohort"]
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Make the thing better for some users.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    # Semantic judgment never hard-refuses a paying user.
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    body = client.get(f"/simulations/{sim_id}").json()
+    assert body["status"] == "complete", body
+    flags = body["result"]["input_flags"]
+    assert flags is not None
+    assert flags["state"] == "amber"
+    assert "wrong_cohort" in flags["reason_codes"]
+    assert flags["reasons"]
+    # The headline score is still computed and persisted (the lint ROUTES, it
+    # does not discount).
+    assert body["result"]["confidence_score"] is not None
+
+
+def test_green_input_leaves_input_flags_none(client_with_stub_llm) -> None:
+    """A green pre-flight verdict (the fixture default) leaves input_flags None —
+    a clean run is byte-identical and migration-free."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    assert _ACTIVE_LINT_JUDGE.verdict == "green"
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    body = client.get(f"/simulations/{sim_id}").json()
+    assert body["result"]["input_flags"] is None
+
+
+def test_flagged_input_fires_refinement_even_when_score_high(
+    client_with_stub_llm,
+) -> None:
+    """The refinement trigger moved earlier (#312): a flagged INPUT earns a
+    rewrite offer regardless of the post-run score. The stub LLM's all-positive
+    reactions push the score ≥80, yet refinement_suggestions are still
+    populated because the input was flagged."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    _ACTIVE_LINT_JUDGE.verdict = "amber"
+    _ACTIVE_LINT_JUDGE.reasons = ["untestable_hypothesis"]
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                # All-positive stub reactions -> high score; the flag is what
+                # must trigger refinement here.
+                "prose": "Make engagement better.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    body = client.get(f"/simulations/{sim_id}").json()
+    result = body["result"]
+    assert result["input_flags"] is not None
+    # Refinement fired despite (potentially) high score, because the input was
+    # flagged. The stub RefinementOutput returns two suggestions.
+    assert result["refinement_suggestions"], result["confidence_score"]

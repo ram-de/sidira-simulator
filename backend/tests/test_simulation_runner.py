@@ -928,3 +928,132 @@ async def test_in_scope_run_leaves_instrument_scope_default() -> None:
     assert result.instrument_scope == "in_scope"
     assert result.out_of_scope_reasons == []
     assert result.out_of_scope_reason_codes == []
+
+
+# ── T3 (#312): pre-flight input lint stamps input_flags + fires refinement ───
+
+
+@pytest.mark.asyncio
+async def test_flagged_input_lint_stamps_input_flags_on_result() -> None:
+    """A flagged pre-flight lint (amber) threaded into run() stamps
+    `input_flags` (state + reasons) onto the persisted result, categorically —
+    confidence_score is computed unchanged (the lint ROUTES, never discounts)."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    lint = InputLintVerdict(
+        state="amber",
+        reasons=["The prose is too vague to produce a falsifiable prediction."],
+        reason_codes=["untestable_hypothesis"],
+    )
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        input_lint=lint,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.confidence_score is not None  # score still produced
+    assert result.input_flags is not None
+    assert result.input_flags.state == "amber"
+    assert "untestable_hypothesis" in result.input_flags.reason_codes
+    assert result.input_flags.reasons
+
+
+@pytest.mark.asyncio
+async def test_green_input_lint_leaves_input_flags_none() -> None:
+    """A green (or absent) lint leaves input_flags None — byte-identical to a
+    pre-#312 run and migration-free."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=8,
+        input_lint=InputLintVerdict(state="green"),
+    )
+    assert simulation.result is not None
+    assert simulation.result.input_flags is None
+
+    # Absent (None) lint behaves identically.
+    sim2 = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=9,
+        input_lint=None,
+    )
+    assert sim2.result is not None
+    assert sim2.result.input_flags is None
+
+
+@pytest.mark.asyncio
+async def test_flagged_input_fires_refinement_regardless_of_score() -> None:
+    """The #312 trigger widening: a flagged input earns refinement even when the
+    post-run score is high (the stub's all-positive reactions). Refinement is
+    REUSED verbatim — only WHEN it fires is widened."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+    from sidira_simulator.schemas.scoring import RefinementOutput
+
+    class _RefiningStub(_StubChat):
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            from sidira_simulator.schemas.scoring import (
+                Sentiment,
+                SentimentClassification,
+                WeaknessClassification,
+            )
+
+            self.json_calls.append((schema, messages))
+            if schema is WeaknessClassification:
+                # No weaknesses -> high score, so only the input flag can trigger
+                # refinement.
+                return WeaknessClassification(categories=[], primary_reason="stub")
+            if schema is SentimentClassification:
+                return SentimentClassification(
+                    sentiment=Sentiment.POSITIVE, confidence=0.95, one_line_summary="stub"
+                )
+            if schema is RefinementOutput:
+                return RefinementOutput(suggestions=["Name the metric and cohort."])
+            raise NotImplementedError(schema)
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_RefiningStub())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=10,
+        input_lint=InputLintVerdict(
+            state="amber",
+            reasons=["vague"],
+            reason_codes=["untestable_hypothesis"],
+        ),
+    )
+    result = simulation.result
+    assert result is not None
+    # Score is high (positive sentiment, no weaknesses) yet refinement fired.
+    assert result.confidence_score >= 80.0
+    assert result.refinement_suggestions
