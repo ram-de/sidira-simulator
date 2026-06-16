@@ -25,16 +25,50 @@ image. The wizard's `202` + status-polling contract is unchanged. Per #268 decis
       `translate_producer_pack`/provider threading confirmed in the running container).
       NO migration. (Tracked in session `snowflake-feature-store-load`, now on main.)
 
+## Survey findings (Explore, done)
+- **Build row persists NONE of the BuildConfig** (only id/customer_id/connection_id/
+  status/pack_version/stability_score/persona_count/error/created_at/completed_at).
+  Config (source_query, column_mapping, stability_threshold, k, llm_provider,
+  weight_schemes) lived only in the in-process BackgroundTask. → **migration 013 REQUIRED.**
+- `PersonaBuilderService.run()` already drives the row RUNNING→COMPLETE/FAILED
+  (persona_builder.py:357/407/450); it expects the row to pre-exist (created by route).
+- `_run_build` (persona_builds.py:77) resolves its OWN session/repos (Postgres when
+  configured, else in-memory) — the worker mirrors this exactly.
+- Wheel installs full ML stack via declared deps (numpy/pandas/sklearn≥1.4/scipy≥1.11/
+  hdbscan/anthropic/openai/snowflake-connector/pyarrow) → `pip install the.whl` (WITH
+  deps) is sufficient; no need to enumerate. `wheels/` not git- nor docker-ignored.
+- Tests monkeypatch `run_personas_pipeline` in the persona_builder module
+  (test_persona_builds_api.py:129) — reuse for worker tests.
+
+## Locked architecture (decisions)
+1. **Config persistence = Option B: single `config_json` JSONB column** (migration 013,
+   nullable). `create()` persists `BuildConfig.model_dump(mode="json")`; worker rebuilds
+   via `BuildConfig.model_validate(row["config_json"])`. Self-documenting, no schema sprawl.
+2. **Dual-mode dispatch via `SIDIRA_PERSONA_BUILD_MODE`** = `inprocess` (code default) |
+   `worker`. create_build ALWAYS persists the row+config; then inprocess → schedule the
+   BackgroundTask (current behavior, keeps dev + all existing tests green untouched),
+   worker → enqueue only (worker claims). Prod/deploy default = `worker`.
+3. **Atomic claim = `claim_next_pending()`** on the repo (NOT customer-scoped): Postgres
+   `SELECT … ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED` → flip RUNNING → return
+   row dict (incl. config_json); in-memory mirror. Claim pre-sets RUNNING; run() re-setting
+   RUNNING is idempotent.
+4. **Worker** = `sidira_simulator/worker/persona_worker.py` (+ `__main__.py`): per-job fresh
+   session, claim → `BuildConfig.model_validate` → `PersonaBuilderService.run`; idle-sleep
+   loop; requires Postgres (clear exit if not). `python -m sidira_simulator.worker`.
+   config_json None (legacy/inprocess row) → mark FAILED gracefully, don't crash.
+5. **Deploy** = vendored `backend/wheels/sidira_personas-0.1.0-…whl` (DONE) +
+   `backend/Dockerfile.worker` (multi-stage: `pip install .` then `pip install wheels/*.whl`)
+   + compose `worker` service (`restart: always`, same env_file + bind-mount, `depends_on:
+   api`, `SIDIRA_PERSONA_BUILD_MODE=worker`). API image/Dockerfile UNCHANGED (no ML deps).
+   ec2-api-deploy.sh: write `SIDIRA_PERSONA_BUILD_MODE` (default `worker`) + `docker builder
+   prune -af` after build (8GB disk). REDEPLOY.md: note migration 013 + new service + prune.
+
 ## Next Steps
-1. (await) Code survey of build flow / persistence schema / deploy setup (Explore agent).
-2. Decide: does the build row already persist request params (source_query,
-   column_mapping, stability_threshold, k, weight_schemes, connection_id)? If not →
-   schema change + migration so the worker can reconstruct the job from the DB alone.
-3. Implement worker poll loop + atomic claim (SELECT … FOR UPDATE SKIP LOCKED or
-   UPDATE … WHERE status=pending RETURNING).
-4. API: enqueue instead of running `_run_build` in-process.
-5. Deploy: separate worker image (vendored wheel + ML deps), compose service
-   restart=always, multi-stage build + `docker builder prune` (8GB disk pressure).
+1. Build all of the above (delegated to general-purpose agent in this worktree).
+2. ruff + full pytest (expect existing inprocess tests untouched-green + new worker tests).
+3. `/codex review` → fix findings.
+4. PR as ram-de; merge; **redeploy WITH migration 013** (AUTO_MIGRATE or manual alembic);
+   verify worker container healthy + a real Build produces a pack.
 
 ## Key Files
 - `backend/sidira_simulator/services/persona_builder.py` — the binding (Phase 1).
