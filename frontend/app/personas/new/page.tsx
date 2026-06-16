@@ -299,6 +299,21 @@ export default function NewPersonaPackPage() {
     setTestError(null);
   };
 
+  // A source (table/SQL/mode) edit invalidates a prior passing test (Continue
+  // re-gates) AND any profiled mapping — the columns are sourced from the OLD
+  // query, so Step 2 must re-profile and Step 3 must not build the new source
+  // with the old column mapping. Before the #304 credential/source fingerprint
+  // split, a source change re-minted the connection in handleTest, which cleared
+  // this state as a side effect; now that source-only edits keep the same
+  // connection, the reset has to happen explicitly here (codex P1).
+  const invalidateSource = () => {
+    setOkFingerprint(null);
+    setColumns(null);
+    setSuggestion(null);
+    setMapping({});
+    setMapPhase("idle");
+  };
+
   // Reuse a saved connection (#304). The server already holds this row's
   // encrypted password, and every downstream call (test/preview/suggest/build)
   // works off connection.id — so we set `connection` to the saved row DIRECTLY,
@@ -690,15 +705,15 @@ export default function NewPersonaPackPage() {
             onField={setConnField}
             onSourceMode={(m) => {
               setSourceMode(m);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onTableFqn={(v) => {
               setTableFqn(v);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onSql={(v) => {
               setSql(v);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onTest={handleTest}
           />
