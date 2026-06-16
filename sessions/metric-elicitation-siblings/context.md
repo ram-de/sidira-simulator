@@ -157,3 +157,15 @@ Tests: test_ctr_elicitor/lift/runner + extended test_metric_registry. Full suite
 green (1055 passed, 11 skipped) except pre-existing test_deploy_config(ProductHome).
 ruff + black clean. Conversion + retention byte-identical/unperturbed. PR OPEN,
 DO NOT MERGE.
+
+### #276 codex convergence
+
+4 codex rounds → CLEAN. Fixes: (P2) CTR honesty caveat now matches its strong
+regime (parameterized signal_strength_clause; siblings byte-identical); (P1)
+stale test_conversion_elicitor unknown-metric test moved off "ctr" → "dwell_time";
+(P2) CTR click-twin filtering — landed on the conversion-mirror: target_terms
+filters only the PM-named/default click label, competing clicks ("tap search")
+survive (an over-broad click-verb predicate was tried and reverted because it
+dropped legitimate competing clicks → would inflate CTR). simulation_runner.py is
+byte-identical to origin/main (0-line diff). Final codex: no P1/P2. Full suite
+1056 passed / 11 skipped / 1 pre-existing (test_deploy_config ProductHome).
