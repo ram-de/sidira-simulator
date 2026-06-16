@@ -552,6 +552,31 @@ export interface components {
              */
             top_quote: string;
         };
+        // ── InputFlags (epic #309, T3 / #312) — HAND-ADDED ──
+        // The gen-types script needs a live backend; hand-mirrored from
+        // backend/sidira_simulator/schemas/simulation.py (InputFlags). The
+        // pre-flight ordinal input-lint disclosure stamped on an amber/red/
+        // abstain run. CATEGORICAL only — never a number; the lint ROUTES, it
+        // does not discount confidence_score.
+        /** InputFlags */
+        InputFlags: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "amber" | "red" | "abstain";
+            /** Reasons */
+            reasons?: string[];
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Fixes */
+            fixes?: string[];
+            /**
+             * Paraphrase Unstable
+             * @default false
+             */
+            paraphrase_unstable: boolean;
+        };
         /**
          * AgentChatRequest
          * @description PM sends a follow-up question to a specific agent.
@@ -1485,6 +1510,17 @@ export interface components {
             out_of_scope_reasons?: string[];
             /** Out Of Scope Reason Codes */
             out_of_scope_reason_codes?: string[];
+            // ── Pre-flight ordinal input lint (epic #309, T3 / #312) — HAND-ADDED ──
+            // The gen-types script needs a live backend; hand-mirrored from
+            // backend/sidira_simulator/schemas/simulation.py (InputFlags +
+            // SimulationResult.input_flags). CATEGORICAL only (ordinal state +
+            // named reasons), never a number — the lint ROUTES, it does not
+            // discount confidence_score. None / absent on a green run (and on
+            // every older result_json row); migration-free (rides the JSON blob).
+            /**
+             * @description Pre-flight ordinal input-lint disclosure, present only on an amber/red/abstain run. null on a green run and on legacy rows.
+             */
+            input_flags?: components["schemas"]["InputFlags"] | null;
             /** Treatment Score */
             treatment_score?: number | null;
             /** Control Score */
