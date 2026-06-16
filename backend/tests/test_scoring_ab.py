@@ -839,3 +839,208 @@ def test_pairing_distinguishes_sample_index() -> None:
     assert lift.paired_n == 1
     assert lift.unpaired_treatment == 1
     assert lift.unpaired_control == 0
+
+
+# ── Metric↔sentiment disagreement guardrail (#321) ───────────────────────
+
+
+class _SentimentArmChat:
+    """Scripted chat: returns a chosen sentiment for treatment-arm reactions and
+    another for control-arm reactions, keyed off the marker token in the reaction
+    text. Drives a deterministic, separable sentiment lift sign so the guardrail's
+    composition is testable end-to-end through `score_ab`."""
+
+    def __init__(self, *, treatment: Sentiment, control: Sentiment) -> None:
+        self._treatment = treatment
+        self._control = control
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        user_msg = next(m["content"] for m in messages if m["role"] == "user")
+        if schema is WeaknessClassification:
+            return WeaknessClassification(categories=[], primary_reason="ok")
+        bucket = self._treatment if "TREATMENT_REACTION" in user_msg else self._control
+        return SentimentClassification(sentiment=bucket, confidence=1.0, one_line_summary="")
+
+    def chat(self, *a, **k):  # pragma: no cover
+        raise NotImplementedError
+
+
+def _metric_hypothesis() -> Hypothesis:
+    """A conversion-metric Hypothesis (carries the required template fields)."""
+    return Hypothesis(
+        capability_name="reorder",
+        prose="Add a one-tap reorder button to the home tab.",
+        metric_name="conversion",
+        conversion_action="tap reorder and check out",
+        conversion_action_label="check out now",
+        decision_point="you opened the home tab with a past order visible",
+    )
+
+
+def _metric_arms(
+    n: int,
+    *,
+    treatment_metric_p: float,
+    control_metric_p: float,
+) -> tuple[list[AgentReaction], list[AgentReaction]]:
+    """N matched treatment/control reactions carrying a fixed `metric_p` per arm.
+
+    A constant per-arm `metric_p` makes every paired delta identical, so the
+    paired-bootstrap CI collapses onto the point estimate (zero variance) — it
+    cleanly excludes zero whenever the delta is non-zero, exercising the
+    separability gate deterministically.
+    """
+    treatment = [
+        AgentReaction(
+            agent_id=f"t{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="TREATMENT_REACTION",
+            sample_index=0,
+            arm="treatment",
+            metric_p=treatment_metric_p,
+        )
+        for i in range(n)
+    ]
+    control = [
+        AgentReaction(
+            agent_id=f"c{i}",
+            persona_id=f"p{i}",
+            persona_name=f"P{i}",
+            reaction_text="CONTROL_REACTION",
+            sample_index=0,
+            arm="control",
+            metric_p=control_metric_p,
+        )
+        for i in range(n)
+    ]
+    return treatment, control
+
+
+@pytest.mark.asyncio
+async def test_disagreement_harm_misread_flags_and_adds_guardrail_weakness() -> None:
+    """Metric positive-and-separable (+pp) while sentiment is negative-and-separable
+    → metric_sentiment_disagreement True, a hidden_guardrail_risk weakness, and a
+    caveat that says to trust sentiment for harm."""
+    # Treatment metric_p high (0.62) vs control low (0.50) → metric +sep.
+    # Treatment sentiment NEGATIVE, control POSITIVE → sentiment lift -sep.
+    treatment, control = _metric_arms(6, treatment_metric_p=0.62, control_metric_p=0.50)
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.NEGATIVE, control=Sentiment.POSITIVE)
+    )
+    result, _ = await svc.score_ab(
+        _metric_hypothesis(), treatment, control, config=_CI_CFG, run_seed=42
+    )
+
+    # Sanity: the two signals are separable and opposite.
+    assert result.metric_lift_ci_pp is not None and result.metric_lift_ci_pp[0] > 0
+    assert result.lift_ci is not None and result.lift_ci[1] < 0
+
+    assert result.metric_sentiment_disagreement is True
+    assert result.metric_sentiment_disagreement_caveat is not None
+    caveat = result.metric_sentiment_disagreement_caveat
+    assert "harm-misread" in caveat
+    assert "trust sentiment for harm" in caveat.lower()
+    assert "#222" in caveat
+    # The hidden_guardrail_risk weakness was appended.
+    guardrails = [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"]
+    assert len(guardrails) == 1
+    assert "sentiment" in guardrails[0].summary.lower()
+    # Purely additive: headline + lift values untouched.
+    assert result.confidence_score == pytest.approx(result.treatment_score)
+    assert result.metric_lift_pp is not None and result.metric_lift_pp > 0
+
+
+@pytest.mark.asyncio
+async def test_disagreement_hidden_improvement_flags_without_weakness() -> None:
+    """Metric negative-and-separable while sentiment is positive-and-separable →
+    flag True, caveat set, but NO hidden_guardrail_risk weakness (not a risk)."""
+    # Treatment metric_p low (0.40) vs control high (0.55) → metric -sep.
+    # Treatment sentiment POSITIVE, control NEGATIVE → sentiment lift +sep.
+    treatment, control = _metric_arms(6, treatment_metric_p=0.40, control_metric_p=0.55)
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.POSITIVE, control=Sentiment.NEGATIVE)
+    )
+    result, _ = await svc.score_ab(
+        _metric_hypothesis(), treatment, control, config=_CI_CFG, run_seed=42
+    )
+
+    assert result.metric_lift_ci_pp is not None and result.metric_lift_ci_pp[1] < 0
+    assert result.lift_ci is not None and result.lift_ci[0] > 0
+
+    assert result.metric_sentiment_disagreement is True
+    assert result.metric_sentiment_disagreement_caveat is not None
+    assert "hidden-improvement" in result.metric_sentiment_disagreement_caveat
+    # No guardrail weakness for a hidden improvement.
+    assert [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"] == []
+
+
+@pytest.mark.asyncio
+async def test_agreement_same_sign_no_disagreement() -> None:
+    """Both metric and sentiment positive-and-separable (they agree) → no flag."""
+    treatment, control = _metric_arms(6, treatment_metric_p=0.62, control_metric_p=0.50)
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.POSITIVE, control=Sentiment.NEGATIVE)
+    )
+    result, _ = await svc.score_ab(
+        _metric_hypothesis(), treatment, control, config=_CI_CFG, run_seed=42
+    )
+    assert result.metric_lift_ci_pp is not None and result.metric_lift_ci_pp[0] > 0
+    assert result.lift_ci is not None and result.lift_ci[0] > 0
+    assert result.metric_sentiment_disagreement is False
+    assert result.metric_sentiment_disagreement_caveat is None
+    assert [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"] == []
+
+
+@pytest.mark.asyncio
+async def test_one_sided_non_separable_no_disagreement() -> None:
+    """Metric separable-positive but sentiment NOT separable (treatment/control
+    sentiment equal → lift CI straddles zero) → no flag, even though signs differ
+    nominally. Separability is the gate."""
+    treatment, control = _metric_arms(6, treatment_metric_p=0.62, control_metric_p=0.50)
+    # Both arms NEUTRAL → sentiment lift ≈ 0, CI straddles zero (not separable).
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.NEUTRAL, control=Sentiment.NEUTRAL)
+    )
+    result, _ = await svc.score_ab(
+        _metric_hypothesis(), treatment, control, config=_CI_CFG, run_seed=42
+    )
+    assert result.metric_lift_ci_pp is not None and result.metric_lift_ci_pp[0] > 0
+    # sentiment not separable
+    assert result.lift_ci is not None and result.lift_ci[0] <= 0 <= result.lift_ci[1]
+    assert result.metric_sentiment_disagreement is False
+    assert result.metric_sentiment_disagreement_caveat is None
+
+
+@pytest.mark.asyncio
+async def test_metric_ci_none_no_disagreement() -> None:
+    """When the metric CI is None (bootstrap disabled → cannot assess metric
+    separability), the guardrail is conservative: no flag."""
+    treatment, control = _metric_arms(6, treatment_metric_p=0.62, control_metric_p=0.50)
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.NEGATIVE, control=Sentiment.POSITIVE)
+    )
+    # bootstrap_resamples=0 → metric_lift_ci_pp is None.
+    result, _ = await svc.score_ab(
+        _metric_hypothesis(), treatment, control, config=_NO_CI_CFG, run_seed=42
+    )
+    assert result.metric_lift_ci_pp is None
+    assert result.metric_sentiment_disagreement is False
+    assert result.metric_sentiment_disagreement_caveat is None
+    assert [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"] == []
+
+
+@pytest.mark.asyncio
+async def test_no_metric_name_keeps_disagreement_defaults() -> None:
+    """A non-metric hypothesis never enters the metric branch → both guardrail
+    fields stay at their defaults (byte-identical, backwards-compatible)."""
+    treatment, control = _metric_arms(6, treatment_metric_p=0.62, control_metric_p=0.50)
+    svc = ScoringService(
+        chat_client=_SentimentArmChat(treatment=Sentiment.NEGATIVE, control=Sentiment.POSITIVE)
+    )
+    plain = Hypothesis(capability_name="reorder", prose="test")
+    result, _ = await svc.score_ab(plain, treatment, control, config=_CI_CFG, run_seed=42)
+    assert result.metric_name is None
+    assert result.metric_sentiment_disagreement is False
+    assert result.metric_sentiment_disagreement_caveat is None
+    assert [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"] == []
