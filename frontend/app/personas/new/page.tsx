@@ -306,12 +306,31 @@ export default function NewPersonaPackPage() {
   // split, a source change re-minted the connection in handleTest, which cleared
   // this state as a side effect; now that source-only edits keep the same
   // connection, the reset has to happen explicitly here (codex P1).
-  const invalidateSource = () => {
-    setOkFingerprint(null);
+  // Drop the profiled mapping (columns/suggestion/mapping/phase) so Step 2
+  // re-profiles, AND any completed build/evaluation/promotion (clearBuild) so a
+  // finished build can't survive a changed input — otherwise Step 3 keeps
+  // rendering the old BuildWatch and Promote could ship a pack built from the
+  // previous source/connection (codex P1). Shared by the source- and
+  // connection-invalidation paths.
+  const invalidateMappingAndBuild = () => {
     setColumns(null);
     setSuggestion(null);
     setMapping({});
     setMapPhase("idle");
+    clearBuild();
+  };
+
+  // A source (table/SQL/mode) edit invalidates a prior passing test (Continue
+  // re-gates) plus the mapping and build (the columns came from the old query).
+  const invalidateSource = () => {
+    setOkFingerprint(null);
+    invalidateMappingAndBuild();
+  };
+
+  // A connection change (select saved / new / fresh mint) likewise invalidates
+  // the mapping + build — the columns may differ on a different connection.
+  const invalidateConnection = () => {
+    invalidateMappingAndBuild();
   };
 
   // Reuse a saved connection (#304). The server already holds this row's
@@ -349,13 +368,9 @@ export default function NewPersonaPackPage() {
     setConnFingerprint(credFingerprint(prefilled));
     setOkFingerprint(null);
     setTestError(null);
-    // A different connection invalidates any prior profiled mapping (#27) — the
-    // columns may differ, so force a re-profile on next Map entry (mirrors the
-    // reset handleTest does after a fresh mint).
-    setColumns(null);
-    setSuggestion(null);
-    setMapping({});
-    setMapPhase("idle");
+    // A different connection invalidates any prior profiled mapping AND any
+    // completed build (#27/#304) — the columns may differ.
+    invalidateConnection();
   };
 
   // Return to the blank-form path (#304) — "Enter a different connection". Drops
@@ -366,10 +381,7 @@ export default function NewPersonaPackPage() {
     setConnFingerprint(null);
     setOkFingerprint(null);
     setTestError(null);
-    setColumns(null);
-    setSuggestion(null);
-    setMapping({});
-    setMapPhase("idle");
+    invalidateConnection();
   };
 
   const handleTest = async () => {
@@ -396,12 +408,10 @@ export default function NewPersonaPackPage() {
         active = await createFeatureStore(req);
         setConnection(active);
         setConnFingerprint(credFp);
-        // A fresh connection invalidates a previously-profiled mapping (#27):
-        // the columns may differ, so force a re-profile on next Map entry.
-        setColumns(null);
-        setSuggestion(null);
-        setMapping({});
-        setMapPhase("idle");
+        // A fresh connection invalidates a previously-profiled mapping AND any
+        // completed build (#27/#304): the columns may differ, so force a
+        // re-profile on next Map entry and drop any stale build.
+        invalidateConnection();
       }
       await testFeatureStore(active.id); // 204 on success, throws on failure
       // Continue gates on the full test fingerprint (creds + source), so a later
