@@ -1057,3 +1057,58 @@ async def test_flagged_input_fires_refinement_regardless_of_score() -> None:
     # Score is high (positive sentiment, no weaknesses) yet refinement fired.
     assert result.confidence_score >= 80.0
     assert result.refinement_suggestions
+
+
+@pytest.mark.asyncio
+async def test_input_lint_does_not_change_confidence_score() -> None:
+    """Hard constraint (panel): the lint ROUTES, it never discounts. At the same
+    seed an amber/red/abstain verdict must yield a BYTE-identical confidence_score
+    (and CI) to a green/absent verdict. A regression that introduced any
+    multiplier or discount would break exact equality here, where the looser
+    "score is non-null / still high" assertions in the sibling tests would not."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+
+    async def _score_with(lint: InputLintVerdict | None):
+        # Fresh runner per call so a flagged lint cannot leak state across runs;
+        # the run_seed is held fixed so scoring is deterministic.
+        runner = SimulationRunner(store=store, chat_client=_StubChat())
+        sim = await runner.run(
+            customer_id="demo",
+            persona_pack=persona_pack,
+            capability=capability,
+            feature_pack_version=feature_pack_version,
+            hypothesis=_hypothesis(),
+            population_size=3,
+            run_seed=42,
+            input_lint=lint,
+        )
+        assert sim.result is not None
+        return sim.result
+
+    green = await _score_with(InputLintVerdict(state="green"))
+    absent = await _score_with(None)
+    amber = await _score_with(
+        InputLintVerdict(
+            state="amber",
+            reasons=["vague"],
+            reason_codes=["untestable_hypothesis"],
+        )
+    )
+    red = await _score_with(
+        InputLintVerdict(
+            state="red",
+            reasons=["wrong cohort"],
+            reason_codes=["wrong_cohort"],
+        )
+    )
+    abstain = await _score_with(
+        InputLintVerdict(state="abstain", reasons=["unstable"], paraphrase_unstable=True)
+    )
+
+    baseline = green.confidence_score
+    assert baseline is not None
+    for variant in (absent, amber, red, abstain):
+        assert variant.confidence_score == baseline
+        assert variant.confidence_score_ci == green.confidence_score_ci

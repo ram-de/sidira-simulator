@@ -129,17 +129,27 @@ async def create_simulation(
     # override is categorical (panel hard constraint). We deliberately fall
     # through to the normal run path here.
 
+    # Cheap synchronous validation (model_id) runs BEFORE the LLM input lint so an
+    # unsupported explicit model returns 400 without spending judge tokens.
+    try:
+        model_id = resolve_model_id(
+            payload.model_id,
+            require_available=payload.model_id is not None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     # #312 / T3: pre-flight ORDINAL input lint (LLM judge + deterministic
-    # leading-framing lint + paraphrase-abstain). Runs AFTER the T1/T2 gate so a
-    # structural `needs_input` 422 short-circuits before any token is spent.
-    # NEVER 422s — semantic judgments are disclose-and-run: green runs silently;
-    # amber/red/abstain stamp `input_flags` on the result card and offer
-    # refinement (the run always proceeds). The verdict is threaded through the
-    # orchestrator into the runner, which stamps `input_flags` onto
-    # SimulationResult and moves the refinement trigger earlier. It ROUTES and
-    # never touches confidence_score (panel hard constraint). On any judge
-    # failure the lint degrades to the deterministic framing lint alone — a
-    # paying user is never blocked on a semantic judgment.
+    # leading-framing lint + paraphrase-abstain). Runs AFTER the T1/T2 gate and
+    # the cheap model_id check so a structural `needs_input` 422 or a 400 bad
+    # model short-circuits before any token is spent. NEVER 422s — semantic
+    # judgments are disclose-and-run: green runs silently; amber/red/abstain
+    # stamp `input_flags` on the result card and offer refinement (the run always
+    # proceeds). The verdict is threaded through the orchestrator into the runner,
+    # which stamps `input_flags` onto SimulationResult and moves the refinement
+    # trigger earlier. It ROUTES and never touches confidence_score (panel hard
+    # constraint). On any judge failure the lint degrades to the deterministic
+    # framing lint alone — a paying user is never blocked on a semantic judgment.
     input_lint = await assess_input_lint(
         payload.hypothesis, chat_client=input_lint_chat_client
     )
@@ -156,13 +166,6 @@ async def create_simulation(
     # without using lets the row tell the truth from day one and avoids a
     # subsequent migration when #89 lands.
     treatment_fraction = payload.arm_split.treatment_fraction if payload.arm_split else None
-    try:
-        model_id = resolve_model_id(
-            payload.model_id,
-            require_available=payload.model_id is not None,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         sim_id, run = await orchestrator.prepare(
