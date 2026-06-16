@@ -84,49 +84,53 @@ class ReactionDistribution(BaseModel):
         return max(self.samples, key=lambda s: s.probability)
 
 
-# ── Per-metric outcome elicitation: conversion (#221 §3a) ───────────────────
+# ── Per-metric outcome elicitation (agent-behavior-spec §3a / #221, #275) ────
 
 
-class ConversionDecision(BaseModel):
-    """A per-agent conversion decision (agent-behavior-spec §3a).
+class MetricDecision(BaseModel):
+    """A per-agent metric decision (agent-behavior-spec §3a; generalized in #275).
 
     The agent allocates a fixed number of "trials" (the §3a prompt frames it as
     10 times in their normal life) across the realistic actions it might take;
-    `action_counts` is that allocation. `conversion_action_label` names which
-    key is the conversion event. `p_conv` is the share of the allocation that
-    went to conversion.
+    `action_counts` is that allocation. `target_label` names which key is the
+    metric event (the conversion action for the conversion metric; the "return"
+    action for the retention metric). `p_metric` is the share of the allocation
+    that went to the target action.
+
+    This is the SHARED decision schema reused by every per-metric elicitor (#275):
+    one `metric_name` is set per simulation, so a single generic schema — rather
+    than parallel per-metric classes — carries the allocation + target label. The
+    sibling `retention` metric reuses it verbatim (its `target_label` is the
+    "return next week" event); `conversion` keeps its byte-identical behavior.
 
     Design note (deviation from the literal spec, recorded deliberately):
-    `p_conv` normalizes by the ACTUAL total rather than a hard-coded 10. LLMs
+    `p_metric` normalizes by the ACTUAL total rather than a hard-coded 10. LLMs
     do not reliably make counts sum to exactly 10; normalizing by the real
     total yields the honest allocation fraction and is robust to a model that
     returns e.g. 9 or 11, while a degenerate total of 0 (or a missing
-    conversion label) still surfaces as a per-agent failure (ValueError at
+    target label) still surfaces as a per-agent failure (ValueError at
     construction) rather than a silent zero.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     action_counts: dict[str, int] = Field(min_length=1)
-    conversion_action_label: str = Field(min_length=1)
+    target_label: str = Field(min_length=1)
     primary_reason: str = ""
     self_reported_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
-    def _validate(self) -> ConversionDecision:
+    def _validate(self) -> MetricDecision:
         if any(v < 0 for v in self.action_counts.values()):
-            raise ValueError("conversion action_counts must be non-negative")
-        if self.conversion_action_label not in self.action_counts:
-            raise ValueError(
-                f"conversion_action_label {self.conversion_action_label!r} "
-                "absent from action_counts"
-            )
+            raise ValueError("metric action_counts must be non-negative")
+        if self.target_label not in self.action_counts:
+            raise ValueError(f"target_label {self.target_label!r} absent from action_counts")
         if sum(self.action_counts.values()) <= 0:
-            raise ValueError("conversion action_counts must sum to > 0")
+            raise ValueError("metric action_counts must sum to > 0")
         return self
 
     @property
-    def p_conv(self) -> float:
-        """Allocation share that went to the conversion action, in [0, 1]."""
+    def p_metric(self) -> float:
+        """Allocation share that went to the metric's target action, in [0, 1]."""
         total = sum(self.action_counts.values())
-        return self.action_counts[self.conversion_action_label] / total
+        return self.action_counts[self.target_label] / total

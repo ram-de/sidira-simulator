@@ -37,9 +37,9 @@ def _r(
     persona_id: str,
     sample_index: int = 0,
     arm: str,
-    conversion_p: float | None,
-    conversion_unblinded: bool = False,
-    conversion_paraphrase_unstable: bool = False,
+    metric_p: float | None,
+    metric_unblinded: bool = False,
+    metric_paraphrase_unstable: bool = False,
 ) -> AgentReaction:
     return AgentReaction(
         agent_id=f"{arm}-{persona_id}-{sample_index}",
@@ -48,9 +48,9 @@ def _r(
         reaction_text="r",
         sample_index=sample_index,
         arm=arm,
-        conversion_p=conversion_p,
-        conversion_unblinded=conversion_unblinded,
-        conversion_paraphrase_unstable=conversion_paraphrase_unstable,
+        metric_p=metric_p,
+        metric_unblinded=metric_unblinded,
+        metric_paraphrase_unstable=metric_paraphrase_unstable,
     )
 
 
@@ -58,8 +58,8 @@ def _r(
 
 
 def test_positive_paired_lift_in_percentage_points() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(4)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(4)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(4)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(4)]
     res = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=42)
 
     assert isinstance(res, ConversionLiftResult)
@@ -75,20 +75,20 @@ def test_positive_paired_lift_in_percentage_points() -> None:
 
 
 def test_negative_lift() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.1) for i in range(3)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.4) for i in range(3)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.1) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.4) for i in range(3)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.lift_pp == pytest.approx(-30.0)
 
 
 def test_unpaired_arms_counted_and_excluded() -> None:
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5),
-        _r(persona_id="p1", arm="treatment", conversion_p=0.5),  # no control twin
+        _r(persona_id="p0", arm="treatment", metric_p=0.5),
+        _r(persona_id="p1", arm="treatment", metric_p=0.5),  # no control twin
     ]
     control = [
-        _r(persona_id="p0", arm="control", conversion_p=0.2),
-        _r(persona_id="p2", arm="control", conversion_p=0.2),  # no treatment twin
+        _r(persona_id="p0", arm="control", metric_p=0.2),
+        _r(persona_id="p2", arm="control", metric_p=0.2),  # no treatment twin
     ]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paired_n == 1  # only p0 matched
@@ -99,14 +99,14 @@ def test_unpaired_arms_counted_and_excluded() -> None:
 
 def test_elicitation_failure_drops_pairs_where_either_side_is_none() -> None:
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5),
-        _r(persona_id="p1", arm="treatment", conversion_p=None),  # failed treatment
-        _r(persona_id="p2", arm="treatment", conversion_p=0.5),
+        _r(persona_id="p0", arm="treatment", metric_p=0.5),
+        _r(persona_id="p1", arm="treatment", metric_p=None),  # failed treatment
+        _r(persona_id="p2", arm="treatment", metric_p=0.5),
     ]
     control = [
-        _r(persona_id="p0", arm="control", conversion_p=0.2),
-        _r(persona_id="p1", arm="control", conversion_p=0.2),
-        _r(persona_id="p2", arm="control", conversion_p=None),  # failed control
+        _r(persona_id="p0", arm="control", metric_p=0.2),
+        _r(persona_id="p1", arm="control", metric_p=0.2),
+        _r(persona_id="p2", arm="control", metric_p=None),  # failed control
     ]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paired_n == 1  # only p0 usable
@@ -115,8 +115,8 @@ def test_elicitation_failure_drops_pairs_where_either_side_is_none() -> None:
 
 
 def test_no_usable_pairs_returns_none_lift() -> None:
-    treatment = [_r(persona_id="p0", arm="treatment", conversion_p=None)]
-    control = [_r(persona_id="p0", arm="control", conversion_p=None)]
+    treatment = [_r(persona_id="p0", arm="treatment", metric_p=None)]
+    control = [_r(persona_id="p0", arm="control", metric_p=None)]
     res = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=42)
     assert res.lift_pp is None
     assert res.lift_ci_pp is None
@@ -125,16 +125,16 @@ def test_no_usable_pairs_returns_none_lift() -> None:
 
 
 def test_single_pair_ci_brackets_point() -> None:
-    treatment = [_r(persona_id="p0", arm="treatment", conversion_p=0.7)]
-    control = [_r(persona_id="p0", arm="control", conversion_p=0.3)]
+    treatment = [_r(persona_id="p0", arm="treatment", metric_p=0.7)]
+    control = [_r(persona_id="p0", arm="control", metric_p=0.3)]
     res = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=7)
     assert res.lift_pp == pytest.approx(40.0)
     assert res.lift_ci_pp == (res.lift_pp, res.lift_pp)
 
 
 def test_deterministic_for_same_seed() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.1 * i) for i in range(6)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.05 * i) for i in range(6)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.1 * i) for i in range(6)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.05 * i) for i in range(6)]
     a = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=99)
     b = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=99)
     assert a.lift_pp == b.lift_pp
@@ -147,8 +147,8 @@ def test_deterministic_for_same_seed() -> None:
 def test_unblinded_fallback_false_when_all_treatment_blinded() -> None:
     """Default posture: every treatment agent ran blinded → the run's lift is
     NOT flagged."""
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(3)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(3)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(3)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.unblinded_fallback is False
 
@@ -158,10 +158,10 @@ def test_unblinded_fallback_set_when_any_treatment_agent_unblinded() -> None:
     the whole run's lift as low-confidence (control is always blinded, so only
     the treatment side carries the flag)."""
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5),
-        _r(persona_id="p1", arm="treatment", conversion_p=0.5, conversion_unblinded=True),
+        _r(persona_id="p0", arm="treatment", metric_p=0.5),
+        _r(persona_id="p1", arm="treatment", metric_p=0.5, metric_unblinded=True),
     ]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(2)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.unblinded_fallback is True
 
@@ -221,10 +221,10 @@ def test_honesty_no_unblinded_caveat_when_blinded() -> None:
 
 def test_aggregate_flags_paraphrase_instability_from_treatment() -> None:
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
-        _r(persona_id="p1", arm="treatment", conversion_p=0.5),
+        _r(persona_id="p0", arm="treatment", metric_p=0.5, metric_paraphrase_unstable=True),
+        _r(persona_id="p1", arm="treatment", metric_p=0.5),
     ]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(2)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paraphrase_unstable is True
 
@@ -232,18 +232,18 @@ def test_aggregate_flags_paraphrase_instability_from_treatment() -> None:
 def test_aggregate_flags_paraphrase_instability_from_control() -> None:
     """Unlike unblinding (treatment-only), a CONTROL agent's flip also taints the
     pair's delta, so instability is collected from either arm."""
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(2)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(2)]
     control = [
-        _r(persona_id="p0", arm="control", conversion_p=0.2, conversion_paraphrase_unstable=True),
-        _r(persona_id="p1", arm="control", conversion_p=0.2),
+        _r(persona_id="p0", arm="control", metric_p=0.2, metric_paraphrase_unstable=True),
+        _r(persona_id="p1", arm="control", metric_p=0.2),
     ]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paraphrase_unstable is True
 
 
 def test_aggregate_paraphrase_stable_when_no_flips() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(2)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(2)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(2)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(2)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paraphrase_unstable is False
 
@@ -252,11 +252,11 @@ def test_aggregate_ignores_paraphrase_flip_on_unpaired_agent() -> None:
     """codex P2: a flagged agent with no twin never enters the delta, so it must
     NOT taint the lift caveat."""
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5),  # paired, stable
+        _r(persona_id="p0", arm="treatment", metric_p=0.5),  # paired, stable
         # p9 has no control twin → unpaired; its flip is irrelevant to the delta.
-        _r(persona_id="p9", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
+        _r(persona_id="p9", arm="treatment", metric_p=0.5, metric_paraphrase_unstable=True),
     ]
-    control = [_r(persona_id="p0", arm="control", conversion_p=0.2)]
+    control = [_r(persona_id="p0", arm="control", metric_p=0.2)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paired_n == 1
     assert res.unpaired_treatment == 1
@@ -267,12 +267,12 @@ def test_aggregate_ignores_paraphrase_flip_on_dropped_pair() -> None:
     """codex P2: a flagged agent whose pair is DROPPED (the other side has no
     usable p_conv) never enters the delta, so it must NOT taint the lift caveat."""
     treatment = [
-        _r(persona_id="p0", arm="treatment", conversion_p=0.5),  # paired, stable
-        _r(persona_id="p1", arm="treatment", conversion_p=0.5, conversion_paraphrase_unstable=True),
+        _r(persona_id="p0", arm="treatment", metric_p=0.5),  # paired, stable
+        _r(persona_id="p1", arm="treatment", metric_p=0.5, metric_paraphrase_unstable=True),
     ]
     control = [
-        _r(persona_id="p0", arm="control", conversion_p=0.2),
-        _r(persona_id="p1", arm="control", conversion_p=None),  # drops the p1 pair
+        _r(persona_id="p0", arm="control", metric_p=0.2),
+        _r(persona_id="p1", arm="control", metric_p=None),  # drops the p1 pair
     ]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
     assert res.paired_n == 1
@@ -343,7 +343,7 @@ async def test_score_ab_grafts_conversion_fields_when_metric_set() -> None:
             reaction_text="TREATMENT_REACTION",
             sample_index=0,
             arm="treatment",
-            conversion_p=0.6,
+            metric_p=0.6,
         )
         for i in range(5)
     ]
@@ -355,7 +355,7 @@ async def test_score_ab_grafts_conversion_fields_when_metric_set() -> None:
             reaction_text="CONTROL_REACTION",
             sample_index=0,
             arm="control",
-            conversion_p=0.2,
+            metric_p=0.2,
         )
         for i in range(5)
     ]
@@ -365,14 +365,14 @@ async def test_score_ab_grafts_conversion_fields_when_metric_set() -> None:
     # sentiment headline still present and unchanged in spirit
     assert result.confidence_score == pytest.approx(result.treatment_score)
     # conversion fields grafted on
-    assert result.conversion_lift_pp == pytest.approx(40.0)
-    assert result.conversion_lift_paired_n == 5
-    assert result.conversion_lift_ci_pp is not None
-    assert result.conversion_regime == "weak_behavioral"
-    assert result.conversion_lift_relative is not None
-    assert "higher" in result.conversion_lift_relative
+    assert result.metric_lift_pp == pytest.approx(40.0)
+    assert result.metric_lift_paired_n == 5
+    assert result.metric_lift_ci_pp is not None
+    assert result.metric_regime == "weak_behavioral"
+    assert result.metric_lift_relative is not None
+    assert "higher" in result.metric_lift_relative
     # §3e: no agent flagged → the run is paraphrase-stable
-    assert result.conversion_lift_paraphrase_unstable is False
+    assert result.metric_lift_paraphrase_unstable is False
 
 
 @pytest.mark.asyncio
@@ -388,8 +388,8 @@ async def test_score_ab_grafts_paraphrase_instability_flag() -> None:
             reaction_text="TREATMENT_REACTION",
             sample_index=0,
             arm="treatment",
-            conversion_p=0.6,
-            conversion_paraphrase_unstable=(i == 0),
+            metric_p=0.6,
+            metric_paraphrase_unstable=(i == 0),
         )
         for i in range(5)
     ]
@@ -401,15 +401,15 @@ async def test_score_ab_grafts_paraphrase_instability_flag() -> None:
             reaction_text="CONTROL_REACTION",
             sample_index=0,
             arm="control",
-            conversion_p=0.2,
+            metric_p=0.2,
         )
         for i in range(5)
     ]
     result, _ = await svc.score_ab(
         _conversion_hypothesis(), treatment, control, run_seed=42, config=_CI_CFG
     )
-    assert result.conversion_lift_paraphrase_unstable is True
-    assert "paraphrase" in result.conversion_lift_relative
+    assert result.metric_lift_paraphrase_unstable is True
+    assert "paraphrase" in result.metric_lift_relative
 
 
 @pytest.mark.asyncio
@@ -441,11 +441,11 @@ async def test_score_ab_no_metric_leaves_conversion_fields_default() -> None:
         for i in range(3)
     ]
     result, _ = await svc.score_ab(hypothesis, treatment, control, run_seed=42, config=_CI_CFG)
-    assert result.conversion_lift_pp is None
-    assert result.conversion_lift_ci_pp is None
-    assert result.conversion_lift_paired_n is None
-    assert result.conversion_regime is None
-    assert result.conversion_lift_relative is None
+    assert result.metric_lift_pp is None
+    assert result.metric_lift_ci_pp is None
+    assert result.metric_lift_paired_n is None
+    assert result.metric_regime is None
+    assert result.metric_lift_relative is None
     # the sentiment lift path is unaffected
     assert result.lift is not None
 
@@ -468,14 +468,14 @@ async def test_score_ab_missing_arm_conversion_run_marks_uncomputable() -> None:
                 reaction_text="r",
                 sample_index=0,
                 arm="control",
-                conversion_p=0.5,
+                metric_p=0.5,
             )
         ],
     )
     assert analyses == []
     assert result.lift_paired_n == 0
-    assert result.conversion_lift_paired_n == 0  # NOT None
-    assert result.conversion_regime == "weak_behavioral"
+    assert result.metric_lift_paired_n == 0  # NOT None
+    assert result.metric_regime == "weak_behavioral"
     # no direction is computable with zero usable pairs
-    assert result.conversion_lift_relative is None
-    assert result.conversion_lift_pp is None
+    assert result.metric_lift_relative is None
+    assert result.metric_lift_pp is None

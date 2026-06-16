@@ -16,6 +16,12 @@ from sidira_simulator.schemas.feature_pack import ReverseFigma
 # Hypothesis is validated against. The conversion option itself is prepended by
 # the elicitor from `conversion_action_label`; these are the realistic
 # *non*-conversion alternatives a real user actually takes.
+#
+# #275: this remains the conversion metric's default and is now ALSO registered
+# in the metric registry (`services.metric_registry`) as that metric's
+# `default_choice_set`. The retention metric supplies its own default there. The
+# constant is kept here for backwards-compatible imports and because the
+# conversion choice set is part of the long-standing API contract.
 DEFAULT_CONVERSION_CHOICE_SET: tuple[str, ...] = (
     "keep browsing / decide later",
     "leave without doing anything",
@@ -31,51 +37,61 @@ class Hypothesis(BaseModel):
     proposed_prd: str | None = None
     proposed_figma: ReverseFigma | None = None
 
-    # ── Per-metric outcome elicitation (agent-behavior-spec §3a / #221) ──
+    # ── Per-metric outcome elicitation (agent-behavior-spec §3a / #221, #275) ──
     # OPTIONAL structured target metric. When `metric_name` is None (the
     # default), the simulator behaves byte-identically to the historical
-    # sentiment-only path — these fields are never read. When
-    # `metric_name == "conversion"`, the runner adds a turn-2 in-character
-    # decision elicitation and the scorer reports a paired conversion-lift
-    # delta ALONGSIDE the sentiment confidence_score (never replacing it).
-    # Sibling metrics (retention, CTR) will reuse the same template; conversion
-    # is the load-bearing first case, so `metric_name` is a closed Literal until
-    # the siblings land (an unknown metric must fail loudly, not silently
-    # degrade to sentiment).
-    metric_name: Literal["conversion"] | None = None
-    # The conversion event + its in-character phrasing ("complete checkout",
-    # "start your free trial"). Required when metric_name == "conversion".
+    # sentiment-only path — these fields are never read. When a metric is set,
+    # the runner adds a turn-2 in-character BLINDED decision elicitation and the
+    # scorer reports a paired metric-lift delta ALONGSIDE the sentiment
+    # confidence_score (never replacing it).
+    #
+    # #275 generalizes the original conversion-only feature into a metric
+    # REGISTRY (`services.metric_registry`): each metric supplies its elicitor,
+    # paired-lift aggregator, default choice set, required template fields, regime
+    # label, and calibrator. `metric_name` is a CLOSED Literal so an unknown
+    # metric fails loudly (no silent degradation to sentiment); a metric routes
+    # end-to-end iff it is registered. `retention` is the first sibling (#275);
+    # `conversion` keeps its byte-identical behavior; CTR is #276-next.
+    metric_name: Literal["conversion", "retention"] | None = None
+    # The metric event + its in-character phrasing. For conversion: the
+    # conversion action ("complete checkout") + its label ("check out now"). For
+    # retention: the post-experience moment + the "return" label. Required fields
+    # per metric are declared by the registry's `required_template_fields`.
     conversion_action: str | None = None
     conversion_action_label: str | None = None
-    # The moment the user is at ("you've added 2 items to your cart"). Required
-    # when metric_name == "conversion".
+    # The moment the user is at — conversion: "you've added 2 items to your
+    # cart"; retention (§275 Decision B): "you've just finished tonight's
+    # session". Required for every registered metric.
     decision_point: str | None = None
-    # Realistic non-conversion alternatives, sourced from the rendered screen
-    # (treatment-rendering layer). Empty → DEFAULT_CONVERSION_CHOICE_SET.
+    # Realistic non-target alternatives, sourced from the rendered screen
+    # (treatment-rendering layer). Empty → the metric's registry default choice
+    # set (conversion: DEFAULT_CONVERSION_CHOICE_SET; retention: its own).
     choice_set: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _validate_metric(self) -> Hypothesis:
         """When a metric is selected, its template fields must be present.
 
-        Fail loud rather than silently eliciting a malformed conversion
-        question (§3a no-silent-degradation). `choice_set` is allowed to be
-        empty — the elicitor falls back to DEFAULT_CONVERSION_CHOICE_SET.
+        Fail loud rather than silently eliciting a malformed metric question
+        (§3a no-silent-degradation). The required-field list is DRIVEN BY THE
+        REGISTRY per metric (#275): an unregistered metric is already rejected by
+        the closed Literal above, and a registered metric missing any of its
+        declared template fields raises here. `choice_set` is allowed to be empty
+        — the elicitor falls back to the metric's registry default choice set.
         """
-        if self.metric_name == "conversion":
-            missing = [
-                name
-                for name, val in (
-                    ("conversion_action", self.conversion_action),
-                    ("conversion_action_label", self.conversion_action_label),
-                    ("decision_point", self.decision_point),
-                )
-                if not (val and val.strip())
-            ]
-            if missing:
-                raise ValueError(
-                    "metric_name='conversion' requires non-empty " f"{', '.join(missing)}"
-                )
+        if self.metric_name is None:
+            return self
+        # Lazy import: services.metric_registry imports schemas (this module), so
+        # a module-level import would be circular. The registry is the single
+        # source of truth for each metric's required template fields.
+        from sidira_simulator.services.metric_registry import required_template_fields
+
+        required = required_template_fields(self.metric_name)
+        missing = [name for name in required if not ((getattr(self, name, None) or "").strip())]
+        if missing:
+            raise ValueError(
+                f"metric_name={self.metric_name!r} requires non-empty " f"{', '.join(missing)}"
+            )
         return self
 
 
@@ -329,46 +345,62 @@ class SimulationResult(BaseModel):
     current_state_delta_unpaired_current_state: int = 0
     current_state_delta_sentiment_failure_drops: int = 0
 
-    # ── Conversion-lift fields (agent-behavior-spec §3a / #221) ──
-    # Populated only when the run is A/B mode AND the Hypothesis carried
-    # `metric_name == "conversion"`. All None / 0 otherwise, so older
-    # `result_json` rows load unchanged and a non-conversion run is byte-
-    # identical. `conversion_lift_pp` is the paired treatment−control delta in
-    # p_conv (`action_counts[label] / total`), expressed in PERCENTAGE POINTS
+    # ── Metric-lift fields (agent-behavior-spec §3a / #221; generalized #275) ──
+    # Populated only when the run is A/B mode AND the Hypothesis carried a
+    # `metric_name` (conversion / retention). All None / 0 otherwise, so older
+    # `result_json` rows load unchanged and a non-metric run is byte-identical.
+    #
+    # #275 Decision A — GENERIC field naming. Exactly ONE `metric_name` is set per
+    # simulation, so these are generic `metric_lift_*` fields, NOT parallel
+    # per-metric ones. `metric_name` (below) is the discriminator so a consumer
+    # knows the native unit (conversion-rate pp vs retention-rate pp). The legacy
+    # `conversion_lift_*` keys were verified to have NO real (non-test) reader —
+    # no API serializer reads them by name (the whole result rides a JSON blob),
+    # no frontend type, no DB column — so the rename is migration-free: an older
+    # row's `conversion_lift_*` keys are simply ignored on load and the renamed
+    # fields default. The conversion path is otherwise behaviorally byte-identical.
+    #
+    # `metric_lift_pp` is the paired treatment−control delta in p_metric
+    # (`action_counts[label] / total`), expressed in PERCENTAGE POINTS
     # ([-100, +100]); it is the same agent identity (#90 paired seed) deciding
     # against control vs treatment, so the agent's inflated absolute propensity
-    # cancels in the delta. The number is stored for the eval, but PRE-#222 the
-    # PM-facing headline is `conversion_lift_relative` (rank + direction +
-    # CI-excludes-zero) — never the bare pp as truth (§5: magnitude is
-    # uncalibrated until the shrinkage layer is fit). `conversion_regime` names
-    # the weak behavioral regime so the card never presents conversion with the
-    # confidence of a copy/CTR test. Drop counters mirror the A/B lift counters.
-    conversion_lift_pp: float | None = None
-    conversion_lift_ci_pp: tuple[float, float] | None = None
-    conversion_lift_paired_n: int | None = None
-    conversion_lift_unpaired_treatment: int = 0
-    conversion_lift_unpaired_control: int = 0
-    conversion_lift_elicitation_failure_drops: int = 0
-    conversion_regime: str | None = None
-    conversion_lift_relative: str | None = None
-    # #221 §3b: True when the conversion metric fell back to the UNBLINDED prompt
-    # for at least one treatment agent (the change had no faithful standalone
-    # view). Defaults False so non-conversion / fully-blinded runs and older rows
-    # are byte-identical; `conversion_lift_relative` also carries the caveat text.
-    conversion_lift_unblinded_fallback: bool = False
-    # #221 §3e: True when at least one identity's conversion propensity (p_conv)
+    # cancels in the delta. PRE-#222 the PM-facing headline is `metric_lift_relative`
+    # (rank + direction + CI-excludes-zero), never the bare pp as truth (§5:
+    # magnitude is uncalibrated until the shrinkage layer is fit). `metric_regime`
+    # names the weak behavioral regime so the card never presents a behavioral
+    # metric with the confidence of a copy/CTR test. Drop counters mirror the A/B
+    # lift counters.
+    #
+    # `metric_name`: the native-unit discriminator (None for a non-metric run);
+    # mirrors the Hypothesis's metric_name so a consumer reading only the result
+    # knows which metric the lift belongs to.
+    metric_name: str | None = None
+    metric_lift_pp: float | None = None
+    metric_lift_ci_pp: tuple[float, float] | None = None
+    metric_lift_paired_n: int | None = None
+    metric_lift_unpaired_treatment: int = 0
+    metric_lift_unpaired_control: int = 0
+    metric_lift_elicitation_failure_drops: int = 0
+    metric_regime: str | None = None
+    metric_lift_relative: str | None = None
+    # #221 §3b: True when the metric fell back to the UNBLINDED prompt for at
+    # least one treatment agent (the change had no faithful standalone view).
+    # Defaults False so non-metric / fully-blinded runs and older rows are
+    # byte-identical; `metric_lift_relative` also carries the caveat text.
+    metric_lift_unblinded_fallback: bool = False
+    # #221 §3e: True when at least one identity's metric propensity (p_metric)
     # moved materially across the K question paraphrases (its answer was
-    # wording-driven). Defaults False so non-conversion runs, the default K=1
-    # single-prompt path, and older rows are byte-identical; `conversion_lift_relative`
+    # wording-driven). Defaults False so non-metric runs, the default K=1
+    # single-prompt path, and older rows are byte-identical; `metric_lift_relative`
     # also carries the caveat text.
-    conversion_lift_paraphrase_unstable: bool = False
+    metric_lift_paraphrase_unstable: bool = False
     # #221 shrinkage layer: True only when a FITTED calibrator (services.
-    # conversion_calibrator) has mapped the raw `conversion_lift_pp` onto the
+    # conversion_calibrator) has mapped the raw `metric_lift_pp` onto the
     # real-world effect-size scale. The wired default is the identity no-op, so
     # this is False for every current run and older `result_json` rows load
-    # unchanged; while False, `conversion_lift_relative` carries the "uncalibrated
+    # unchanged; while False, `metric_lift_relative` carries the "uncalibrated
     # — read as rank/direction, not effect size" caveat. The fit is #222-gated.
-    conversion_lift_calibrated: bool = False
+    metric_lift_calibrated: bool = False
 
 
 class Simulation(BaseModel):

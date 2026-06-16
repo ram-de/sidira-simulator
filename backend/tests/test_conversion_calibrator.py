@@ -41,7 +41,7 @@ def _r(
     *,
     persona_id: str,
     arm: str,
-    conversion_p: float | None,
+    metric_p: float | None,
     sample_index: int = 0,
 ) -> AgentReaction:
     return AgentReaction(
@@ -51,7 +51,7 @@ def _r(
         reaction_text="r",
         sample_index=sample_index,
         arm=arm,
-        conversion_p=conversion_p,
+        metric_p=metric_p,
     )
 
 
@@ -122,8 +122,8 @@ def test_factory_unknown_value_fails_open_to_identity(
 
 
 def test_aggregate_default_calibrator_is_identity() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(4)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(4)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(4)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(4)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
 
     # (0.5 - 0.2) * 100 = 30.0 pp, magnitude untouched, not marked calibrated.
@@ -132,8 +132,8 @@ def test_aggregate_default_calibrator_is_identity() -> None:
 
 
 def test_aggregate_routes_through_injected_calibrator() -> None:
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(4)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(4)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(4)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(4)]
     res = aggregate_conversion_lift(
         treatment, control, _NO_CI_CFG, calibrator=_DoublingCalibrator()
     )
@@ -145,8 +145,8 @@ def test_aggregate_routes_through_injected_calibrator() -> None:
 
 def test_aggregate_no_pairs_still_calibrates_without_inventing_a_lift() -> None:
     # No matched pairs → lift not computable; identity leaves it None + uncalibrated.
-    treatment = [_r(persona_id="p0", arm="treatment", conversion_p=0.5)]
-    control = [_r(persona_id="p9", arm="control", conversion_p=0.2)]
+    treatment = [_r(persona_id="p0", arm="treatment", metric_p=0.5)]
+    control = [_r(persona_id="p9", arm="control", metric_p=0.2)]
     res = aggregate_conversion_lift(treatment, control, _NO_CI_CFG)
 
     assert res.paired_n == 0
@@ -162,8 +162,8 @@ async def test_score_ab_threads_calibrated_false_on_conversion_run() -> None:
     # Reuse the §3a conversion scaffolding (scripted chat + conversion hypothesis).
     from tests.test_conversion_lift import _conversion_hypothesis, _ScriptedChat
 
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=0.5) for i in range(3)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=0.2) for i in range(3)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(3)]
 
     service = ScoringService(chat_client=_ScriptedChat())
     result, _ = await service.score_ab(
@@ -171,8 +171,8 @@ async def test_score_ab_threads_calibrated_false_on_conversion_run() -> None:
     )
 
     # Default identity calibrator → flag present and False (never silently absent).
-    assert result.conversion_lift_calibrated is False
-    assert result.conversion_lift_pp is not None
+    assert result.metric_lift_calibrated is False
+    assert result.metric_lift_pp is not None
 
 
 @pytest.mark.asyncio
@@ -181,16 +181,16 @@ async def test_score_ab_no_metric_leaves_calibrated_flag_default() -> None:
     from tests.test_conversion_lift import _ScriptedChat
 
     hypothesis = Hypothesis(capability_name="reorder", prose="test")  # no metric
-    treatment = [_r(persona_id=f"p{i}", arm="treatment", conversion_p=None) for i in range(3)]
-    control = [_r(persona_id=f"p{i}", arm="control", conversion_p=None) for i in range(3)]
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=None) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=None) for i in range(3)]
 
     service = ScoringService(chat_client=_ScriptedChat())
     result, _ = await service.score_ab(
         hypothesis, treatment, control, run_seed=7, config=_NO_CI_CFG
     )
 
-    assert result.conversion_lift_calibrated is False
-    assert result.conversion_lift_pp is None
+    assert result.metric_lift_calibrated is False
+    assert result.metric_lift_pp is None
 
 
 # ── conversion_lift_honesty caveat gating ─────────────────────────────────────

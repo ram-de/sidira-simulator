@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from sidira_simulator.schemas.elicitation import ConversionDecision
+from sidira_simulator.schemas.elicitation import MetricDecision
 from sidira_simulator.schemas.simulation import (
     DEFAULT_CONVERSION_CHOICE_SET,
     Hypothesis,
@@ -104,59 +104,59 @@ def test_hypothesis_rejects_unknown_metric() -> None:
     """metric_name is a closed Literal — an unknown metric fails loudly rather
     than silently degrading to sentiment."""
     with pytest.raises(ValidationError):
-        Hypothesis(capability_name="reorder", prose="x", metric_name="retention")
+        Hypothesis(capability_name="reorder", prose="x", metric_name="ctr")
 
 
-# ── ConversionDecision schema ────────────────────────────────────────────────
+# ── MetricDecision schema (generic; #275) ─────────────────────────────────────
 
 
-def test_conversion_decision_p_conv_normalizes_by_actual_total() -> None:
-    d = ConversionDecision(
+def test_metric_decision_p_metric_normalizes_by_actual_total() -> None:
+    d = MetricDecision(
         action_counts={"buy": 3, "leave": 7},
-        conversion_action_label="buy",
+        target_label="buy",
     )
-    assert d.p_conv == pytest.approx(0.3)
+    assert d.p_metric == pytest.approx(0.3)
 
 
-def test_conversion_decision_p_conv_robust_to_non_ten_total() -> None:
-    """Spec frames it as 10 trials, but LLMs miscount; p_conv divides by the
+def test_metric_decision_p_metric_robust_to_non_ten_total() -> None:
+    """Spec frames it as 10 trials, but LLMs miscount; p_metric divides by the
     real total so a sum of 9 or 11 yields an honest fraction, not a >1 value."""
-    d = ConversionDecision(
+    d = MetricDecision(
         action_counts={"buy": 4, "leave": 5},  # sums to 9
-        conversion_action_label="buy",
+        target_label="buy",
     )
-    assert d.p_conv == pytest.approx(4 / 9)
+    assert d.p_metric == pytest.approx(4 / 9)
 
 
-def test_conversion_decision_rejects_missing_label() -> None:
+def test_metric_decision_rejects_missing_label() -> None:
     with pytest.raises(ValidationError):
-        ConversionDecision(
+        MetricDecision(
             action_counts={"leave": 10},
-            conversion_action_label="buy",
+            target_label="buy",
         )
 
 
-def test_conversion_decision_rejects_zero_total() -> None:
+def test_metric_decision_rejects_zero_total() -> None:
     with pytest.raises(ValidationError):
-        ConversionDecision(
+        MetricDecision(
             action_counts={"buy": 0, "leave": 0},
-            conversion_action_label="buy",
+            target_label="buy",
         )
 
 
-def test_conversion_decision_rejects_negative_counts() -> None:
+def test_metric_decision_rejects_negative_counts() -> None:
     with pytest.raises(ValidationError):
-        ConversionDecision(
+        MetricDecision(
             action_counts={"buy": -1, "leave": 11},
-            conversion_action_label="buy",
+            target_label="buy",
         )
 
 
-def test_conversion_decision_confidence_bounds() -> None:
+def test_metric_decision_confidence_bounds() -> None:
     with pytest.raises(ValidationError):
-        ConversionDecision(
+        MetricDecision(
             action_counts={"buy": 5, "leave": 5},
-            conversion_action_label="buy",
+            target_label="buy",
             self_reported_confidence=1.5,
         )
 
@@ -176,7 +176,7 @@ def test_resolve_count_case_insensitive_remap() -> None:
 
 
 def test_resolve_count_raises_when_label_absent() -> None:
-    with pytest.raises(ValueError, match="omitted the conversion action"):
+    with pytest.raises(ValueError, match="omitted the target action"):
         _resolve_count({"leave": 10}, "buy")
 
 
@@ -193,6 +193,7 @@ def test_user_turn_marks_conversion_option_and_lists_alternatives() -> None:
     )
     assert "Reorder" in turn
     assert "you have 2 items in your cart" in turn
+    # conversion keeps its historical tag verbatim (byte-identical prompt)
     assert "<- the conversion" in turn
     assert '"check out now"' in turn
     assert "keep browsing" in turn
@@ -242,7 +243,7 @@ def test_elicit_builds_blinded_two_message_conversation_and_returns_p_conv() -> 
         # complete allocation: every offered label present (codex P2)
         choice_set=["keep browsing / decide later"],
     )
-    assert decision.p_conv == pytest.approx(0.2)
+    assert decision.p_metric == pytest.approx(0.2)
     assert decision.primary_reason == "I rarely buy on first visit"
 
     # BLINDED pass (§3b): the conversation is [system(blinded), user(decision)]
@@ -323,7 +324,7 @@ def test_elicit_case_insensitive_label_does_not_drop_agent() -> None:
         decision_point="now",
         choice_set=["leave"],
     )
-    assert decision.p_conv == pytest.approx(0.3)
+    assert decision.p_metric == pytest.approx(0.3)
 
 
 def test_elicit_raises_on_missing_conversion_label() -> None:

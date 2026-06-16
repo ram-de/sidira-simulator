@@ -23,7 +23,7 @@ from sidira_simulator.adapters.llm import ChatClient, get_chat_client
 from sidira_simulator.schemas.scoring import (
     ABLiftResult,
     AgentAnalysis,
-    ConversionLiftResult,
+    MetricLiftResult,
     ScoringConfig,
     Sentiment,
     SentimentClassification,
@@ -31,10 +31,13 @@ from sidira_simulator.schemas.scoring import (
 )
 from sidira_simulator.schemas.simulation import Hypothesis, SimulationResult, Weakness
 from sidira_simulator.services.conversion_calibrator import (
-    ConversionCalibrator,
-    resolve_conversion_calibrator,
+    MetricCalibrator,
+    resolve_metric_calibrator,
 )
 from sidira_simulator.services.statistics import bootstrap_percentile_ci, wilson_interval
+
+# Backwards-compatible alias for the renamed lift result type.
+ConversionLiftResult = MetricLiftResult
 
 # Arbitrary integer XOR mask used to derive a bootstrap-specific RNG seed
 # from the runner's run_seed, so the bootstrap resample stream cannot
@@ -72,9 +75,9 @@ class AgentReaction:
         "sample_index",
         "arm",
         "reaction_distribution",
-        "conversion_p",
-        "conversion_unblinded",
-        "conversion_paraphrase_unstable",
+        "metric_p",
+        "metric_unblinded",
+        "metric_paraphrase_unstable",
     )
 
     def __init__(
@@ -87,9 +90,9 @@ class AgentReaction:
         sample_index: int = 0,
         arm: str | None = None,
         reaction_distribution: list[tuple[str, float]] | None = None,
-        conversion_p: float | None = None,
-        conversion_unblinded: bool = False,
-        conversion_paraphrase_unstable: bool = False,
+        metric_p: float | None = None,
+        metric_unblinded: bool = False,
+        metric_paraphrase_unstable: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -98,19 +101,21 @@ class AgentReaction:
         self.sample_index = sample_index
         self.arm = arm
         self.reaction_distribution = reaction_distribution
-        # #221 §3a: the agent's conversion propensity (p_conv) when the run used
-        # a conversion metric; None when no metric was set OR the per-agent
-        # conversion elicitation failed. Scored as a paired delta, never a level.
-        self.conversion_p = conversion_p
-        # #221 §3b: True when this (treatment) agent's conversion metric ran on
-        # the UNBLINDED fallback prompt (no faithful standalone view). Any such
-        # contributor makes the whole run's conversion lift low-confidence.
-        self.conversion_unblinded = conversion_unblinded
-        # #221 §3e: True when this agent's conversion propensity (p_conv) moved
+        # #221 §3a / #275: the agent's metric propensity (p_metric) when the run
+        # used a per-metric outcome (conversion / retention); None when no metric
+        # was set OR the per-agent elicitation failed. Scored as a paired delta,
+        # never a level. (#275 Decision A: generic name — exactly one metric per
+        # sim.)
+        self.metric_p = metric_p
+        # #221 §3b: True when this (treatment) agent's metric pass ran on the
+        # UNBLINDED fallback prompt (no faithful standalone view). Any such
+        # contributor makes the whole run's metric lift low-confidence.
+        self.metric_unblinded = metric_unblinded
+        # #221 §3e: True when this agent's metric propensity (p_metric) moved
         # materially across the K question paraphrases (spread > threshold). Set on
-        # EITHER arm; any such contributor in a usable pair makes the run's
-        # conversion lift low-confidence (the pair's delta is wording-driven).
-        self.conversion_paraphrase_unstable = conversion_paraphrase_unstable
+        # EITHER arm; any such contributor in a usable pair makes the run's metric
+        # lift low-confidence (the pair's delta is wording-driven).
+        self.metric_paraphrase_unstable = metric_paraphrase_unstable
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -415,17 +420,22 @@ class ScoringService:
         # calls on a half-broken run.
         if not treatment_reactions or not control_reactions:
             missing = "treatment" if not treatment_reactions else "control"
-            # §3a: a conversion-metric run must surface the same honest
-            # uncomputable state on the conversion fields (paired_n=0 + the weak
-            # regime), or a missing-arm conversion run would be indistinguishable
-            # from a non-conversion run (all conversion_* at schema default None).
-            conversion_fields: dict[str, object] = {}
-            if hypothesis.metric_name == "conversion":
-                regime, relative = conversion_lift_honesty(ConversionLiftResult())
-                conversion_fields = {
-                    "conversion_lift_paired_n": 0,
-                    "conversion_regime": regime,
-                    "conversion_lift_relative": relative,
+            # §3a / #275: a metric run must surface the same honest uncomputable
+            # state on the metric fields (paired_n=0 + the metric's regime), or a
+            # missing-arm metric run would be indistinguishable from a non-metric
+            # run (all metric_* at schema default None). Registry-driven so any
+            # registered metric (conversion / retention) reports its own regime.
+            metric_fields: dict[str, object] = {}
+            if hypothesis.metric_name is not None:
+                from sidira_simulator.services.metric_registry import get_metric
+
+                descriptor = get_metric(hypothesis.metric_name)
+                regime, relative = descriptor.honesty(MetricLiftResult())
+                metric_fields = {
+                    "metric_name": hypothesis.metric_name,
+                    "metric_lift_paired_n": 0,
+                    "metric_regime": regime,
+                    "metric_lift_relative": relative,
                 }
             return (
                 SimulationResult(
@@ -441,7 +451,7 @@ class ScoringService:
                     ],
                     refinement_suggestions=[],
                     lift_paired_n=0,
-                    **conversion_fields,
+                    **metric_fields,
                 ),
                 [],
             )
@@ -485,33 +495,39 @@ class ScoringService:
             }
         )
 
-        # §3a conversion lift: only when the Hypothesis carried a conversion
-        # metric. The per-agent `conversion_p` rides on the AgentReactions
-        # (turn-2 elicitation in the runner); aggregate the paired delta and
-        # graft the conversion_* fields on. A non-conversion run skips this
-        # entirely, leaving every conversion_* field at its schema default —
-        # byte-identical to today's A/B path.
-        if hypothesis.metric_name == "conversion":
-            conv = aggregate_conversion_lift(
+        # §3a / #275 metric lift: only when the Hypothesis carried a registered
+        # metric (conversion / retention). The per-agent `metric_p` rides on the
+        # AgentReactions (turn-2 elicitation in the runner); the registry's
+        # aggregator computes the paired delta and its honesty hook supplies the
+        # regime + native-unit wording. A non-metric run skips this entirely,
+        # leaving every metric_* field at its schema default — byte-identical to
+        # today's A/B path. The branch is registry-driven, so retention routes
+        # here exactly as conversion does.
+        if hypothesis.metric_name is not None:
+            from sidira_simulator.services.metric_registry import get_metric
+
+            descriptor = get_metric(hypothesis.metric_name)
+            lift = descriptor.aggregator(
                 treatment_reactions,
                 control_reactions,
                 config,
                 run_seed=run_seed,
             )
-            regime, relative = conversion_lift_honesty(conv)
+            regime, relative = descriptor.honesty(lift)
             composed = composed.model_copy(
                 update={
-                    "conversion_lift_pp": conv.lift_pp,
-                    "conversion_lift_ci_pp": conv.lift_ci_pp,
-                    "conversion_lift_paired_n": conv.paired_n,
-                    "conversion_lift_unpaired_treatment": conv.unpaired_treatment,
-                    "conversion_lift_unpaired_control": conv.unpaired_control,
-                    "conversion_lift_elicitation_failure_drops": (conv.elicitation_failure_drops),
-                    "conversion_regime": regime,
-                    "conversion_lift_relative": relative,
-                    "conversion_lift_unblinded_fallback": conv.unblinded_fallback,
-                    "conversion_lift_paraphrase_unstable": conv.paraphrase_unstable,
-                    "conversion_lift_calibrated": conv.calibrated,
+                    "metric_name": hypothesis.metric_name,
+                    "metric_lift_pp": lift.lift_pp,
+                    "metric_lift_ci_pp": lift.lift_ci_pp,
+                    "metric_lift_paired_n": lift.paired_n,
+                    "metric_lift_unpaired_treatment": lift.unpaired_treatment,
+                    "metric_lift_unpaired_control": lift.unpaired_control,
+                    "metric_lift_elicitation_failure_drops": (lift.elicitation_failure_drops),
+                    "metric_regime": regime,
+                    "metric_lift_relative": relative,
+                    "metric_lift_unblinded_fallback": lift.unblinded_fallback,
+                    "metric_lift_paraphrase_unstable": lift.paraphrase_unstable,
+                    "metric_lift_calibrated": lift.calibrated,
                 }
             )
         return composed, list(analyses)
@@ -1154,31 +1170,43 @@ def aggregate_current_state_delta(
 # §5 honesty: conversion is a WEAK behavioral regime (the modality cliff —
 # simulated purchase-intent correlates with real behavior at only r≈0.25–0.34,
 # vs r≈0.7–0.9 for the copy/CTR regime). This label rides on the result so the
-# downstream card never renders conversion lift with the confidence of a
-# calibrated A/B test, and so the magnitude is treated as rank/direction signal
-# (not a fabricated true effect size) until the #222 shrinkage layer is fit.
+# downstream card never renders the lift with the confidence of a calibrated A/B
+# test, and so the magnitude is treated as rank/direction signal (not a fabricated
+# true effect size) until the #222 shrinkage layer is fit. Retention shares the
+# same weak-behavioral regime (#275).
 CONVERSION_REGIME_WEAK = "weak_behavioral"
+RETENTION_REGIME_WEAK = "weak_behavioral"
 
 
-def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str | None]:
-    """Map a `ConversionLiftResult` to (regime, relative-statement) per §5.
+def metric_lift_honesty(
+    lift_result: MetricLiftResult,
+    *,
+    regime_label: str = CONVERSION_REGIME_WEAK,
+    verb_higher: str = "converts directionally higher than control",
+    verb_lower: str = "converts directionally lower than control",
+    verb_same: str = "convert at the same directional rate",
+    weak_signal_noun: str = "Synthetic conversion",
+    propensity_noun: str = "conversion propensity",
+) -> tuple[str, str | None]:
+    """Map a `MetricLiftResult` to (regime, relative-statement) per §5 (#275).
 
-    `regime` is always the weak-behavioral label (conversion never escapes the
-    modality cliff pre-#222). `relative` is a direction/rank statement — NOT the
-    bare pp value presented as a true effect size — describing which arm
-    converts more on the paired identities and whether the paired-bootstrap CI
-    excludes zero. Returns `(regime, None)` when no lift is computable so the
-    caller can leave the PM-facing line blank rather than assert a direction.
+    Metric-agnostic: the wording verbs/nouns are supplied by the metric's registry
+    descriptor so each metric speaks its native unit (conversion vs retention),
+    while the rank/direction + CI-excludes-zero + uncalibrated-caveat structure is
+    shared. `regime` is the metric's regime label (both conversion and retention
+    are weak-behavioral pre-#222). `relative` is a direction/rank statement — NOT
+    the bare pp presented as a true effect size. Returns `(regime, None)` when no
+    lift is computable so the caller can leave the PM-facing line blank.
     """
     if lift_result.lift_pp is None:
-        return CONVERSION_REGIME_WEAK, None
+        return regime_label, None
 
     if lift_result.lift_pp > 0:
-        direction = "Treatment converts directionally higher than control"
+        direction = f"Treatment {verb_higher}"
     elif lift_result.lift_pp < 0:
-        direction = "Treatment converts directionally lower than control"
+        direction = f"Treatment {verb_lower}"
     else:
-        direction = "Treatment and control convert at the same directional rate"
+        direction = f"Treatment and control {verb_same}"
 
     ci = lift_result.lift_ci_pp
     if ci is not None and (ci[0] > 0 or ci[1] < 0):
@@ -1189,10 +1217,7 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
         separation = "no interval available"
 
     # #221 shrinkage seam: pre-#222 the magnitude is uncalibrated, so the caveat
-    # confines the read to rank/direction. Once a FITTED calibrator has mapped
-    # the lift onto the real-world scale (`calibrated=True`), the magnitude is
-    # reportable and the caveat softens — but an uncalibrated number is NEVER
-    # presented as a calibrated effect size.
+    # confines the read to rank/direction.
     if lift_result.calibrated:
         magnitude_caveat = (
             "Magnitude calibrated to the real-world effect-size scale by the "
@@ -1200,7 +1225,7 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
         )
     else:
         magnitude_caveat = (
-            "Synthetic conversion is a weak behavioral signal — read as "
+            f"{weak_signal_noun} is a weak behavioral signal — read as "
             "rank/direction, not as a calibrated effect size."
         )
     relative = (
@@ -1209,62 +1234,60 @@ def conversion_lift_honesty(lift_result: ConversionLiftResult) -> tuple[str, str
     )
     if lift_result.unblinded_fallback:
         # §3b: the treatment metric pass ran unblinded (no faithful standalone
-        # view), so demand characteristics may have inflated the treatment side
-        # and the delta is even softer than the usual weak-behavioral caveat.
+        # view), so demand characteristics may have inflated the treatment side.
         relative += (
-            " NOTE: the treatment conversion metric ran UNBLINDED (the change had "
-            "no faithful standalone view), so this direction is low-confidence and "
-            "may overstate the treatment arm."
+            " NOTE: the treatment metric ran UNBLINDED (the change had no faithful "
+            "standalone view), so this direction is low-confidence and may "
+            "overstate the treatment arm."
         )
     if lift_result.paraphrase_unstable:
-        # §3e: at least one identity's conversion propensity (p_conv) moved
-        # materially when the question was merely reworded, so the delta partly
-        # reflects prompt wording rather than behavior — read with extra caution.
+        # §3e: at least one identity's propensity moved materially when the
+        # question was merely reworded — the delta partly reflects prompt wording.
         relative += (
-            " NOTE: at least one identity's conversion propensity moved materially "
+            f" NOTE: at least one identity's {propensity_noun} moved materially "
             "under paraphrase (wording-driven), so this direction is low-confidence."
         )
-    return CONVERSION_REGIME_WEAK, relative
+    return regime_label, relative
 
 
-def aggregate_conversion_lift(
+def conversion_lift_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
+    """Back-compat: the conversion metric's honesty hook (#275 → metric_lift_honesty)."""
+    return metric_lift_honesty(lift_result)
+
+
+def aggregate_metric_lift(
     treatment_reactions: Sequence[AgentReaction],
     control_reactions: Sequence[AgentReaction],
     config: ScoringConfig | None = None,
     *,
     run_seed: int | None = None,
-    calibrator: ConversionCalibrator | None = None,
-) -> ConversionLiftResult:
-    """Paired conversion-lift (agent-behavior-spec §3a / #221).
+    metric_name: str = "conversion",
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired metric-lift (agent-behavior-spec §3a / #221; generalized #275).
 
-    The conversion analog of `_paired_lift`, but the per-agent quantity is the
-    elicited `conversion_p` scalar carried on each `AgentReaction` (turn-2
-    allocation), not a sentiment classification. Matches treatment/control by
-    `(persona_id, sample_index)` (the #90 paired key), then the statistic is the
-    mean per-pair delta `p_conv(treatment) − p_conv(control)`, expressed in
-    PERCENTAGE POINTS (×100). The sign is `treatment − control`: positive means
-    the treatment arm converts more than the control arm on the same identities.
+    Metric-agnostic paired-delta aggregator: the per-agent quantity is the elicited
+    `metric_p` scalar on each `AgentReaction` (turn-2 allocation), not a sentiment
+    classification. Matches treatment/control by `(persona_id, sample_index)` (the
+    #90 paired key), then the statistic is the mean per-pair delta
+    `p_metric(treatment) − p_metric(control)` in PERCENTAGE POINTS (×100). The sign
+    is `treatment − control`: positive means the treatment arm has the higher
+    target propensity on the same identities. Native unit is conversion-rate pp
+    (conversion) or retention-rate pp (retention).
 
-    Why a paired delta and never a level: the absolute `p_conv` is a synthetic,
-    uncalibrated number (the §5 modality cliff — conversion is a weak behavioral
-    regime), but the per-agent inflation is shared across both arms of a paired
-    seed, so it cancels in the delta. The point estimate and the bootstrap CI are
-    computed off the SAME statistic (mean paired delta in pp) so the CI brackets
-    the point by construction — mirroring `_paired_lift` (codex R1-P1 PR #96).
+    Why a paired delta and never a level: the absolute `p_metric` is a synthetic,
+    uncalibrated number (the §5 modality cliff — a weak behavioral regime), but the
+    per-agent inflation is shared across both arms of a paired seed, so it cancels
+    in the delta. Point estimate and bootstrap CI are computed off the SAME
+    statistic so the CI brackets the point by construction (codex R1-P1 PR #96).
 
-    A matched pair is usable only when BOTH sides carry a `conversion_p`; a None
-    on either side is a per-agent conversion-elicitation failure, counted in
-    `elicitation_failure_drops` and never imputed to zero. Degenerate runs (no
-    usable pairs) surface honestly: `lift_pp`/`lift_ci_pp` stay None and the drop
-    counters explain what was excluded.
-
-    The raw result is routed through a `ConversionCalibrator` (#221 shrinkage
-    seam) before it is returned. The wired default is the identity no-op, so the
-    magnitude is unchanged and `calibrated` stays False until #222 fits a real
-    shrinkage layer; an injected `calibrator` lets tests assert the routing.
+    A matched pair is usable only when BOTH sides carry a `metric_p`; a None on
+    either side is a per-agent elicitation failure, counted in
+    `elicitation_failure_drops` and never imputed to zero. The raw result is routed
+    through the metric's calibrator (#221 shrinkage seam; identity no-op default).
     """
     cfg = config or ScoringConfig()
-    cal = calibrator or resolve_conversion_calibrator()
+    cal = calibrator or resolve_metric_calibrator(metric_name)
 
     treatment_by_key: dict[tuple[str, int], AgentReaction] = {
         (r.persona_id, r.sample_index): r for r in treatment_reactions
@@ -1276,13 +1299,13 @@ def aggregate_conversion_lift(
     control_keys = set(control_by_key)
     matched_keys = treatment_keys & control_keys
 
-    result = ConversionLiftResult(
+    result = MetricLiftResult(
         unpaired_treatment=len(treatment_keys - control_keys),
         unpaired_control=len(control_keys - treatment_keys),
         # #221 §3b: any treatment agent forced onto the unblinded fallback prompt
         # taints the whole run's lift as low-confidence (control is always
         # blinded, so only the treatment side carries the flag).
-        unblinded_fallback=any(r.conversion_unblinded for r in treatment_reactions),
+        unblinded_fallback=any(r.metric_unblinded for r in treatment_reactions),
     )
 
     # Sort matched keys for deterministic resample ordering (same rationale as
@@ -1292,7 +1315,7 @@ def aggregate_conversion_lift(
     failure_drops = 0
     # #221 §3e: paraphrase instability only matters for pairs that actually feed
     # the reported delta. An agent flagged unstable on an UNPAIRED identity (no
-    # twin) or a DROPPED pair (the other side has no usable p_conv) never enters
+    # twin) or a DROPPED pair (the other side has no usable p_metric) never enters
     # `deltas`, so it must not taint the lift caveat (codex P2). Collected from
     # EITHER arm of a usable pair, though — a control flip corrupts that pair's
     # delta as much as a treatment flip (unlike unblinding, which is treatment-only).
@@ -1300,13 +1323,13 @@ def aggregate_conversion_lift(
     for key in sorted(matched_keys):
         t = treatment_by_key[key]
         c = control_by_key[key]
-        t_p = t.conversion_p
-        c_p = c.conversion_p
+        t_p = t.metric_p
+        c_p = c.metric_p
         if t_p is None or c_p is None:
             failure_drops += 1
             continue
         deltas.append(t_p - c_p)
-        if t.conversion_paraphrase_unstable or c.conversion_paraphrase_unstable:
+        if t.metric_paraphrase_unstable or c.metric_paraphrase_unstable:
             paraphrase_unstable = True
 
     result.paraphrase_unstable = paraphrase_unstable
@@ -1348,3 +1371,45 @@ def aggregate_conversion_lift(
     # #221 shrinkage seam: route the raw lift through the calibrator. Identity
     # default → byte-identical magnitude, `calibrated` stays False.
     return cal.calibrate(result)
+
+
+def aggregate_conversion_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired conversion-lift (§3a). Thin wrapper over `aggregate_metric_lift`
+    pinning `metric_name="conversion"` — kept for the registry + back-compat."""
+    return aggregate_metric_lift(
+        treatment_reactions,
+        control_reactions,
+        config,
+        run_seed=run_seed,
+        metric_name="conversion",
+        calibrator=calibrator,
+    )
+
+
+def aggregate_retention_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired retention-lift (#275, Decision B). Thin wrapper over
+    `aggregate_metric_lift` pinning `metric_name="retention"` — the retention
+    propensity `p_metric` is the share allocated to the "return" action, so the
+    paired delta is the retention-rate lift in percentage points."""
+    return aggregate_metric_lift(
+        treatment_reactions,
+        control_reactions,
+        config,
+        run_seed=run_seed,
+        metric_name="retention",
+        calibrator=calibrator,
+    )

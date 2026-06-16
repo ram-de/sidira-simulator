@@ -41,10 +41,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     Weakness,
 )
-from sidira_simulator.services.conversion_elicitor import (
-    CONVERSION_PARAPHRASE_COUNT,
-    elicit_conversion_ensemble,
-)
+from sidira_simulator.services.metric_registry import get_metric
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
 from sidira_simulator.services.prompt_composer import (
@@ -97,27 +94,27 @@ class AgentRecord:
     # the scorer's hierarchical path stays dormant. With samples>1 the scorer
     # classifies every reaction and folds within-agent variance into the CI.
     reaction_distribution: list[tuple[str, float]] = field(default_factory=list)
-    # #221 §3a conversion metric: the agent's elicited conversion propensity
-    # (p_conv) from the turn-2 allocation, when the Hypothesis carried
-    # `metric_name == "conversion"` and this is a persona arm. None when no
-    # conversion metric was set OR the per-agent conversion elicitation failed
-    # (the run stays alive; the pair is dropped honestly at aggregation). Scored
-    # only as a paired treatment−control delta, never as an absolute level.
-    conversion_p: float | None = None
-    # #221 §3b blinding: True when the conversion metric ran on the UNBLINDED
-    # fallback prompt (treatment change had no faithful standalone view —
-    # removal / pure-mechanic / prose-only). The pass still produces a p_conv,
-    # but the treatment side is exposed to change framing, so the resulting lift
-    # is low-confidence and is flagged downstream. Always False for control and
-    # for blinded treatment passes; never set on a failed/None elicitation.
-    conversion_unblinded: bool = False
-    # #221 §3e paraphrase ensemble: True when the agent's conversion propensity
-    # (p_conv) moved materially across the K question paraphrases (spread >
+    # #221 §3a / #275 metric outcome: the agent's elicited target propensity
+    # (p_metric) from the turn-2 allocation, when the Hypothesis carried a
+    # registered `metric_name` (conversion / retention) and this is a persona arm.
+    # None when no metric was set OR the per-agent elicitation failed (the run
+    # stays alive; the pair is dropped honestly at aggregation). Scored only as a
+    # paired treatment−control delta, never as an absolute level. (#275 Decision
+    # A: generic name — exactly one metric per sim.)
+    metric_p: float | None = None
+    # #221 §3b blinding: True when the metric pass ran on the UNBLINDED fallback
+    # prompt (treatment change had no faithful standalone view — removal /
+    # pure-mechanic / prose-only). The pass still produces a p_metric, but the
+    # treatment side is exposed to change framing, so the resulting lift is
+    # low-confidence and is flagged downstream. Always False for control and for
+    # blinded treatment passes; never set on a failed/None elicitation.
+    metric_unblinded: bool = False
+    # #221 §3e paraphrase ensemble: True when the agent's target propensity
+    # (p_metric) moved materially across the K question paraphrases (spread >
     # threshold) — the answer is prompt-driven, so the pair's delta is
     # low-confidence and is flagged downstream. Always False at the default K=1
-    # (a single prompt cannot disagree with itself) and on a failed/None
-    # elicitation. Set on EITHER arm (unlike unblinded, which is treatment-only).
-    conversion_paraphrase_unstable: bool = False
+    # and on a failed/None elicitation. Set on EITHER arm.
+    metric_paraphrase_unstable: bool = False
 
 
 class _LazyModelChatClient:
@@ -223,11 +220,13 @@ class SimulationRunner:
         # path byte-for-byte.
         elicitation_samples = resolve_elicitation_samples()
         elicitation_temperature = resolve_elicitation_temperature()
-        # #221 §3e: number of question paraphrases to ensemble for the conversion
-        # metric. Default 1 reproduces the historical single-prompt pass; resolved
-        # once per run so the whole population shares one K and it is observable in
+        # #221 §3e / #275: number of question paraphrases to ensemble for the
+        # per-metric outcome pass. One shared knob across all metrics
+        # (SIDIRA_CONVERSION_PARAPHRASES; the env name is kept for back-compat).
+        # Default 1 reproduces the historical single-prompt pass; resolved once per
+        # run so the whole population shares one K and it is observable in
         # run.started.
-        conversion_paraphrases = resolve_conversion_paraphrases()
+        metric_paraphrases = resolve_conversion_paraphrases()
         now = datetime.now(timezone.utc)
 
         state = SimulationRunState(
@@ -245,7 +244,7 @@ class SimulationRunner:
             run_seed=resolved_run_seed,
             elicitation_samples=elicitation_samples,
             elicitation_temperature=elicitation_temperature,
-            conversion_paraphrases=conversion_paraphrases,
+            metric_paraphrases=metric_paraphrases,
         )
 
         # Phase 2.5 (#5): largest-remainder allocation across personas, capped at
@@ -392,7 +391,7 @@ class SimulationRunner:
                     arm=arm,
                     elicitation_samples=elicitation_samples,
                     elicitation_temperature=elicitation_temperature,
-                    conversion_paraphrases=conversion_paraphrases,
+                    metric_paraphrases=metric_paraphrases,
                 )
                 for persona, sample_index, arm in agent_specs
             ),
@@ -457,7 +456,7 @@ class SimulationRunner:
         arm: str | None = None,
         elicitation_samples: int = 1,
         elicitation_temperature: float = 0.0,
-        conversion_paraphrases: int = 1,
+        metric_paraphrases: int = 1,
     ) -> AgentRecord:
         async with self._semaphore:
             agent_id = str(uuid.uuid4())
@@ -564,54 +563,57 @@ class SimulationRunner:
             # the single reaction the historical path produced.
             initial_reaction = distribution.modal.text
 
-            # #221 §3a: per-metric conversion elicitation. Only when the
-            # Hypothesis carried a conversion metric AND this is a persona arm
-            # that feeds the paired A/B comparison (treatment/control). The
-            # ephemeral shadows (no_persona / current_state) drive sentiment
-            # baselines only, never the conversion headline, so we don't spend a
-            # metric call on them. The metric pass is BLINDED (§3b): it runs on a
-            # separate blinded system prompt (compose_metric_prompt — standalone
-            # state, no change framing) and is NOT conditioned on the unblinded
-            # turn-1 reaction, so demand characteristics can't inflate the
-            # treatment arm and bias the treatment−control delta. A failure here
-            # is per-agent: conversion_p stays None, the agent (and its sentiment
-            # contribution) survives, and the pair is dropped honestly at
-            # aggregation (elicitation_failure_drops) — never imputed to zero.
-            conversion_p: float | None = None
-            conversion_unblinded = False
-            conversion_paraphrase_unstable = False
-            if hypothesis.metric_name == "conversion" and arm in ("treatment", "control"):
+            # #221 §3a / #275: per-metric outcome elicitation. Only when the
+            # Hypothesis carried a REGISTERED metric (conversion / retention) AND
+            # this is a persona arm that feeds the paired A/B comparison
+            # (treatment/control). The ephemeral shadows (no_persona /
+            # current_state) drive sentiment baselines only, never the metric
+            # headline, so we don't spend a metric call on them. The metric pass is
+            # BLINDED (§3b): it runs on a separate blinded system prompt
+            # (compose_metric_prompt — standalone state, no change framing) and is
+            # NOT conditioned on the unblinded turn-1 reaction, so demand
+            # characteristics can't inflate the treatment arm and bias the
+            # treatment−control delta. A failure here is per-agent: metric_p stays
+            # None, the agent (and its sentiment contribution) survives, and the
+            # pair is dropped honestly at aggregation (elicitation_failure_drops) —
+            # never imputed to zero. The metric is dispatched through the registry,
+            # so retention routes here exactly as conversion does.
+            metric_p: float | None = None
+            metric_unblinded = False
+            metric_paraphrase_unstable = False
+            # Dispatch is FAIL-LOUD (codex P2): metric_name=None is the legacy
+            # sentiment-only path (skip elicitation); ANY non-None metric_name
+            # MUST resolve to a registered descriptor via get_metric — which
+            # raises KeyError on registry/Literal drift (e.g. a value that
+            # reached here via model_construct or stale data) rather than
+            # silently degrading to sentiment. We never check is_registered and
+            # skip: an unknown metric is a programming error, not a no-op.
+            if hypothesis.metric_name is not None and arm in ("treatment", "control"):
+                descriptor = get_metric(hypothesis.metric_name)
                 # §3a choice set (spec §"the on-screen options"): prefer the
                 # PM-supplied choice_set; otherwise ground the alternatives in the
                 # actual reachable actions at the decision point in the rendered
                 # proposed state (treatment_renderer.extract_choice_set), so the
                 # question reflects the screen the agent saw rather than generic
                 # fallbacks. The SAME proposed-state option set is used for both
-                # arms so p_conv is comparable across the paired seed (a treatment-
-                # only action the control product lacks correctly draws ~0 from the
-                # control agent → honest lift). The elicitor still falls back to
-                # DEFAULT_CONVERSION_CHOICE_SET when nothing grounds (prose-only
-                # change, thin crawl). Pure + cheap (no LLM), so computing it
-                # per-agent is dwarfed by the elicitation call that follows.
+                # arms so p_metric is comparable across the paired seed. The
+                # elicitor still falls back to the metric's registry default choice
+                # set when nothing grounds (prose-only change, thin crawl).
                 #
-                # The conversion action/label is filtered out of the ALTERNATIVES
-                # regardless of source (PM-supplied or extracted): the elicitor
-                # always prepends the canonical conversion_action_label, so any
-                # alternative equal to the conversion action/label would offer two
-                # conversion-like options while p_conv counts only the canonical
-                # one — agents could split conversion intent into the unlabeled
-                # twin and undercount the lift.
-                conv_terms = {
-                    (hypothesis.conversion_action or "").strip().lower(),
-                    (hypothesis.conversion_action_label or "").strip().lower(),
-                }
-                conv_terms.discard("")
+                # The metric's TARGET action term(s) are filtered out of the
+                # ALTERNATIVES regardless of source (PM-supplied or extracted): the
+                # elicitor always prepends the canonical target label, so any
+                # alternative equal to the target would offer two target-like
+                # options while p_metric counts only the canonical one — agents
+                # could split target intent into the unlabeled twin and undercount
+                # the lift. The terms are supplied per-metric by the registry.
+                target_terms = descriptor.target_terms(hypothesis)
                 grounded_choice_set: list[str] | None = None
                 if hypothesis.choice_set:
                     grounded_choice_set = [
                         lbl
                         for lbl in hypothesis.choice_set
-                        if lbl.strip().lower() not in conv_terms
+                        if lbl.strip().lower() not in target_terms
                     ] or None
                 elif hypothesis.proposed_figma is not None:
                     rendered = render_state_diff(capability, hypothesis)
@@ -620,12 +622,12 @@ class SimulationRunner:
                     # reachable transitions, extract_choice_set substitutes its own
                     # fallback set — which includes a generic "convert" option — so
                     # on fallback we leave it None and let the elicitor use its
-                    # curated NON-conversion DEFAULT_CONVERSION_CHOICE_SET.
+                    # curated default choice set.
                     if extracted.grounded:
                         grounded_choice_set = [
                             c.action
                             for c in extracted.choices
-                            if c.action.strip().lower() not in conv_terms
+                            if c.action.strip().lower() not in target_terms
                         ] or None
                 # Blinded metric prompt (§3b): standalone state, no change
                 # framing — NOT the unblinded identity_prompt used for the
@@ -644,66 +646,66 @@ class SimulationRunner:
                 )
                 if not metric_blinded:
                     log.warning(
-                        "agent.conversion.unblinded_fallback",
+                        "agent.metric.unblinded_fallback",
                         sim_id=sim_id,
                         agent_id=agent_id,
                         persona=persona.name,
+                        metric=hypothesis.metric_name,
                         note=(
-                            "no faithful standalone view; conversion metric ran "
-                            "UNBLINDED — lift is low-confidence"
+                            "no faithful standalone view; metric ran UNBLINDED "
+                            "— lift is low-confidence"
                         ),
                     )
                 try:
-                    # §3e: K-paraphrase ensemble (K=conversion_paraphrases, default
-                    # 1 → byte-identical to the historical single-prompt pass). Only
-                    # the question wording varies across the K calls; the blinded
-                    # metric prompt and option set are held byte-identical, so the
-                    # ensemble isolates prompt-sensitivity from content.
-                    ensemble = await asyncio.wait_for(
+                    # §3e: K-paraphrase ensemble (K=metric_paraphrases, default 1 →
+                    # byte-identical to the historical single-prompt pass). Only the
+                    # question wording varies across the K calls; the blinded metric
+                    # prompt and option set are held byte-identical. The registry's
+                    # `elicit` adapter runs the metric's ensemble and returns
+                    # (mean_p_metric, paraphrase_unstable).
+                    mean_p, unstable = await asyncio.wait_for(
                         asyncio.to_thread(
-                            elicit_conversion_ensemble,
+                            descriptor.elicit,
                             chat_client,
                             system_prompt=metric_prompt,
-                            capability_name=capability.name,
-                            conversion_action=hypothesis.conversion_action or "",
-                            conversion_action_label=hypothesis.conversion_action_label or "",
-                            decision_point=hypothesis.decision_point or "",
+                            hypothesis=hypothesis,
+                            capability=capability,
                             choice_set=grounded_choice_set,
-                            paraphrases=conversion_paraphrases,
+                            paraphrases=metric_paraphrases,
+                            timeout_scale_count=descriptor.paraphrase_count,
                         ),
                         # §3e: the ensemble runs K paraphrases SEQUENTIALLY, so the
                         # per-call budget must scale by K — otherwise a K>1 run that
                         # completes each call within the normal budget can still
                         # exceed a single-call window and spuriously drop the whole
-                        # metric (conversion_p=None) for that agent (codex P2). K=1
-                        # is unchanged. Scale by the EFFECTIVE call count (the
-                        # elicitor caps to CONVERSION_PARAPHRASE_COUNT), so an
-                        # oversized env can't multiply the budget past the calls that
-                        # actually run (a 1000× stall, or OverflowError in wait_for).
+                        # metric (metric_p=None) for that agent (codex P2). K=1 is
+                        # unchanged. Scale by the EFFECTIVE call count (capped to the
+                        # metric's paraphrase_count) so an oversized env can't
+                        # multiply the budget past the calls that actually run.
                         timeout=(
                             self._per_agent_timeout_s
-                            * min(conversion_paraphrases, CONVERSION_PARAPHRASE_COUNT)
+                            * min(metric_paraphrases, descriptor.paraphrase_count)
                         ),
                     )
-                    conversion_p = ensemble.mean_p_conv
+                    metric_p = mean_p
                     # Only treatment can be unblinded (control is always blinded);
                     # flag rides only on a successful elicitation.
-                    conversion_unblinded = not metric_blinded
+                    metric_unblinded = not metric_blinded
                     # §3e: flag rides on EITHER arm (a control flip is just as
                     # corrupting to the pair's delta as a treatment flip).
-                    conversion_paraphrase_unstable = ensemble.paraphrase_unstable
+                    metric_paraphrase_unstable = unstable
                 except Exception as exc:
-                    # Per-agent conversion failure — do NOT fail the agent. We
-                    # log (rather than emit a RunEvent) because the SSE event
-                    # contract has no conversion-failure type and the agent's
-                    # sentiment contribution still stands; the dropped pair is
-                    # surfaced honestly downstream via
-                    # conversion_lift_elicitation_failure_drops.
+                    # Per-agent metric failure — do NOT fail the agent. We log
+                    # (rather than emit a RunEvent) because the SSE event contract
+                    # has no metric-failure type and the agent's sentiment
+                    # contribution still stands; the dropped pair is surfaced
+                    # honestly downstream via metric_lift_elicitation_failure_drops.
                     log.warning(
-                        "agent.conversion.failed",
+                        "agent.metric.failed",
                         sim_id=sim_id,
                         agent_id=agent_id,
                         persona=persona.name,
+                        metric=hypothesis.metric_name,
                         error=str(exc)[:500],
                     )
 
@@ -762,9 +764,9 @@ class SimulationRunner:
                 sample_index=sample_index,
                 arm=arm,
                 reaction_distribution=[(s.text, s.probability) for s in distribution.samples],
-                conversion_p=conversion_p,
-                conversion_unblinded=conversion_unblinded,
-                conversion_paraphrase_unstable=conversion_paraphrase_unstable,
+                metric_p=metric_p,
+                metric_unblinded=metric_unblinded,
+                metric_paraphrase_unstable=metric_paraphrase_unstable,
             )
 
     async def _score(
@@ -814,9 +816,9 @@ class SimulationRunner:
                 sample_index=r.sample_index,
                 arm=r.arm,
                 reaction_distribution=r.reaction_distribution or None,
-                conversion_p=r.conversion_p,
-                conversion_unblinded=r.conversion_unblinded,
-                conversion_paraphrase_unstable=r.conversion_paraphrase_unstable,
+                metric_p=r.metric_p,
+                metric_unblinded=r.metric_unblinded,
+                metric_paraphrase_unstable=r.metric_paraphrase_unstable,
             )
             for r in agent_records
         ]
