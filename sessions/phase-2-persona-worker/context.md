@@ -1,8 +1,9 @@
 ---
 type: session
 domain: phase-2-persona-worker
-status: active
+status: closed
 started: 2026-06-15
+closed: 2026-06-15
 owner: ram-de
 ---
 
@@ -16,10 +17,23 @@ ML stack (numpy/sklearn/scipy + the `sidira_personas` wheel) stays OUT of the AP
 image. The wizard's `202` + status-polling contract is unchanged. Per #268 decision (C).
 
 ## In Progress
-- [ ] **PR #284 open** (https://github.com/ram-de/sidira-simulator/pull/284) — awaiting merge,
-      then redeploy WITH migration 013 → verify worker container + real build.
+— session complete
 
-## Built + verified (ready to PR)
+## Shipped + deployed (2026-06-15)
+- [x] **PR #284 squash-merged to main** → deployed SHA `0c173b6` (PR's `14af851` verified ancestor).
+- [x] **Migration 013 applied in prod**: `alembic current` inside sidira-api = `013 (head)`
+      (ran via `SIDIRA_AUTO_MIGRATE=1`, reset to `0` after).
+- [x] **`sidira-persona-worker` container Up** alongside `sidira-api` (healthy) + `sidira-caddy`;
+      `SIDIRA_PERSONA_BUILD_MODE=worker`, worker imports `sidira_personas` successfully.
+- [x] **EC2 box migrated to docker-compose**: was previously the non-compose `docker run` path;
+      deploy installed Docker Compose + Buildx and removed the old standalone containers on
+      name conflict (#284 needs compose for the worker). Prod now runs the 3-container stack.
+- [x] `https://api.sidira.ai/health` → `{"status":"ok","version":"0.1.0"}`.
+- [ ] **Open follow-up (not blocking):** run a real end-to-end Build to confirm the worker
+      claims a PENDING row and writes a pack+manifest to R2 (deploy verified the worker is up
+      and ML-capable, but no production Build was triggered).
+
+## Built + verified
 - [x] Migration 013 (`config_json` JSONB on persona_build_runs); single alembic head 013.
 - [x] Repo: `create(config_json=)`, atomic `claim_next_pending()` (FOR UPDATE SKIP LOCKED),
       `fail_orphaned_running()` startup reaper; Postgres + InMemory mirrors.
@@ -82,11 +96,10 @@ image. The wizard's `202` + status-polling contract is unchanged. Per #268 decis
    prune -af` after build (8GB disk). REDEPLOY.md: note migration 013 + new service + prune.
 
 ## Next Steps
-1. Commit to feature branch + open PR as ram-de.
-2. After merge: **redeploy WITH migration 013** (AUTO_MIGRATE or manual `alembic upgrade head`).
-   Flag explicitly — changes REDEPLOY step 2. inprocess is NOT a prod rollback (API image has
-   no ML stack); rollback = revert + redeploy.
-3. Verify post-deploy: `sidira-persona-worker` container Up + a real Build produces a pack.
+— session complete. One non-blocking follow-up remains (see Shipped + deployed): trigger a
+real end-to-end Build to confirm the worker produces a pack in prod. Rollback for a broken
+worker = revert the PR + redeploy the prior image (inprocess is NOT a prod rollback — the API
+image omits the ML stack by design).
 
 ## Key Files
 - `backend/sidira_simulator/services/persona_builder.py` — the binding (Phase 1).
