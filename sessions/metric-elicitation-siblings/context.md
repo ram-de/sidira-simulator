@@ -178,3 +178,13 @@ decision_point; retention/ctr → decision_point only, label optional) + optiona
 choice_set (one alt per line). None = byte-identical sentiment-only payload.
 api-types.ts hand-edited (gen-types needs live backend at :8000). tsc + next
 build clean. PR open on feat/279-metric-picker-wizard.
+
+#280 (per-metric lift RESULT card): MetricLiftCard on simulations/[id], mounted
+gated on SimulationResult.metric_name (null → renders nothing, default page
+byte-identical). Shows metric_lift_pp + metric_lift_ci_pp + metric_lift_paired_n
++ metric_regime in mono/TNUM on a paper-elevated record card ALONGSIDE the glass
+sentiment score; metric_lift_relative printed VERBATIM; uncalibrated caveat gated
+on !metric_lift_calibrated; unblinded/paraphrase flags as warn-border notes;
+no-lift-computable → honest empty state. api-types.ts SimulationResult hand-added
+the metric_lift_* output fields (gen-types needs live backend). tsc + build clean,
+codex CLEAN. PR open on feat/280-metric-lift-result-card.
