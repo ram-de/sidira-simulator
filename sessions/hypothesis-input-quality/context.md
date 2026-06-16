@@ -1,8 +1,9 @@
 ---
 type: session
 domain: hypothesis-input-quality
-status: active
+status: closed
 started: 2026-06-15
+closed: 2026-06-16
 owner: ram
 ---
 
@@ -51,6 +52,22 @@ chain** (runbook step 2 = normal path, SIDIRA_AUTO_MIGRATE not required). Until 
 prod serves the previous build (no new routes) but is NOT broken — the live wizard simply doesn't
 emit run_as_generic_reception/preflight yet, and the old create path has no gate. The gate + wizard
 go live together on redeploy.
+
+## Deploy — DONE 2026-06-16 (loop complete)
+Combined redeploy executed via codex/REDEPLOY.md SSM path. Deployed SHA **8e1f6ec**
+(includes the #313 merge 82b09cf + session commits). Health green
+(`https://api.sidira.ai/health` → ok). NO migration / no SIDIRA_AUTO_MIGRATE; no disk-cache fill.
+**Verification gotcha (recorded as memory):** anonymous external curls to api.sidira.ai 404 on
+EVERYTHING except /health — by design (internal-key-gated backend returns 404, not 401, to
+unauthenticated callers; browser traffic only reaches it via app.sidira.ai's Next.js /api proxy on
+the /_sidira_web_proxy/* path with the basic-auth hop + X-Sidira-Internal-Key — see
+deploy/Caddyfile.api). So a deploy is verified IN-CONTAINER: codex's FastAPI TestClient POST to
+/simulations/preflight returned 401 (route exists; a missing route 404s even in TestClient) and the
+deployed OpenAPI includes the route. Do NOT use bare external curl to confirm a route shipped.
+
+**LOOP COMPLETE.** #310–#313 merged + combined deploy live. #314 (T5) remains filed-but-BLOCKED on
+the #222 backtest harness (validate gate labels against held-out real outcomes; cut any axis that
+doesn't earn its place). Nothing else pending in this session.
 
 ## Tickets (FILED 2026-06-16, ram-de)
 - Epic **#309** — Hypothesis input answerability (pre-flight gate, not a score)
