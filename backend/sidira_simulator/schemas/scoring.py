@@ -236,6 +236,19 @@ class MetricLiftResult(BaseModel):
     # False; counts personas (not reactions), so a persona sampled K times counts
     # once.
     variance_collapsed_persona_count: int = 0
+    # Underpowered honesty flag (n, orthogonal to `variance_collapsed`'s seeds):
+    # True when `lift_pp` IS computed but on a paired sample too small for the
+    # paired bootstrap to separate a moderate effect AND the CI is non-separable
+    # (straddles zero or absent). In that regime a non-separable interval is
+    # INCONCLUSIVE — the panel cannot detect an effect of plausible size — not
+    # evidence of no effect, yet it reads identically to a true null. We surface
+    # it so a small-n straddle is never mistaken for "no effect". Set only for the
+    # inconclusive case: if the CI EXCLUDES zero even at small n the run DID detect
+    # the effect (NOT underpowered), and `lift_pp is None` (uncomputable) leaves it
+    # False (nothing to qualify). Mirrors `unblinded_fallback`/`variance_collapsed`:
+    # a property of the inputs, surfaced by `metric_lift_honesty`; changes no
+    # numeric output. Remedy: increase agents per arm to power the comparison.
+    underpowered: bool = False
 
 
 # Backwards-compatible alias: the conversion-specific name some call sites and
