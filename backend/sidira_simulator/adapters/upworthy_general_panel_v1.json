@@ -1,0 +1,98 @@
+{
+  "version": "upworthy-general-us-news-v1",
+  "customer_id": "upworthy-benchmark",
+  "generated_at": "2026-06-15T00:00:00Z",
+  "schema_version": "1.0",
+  "is_starter": false,
+  "stability_score": 0.0,
+  "personas": [
+    {
+      "id": "panel_young_scroller",
+      "name": "Young mobile feed scroller",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Early-twenties, gets nearly all news incidentally through a fast-moving social feed on a phone. Low deliberate news-seeking, high feed exposure; quick to tap an emotionally vivid or curiosity-gap headline, quick to swipe past dense or dry ones. Moderate clickbait tolerance — annoyed by obvious bait but still reactive to genuine intrigue. No behavioral rows: this generic panel validates headline rendering and CTR elicitation, not a real persona pipeline.",
+      "jtbd": "Stay loosely in the loop and be entertained while scrolling, without slowing down for anything that looks like work."
+    },
+    {
+      "id": "panel_busy_parent",
+      "name": "Time-pressed working parent",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Thirties-to-forties, juggling work and family, checks news in short bursts between tasks. Pragmatic and skeptical of sensationalism, but responsive to headlines that promise something useful, reassuring, or relevant to family and household life. Lower tolerance for pure clickbait; rewards clarity and perceived payoff. No behavioral rows — generic identity depth by design.",
+      "jtbd": "Get a quick, trustworthy sense of what matters today in the few minutes available, and skip the noise."
+    },
+    {
+      "id": "panel_civic_news_junkie",
+      "name": "Highly engaged civic news reader",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). College-educated, follows politics and current events closely across multiple outlets, votes and discusses issues. High news interest and high skepticism of clickbait; drawn to headlines signaling substance, stakes, or accountability, and put off by manipulative emotional framing. No behavioral rows — generic by design.",
+      "jtbd": "Stay deeply informed on civic and political developments and judge quickly whether a story has real substance."
+    },
+    {
+      "id": "panel_casual_skimmer",
+      "name": "Casual headline skimmer",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Broad-middle adult with moderate education and moderate news interest, reads headlines but rarely full articles. Average clickbait tolerance, average curiosity responsiveness — a representative center-of-mass reader who clicks when a headline lands an easy hook and otherwise moves on. No behavioral rows — generic by design.",
+      "jtbd": "Skim the surface of the day's news and click into the occasional story that catches the eye."
+    },
+    {
+      "id": "panel_skeptical_boomer",
+      "name": "Skeptical older reader",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Sixties-plus, mixes legacy outlets with social feeds, wary of being misled and quick to distrust hyperbole. Low clickbait tolerance, lower curiosity-gap susceptibility; clicks on headlines that feel credible, concrete, and relevant to interests like health, money, or community. No behavioral rows — generic by design.",
+      "jtbd": "Find reliable information without getting baited or manipulated by exaggerated headlines."
+    },
+    {
+      "id": "panel_emotion_driven_sharer",
+      "name": "Emotion-driven social sharer",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Highly responsive to heartwarming, outrage, or awe-inducing content and an active sharer within their network. High emotion and curiosity responsiveness, higher-than-average clickbait tolerance; the classic viral-content engager who clicks and forwards stories that move them. No behavioral rows — generic by design.",
+      "jtbd": "Find feel-something stories worth reacting to and passing along to friends and family."
+    },
+    {
+      "id": "panel_pragmatic_professional",
+      "name": "Pragmatic working professional",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Late-twenties-to-forties knowledge worker, time-constrained, scans news on breaks and commutes. Moderate-high education and news interest, moderate-low clickbait tolerance; clicks headlines that promise efficiency, insight, or career/economic relevance and ignores empty sensation. No behavioral rows — generic by design.",
+      "jtbd": "Stay efficiently current on what's relevant to work and the wider world without wasting time."
+    },
+    {
+      "id": "panel_low_interest_lurker",
+      "name": "Low-interest passive lurker",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Minimal active interest in news; encounters it only when it surfaces unavoidably in a feed. Low news-seeking, indifferent baseline, but can be jolted into a click by an unusually strong curiosity gap or emotional hook. Average-to-high susceptibility precisely because there's no strong filter. No behavioral rows — generic by design.",
+      "jtbd": "Mostly ignore the news, but occasionally get pulled in by something genuinely surprising."
+    },
+    {
+      "id": "panel_curiosity_seeker",
+      "name": "Curiosity-driven explorer",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Intellectually curious generalist who follows interesting threads across science, culture, and human-interest topics. High curiosity responsiveness, moderate skepticism; reliably clicks well-constructed curiosity-gap headlines but resents feeling cheated by a thin payoff. No behavioral rows — generic by design.",
+      "jtbd": "Discover interesting things to learn or think about across a wide range of topics."
+    },
+    {
+      "id": "panel_local_community_reader",
+      "name": "Local and community-focused reader",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Oriented toward local, regional, and community news over national abstractions; moderate education and civic engagement. Average clickbait tolerance; most responsive to headlines that feel proximate, human, and relevant to everyday community life. No behavioral rows — generic by design.",
+      "jtbd": "Keep up with what's happening close to home and in communities like their own."
+    },
+    {
+      "id": "panel_partisan_engager",
+      "name": "Politically engaged partisan reader",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Strong civic engagement and clear political leanings, follows news as part of identity and conviction. High emotional responsiveness to stakes-laden framing, variable clickbait tolerance; clicks headlines that activate values, grievance, or vindication, while still claiming to dislike obvious bait. Designed as a broad civic archetype, not a caricature of any group. No behavioral rows — generic by design.",
+      "jtbd": "Follow developments that bear on deeply held values and stay ahead of the political argument."
+    },
+    {
+      "id": "panel_entertainment_first",
+      "name": "Entertainment-first feed user",
+      "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Comes to the feed mainly for entertainment, lifestyle, and lighter content, with news as incidental spillover. High clickbait tolerance and high curiosity responsiveness for fun or surprising hooks; low patience for heavy or dry policy framing. No behavioral rows — generic by design.",
+      "jtbd": "Be entertained and amused while browsing, clicking whatever looks fun or surprising."
+    }
+  ],
+  "weights": {
+    "head_count": {
+      "panel_young_scroller": 0.09,
+      "panel_busy_parent": 0.07,
+      "panel_civic_news_junkie": 0.11,
+      "panel_casual_skimmer": 0.08,
+      "panel_skeptical_boomer": 0.10,
+      "panel_emotion_driven_sharer": 0.06,
+      "panel_pragmatic_professional": 0.09,
+      "panel_low_interest_lurker": 0.07,
+      "panel_curiosity_seeker": 0.08,
+      "panel_local_community_reader": 0.10,
+      "panel_partisan_engager": 0.08,
+      "panel_entertainment_first": 0.07
+    }
+  }
+}

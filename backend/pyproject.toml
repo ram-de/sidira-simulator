@@ -48,10 +48,15 @@ pythia-simulator = "sidira_simulator.cli:cli"
 include = ["sidira_simulator*"]
 
 [tool.setuptools.package-data]
-# The generic starter Persona Pack (#212) is application data loaded at runtime
-# via Path(__file__).with_name(...); ship it in wheels/sdists so non-editable
-# installs don't FileNotFoundError on empty tenants.
-sidira_simulator = ["adapters/starter_persona_pack.json"]
+# Bundled Persona Pack JSON is application data loaded at runtime via
+# Path(__file__).with_name(...); ship it in wheels/sdists so non-editable
+# installs don't FileNotFoundError. starter_persona_pack.json is the generic
+# starter served to empty tenants (#212); upworthy_general_panel_v1.json is the
+# pre-registered Upworthy CTR-benchmark panel (#222).
+sidira_simulator = [
+    "adapters/starter_persona_pack.json",
+    "adapters/upworthy_general_panel_v1.json",
+]
 
 [tool.ruff]
 line-length = 100
