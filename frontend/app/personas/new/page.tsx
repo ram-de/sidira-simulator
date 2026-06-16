@@ -35,7 +35,7 @@
 // note anatomy: message in ink, severity on the alert border (§4.3/§7.7).
 // Confidence and distinctiveness ride the WORDING, never color.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createFeatureStore,
   createPersonaBuild,
@@ -247,6 +247,42 @@ const duplicateDesignators = (conns: ConnectionSummary[]): Record<string, string
     });
   }
   return out;
+};
+
+// ── picker order + filter (#332) ────────────────────────────────────────────
+// At rest the step shows ONE control (a trigger), not the whole register — see
+// ConnectionPicker. Inside the open popover the rows need a sensible default
+// order and a substring filter, since the list can run to 20+ connections.
+
+// Most-recently-tested first (last_tested_at desc, NULLs last), stable fallback
+// by name then id so the order is deterministic across renders. This puts the
+// connection the user most likely wants (the one they just tested / used) at the
+// top of the popover. Returns a NEW array — never mutates the source list, whose
+// own newest-first order still feeds duplicateDesignators (so designators stay
+// stable regardless of how the picker sorts for display). DISPLAY order only.
+const sortConnsForPicker = (conns: ConnectionSummary[]): ConnectionSummary[] =>
+  [...conns].sort((a, b) => {
+    const ta = a.last_tested_at ? Date.parse(a.last_tested_at) : NaN;
+    const tb = b.last_tested_at ? Date.parse(b.last_tested_at) : NaN;
+    const aHas = !Number.isNaN(ta);
+    const bHas = !Number.isNaN(tb);
+    if (aHas && bHas && ta !== tb) return tb - ta; // newer test first
+    if (aHas !== bHas) return aHas ? -1 : 1; // tested rows ahead of never-tested
+    const byName = a.name.trim().toLowerCase().localeCompare(b.name.trim().toLowerCase());
+    if (byName !== 0) return byName;
+    return a.id.localeCompare(b.id); // last-resort total order
+  });
+
+// Case-insensitive substring match across the fields the eye scans — name,
+// account, user, database, schema, warehouse, role. The 20-connection case is
+// the whole reason the filter exists; it narrows on whatever the user remembers.
+const connMatchesFilter = (c: ConnectionSummary, q: string): boolean => {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [c.name, c.account, c.user, c.database, c.schema ?? "", c.warehouse, c.role]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(needle);
 };
 
 const POLL_MS = 2500; // #28 watch cadence while pending/running.
@@ -1336,51 +1372,39 @@ function StepConnect({
         />
       )}
 
-      {/* The register — shown only when NOT collapsed (i.e. while creating or
+      {/* The picker — shown only when NOT collapsed (i.e. while creating or
           editing a connection). A selected row collapses into the summary above
-          instead of living here. */}
+          instead of living here.
+
+          #332: at REST this renders ONE control — a `Choose a saved connection
+          (N) ▾` trigger — NOT the whole register. With 6, 20, or 40 saved rows
+          the inline ledger dominated the Connect step; a connection picker is
+          management surface, not the step's primary content. The register rows
+          (canonical identity · health line · per-row TEST · DELETE) all still
+          exist — they move INTO a custom popover the trigger opens, capped to a
+          few rows with internal scroll, sorted most-recently-tested-first, and
+          fronted by a substring filter. Selecting a row collapses to the #327
+          summary exactly as before. We use a CUSTOM combobox, not a native
+          <select>, because a native option can carry none of that — no two-line
+          identity, no status line, no per-row Test/Delete, no on-brand paper
+          styling (§10 also bans the native-select chrome here). */}
       {!collapsed && connsPhase === "ready" && savedConns.length > 0 && (
-        <section style={{ marginBottom: 4 }}>
-          <div style={sectionLabelStyle}>Saved connections</div>
-          <div style={hintStyle}>
-            Reuse a connection you&apos;ve already saved — no need to re-enter its
-            password. Pick one, then test and continue. Or enter a different
-            connection below.
-          </div>
-          {/* The register: dense rows separated by hairline rules, top + bottom
-              ruled so it reads as one ledger. */}
-          <div
-            style={{
-              ...fieldStyle,
-              borderTop: `0.75px solid ${TOKENS.rule}`,
-              borderRadius: 2,
-            }}
-          >
-            {savedConns.map((c) => (
-              <SavedConnectionRow
-                key={c.id}
-                conn={c}
-                designator={dupDesignators[c.id] ?? ""}
-                selected={c.id === selectedConnId}
-                confirmingDelete={confirmDeleteId === c.id}
-                deleting={deletingId === c.id}
-                deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
-                testing={testingRowId === c.id}
-                testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
-                onSelect={() => onSelectSaved(c)}
-                onTest={() => onTestRow(c.id)}
-                onRequestDelete={() => onRequestDelete(c.id)}
-                onCancelDelete={onCancelDelete}
-                onConfirmDelete={() => onConfirmDelete(c.id)}
-              />
-            ))}
-          </div>
-          <div style={{ ...fieldStyle }}>
-            <button type="button" onClick={onNewConnection} style={secondaryBtnStyle}>
-              + Enter a different connection
-            </button>
-          </div>
-        </section>
+        <ConnectionPicker
+          conns={savedConns}
+          dupDesignators={dupDesignators}
+          selectedConnId={selectedConnId}
+          confirmDeleteId={confirmDeleteId}
+          deletingId={deletingId}
+          deleteError={deleteError}
+          testingRowId={testingRowId}
+          rowTestError={rowTestError}
+          onSelectSaved={onSelectSaved}
+          onTestRow={onTestRow}
+          onRequestDelete={onRequestDelete}
+          onCancelDelete={onCancelDelete}
+          onConfirmDelete={onConfirmDelete}
+          onNewConnection={onNewConnection}
+        />
       )}
 
       {/* ── 01 · Snowflake credentials ──────────────────────────────────────
@@ -1508,6 +1532,314 @@ function StepConnect({
   );
 }
 
+// ── connection picker — custom searchable combobox (#332) ───────────────────
+// At REST this renders ONE control: a `Choose a saved connection (N) ▾` trigger.
+// Zero register rows are visible whether the customer has 4 or 40 connections —
+// a picker is management surface, not the Connect step's primary content. The
+// trigger opens a CUSTOM popover (never a native <select>: a native option can
+// carry none of the two-line canonical identity, the health line, or the per-row
+// TEST/DELETE affordances, and can't be styled on paper — DESIGN.md §10). The
+// popover is a labelled listbox of the existing SavedConnectionRow rows, now
+// height-capped with internal scroll (~4 rows), sorted most-recently-tested
+// first, and fronted by a substring filter for the 20-connection case.
+//
+// a11y model: the trigger is a real <button> with aria-haspopup="listbox" /
+// aria-expanded. Enter/Space/ArrowDown open it; on open focus lands on the
+// filter input. ArrowUp/ArrowDown move focus through the FILTERED option rows
+// (each row's select button is role="option" with a roving tabindex); Enter on a
+// focused option selects it (the row's own onClick); typing in the filter
+// narrows. Esc closes and returns focus to the trigger; an outside click closes
+// without returning focus. Focus-visible rides the browser default ink outline —
+// never color-coded state (§4.3). The caret is a text ▾, not an imported icon.
+function ConnectionPicker({
+  conns,
+  dupDesignators,
+  selectedConnId,
+  confirmDeleteId,
+  deletingId,
+  deleteError,
+  testingRowId,
+  rowTestError,
+  onSelectSaved,
+  onTestRow,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+  onNewConnection,
+}: {
+  conns: ConnectionSummary[];
+  dupDesignators: Record<string, string>;
+  selectedConnId: string | null;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  deleteError: { id: string; message: string } | null;
+  testingRowId: string | null;
+  rowTestError: { id: string; message: string } | null;
+  onSelectSaved: (c: ConnectionSummary) => void;
+  onTestRow: (id: string) => void;
+  onRequestDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: (id: string) => void;
+  onNewConnection: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  // The option whose select button currently holds (or should hold) DOM focus —
+  // the index into the FILTERED list. Roving tabindex follows it; Arrow keys move
+  // it. -1 means focus is on the filter input (the open default), not a row.
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const filterRef = useRef<HTMLInputElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // One ref slot per FILTERED option, rebuilt each render so Arrow-key focus
+  // always targets the row actually on screen (filtering reshuffles the list).
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Sort once (MRU), then filter — both are display-only and never mutate the
+  // source list (which still feeds duplicateDesignators in its own order).
+  const sorted = useMemo(() => sortConnsForPicker(conns), [conns]);
+  const filtered = useMemo(
+    () => sorted.filter((c) => connMatchesFilter(c, filter)),
+    [sorted, filter],
+  );
+  optionRefs.current = [];
+
+  // The trigger's standing label: the SELECTED connection's identity when one is
+  // pinned (so the rest-state control still says which is in use), else the count
+  // prompt. N is the total saved count, not the filtered count — the trigger is a
+  // rest-state control, it shouldn't flicker as the (closed) filter changes.
+  const selectedConn = selectedConnId ? conns.find((c) => c.id === selectedConnId) ?? null : null;
+  const triggerLabel = selectedConn
+    ? `${selectedConn.name}${dupDesignators[selectedConn.id] ?? ""} · ${conns.length} saved`
+    : `Choose a saved connection (${conns.length})`;
+
+  // Close + return focus to the trigger (the keyboard-correct close: Esc, or
+  // selecting a row, should land the user back on the control they opened).
+  const closeAndRefocus = useCallback(() => {
+    setOpen(false);
+    setActiveIndex(-1);
+    triggerRef.current?.focus();
+  }, []);
+
+  // Open and, on the next frame, focus the filter input (the typing-first
+  // default; Arrow keys then step into the rows).
+  const openPanel = useCallback(() => {
+    setOpen(true);
+    setActiveIndex(-1);
+    requestAnimationFrame(() => filterRef.current?.focus());
+  }, []);
+
+  // Outside-click closes WITHOUT returning focus (the user clicked elsewhere on
+  // purpose — yanking focus back to the trigger would be surprising).
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointer = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setOpen(false);
+      setActiveIndex(-1);
+    };
+    document.addEventListener("mousedown", onDocPointer);
+    return () => document.removeEventListener("mousedown", onDocPointer);
+  }, [open]);
+
+  // Whenever the active option index changes (Arrow nav), pull DOM focus to that
+  // row's select button so the roving tabindex and real focus stay in lockstep.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    optionRefs.current[activeIndex]?.focus();
+  }, [open, activeIndex, filtered.length]);
+
+  // If the filter narrows the list below the active index (or to empty), pull the
+  // active index back into range so Arrow nav never points at a vanished row.
+  useEffect(() => {
+    if (activeIndex >= filtered.length) setActiveIndex(filtered.length > 0 ? filtered.length - 1 : -1);
+  }, [filtered.length, activeIndex]);
+
+  const moveActive = (delta: number) => {
+    if (filtered.length === 0) return;
+    setActiveIndex((i) => {
+      const start = i < 0 ? (delta > 0 ? 0 : filtered.length - 1) : i + delta;
+      return Math.max(0, Math.min(filtered.length - 1, start));
+    });
+  };
+
+  // Keydown on the TRIGGER: Enter/Space/Down open (Down lands focus on filter).
+  const onTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPanel();
+    }
+  };
+
+  // Keydown on the FILTER input: Down steps into the first row; Esc closes;
+  // typing falls through to narrow. Up from the filter is a no-op (already top).
+  const onFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActive(1);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeAndRefocus();
+    }
+  };
+
+  // Keydown on an OPTION row's select button: Arrow nav, Enter selects (handled
+  // by the button's own onClick, so we let Enter fall through), Esc closes. Up
+  // from the first row returns to the filter input.
+  const onOptionKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActive(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (activeIndex <= 0) {
+        setActiveIndex(-1);
+        filterRef.current?.focus();
+      } else {
+        moveActive(-1);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeAndRefocus();
+    }
+    // Enter/Space: the native <button> fires its onClick (handleSelectSaved →
+    // collapse), so we don't intercept them here.
+  };
+
+  const listboxId = "saved-connection-listbox";
+
+  return (
+    <section style={{ marginBottom: 4 }}>
+      <div style={sectionLabelStyle}>Saved connections</div>
+      <div style={hintStyle}>
+        Reuse a connection you&apos;ve already saved — no need to re-enter its
+        password. Pick one, then test and continue. Or enter a different
+        connection below.
+      </div>
+
+      <div style={{ ...fieldStyle, position: "relative" }}>
+        {/* The rest-state control — ONE button, no rows. ▾ is a text glyph, not
+            an imported icon (§10). */}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => (open ? closeAndRefocus() : openPanel())}
+          onKeyDown={onTriggerKeyDown}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          style={{
+            ...secondaryBtnStyle,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            textAlign: "left",
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {triggerLabel}
+          </span>
+          <span aria-hidden="true" style={{ fontFamily: FONT_MONO, fontSize: 11, color: TOKENS.inkMuted }}>
+            {open ? "▴" : "▾"}
+          </span>
+        </button>
+
+        {open && (
+          <div
+            ref={panelRef}
+            style={{
+              marginTop: 6,
+              border: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 4,
+              background: TOKENS.paperElevated,
+              overflow: "hidden",
+            }}
+          >
+            {/* Filter — always present (cheap), the part the 20-connection case
+                needs. Plain mono input; narrows by name/account/db/role. */}
+            <div style={{ padding: 8, borderBottom: `0.75px solid ${TOKENS.rule}` }}>
+              <label htmlFor="conn-filter" style={{ ...sublabelStyle, marginBottom: 4 }}>
+                Filter connections
+              </label>
+              <input
+                id="conn-filter"
+                ref={filterRef}
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                onKeyDown={onFilterKeyDown}
+                placeholder="name · account · database · role"
+                autoComplete="off"
+                aria-controls={listboxId}
+                style={monoInputStyle}
+              />
+            </div>
+
+            {/* The register, relocated into the popover: height-capped to ~4
+                rows with internal scroll so it never grows unbounded. */}
+            <div
+              id={listboxId}
+              role="listbox"
+              aria-label="Saved connections"
+              style={{ maxHeight: 268, overflowY: "auto" }}
+            >
+              {filtered.length === 0 ? (
+                <div style={{ ...railCaptionStyle, padding: "12px", textTransform: "uppercase" }}>
+                  No connections match
+                </div>
+              ) : (
+                filtered.map((c, i) => (
+                  <SavedConnectionRow
+                    key={c.id}
+                    conn={c}
+                    designator={dupDesignators[c.id] ?? ""}
+                    selected={c.id === selectedConnId}
+                    confirmingDelete={confirmDeleteId === c.id}
+                    deleting={deletingId === c.id}
+                    deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
+                    testing={testingRowId === c.id}
+                    testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
+                    onSelect={() => {
+                      onSelectSaved(c);
+                      closeAndRefocus();
+                    }}
+                    onTest={() => onTestRow(c.id)}
+                    onRequestDelete={() => onRequestDelete(c.id)}
+                    onCancelDelete={onCancelDelete}
+                    onConfirmDelete={() => onConfirmDelete(c.id)}
+                    optionTabIndex={activeIndex === i ? 0 : -1}
+                    optionRef={(el) => {
+                      optionRefs.current[i] = el;
+                    }}
+                    onOptionKeyDown={onOptionKeyDown}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...fieldStyle }}>
+        <button type="button" onClick={onNewConnection} style={secondaryBtnStyle}>
+          + Enter a different connection
+        </button>
+      </div>
+    </section>
+  );
+}
+
 // ── one register row (#327) ─────────────────────────────────────────────────
 // A dense ~2-line paper row: the canonical identity line, then a mono subline,
 // with a quiet delete affordance. Selection rides a single ink hairline (the
@@ -1530,6 +1862,13 @@ function SavedConnectionRow({
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
+  // #332 listbox-option wiring (optional — only set when the row lives inside
+  // the ConnectionPicker popover). `optionTabIndex` carries roving tabindex (the
+  // active option is 0, the rest -1); `optionRef` lets the picker move DOM focus
+  // through the filtered rows on Arrow keys; `onOptionKeyDown` routes those keys.
+  optionTabIndex,
+  optionRef,
+  onOptionKeyDown,
 }: {
   conn: ConnectionSummary;
   designator: string;
@@ -1544,6 +1883,9 @@ function SavedConnectionRow({
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  optionTabIndex?: number;
+  optionRef?: (el: HTMLButtonElement | null) => void;
+  onOptionKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
 }) {
   // Quiet row action — mono designator button at hairline weight (§7.7). Used
   // for both the Delete trigger and the confirm/cancel pair so the affordance
@@ -1635,7 +1977,19 @@ function SavedConnectionRow({
       <button
         type="button"
         onClick={onSelect}
-        aria-pressed={selected}
+        // In the picker popover this button IS the listbox option: it carries
+        // role="option" + aria-selected and a roving tabindex, and the picker
+        // drives focus through it on Arrow keys. Standalone (no optionRef) it
+        // stays a plain pressed toggle, exactly as #327 shipped it.
+        {...(optionRef
+          ? {
+              role: "option",
+              "aria-selected": selected,
+              tabIndex: optionTabIndex ?? -1,
+              ref: optionRef,
+              onKeyDown: onOptionKeyDown,
+            }
+          : { "aria-pressed": selected })}
         style={{
           textAlign: "left",
           background: "transparent",
