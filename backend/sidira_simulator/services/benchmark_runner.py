@@ -43,12 +43,14 @@ a persona panel). Nothing in the core scoring path imports the engine.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import sys
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Protocol, Sequence
 
 from sidira_simulator.schemas.benchmark import BenchmarkCase, GroundTruth
+from sidira_simulator.schemas.simulation import Hypothesis
 from sidira_simulator.schemas.scoring import (
     BenchmarkBaseline,
     BenchmarkCaseResult,
@@ -58,9 +60,123 @@ from sidira_simulator.schemas.scoring import (
 from sidira_simulator.services.null_integrity import certify_null_integrity
 from sidira_simulator.services.statistics import bootstrap_percentile_ci, spearman_rho
 
+if TYPE_CHECKING:
+    # Engine-only types — imported for annotations ONLY, never at runtime. The
+    # core scoring path (run_blind_eval) stays engine-free-importable; the live
+    # engine is built solely inside the gated `score_with_engine` below.
+    from sidira_simulator.schemas.persona import PersonaPack
+    from sidira_simulator.schemas.simulation import SimulationResult
+
 # A blind predictor maps one renderable case → one signed predicted effect
 # (sign = direction, value = rank material). It MUST NOT read case.ground_truth.
 Predictor = Callable[[BenchmarkCase], float]
+
+# The Upworthy metric is CTR — the engine must report a "ctr" lift for a case to
+# be scorable. A run that comes back with a different metric_name (or no lift) is
+# a wiring error, not a silent zero: the case is DROPPED and surfaced.
+_ENGINE_METRIC_NAME = "ctr"
+
+# The Upworthy headline A/B is a symmetric, paired comparison: half the panel
+# sees the control headline, half the proposed one (#90 paired-seed invariant at
+# f=0.5). The benchmark always drives the engine at this locked fraction.
+_ENGINE_TREATMENT_FRACTION = 0.5
+
+# The CTR click label for the Upworthy headline card: clicking the promoted story
+# headline opens the article. The CTR elicitor defaults this to "click it" when a
+# hypothesis omits it; we name it explicitly so the on-screen ask matches the
+# headline-card click being benchmarked (the metric is "reader clicks the card").
+_ENGINE_CTR_CLICK_LABEL = "open the story"
+
+
+# The on-screen CTR decision moment for a promoted-headline card. ARM-NEUTRAL by
+# design (codex P1): the SAME CTR Hypothesis drives BOTH the treatment and control
+# arms, and the composer renders each arm's OWN headline into the per-arm
+# standalone state view. So the decision_point must NOT name a specific headline —
+# baking the proposed (treatment) headline in here would ask the CONTROL agent
+# about the treatment copy, contaminating the paired treatment−control lift. It
+# only describes the generic click moment; the headline the agent reacts to is the
+# one rendered for THAT agent's arm.
+_ENGINE_CTR_DECISION_POINT = (
+    "A promoted story card is on your feed right now; tapping its headline " "opens the article."
+)
+
+
+def _ctr_hypothesis_for_case(case: BenchmarkCase) -> Hypothesis:
+    """Build a VALIDATED CTR hypothesis for a case (metric forced to "ctr").
+
+    Takes the case's hypothesis verbatim and adds the CTR metric fields the
+    registry requires — `decision_point` (the on-screen click moment) and the
+    click label — then re-runs the `Hypothesis` validator via `model_validate`.
+    `model_copy(update=...)` is deliberately NOT used: it bypasses the validator,
+    so a hypothesis missing a required CTR field (e.g. `decision_point`) would
+    reach the live engine and run CTR elicitation on an empty moment (codex P2).
+    Re-validating makes a missing field fail LOUD here instead of silently
+    scoring malformed click intent.
+
+    The decision_point is ARM-NEUTRAL (`_ENGINE_CTR_DECISION_POINT`): the same
+    hypothesis drives both arms and each arm's own headline is rendered into its
+    per-arm state view by the composer, so the decision_point must not name a
+    specific headline (codex P1) — that would expose the control arm to the
+    treatment copy and contaminate the lift.
+
+    BLIND: every added field is derived from `case.hypothesis` ONLY —
+    `case.ground_truth` is never read.
+    """
+    data = case.hypothesis.model_dump()
+    data.update(
+        {
+            "metric_name": _ENGINE_METRIC_NAME,
+            "decision_point": _ENGINE_CTR_DECISION_POINT,
+            "conversion_action_label": _ENGINE_CTR_CLICK_LABEL,
+        }
+    )
+    # model_validate re-runs the Hypothesis validator (required CTR fields), unlike
+    # model_copy(update=...) which would skip it.
+    return Hypothesis.model_validate(data)
+
+
+class CaseRunner(Protocol):
+    """The injected per-case engine call (dependency-injection seam, §4 cell).
+
+    A `CaseRunner` runs ONE benchmark case through the engine and returns its
+    `SimulationResult`. The real implementation wraps `SimulationRunner.run(...)`
+    (async → sync) and is built only inside the gated `score_with_engine`; tests
+    inject a FAKE that records its kwargs and returns a canned result, so the
+    eval core is exercised with NO live LLM.
+
+    The contract is deliberately keyword-only on `(capability, hypothesis)` plus
+    run params: the eval core derives `capability` + `hypothesis` from the case's
+    `(capability, hypothesis)` ONLY — never from `case.ground_truth` — so the
+    structural blindness of the predictor is provable from this signature.
+    """
+
+    def __call__(
+        self,
+        *,
+        capability: object,
+        hypothesis: object,
+        treatment_fraction: float,
+        run_seed: int,
+        population_size: int,
+        max_agents: int | None,
+        model_id: str | None,
+    ) -> "SimulationResult": ...
+
+
+def _case_run_seed(case_id: str, seed: int) -> int:
+    """Deterministic per-case run seed derived from `(case_id, base seed)`.
+
+    A stable SHA-256 digest of the case id (NOT Python's process-salted `hash()`)
+    is XOR-mixed with the base seed, so every case gets a distinct-but-reproducible
+    engine seed and the same `(case_id, seed)` ALWAYS yields the same seed across
+    runs / PYTHONHASHSEED values. This is what makes the per-case engine call (and
+    its cache) deterministic for a fixed base seed.
+    """
+    digest = hashlib.sha256(case_id.encode("utf-8")).digest()
+    # 63-bit unsigned value so the XOR with `seed` stays a non-negative int.
+    case_component = int.from_bytes(digest[:8], "big") & ((1 << 63) - 1)
+    return case_component ^ (seed & ((1 << 63) - 1))
+
 
 # Arbitrary integer XOR mask used to derive the runner's bootstrap RNG seed from
 # the caller's seed, so the per-case direction-delta bootstrap stream cannot
@@ -308,39 +424,217 @@ def run_blind_eval(
     )
 
 
+# ── Engine-eval CORE (testable, engine-free-importable, dependency-injected) ───
+#
+# This is the §4 "engine cell": it drives an INJECTED per-case runner as the blind
+# predictor and scores it through `run_blind_eval`. It imports NOTHING from the
+# live engine (the `CaseRunner` is injected, the engine types are TYPE_CHECKING-
+# only), so it is exercised in tests with a fake runner and no live LLM. Only the
+# gated `score_with_engine` below builds the real `SimulationRunner`.
+
+
+def eval_engine_blind(
+    cases: Sequence[BenchmarkCase],
+    *,
+    runner: CaseRunner,
+    customer_id: str,
+    model_id: str | None,
+    population_size: int,
+    max_agents: int | None,
+    seed: int,
+    n_permutations: int = 1000,
+    n_resamples: int = _BOOTSTRAP_RESAMPLES,
+) -> BenchmarkRunResult:
+    """Score the engine (an injected `CaseRunner`) as the blind predictor (§4).
+
+    Builds a blind predictor closure around `runner` and hands it to
+    `run_blind_eval`. The closure is the §4 "engine cell": for each case it runs
+    the engine ONCE and returns the predicted CTR delta.
+
+    STRUCTURAL BLINDNESS (the load-bearing invariant). The predictor derives the
+    engine's `run(...)` args ONLY from `case.capability` and `case.hypothesis`
+    (with `metric_name` forced to "ctr") — it NEVER reads `case.ground_truth`. The
+    engine is therefore label-invariant BY CONSTRUCTION: the answer key is not an
+    input to the run, so re-running on a scrambled-label copy of a case would
+    produce the IDENTICAL result. We exploit that by running the engine once per
+    case and CACHING the prediction keyed by `case_id` (NOT by the scrambled
+    labels). The null-cert `predict_fn` then returns the cached per-case value
+    independent of the shuffle.
+
+    Why this discharges the null-cert TRUST BOUNDARY (and is NOT the "frozen-vector
+    stub" the cert docstring warns against): the cert cannot, in principle,
+    distinguish an honest label-independent predictor from a leaking one disguised
+    as a constant closure — both return a fixed vector under the shuffle. Here the
+    blindness is STRUCTURAL and PROVABLE, not asserted: the predictor's only inputs
+    are `(capability, hypothesis)`, so caching is EXACT (a re-run is byte-identical),
+    and a leaking predictor is impossible by construction because `ground_truth` is
+    never passed to `runner`. We mark the resulting certificate metadata via the
+    caller's reporting as `structurally_blinded` — the run's certifying cert PASSes
+    because the cached, label-independent predictions center the scrambled-label
+    null at chance, exactly as the §4 protocol requires.
+
+    Per-case scoring contract:
+      * `hypothesis = _ctr_hypothesis_for_case(case)` (metric forced to "ctr" with
+        a VALIDATED CTR decision_point + click label — `model_validate`, not
+        `model_copy`, so the registry's required CTR fields are enforced),
+        `treatment_fraction = 0.5`, `run_seed = _case_run_seed(case.case_id, seed)`.
+      * The engine returns a `SimulationResult`; we REQUIRE
+        `result.metric_name == "ctr"` AND `result.metric_lift_pp is not None`,
+        else the predictor RAISES — which `run_blind_eval` records as a DROPPED
+        case (surfaced in `n_dropped` / `dropped_case_ids`), NEVER zero-filled.
+      * Unit conversion: the engine reports `metric_lift_pp` in PERCENTAGE POINTS;
+        `GroundTruth.observed_lift` is a RAW CTR probability delta, so the
+        predicted effect is `metric_lift_pp / 100.0` to match units.
+
+    The cache makes the predictor deterministic for a fixed `seed` and means the
+    expensive engine call happens exactly once per case (not once per case per
+    null permutation), which is what makes the faithful §4 re-run affordable.
+    """
+    # Run-once-per-case cache keyed by case_id. The cached value is the predicted
+    # CTR delta (raw probability units). Built lazily by the predictor closure;
+    # the null `predict_fn` reads it back keyed ONLY by case_id (never by label).
+    prediction_cache: dict[str, float] = {}
+
+    def _predict(case: BenchmarkCase) -> float:
+        if case.case_id in prediction_cache:
+            return prediction_cache[case.case_id]
+        # Force the CTR metric on the hypothesis (with the required, VALIDATED CTR
+        # decision_point + click label); everything else is taken verbatim from the
+        # case's (capability, hypothesis). ground_truth is NOT referenced —
+        # structural blindness.
+        ctr_hypothesis = _ctr_hypothesis_for_case(case)
+        result = runner(
+            capability=case.capability,
+            hypothesis=ctr_hypothesis,
+            treatment_fraction=_ENGINE_TREATMENT_FRACTION,
+            run_seed=_case_run_seed(case.case_id, seed),
+            population_size=population_size,
+            max_agents=max_agents,
+            model_id=model_id,
+        )
+        if result.metric_name != _ENGINE_METRIC_NAME or result.metric_lift_pp is None:
+            # No scorable CTR lift — DROP the case honestly (run_blind_eval turns a
+            # raised predictor into an n_dropped entry). Never impute a 0 effect.
+            raise ValueError(
+                f"engine returned no scorable CTR lift for case {case.case_id} "
+                f"(metric_name={result.metric_name!r}, "
+                f"metric_lift_pp={result.metric_lift_pp!r})"
+            )
+        # pp → raw CTR delta to match GroundTruth.observed_lift's units.
+        effect = result.metric_lift_pp / 100.0
+        prediction_cache[case.case_id] = effect
+        return effect
+
+    return run_blind_eval(
+        cases,
+        _predict,
+        seed=seed,
+        n_permutations=n_permutations,
+        n_resamples=n_resamples,
+    )
+
+
 # ── Gated live-engine entry point (NEVER runs in CI / under pytest) ────────────
 #
-# The real engine path (SimulationRunner → ConversionLiftResult.lift_pp as the
-# predicted effect) requires live LLM calls and a persona panel, so it is OUT OF
-# SCOPE to RUN here and is wired only behind this guarded seam. The core scoring
-# path above never imports the engine; only this function does, lazily.
+# The real engine path requires live LLM calls and a persona panel, so it is the
+# only place that builds the production `SimulationRunner`. The eval CORE above
+# (eval_engine_blind) and the scoring path (run_blind_eval) never import the
+# engine; this function does, lazily, AFTER the pytest/CI guard.
 
 
-def score_with_engine(*args: object, **kwargs: object) -> BenchmarkRunResult:
+def score_with_engine(
+    cases: Sequence[BenchmarkCase] | None = None,
+    *,
+    persona_pack: "PersonaPack | None" = None,
+    customer_id: str = "benchmark",
+    model_id: str | None = None,
+    population_size: int = 10,
+    max_agents: int | None = None,
+    seed: int = 0,
+    n_permutations: int = 1000,
+    n_resamples: int = _BOOTSTRAP_RESAMPLES,
+) -> BenchmarkRunResult:
     """GATED real-engine entry point — refuses to run under pytest / CI.
 
-    Wires the production `SimulationRunner` as the blind predictor: each case's
-    `(capability, hypothesis)` flows through `run(...)` and the resulting
-    `SimulationResult.conversion_lift_pp` (§3a paired treatment−control delta) is
-    the predicted effect. This is the §4 "engine cell" — but it needs live LLM
-    calls and a real persona panel, so it MUST NOT execute in CI / under pytest.
+    Constructs the production `SimulationRunner` + uses the supplied real
+    `PersonaPack`, wraps `SimulationRunner.run(...)` as a synchronous `CaseRunner`,
+    and delegates to `eval_engine_blind`. This is the ONLY place the live engine is
+    built; it needs live LLM keys at runtime, so it MUST NOT execute in CI / under
+    pytest. The engine-free eval core is fully exercised in tests with a fake
+    runner; this wrapper only adds the live wiring.
 
-    Deferred (documented seam, not run here): the live-LLM real-data run. This
-    function asserts the guard, documents the wiring, and raises until invoked
-    deliberately outside the test harness with a real persona pack + engine. The
-    statistics it would feed into (`run_blind_eval`) are fully mock-tested.
+    Raises RuntimeError under pytest/CI (the guard), and ValueError if
+    `cases`/`persona_pack` are missing when invoked for real.
     """
-    if "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules:
+    # Refuse under pytest AND under CI — same guard discipline as
+    # `upworthy_archive.fetch_upworthy_archive`. The pytest checks catch the test
+    # harness; the CI check catches a script/helper running in CI OUTSIDE pytest
+    # (the standard `CI` env var is truthy on GitHub Actions / GitLab / …), so an
+    # automated job can never accidentally spend on live LLM calls (codex P2).
+    if (
+        "PYTEST_CURRENT_TEST" in os.environ
+        or "pytest" in sys.modules
+        or os.environ.get("CI", "").strip().lower() in {"1", "true", "yes"}
+    ):
         raise RuntimeError(
             "score_with_engine is a gated live-LLM entry point and must not run "
-            "under pytest / CI. Use run_blind_eval with an injected mock predictor "
-            "in tests; invoke this only in a deliberate real-data benchmark run."
+            "under pytest / CI. Use eval_engine_blind with an injected fake runner "
+            "(or run_blind_eval with a mock predictor) in tests; invoke this only "
+            "in a deliberate real-data benchmark run with live LLM keys."
         )
-    raise NotImplementedError(
-        "Live-LLM real-data benchmark run is deferred (ticket #222 follow-up). "
-        "The blind-eval seam is in place: build a predictor that drives "
-        "SimulationRunner.run(...) per case and returns "
-        "SimulationResult.conversion_lift_pp, then pass it to run_blind_eval. "
-        "Wiring the real engine + persona panel and executing it is out of scope "
-        "for this PR (no live-behavior change)."
+    if not cases:
+        raise ValueError("score_with_engine requires at least one BenchmarkCase")
+    if persona_pack is None:
+        raise ValueError("score_with_engine requires a real PersonaPack panel")
+
+    import asyncio
+
+    from sidira_simulator.services.simulation_runner import SimulationRunner
+
+    def _run_case(
+        *,
+        capability: object,
+        hypothesis: object,
+        treatment_fraction: float,
+        run_seed: int,
+        population_size: int,
+        max_agents: int | None,
+        model_id: str | None,
+    ) -> "SimulationResult":
+        # Drive the real engine for one case (async → sync). A FRESH
+        # SimulationRunner is built PER CASE: the runner owns an asyncio.Semaphore
+        # bound to the event loop it first runs under, so reusing one runner across
+        # the repeated `asyncio.run(...)` calls (one new loop per case) would bind
+        # the semaphore to the first loop and break agent materialization on every
+        # later case (codex P1). A fresh runner per case keeps each run self-
+        # contained in its own loop. The benchmark panel is a fixed pre-registered
+        # fixture, so feature_pack_version is a constant label, not a customer
+        # artifact version.
+        sim_runner = SimulationRunner()
+        simulation = asyncio.run(
+            sim_runner.run(
+                customer_id=customer_id,
+                persona_pack=persona_pack,
+                capability=capability,  # type: ignore[arg-type]
+                feature_pack_version=f"benchmark:{persona_pack.version}",
+                hypothesis=hypothesis,  # type: ignore[arg-type]
+                population_size=population_size,
+                run_seed=run_seed,
+                max_agents=max_agents,
+                treatment_fraction=treatment_fraction,
+                model_id=model_id,
+            )
+        )
+        return simulation.result
+
+    return eval_engine_blind(
+        cases,
+        runner=_run_case,
+        customer_id=customer_id,
+        model_id=model_id,
+        population_size=population_size,
+        max_agents=max_agents,
+        seed=seed,
+        n_permutations=n_permutations,
+        n_resamples=n_resamples,
     )
