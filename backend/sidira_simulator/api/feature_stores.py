@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
@@ -21,7 +22,39 @@ from sidira_simulator.api.deps import current_customer_id, get_feature_store_con
 from sidira_simulator.services import column_mapper
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/feature-stores", tags=["feature-stores"])
+
+
+async def _record_test_result_best_effort(
+    repo: FeatureStoreConnectionRepo,
+    connection_id: str,
+    customer_id: str,
+    *,
+    status: str,
+    tested_at: datetime,
+    error_kind: str | None,
+    error_message: str | None,
+) -> None:
+    """Persist a connectivity-test outcome (#328) WITHOUT ever changing the
+    route's HTTP contract. The connectivity result (204 / structured error) has
+    already been determined by the time this runs; the persisted health is
+    metadata. A write failure here (DB hiccup) must not become a 500 that masks
+    the real connectivity verdict — so we log and swallow."""
+    try:
+        await repo.record_test_result(
+            connection_id,
+            customer_id,
+            status=status,
+            tested_at=tested_at,
+            error_kind=error_kind,
+            error_message=error_message,
+        )
+    except Exception:  # noqa: BLE001 — best-effort metadata, never fail the route
+        logger.warning(
+            "failed to persist test result for connection %s", connection_id, exc_info=True
+        )
 
 #: HTTP status codes per classified connection-failure kind. Client-fixable
 #: problems (bad creds / missing grants) are 400; problems on the store/network
@@ -243,7 +276,8 @@ async def test_connection(
         store.test_connection()
     except FeatureStoreConnectionError as exc:
         kind = getattr(exc, "kind", "unknown")
-        await repo.record_test_result(
+        await _record_test_result_best_effort(
+            repo,
             connection_id,
             customer_id,
             status="failed",
@@ -252,7 +286,8 @@ async def test_connection(
             error_message=str(exc),
         )
         raise _connection_error(exc) from exc
-    await repo.record_test_result(
+    await _record_test_result_best_effort(
+        repo,
         connection_id,
         customer_id,
         status="ok",

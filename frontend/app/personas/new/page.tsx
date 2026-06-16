@@ -566,6 +566,10 @@ export default function NewPersonaPackPage() {
   const handleTest = async () => {
     setTestError(null);
     setTesting(true);
+    // The id actually tested (set once `active` is resolved/minted below) — the
+    // finally uses it to refresh that row's health (#328), since the `connection`
+    // state captured in this closure is stale after a fresh mint.
+    let testedId: string | null = null;
     try {
       // Reuse the stored id if no CREDENTIAL changed since the last create /
       // saved-connection select; otherwise mint a fresh connection (#26). A
@@ -603,6 +607,7 @@ export default function NewPersonaPackPage() {
         // re-profile on next Map entry and drop any stale build.
         invalidateConnection();
       }
+      testedId = active.id;
       await testFeatureStore(active.id); // 204 on success, throws on failure
       // Continue gates on the full test fingerprint (creds + source), so a later
       // source edit re-gates Continue (existing behavior).
@@ -612,6 +617,31 @@ export default function NewPersonaPackPage() {
       setOkFingerprint(null);
     } finally {
       setTesting(false);
+      // The server persisted this test's outcome (#328) whether it passed or
+      // failed. Refresh the saved list so the register row / collapsed summary
+      // for the active connection shows its new health state (OK · TESTED … or
+      // FAILED · KIND) instead of a stale UNTESTED — otherwise the wizard's own
+      // 03 · Test path would leave the picker behind it out of date. We also
+      // re-point `connection` at the refreshed row so the collapsed summary's
+      // health chip updates in place. Best-effort: a failed refresh leaves the
+      // prior state and never blocks the wizard (mirrors the mount-load
+      // fallback). `testedId` is the id actually tested (incl. a fresh mint),
+      // so the refresh is correct even when `connection` (closure) was stale.
+      // Only re-point `connection` when it still refers to the tested row — a
+      // mid-flight switch must not be clobbered.
+      if (testedId) {
+        const refreshId = testedId;
+        void (async () => {
+          try {
+            const rows = await listFeatureStores();
+            setSavedConns(rows);
+            const fresh = rows.find((r) => r.id === refreshId);
+            if (fresh) setConnection((prev) => (prev?.id === refreshId ? fresh : prev));
+          } catch {
+            // leave prior state; never block
+          }
+        })();
+      }
     }
   };
 
