@@ -43,6 +43,7 @@ import {
   getPersonaBuildEvents,
   getPersonaPackDetail,
   isBuildTerminal,
+  listFeatureStores,
   previewFeatureStore,
   promotePersonaPack,
   suggestMapping,
@@ -165,6 +166,15 @@ export default function NewPersonaPackPage() {
   // The fingerprint that minted `connection` — reused on the next test if the
   // user hasn't touched any field since.
   const [connFingerprint, setConnFingerprint] = useState<string | null>(null);
+  // Saved connections (#304). These are the customer's persisted feature-store
+  // rows — the server keeps the encrypted password (password_enc) and never
+  // returns it, so a ConnectionSummary is everything we need to REUSE a
+  // connection by id. listFeatureStores was defined but never called; surfacing
+  // it here is the whole fix — select a saved row and you skip createFeatureStore
+  // (and the password) entirely, because test/preview/mapping/build all operate
+  // on connection.id against the stored credential.
+  const [savedConns, setSavedConns] = useState<ConnectionSummary[]>([]);
+  const [connsPhase, setConnsPhase] = useState<"loading" | "ready" | "error">("loading");
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -233,12 +243,93 @@ export default function NewPersonaPackPage() {
     setPromoteError(null);
   }, []);
 
+  // ── Step 1 · load saved connections on mount (#304) ──────────────────────
+  // Fetch the customer's persisted connections once. A failed fetch must NOT
+  // block the wizard — we fall back to the blank form (connsPhase "error" just
+  // hides the saved-list section), so the original enter-everything path always
+  // remains available.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await listFeatureStores();
+        if (cancelled) return;
+        setSavedConns(rows);
+        setConnsPhase("ready");
+      } catch {
+        if (cancelled) return;
+        setConnsPhase("error"); // graceful: section hides, form stays usable
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ── Step 1 handlers ──────────────────────────────────────────────────────
   const setConnField = (key: keyof ConnForm, value: string) => {
     setConn((prev) => ({ ...prev, [key]: value }));
     // Any credential edit invalidates a prior passing test (Continue re-gates).
     setOkFingerprint(null);
     setTestError(null);
+  };
+
+  // Reuse a saved connection (#304). The server already holds this row's
+  // encrypted password, and every downstream call (test/preview/suggest/build)
+  // works off connection.id — so we set `connection` to the saved row DIRECTLY,
+  // skipping createFeatureStore and the password entirely.
+  //
+  // The fingerprint dance is the load-bearing part: handleTest mints a fresh
+  // connection only when `connFingerprint !== fingerprint`. We prefill the form
+  // with the row's non-secret fields (password left blank — it's never returned)
+  // and set `connFingerprint` to the fingerprint of THAT password-blank form
+  // (with the current source mode/table/sql). Now the live `fingerprint` matches
+  // `connFingerprint`, so handleTest reuses connection.id against the stored
+  // credential instead of re-minting — and the user reaches build with zero
+  // password re-entry. (If they later edit a credential field the fingerprint
+  // diverges and the existing mint-on-test path correctly takes back over, which
+  // is when a password would be required again — matching existing behavior.)
+  const handleSelectSaved = (c: ConnectionSummary) => {
+    const prefilled: ConnForm = {
+      name: c.name,
+      account: c.account,
+      user: c.user,
+      password: "", // never returned by GET — stays blank; reuse needs no password
+      warehouse: c.warehouse,
+      role: c.role,
+      database: c.database,
+      schema: c.schema ?? "",
+    };
+    setConn(prefilled);
+    setConnection(c);
+    // Pin both fingerprints to the password-blank form against the current
+    // source. okFingerprint isn't set here — Continue still gates on an actual
+    // 204 from Test, so the user confirms the saved row connects before moving on.
+    const fp = credFingerprint(prefilled, sourceMode, tableFqn, sql);
+    setConnFingerprint(fp);
+    setOkFingerprint(null);
+    setTestError(null);
+    // A different connection invalidates any prior profiled mapping (#27) — the
+    // columns may differ, so force a re-profile on next Map entry (mirrors the
+    // reset handleTest does after a fresh mint).
+    setColumns(null);
+    setSuggestion(null);
+    setMapping({});
+    setMapPhase("idle");
+  };
+
+  // Return to the blank-form path (#304) — "Enter a different connection". Drops
+  // the selected/minted connection so the next Test mints fresh from the form.
+  const handleNewConnection = () => {
+    setConn(emptyConnForm());
+    setConnection(null);
+    setConnFingerprint(null);
+    setOkFingerprint(null);
+    setTestError(null);
+    setColumns(null);
+    setSuggestion(null);
+    setMapping({});
+    setMapPhase("idle");
   };
 
   const handleTest = async () => {
@@ -562,6 +653,11 @@ export default function NewPersonaPackPage() {
             testing={testing}
             testPassed={testPassed}
             testError={testError}
+            savedConns={savedConns}
+            connsPhase={connsPhase}
+            selectedConnId={connection?.id ?? null}
+            onSelectSaved={handleSelectSaved}
+            onNewConnection={handleNewConnection}
             onField={setConnField}
             onSourceMode={(m) => {
               setSourceMode(m);
@@ -763,6 +859,11 @@ function StepConnect({
   testing,
   testPassed,
   testError,
+  savedConns,
+  connsPhase,
+  selectedConnId,
+  onSelectSaved,
+  onNewConnection,
   onField,
   onSourceMode,
   onTableFqn,
@@ -776,6 +877,11 @@ function StepConnect({
   testing: boolean;
   testPassed: boolean;
   testError: { kind: string | null; message: string } | null;
+  savedConns: ConnectionSummary[];
+  connsPhase: "loading" | "ready" | "error";
+  selectedConnId: string | null;
+  onSelectSaved: (c: ConnectionSummary) => void;
+  onNewConnection: () => void;
   onField: (k: keyof ConnForm, v: string) => void;
   onSourceMode: (m: SourceMode) => void;
   onTableFqn: (v: string) => void;
@@ -822,8 +928,73 @@ function StepConnect({
         </div>
       )}
 
+      {/* ── 00 · Saved connections (#304) ───────────────────────────────────
+          The customer's persisted feature stores. Selecting one reuses it by
+          id — the server holds the encrypted password, so test/preview/build
+          all run against the stored credential with NO password re-entry. The
+          section only renders when there's something to offer (or while the
+          first read is in flight); an empty list or a failed fetch falls
+          straight through to the form below — no empty-state clutter, never a
+          blocked wizard (§8.6 honest text, no spinners). */}
+      {connsPhase === "loading" && (
+        <div style={{ ...statusLineStyle, color: TOKENS.inkMuted, marginBottom: 4 }}>
+          LOADING SAVED CONNECTIONS…
+        </div>
+      )}
+      {connsPhase === "ready" && savedConns.length > 0 && (
+        <section style={{ marginBottom: 4 }}>
+          <div style={sectionLabelStyle}>Saved connections</div>
+          <div style={hintStyle}>
+            Reuse a connection you&apos;ve already saved — no need to re-enter its
+            password. Pick one, then test and continue. Or enter a different
+            connection below.
+          </div>
+          <div style={{ ...fieldStyle, display: "flex", flexDirection: "column", gap: 8 }}>
+            {savedConns.map((c) => {
+              const selected = c.id === selectedConnId;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onSelectSaved(c)}
+                  aria-pressed={selected}
+                  style={{
+                    textAlign: "left",
+                    background: selected ? TOKENS.paperRecessed : TOKENS.paperElevated,
+                    // Selection rides an ink hairline (the only emphasis) — no
+                    // color state; meaning is in the wording/border (§4.3).
+                    border: `${selected ? "1px" : "0.75px"} solid ${selected ? TOKENS.ink : TOKENS.rule}`,
+                    borderRadius: 4,
+                    padding: "10px 12px",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: TOKENS.ink }}>{c.name}</span>
+                    <Chip>{c.kind.toUpperCase()}</Chip>
+                    {selected && <Chip>SELECTED</Chip>}
+                  </div>
+                  <div style={railCaptionStyle}>
+                    {c.account} · {c.warehouse} · {c.database}
+                    {c.schema ? `.${c.schema}` : ""} · {c.role}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ ...fieldStyle }}>
+            <button type="button" onClick={onNewConnection} style={secondaryBtnStyle}>
+              + Enter a different connection
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* ── 01 · Snowflake credentials ──────────────────────────────────── */}
-      <section>
+      <section style={connsPhase === "ready" && savedConns.length > 0 ? sectionStyle : undefined}>
         <div style={sectionLabelStyle}>01 · Snowflake credentials</div>
         <div style={fieldStyle}>{Field("name", "Connection name", "e.g. prod-analytics")}</div>
         <div style={{ ...fieldStyle, ...fieldRowStyle }}>
