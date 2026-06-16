@@ -255,10 +255,16 @@ def generate(rows=DEFAULT_ROWS, seed=DEFAULT_SEED):
 
 
 def _ident(name):
-    """Whitelist a SQL identifier (unquoted name) before interpolation."""
+    """Whitelist a SQL identifier and normalize to Snowflake's unquoted casing.
+
+    Unquoted identifiers in the CREATE/USE statements fold to uppercase, while
+    write_pandas(quote_identifiers=True) would quote the arg verbatim — so a
+    lowercase arg would create STREAMLY but load into "streamly" (a distinct
+    object). Uppercasing here keeps both paths pointed at the same identifier.
+    """
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
         raise ValueError(f"unsafe SQL identifier: {name!r}")
-    return name
+    return name.upper()
 
 
 def _load(df, database, schema, table):
