@@ -1973,6 +1973,12 @@ function SavedConnectionRow({
   const wasConfirming = useRef(false);
   useEffect(() => {
     if (confirmingDelete) {
+      // Focus Cancel both when the confirm first opens AND when a delete attempt
+      // fails (deleteError appears): the focus was on the confirm Delete button,
+      // and a failed delete leaves the dialog open — so we pull focus back to the
+      // safe Cancel action, where the COULD NOT DELETE · … message sits adjacent
+      // for the screen reader (codex). deleteError is in deps so the error
+      // transition refocuses too.
       cancelRef.current?.focus();
     } else if (wasConfirming.current) {
       // Confirm closed without unmounting the row → the user cancelled; restore
@@ -1980,7 +1986,7 @@ function SavedConnectionRow({
       deleteBtnRef.current?.focus();
     }
     wasConfirming.current = confirmingDelete;
-  }, [confirmingDelete]);
+  }, [confirmingDelete, deleteError]);
 
   // The inline confirm replaces the row's clickable body so a mis-click can't
   // select-and-delete in one motion. Honest text states the exact scope (§7.7).
