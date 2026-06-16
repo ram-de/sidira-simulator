@@ -23,8 +23,10 @@ must pressure-test it, not rubber-stamp it.
 
 ## In Progress
 - [x] T1 (#310) — MERGED (PR #317, squash 004cfc1) 2026-06-16. **Deploy HELD** (see Deploy Gate).
-- [ ] T2 (#311) — building next
-- [ ] T3 (#312)
+- [x] T2 (#311) — MERGED (PR #320, squash ef5fbcd) 2026-06-16. Abstention verdict "NOT ANSWERABLE
+      BY THIS INSTRUMENT" (out_of_scope, abstain-not-block); categorical fields in result_json
+      (no migration); DESIGN.md §8.2 added; codex clean round 6. **Deploy still HELD.**
+- [ ] T3 (#312) — building next
 - [ ] T4 (#313) — unblocks the deploy
 
 ## Deploy Gate (read before redeploying api.sidira.ai)
