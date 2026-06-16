@@ -109,6 +109,7 @@ web_proxy_basic_auth_user="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_USER)"
 web_proxy_basic_auth_hash="$(ssm_value SIDIRA_WEB_PROXY_BASIC_AUTH_HASH)"
 database_url="$(ssm_value DATABASE_URL)"
 auto_migrate="$(ssm_value SIDIRA_AUTO_MIGRATE)"
+persona_build_mode="$(ssm_value SIDIRA_PERSONA_BUILD_MODE)"
 
 if [[ -z "$internal_api_key" || "$internal_api_key" == "None" ]]; then
   echo "missing required ${PARAM_PREFIX}/SIDIRA_INTERNAL_API_KEY; create a SecureString for the backend gateway token" >&2
@@ -154,6 +155,27 @@ write_env SIDIRA_WEB_PROXY_BASIC_AUTH_USER "$web_proxy_basic_auth_user"
 write_env SIDIRA_WEB_PROXY_BASIC_AUTH_HASH "$web_proxy_basic_auth_hash"
 write_env DATABASE_URL "$database_url"
 write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"
+# #268 Phase 2: the worker only actually runs builds when BOTH (a) Postgres is
+# configured (it claims via a DB-level lock and exits otherwise) AND (b) docker
+# compose is available (the non-compose `docker run` branch below starts only
+# sidira-api, never the worker). Default to "worker" only when both hold — that's
+# the supported prod shape for persona builds. In the degraded shapes (no DB /
+# no compose) persona builds aren't really supported: there's no worker, and the
+# API image omits the ML stack by design (#268), so a build can't run there
+# either way. Default those to "inprocess" so a submitted build at least fails
+# fast and visibly ("sidira-personas not installed") rather than sitting PENDING
+# forever waiting on a worker that was never started. An explicit SSM value wins.
+if docker compose version >/dev/null 2>&1; then
+  compose_available=1
+else
+  compose_available=0
+fi
+if [[ -n "$database_url" && "$database_url" != "None" && "$compose_available" == "1" ]]; then
+  persona_build_mode_default="worker"
+else
+  persona_build_mode_default="inprocess"
+fi
+write_env SIDIRA_PERSONA_BUILD_MODE "$(default_value "$persona_build_mode" "$persona_build_mode_default")"
 
 # Optional secrets passed straight through from Parameter Store. Each is
 # omitted from the env file when its SSM param is absent (write_env skips
@@ -205,11 +227,17 @@ install -d -m 755 "$REPO_DIR/local-artifacts"
 chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"
 chmod -R u+rwX,go+rX "$REPO_DIR/local-artifacts"
 
-if docker compose version >/dev/null 2>&1; then
+if [[ "$compose_available" == "1" ]]; then
   SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
     docker compose -p sidira -f deploy/docker-compose.api.yml build
   SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
     docker compose -p sidira -f deploy/docker-compose.api.yml up -d
+  # #268 Phase 2: the ML-heavy worker image balloons Docker's build cache, and
+  # the 8GB EC2 root disk fills up → the NEXT deploy fails "No space left". Run
+  # the reclaim AFTER `up -d` so the running images aren't pruned. Guarded so a
+  # prune failure never fails the deploy.
+  docker builder prune -af || true
+  docker image prune -f || true
 else
   docker network create sidira >/dev/null 2>&1 || true
   docker build -t sidira-api:latest backend

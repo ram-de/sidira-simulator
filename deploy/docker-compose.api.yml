@@ -7,11 +7,39 @@ services:
       - ${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}
     environment:
       PORT: "8000"
+      # #268 Phase 2: SIDIRA_PERSONA_BUILD_MODE comes from the env_file (written
+      # by ec2-api-deploy.sh, default "worker"), NOT a hard-coded value here — a
+      # compose `environment:` entry would override env_file and mask the SSM
+      # mode knob. NOTE: flipping it to `inprocess` is NOT a working prod
+      # rollback — the in-process build runs run_personas_pipeline inside THIS
+      # API image, which omits the ML stack by design (#268), so those builds
+      # fail "sidira-personas not installed". To roll back a broken worker,
+      # revert the PR and redeploy the prior image. The knob exists for dev /
+      # single-image deploys where the API process has sidira_personas.
     expose:
       - "8000"
     volumes:
       - ../local-artifacts:/app/local-artifacts:rw
     restart: unless-stopped
+
+  worker:
+    container_name: sidira-persona-worker
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.worker
+    # No compose `environment:` — the worker reads everything (DATABASE_URL, cred
+    # key, R2, LLM keys, and SIDIRA_PERSONA_BUILD_MODE) from the same env_file as
+    # the API, so the single SSM knob governs both. In worker mode it claims
+    # PENDING builds; flipped to `inprocess` (the rollback) it idles without
+    # claiming so the API's in-process build never also runs here. No manual stop
+    # needed, and no mode override here.
+    env_file:
+      - ${SIDIRA_API_ENV_FILE:-/opt/sidira/api.env}
+    volumes:
+      - ../local-artifacts:/app/local-artifacts:rw
+    depends_on:
+      - api
+    restart: always
 
   caddy:
     container_name: sidira-caddy

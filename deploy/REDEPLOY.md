@@ -49,6 +49,14 @@ via `git -C /opt/sidira/repo log -1 --oneline` before deploying.)
   that runs the migrations — reset it to `0` afterwards.
 - **No new migration, or prod is on the in-memory repos**: skip this step.
 
+> **#268 Phase 2 (persona-build worker) ships migration `013`** — it adds
+> `persona_build_runs.config_json` (the persisted BuildConfig the worker
+> reconstructs the job from). This redeploy MUST run Alembic: set
+> `/sidira/prod/SIDIRA_AUTO_MIGRATE=1` for this deploy (or run
+> `alembic upgrade head` manually on the instance), then reset it to `0` in
+> step 5. Without the column the worker can't claim builds and every new
+> persona build stalls PENDING.
+
 ### 2b. Ensure any new secrets exist in Parameter Store
 
 `ec2-api-deploy.sh` builds the container env from a fixed set of
@@ -166,6 +174,25 @@ Known additions:
   > (Hit during the #208 deploy, 2026-06-13: the access-key param was stored as
   > 647 chars and the Library 500'd until it was re-set cleanly.)
 
+- **#268 Phase 2 persona-build worker** — `SIDIRA_PERSONA_BUILD_MODE` controls
+  where persona-pack builds run. The deploy script defaults it to **`worker`**
+  only when both Postgres (`DATABASE_URL`) and docker compose are present (the
+  prod shape); otherwise it defaults to **`inprocess`** so a no-DB or non-compose
+  box keeps running builds in-process instead of leaving them PENDING. In worker
+  mode the API stops scheduling the in-process BackgroundTask and the new
+  `sidira-persona-worker` container claims PENDING builds from Postgres.
+  **Rolling back:** flipping `/sidira/prod/SIDIRA_PERSONA_BUILD_MODE` to
+  `inprocess` is **NOT** a working prod rollback — the in-process build runs the
+  ML pipeline inside the API image, which omits the ML stack by design (#268), so
+  those builds fail `sidira-personas not installed`. To roll back a broken worker,
+  **revert the PR and redeploy the prior image** (or fix the worker and redeploy).
+  The `inprocess` mode exists for dev / single-image deploys where the API process
+  itself has `sidira_personas`. This deploy also adds a **second container**
+  (`sidira-persona-worker`, built from `backend/Dockerfile.worker`, which carries
+  the sidira-personas ML stack the API image deliberately omits) and a Docker
+  builder-cache prune after `up -d` (the ML image fills the 8GB root disk
+  otherwise). Remember migration `013` must run this deploy (see step 2).
+
 ### 3. Run the deploy on the EC2 instance
 
 The instance is the one whose Elastic IP `api.sidira.ai` resolves to
@@ -192,8 +219,9 @@ aws ssm send-command \
 Then poll the command result with `aws ssm get-command-invocation`.
 
 The script fetches `origin/main`, rebuilds the API image, rereads
-`/sidira/prod/*` parameters, and restarts the `sidira-api` + `sidira-caddy`
-containers. It is idempotent — re-running it is safe.
+`/sidira/prod/*` parameters, and restarts the `sidira-api`, `sidira-caddy`, and
+`sidira-persona-worker` (#268 Phase 2) containers. It is idempotent — re-running
+it is safe.
 
 > **Self-modifying-script gotcha:** when the merged change edits
 > `deploy/ec2-api-deploy.sh` *itself*, run the deploy **twice**. The first
@@ -212,7 +240,12 @@ On the instance (SSM session or another `send-command`):
 # Deployed SHA matches origin/main
 git -C /opt/sidira/repo log -1 --oneline
 
-# Containers were recreated just now
+# Containers were recreated just now — expect sidira-api, sidira-caddy, AND
+# sidira-persona-worker (#268 Phase 2) all Up. Check `sudo docker logs
+# sidira-persona-worker`: in worker mode it logs "persona-build worker started";
+# in the inprocess rollback it logs "Idling without claiming" and stays Up (it
+# does NOT claim). It exits non-zero only when DATABASE_URL is unset (it needs
+# Postgres for the claim lock) — a restart-loop there means DB creds are missing.
 sudo docker ps --format 'table {{.Names}}\t{{.Status}}'
 
 # The new route(s) exist — lists every path the deployed code serves.

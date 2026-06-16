@@ -182,6 +182,9 @@ class PersonaBuildRun(Base):
     stability_score: Mapped[float | None] = mapped_column(nullable=True)
     persona_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Serialized BuildConfig (#268 Phase 2): the dispatch payload the worker
+    # reconstructs to run the build. Nullable so pre-worker rows stay valid.
+    config_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
