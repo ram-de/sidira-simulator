@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from sqlalchemy import func, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -686,7 +687,12 @@ class PersonaBuildRepo(Protocol):
         build_id: str,
         customer_id: str,
         connection_id: str,
+        config_json: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
+
+    async def claim_next_pending(self) -> dict[str, Any] | None: ...
+
+    async def fail_orphaned_running(self, *, error: str) -> int: ...
 
     async def update_status(
         self,
@@ -720,12 +726,14 @@ class PostgresPersonaBuildRepo:
         build_id: str,
         customer_id: str,
         connection_id: str,
+        config_json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         row = PersonaBuildRun(
             id=build_id,
             customer_id=customer_id,
             connection_id=connection_id,
             status="pending",
+            config_json=config_json,
         )
         self._session.add(row)
         await _commit(self._session)
@@ -733,6 +741,52 @@ class PostgresPersonaBuildRepo:
         result = _persona_build_to_dict(row)
         await _release_read_transaction(self._session)
         return result
+
+    async def claim_next_pending(self) -> dict[str, Any] | None:
+        """Atomically claim the oldest PENDING build across all tenants and flip
+        it to RUNNING, returning its row dict. The worker (not customer-scoped)
+        calls this to pull its next job. ``SELECT ... FOR UPDATE SKIP LOCKED``
+        lets concurrent workers each grab a distinct row without blocking.
+        Returns None when nothing is pending."""
+        stmt = (
+            select(PersonaBuildRun)
+            .where(PersonaBuildRun.status == "pending")
+            .order_by(PersonaBuildRun.created_at)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        row = (await self._session.execute(stmt)).scalars().first()
+        if row is None:
+            await _release_read_transaction(self._session)
+            return None
+        row.status = "running"
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _persona_build_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def fail_orphaned_running(self, *, error: str) -> int:
+        """Mark every RUNNING build FAILED. Called once at worker startup: the
+        single worker is the only thing that sets a row RUNNING (in worker mode
+        the API enqueues only), so any row still RUNNING when the worker boots is
+        a job whose process died mid-build (deploy recreate, OOM, host restart).
+        The claim query only looks at PENDING rows, so without this sweep those
+        rows would hang RUNNING forever in the UI. Returns the count reaped.
+
+        (Single-worker assumption: a future multi-worker fleet would need a
+        per-row lease/heartbeat instead, so a live worker's job isn't reaped by a
+        peer's startup.)"""
+        now = datetime.now(timezone.utc)
+        stmt = (
+            sa_update(PersonaBuildRun)
+            .where(PersonaBuildRun.status == "running")
+            .values(status="failed", error=error, completed_at=now)
+        )
+        res = await self._session.execute(stmt)
+        await _commit(self._session)
+        await _release_read_transaction(self._session)
+        return res.rowcount or 0
 
     async def update_status(
         self,
@@ -821,6 +875,7 @@ class InMemoryPersonaBuildRepo:
         build_id: str,
         customer_id: str,
         connection_id: str,
+        config_json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         row = {
             "id": build_id,
@@ -831,11 +886,39 @@ class InMemoryPersonaBuildRepo:
             "stability_score": None,
             "persona_count": None,
             "error": None,
+            "config_json": config_json,
             "created_at": datetime.now(timezone.utc),
             "completed_at": None,
         }
         self._builds[build_id] = row
         return dict(row)
+
+    async def claim_next_pending(self) -> dict[str, Any] | None:
+        """Pick the oldest PENDING build (any tenant), flip it to RUNNING, and
+        return a copy. Mirrors the Postgres atomic claim for the in-memory path;
+        None when nothing is pending."""
+        pending = [r for r in self._builds.values() if r["status"] == "pending"]
+        if not pending:
+            return None
+        pending.sort(
+            key=lambda r: r.get("created_at") or datetime.min.replace(tzinfo=timezone.utc)
+        )
+        row = pending[0]
+        row["status"] = "running"
+        return dict(row)
+
+    async def fail_orphaned_running(self, *, error: str) -> int:
+        """In-memory mirror of the Postgres startup sweep: mark every RUNNING
+        build FAILED and return the count reaped."""
+        now = datetime.now(timezone.utc)
+        reaped = 0
+        for row in self._builds.values():
+            if row["status"] == "running":
+                row["status"] = "failed"
+                row["error"] = error
+                row["completed_at"] = now
+                reaped += 1
+        return reaped
 
     async def update_status(
         self,
@@ -911,6 +994,7 @@ def _persona_build_to_dict(row: PersonaBuildRun) -> dict[str, Any]:
         "stability_score": row.stability_score,
         "persona_count": row.persona_count,
         "error": row.error,
+        "config_json": row.config_json,
         "created_at": row.created_at,
         "completed_at": row.completed_at,
     }

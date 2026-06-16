@@ -16,7 +16,24 @@ ML stack (numpy/sklearn/scipy + the `sidira_personas` wheel) stays OUT of the AP
 image. The wizard's `202` + status-polling contract is unchanged. Per #268 decision (C).
 
 ## In Progress
-- [ ] Phase 2 of #268 — worker image + deploy wiring. Worktree `persona-worker-phase2`.
+- [ ] Open PR (ram-de) → merge → redeploy WITH migration 013 → verify worker container + real build.
+
+## Built + verified (ready to PR)
+- [x] Migration 013 (`config_json` JSONB on persona_build_runs); single alembic head 013.
+- [x] Repo: `create(config_json=)`, atomic `claim_next_pending()` (FOR UPDATE SKIP LOCKED),
+      `fail_orphaned_running()` startup reaper; Postgres + InMemory mirrors.
+- [x] API dual-mode dispatch via `SIDIRA_PERSONA_BUILD_MODE` (inprocess code-default | worker);
+      persists config_json on every create.
+- [x] Worker (`sidira_simulator/worker/`): mode-gated (idles in inprocess so no double-claim),
+      startup recovery of orphaned RUNNING rows, graceful FAILED on null/invalid config,
+      `main()` checks mode before the Postgres requirement (no restart-loop in inprocess).
+- [x] `Dockerfile.worker` (multi-stage, vendored wheel WITH ML deps) + compose `worker` service
+      + `ec2-api-deploy.sh` (mode default = worker only when DB+compose; prune) + REDEPLOY.md.
+- [x] 17 worker/repo tests; ML isolation confirmed (API imports no pandas/sklearn/numpy/scipy);
+      ruff clean; full suite 979 pass (1 known-unrelated frontend fail).
+- [x] **codex review CLEAN** after 4 rounds of P1/P2 fixes (compose env-mask, deploy default,
+      worker mode-respect, orphaned-running reaper, invalid-config guard, main() mode-gate,
+      and honest docs: inprocess is NOT a prod rollback — API image omits ML by design).
 
 ## Completed
 - [x] Phase 1 (#268) shipped: binding + provider threading + producer→consumer pack
@@ -64,11 +81,11 @@ image. The wizard's `202` + status-polling contract is unchanged. Per #268 decis
    prune -af` after build (8GB disk). REDEPLOY.md: note migration 013 + new service + prune.
 
 ## Next Steps
-1. Build all of the above (delegated to general-purpose agent in this worktree).
-2. ruff + full pytest (expect existing inprocess tests untouched-green + new worker tests).
-3. `/codex review` → fix findings.
-4. PR as ram-de; merge; **redeploy WITH migration 013** (AUTO_MIGRATE or manual alembic);
-   verify worker container healthy + a real Build produces a pack.
+1. Commit to feature branch + open PR as ram-de.
+2. After merge: **redeploy WITH migration 013** (AUTO_MIGRATE or manual `alembic upgrade head`).
+   Flag explicitly — changes REDEPLOY step 2. inprocess is NOT a prod rollback (API image has
+   no ML stack); rollback = revert + redeploy.
+3. Verify post-deploy: `sidira-persona-worker` container Up + a real Build produces a pack.
 
 ## Key Files
 - `backend/sidira_simulator/services/persona_builder.py` — the binding (Phase 1).

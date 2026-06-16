@@ -35,6 +35,7 @@ from sidira_simulator.api.deps import (
 )
 from sidira_simulator.services.persona_builder import BuildConfig, PersonaBuilderService
 from sidira_simulator.services.run_state import RunStateStore
+from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 router = APIRouter(prefix="/persona-builds", tags=["persona-builds"])
 
@@ -120,10 +121,30 @@ async def create_build(
     """Accept a build config. Returns 202 + build_id; the build runs after the
     response is sent. customer_id comes from the auth scope, never the body."""
     build_id = str(uuid.uuid4())
+    # Persist the full config so the build is reproducible from the row alone —
+    # the worker (PERSONA_BUILD_MODE=worker) reconstructs the job from config_json
+    # rather than the request-scoped payload, which no longer lives in the process
+    # that runs the build.
     row = await build_repo.create(
-        build_id=build_id, customer_id=customer_id, connection_id=payload.connection_id
+        build_id=build_id,
+        customer_id=customer_id,
+        connection_id=payload.connection_id,
+        config_json=payload.model_dump(mode="json"),
     )
-    background_tasks.add_task(_run_build, build_id, customer_id, payload, store)
+    # Dual-mode dispatch (#268 Phase 2):
+    # - "worker": leave the row PENDING; the separate persona-worker polls Postgres,
+    #   claims it, and runs the build out-of-process. Do NOT schedule here. This is
+    #   the prod path — the worker image carries the ML stack the API image omits.
+    # - anything else ("inprocess", the code default): run as a FastAPI
+    #   BackgroundTask in THIS process. That path calls run_personas_pipeline, which
+    #   needs sidira_personas importable HERE — true in dev/test (and any single
+    #   image that installs the wheel), but NOT in the prod split-image API (it omits
+    #   the ML stack by design, #268), where an in-process build fails cleanly with
+    #   "sidira-personas not installed". So inprocess is the dev/test default, not a
+    #   prod rollback; the prod rollback for a broken worker is revert + redeploy.
+    mode = resolve_sidira_env("PERSONA_BUILD_MODE", "inprocess")
+    if mode != "worker":
+        background_tasks.add_task(_run_build, build_id, customer_id, payload, store)
     return _to_summary(row)
 
 

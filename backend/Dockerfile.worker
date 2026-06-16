@@ -1,0 +1,63 @@
+# Persona-build worker image (#268 Phase 2).
+#
+# Unlike the API image (backend/Dockerfile), the worker MUST carry the
+# sidira-personas ML stack (numpy/pandas/scikit-learn/scipy/hdbscan/pyarrow +
+# the LLM/Snowflake clients) because it actually runs the clustering pipeline.
+# Multi-stage so the heavy build toolchain (gcc et al. pulled in to build wheels
+# like hdbscan) stays out of the final runtime image — only the populated venv
+# is copied across.
+
+# ── builder ───────────────────────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Build deps for any sdist-only ML wheels (e.g. hdbscan compiles a C extension).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Self-contained venv we copy wholesale into the runtime stage.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY pyproject.toml alembic.ini ./
+COPY alembic ./alembic
+COPY sidira_simulator ./sidira_simulator
+COPY wheels ./wheels
+
+RUN pip install --upgrade pip \
+    && pip install . \
+    # NOT --no-deps: pull sidira-personas' declared ML deps (numpy/pandas/
+    # scikit-learn/scipy/hdbscan/anthropic/openai/snowflake-connector/pyarrow).
+    && pip install wheels/sidira_personas-0.1.0-py3-none-any.whl
+
+# ── runtime ───────────────────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+RUN addgroup --system --gid 10001 sidira \
+    && adduser --system --uid 10001 --ingroup sidira sidira
+
+# The populated venv from the builder (everything the worker imports) + the app
+# source (the editable install in the venv points back at /app/sidira_simulator).
+COPY --from=builder /opt/venv /opt/venv
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY sidira_simulator ./sidira_simulator
+
+USER sidira
+
+# Not an HTTP server: no EXPOSE/HEALTHCHECK. It polls Postgres and exits non-zero
+# if DATABASE_URL is unset (see persona_worker.main).
+CMD ["python", "-m", "sidira_simulator.worker"]
