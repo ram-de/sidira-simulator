@@ -26,6 +26,7 @@ from sidira_simulator.services.scoring import (
     AgentReaction,
     ScoringService,
     aggregate_retention_lift,
+    metric_lift_honesty,
 )
 
 _NO_CI_CFG = ScoringConfig(min_sample_size=1, bootstrap_resamples=0)
@@ -40,6 +41,7 @@ def _r(
     sample_index=0,
     metric_unblinded=False,
     metric_paraphrase_unstable=False,
+    behavioral_seeds_fallback=False,
 ):
     return AgentReaction(
         agent_id=f"{arm}-{persona_id}-{sample_index}",
@@ -51,6 +53,7 @@ def _r(
         metric_p=metric_p,
         metric_unblinded=metric_unblinded,
         metric_paraphrase_unstable=metric_paraphrase_unstable,
+        behavioral_seeds_fallback=behavioral_seeds_fallback,
     )
 
 
@@ -111,6 +114,92 @@ def test_unblinded_and_paraphrase_flags() -> None:
     res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
     assert res.unblinded_fallback is True
     assert res.paraphrase_unstable is True
+
+
+# ── variance-collapse honesty flag (v1.0-pack identity-seed fallback) ─────────
+
+_VARIANCE_NOTE_FRAGMENT = "cross-persona variance is degraded"
+
+
+def test_variance_collapsed_flag_set_and_persona_count() -> None:
+    # Collapse afflicts BOTH arms; flag fires if EITHER side carries the bit.
+    treatment = [
+        _r(persona_id="p0", arm="treatment", metric_p=0.6, behavioral_seeds_fallback=True),
+        _r(persona_id="p1", arm="treatment", metric_p=0.6),  # treatment-side clean
+    ]
+    control = [
+        _r(persona_id="p0", arm="control", metric_p=0.4, behavioral_seeds_fallback=True),
+        # p1 collapse only shows up on the control arm — still must count.
+        _r(persona_id="p1", arm="control", metric_p=0.4, behavioral_seeds_fallback=True),
+    ]
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.variance_collapsed is True
+    # Distinct personas across both arms (p0, p1) — not reaction count.
+    assert res.variance_collapsed_persona_count == 2
+    # Purely additive: the point estimate is untouched.
+    assert res.lift_pp == pytest.approx(20.0)
+
+
+def test_variance_collapsed_persona_count_dedupes_across_samples() -> None:
+    # Same persona sampled twice + flagged on both arms counts ONCE.
+    treatment = [
+        _r(
+            persona_id="p0",
+            arm="treatment",
+            metric_p=0.6,
+            sample_index=i,
+            behavioral_seeds_fallback=True,
+        )
+        for i in range(2)
+    ]
+    control = [
+        _r(
+            persona_id="p0",
+            arm="control",
+            metric_p=0.4,
+            sample_index=i,
+            behavioral_seeds_fallback=True,
+        )
+        for i in range(2)
+    ]
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.variance_collapsed is True
+    assert res.variance_collapsed_persona_count == 1
+
+
+def test_no_variance_collapse_when_all_seeds_present() -> None:
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.6) for i in range(3)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.4) for i in range(3)]
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.variance_collapsed is False
+    assert res.variance_collapsed_persona_count == 0
+    # And the honesty caveat must NOT carry the variance note.
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _VARIANCE_NOTE_FRAGMENT not in relative
+
+
+def test_variance_collapse_honesty_note_appended_when_flagged() -> None:
+    # A genuinely flat metric (lift_pp == 0, CI straddles zero) under collapse:
+    # the note must explain it may be an artifact, not a true null.
+    res = MetricLiftResult(
+        lift_pp=0.0,
+        lift_ci_pp=(-5.0, 5.0),
+        paired_n=8,
+        variance_collapsed=True,
+        variance_collapsed_persona_count=8,
+    )
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _VARIANCE_NOTE_FRAGMENT in relative
+    assert "v1.1" in relative  # the de-attenuate remediation
+
+
+def test_variance_collapse_note_absent_when_flag_false() -> None:
+    res = MetricLiftResult(lift_pp=0.0, lift_ci_pp=(-5.0, 5.0), paired_n=8)
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _VARIANCE_NOTE_FRAGMENT not in relative
 
 
 # ── retention honesty wording (registry hook) ────────────────────────────────

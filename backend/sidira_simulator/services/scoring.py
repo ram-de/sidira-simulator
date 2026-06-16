@@ -78,6 +78,7 @@ class AgentReaction:
         "metric_p",
         "metric_unblinded",
         "metric_paraphrase_unstable",
+        "behavioral_seeds_fallback",
     )
 
     def __init__(
@@ -93,6 +94,7 @@ class AgentReaction:
         metric_p: float | None = None,
         metric_unblinded: bool = False,
         metric_paraphrase_unstable: bool = False,
+        behavioral_seeds_fallback: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -116,6 +118,12 @@ class AgentReaction:
         # EITHER arm; any such contributor in a usable pair makes the run's metric
         # lift low-confidence (the pair's delta is wording-driven).
         self.metric_paraphrase_unstable = metric_paraphrase_unstable
+        # Variance-collapse honesty flag: True when this agent's persona lacked
+        # per-persona v1.1 behavioral_seeds, so `draw_identity_seed` fell back to
+        # the shared default seed (cross-agent variance degraded). Set on EITHER
+        # arm; any such contributor makes the run's blinded metric a
+        # variance-collapse candidate (`aggregate_metric_lift` → `variance_collapsed`).
+        self.behavioral_seeds_fallback = behavioral_seeds_fallback
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -528,6 +536,10 @@ class ScoringService:
                     "metric_lift_unblinded_fallback": lift.unblinded_fallback,
                     "metric_lift_paraphrase_unstable": lift.paraphrase_unstable,
                     "metric_lift_calibrated": lift.calibrated,
+                    "metric_lift_variance_collapsed": lift.variance_collapsed,
+                    "metric_lift_variance_collapsed_persona_count": (
+                        lift.variance_collapsed_persona_count
+                    ),
                 }
             )
 
@@ -1349,6 +1361,20 @@ def metric_lift_honesty(
             f" NOTE: at least one identity's {propensity_noun} moved materially "
             "under paraphrase (wording-driven), so this direction is low-confidence."
         )
+    if lift_result.variance_collapsed:
+        # Variance collapse: one or more personas lacked per-persona v1.1
+        # behavioral seeds, so their identity seeds fell back to a shared default
+        # and cross-persona variance degraded. A flat / non-separable metric here
+        # may be an artifact of collapsed agent variance, not a true null. Append
+        # unconditionally on the flag — it is a property of the inputs (matches the
+        # unblinded note's style), independent of the observed direction.
+        relative += (
+            " NOTE: one or more personas in this run lack per-persona behavioral "
+            "seeds (a v1.0-class pack), so cross-persona variance is degraded — a "
+            "flat or non-separable metric here may reflect collapsed agent variance "
+            "rather than a true null effect. Rebuild the pack to v1.1 to "
+            "de-attenuate."
+        )
     return regime_label, relative
 
 
@@ -1401,6 +1427,17 @@ def aggregate_metric_lift(
     control_keys = set(control_by_key)
     matched_keys = treatment_keys & control_keys
 
+    # Variance-collapse: a persona lacking v1.1 behavioral_seeds falls back to the
+    # shared default identity seed, degrading cross-agent variance — which afflicts
+    # BOTH arms (the same persona is materialized on each side), so check both. The
+    # distinct-persona count is a cheap diagnostic: collect the persona_ids that
+    # carried the fallback bit on either arm and dedupe.
+    collapsed_persona_ids = {
+        r.persona_id
+        for r in (*treatment_reactions, *control_reactions)
+        if r.behavioral_seeds_fallback
+    }
+
     result = MetricLiftResult(
         unpaired_treatment=len(treatment_keys - control_keys),
         unpaired_control=len(control_keys - treatment_keys),
@@ -1408,6 +1445,8 @@ def aggregate_metric_lift(
         # taints the whole run's lift as low-confidence (control is always
         # blinded, so only the treatment side carries the flag).
         unblinded_fallback=any(r.metric_unblinded for r in treatment_reactions),
+        variance_collapsed=bool(collapsed_persona_ids),
+        variance_collapsed_persona_count=len(collapsed_persona_ids),
     )
 
     # Sort matched keys for deterministic resample ordering (same rationale as

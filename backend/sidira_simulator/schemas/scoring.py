@@ -220,6 +220,22 @@ class MetricLiftResult(BaseModel):
     # size" caveat (`metric_lift_honesty`). An uncalibrated magnitude is therefore
     # never presented as calibrated. The fit itself is #222-gated.
     calibrated: bool = False
+    # Variance-collapse honesty flag: True when at least one contributor (EITHER
+    # arm) reacted on a persona that lacks per-persona v1.1 `behavioral_seeds` and
+    # therefore fell back to the shared default identity seed (see
+    # `services.identity_seed.draw_identity_seed`). When that happens, cross-agent
+    # identity variance collapses and the paired blinded metric flattens toward
+    # 0.0 / "non-separable" even for a genuinely large effect — so a flat metric
+    # here may reflect collapsed agent variance, not a true null. Mirrors
+    # `unblinded_fallback`: a property of the inputs, surfaced by
+    # `metric_lift_honesty`; changes no numeric output. Rebuild the pack to v1.1
+    # to de-attenuate.
+    variance_collapsed: bool = False
+    # Cheap diagnostic: the number of DISTINCT persona_ids across both arms whose
+    # reactions carried the variance-collapse fallback bit. 0 when the flag is
+    # False; counts personas (not reactions), so a persona sampled K times counts
+    # once.
+    variance_collapsed_persona_count: int = 0
 
 
 # Backwards-compatible alias: the conversion-specific name some call sites and
