@@ -26,8 +26,14 @@ must pressure-test it, not rubber-stamp it.
 - [x] T2 (#311) — MERGED (PR #320, squash ef5fbcd) 2026-06-16. Abstention verdict "NOT ANSWERABLE
       BY THIS INSTRUMENT" (out_of_scope, abstain-not-block); categorical fields in result_json
       (no migration); DESIGN.md §8.2 added; codex clean round 6. **Deploy still HELD.**
-- [ ] T3 (#312) — building next
-- [ ] T4 (#313) — unblocks the deploy
+- [x] T3 (#312) — MERGED (PR #323, squash 26c13c2) 2026-06-16. Pre-flight ordinal lint
+      (green/amber/red/abstain): LLM judge (reasons ⊆ existing weakness taxonomy) + deterministic
+      leading-framing lint + paraphrase-abstain (reuses conversion_elicitor K-pass, cost-gated to
+      non-green); routes red/amber into existing refinement.py (trigger widened, not forked);
+      categorical input_flags on result_json (no migration); confidence_score byte-identical
+      (asserted); DESIGN.md §8.2 disclosure note + changelog 0.3.4; codex clean. NOTE: built in two
+      passes — backend stalled (watchdog) then finisher completed tests+frontend+DESIGN. **Deploy still HELD.**
+- [ ] T4 (#313) — building next — **unblocks the combined deploy**
 
 ## Deploy Gate (read before redeploying api.sidira.ai)
 T1's gate 422s any wizard submission with no metric / prose-only UI change, but the live
