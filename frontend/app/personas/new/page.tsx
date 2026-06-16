@@ -1308,6 +1308,14 @@ function StepConnect({
   const collapsed =
     reusingSaved && selectedConn !== null && savedConns.some((c) => c.id === selectedConn.id);
 
+  // Explicit "the user just selected from the picker" signal (#332/codex P2). The
+  // picker's selected row unmounts before the collapsed summary mounts, so the
+  // summary can't reliably infer the path from document.activeElement (it's
+  // already <body> on the keyboard path). This ref carries the intent across that
+  // unmount/mount so the summary focuses its heading ONLY when collapse follows a
+  // real selection — never on a cold page load with a pre-selected connection.
+  const justPickedRef = useRef(false);
+
   const Field = (key: keyof ConnForm, label: string, placeholder: string, type = "text") => (
     <div>
       <label htmlFor={`conn-${key}`} style={sublabelStyle}>
@@ -1367,6 +1375,13 @@ function StepConnect({
         <SavedConnectionSummary
           conn={selectedConn}
           designator={dupDesignators[selectedConn.id] ?? ""}
+          // Focus the summary heading on mount ONLY when this collapse followed a
+          // picker selection (consume the one-shot ref so a later re-render or a
+          // cold load never re-grabs focus).
+          focusOnMount={justPickedRef.current}
+          onFocusConsumed={() => {
+            justPickedRef.current = false;
+          }}
           onUseDifferent={onNewConnection}
           onEditAsNew={onEditAsNew}
         />
@@ -1398,7 +1413,12 @@ function StepConnect({
           deleteError={deleteError}
           testingRowId={testingRowId}
           rowTestError={rowTestError}
-          onSelectSaved={onSelectSaved}
+          onSelectSaved={(c) => {
+            // Mark that the next collapse came from a picker selection, so the
+            // summary rescues keyboard focus (codex P2). Consumed in the summary.
+            justPickedRef.current = true;
+            onSelectSaved(c);
+          }}
           onTestRow={onTestRow}
           onRequestDelete={onRequestDelete}
           onCancelDelete={onCancelDelete}
@@ -1539,18 +1559,26 @@ function StepConnect({
 // trigger opens a CUSTOM popover (never a native <select>: a native option can
 // carry none of the two-line canonical identity, the health line, or the per-row
 // TEST/DELETE affordances, and can't be styled on paper — DESIGN.md §10). The
-// popover is a labelled listbox of the existing SavedConnectionRow rows, now
-// height-capped with internal scroll (~4 rows), sorted most-recently-tested
-// first, and fronted by a substring filter for the 20-connection case.
+// popover is a labelled non-modal dialog holding the existing SavedConnectionRow
+// rows, now height-capped with internal scroll (~4 rows), sorted
+// most-recently-tested first, and fronted by a substring filter for the
+// 20-connection case.
 //
-// a11y model: the trigger is a real <button> with aria-haspopup="listbox" /
+// a11y model: the trigger is a real <button> with aria-haspopup="dialog" /
 // aria-expanded. Enter/Space/ArrowDown open it; on open focus lands on the
-// filter input. ArrowUp/ArrowDown move focus through the FILTERED option rows
-// (each row's select button is role="option" with a roving tabindex); Enter on a
-// focused option selects it (the row's own onClick); typing in the filter
-// narrows. Esc closes and returns focus to the trigger; an outside click closes
-// without returning focus. Focus-visible rides the browser default ink outline —
-// never color-coded state (§4.3). The caret is a text ▾, not an imported icon.
+// filter input. We deliberately do NOT use role="listbox"/role="option" — each
+// row carries its own Test/Delete buttons and can morph into a confirm
+// alertdialog, which a strict listbox may not contain (codex). Instead the panel
+// is role="dialog", the row list is role="group", and the selected row carries
+// aria-current. ArrowUp/ArrowDown still move focus through the FILTERED rows
+// (each row's select button takes a roving tabindex); Enter on a focused row
+// selects it (the row's own onClick); typing in the filter narrows. A
+// panel-level onKeyDown makes Esc close from ANY focused control inside the
+// popover, returning focus to the trigger; an outside click closes without
+// returning focus. Selecting a row collapses the picker (unmounting the
+// trigger), so focus is handed to the collapsed summary instead. Focus-visible
+// rides the browser default ink outline — never color-coded state (§4.3). The
+// caret is a text ▾, not an imported icon.
 function ConnectionPicker({
   conns,
   dupDesignators,
@@ -2090,11 +2118,15 @@ function SavedConnectionRow({
 function SavedConnectionSummary({
   conn,
   designator,
+  focusOnMount,
+  onFocusConsumed,
   onUseDifferent,
   onEditAsNew,
 }: {
   conn: ConnectionSummary;
   designator: string;
+  focusOnMount?: boolean;
+  onFocusConsumed?: () => void;
   onUseDifferent: () => void;
   onEditAsNew: () => void;
 }) {
@@ -2105,16 +2137,21 @@ function SavedConnectionSummary({
     ["Warehouse / role", `${conn.warehouse} · ${conn.role}`],
   ];
   // Focus landing after a picker selection collapses to this summary (#332/codex
-  // P3): the row button the user clicked unmounts with the picker, so without
-  // this keyboard focus would fall to <body>. We move it to this summary's
-  // heading (a focusable but non-tabbable landmark). Guarded against a COLD page
-  // load where a connection is pre-selected: if focus is still on <body> at
-  // mount, the user didn't drive here, so we don't steal focus.
+  // P2): the row button the user clicked unmounts with the picker, so on the
+  // keyboard path focus would fall to <body>. When the parent signals the
+  // collapse came from a picker selection (focusOnMount), we move focus to this
+  // summary's heading (focusable but non-tabbable). We do NOT infer the path from
+  // document.activeElement — it's already <body> by mount, which is exactly the
+  // case we need to rescue — so the explicit flag is the reliable signal; a cold
+  // load with a pre-selected connection passes focusOnMount=false and is left
+  // alone. onFocusConsumed clears the one-shot flag in the parent.
   const headingRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    const active = typeof document !== "undefined" ? document.activeElement : null;
-    if (!active || active === document.body) return; // cold load — don't grab focus
+    if (!focusOnMount) return;
     headingRef.current?.focus();
+    onFocusConsumed?.();
+    // Run once on mount for the selection that triggered the collapse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <section style={{ marginBottom: 4 }}>

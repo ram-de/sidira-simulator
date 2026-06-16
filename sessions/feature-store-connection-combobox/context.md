@@ -51,24 +51,38 @@ two-line canonical identity (`name · DB.SCHEMA · WH · ROLE` + `account · use
 id8`), the #328 health line (`OK · TESTED JUN 15` / `FAILED · AUTH` /
 `UNTESTED`), the per-row TEST and DELETE affordances, or on-paper hairline
 styling. DESIGN.md §10 also rules out the native-select chrome here. So the
-trigger is a real `<button aria-haspopup="listbox">` and the panel is a
-hand-built labelled listbox, styled on paper with the existing
-`SavedConnectionRow` vocabulary.
+trigger is a real `<button>` and the panel is a hand-built popover, styled on
+paper with the existing `SavedConnectionRow` vocabulary.
 
 ## a11y model
 
-- Trigger: `<button>` with `aria-haspopup="listbox"`, `aria-expanded`,
+Note: an early draft used `role="listbox"`/`role="option"`, but the rows carry
+their own Test/Delete buttons and can morph into a confirm `alertdialog`, which
+a strict listbox may not contain (codex flagged it). The shipped model is a
+non-modal **dialog** instead:
+
+- Trigger: `<button>` with `aria-haspopup="dialog"`, `aria-expanded`,
   `aria-controls` (when open). Enter / Space / ArrowDown open it.
+- Panel: `role="dialog"` + `aria-label`; the row list is `role="group"`; the
+  pinned row carries `aria-current`.
 - On open, focus lands on the **filter input** (typing-first). ArrowDown steps
   into the first row.
-- Rows: each row's select button becomes `role="option"` + `aria-selected`
-  with a **roving tabindex** (active = 0, rest = -1). ArrowUp/ArrowDown move the
-  active index; an effect pulls real DOM focus to match. ArrowUp from the first
-  row returns to the filter input.
-- **Enter** on a focused option selects it via the button's own `onClick`
+- Rows: each row's select button takes a **roving tabindex** (active = 0, rest
+  = -1). ArrowUp/ArrowDown move the active index; an effect pulls real DOM focus
+  to match. ArrowUp from the first row returns to the filter input.
+- **Enter** on a focused row selects it via the button's own `onClick`
   (`handleSelectSaved` → collapse) — not intercepted.
-- **Esc** closes and returns focus to the trigger. **Outside click** closes
-  without yanking focus back (the user clicked elsewhere on purpose).
+- **Esc** closes and returns focus to the trigger — handled at the **panel
+  level** (`onPanelKeyDown`), so it fires from ANY focused control inside the
+  popover (filter, a row, or a row's Test/Delete/confirm button). **Outside
+  click** closes without yanking focus back (the user clicked elsewhere on
+  purpose).
+- **Focus after select**: selecting collapses the picker, unmounting the
+  trigger — so we do NOT refocus it (that would drop focus to `<body>`). The
+  parent passes a one-shot `justPickedRef` signal to the collapsed "Using saved
+  connection" summary, which focuses its heading on mount only when the collapse
+  followed a picker selection (never on a cold load with a pre-selected
+  connection).
 - The caret is a text `▾`/`▴` glyph (`aria-hidden`) — no imported icon set, no
   emoji. Focus-visible rides the browser default ink outline; no color-coded
   state (§4.3/§10). Empty-filter → honest `No connections match`; loading reuses
