@@ -2,11 +2,11 @@
 
 Asserts the gating contract end-to-end through SimulationRunner:
 - a dual-arm run with a conversion Hypothesis elicits a turn-2 decision per
-  persona arm, so every treatment/control AgentRecord carries a conversion_p,
+  persona arm, so every treatment/control AgentRecord carries a metric_p,
   and the composed SimulationResult surfaces a conversion lift;
 - a single-arm run (no paired control) never elicits conversion;
 - a run without metric_name never elicits conversion (backwards-compat);
-- a per-agent conversion failure leaves conversion_p=None without failing the
+- a per-agent conversion failure leaves metric_p=None without failing the
   agent or the run.
 """
 
@@ -129,18 +129,18 @@ async def test_dual_arm_conversion_elicits_per_persona_arm() -> None:
     persona_arm_records = [r for r in records if r.arm in ("treatment", "control")]
     assert persona_arm_records, "expected treatment/control records"
     # Every persona-arm record got a turn-2 conversion elicitation.
-    assert all(r.conversion_p == pytest.approx(0.6) for r in persona_arm_records)
+    assert all(r.metric_p == pytest.approx(0.6) for r in persona_arm_records)
     # One conversion call per persona-arm agent.
     assert chat.conversion_calls == len(persona_arm_records)
 
     # End-to-end: the composed result surfaces a (zero, identical-stub) lift and
     # the weak-regime honesty label — never None, since the metric was set.
     result = simulation.result
-    assert result.conversion_lift_paired_n is not None
-    assert result.conversion_lift_paired_n > 0
-    assert result.conversion_lift_pp == pytest.approx(0.0)
-    assert result.conversion_regime == "weak_behavioral"
-    assert result.conversion_lift_relative is not None
+    assert result.metric_lift_paired_n is not None
+    assert result.metric_lift_paired_n > 0
+    assert result.metric_lift_pp == pytest.approx(0.0)
+    assert result.metric_regime == "weak_behavioral"
+    assert result.metric_lift_relative is not None
 
 
 @pytest.mark.asyncio
@@ -173,9 +173,9 @@ async def test_paraphrase_ensemble_issues_k_calls_per_agent(monkeypatch) -> None
     # K=3 conversion calls per persona-arm agent (the ensemble), not one.
     assert chat.conversion_calls == 3 * len(persona_arm_records)
     # mean over 3 identical 0.6 answers = 0.6; no spread → stable.
-    assert all(r.conversion_p == pytest.approx(0.6) for r in persona_arm_records)
-    assert all(not r.conversion_paraphrase_unstable for r in persona_arm_records)
-    assert simulation.result.conversion_lift_paraphrase_unstable is False
+    assert all(r.metric_p == pytest.approx(0.6) for r in persona_arm_records)
+    assert all(not r.metric_paraphrase_unstable for r in persona_arm_records)
+    assert simulation.result.metric_lift_paraphrase_unstable is False
 
 
 @pytest.mark.asyncio
@@ -198,7 +198,7 @@ async def test_single_arm_conversion_does_not_elicit() -> None:
 
     records = runner._last_run_agent_records
     assert all(r.arm is None for r in records)
-    assert all(r.conversion_p is None for r in records)
+    assert all(r.metric_p is None for r in records)
     assert chat.conversion_calls == 0
 
 
@@ -220,15 +220,15 @@ async def test_no_metric_never_elicits_conversion() -> None:
     )
 
     assert chat.conversion_calls == 0
-    assert all(r.conversion_p is None for r in runner._last_run_agent_records)
-    assert simulation.result.conversion_lift_pp is None
-    assert simulation.result.conversion_lift_paired_n is None
+    assert all(r.metric_p is None for r in runner._last_run_agent_records)
+    assert simulation.result.metric_lift_pp is None
+    assert simulation.result.metric_lift_paired_n is None
 
 
 @pytest.mark.asyncio
 async def test_conversion_failure_does_not_fail_agent() -> None:
     """A degenerate allocation (missing the conversion label) must surface as a
-    per-agent conversion failure (conversion_p=None) — the agent and the run
+    per-agent conversion failure (metric_p=None) — the agent and the run
     still complete."""
     store, persona_pack, capability, feature_pack_version = _load()
 
@@ -258,11 +258,11 @@ async def test_conversion_failure_does_not_fail_agent() -> None:
     persona_arm_records = [r for r in records if r.arm in ("treatment", "control")]
     assert persona_arm_records, "agents should still materialize"
     assert chat.conversion_calls == len(persona_arm_records)
-    # Every conversion elicitation failed → conversion_p None, but agents alive.
-    assert all(r.conversion_p is None for r in persona_arm_records)
+    # Every conversion elicitation failed → metric_p None, but agents alive.
+    assert all(r.metric_p is None for r in persona_arm_records)
     # All pairs dropped → lift not computable, surfaced honestly.
-    assert simulation.result.conversion_lift_pp is None
-    assert simulation.result.conversion_lift_elicitation_failure_drops > 0
+    assert simulation.result.metric_lift_pp is None
+    assert simulation.result.metric_lift_elicitation_failure_drops > 0
 
 
 class _CapturingConversionChat(_ConversionChat):
@@ -571,15 +571,15 @@ async def test_conversion_metric_runs_on_blinded_prompt() -> None:
         assert roles == ["system", "user"]
     # A faithful standalone view existed → the run is NOT flagged unblinded.
     records = runner._last_run_agent_records
-    assert all(not r.conversion_unblinded for r in records if r.arm in ("treatment", "control"))
-    assert simulation.result.conversion_lift_unblinded_fallback is False
+    assert all(not r.metric_unblinded for r in records if r.arm in ("treatment", "control"))
+    assert simulation.result.metric_lift_unblinded_fallback is False
 
 
 @pytest.mark.asyncio
 async def test_conversion_unblinded_fallback_flagged_for_prose_only_change() -> None:
     """A prose-only conversion change (no proposed_figma → no faithful standalone
     view) forces the treatment metric pass onto the UNBLINDED fallback. The
-    treatment records carry conversion_unblinded; control stays blinded; the
+    treatment records carry metric_unblinded; control stays blinded; the
     composed result is flagged and the relative statement carries the caveat."""
     store, persona_pack, capability, feature_pack_version = _load()
     chat = _ConversionChat()
@@ -601,8 +601,8 @@ async def test_conversion_unblinded_fallback_flagged_for_prose_only_change() -> 
     control = [r for r in records if r.arm == "control"]
     assert treatment and control
     # Treatment fell back to unblinded; control is always blinded.
-    assert all(r.conversion_unblinded for r in treatment)
-    assert all(not r.conversion_unblinded for r in control)
+    assert all(r.metric_unblinded for r in treatment)
+    assert all(not r.metric_unblinded for r in control)
     # Surfaced on the result + an explicit low-confidence caveat.
-    assert simulation.result.conversion_lift_unblinded_fallback is True
-    assert "UNBLINDED" in (simulation.result.conversion_lift_relative or "")
+    assert simulation.result.metric_lift_unblinded_fallback is True
+    assert "UNBLINDED" in (simulation.result.metric_lift_relative or "")

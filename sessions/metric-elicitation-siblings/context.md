@@ -111,9 +111,33 @@ New: `test_retention_elicitor.py`, `test_retention_lift.py`,
 `test_retention_runner.py`, `test_metric_registry.py` (unknown-metric raises).
 Conversion tests updated for the renamed generic fields.
 
+## Codex review (round 1) — triage
+
+- **P1 "retention can run unblinded via fallback"** — NOT a bug. Decision B
+  mandates retention reuse conversion's §3b unblindable-fallback posture
+  verbatim: when no faithful standalone view exists the metric runs unblinded
+  and the result is flagged low-confidence (`metric_lift_unblinded_fallback`).
+  Identical to conversion; changing it would diverge from the spec. No change.
+- **P2 conversion prompt not byte-identical** — FIXED. `option_bullets` now
+  takes a `target_tag`; conversion passes its historical `"   <- the conversion"`
+  so the default conversion prompt is byte-for-byte unchanged. Retention uses
+  the generic `"   <- the target outcome"`.
+- **P2 runner dispatch not fail-loud** — FIXED. The runner now gates on
+  `hypothesis.metric_name is not None` and dispatches through `get_metric`
+  directly (raises KeyError on registry/Literal drift) instead of
+  `is_registered(...)`-then-skip. `is_registered` import dropped from the runner.
+- **P2 stale test asserts `retention` unknown** — FIXED. The unknown-metric test
+  now uses `"ctr"` (genuinely unregistered) instead of `"retention"`.
+- **Note: `_REGISTRY` mutable** — FIXED. Wrapped in `MappingProxyType` so the
+  registry is genuinely read-only (true thread-safe concurrent reads).
+
 ## Status
 
-Code + tests COMPLETE. Full backend suite green except the known pre-existing
-`test_deploy_config` (ProductHome). ruff + black clean. Conversion behaviorally
-byte-identical (renames only). Dormant in prod (no frontend sets metric_name).
-No Alembic migration. Next: codex review → PR for #275 (DO NOT MERGE).
+Code + tests COMPLETE; all real codex P1/P2 addressed (round 1). Rebased onto
+latest `origin/main` (benchmark #277 landed there; clean rebase — our
+`MetricLiftResult` rename and upstream's `BenchmarkRunResult` coexist in
+scoring.py). Full backend suite green (1007 passed, 11 skipped) except the known
+pre-existing `test_deploy_config` (ProductHome). ruff + black clean. Conversion
+behaviorally byte-identical (renames + verbatim prompt). Dormant in prod (no
+frontend sets metric_name). No Alembic migration. Next: re-review → PR for #275
+(DO NOT MERGE).

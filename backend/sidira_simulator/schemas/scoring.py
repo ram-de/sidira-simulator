@@ -175,19 +175,24 @@ class ABLiftResult(BaseModel):
     sentiment_failure_drops: int = 0
 
 
-# ── Conversion lift result (agent-behavior-spec §3a / #221) ────────────
+# ── Metric lift result (agent-behavior-spec §3a / #221; generalized #275) ──
 
 
-class ConversionLiftResult(BaseModel):
-    """Paired conversion-lift between treatment and control arms (§3a).
+class MetricLiftResult(BaseModel):
+    """Paired metric-lift between treatment and control arms (§3a; generic #275).
 
-    Returned by `services.scoring.aggregate_conversion_lift`. `lift_pp` is the
-    paired treatment−control delta in p_conv expressed in PERCENTAGE POINTS
-    ([-100, +100]); `lift_ci_pp` is the paired-bootstrap CI in the same units,
-    computed off the SAME statistic so it brackets the point by construction.
-    `paired_n` is the matched-pair count that fed the bootstrap; the drop
-    counters surface what was excluded (no twin, or a per-agent conversion
-    elicitation failure on either side) so a partial run reads honestly.
+    Returned by every per-metric paired-lift aggregator (`aggregate_conversion_lift`,
+    `aggregate_retention_lift`, …). `lift_pp` is the paired treatment−control delta
+    in p_metric expressed in PERCENTAGE POINTS ([-100, +100]); `lift_ci_pp` is the
+    paired-bootstrap CI in the same units, computed off the SAME statistic so it
+    brackets the point by construction. `paired_n` is the matched-pair count that
+    fed the bootstrap; the drop counters surface what was excluded (no twin, or a
+    per-agent metric elicitation failure on either side) so a partial run reads
+    honestly.
+
+    #275: this is the SHARED result type for all per-metric lifts (one
+    `metric_name` is set per simulation), so a single generic class — not parallel
+    per-metric ones — carries the lift. The calibrator protocol is keyed on it too.
     """
 
     lift_pp: float | None = None
@@ -196,25 +201,30 @@ class ConversionLiftResult(BaseModel):
     unpaired_treatment: int = 0
     unpaired_control: int = 0
     elicitation_failure_drops: int = 0
-    # #221 §3b: True when at least one treatment contributor's conversion metric
-    # ran on the UNBLINDED fallback prompt (no faithful standalone view —
-    # removal / pure-mechanic / prose-only change). The treatment side was then
-    # exposed to change framing, which can inflate p_conv and does NOT cancel in
-    # the delta, so the lift is low-confidence; `conversion_lift_honesty` flags it.
+    # #221 §3b: True when at least one treatment contributor's metric pass ran on
+    # the UNBLINDED fallback prompt (no faithful standalone view — removal /
+    # pure-mechanic / prose-only change). The treatment side was then exposed to
+    # change framing, which can inflate p_metric and does NOT cancel in the delta,
+    # so the lift is low-confidence; `metric_lift_honesty` flags it.
     unblinded_fallback: bool = False
     # #221 §3e: True when at least one contributor (in a usable pair) had its
-    # conversion propensity (p_conv) move materially across the K question
+    # metric propensity (p_metric) move materially across the K question
     # paraphrases — its answer was prompt-driven, not behavior-driven. Set from
     # EITHER arm. The paired delta then reflects wording noise, so the lift is
-    # low-confidence; `conversion_lift_honesty` flags it.
+    # low-confidence; `metric_lift_honesty` flags it.
     paraphrase_unstable: bool = False
     # #221 shrinkage layer: True once a FITTED calibrator (services.
     # conversion_calibrator) has mapped the raw `lift_pp` onto the real-world
     # effect-size scale. The default `IdentityCalibrator` leaves this False, so
     # pre-#222 runs keep the "uncalibrated — read as rank/direction, not effect
-    # size" caveat (`conversion_lift_honesty`). An uncalibrated magnitude is
-    # therefore never presented as calibrated. The fit itself is #222-gated.
+    # size" caveat (`metric_lift_honesty`). An uncalibrated magnitude is therefore
+    # never presented as calibrated. The fit itself is #222-gated.
     calibrated: bool = False
+
+
+# Backwards-compatible alias: the conversion-specific name some call sites and
+# tests still import. Identical type — #275 made the result generic across metrics.
+ConversionLiftResult = MetricLiftResult
 
 
 # ── Null-integrity certificate (ablation-protocol §4) ──────────────────

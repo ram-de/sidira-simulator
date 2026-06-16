@@ -100,7 +100,7 @@ def test_k1_matches_elicit_conversion_decision_p_conv() -> None:
     ens = elicit_conversion_ensemble(
         _SequencedChat([_alloc(counts)]), system_prompt="S", paraphrases=1, **_COMMON
     )
-    assert ens.mean_p_conv == pytest.approx(single.p_conv)
+    assert ens.mean_p_conv == pytest.approx(single.p_metric)
 
 
 # ── K>1: different wording, identical system prompt + options, averaged p_conv ─
