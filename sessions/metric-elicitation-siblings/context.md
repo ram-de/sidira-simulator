@@ -1,7 +1,7 @@
 ---
 type: session
 domain: metric-elicitation-siblings
-status: active
+status: complete
 started: 2026-06-15
 owner: ram-de
 ---
@@ -188,3 +188,40 @@ on !metric_lift_calibrated; unblinded/paraphrase flags as warn-border notes;
 no-lift-computable → honest empty state. api-types.ts SimulationResult hand-added
 the metric_lift_* output fields (gen-types needs live backend). tsc + build clean,
 codex CLEAN. PR open on feat/280-metric-lift-result-card.
+
+## EPIC COMPLETE — all four merged + deployed (2026-06-16)
+
+All four PRs squash-merged to `main` (HANDS-OFF loop per user "merge and deploy,
+don't wait"):
+- #275 registry + retention → #283 (`b1fefa4`)
+- #276 CTR → #288 (`c4b0553`)
+- #279 wizard metric picker → #289 (`c0f92f1`)
+- #280 metric-lift result card → #290 (`7f35aab`)
+
+**Backend (#275/#276) DEPLOYED + verified live** on api.sidira.ai
+(i-04b155fafcc90042b): HEAD `c4b0553`, `Hypothesis.metric_name ==
+Optional[Literal['conversion','retention','ctr']]`, registry keys
+`['conversion','ctr','retention']`, `/health` ok. No Alembic migration (the
+metric fields ride the `SimulationResult` / `Hypothesis` JSON blobs).
+
+**Deploy gotcha hit + worked around (logged to memory
+`reference-ec2-disk-build-cache`):** the standard full `ec2-api-deploy.sh`
+(`docker compose build`, all services) now OOM-fails the 916 MB / no-swap box —
+it builds the light `api` AND the heavy ML `worker` in parallel via buildx bake
+(`failed to execute bake: signal: killed`). A swapfile was DENIED by the
+auto-mode classifier (prod-infra improvisation → needs user approval) and
+`COMPOSE_BAKE=false` was ignored (still baked). Since #275/#276 are API-side
+only (the worker is the #268 persona-pipeline image, untouched), the working
+deploy was a **targeted single-service build**: `docker compose -p sidira -f
+deploy/docker-compose.api.yml build api && … up -d api` (api image is
+`python:3.11-slim` + `pip install .`, light). Durable fix (swap / serial worker
+build / bigger box) needs the user the next time a deploy must rebuild the worker.
+
+**Frontend (#279/#280)** rides Amplify auto-deploy on push to `main` — no manual
+step. The opt-in metric path is now end-to-end live: wizard A/B picker sets
+`metric_name` + template fields → backend per-metric blinded elicitation + paired
+lift → result card renders native-unit lift alongside sentiment with the verbatim
+honesty caveat. Default (None / sentiment-only / single-arm) path byte-identical.
+
+Loop ended. Follow-on (not in this epic): #222 fits the calibrators that flip the
+`metric_lift_calibrated` caveat; CTR is its first Tier-0 (Upworthy) target.
