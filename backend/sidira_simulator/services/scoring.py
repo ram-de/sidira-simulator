@@ -540,6 +540,7 @@ class ScoringService:
                     "metric_lift_variance_collapsed_persona_count": (
                         lift.variance_collapsed_persona_count
                     ),
+                    "metric_lift_underpowered": lift.underpowered,
                 }
             )
 
@@ -1375,12 +1376,36 @@ def metric_lift_honesty(
             "rather than a true null effect. Rebuild the pack to v1.1 to "
             "de-attenuate."
         )
+    if lift_result.underpowered:
+        # Underpowered: the metric WAS computed but on a paired sample below the
+        # floor, and the CI is non-separable (the flag already implies that). The
+        # straddle is INCONCLUSIVE, not a null — the panel cannot detect an effect
+        # of plausible size at this n. Append unconditionally on the flag, matching
+        # the unblinded note's style.
+        relative += (
+            f" NOTE: only {lift_result.paired_n} paired identities — below the "
+            f"~{_MIN_PAIRED_N_FOR_METRIC} needed for the paired bootstrap to "
+            "separate a moderate effect, so this non-separable result is "
+            "INCONCLUSIVE (the panel cannot detect an effect of plausible size), "
+            "NOT evidence of no effect. Increase agents per arm to power the "
+            "comparison."
+        )
     return regime_label, relative
 
 
 def conversion_lift_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
     """Back-compat: the conversion metric's honesty hook (#275 → metric_lift_honesty)."""
     return metric_lift_honesty(lift_result)
+
+
+# Paired-sample floor below which a non-separable blinded metric lift is treated
+# as INCONCLUSIVE (underpowered), not a null. A paired bootstrap on a weak
+# behavioral metric (the §5 modality cliff) needs roughly 30+ paired identities
+# to separate a moderate effect; below that the CI is wide by construction, so a
+# straddle-zero interval means "the panel was too small to detect an effect of
+# plausible size", NOT "no effect". Tunable; only governs the `underpowered`
+# honesty flag — it changes no numeric output.
+_MIN_PAIRED_N_FOR_METRIC = 30
 
 
 def aggregate_metric_lift(
@@ -1508,6 +1533,20 @@ def aggregate_metric_lift(
                 min(ci_low_r, result.lift_pp),
                 max(ci_high_r, result.lift_pp),
             )
+
+    # Underpowered (n, orthogonal to variance collapse's seeds): only the
+    # inconclusive small-n straddle. ALL must hold — `lift_pp` IS computed (None
+    # leaves nothing to qualify), `paired_n` is below the floor, and the CI is
+    # NON-separable (absent, or brackets zero). If the CI excludes zero even at
+    # small n the run DID detect the effect, so it is NOT underpowered. Read off
+    # the finalized point/CI/n above; surfaced by `metric_lift_honesty`, changes
+    # no numeric output.
+    ci = result.lift_ci_pp
+    result.underpowered = (
+        result.lift_pp is not None
+        and result.paired_n < _MIN_PAIRED_N_FOR_METRIC
+        and (ci is None or (ci[0] <= 0 <= ci[1]))
+    )
 
     # #221 shrinkage seam: route the raw lift through the calibrator. Identity
     # default → byte-identical magnitude, `calibrated` stays False.

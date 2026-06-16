@@ -482,6 +482,16 @@ class SimulationResult(BaseModel):
     # Cheap diagnostic companion: distinct persona count behind the flag (0 when
     # False).
     metric_lift_variance_collapsed_persona_count: int = 0
+    # Underpowered honesty flag (n, orthogonal to variance collapse's seeds): True
+    # when `metric_lift_pp` IS computed but on a paired sample too small for the
+    # paired bootstrap to separate a moderate effect AND the interval is
+    # non-separable. In that regime a straddle-zero CI is INCONCLUSIVE — the panel
+    # cannot detect an effect of plausible size — not evidence of no effect, yet it
+    # reads identically to a true null; `metric_lift_relative` also carries the
+    # caveat text. Defaults False so non-metric runs, separable / large-n runs, and
+    # older `result_json` rows are byte-identical (additive, migration-free —
+    # `SimulationResult` has no extra="forbid").
+    metric_lift_underpowered: bool = False
     # ── Metric↔sentiment disagreement guardrail (#321) ──
     # True when the metric and the sentiment lift are BOTH separable (their CIs
     # exclude zero) AND point in OPPOSITE directions. The dangerous case is

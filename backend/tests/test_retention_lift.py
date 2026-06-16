@@ -202,6 +202,77 @@ def test_variance_collapse_note_absent_when_flag_false() -> None:
     assert _VARIANCE_NOTE_FRAGMENT not in relative
 
 
+# ── underpowered honesty flag (small paired-n, non-separable = inconclusive) ──
+
+_UNDERPOWERED_NOTE_FRAGMENT = "INCONCLUSIVE"
+
+
+def _pairs(n: int, *, t_p: float, c_p: float):
+    # n matched pairs across distinct personas → paired_n == n. The pair delta is
+    # constant (t_p - c_p), so with bootstrap_resamples=0 the CI stays None
+    # (non-separable) — exactly the inconclusive small-n regime.
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=t_p) for i in range(n)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=c_p) for i in range(n)]
+    return treatment, control
+
+
+def test_underpowered_small_n_non_separable_is_inconclusive() -> None:
+    # 16 paired identities (the streamly case), CI absent / straddles zero → the
+    # flag fires and the honesty note calls it INCONCLUSIVE, not a null.
+    treatment, control = _pairs(16, t_p=0.5, c_p=0.5)  # flat lift, n below floor
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.paired_n == 16
+    assert res.lift_pp == pytest.approx(0.0)
+    assert res.lift_ci_pp is None  # non-separable (no interval)
+    assert res.underpowered is True
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _UNDERPOWERED_NOTE_FRAGMENT in relative
+    assert "16 paired identities" in relative
+
+
+def test_underpowered_false_at_or_above_floor() -> None:
+    # n == floor (30), still non-separable → NOT underpowered (enough power), and
+    # the note must be absent.
+    treatment, control = _pairs(30, t_p=0.5, c_p=0.5)
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.paired_n == 30
+    assert res.underpowered is False
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _UNDERPOWERED_NOTE_FRAGMENT not in relative
+
+
+def test_underpowered_false_when_separable_despite_small_n() -> None:
+    # Small n but the CI EXCLUDES zero → the run DID detect the effect, so it is
+    # NOT underpowered and no note is appended.
+    res = aggregate_retention_lift(
+        # Exercise the real predicate via the aggregator: a strong, consistent
+        # delta with bootstrap gives a CI that excludes zero.
+        [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.9) for i in range(8)],
+        [_r(persona_id=f"p{i}", arm="control", metric_p=0.1) for i in range(8)],
+        _CI_CFG,
+    )
+    assert res.paired_n == 8
+    assert res.lift_ci_pp is not None
+    assert res.lift_ci_pp[0] > 0  # excludes zero (separable)
+    assert res.underpowered is False
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is not None
+    assert _UNDERPOWERED_NOTE_FRAGMENT not in relative
+
+
+def test_underpowered_false_when_lift_uncomputable() -> None:
+    # No usable pairs → lift_pp is None → nothing to qualify, flag stays False.
+    treatment = [_r(persona_id="p0", arm="treatment", metric_p=None)]
+    control = [_r(persona_id="p0", arm="control", metric_p=None)]
+    res = aggregate_retention_lift(treatment, control, _NO_CI_CFG)
+    assert res.lift_pp is None
+    assert res.underpowered is False
+    _regime, relative = metric_lift_honesty(res)
+    assert relative is None  # no computable lift → blank PM line
+
+
 # ── retention honesty wording (registry hook) ────────────────────────────────
 
 
