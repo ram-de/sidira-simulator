@@ -1176,6 +1176,15 @@ def aggregate_current_state_delta(
 # same weak-behavioral regime (#275).
 CONVERSION_REGIME_WEAK = "weak_behavioral"
 RETENTION_REGIME_WEAK = "weak_behavioral"
+# §5: CTR is the STRONG behavioral regime named in the comment above — a rendered
+# on-screen click correlates with the real outcome at r≈0.7–0.9, vs r≈0.25–0.34
+# for the conversion/retention modality cliff. The regime label rides on the
+# result so the downstream card can present CTR with appropriately HIGHER (but not
+# yet calibrated) confidence than the weak-behavioral siblings. The magnitude is
+# still uncalibrated pre-#222, so the uncalibrated caveat (gated on `calibrated`)
+# applies to CTR exactly as it does to conversion/retention — a stronger regime
+# does not mean a fitted effect size (#276).
+CTR_REGIME_STRONG = "strong_behavioral"
 
 
 def metric_lift_honesty(
@@ -1411,5 +1420,27 @@ def aggregate_retention_lift(
         config,
         run_seed=run_seed,
         metric_name="retention",
+        calibrator=calibrator,
+    )
+
+
+def aggregate_ctr_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired CTR-lift (#276). Thin wrapper over `aggregate_metric_lift` pinning
+    `metric_name="ctr"` — the click-through propensity `p_metric` is the share
+    allocated to the "click" action, so the paired delta is the click-through-rate
+    lift in percentage points."""
+    return aggregate_metric_lift(
+        treatment_reactions,
+        control_reactions,
+        config,
+        run_seed=run_seed,
+        metric_name="ctr",
         calibrator=calibrator,
     )

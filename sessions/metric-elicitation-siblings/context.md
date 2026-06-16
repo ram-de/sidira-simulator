@@ -141,3 +141,19 @@ pre-existing `test_deploy_config` (ProductHome). ruff + black clean. Conversion
 behaviorally byte-identical (renames + verbatim prompt). Dormant in prod (no
 frontend sets metric_name). No Alembic migration. Next: re-review → PR for #275
 (DO NOT MERGE).
+
+## #276 CTR metric (feat/276-ctr-metric)
+
+Third descriptor, mirrors conversion (on-screen click, immediate, NO temporal
+framing — unlike retention). Registered `ctr` in the #275 registry; zero runner
+changes (registry-driven dispatch + extract_choice_set grounding inherited for
+free). New `services/ctr_elicitor.py` (CTR_CLICK_LABEL="click it",
+DEFAULT_CTR_CHOICE_SET=("keep scrolling","skip it","leave"), 3 §3e paraphrases,
+blinded, decision_point required / click label optional like retention).
+`aggregate_ctr_lift` wrapper + `_ctr_honesty` (native "clicks through" wording).
+Regime: `strong_behavioral` (§5 — CTR correlates r≈0.7–0.9 vs the weak-behavioral
+modality cliff; uncalibrated caveat still applies pre-#222). Literal += "ctr".
+Tests: test_ctr_elicitor/lift/runner + extended test_metric_registry. Full suite
+green (1055 passed, 11 skipped) except pre-existing test_deploy_config(ProductHome).
+ruff + black clean. Conversion + retention byte-identical/unperturbed. PR OPEN,
+DO NOT MERGE.

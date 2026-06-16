@@ -51,8 +51,9 @@ class Hypothesis(BaseModel):
     # label, and calibrator. `metric_name` is a CLOSED Literal so an unknown
     # metric fails loudly (no silent degradation to sentiment); a metric routes
     # end-to-end iff it is registered. `retention` is the first sibling (#275);
-    # `conversion` keeps its byte-identical behavior; CTR is #276-next.
-    metric_name: Literal["conversion", "retention"] | None = None
+    # `conversion` keeps its byte-identical behavior; `ctr` (#276) is the
+    # on-screen click-through sibling, closest to conversion.
+    metric_name: Literal["conversion", "retention", "ctr"] | None = None
     # The metric event + its in-character phrasing. For conversion: the
     # conversion action ("complete checkout") + its label ("check out now"). For
     # retention: the post-experience moment + the "return" label. Required fields
