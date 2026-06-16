@@ -203,6 +203,9 @@ export const apiPost = <T, U>(path: string, body: T) =>
   _req<U>(path, { method: "POST", body: JSON.stringify(body) });
 export const apiPut = <T, U>(path: string, body: T) =>
   _req<U>(path, { method: "PUT", body: JSON.stringify(body) });
+// DELETE with no body — 204 No Content resolves to undefined (see _req). Throws
+// ApiError on a non-2xx (e.g. 404 when the row isn't the caller's).
+export const apiDelete = (path: string) => _req<void>(path, { method: "DELETE" });
 
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
@@ -577,6 +580,13 @@ export const createFeatureStore = (req: SnowflakeConnectionRequest) =>
 
 export const listFeatureStores = () =>
   apiGet<ConnectionSummary[]>("/feature-stores");
+
+// #327: delete a saved connection (customer-scoped server-side; 404 if it isn't
+// yours, so existence never leaks across customers). 204 on success. Existing
+// persona builds keep their records — this only removes the credential future
+// builds could reuse.
+export const deleteFeatureStore = (id: string) =>
+  apiDelete(`/feature-stores/${encodeURIComponent(id)}`);
 
 // 204 on success; throws ApiError with a structured {error_kind, message}
 // detail body on failure (400 auth/permission, 502 network/unknown).

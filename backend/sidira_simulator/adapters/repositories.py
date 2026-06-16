@@ -616,6 +616,10 @@ class FeatureStoreConnectionRepo(Protocol):
 
     async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]: ...
 
+    async def name_exists(self, customer_id: str, name: str) -> bool: ...
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool: ...
+
 
 class PostgresFeatureStoreConnectionRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -653,6 +657,33 @@ class PostgresFeatureStoreConnectionRepo:
         await _release_read_transaction(self._session)
         return result
 
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        """True if this customer already has a connection whose name matches
+        `name` case-insensitively (after trim). App-level uniqueness guard for
+        #327 — no DB unique constraint, so no Alembic migration. The compare is
+        on the trimmed lowercased name; stored values are never mutated."""
+        target = name.strip().lower()
+        stmt = select(FeatureStoreConnection.id).where(
+            FeatureStoreConnection.customer_id == customer_id,
+            func.lower(func.trim(FeatureStoreConnection.name)) == target,
+        )
+        row = (await self._session.execute(stmt)).first()
+        await _release_read_transaction(self._session)
+        return row is not None
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        """Customer-scoped delete. Returns True if a row owned by `customer_id`
+        was deleted, False if the id is unknown OR belongs to another tenant —
+        the route maps both to 404 so existence never leaks across customers
+        (#327 security requirement)."""
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        await self._session.delete(row)
+        await _commit(self._session)
+        return True
+
 
 class InMemoryFeatureStoreConnectionRepo:
     def __init__(self) -> None:
@@ -673,6 +704,26 @@ class InMemoryFeatureStoreConnectionRepo:
         rows = [r for r in self._connections.values() if r["customer_id"] == customer_id]
         rows.sort(key=lambda r: r["updated_at"], reverse=True)
         return [dict(r) for r in rows]
+
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        """Mirror of the Postgres app-level uniqueness guard (#327): case-
+        insensitive, trimmed name compare scoped to the customer. Stored values
+        are never mutated — only the comparison is normalized."""
+        target = name.strip().lower()
+        return any(
+            r["customer_id"] == customer_id and r["name"].strip().lower() == target
+            for r in self._connections.values()
+        )
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        """Customer-scoped delete (#327). Returns True on a successful owned
+        delete, False if the id is unknown or owned by another tenant — the
+        route maps False to 404 so existence never leaks across customers."""
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        del self._connections[connection_id]
+        return True
 
 
 # ──────────────────────────────────────────────────────────────────────
