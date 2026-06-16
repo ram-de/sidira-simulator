@@ -51,6 +51,7 @@ from typing import Callable, Sequence
 from sidira_simulator.schemas.benchmark import BenchmarkCase, GroundTruth
 from sidira_simulator.schemas.scoring import (
     BenchmarkBaseline,
+    BenchmarkCaseResult,
     BenchmarkRunResult,
     NullIntegrityCertificate,
 )
@@ -194,6 +195,9 @@ def run_blind_eval(
     predictions: list[float] = []
     actuals: list[float] = []
     dropped_case_ids: list[str] = []
+    # Per-case records (in input order, scored AND dropped) so a downstream
+    # reporting layer can stratify without re-running a stochastic predictor.
+    case_results: list[BenchmarkCaseResult] = []
     for case in cases:
         try:
             effect = float(predictor(case))
@@ -201,10 +205,26 @@ def run_blind_eval(
             # No silent truncation: a predictor failure drops the case but is
             # reported, never folded into the denominator as a 0.
             dropped_case_ids.append(case.case_id)
+            case_results.append(
+                BenchmarkCaseResult(
+                    case_id=case.case_id,
+                    source=case.source,
+                    observed_lift=case.ground_truth.observed_lift,
+                    dropped=True,
+                )
+            )
             continue
         scored_cases.append(case)
         predictions.append(effect)
         actuals.append(case.ground_truth.observed_lift)
+        case_results.append(
+            BenchmarkCaseResult(
+                case_id=case.case_id,
+                source=case.source,
+                observed_lift=case.ground_truth.observed_lift,
+                prediction=effect,
+            )
+        )
 
     n = len(scored_cases)
     seed_for_run = seed
@@ -217,6 +237,7 @@ def run_blind_eval(
             dropped_case_ids=dropped_case_ids,
             void=True,
             void_reason="No case produced a prediction (every case dropped).",
+            case_results=case_results,
             seed=seed_for_run,
         )
 
@@ -282,6 +303,7 @@ def run_blind_eval(
         n_cases=n,
         n_dropped=len(dropped_case_ids),
         dropped_case_ids=dropped_case_ids,
+        case_results=case_results,
         seed=seed_for_run,
     )
 
