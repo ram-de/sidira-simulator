@@ -33,13 +33,24 @@ must pressure-test it, not rubber-stamp it.
       categorical input_flags on result_json (no migration); confidence_score byte-identical
       (asserted); DESIGN.md §8.2 disclosure note + changelog 0.3.4; codex clean. NOTE: built in two
       passes — backend stalled (watchdog) then finisher completed tests+frontend+DESIGN. **Deploy still HELD.**
-- [ ] T4 (#313) — building next — **unblocks the combined deploy**
+- [x] T4 (#313) — MERGED (PR #329, squash 82b09cf) 2026-06-16. **Deploy now UNBLOCKED.**
+      Wizard structured claim fields (if/for/then/direction → prose, free-text escape hatch);
+      surfaced OEC metric bundle decoupled from A/B (clears T1 oec_undeclared block single-arm);
+      needs_input/override UI consuming the create-path 422 inline (Run-anyway-as-generic-reception
+      affordance); inline pre-submit lint via NEW additive `POST /simulations/preflight`
+      (deterministic, zero-LLM, no-persist; reuses assess_answerability + _detect_leading_framing
+      verbatim — no drift). No scoring.py change, no scalar, no migration; confidence_score
+      untouched. DESIGN.md §7.7 reused + changelog 0.3.5; codex clean (one P2 fixed). Backend
+      touched → ONE combined redeploy of #310–#313 below.
 
-## Deploy Gate (read before redeploying api.sidira.ai)
-T1's gate 422s any wizard submission with no metric / prose-only UI change, but the live
-wizard sends neither `run_as_generic_reception` nor a `needs_input` UI until T4 (#313).
-**Do NOT deploy the backend until T4 is merged** — deploy #310–#313 together in ONE manual
-redeploy at the end (no migration). The 422 payload already carries everything T4's UI needs.
+## Deploy Gate — CLEARED 2026-06-16 (T4 merged)
+All four build tickets (#310–#313) are on `main` (HEAD 82b09cf). Backend was touched across the
+chain (answerability.py, input_lint.py, simulations.py preflight route, schemas, deps) — execute
+ONE combined manual redeploy of api.sidira.ai via deploy/REDEPLOY.md. **NO migration in the whole
+chain** (runbook step 2 = normal path, SIDIRA_AUTO_MIGRATE not required). Until the redeploy lands,
+prod serves the previous build (no new routes) but is NOT broken — the live wizard simply doesn't
+emit run_as_generic_reception/preflight yet, and the old create path has no gate. The gate + wizard
+go live together on redeploy.
 
 ## Tickets (FILED 2026-06-16, ram-de)
 - Epic **#309** — Hypothesis input answerability (pre-flight gate, not a score)
