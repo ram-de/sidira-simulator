@@ -128,6 +128,20 @@ const DECISION_POLICY = {
 // exact endpoints this page already reads, exposed as inspectable JSON.
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 
+// Per-metric display labels — mirrors METRIC_LABELS in the wizard
+// (simulations/new/page.tsx). `metric_name` arrives as a free `str | null` on
+// SimulationResult (the discriminator), so an unrecognised value falls back to
+// its uppercased self rather than crashing — the #275 registry is open-ended.
+const METRIC_DISPLAY_LABELS: Record<string, string> = {
+  conversion: "Conversion",
+  retention: "Retention",
+  ctr: "CTR",
+};
+
+function metricDisplayLabel(name: string): string {
+  return METRIC_DISPLAY_LABELS[name] ?? name.toUpperCase();
+}
+
 // One accumulated point per poll tick — DESIGN.md §9.7: the trace IS the
 // progress indicator; points are event-driven (no per-point tween).
 type TracePoint = { x: number; y: number };
@@ -764,6 +778,15 @@ export default function SimulationDetailPage() {
               total={agentsTotal}
               failed={agentsFailed}
             />
+          )}
+
+          {/* Per-metric lift card (#280) — native-unit behavioral reading
+              ALONGSIDE the glass sentiment confidence above. Self-gates on
+              metric_name: renders nothing for a sentiment-only run (the
+              default), an honest empty-state when the metric was requested but
+              no paired lift could be computed. */}
+          {completeResult != null && (
+            <MetricLiftCard result={completeResult} />
           )}
 
           {/* Run log — honest event feed; the trace above is the progress
@@ -1656,6 +1679,237 @@ function LiftDegradedNotes({ result }: { result: SimulationResult }) {
             </>
           )}{" "}
           excluded from the paired-delta statistic.
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Per-metric lift card (#280) — the native-unit behavioral reading that sits
+// ALONGSIDE the glass sentiment confidence score, never replacing it.
+//
+// This is a paper RECORD, not a glass reading (§8 split): `metric_lift_pp` is a
+// derived, uncalibrated behavioral statistic — the settle-trace (§9.1) is
+// reserved for the confidence score and the sentiment paired-lift on glass, so
+// the metric lift renders static in mono tabular numerals on paper.
+//
+//   • metric_name == null  → the component is never mounted (sentiment-only
+//     run, today's default — the result page is byte-identical).
+//   • metric_lift_pp == null OR metric_lift_paired_n falsy → honest empty
+//     state (requested but uncomputable: empty arm / all elicitations failed),
+//     never a NaN/broken card.
+//   • metric_lift_relative → printed VERBATIM (§3a honesty: it carries the
+//     direction/separation phrasing + the weak-behavioral-signal caveat —
+//     never paraphrased or summarised here).
+//   • the uncalibrated qualifier is gated on !metric_lift_calibrated (#222);
+//     when the backend reports a fitted calibrator the magnitude caveat lifts.
+// ───────────────────────────────────────────────────────────────────────
+function MetricLiftCard({ result }: { result: SimulationResult }) {
+  const metricName = result.metric_name ?? null;
+  // Sentiment-only run — render nothing (no card, no layout shift).
+  if (metricName == null) return null;
+
+  const label = metricDisplayLabel(metricName);
+  const liftPp = result.metric_lift_pp ?? null;
+  const ciPp = result.metric_lift_ci_pp ?? null;
+  const pairedN = result.metric_lift_paired_n ?? null;
+  const regime = result.metric_regime ?? null;
+  const relative = result.metric_lift_relative ?? null;
+  const calibrated = result.metric_lift_calibrated === true;
+  const unblindedFallback = result.metric_lift_unblinded_fallback === true;
+  const paraphraseUnstable = result.metric_lift_paraphrase_unstable === true;
+
+  // No-lift-computable: the metric was requested but no paired delta exists
+  // (empty arm, all turn-2 elicitations failed). Honest empty state — never a
+  // NaN headline. paired_n of 0 is the same condition as a null pp.
+  const computable = liftPp != null && pairedN != null && pairedN > 0;
+
+  const sign = liftPp == null ? "" : liftPp > 0 ? "+" : liftPp < 0 ? "−" : "±";
+
+  return (
+    <section
+      style={{
+        ...cardStyle,
+        padding: "16px 18px",
+        background: TOKENS.paperElevated,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          flexWrap: "wrap",
+          marginBottom: 6,
+        }}
+      >
+        <div style={{ ...monoLabelStyle, fontSize: 11 }}>
+          {label.toUpperCase()} LIFT — NATIVE UNITS
+        </div>
+        {/* The metric-lift sits beside (not above) the sentiment confidence
+            score — the headline reading stays the glass agreement number. */}
+        <div style={{ ...monoLabelStyle, fontSize: 10, letterSpacing: 0.6 }}>
+          ALONGSIDE SENTIMENT AGREEMENT
+        </div>
+      </div>
+
+      {computable ? (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              margin: "10px 0 4px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 40,
+                fontWeight: 600,
+                lineHeight: 1,
+                color: TOKENS.ink,
+                fontFamily: FONT_MONO,
+                ...TNUM,
+              }}
+              aria-label={`${label} lift ${
+                liftPp! >= 0 ? "plus" : "minus"
+              } ${Math.abs(liftPp!).toFixed(1)} percentage points`}
+            >
+              {sign}
+              {Math.abs(liftPp!).toFixed(1)}
+            </div>
+            <div style={{ ...monoLabelStyle, fontSize: 10 }}>PP (PAIRED T−C)</div>
+          </div>
+
+          {/* CI + paired-n register — mono tabular, right of the headline pp. */}
+          <div
+            style={{
+              ...monoLabelStyle,
+              letterSpacing: 0.5,
+              lineHeight: 1.7,
+              textTransform: "none",
+              ...TNUM,
+            }}
+          >
+            {ciPp != null &&
+              `95% CI [${ciPp[0] >= 0 ? "+" : "−"}${Math.abs(ciPp[0]).toFixed(
+                1,
+              )}, ${ciPp[1] >= 0 ? "+" : "−"}${Math.abs(ciPp[1]).toFixed(
+                1,
+              )}] PP`}
+            {ciPp != null && pairedN != null && " · "}
+            {pairedN != null && `n = ${pairedN} PAIRED`}
+            {regime != null && (
+              <>
+                <br />
+                REGIME: {regime}
+              </>
+            )}
+          </div>
+
+          {/* The honesty statement — VERBATIM. It carries the direction /
+              separation phrasing + the "weak behavioral signal, read as
+              rank/direction not calibrated magnitude" caveat. Rendered as the
+              §4.3/§8.5 cautionary secondary text (ink-muted body), NOT an
+              alarming banner — a data caveat is not an error. */}
+          {relative != null && relative.trim() !== "" && (
+            <p
+              style={{
+                margin: "12px 0 0",
+                fontSize: 13,
+                color: TOKENS.inkMuted,
+                lineHeight: 1.5,
+                maxWidth: "68ch",
+              }}
+            >
+              {relative}
+            </p>
+          )}
+
+          {/* Magnitude caveat — gated on !calibrated (#222). If the backend's
+              metric_lift_relative already encodes it, this is a backstop; once
+              a fitted calibrator lands (calibrated === true) it lifts. */}
+          {!calibrated && (
+            <p
+              style={{
+                margin: "8px 0 0",
+                fontSize: 12,
+                color: TOKENS.inkMuted,
+                lineHeight: 1.5,
+                maxWidth: "68ch",
+              }}
+            >
+              Uncalibrated — read this lift as rank and direction, not as a
+              calibrated effect size. The magnitude is not yet mapped to a
+              real-world scale (calibration ledger empty).
+            </p>
+          )}
+
+          {/* Degraded-confidence warnings — §7.7 note anatomy: warn border
+              carries severity (caution, not alarm), the words carry meaning,
+              prose in ink. Co-signalled by wording + border (§7.8). */}
+          {(unblindedFallback || paraphraseUnstable) && (
+            <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+              {unblindedFallback && (
+                <div
+                  role="note"
+                  style={{
+                    fontSize: 12,
+                    color: TOKENS.ink,
+                    lineHeight: 1.5,
+                    padding: "8px 12px",
+                    background: TOKENS.paperRecessed,
+                    border: `0.75px solid ${TOKENS.warn}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <strong>Unblinded fallback.</strong> At least one treatment
+                  agent saw the unblinded prompt — the proposed change had no
+                  faithful standalone view to blind against. The lift may carry
+                  demand-characteristic bias; treat the direction as the signal.
+                </div>
+              )}
+              {paraphraseUnstable && (
+                <div
+                  role="note"
+                  style={{
+                    fontSize: 12,
+                    color: TOKENS.ink,
+                    lineHeight: 1.5,
+                    padding: "8px 12px",
+                    background: TOKENS.paperRecessed,
+                    border: `0.75px solid ${TOKENS.warn}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <strong>Paraphrase-unstable.</strong> At least one
+                  identity&rsquo;s metric propensity moved materially across the
+                  question paraphrases — its answer was wording-driven. The
+                  measured lift is sensitive to prompt phrasing.
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        // No-lift-computable empty state — requested but uncomputable.
+        <div
+          style={{
+            fontSize: 13,
+            color: TOKENS.inkMuted,
+            lineHeight: 1.5,
+            maxWidth: "68ch",
+            marginTop: 8,
+          }}
+        >
+          The {label.toLowerCase()} metric was requested, but no paired lift
+          could be computed — every agent in at least one arm was dropped (an
+          empty arm, or all turn-2 decision elicitations failed). The sentiment
+          agreement reading above is unaffected; re-run to collect a paired
+          {" "}
+          {label.toLowerCase()} delta.
         </div>
       )}
     </section>
