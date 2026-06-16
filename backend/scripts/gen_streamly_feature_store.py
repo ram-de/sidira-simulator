@@ -43,10 +43,15 @@ values used to build the live fixture on 2026-06-15:
   SNOWFLAKE_WAREHOUSE (default COMPUTE_WH)
   SNOWFLAKE_ROLE     (default ACCOUNTADMIN)
 
-Requires numpy, pandas, snowflake-connector-python (all in the backend deps).
+Requires numpy + pandas + snowflake-connector-python. NOTE these are *not* in
+the base API image deps (the API image is deliberately ML-free, #268) — run this
+from an env that has them: the persona-worker image, or the `~/.snowflake/venv`
+used for Snowflake ops. `snowflake-connector-python` is a backend dep; numpy and
+pandas ship with the worker / sidira-personas stack.
 """
 import argparse
 import os
+import re
 from datetime import date, timedelta
 
 import numpy as np
@@ -249,13 +254,23 @@ def generate(rows=DEFAULT_ROWS, seed=DEFAULT_SEED):
     return df, counts
 
 
+def _ident(name):
+    """Whitelist a SQL identifier (unquoted name) before interpolation."""
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        raise ValueError(f"unsafe SQL identifier: {name!r}")
+    return name
+
+
 def _load(df, database, schema, table):
     from snowflake.connector import connect
     from snowflake.connector.pandas_tools import write_pandas
 
+    database, schema, table = _ident(database), _ident(schema), _ident(table)
     pk_path = os.path.expanduser(
         os.environ.get("SNOWFLAKE_PRIVATE_KEY_FILE", "~/.snowflake/sidira_snowflake_key.p8")
     )
+    # Connect WITHOUT database/schema session defaults: for a brand-new target,
+    # the connector's USE-DATABASE session setup would fail before the CREATEs run.
     conn = connect(
         account=os.environ.get("SNOWFLAKE_ACCOUNT", "HWATYVV-XD01132"),
         user=os.environ.get("SNOWFLAKE_USER", "SIDIRA"),
@@ -263,15 +278,15 @@ def _load(df, database, schema, table):
         authenticator="SNOWFLAKE_JWT",
         warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
         role=os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
-        database=database,
-        schema=schema,
     )
     try:
-        conn.cursor().execute(f"CREATE DATABASE IF NOT EXISTS {database}")
-        conn.cursor().execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
+        cur = conn.cursor()
+        cur.execute(f"CREATE DATABASE IF NOT EXISTS {database}")
+        cur.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
+        cur.execute(f"USE SCHEMA {database}.{schema}")
         ok, nchunks, nrows, _ = write_pandas(
-            conn, df, table, auto_create_table=True, overwrite=True,
-            quote_identifiers=True,
+            conn, df, table, database=database, schema=schema,
+            auto_create_table=True, overwrite=True, quote_identifiers=True,
         )
         print(f"write_pandas ok={ok} chunks={nchunks} rows={nrows} -> {database}.{schema}.{table}")
     finally:
