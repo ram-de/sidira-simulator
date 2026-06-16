@@ -220,6 +220,13 @@ export default function NewPersonaPackPage() {
   // The live fingerprint of the connect form (recomputed each render).
   const fingerprint = credFingerprint(conn, sourceMode, tableFqn, sql);
   const testPassed = okFingerprint !== null && okFingerprint === fingerprint;
+  // Reusing a saved/already-minted connection (#304): a `connection` exists and
+  // the form hasn't diverged from the fingerprint that owns it. On this path the
+  // password is intentionally blank (the server holds password_enc), so the Test
+  // button must NOT require a password — Test runs against connection.id. Edit a
+  // credential field and the fingerprint diverges, flipping us back to the
+  // create path where a password is required again (handleTest re-mints).
+  const reusingSaved = connection !== null && connFingerprint === fingerprint;
 
   // The source body passed to preview/build. Table → SELECT *; SQL verbatim.
   const sourceBody = (): { table_fqn?: string | null; sql?: string | null } =>
@@ -656,6 +663,7 @@ export default function NewPersonaPackPage() {
             savedConns={savedConns}
             connsPhase={connsPhase}
             selectedConnId={connection?.id ?? null}
+            reusingSaved={reusingSaved}
             onSelectSaved={handleSelectSaved}
             onNewConnection={handleNewConnection}
             onField={setConnField}
@@ -862,6 +870,7 @@ function StepConnect({
   savedConns,
   connsPhase,
   selectedConnId,
+  reusingSaved,
   onSelectSaved,
   onNewConnection,
   onField,
@@ -880,6 +889,7 @@ function StepConnect({
   savedConns: ConnectionSummary[];
   connsPhase: "loading" | "ready" | "error";
   selectedConnId: string | null;
+  reusingSaved: boolean;
   onSelectSaved: (c: ConnectionSummary) => void;
   onNewConnection: () => void;
   onField: (k: keyof ConnForm, v: string) => void;
@@ -890,12 +900,16 @@ function StepConnect({
 }) {
   // Required credential fields must be filled before a test is meaningful;
   // schema is optional. This only enables the Test button — the real gate is
-  // a 204 from the backend.
+  // a 204 from the backend. The password is required ONLY on the create path:
+  // when reusing a saved connection (#304) it's intentionally blank — Test runs
+  // against the saved connection.id using the server's stored credential — so we
+  // drop it from the gate in that case (else Test would be permanently disabled
+  // for every reused connection).
   const credsFilled =
     conn.name.trim() &&
     conn.account.trim() &&
     conn.user.trim() &&
-    conn.password &&
+    (reusingSaved || conn.password) &&
     conn.warehouse.trim() &&
     conn.role.trim() &&
     conn.database.trim();
@@ -1001,7 +1015,16 @@ function StepConnect({
           {Field("account", "Account", "xy12345.us-east-1")}
           {Field("user", "User", "SIDIRA_READER")}
         </div>
-        <div style={fieldStyle}>{Field("password", "Password", "••••••••", "password")}</div>
+        <div style={fieldStyle}>
+          {Field(
+            "password",
+            "Password",
+            // On reuse the saved credential lives server-side — leaving the field
+            // blank is correct; type a value only to re-key/rotate the connection.
+            reusingSaved ? "kept securely — leave blank to reuse" : "••••••••",
+            "password",
+          )}
+        </div>
         <div style={{ ...fieldStyle, ...fieldRowStyle }}>
           {Field("warehouse", "Warehouse", "COMPUTE_WH")}
           {Field("role", "Role", "SIDIRA_RO")}
@@ -1014,6 +1037,9 @@ function StepConnect({
           A read-only role on a non-production warehouse is plenty — the builder
           only profiles and samples. The password is sent once to test and store
           the connection; it is never echoed back.
+          {reusingSaved
+            ? " You're reusing a saved connection, so its password stays on the server — leave the field blank and just test. Editing any field switches back to creating a new connection (password required again)."
+            : ""}
         </div>
       </section>
 
