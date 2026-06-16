@@ -22,7 +22,16 @@ The user explicitly flagged this "might be right or completely wrong" — the pa
 must pressure-test it, not rubber-stamp it.
 
 ## In Progress
-- [ ] /loop build starting at T1 (#310)
+- [x] T1 (#310) — MERGED (PR #317, squash 004cfc1) 2026-06-16. **Deploy HELD** (see Deploy Gate).
+- [ ] T2 (#311) — building next
+- [ ] T3 (#312)
+- [ ] T4 (#313) — unblocks the deploy
+
+## Deploy Gate (read before redeploying api.sidira.ai)
+T1's gate 422s any wizard submission with no metric / prose-only UI change, but the live
+wizard sends neither `run_as_generic_reception` nor a `needs_input` UI until T4 (#313).
+**Do NOT deploy the backend until T4 is merged** — deploy #310–#313 together in ONE manual
+redeploy at the end (no migration). The 422 payload already carries everything T4's UI needs.
 
 ## Tickets (FILED 2026-06-16, ram-de)
 - Epic **#309** — Hypothesis input answerability (pre-flight gate, not a score)
