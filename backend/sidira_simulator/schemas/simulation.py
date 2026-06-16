@@ -450,10 +450,16 @@ class SimulationResult(BaseModel):
     # propensity; positive sentiment lift = better-received. Until the metric is
     # calibrated (#222), TRUST SENTIMENT for harm when the two disagree.
     metric_sentiment_disagreement: bool = False
-    # The PM-facing explanation of the disagreement (the actual metric pp + CI and
-    # sentiment lift + CI, and the trust-sentiment-for-harm guidance). None when
-    # there is no disagreement. On HARM-MISREAD a `hidden_guardrail_risk` Weakness
-    # is also appended to `weaknesses`; HIDDEN-IMPROVEMENT sets the caveat only.
+    # The explanation of the disagreement (the actual metric pp + CI and sentiment
+    # lift + CI, and the trust-sentiment-for-harm guidance). None when there is no
+    # disagreement. SURFACING: on HARM-MISREAD — the dangerous case, the whole
+    # motivation — a `hidden_guardrail_risk` Weakness is ALSO appended to
+    # `weaknesses`, which the result page already renders, so the harm path is
+    # PM-visible today. HIDDEN-IMPROVEMENT (the symmetric, non-risk case) sets the
+    # caveat ONLY and appends no weakness; like the `metric_lift_*` honesty flags
+    # it rides the result JSON blob and is not yet wired into a dedicated frontend
+    # card (a follow-up can render it on the metric panel — no schema change
+    # needed, the field is already here).
     metric_sentiment_disagreement_caveat: str | None = None
 
 
