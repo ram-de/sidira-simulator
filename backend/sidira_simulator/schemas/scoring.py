@@ -11,8 +11,9 @@ we reuse them here so the scorer's output flows directly into `SimulationResult`
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sidira_simulator.schemas.simulation import Weakness
 
@@ -342,6 +343,121 @@ class NullIntegrityCertificate(BaseModel):
             "actuals, n_permutations, seed, n_experiments). Lets a certificate be "
             "pre-registered and not retrofitted — any input/config change moves it."
         )
+    )
+
+
+# ── Blind-eval benchmark result (ablation-protocol §4 / §5, ticket #222) ──
+
+
+class BenchmarkBaseline(BaseModel):
+    """Direction-accuracy + rank-ρ of a trivial no-information predictor.
+
+    Printed alongside the engine's score so a gain is read against the real
+    floor, not zero (ablation-protocol §4 line 72). Two are reported:
+
+    * the ALWAYS-FLAT baseline — predict 0 effect for every experiment, the
+      "nothing moves" null. Its direction-accuracy is the share of experiments
+      whose actual effect is itself flat (sign 0); its rank-ρ is 0.0 (a constant
+      prediction has no rank variation).
+    * the RANDOM-RANK baseline — the marginal-expected score under a random
+      relabeling of the actuals, the same closed-form chance baseline the
+      null-integrity certificate brackets. Its rank-ρ is 0.0 in expectation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Literal["always_flat", "random_rank"]
+    direction_accuracy: float = Field(ge=0.0, le=1.0)
+    rank_rho: float = Field(ge=-1.0, le=1.0)
+
+
+class BenchmarkRunResult(BaseModel):
+    """Scored blind-eval of a predictor over a set of adapter-produced cases.
+
+    The PRIMARY endpoint is `rank_rho` (ablation-protocol §5 line 79): the
+    magnitude stays directional/relative pre-calibration (the #221 shrinkage
+    layer is still identity), so `direction_accuracy` and `rank_rho` are the
+    trustworthy reads and an effect size is never presented as calibrated truth.
+
+    Honesty (no silent truncation): `n_cases` is the count actually scored;
+    `n_dropped` + `dropped_case_ids` surface every case the predictor failed on
+    or that carried no scorable label, so a partial run reads honestly rather
+    than as a silently shrunken denominator.
+
+    `certificate` is the null-integrity gate (§4). If it does NOT pass
+    (`certificate.passed is False`), `void` is True and the run is reported as
+    void — the scores are leakage-suspect and must not be trusted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # ── Primary + secondary scores ──
+    rank_rho: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+        description="PRIMARY endpoint (§5): Spearman rank-ρ of predicted vs observed effect.",
+    )
+    direction_accuracy: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of cases where sign(predicted) == sign(observed).",
+    )
+
+    # ── Paired-across-cases bootstrap CI on per-case direction deltas (§4 l.69) ──
+    direction_delta_vs_flat: float | None = Field(
+        default=None,
+        description=(
+            "Mean per-case (engine-correct − always-flat-correct) indicator, the "
+            "paired direction-accuracy gain over the flat baseline."
+        ),
+    )
+    direction_delta_ci: tuple[float, float] | None = Field(
+        default=None,
+        description=(
+            "Paired percentile-bootstrap CI on the per-case direction-delta vs the "
+            "always-flat baseline (ablation-protocol §4 line 69). None when the "
+            "bootstrap is skipped or the run is degenerate."
+        ),
+    )
+
+    # ── Baselines (the real floor — §4 line 72) ──
+    baselines: list[BenchmarkBaseline] = Field(default_factory=list)
+
+    # ── Null-integrity gate (§4) ──
+    certificate: NullIntegrityCertificate | None = Field(
+        default=None,
+        description="The shipped null-integrity certificate. None only on an empty run.",
+    )
+    void: bool = Field(
+        default=False,
+        description=(
+            "True when the run is VOID — the null-integrity certificate did not "
+            "PASS, so the scores are leakage-suspect and must not be trusted (§4)."
+        ),
+    )
+    void_reason: str | None = Field(
+        default=None,
+        description="Why the run is void (mirrors certificate.void_reason / caveat).",
+    )
+
+    # ── Honesty: denominator transparency ──
+    n_cases: int = Field(
+        ge=0, description="Cases actually scored (predictor succeeded, label present)."
+    )
+    n_dropped: int = Field(
+        default=0,
+        ge=0,
+        description="Cases dropped (predictor failed or no scorable label). Never silently truncated.",
+    )
+    dropped_case_ids: list[str] = Field(
+        default_factory=list,
+        description="Case ids that were dropped, with no silent omission from the denominator.",
+    )
+
+    seed: int = Field(
+        description="Seed driving the bootstrap + null permutation RNGs (reproducible)."
     )
 
 
