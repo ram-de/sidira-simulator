@@ -195,10 +195,98 @@ def _retention_aggregator(*args, **kwargs) -> MetricLiftResult:
     return aggregate_retention_lift(*args, **kwargs)
 
 
+# ── CTR (#276) ──────────────────────────────────────────────────────────────
+
+
+def _ctr_target_terms(hypothesis: Hypothesis) -> set[str]:
+    # CTR's target is the "click" label naming the SPECIFIC element under test. The
+    # PM may name it via conversion_action_label (the generic metric label field)
+    # or rely on the registry default ("click it"). Filter that label out of the
+    # grounded alternatives so the elicitor — which always PREPENDS the canonical
+    # click label — never offers the same target element twice (which would split
+    # p_metric across an uncounted twin and understate CTR; codex P2). This mirrors
+    # conversion exactly (which filters its conversion_action / _label): the PM
+    # identifies the TARGET element; OTHER clickable actions reachable at the same
+    # decision point ("tap search", "open menu") are LEGITIMATE competing-click
+    # alternatives and are intentionally NOT filtered, so they keep their share of
+    # the allocation and CTR is not inflated (codex P2). To filter a grounded
+    # target trigger that differs from the display label, the PM names it via
+    # conversion_action_label, exactly as a conversion PM names conversion_action.
+    from sidira_simulator.services.ctr_elicitor import CTR_CLICK_LABEL
+
+    terms = {
+        (hypothesis.conversion_action_label or "").strip().lower(),
+        CTR_CLICK_LABEL.lower(),
+    }
+    terms.discard("")
+    return terms
+
+
+def _ctr_click_label(hypothesis: Hypothesis) -> str:
+    from sidira_simulator.services.ctr_elicitor import CTR_CLICK_LABEL
+
+    label = (hypothesis.conversion_action_label or "").strip()
+    return label or CTR_CLICK_LABEL
+
+
+def _ctr_elicit(
+    chat_client,
+    *,
+    system_prompt: str,
+    hypothesis: Hypothesis,
+    capability: Capability,
+    choice_set: Sequence[str] | None,
+    paraphrases: int,
+    timeout_scale_count: int,
+) -> tuple[float, bool]:
+    from sidira_simulator.services.ctr_elicitor import elicit_ctr_ensemble
+
+    ensemble = elicit_ctr_ensemble(
+        chat_client,
+        system_prompt=system_prompt,
+        capability_name=capability.name,
+        click_label=_ctr_click_label(hypothesis),
+        decision_point=hypothesis.decision_point or "",
+        choice_set=choice_set,
+        paraphrases=paraphrases,
+    )
+    return ensemble.mean_p_ctr, ensemble.paraphrase_unstable
+
+
+def _ctr_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
+    from sidira_simulator.services.scoring import CTR_REGIME_STRONG, metric_lift_honesty
+
+    return metric_lift_honesty(
+        lift_result,
+        regime_label=CTR_REGIME_STRONG,
+        verb_higher="clicks through directionally higher than control",
+        verb_lower="clicks through directionally lower than control",
+        verb_same="click through at the same directional rate",
+        weak_signal_noun="Synthetic CTR",
+        # CTR is a STRONG regime (§5), so it must NOT inherit the weak-behavioral
+        # caveat wording — but its magnitude is still uncalibrated pre-#222, so the
+        # read-as-rank/direction caveat stays (codex P2).
+        signal_strength_clause=(
+            "is a strong behavioral signal whose magnitude is not yet calibrated"
+        ),
+        propensity_noun="click-through propensity",
+    )
+
+
+def _ctr_aggregator(*args, **kwargs) -> MetricLiftResult:
+    from sidira_simulator.services.scoring import aggregate_ctr_lift
+
+    return aggregate_ctr_lift(*args, **kwargs)
+
+
 def _build_registry() -> dict[str, MetricDescriptor]:
     # Imported lazily inside the descriptor closures above to avoid an import
     # cycle (scoring ← registry ← scoring). Built once at module import.
     from sidira_simulator.services.conversion_elicitor import CONVERSION_PARAPHRASE_COUNT
+    from sidira_simulator.services.ctr_elicitor import (
+        CTR_PARAPHRASE_COUNT,
+        DEFAULT_CTR_CHOICE_SET,
+    )
     from sidira_simulator.services.retention_elicitor import (
         DEFAULT_RETENTION_CHOICE_SET,
         RETENTION_PARAPHRASE_COUNT,
@@ -234,6 +322,23 @@ def _build_registry() -> dict[str, MetricDescriptor]:
             calibrator_resolver=lambda: resolve_metric_calibrator("retention"),
             target_terms=_retention_target_terms,
             paraphrase_count=RETENTION_PARAPHRASE_COUNT,
+        ),
+        "ctr": MetricDescriptor(
+            name="ctr",
+            # CTR is the closest sibling to conversion: a binary on-screen click,
+            # immediate, no temporal framing. Like retention it reuses the generic
+            # label field (conversion_action_label) for the click label, but it is
+            # OPTIONAL (the registry default "click it" applies when absent). The
+            # only hard requirement is decision_point — the on-screen moment the
+            # rendered element sits at (#276).
+            required_template_fields=("decision_point",),
+            default_choice_set=DEFAULT_CTR_CHOICE_SET,
+            aggregator=_ctr_aggregator,
+            honesty=_ctr_honesty,
+            elicit=_ctr_elicit,
+            calibrator_resolver=lambda: resolve_metric_calibrator("ctr"),
+            target_terms=_ctr_target_terms,
+            paraphrase_count=CTR_PARAPHRASE_COUNT,
         ),
     }
 

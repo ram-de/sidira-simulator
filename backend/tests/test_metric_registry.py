@@ -24,13 +24,15 @@ from sidira_simulator.services.metric_registry import (
     is_registered,
     required_template_fields,
 )
+from sidira_simulator.services.ctr_elicitor import DEFAULT_CTR_CHOICE_SET
 from sidira_simulator.services.retention_elicitor import DEFAULT_RETENTION_CHOICE_SET
 
 
-def test_both_metrics_registered() -> None:
+def test_all_metrics_registered() -> None:
     assert is_registered("conversion")
     assert is_registered("retention")
-    assert not is_registered("ctr")  # #276-next, not yet registered
+    assert is_registered("ctr")  # #276
+    assert not is_registered("dwell_time")  # not yet registered
     assert not is_registered(None)
 
 
@@ -38,14 +40,14 @@ def test_get_metric_unknown_raises_loud() -> None:
     """A registered-but-unknown name (Literal/registry drift) must raise, never
     silently degrade to sentiment."""
     with pytest.raises(KeyError, match="unknown metric_name"):
-        get_metric("ctr")
+        get_metric("dwell_time")
 
 
 def test_hypothesis_rejects_unregistered_metric_at_construction() -> None:
     """The closed Literal is the first line of defense — an unknown metric never
     even reaches the registry."""
     with pytest.raises(ValidationError):
-        Hypothesis(capability_name="x", prose="y", metric_name="ctr")
+        Hypothesis(capability_name="x", prose="y", metric_name="dwell_time")
 
 
 def test_required_template_fields_drive_validator() -> None:
@@ -55,11 +57,12 @@ def test_required_template_fields_drive_validator() -> None:
         "decision_point",
     )
     assert required_template_fields("retention") == ("decision_point",)
+    assert required_template_fields("ctr") == ("decision_point",)
 
 
 def test_required_template_fields_unknown_raises() -> None:
     with pytest.raises(KeyError):
-        required_template_fields("ctr")
+        required_template_fields("dwell_time")
 
 
 def test_conversion_descriptor_wiring() -> None:
@@ -81,6 +84,28 @@ def test_retention_descriptor_wiring() -> None:
     _regime, relative = d.honesty(MetricLiftResult(lift_pp=5.0, paired_n=3))
     assert "retains directionally higher" in relative
     assert isinstance(d.calibrator_resolver(), IdentityCalibrator)
+
+
+def test_ctr_descriptor_wiring() -> None:
+    d = get_metric("ctr")
+    assert d.name == "ctr"
+    assert d.default_choice_set == DEFAULT_CTR_CHOICE_SET
+    assert d.paraphrase_count == 3
+    _regime, relative = d.honesty(MetricLiftResult(lift_pp=5.0, paired_n=3))
+    assert "clicks through directionally higher" in relative
+    assert isinstance(d.calibrator_resolver(), IdentityCalibrator)
+
+
+def test_ctr_regime_is_strong_behavioral() -> None:
+    """CTR sits in the §5 STRONG behavioral regime (rendered click correlates with
+    the real outcome far better than the conversion/retention modality cliff), so
+    its regime label differs from the weak-behavioral siblings."""
+    d = get_metric("ctr")
+    regime, _relative = d.honesty(MetricLiftResult(lift_pp=5.0, paired_n=3))
+    assert regime == "strong_behavioral"
+    # the weak-behavioral siblings keep their own label, unperturbed
+    assert get_metric("conversion").honesty(MetricLiftResult())[0] == "weak_behavioral"
+    assert get_metric("retention").honesty(MetricLiftResult())[0] == "weak_behavioral"
 
 
 def test_conversion_target_terms_filters_action_and_label() -> None:
@@ -108,3 +133,31 @@ def test_retention_target_terms_includes_default_return_label() -> None:
     )
     terms = d.target_terms(h)
     assert "return next week" in terms
+
+
+def test_ctr_target_terms_includes_default_click_label() -> None:
+    d = get_metric("ctr")
+    h = Hypothesis(
+        capability_name="feed",
+        prose="x",
+        metric_name="ctr",
+        decision_point="the banner is on your home feed",
+    )
+    terms = d.target_terms(h)
+    assert "click it" in terms
+
+
+def test_ctr_target_terms_includes_pm_supplied_label() -> None:
+    d = get_metric("ctr")
+    h = Hypothesis(
+        capability_name="feed",
+        prose="x",
+        metric_name="ctr",
+        conversion_action_label="tap the banner",
+        decision_point="the banner is on your home feed",
+    )
+    terms = d.target_terms(h)
+    assert "tap the banner" in terms
+    # the registry default is still filtered too, so a grounded alternative equal
+    # to the canonical click label never becomes a second click-like option.
+    assert "click it" in terms
