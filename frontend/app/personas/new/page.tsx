@@ -291,6 +291,12 @@ export default function NewPersonaPackPage() {
   // fetches the list and the row's status line updates without leaving the
   // picker or selecting the connection.
   const [testingRowId, setTestingRowId] = useState<string | null>(null);
+  // Per-row test failure surfaced ONLY as a fallback (#328): normally a failed
+  // row-test is shown by the refreshed status line (FAILED · KIND), since the
+  // server persists the outcome. But that persistence is best-effort and the
+  // refresh can fail — if the refreshed row doesn't reflect the failure, we keep
+  // the caught error here so the verdict is never silently swallowed. Keyed by id.
+  const [rowTestError, setRowTestError] = useState<{ id: string; message: string } | null>(null);
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -546,21 +552,35 @@ export default function NewPersonaPackPage() {
   // wizard's own 03 · Test step (which keeps its existing testError banner).
   const handleTestRow = async (id: string) => {
     setTestingRowId(id);
+    setRowTestError(null);
+    // Capture the connectivity verdict locally so it's never lost: normally the
+    // refreshed status line carries it, but if persistence/refresh fails we fall
+    // back to surfacing this error inline (the row must never silently swallow a
+    // failed test — the prior masking gap).
+    let caught: string | null = null;
     try {
       await testFeatureStore(id); // 204 on success, throws on failure
-    } catch {
-      // Swallow: the outcome is persisted server-side and shown via the row's
-      // refreshed status line below. (apiErrorParts isn't needed here.)
-    } finally {
-      try {
-        const rows = await listFeatureStores();
-        setSavedConns(rows);
-      } catch {
-        // A failed refresh leaves the prior status line in place — the wizard
-        // is never blocked by it (mirrors the mount-load graceful fallback).
-      }
-      setTestingRowId(null);
+    } catch (e) {
+      caught = apiErrorMessage(e);
     }
+    let refreshed: ConnectionSummary[] | null = null;
+    try {
+      refreshed = await listFeatureStores();
+      setSavedConns(refreshed);
+    } catch {
+      // A failed refresh leaves the prior status line in place — the wizard is
+      // never blocked by it (mirrors the mount-load graceful fallback).
+    }
+    // Only surface the inline fallback error when the test failed AND the
+    // refreshed row does NOT already show it as FAILED (i.e. persistence or the
+    // refresh dropped the verdict). On a clean path the status line is enough.
+    if (caught) {
+      const fresh = refreshed?.find((r) => r.id === id);
+      if (!fresh || fresh.last_test_status !== "failed") {
+        setRowTestError({ id, message: caught });
+      }
+    }
+    setTestingRowId(null);
   };
 
   const handleTest = async () => {
@@ -935,6 +955,7 @@ export default function NewPersonaPackPage() {
             deletingId={deletingId}
             deleteError={deleteError}
             testingRowId={testingRowId}
+            rowTestError={rowTestError}
             onTestRow={handleTestRow}
             onSelectSaved={handleSelectSaved}
             onNewConnection={handleNewConnection}
@@ -1160,6 +1181,7 @@ function StepConnect({
   deletingId,
   deleteError,
   testingRowId,
+  rowTestError,
   onTestRow,
   onSelectSaved,
   onNewConnection,
@@ -1189,6 +1211,7 @@ function StepConnect({
   deletingId: string | null;
   deleteError: { id: string; message: string } | null;
   testingRowId: string | null;
+  rowTestError: { id: string; message: string } | null;
   onTestRow: (id: string) => void;
   onSelectSaved: (c: ConnectionSummary) => void;
   onNewConnection: () => void;
@@ -1332,6 +1355,7 @@ function StepConnect({
                 deleting={deletingId === c.id}
                 deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
                 testing={testingRowId === c.id}
+                testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
                 onSelect={() => onSelectSaved(c)}
                 onTest={() => onTestRow(c.id)}
                 onRequestDelete={() => onRequestDelete(c.id)}
@@ -1489,6 +1513,7 @@ function SavedConnectionRow({
   deleting,
   deleteError,
   testing,
+  testError,
   onSelect,
   onTest,
   onRequestDelete,
@@ -1502,6 +1527,7 @@ function SavedConnectionRow({
   deleting: boolean;
   deleteError: string | null;
   testing: boolean;
+  testError: string | null;
   onSelect: () => void;
   onTest: () => void;
   onRequestDelete: () => void;
@@ -1632,6 +1658,15 @@ function SavedConnectionRow({
             status reads in WORDS (OK · TESTED … / FAILED · AUTH / UNTESTED);
             meaning never rides on color or a dot (§4.3/§10). */}
         <div style={{ ...railCaptionStyle, textTransform: "uppercase" }}>{healthLine}</div>
+        {/* Fallback verdict (#328): only shown when a row-test failed but the
+            persisted/refreshed status line didn't pick it up (best-effort
+            persistence or a failed refresh) — so the verdict is never silently
+            lost. Honest text, ink (no color-coded fill). */}
+        {testError && (
+          <div style={{ ...railCaptionStyle, color: TOKENS.ink }}>
+            TEST FAILED · {testError.toUpperCase()}
+          </div>
+        )}
       </button>
       {/* Row actions: a quiet in-place TEST (re-runs the connectivity test and
           refreshes this row's status without selecting it), then Delete. Both
