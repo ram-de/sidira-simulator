@@ -20,13 +20,14 @@ from sidira_simulator.api.deps import (
 )
 from sidira_simulator.schemas.simulation import (
     ArmSplit,
+    Hypothesis,
     Simulation,
     SimulationRequest,
     SimulationResult,
     SimulationStatus,
 )
 from sidira_simulator.services.answerability import assess_answerability
-from sidira_simulator.services.input_lint import assess_input_lint
+from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
@@ -38,6 +39,51 @@ class CreateSimulationResponse(BaseModel):
     id: str
     status: SimulationStatus
     poll_url: str
+
+
+class PreflightRequest(BaseModel):
+    """Lightweight authoring-time pre-flight check (epic #309, T4 / #313).
+
+    Carries just the `Hypothesis` the wizard is composing — no population,
+    personas, model, or arm config — because the pre-flight verdict depends
+    only on the hypothesis surface. `run_as_generic_reception` mirrors the
+    POST /simulations override so the wizard can preview "would this still
+    block if I run as generic-reception?" without resubmitting the real run.
+    """
+
+    hypothesis: Hypothesis
+    run_as_generic_reception: bool = False
+
+
+class PreflightResponse(BaseModel):
+    """The deterministic, zero-LLM pre-flight verdict (T4 / #313).
+
+    A read-only mirror of the SAME `assess_answerability` (T1) verdict the
+    POST path routes on, plus the SEPARABLE deterministic leading-framing
+    lint (`input_lint._detect_leading_framing`). It lets the wizard catch
+    `needs_input` / `out_of_scope` / leading-framing AT THE KEYBOARD, before
+    submit, so the PM never hits the POST 422 cold.
+
+    Crucially it does NOT run the simulation, does NOT spend an LLM token, and
+    does NOT call the T3 LLM judge (`assess_input_lint`) — only the two cheap
+    deterministic checks. It carries NO number and never touches
+    `confidence_score` (panel hard constraint): it ROUTES, exactly like T1.
+
+    `state` / `reasons` / `fixes` / `reason_codes` / `allow_override` are the
+    `AnswerabilityVerdict` verbatim; `override_field` matches the POST 422
+    payload so the wizard reuses one override affordance. `leading_framing_*`
+    carry the deterministic framing lint (advisory, NOT a block — the T3 LLM
+    judge that finalizes amber/red runs at submit time, never here).
+    """
+
+    state: str
+    reasons: list[str]
+    fixes: list[str]
+    reason_codes: list[str]
+    allow_override: bool
+    override_field: str = "run_as_generic_reception"
+    leading_framing_reasons: list[str]
+    leading_framing_fixes: list[str]
 
 
 class SimulationListItem(BaseModel):
@@ -78,6 +124,43 @@ async def list_simulations(
             )
         )
     return items
+
+
+@router.post("/preflight", response_model=PreflightResponse)
+async def preflight_simulation(
+    payload: PreflightRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> PreflightResponse:
+    """Authoring-time pre-flight check (epic #309, T4 / #313).
+
+    Deterministic, zero-LLM, synchronous. Runs the SAME `assess_answerability`
+    (T1) gate the POST path routes on, plus the SEPARABLE deterministic
+    leading-framing lint, and returns the verdict WITHOUT persisting or running
+    a simulation and WITHOUT calling the T3 LLM judge. The wizard calls this
+    live as the PM authors so `needs_input` / `out_of_scope` / leading framing
+    are caught at the keyboard, not at the POST 422.
+
+    It reuses `assess_answerability` and `_detect_leading_framing` VERBATIM — no
+    forked vocabulary — so the preview can never drift from the POST gate. It
+    ROUTES on a categorical verdict and never touches `confidence_score` (panel
+    hard constraint). Auth-gated like every route so it can't be probed
+    anonymously, but it reads nothing customer-specific (the verdict depends
+    only on the supplied hypothesis).
+    """
+    verdict = assess_answerability(
+        payload.hypothesis,
+        allow_generic_reception=payload.run_as_generic_reception,
+    )
+    framing_reasons, framing_fixes = _detect_leading_framing(payload.hypothesis.prose)
+    return PreflightResponse(
+        state=verdict.state,
+        reasons=verdict.reasons,
+        fixes=verdict.fixes,
+        reason_codes=verdict.reason_codes,
+        allow_override=verdict.allow_override,
+        leading_framing_reasons=framing_reasons,
+        leading_framing_fixes=framing_fixes,
+    )
 
 
 @router.post(

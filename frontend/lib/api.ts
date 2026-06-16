@@ -337,6 +337,62 @@ export const listCrawls = () => apiGet<CrawlSummary[]>("/crawls");
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);
 
+// ── #313 / T4: deterministic pre-flight answerability preview ────────────────
+// Mirrors the POST /simulations needs_input 422 payload so the wizard reuses a
+// single override affordance. The verdict is the SAME `assess_answerability`
+// (T1) gate the POST path routes on, plus the separable deterministic
+// leading-framing lint — zero-LLM, never runs the simulation, never touches
+// confidence_score. Inline type (same codegen caveat as CreateSimulationResponse:
+// the checked-in api-types.ts predates this route).
+export type AnswerabilityState = "answerable" | "needs_input" | "out_of_scope";
+
+export interface PreflightRequest {
+  hypothesis: Hypothesis;
+  run_as_generic_reception?: boolean;
+}
+
+export interface PreflightResponse {
+  state: AnswerabilityState;
+  reasons: string[];
+  fixes: string[];
+  reason_codes: string[];
+  allow_override: boolean;
+  override_field: string;
+  leading_framing_reasons: string[];
+  leading_framing_fixes: string[];
+}
+
+export const preflightSimulation = (req: PreflightRequest) =>
+  apiPost<PreflightRequest, PreflightResponse>("/simulations/preflight", req);
+
+// The structured shape of the POST /simulations needs_input 422 detail body
+// (T1). `createSimulation` throws an ApiError whose `.body` is the JSON; the
+// wizard parses it through this type to render reasons/fixes + the override.
+export interface NeedsInputDetail {
+  error: "needs_input";
+  reasons: string[];
+  fixes: string[];
+  reason_codes: string[];
+  allow_override: boolean;
+  override_field: string;
+}
+
+// Best-effort parse of an ApiError body into the needs_input detail. Returns
+// null when the body isn't the needs_input shape (e.g. a 409/400), so the
+// caller falls back to the generic error banner.
+export function parseNeedsInput(body: string): NeedsInputDetail | null {
+  try {
+    const parsed = JSON.parse(body);
+    const detail = parsed?.detail ?? parsed;
+    if (detail && detail.error === "needs_input") {
+      return detail as NeedsInputDetail;
+    }
+  } catch {
+    // not JSON — fall through
+  }
+  return null;
+}
+
 export interface SimulationListItem {
   id: string;
   status: SimulationStatus;
