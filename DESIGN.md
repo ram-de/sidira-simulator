@@ -625,6 +625,20 @@ The law: a chip is **never filled with a semantic tone** — the tone lives in
 the text (and, on the register's `alert` states, the border); the polarity
 lives in the words (§4.3: color never carries state alone).
 
+**Disclosure notes (degrade-and-disclose).** A run may carry a non-verdict
+disclosure alongside its reading — a disclosed limitation of the *input*, not a
+judgment of the change. The shipped case is the T3 pre-flight input lint (epic
+#309, `#312`): when the hypothesis prose is vague / leading, or the pre-flight
+verdict was paraphrase-unstable, the run still produces its normal verdict and an
+**input-lint note** sits beside it (`input_flags` on `SimulationResult`). It uses
+the same §7.7 note anatomy as the §8.2 instrument-scope note — `0.75px` `rule`
+border, `paper-recessed` fill, message in `ink`, no semantic fill, no pill/icon —
+because it is a data caution, not an alarm. Unlike the `out_of_scope` abstention,
+it does **not** change the verdict label (the verdict is computed and shown
+normally); for the `abstain` state the note header reads "indeterminate — please
+clarify." Disclosure notes never recolor the verdict chip and never discount
+`confidence_score` (panel hard constraint: the lint routes, it does not score).
+
 ### 8.3 Honest numbers
 
 - The headline number is labeled for what it is. MVP:
@@ -862,6 +876,7 @@ table above.
 | 2026-06-12 | 0.3.1 | **Deviation close** (#197). The three v0.3 known-deviation notes resolved in lockstep with the code: §7.8 focus ring shipped as the app's one global element-selector rule (scoped `<style>` in `frontend/app/layout.tsx`; `--focus-ring` is the override mechanism for glass — no glass surface has a focusable element yet) · §7.7 wizard validation now matches the law (banner message in `ink`; field-level persona error gets the full note anatomy; both carry `role="alert"`) — note removed · §7.8 keyboard deviation note **corrected, not fixed**: the register row's hypothesis cell already carried a real `<Link>` (`simulations/page.tsx`), so the `tr onClick` was always progressive enhancement; the spec now states that pattern as law. |
 | 2026-06-12 | 0.3.2 | **§4.3 compliance sweep** (#199; no spec change — the law already stood). Every `alert`-as-body-text site outside the wizard converted to the §7.7 note anatomy: message in `ink`, severity on a `0.75px` `alert` border, `role="alert"` on dynamically-injected errors (18 sites across the agent chat, persona library, crawl setup, register, simulation detail, persona-group chat, and sample-workspace card). ThumbsControl's `(failed)` label — sans, so not a sanctioned mono designator — reads in `ink-muted` (visual-only; the #170 flag/onSet freeze untouched). Inline error notes unified on radius 2; full-page error cards stay radius 4 (they are cards). Chips, verdict designators, score numerals, status dots, and alert borders verified legitimate and unchanged. |
 | 2026-06-16 | 0.3.3 | **Abstention verdict** (epic #309 T2, `#311`). §8.2 adds the fourth verdict state `NOT ANSWERABLE BY THIS INSTRUMENT` to the MVP + calibrated lexicons and the verdict→token map (`ink-muted` — a measurement-scope condition, not `warn`/`alert`). When the deterministic answerability gate classifies the OEC as `out_of_scope` (long-horizon / network / novelty-decay), `verdictFor()` WITHHOLDS the ship/no-ship verdict as its outermost branch (precedes the `underpowered_design` flip and the numeric path); the score is still computed and `confidence_score` is never discounted (panel hard constraint). The withheld verdict carries its inspectable named reasons in a hairline-`rule` §7.7 note (message in `ink`, no semantic fill). No new colors/pills/icons. |
+| 2026-06-16 | 0.3.4 | **Input-lint disclosure surface** (epic #309 T3, `#312`). §8.2 codifies the degrade-and-disclose **disclosure note** as a sanctioned pattern: a non-verdict caution about the *input* (vague / leading prose, or a paraphrase-unstable pre-flight verdict) carried on `input_flags` and rendered beside the normal reading on the simulation detail page. It REUSES the §7.7 note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, message in `ink`, no semantic fill, no pill/icon — because it is a data caution, not an alarm. Unlike the 0.3.3 `out_of_scope` abstention it does **not** change the verdict label (the verdict is computed and shown normally); for the `abstain` state the note header reads "indeterminate — please clarify." No new colors/pills/icons; the lint routes and never discounts `confidence_score` (panel hard constraint). |
 
 ---
 
