@@ -420,21 +420,34 @@ export default function NewSimulationPage() {
     // #279: assemble the optional per-metric outcome elicitation block. When no
     // metric is selected, `metricFields` is empty and the hypothesis payload is
     // byte-identical to a pre-#279 request (no metric_name key). Each metric
-    // only sends its registry-required fields plus the optional choice_set; the
-    // choice set is one alternative per non-empty line (empty → the metric's
-    // registry default applies server-side).
-    const metricFields: Partial<Hypothesis> = effectiveMetric
-      ? {
-          metric_name: effectiveMetric,
-          conversion_action: conversionAction.trim() || null,
-          conversion_action_label: conversionActionLabel.trim() || null,
-          decision_point: decisionPoint.trim() || null,
-          choice_set: choiceSetText
-            .split("\n")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0),
-        }
-      : {};
+    // sends ONLY the fields it actually uses — the registry-required template
+    // fields plus any provided optional label and the optional choice_set:
+    //   - conversion → conversion_action + conversion_action_label + decision_point
+    //   - retention / ctr → decision_point (+ the reused conversion_action_label
+    //     ONLY when the PM filled it; blank → the registry default applies
+    //     server-side, so we omit the key rather than send null).
+    // conversion_action is conversion-only, so retention/ctr never carry it.
+    // choice_set is one alternative per non-empty line (empty → registry default).
+    let metricFields: Partial<Hypothesis> = {};
+    if (effectiveMetric) {
+      const choiceSet = choiceSetText
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      metricFields = {
+        metric_name: effectiveMetric,
+        decision_point: decisionPoint.trim(),
+        choice_set: choiceSet,
+      };
+      if (effectiveMetric === "conversion") {
+        metricFields.conversion_action = conversionAction.trim();
+        metricFields.conversion_action_label = conversionActionLabel.trim();
+      } else if (conversionActionLabel.trim()) {
+        // retention / ctr: the reused label field is OPTIONAL — only send it
+        // when the PM named one (blank → registry default return/click label).
+        metricFields.conversion_action_label = conversionActionLabel.trim();
+      }
+    }
 
     const req: SimulationRequest = {
       hypothesis: {
