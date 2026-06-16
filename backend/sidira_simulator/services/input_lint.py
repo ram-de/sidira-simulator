@@ -1,4 +1,12 @@
-"""Pre-flight ordinal input lint (epic #309, ticket #312 / T3).
+"""Pre-flight ordinal input lint (epic #309, ticket #312 / T3; #338 / T7).
+
+T7 (#338) EXTENDS this judge with a **coherence pass**: it flags fields that are
+PRESENT but too weak to be useful (cohort = "all users" → `wrong_cohort`; a
+declared metric mismatched to the change → `wrong_metric`; a circular,
+non-mechanistic "mechanism" → `broken_mechanism`; vague-but-present prose →
+`untestable_hypothesis`). The detection is FOLDED INTO the same single judge call
+and rubric (no new LLM round-trip, no new vocabulary), maps onto the existing
+`_VALID_CATEGORIES`, and surfaces through the EXISTING amber `input_flags` path.
 
 A pre-flight quality lint over the hypothesis prose that ROUTES — it never
 produces a number and never touches `confidence_score` (panel hard constraint,
@@ -172,7 +180,8 @@ the change will succeed.
 Return an ORDINAL verdict, never a number:
 - "green": the prose names a specific change and yields a falsifiable prediction.
 - "amber": the prose is workable but vague on one axis (metric, cohort, or
-  mechanism under-specified).
+  mechanism under-specified), OR it FILLS IN a field with a value too weak to be
+  useful (a coherence failure — see below).
 - "red": the prose is too vague to produce a falsifiable prediction at all.
 
 If the verdict is amber or red, list the weaknesses using ONLY these exact
@@ -185,10 +194,47 @@ category strings (any other string is invalid):
 5. hidden_guardrail_risk — might lift the primary metric while damaging a downstream one
 6. underpowered_design — segment too narrow, MDE too optimistic, duration too short
 
+COHERENCE PASS — also flag fields that are PRESENT but too weak to be useful
+(a filled-in field is not automatically a good field). These are amber, never a
+hard block:
+
+- A cohort that is really "everyone" — e.g. "all users", "everyone", "all our
+  users", "the whole userbase". That is not a cohort (it has no contrast group
+  and cannot isolate who responds) → wrong_cohort.
+- A declared/implied metric that does not match the change — e.g. a click-through
+  (CTR) metric for a change about long-run retention, or a retention metric for a
+  one-tap UI affordance whose effect is a click. A metric that won't capture the
+  behavioral change the change would cause → wrong_metric.
+- A circular or non-mechanistic "mechanism" — e.g. "it'll work because it's
+  better", "users will prefer it because it's improved", a reason that restates
+  the conclusion instead of naming a behavioral driver → broken_mechanism.
+- Generally vague-but-present prose that cannot yield a falsifiable prediction
+  even though fields are filled in → untestable_hypothesis.
+
+When the prose includes a "Declared metric: <name>" line, check that metric
+against the described change and flag wrong_metric if they are mismatched.
+
 For a green verdict, return an empty `reasons` list.
 
 Return STRICT JSON: {"verdict": "green|amber|red", "reasons": ["<cat1>", ...]}.
 Use the exact category strings above; any other reason string is invalid."""
+
+
+def _judge_prose(hypothesis: Hypothesis) -> str:
+    """The prose the judge sees, augmented with the declared structured metric.
+
+    The coherence pass (T7 / #338) can flag a metric/change mismatch
+    (`wrong_metric`) only if the judge can see the PM's declared metric. The
+    metric lives in a structured field (`Hypothesis.metric_name`), not in the
+    free prose, so we append a single canonical line for the judge to read.
+    Purely a judge-input shaping concern: it never persists, never touches
+    `confidence_score`, and degrades to the bare prose when no metric is set
+    (so a metric-free hypothesis is byte-identical to the historical input).
+    """
+    metric = (hypothesis.metric_name or "").strip()
+    if not metric:
+        return hypothesis.prose
+    return f"{hypothesis.prose}\n\nDeclared metric: {metric}"
 
 
 def _judge_user_turn_v1(prose: str) -> str:
@@ -372,10 +418,15 @@ async def assess_input_lint(
 
     judge = InputLintJudge(chat_client=chat_client)
 
+    # The judge sees the prose augmented with the declared structured metric so
+    # the coherence pass (T7 / #338) can detect a metric/change mismatch
+    # (wrong_metric). Identical to the bare prose when no metric is set.
+    judge_prose = _judge_prose(hypothesis)
+
     # 2) Single-shot judge (one cheap call). Degrade to deterministic-only on
     #    LLM failure — never block the run.
     try:
-        single = await _to_thread(judge.judge_once, hypothesis.prose)
+        single = await _to_thread(judge.judge_once, judge_prose)
     except Exception as exc:  # noqa: BLE001 — degrade gracefully; never hard-block
         log.warning(
             "input_lint.judge_failed",
@@ -404,7 +455,7 @@ async def assess_input_lint(
         verdicts = [single.verdict]
         for i in range(1, k):
             try:
-                verdicts.append((await _to_thread(judge.judge_paraphrase, hypothesis.prose, i)).verdict)
+                verdicts.append((await _to_thread(judge.judge_paraphrase, judge_prose, i)).verdict)
             except Exception as exc:  # noqa: BLE001 — drop a degenerate paraphrase, keep the rest
                 log.warning(
                     "input_lint.paraphrase_failed",

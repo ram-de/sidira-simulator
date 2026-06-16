@@ -75,6 +75,20 @@ class _StubJudgeChat:
         return schema(verdict=verdict, reasons=list(self._reasons))
 
 
+class _RecordingChat(_StubJudgeChat):
+    """A stub that records the user-turn content of every judge call, so a test
+    can assert the coherence pass actually showed the declared metric to the
+    judge (the T7 #338 metric/change-mismatch input)."""
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.user_turns: list[str] = []
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        self.user_turns.append(messages[-1]["content"])
+        return super().chat_json(messages, schema, max_tokens, temperature, seed)
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -243,3 +257,89 @@ def test_verdict_dataclass_is_flagged_property() -> None:
     assert InputLintVerdict(state="amber").is_flagged is True
     assert InputLintVerdict(state="red").is_flagged is True
     assert InputLintVerdict(state="abstain").is_flagged is True
+
+
+# ── T7 (#338) coherence pass: weak-but-present fields ─────────────────────────
+#
+# The judge stub is what classifies in the suite (no live LLM), so these tests
+# pin the CONTRACT the coherence rubric routes through: a weak-but-present field
+# maps onto an EXISTING taxonomy category and surfaces via the SAME amber
+# `input_flags` path — green/amber/red stay categorical, no new vocabulary, no
+# second LLM call. The rubric wording itself (what makes the LLM emit the code)
+# is exercised against the live judge, not unit-tested here.
+
+
+def test_coherence_all_users_cohort_maps_to_wrong_cohort_amber() -> None:
+    """cohort = "all users" is everyone, not a cohort -> wrong_cohort, amber,
+    surfaced through the existing categorical input_flags path."""
+    chat = _StubJudgeChat(verdict="amber", reasons=["wrong_cohort"])
+    v = _run(
+        assess_input_lint(
+            _hyp("Add a one-tap reorder button for all users."),
+            chat_client=chat,
+        )
+    )
+    assert v.state == "amber"
+    assert "wrong_cohort" in v.reason_codes
+    assert v.is_flagged is True
+    # No parallel vocabulary: every judge code is an existing taxonomy member.
+    for code in (c for c in v.reason_codes if c != REASON_LEADING_FRAMING):
+        assert code in _VALID_CATEGORIES
+
+
+def test_coherence_metric_mismatch_maps_to_wrong_metric_amber() -> None:
+    """A CTR metric declared for a retention-shaped change -> wrong_metric,
+    amber. The declared metric must be visible to the judge for it to catch the
+    mismatch (T7 folds the structured metric into the judge input)."""
+    chat = _RecordingChat(verdict="amber", reasons=["wrong_metric"])
+    hyp = Hypothesis(
+        capability_name="reorder",
+        prose="Nudge users to come back next week with a weekly summary.",
+        metric_name="ctr",
+        decision_point="you've just finished tonight's session",
+        conversion_action="tap the summary",
+        conversion_action_label="see your week",
+    )
+    v = _run(assess_input_lint(hyp, chat_client=chat))
+    assert v.state == "amber"
+    assert "wrong_metric" in v.reason_codes
+    # The judge actually SAW the declared metric (so it could detect the
+    # mismatch) — the coherence pass shapes the judge input, not a new call.
+    assert any("Declared metric: ctr" in turn for turn in chat.user_turns)
+
+
+def test_coherence_metric_free_hypothesis_is_byte_identical_judge_input() -> None:
+    """No declared metric -> the judge sees the bare prose (historical input),
+    so a metric-free hypothesis is unchanged by the coherence pass."""
+    chat = _RecordingChat(verdict="green")
+    _run(assess_input_lint(_hyp("Add a reorder button to the home tab."), chat_client=chat))
+    assert chat.user_turns
+    for turn in chat.user_turns:
+        assert "Declared metric" not in turn
+
+
+def test_coherence_circular_mechanism_maps_to_broken_mechanism_amber() -> None:
+    """A circular / non-mechanistic mechanism ("it'll work because it's better")
+    -> broken_mechanism, amber."""
+    chat = _StubJudgeChat(verdict="amber", reasons=["broken_mechanism"])
+    v = _run(
+        assess_input_lint(
+            _hyp("Redesign the home tab; it'll work because it's just better."),
+            chat_client=chat,
+        )
+    )
+    assert v.state == "amber"
+    assert "broken_mechanism" in v.reason_codes
+    assert v.is_flagged is True
+
+
+def test_coherence_findings_keep_confidence_path_untouched() -> None:
+    """A coherence finding is still just a categorical verdict carrying taxonomy
+    reason_codes — no scalar, no confidence field. The dataclass exposes only the
+    existing categorical surface (regression guard for the no-scalar constraint)."""
+    chat = _StubJudgeChat(verdict="amber", reasons=["wrong_metric"])
+    v = _run(assess_input_lint(_hyp("Tweak the funnel for all users."), chat_client=chat))
+    # No scalar/score attribute leaked onto the verdict.
+    assert not hasattr(v, "score")
+    assert not hasattr(v, "confidence_score")
+    assert v.state in ("green", "amber", "red", "abstain")
