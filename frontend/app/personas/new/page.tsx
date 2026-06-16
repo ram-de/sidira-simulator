@@ -514,6 +514,17 @@ export default function NewPersonaPackPage() {
         active = await createFeatureStore(req);
         setConnection(active);
         setConnFingerprint(credFp);
+        // Register the freshly-minted row in the saved list immediately (#327
+        // codex P1). The row is PERSISTED the moment createFeatureStore returns,
+        // even if the connectivity test that follows fails — and the unique-name
+        // guard means re-creating it under the same name would 409. So if it
+        // doesn't already appear (it won't, on a fresh mint), surface it now: the
+        // register lists it, "Use different connection" returns to that list, and
+        // the row's Delete affordance is the in-UI escape from a bad password —
+        // no page reload, no trapped name. (Newest-first, mirroring the server.)
+        setSavedConns((prev) =>
+          prev.some((c) => c.id === active!.id) ? prev : [active!, ...prev],
+        );
         // A fresh connection invalidates a previously-profiled mapping AND any
         // completed build (#27/#304): the columns may differ, so force a
         // re-profile on next Map entry and drop any stale build.
@@ -1111,8 +1122,12 @@ function StepConnect({
   // summary record. The full form returns only via "Use different connection"
   // (a fresh blank mint) or "Edit as new" (form prefilled as a NEW connection).
   // We need `selectedConn` (the ConnectionSummary) to render the summary, so the
-  // collapse also requires the selected id to be a row we hold.
-  const collapsed = reusingSaved && selectedConn !== null;
+  // collapse also requires the selected id to be a row we hold in the saved list
+  // — a connection that isn't listed (it should always be, post-mint) keeps the
+  // editable form so the user is never stuck behind a summary for a row they
+  // can't see or delete (#327 codex P1).
+  const collapsed =
+    reusingSaved && selectedConn !== null && savedConns.some((c) => c.id === selectedConn.id);
 
   const Field = (key: keyof ConnForm, label: string, placeholder: string, type = "text") => (
     <div>
