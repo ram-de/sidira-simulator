@@ -371,6 +371,39 @@ class BenchmarkBaseline(BaseModel):
     rank_rho: float = Field(ge=-1.0, le=1.0)
 
 
+class BenchmarkCaseResult(BaseModel):
+    """One case's outcome within a blind-eval run — the per-case record.
+
+    Carried on `BenchmarkRunResult.case_results` so the stratified honesty table
+    (and any other reporting layer) can break the run down by case WITHOUT
+    re-running the predictor — which for a stochastic / LLM-backed predictor
+    would produce DIFFERENT predictions and drops than the certified run. These
+    are the exact predictions the certificate was computed over.
+
+    A `dropped` case carries no `prediction` (the predictor failed or it had no
+    scorable label) but DOES carry its `source` + `stratum`-able fields, so a
+    stratum where every case was dropped is still reported as an empty/dropped
+    cell rather than silently vanishing (no silent truncation, §4 line 71).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str
+    source: str = Field(description="The case's source dataset label (for source-stratification).")
+    observed_lift: float | None = Field(
+        default=None,
+        description="The case's ground-truth signed lift (the scoring actual). None if unscorable.",
+    )
+    prediction: float | None = Field(
+        default=None,
+        description="The blind predicted signed effect. None when the case was dropped.",
+    )
+    dropped: bool = Field(
+        default=False,
+        description="True when the predictor failed / the case had no scorable label.",
+    )
+
+
 class BenchmarkRunResult(BaseModel):
     """Scored blind-eval of a predictor over a set of adapter-produced cases.
 
@@ -456,8 +489,147 @@ class BenchmarkRunResult(BaseModel):
         description="Case ids that were dropped, with no silent omission from the denominator.",
     )
 
+    # ── Per-case records (for downstream reporting without a second pass) ──
+    case_results: list[BenchmarkCaseResult] = Field(
+        default_factory=list,
+        description=(
+            "Per-case outcome (prediction + actual + dropped flag) in input order, "
+            "scored AND dropped. Lets a reporting layer (the stratified honesty "
+            "table) break the run down without re-running a stochastic predictor — "
+            "these are the exact predictions the certificate was computed over."
+        ),
+    )
+
     seed: int = Field(
         description="Seed driving the bootstrap + null permutation RNGs (reproducible)."
+    )
+
+
+# ── Stratified honesty table (ablation-protocol §4 / §5, ticket #222) ──
+
+
+class StratumResult(BaseModel):
+    """Per-stratum slice of a blind-eval, reported honestly (no cell dropped).
+
+    One row of the `StratifiedHonestyTable`: the same direction/rank reads the
+    runner computes globally, restricted to the cases in this stratum, plus the
+    per-stratum always-flat + random-rank baselines so a stratum's gain is read
+    against ITS OWN floor (a stratum of all-positive actuals has a very different
+    flat baseline than a sign-balanced one). Reported for EVERY stratum the
+    stratifier produces — including ones with poor/negative ρ or tiny n, which
+    are FLAGGED `underpowered`, never hidden (ablation-protocol §4 line 71, the
+    silent-truncation rule).
+
+    The confidence is `regime`: pre-calibration the trustworthy reads are rank
+    and direction (#221 shrinkage is still identity), so a stratum is labelled
+    "rank/direction-only" and a bare effect size is never presented as truth.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(description="The stratum's label (the stratifier's value for these cases).")
+    n_cases: int = Field(ge=0, description="Cases SCORED in this stratum (predictor succeeded).")
+    n_dropped: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Cases in this stratum the runner DROPPED (predictor failed / no label). "
+            "A stratum where every case was dropped is still reported (n_cases=0, "
+            "n_dropped>0) so source-specific failures are never silently hidden (§4)."
+        ),
+    )
+    direction_accuracy: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Fraction of stratum cases where sign(predicted) == sign(observed).",
+    )
+    rank_rho: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+        description="PRIMARY (§5): Spearman rank-ρ of predicted vs observed within the stratum.",
+    )
+    baselines: list[BenchmarkBaseline] = Field(
+        default_factory=list,
+        description="Always-flat + random-rank baselines computed on THIS stratum's actuals.",
+    )
+    underpowered: bool = Field(
+        default=False,
+        description=(
+            "True when n_cases is below the certification floor — the stratum's "
+            "reads are too noisy to certify. The cell is STILL reported (no silent "
+            "truncation, §4 line 71); `caveat` explains the small-N limit."
+        ),
+    )
+    regime: str = Field(
+        description=(
+            "Confidence/regime label. Pre-calibration this is rank/direction-only "
+            "(never a bare effect-size-as-truth) — weak behavioral regime per "
+            "oec-scoring §6. Underpowered strata carry the small-N qualifier too."
+        ),
+    )
+    caveat: str | None = Field(
+        default=None,
+        description="Human-readable per-stratum caveat (small-N, degenerate ρ, single-sign).",
+    )
+
+
+class StratifiedHonestyTable(BaseModel):
+    """Per-stratum breakdown of a blind-eval, presented honestly (#222 reporting).
+
+    Built by `services.benchmark_honesty.stratify` over a `BenchmarkRunResult`
+    and its cases + per-case predictions, partitioned by an injected stratifier
+    (by source dataset, by effect-magnitude bucket, …). EVERY stratum is a row in
+    `strata` — including poor/negative-ρ or tiny-n ones, flagged `underpowered`,
+    never dropped (ablation-protocol §4 line 71).
+
+    `void` mirrors the run's null-integrity gate: if the run's certificate did
+    NOT PASS, the WHOLE table is void/untrustworthy — the per-stratum scores are
+    leakage-suspect and must not be trusted (§4). The `caveat` block summarizes
+    the global honesty frame: primary endpoint is rank-ρ, magnitude is
+    uncalibrated until the #222 shrinkage layer, total n, and runner-level drops.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    stratifier_name: str = Field(
+        description="Which stratifier produced these rows (e.g. 'source', 'effect_magnitude')."
+    )
+    strata: list[StratumResult] = Field(
+        default_factory=list,
+        description="One row PER stratum — every cell reported, none dropped (§4 line 71).",
+    )
+
+    # ── Global honesty frame (carried through from the run) ──
+    void: bool = Field(
+        default=False,
+        description=(
+            "True when the run's null-integrity certificate did NOT PASS — the "
+            "whole table is leakage-suspect and untrustworthy (§4)."
+        ),
+    )
+    void_reason: str | None = Field(
+        default=None, description="Why the table is void (mirrors the run's void_reason)."
+    )
+    total_n_scored: int = Field(
+        ge=0, description="Total cases scored across all strata (the runner's n_cases)."
+    )
+    n_dropped_at_runner: int = Field(
+        default=0,
+        ge=0,
+        description="Cases the RUNNER dropped (predictor failed / no label), carried through.",
+    )
+    dropped_case_ids: list[str] = Field(
+        default_factory=list,
+        description="Runner-level dropped case ids, carried through so nothing is silently lost.",
+    )
+    caveat: str = Field(
+        description=(
+            "Global honesty caveat: primary endpoint is rank-ρ; magnitude is "
+            "uncalibrated until #222 calibration; total n; runner-level drops; and "
+            "the void status if the null-integrity certificate did not pass."
+        )
     )
 
 
