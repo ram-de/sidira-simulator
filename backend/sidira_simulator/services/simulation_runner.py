@@ -788,15 +788,18 @@ class SimulationRunner:
         """
         if not agent_records:
             self._run_state.emit(state, "score.updated", score=0.0, note="no successful agents")
-            return SimulationResult(
-                confidence_score=0.0,
-                weaknesses=[
-                    Weakness(
-                        category="underpowered_design",
-                        summary="No agent reactions completed successfully.",
-                    )
-                ],
-                refinement_suggestions=[],
+            return _stamp_instrument_scope(
+                SimulationResult(
+                    confidence_score=0.0,
+                    weaknesses=[
+                        Weakness(
+                            category="underpowered_design",
+                            summary="No agent reactions completed successfully.",
+                        )
+                    ],
+                    refinement_suggestions=[],
+                ),
+                hypothesis,
             )
 
         # Lazy import to avoid pulling LLM modules at module load.
@@ -1051,7 +1054,44 @@ class SimulationRunner:
                 paired_n=0,
             )
 
+        # #311 / T2: stamp the categorical instrument-fit abstention LAST, after
+        # every additive baseline has populated, so it composes with (never
+        # overwrites) the lift/delta fields. No-op (byte-identical) for in-scope
+        # OECs; never touches confidence_score.
+        return _stamp_instrument_scope(result, hypothesis)
+
+
+def _stamp_instrument_scope(result: SimulationResult, hypothesis: Hypothesis) -> SimulationResult:
+    """Stamp the T2 (#311) abstention onto the result, categorically.
+
+    Re-runs the deterministic, zero-LLM instrument-fit detector
+    (services.answerability._detect_out_of_scope) on the hypothesis and, when the
+    OEC is unresolvable by a first-exposure single-session panel, sets
+    `instrument_scope="out_of_scope"` + the named reasons so `verdictFor()` can
+    WITHHOLD the ship/no-ship verdict ("NOT ANSWERABLE BY THIS INSTRUMENT").
+
+    Re-running the (pure) detector here — rather than threading a flag from the
+    create-time gate through the orchestrator — keeps the plumbing minimal: the
+    detector is deterministic, so create-time and score-time agree exactly, and
+    the abstention rides into the persisted result_json blob with no DB column /
+    migration. This NEVER touches `confidence_score` (panel hard constraint): the
+    headline number is computed as today; only the verdict is overridden. A
+    `model_copy` keeps the in-scope path byte-identical (defaults unchanged).
+    """
+    # Lazy import: answerability imports schemas, and keeping it local mirrors the
+    # runner's other lazy service imports (no LLM/heavy module pulled at load).
+    from sidira_simulator.services.answerability import _detect_out_of_scope
+
+    codes, reasons = _detect_out_of_scope(hypothesis)
+    if not codes:
         return result
+    return result.model_copy(
+        update={
+            "instrument_scope": "out_of_scope",
+            "out_of_scope_reasons": reasons,
+            "out_of_scope_reason_codes": codes,
+        }
+    )
 
 
 # Max length of a single-line quote shown in the result table. Tuned for the

@@ -156,6 +156,14 @@ function verdictFor(
     return { label: "RUN FAILED — NO VERDICT", fg: TOKENS.alert };
   if (status !== "complete" || !result)
     return { label: "READING IN PROGRESS", fg: TOKENS.inkMuted };
+  // #311 / T2 — instrument-fit abstention takes precedence over the numeric
+  // ship/directional verdict (DESIGN.md §8.2): when the OEC is unresolvable by a
+  // first-exposure single-session panel, the score is still computed but the
+  // ship/no-ship verdict is categorically WITHHELD. This composes with the
+  // `underpowered_design` flip below — abstention is the outermost branch.
+  // `ink-muted` like UNDERPOWERED: a measurement-scope condition, not an alarm.
+  if (result.instrument_scope === "out_of_scope")
+    return { label: "NOT ANSWERABLE BY THIS INSTRUMENT", fg: TOKENS.inkMuted };
   const underpowered = (result.weaknesses ?? []).some(
     (w) => w.category === "underpowered_design",
   );
@@ -530,6 +538,12 @@ export default function SimulationDetailPage() {
   const recent = (state?.recent_events ?? []).slice(-6).reverse();
 
   const verdict = verdictFor(status, result);
+  // #311 / T2 — when the run abstained (out_of_scope), the verdict is withheld
+  // at the HEADER and every downstream ship/no-ship policy readout (glass
+  // decision-rule, CI clears-threshold clause, A/B "ship candidate") must be
+  // suppressed too — the raw agreement reading still prints (the score is
+  // computed), but no ship/no-ship judgment is rendered against it.
+  const abstained = completeResult?.instrument_scope === "out_of_scope";
   const personaGroups = agentMeta != null ? groupAgents(agentMeta) : null;
   const personaCount = personaGroups != null ? personaGroups.length : null;
   const model = modelDisplay(sim.model_id ?? null);
@@ -539,6 +553,10 @@ export default function SimulationDetailPage() {
       return "WHY: RUN TERMINATED BEFORE A READING SETTLED — POLICY DR-1 NOT EVALUATED";
     if (!completeResult)
       return `WHY: VERDICT PRINTS WHEN THE READING SETTLES — POLICY ${DECISION_POLICY.id} APPLIES AT THRESHOLD ${DECISION_POLICY.threshold}`;
+    // #311 / T2: when the OEC is out of the instrument's scope, the policy is
+    // deliberately NOT evaluated against the score — the verdict is withheld.
+    if (completeResult.instrument_scope === "out_of_scope")
+      return `WHY: THIS OEC IS OUTSIDE A FIRST-EXPOSURE SINGLE-SESSION PANEL'S RESOLVING POWER — POLICY ${DECISION_POLICY.id} WITHHELD (SEE INSTRUMENT-SCOPE NOTE)`;
     const s = completeResult.confidence_score;
     const cmp = s >= DECISION_POLICY.threshold ? "≥" : "<";
     const w = (completeResult.weaknesses ?? []).length;
@@ -682,6 +700,44 @@ export default function SimulationDetailPage() {
                 >
                   {whyLine}
                 </div>
+                {/* #311 / T2 — instrument-scope abstention note. Inspectable
+                    named reasons (DESIGN.md §8.2 / refuse-list optics): the
+                    withheld verdict always carries WHY it was withheld. Reuses
+                    the §7.7 note anatomy on a hairline `rule` border with the
+                    message in `ink` — a data condition, NOT an alarm, so no
+                    semantic tone (matches the verdict-chip law §8.2). */}
+                {completeResult?.instrument_scope === "out_of_scope" &&
+                  (completeResult.out_of_scope_reasons ?? []).length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        border: `0.75px solid ${TOKENS.rule}`,
+                        background: TOKENS.paperRecessed,
+                        borderRadius: 2,
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <div style={{ ...monoLabelStyle, marginBottom: 6 }}>
+                        INSTRUMENT SCOPE — VERDICT WITHHELD
+                      </div>
+                      <ul
+                        style={{
+                          margin: 0,
+                          paddingLeft: 18,
+                          color: TOKENS.ink,
+                          fontFamily: FONT_SANS,
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {(completeResult.out_of_scope_reasons ?? []).map((r, i) => (
+                          <li key={i} style={{ marginBottom: 4 }}>
+                            {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -768,6 +824,7 @@ export default function SimulationDetailPage() {
               result={completeResult}
               livePoints={livePoints}
               personaCount={personaCount}
+              abstained={abstained}
             />
           )}
           {!terminal && (
@@ -846,6 +903,7 @@ export default function SimulationDetailPage() {
               treatmentCi={completeResult.confidence_score_ci ?? null}
               controlScore={completeResult.control_score ?? null}
               sampledAgentCount={sim.sampled_agent_count ?? null}
+              abstained={abstained}
             />
           )}
 
@@ -867,7 +925,7 @@ export default function SimulationDetailPage() {
 
           {/* Method card */}
           {completeResult != null && (
-            <MethodCard modelId={sim.model_id ?? null} hasLift={hasLift} />
+            <MethodCard modelId={sim.model_id ?? null} hasLift={hasLift} abstained={abstained} />
           )}
 
           {/* Cohort register — agents that participated */}
@@ -937,6 +995,7 @@ export default function SimulationDetailPage() {
           personaGroups={personaGroups}
           selectedPersona={selectedPersona}
           onSelectPersona={setSelectedPersona}
+          abstained={abstained}
         />
       </div>
     </main>
@@ -1118,10 +1177,12 @@ function GlassCiAxis({
   score,
   ciLow,
   ciHigh,
+  abstained = false,
 }: {
   score: number;
   ciLow: number | null;
   ciHigh: number | null;
+  abstained?: boolean;
 }) {
   const hasCi = ciLow != null && ciHigh != null;
   const { v, lo, hi } = _safeRange(score, ciLow ?? score, ciHigh ?? score, 0, 100);
@@ -1209,9 +1270,13 @@ function GlassCiAxis({
           ? "CI UNAVAILABLE FOR THIS RUN"
           : collapsed
             ? "NARROW INTERVAL — BAND BELOW DISPLAY RESOLUTION"
-            : `95% CI [${lo.toFixed(1)}, ${hi.toFixed(1)}] — LOWER BOUND ${
-                lo >= DECISION_POLICY.threshold ? "CLEARS" : "DOES NOT CLEAR"
-              } THRESHOLD ${DECISION_POLICY.threshold}`}
+            : abstained
+              ? // #311/T2: show the raw interval but WITHHOLD the clears-threshold
+                // judgment — the OEC is outside the instrument's resolving power.
+                `95% CI [${lo.toFixed(1)}, ${hi.toFixed(1)}] — THRESHOLD EVALUATION WITHHELD (OEC OUT OF SCOPE)`
+              : `95% CI [${lo.toFixed(1)}, ${hi.toFixed(1)}] — LOWER BOUND ${
+                  lo >= DECISION_POLICY.threshold ? "CLEARS" : "DOES NOT CLEAR"
+                } THRESHOLD ${DECISION_POLICY.threshold}`}
       </div>
     </div>
   );
@@ -1307,11 +1372,13 @@ function GlassPanelComplete({
   result,
   livePoints,
   personaCount,
+  abstained = false,
 }: {
   sim: Simulation;
   result: SimulationResult;
   livePoints: TracePoint[];
   personaCount: number | null;
+  abstained?: boolean;
 }) {
   const hasLift = sim.arm_split != null;
   const ci = result.confidence_score_ci ?? null;
@@ -1390,30 +1457,48 @@ function GlassPanelComplete({
             </div>
             <div style={{ ...glassLabelStyle, fontSize: 10 }}>AGREEMENT / 100</div>
           </div>
-          {/* Decision-rule readout (§8.1). */}
-          <div
-            className="simd-num"
-            style={{
-              display: "flex",
-              gap: 20,
-              flexWrap: "wrap",
-              margin: "14px 0 16px",
-              ...TNUM,
-            }}
-          >
-            <GlassKv k="THRESHOLD" v={`${DECISION_POLICY.threshold} / 100`} />
-            <GlassKv
-              k="MARGIN"
-              v={`${result.confidence_score >= DECISION_POLICY.threshold ? "+" : "−"}${Math.abs(
-                result.confidence_score - DECISION_POLICY.threshold,
-              ).toFixed(1)}`}
-            />
-            <GlassKv k="POLICY" v={DECISION_POLICY.id} />
-          </div>
+          {/* Decision-rule readout (§8.1). #311/T2: an abstained run shows NO
+              threshold/margin policy evaluation — the agreement number above is
+              a raw reading, but the ship/no-ship judgment is withheld. */}
+          {abstained ? (
+            <div
+              style={{
+                ...glassLabelStyle,
+                margin: "14px 0 16px",
+                lineHeight: 1.6,
+                letterSpacing: 0.5,
+              }}
+            >
+              POLICY {DECISION_POLICY.id} WITHHELD — OEC OUTSIDE INSTRUMENT SCOPE
+              <br />
+              RAW AGREEMENT SHOWN; NO THRESHOLD EVALUATION
+            </div>
+          ) : (
+            <div
+              className="simd-num"
+              style={{
+                display: "flex",
+                gap: 20,
+                flexWrap: "wrap",
+                margin: "14px 0 16px",
+                ...TNUM,
+              }}
+            >
+              <GlassKv k="THRESHOLD" v={`${DECISION_POLICY.threshold} / 100`} />
+              <GlassKv
+                k="MARGIN"
+                v={`${result.confidence_score >= DECISION_POLICY.threshold ? "+" : "−"}${Math.abs(
+                  result.confidence_score - DECISION_POLICY.threshold,
+                ).toFixed(1)}`}
+              />
+              <GlassKv k="POLICY" v={DECISION_POLICY.id} />
+            </div>
+          )}
           <GlassCiAxis
             score={result.confidence_score}
             ciLow={ci != null ? ci[0] : null}
             ciHigh={ci != null ? ci[1] : null}
+            abstained={abstained}
           />
         </div>
 
@@ -2140,7 +2225,15 @@ function RefinementQueue({ suggestions }: { suggestions: string[] }) {
 // Method card — how the reading is computed, in PM-readable lines. Honest
 // about the DR-1 rubric being a page-level display rule, not API output.
 // ───────────────────────────────────────────────────────────────────────
-function MethodCard({ modelId, hasLift }: { modelId: string | null; hasLift: boolean }) {
+function MethodCard({
+  modelId,
+  hasLift,
+  abstained = false,
+}: {
+  modelId: string | null;
+  hasLift: boolean;
+  abstained?: boolean;
+}) {
   const model = modelDisplay(modelId);
   const modelBody =
     model == null
@@ -2165,7 +2258,9 @@ function MethodCard({ modelId, hasLift }: { modelId: string | null; hasLift: boo
       : []),
     {
       k: "DECISION RULE",
-      v: `${DECISION_POLICY.id} — ${DECISION_POLICY.rule}. Display rubric applied by this page; the API does not return a policy object.`,
+      v: abstained
+        ? `${DECISION_POLICY.id} WITHHELD — the OEC falls outside this instrument's scope, so the ship/no-ship rubric is not applied. Raw readings are shown without threshold evaluation.`
+        : `${DECISION_POLICY.id} — ${DECISION_POLICY.rule}. Display rubric applied by this page; the API does not return a policy object.`,
     },
     { k: "MODEL", v: modelBody },
   ];
@@ -2205,6 +2300,7 @@ function InspectorRail({
   personaGroups,
   selectedPersona,
   onSelectPersona,
+  abstained = false,
 }: {
   sim: Simulation;
   status: SimulationStatus;
@@ -2212,6 +2308,7 @@ function InspectorRail({
   personaGroups: PersonaGroup[] | null;
   selectedPersona: string | null;
   onSelectPersona: (pid: string) => void;
+  abstained?: boolean;
 }) {
   const isAbMode = agentMeta != null && agentMeta.some((a) => a.arm != null);
   const active =
@@ -2272,7 +2369,12 @@ function InspectorRail({
     },
     { k: "SEED", v: sim.run_seed != null ? `${sim.run_seed}` : "—" },
     { k: "MODEL", v: model ? model.label : "—" },
-    { k: "POLICY", v: `${DECISION_POLICY.id} (DISPLAY RUBRIC)` },
+    {
+      k: "POLICY",
+      v: abstained
+        ? `${DECISION_POLICY.id} WITHHELD (OEC OUT OF SCOPE)`
+        : `${DECISION_POLICY.id} (DISPLAY RUBRIC)`,
+    },
     { k: "GRADED", v: "NOT YET — LEDGER EMPTY" },
   ];
 
@@ -2613,11 +2715,13 @@ function PerArmDetailCard({
   treatmentCi,
   controlScore,
   sampledAgentCount,
+  abstained = false,
 }: {
   treatmentScore: number;
   treatmentCi: [number, number] | null;
   controlScore: number | null;
   sampledAgentCount: number | null;
+  abstained?: boolean;
 }) {
   return (
     <section
@@ -2676,9 +2780,20 @@ function PerArmDetailCard({
           lineHeight: 1.5,
         }}
       >
-        Policy {DECISION_POLICY.id} still applies to the treatment confidence
-        score: &ge;{DECISION_POLICY.threshold} = ship candidate; below = needs
-        refinement.
+        {abstained ? (
+          <>
+            Policy {DECISION_POLICY.id} is withheld for this run: the OEC is
+            outside a first-exposure single-session panel&rsquo;s resolving
+            power, so the treatment confidence score is not evaluated for a
+            ship / no-ship decision. See the instrument-scope note above.
+          </>
+        ) : (
+          <>
+            Policy {DECISION_POLICY.id} still applies to the treatment
+            confidence score: &ge;{DECISION_POLICY.threshold} = ship candidate;
+            below = needs refinement.
+          </>
+        )}
       </div>
     </section>
   );

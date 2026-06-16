@@ -576,12 +576,25 @@ The stem names the measurement; the second clause carries the polarity
 
 | State | Decisive-positive | Decisive-negative | Other |
 | --- | --- | --- | --- |
-| **MVP (calibration ledger empty)** | `HIGH SIM AGREEMENT · SHIP CANDIDATE` | `HIGH SIM AGREEMENT · DO NOT SHIP` | `DIRECTIONAL` · `UNDERPOWERED` |
-| **Calibrated (ledger has grades)** | `DECISIVE · SHIP` | `DECISIVE · DO NOT SHIP` | `DIRECTIONAL` · `UNDERPOWERED` |
+| **MVP (calibration ledger empty)** | `HIGH SIM AGREEMENT · SHIP CANDIDATE` | `HIGH SIM AGREEMENT · DO NOT SHIP` | `DIRECTIONAL` · `UNDERPOWERED` · `NOT ANSWERABLE BY THIS INSTRUMENT` |
+| **Calibrated (ledger has grades)** | `DECISIVE · SHIP` | `DECISIVE · DO NOT SHIP` | `DIRECTIONAL` · `UNDERPOWERED` · `NOT ANSWERABLE BY THIS INSTRUMENT` |
 
 **`DECISIVE` is reserved for the calibrated state.** Until the calibration
 ledger has graded predictions, the product claims agreement among simulated
 agents — nothing more.
+
+**`NOT ANSWERABLE BY THIS INSTRUMENT` is the abstention verdict** (epic #309 T2,
+`#311`). When the pre-flight answerability gate
+(`services/answerability.py`) classifies the OEC as `out_of_scope` — a
+long-horizon / network / novelty-decay outcome a first-exposure single-session
+panel cannot resolve — the run still proceeds and the score is still computed,
+but the ship/no-ship verdict is **categorically WITHHELD**. It is not a discount
+on the number (the panel hard constraint: never multiply `confidence_score`);
+it is a refusal to render a verdict the instrument cannot support. It composes
+with the `underpowered_design` flip as the **outermost** branch of `verdictFor()`
+(abstention precedes the numeric verdict). The withheld verdict always carries
+its inspectable named reasons (the §8.1 "a verdict carries its policy" law,
+applied to a *withheld* verdict: it carries *why* it was withheld).
 
 **Verdict → token mapping.** The lexicon maps 1:1 onto §4.3 tokens —
 implementers never choose a verdict color (codified from the shipped
@@ -592,6 +605,7 @@ instrument panel, `verdictFor()` in `frontend/app/simulations/[id]/page.tsx`):
 | `HIGH SIM AGREEMENT · SHIP CANDIDATE` / `DECISIVE · SHIP` | `success` |
 | `DIRECTIONAL — BELOW SHIP THRESHOLD` | `ink-muted` |
 | `UNDERPOWERED — TREAT AS DIRECTIONAL` | `ink-muted` — **not `warn`**: warn is accent-only (§4.3), and underpowered is a data condition, not an alarm |
+| `NOT ANSWERABLE BY THIS INSTRUMENT` | `ink-muted` — **not `warn` / not `alert`**: the run did not fail and the OEC is not "do not ship"; it is a measurement-scope condition (the instrument abstains), so it reads in the same neutral register as `UNDERPOWERED`. The named reasons render in a hairline-`rule` note (§7.7 anatomy, message in `ink`, no semantic fill). |
 | `LOW SIM AGREEMENT · DO NOT SHIP` / `DECISIVE · DO NOT SHIP` | `alert` |
 | `READING IN PROGRESS` | `ink-muted` + the §9.5 live carrier |
 | `RUN FAILED — NO VERDICT` | `alert` |
@@ -847,6 +861,7 @@ table above.
 | 2026-06-12 | 0.3 | **Spec-gap close** (#195; external design review, triaged in `sessions/phase-5-design-system/external-design-review-2026-06-12.md`). Codifies what the shipped R2 surfaces already render — no new product surfaces (R2.4-compatible); the one forward spec is §7.6's record voice, gating the unshipped Library REVERSE PRD views. Adds: §7.7 controls (primary/secondary/quiet/links/disabled/signal-active/validation) · §7.8 accessibility (focus ring, keyboard, contrast floors, color-never-alone) · §7.9 breakpoints · §7.10 iconography (no icon libraries) · §8.2 verdict→token mapping + chip anatomy (register + panel registers) · §8.8 registers and tables · §7.6 PRD-document "record voice" typography. Promotes the R2.14 Codex catch into law: `warn` is accent-only, never text (§4.3 token-role table). Resolves inconsistencies: unit law `px` never `pt`, `0.75px` intentional (§7.2 rewrite; §4.2) · sanctioned off-scale type ranges 84–96 reading numeral / 64–96 marketing display (§5.2) · marketing spacing extension 96·112 (§6) · lime budget restated as countable (§4.1) · scoped duo constants `DUO_SID`/`DUO_AVIRA` in `lib/design.ts` (§4.4) · dark-mode half-spec cut to one line (§4.5) · favicon brand-mode exception acknowledged (§4.4). |
 | 2026-06-12 | 0.3.1 | **Deviation close** (#197). The three v0.3 known-deviation notes resolved in lockstep with the code: §7.8 focus ring shipped as the app's one global element-selector rule (scoped `<style>` in `frontend/app/layout.tsx`; `--focus-ring` is the override mechanism for glass — no glass surface has a focusable element yet) · §7.7 wizard validation now matches the law (banner message in `ink`; field-level persona error gets the full note anatomy; both carry `role="alert"`) — note removed · §7.8 keyboard deviation note **corrected, not fixed**: the register row's hypothesis cell already carried a real `<Link>` (`simulations/page.tsx`), so the `tr onClick` was always progressive enhancement; the spec now states that pattern as law. |
 | 2026-06-12 | 0.3.2 | **§4.3 compliance sweep** (#199; no spec change — the law already stood). Every `alert`-as-body-text site outside the wizard converted to the §7.7 note anatomy: message in `ink`, severity on a `0.75px` `alert` border, `role="alert"` on dynamically-injected errors (18 sites across the agent chat, persona library, crawl setup, register, simulation detail, persona-group chat, and sample-workspace card). ThumbsControl's `(failed)` label — sans, so not a sanctioned mono designator — reads in `ink-muted` (visual-only; the #170 flag/onSet freeze untouched). Inline error notes unified on radius 2; full-page error cards stay radius 4 (they are cards). Chips, verdict designators, score numerals, status dots, and alert borders verified legitimate and unchanged. |
+| 2026-06-16 | 0.3.3 | **Abstention verdict** (epic #309 T2, `#311`). §8.2 adds the fourth verdict state `NOT ANSWERABLE BY THIS INSTRUMENT` to the MVP + calibrated lexicons and the verdict→token map (`ink-muted` — a measurement-scope condition, not `warn`/`alert`). When the deterministic answerability gate classifies the OEC as `out_of_scope` (long-horizon / network / novelty-decay), `verdictFor()` WITHHOLDS the ship/no-ship verdict as its outermost branch (precedes the `underpowered_design` flip and the numeric path); the score is still computed and `confidence_score` is never discounted (panel hard constraint). The withheld verdict carries its inspectable named reasons in a hairline-`rule` §7.7 note (message in `ink`, no semantic fill). No new colors/pills/icons. |
 
 ---
 

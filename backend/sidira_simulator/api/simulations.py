@@ -116,6 +116,15 @@ async def create_simulation(
                 "override_field": "run_as_generic_reception",
             },
         )
+    # #311 / T2: `out_of_scope` ABSTAINS — it does NOT block and does NOT 422.
+    # The run proceeds and the score is still computed; the ship/no-ship verdict
+    # is categorically WITHHELD at result time ("NOT ANSWERABLE BY THIS
+    # INSTRUMENT"). The detector is deterministic and re-run inside the runner's
+    # `_score` so the abstention rides into the persisted SimulationResult
+    # (`instrument_scope` / `out_of_scope_reasons`) with no orchestrator
+    # threading and no DB column. There is NO confidence_score discount — the
+    # override is categorical (panel hard constraint). We deliberately fall
+    # through to the normal run path here.
 
     # Phase 2.5: population_size is the modeled userbase; the materialized
     # sample is capped by the backend's effective max-agent setting. Phase 4.6

@@ -1470,6 +1470,21 @@ export interface components {
              * @description Per-agent sentiment + top quote for the result-table render. Populated by the runner when scoring completes. Empty for sims that ran before #51 landed (backwards-compatible).
              */
             per_agent_analyses?: components["schemas"]["AgentAnalysisSummary"][];
+            // ── Abstention / instrument-fit (epic #309, T2 / #311) — HAND-ADDED ──
+            // The gen-types script needs a live backend; hand-mirrored from
+            // backend/sidira_simulator/schemas/simulation.py (SimulationResult).
+            // CATEGORICAL only (state + reasons), never a number — the abstention
+            // WITHHOLDS the verdict, it does not discount confidence_score.
+            /**
+             * Instrument Scope
+             * @description "out_of_scope" → verdictFor() withholds the ship/no-ship verdict.
+             * @default in_scope
+             */
+            instrument_scope: "in_scope" | "out_of_scope";
+            /** Out Of Scope Reasons */
+            out_of_scope_reasons?: string[];
+            /** Out Of Scope Reason Codes */
+            out_of_scope_reason_codes?: string[];
             /** Treatment Score */
             treatment_score?: number | null;
             /** Control Score */
