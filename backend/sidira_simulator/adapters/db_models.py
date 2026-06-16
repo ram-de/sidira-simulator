@@ -157,6 +157,18 @@ class FeatureStoreConnection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # Per-connection HEALTH (#328). Persisted outcome of the last connectivity
+    # test (POST /{id}/test) so the saved-connections register (#327) can show a
+    # last-known state in words. All NULLABLE: a row that has never been tested
+    # reads as UNTESTED. ``last_test_status`` is 'ok' | 'failed';
+    # ``last_error_kind`` mirrors the connectivity-error classification
+    # ('auth' | 'permission' | 'network' | 'unknown'). Never a credential.
+    last_tested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_test_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_error_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class PersonaBuildRun(Base):

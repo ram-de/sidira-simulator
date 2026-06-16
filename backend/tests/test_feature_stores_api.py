@@ -265,6 +265,58 @@ def test_connection_network_error_is_502(client, monkeypatch):
     assert resp.json()["detail"]["error_kind"] == "network"
 
 
+# ── per-connection health (#328) ───────────────────────────────────────────
+
+
+def test_untested_connection_reads_null_health(client):
+    """A freshly-created row has never been tested: GET reports all health
+    fields null (the register renders this as UNTESTED)."""
+    client.post("/feature-stores", json=_CREATE_PAYLOAD)
+    item = client.get("/feature-stores").json()[0]
+    assert item["last_test_status"] is None
+    assert item["last_tested_at"] is None
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
+
+
+def test_test_success_persists_ok_status_and_timestamp(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    _patch_connect(monkeypatch, [([("1",)], [(1,)])])
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 204
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "ok"
+    assert item["last_tested_at"] is not None  # ISO timestamp from the test
+    # Success clears any prior error.
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
+
+
+def test_test_failure_persists_failed_status_and_error(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("Incorrect username or password was specified.")
+    _patch_connect_raises(monkeypatch, exc)
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 400
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "failed"
+    assert item["last_tested_at"] is not None
+    assert item["last_error_kind"] == "auth"
+    assert item["last_error_message"]  # carries the human-readable reason
+
+
+def test_failed_then_passing_test_clears_the_error(client, monkeypatch):
+    """A row that failed and then passes flips to ok with the error cleared —
+    the register stops showing FAILED once the connection works again."""
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    _patch_connect_raises(monkeypatch, RuntimeError("Insufficient privileges"))
+    client.post(f"/feature-stores/{cid}/test")
+    _patch_connect(monkeypatch, [([("1",)], [(1,)])])
+    client.post(f"/feature-stores/{cid}/test")
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "ok"
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
+
+
 # ── preview ──────────────────────────────────────────────────────────────
 
 

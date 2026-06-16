@@ -952,6 +952,14 @@ export interface components {
             database: string;
             /** Schema */
             schema?: string | null;
+            /** Last Tested At — #328 per-connection health */
+            last_tested_at?: string | null;
+            /** Last Test Status — 'ok' | 'failed', null if never tested (#328) */
+            last_test_status?: "ok" | "failed" | null;
+            /** Last Error Kind — #328 */
+            last_error_kind?: string | null;
+            /** Last Error Message — #328 */
+            last_error_message?: string | null;
         };
         /** CreateSimulationResponse */
         CreateSimulationResponse: {
