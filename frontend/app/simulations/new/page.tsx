@@ -106,6 +106,160 @@ function composeClaimProse(c: StructuredClaim): string {
   return `If ${change}${cohortClause}, then ${metric} ${CLAIM_DIRECTION_LABELS[c.direction]}.`;
 }
 
+// ── #337 / T6: glanceable completeness checklist ─────────────────────────────
+// A DISPLAY-ONLY affordance (epic #309). It shows "N of M essentials present"
+// with a per-item present/absent list so the PM can see at a glance what their
+// hypothesis is missing before they run it.
+//
+// HARD CONSTRAINTS (epic #309): this is deterministic, ZERO-LLM, NO backend.
+// The `present` count is a human-glance number — it is NEVER fed to
+// confidence_score, the verdict, or persisted, and it does NOT gate submit (the
+// authoritative block/override path lives in the T4 needs_input/422 surface).
+// Each item is derived purely from (a) the wizard's current form state and
+// (b) the EXISTING live POST /simulations/preflight response (T4 already wires
+// that call — we REUSE its result; no second call).
+//
+// `proposed_figma` has no authoring path in the wizard yet (#183), so the
+// "conditional design attached" item reuses the preflight gate's own signal: the
+// structurally-invisible-change check is the `structurally_invisible_change`
+// reason code (backend services/answerability.py). Its PRESENCE means the
+// structural change still needs a figma → item absent; its ABSENCE (the prose
+// reads as non-structural, OR a design is attached) → item satisfied. This is
+// "conditional": for a non-structural change there is nothing to attach, so the
+// item is satisfied by construction — exactly what the gate already decided.
+const REASON_STRUCTURALLY_INVISIBLE = "structurally_invisible_change";
+
+interface CompletenessItem {
+  key: string;
+  label: string;
+  present: boolean;
+  // Advisory items are presentational-only-distinct: they never block (the
+  // actual block/override lives in the T4 needs_input/422 path) and are not
+  // counted toward "essentials present". Mechanism is the one advisory item.
+  advisory?: boolean;
+}
+
+// Deterministic direction-keyword probe for the free-text escape hatch, where
+// there is no direction <select>. Mirrors CLAIM_DIRECTION_LABELS plus the
+// common predicted-direction verbs a terse expert claim uses. Pure string match
+// — no LLM, no scoring.
+function proseDeclaresDirection(prose: string): boolean {
+  const p = prose.toLowerCase();
+  return [
+    "increase",
+    "decrease",
+    "raise",
+    "lower",
+    "improve",
+    "reduce",
+    "lift",
+    "drop",
+    "go up",
+    "go down",
+    "higher",
+    "lower",
+    "change",
+  ].some((w) => p.includes(w));
+}
+
+function deriveCompleteness(args: {
+  claimMode: "structured" | "freetext";
+  claimChange: string;
+  claimCohort: string;
+  claimMetric: string;
+  freeText: string;
+  metricName: MetricName;
+  showAdvanced: boolean;
+  proposedPrd: string;
+  preflight: PreflightResponse | null;
+  preflightStale: boolean;
+}): CompletenessItem[] {
+  const {
+    claimMode,
+    claimChange,
+    claimCohort,
+    claimMetric,
+    freeText,
+    metricName,
+    showAdvanced,
+    proposedPrd,
+    preflight,
+    preflightStale,
+  } = args;
+
+  const structured = claimMode === "structured";
+
+  // 1. Change — the proposed change is described. Structured: the `change`
+  //    field. Free-text: any prose at all (the claim itself carries the change).
+  const changePresent = structured
+    ? claimChange.trim().length > 0
+    : freeText.trim().length > 0;
+
+  // 2. Cohort — a `for [cohort]` is specified. Structured: the cohort field.
+  //    Free-text: a "for …" clause anywhere in the prose.
+  const cohortPresent = structured
+    ? claimCohort.trim().length > 0
+    : /\bfor\b/i.test(freeText);
+
+  // 3. OEC metric — the surfaced conversion-metric bundle is declared via the
+  //    05 · Outcome metric picker. (The structured claim's free-text "then …
+  //    metric" phrase is the prose OEC, but the answerability gate routes on the
+  //    declared `metric_name`, so we glance on the declared bundle.)
+  const metricPresent = metricName != null;
+
+  // 4. Direction — the predicted direction is set. Structured mode always has a
+  //    direction <select>, but it is only meaningful once an outcome phrase is
+  //    named, so we tie it to the metric phrase being filled. Free-text: a
+  //    direction keyword is present in the prose.
+  const directionPresent = structured
+    ? claimMetric.trim().length > 0
+    : proseDeclaresDirection(freeText);
+
+  // 5. Conditional design attached — REUSE the preflight gate's own structural
+  //    signal rather than re-deriving the regime classifier on the client. The
+  //    item is satisfied only once the CURRENT claim has actually been assessed
+  //    (a fresh, non-stale preflight verdict is in hand) AND that verdict did
+  //    NOT flag a structurally-invisible change. Before assessment — an empty /
+  //    too-short claim with no preflight, or the debounce window after an edit —
+  //    we report it MISSING rather than vacuously satisfied, so an empty form
+  //    glances as 0 of N and a just-edited claim doesn't briefly claim a stale
+  //    "present". For a non-structural change the gate omits the
+  //    structurally_invisible_change code, so the item satisfies by
+  //    construction. The authoritative block is the T4 422, not this glance.
+  const assessed = preflight != null && !preflightStale;
+  const figmaNeeded =
+    preflight?.reason_codes.includes(REASON_STRUCTURALLY_INVISIBLE) ?? false;
+  const designPresent = assessed && !figmaNeeded;
+
+  // 6. Advisory mechanism — a mechanism / "why" is provided. The wizard's only
+  //    mechanism-bearing field is the stimulus PRD-delta (treatment text), which
+  //    explains HOW/WHY the change moves the outcome. Advisory: ✓/✗ but never
+  //    blocks, never counted toward essentials.
+  const mechanismPresent = showAdvanced && proposedPrd.trim().length > 0;
+
+  return [
+    { key: "change", label: "Change described", present: changePresent },
+    { key: "cohort", label: "Cohort specified", present: cohortPresent },
+    { key: "metric", label: "OEC metric declared", present: metricPresent },
+    {
+      key: "direction",
+      label: "Predicted direction set",
+      present: directionPresent,
+    },
+    {
+      key: "design",
+      label: "Conditional design attached",
+      present: designPresent,
+    },
+    {
+      key: "mechanism",
+      label: "Mechanism / why (advisory)",
+      present: mechanismPresent,
+      advisory: true,
+    },
+  ];
+}
+
 export default function NewSimulationPage() {
   const router = useRouter();
 
@@ -723,6 +877,22 @@ export default function NewSimulationPage() {
     ["Model", selectedModelId || "BACKEND DEFAULT"],
   ];
 
+  // #337 / T6: glanceable completeness — deterministic, display-only, never fed
+  // to any score/decision. Derived from form state + the SAME live preflight
+  // verdict the inline lint already fetched (no second call).
+  const completenessItems = deriveCompleteness({
+    claimMode,
+    claimChange,
+    claimCohort,
+    claimMetric,
+    freeText: hypothesis,
+    metricName,
+    showAdvanced,
+    proposedPrd,
+    preflight,
+    preflightStale,
+  });
+
   return (
     <main style={{ fontFamily: FONT_SANS, color: TOKENS.ink }}>
       {/* Page strip — hypothesis-header zone (DESIGN.md §7) */}
@@ -1324,6 +1494,7 @@ export default function NewSimulationPage() {
                 </div>
               ))}
             </dl>
+            <CompletenessChecklist items={completenessItems} />
             <div
               style={{
                 padding: "16px 20px",
@@ -2045,6 +2216,146 @@ function ReasonFixList({
         </ul>
       )}
     </>
+  );
+}
+
+// #337 / T6 — glanceable completeness checklist. DISPLAY-ONLY (epic #309): the
+// "N of M" is a human-glance count, never fed to confidence_score / the verdict
+// / persistence, and never gates submit. Lives in the manifest rail above the
+// primary action — the "glance before you run" spot.
+//
+// DESIGN.md: the count is a §8.2 panel-verdict-chip (mono, paper-recessed fill,
+// rule border — a paper tone, never a semantic fill). Per-item rows use the
+// §7.10 text-glyph register (no icon library): present = a `✓` glyph + `ink`
+// label; absent = a `·` glyph + `ink-muted` label. Color never carries state
+// alone — the glyph + the wording carry it (§4.3 / §7.8). The advisory item
+// (mechanism) is visually distinguished by an `· advisory` mono tag, purely
+// presentational; the actual block/override behavior lives in the T4 path.
+function CompletenessChecklist({ items }: { items: CompletenessItem[] }) {
+  // Only the non-advisory items count toward "essentials present" — the
+  // advisory mechanism is shown but excluded from the glance count.
+  const essentials = items.filter((it) => !it.advisory);
+  const presentCount = essentials.filter((it) => it.present).length;
+  const totalCount = essentials.length;
+
+  return (
+    <div
+      style={{
+        padding: "16px 20px",
+        borderTop: `0.75px solid ${TOKENS.rule}`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 10,
+        }}
+      >
+        <span
+          style={{ ...sectionLabelStyle, border: "none", paddingBottom: 0 }}
+        >
+          Completeness
+        </span>
+        <span
+          style={{
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            color: TOKENS.ink,
+            border: `0.75px solid ${TOKENS.rule}`,
+            background: TOKENS.paperRecessed,
+            borderRadius: 2,
+            padding: "3px 8px",
+            whiteSpace: "nowrap",
+            ...TNUM,
+          }}
+        >
+          {presentCount} OF {totalCount} ESSENTIALS
+        </span>
+      </div>
+      <ul
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 5,
+        }}
+      >
+        {items.map((it) => (
+          <li
+            key={it.key}
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              fontSize: 13,
+              lineHeight: 1.4,
+              color: it.present ? TOKENS.ink : TOKENS.inkMuted,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: 12,
+                width: "1ch",
+                flexShrink: 0,
+                color: it.present ? TOKENS.success : TOKENS.inkMuted,
+              }}
+            >
+              {it.present ? "✓" : "·"}
+            </span>
+            <span>
+              {/* Wording carries state, not color alone (§4.3 / §7.8): the
+                  glyph + this present/absent prefix are the real signal. */}
+              <span
+                style={{
+                  fontFamily: FONT_MONO,
+                  fontSize: 9.5,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: TOKENS.inkMuted,
+                  marginRight: 6,
+                }}
+              >
+                {it.present ? "present" : "missing"}
+              </span>
+              {it.label}
+              {it.advisory && (
+                <span
+                  style={{
+                    fontFamily: FONT_MONO,
+                    fontSize: 9.5,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: TOKENS.inkMuted,
+                    marginLeft: 6,
+                  }}
+                >
+                  · advisory
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div
+        style={{
+          ...hintStyle,
+          marginTop: 10,
+          maxWidth: "none",
+        }}
+      >
+        A glance at what your hypothesis declares — it never gates the run or
+        feeds the verdict.
+      </div>
+    </div>
   );
 }
 

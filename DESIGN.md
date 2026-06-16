@@ -639,6 +639,22 @@ normally); for the `abstain` state the note header reads "indeterminate — plea
 clarify." Disclosure notes never recolor the verdict chip and never discount
 `confidence_score` (panel hard constraint: the lint routes, it does not score).
 
+**Completeness checklist (glanceable, display-only).** The `simulations/new`
+wizard's manifest rail carries a `Completeness` block above the primary action:
+an `N OF M ESSENTIALS` count rendered as a §8.2 **panel-verdict-chip** (mono 11
+px / 600, `paper-recessed` fill, `0.75px` `rule` border — a paper tone, never a
+semantic fill) over a per-item present/absent list. Each row uses the §7.10
+**text-glyph** register (no icon library): present = a `✓` glyph in `success`
+with an `ink` label; absent = a `·` glyph with an `ink-muted` label. **Color
+never carries state alone** (§4.3 / §7.8): every row prefixes its label with a
+mono `PRESENT` / `MISSING` word, so the glyph + the wording — not the tone — are
+the signal. The count is a **human-glance number only**: it is deterministic and
+zero-LLM (derived from form state + the existing pre-flight `reason_codes`),
+never fed to `confidence_score` / the verdict / persistence, and it never gates
+submit (the authoritative block/override lives in the needs_input/`422` path).
+The lone advisory item (mechanism) is excluded from the count and tagged
+`· advisory` in mono — purely presentational. No new colors/pills/icons.
+
 ### 8.3 Honest numbers
 
 - The headline number is labeled for what it is. MVP:
@@ -878,6 +894,7 @@ table above.
 | 2026-06-16 | 0.3.3 | **Abstention verdict** (epic #309 T2, `#311`). §8.2 adds the fourth verdict state `NOT ANSWERABLE BY THIS INSTRUMENT` to the MVP + calibrated lexicons and the verdict→token map (`ink-muted` — a measurement-scope condition, not `warn`/`alert`). When the deterministic answerability gate classifies the OEC as `out_of_scope` (long-horizon / network / novelty-decay), `verdictFor()` WITHHOLDS the ship/no-ship verdict as its outermost branch (precedes the `underpowered_design` flip and the numeric path); the score is still computed and `confidence_score` is never discounted (panel hard constraint). The withheld verdict carries its inspectable named reasons in a hairline-`rule` §7.7 note (message in `ink`, no semantic fill). No new colors/pills/icons. |
 | 2026-06-16 | 0.3.4 | **Input-lint disclosure surface** (epic #309 T3, `#312`). §8.2 codifies the degrade-and-disclose **disclosure note** as a sanctioned pattern: a non-verdict caution about the *input* (vague / leading prose, or a paraphrase-unstable pre-flight verdict) carried on `input_flags` and rendered beside the normal reading on the simulation detail page. It REUSES the §7.7 note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, message in `ink`, no semantic fill, no pill/icon — because it is a data caution, not an alarm. Unlike the 0.3.3 `out_of_scope` abstention it does **not** change the verdict label (the verdict is computed and shown normally); for the `abstain` state the note header reads "indeterminate — please clarify." No new colors/pills/icons; the lint routes and never discounts `confidence_score` (panel hard constraint). |
 | 2026-06-16 | 0.3.5 | **Answerable hypothesis authoring** (epic #309 T4, `#313`; the deploy-unblocker). The `simulations/new` wizard's `01 · Claim` section now defaults to four structured fields following the falsifiable template "If [change] for [cohort], then [OEC metric] [direction]," composed into the prose the API expects and shown verbatim in a `paper-recessed` mono preview; a quiet `Free-text instead →` toggle (§7.7 quiet control) keeps the escape hatch so terse expert claims are never over-constrained. The OEC metric picker (`05 · Outcome metric`) is **decoupled from A/B mode** — declaring a metric clears the answerability gate's `oec_undeclared` block in either mode (the paired lift delta stays A/B-only; single-arm reports the metric rate). Two new authoring surfaces REUSE the §8.2 / §7.7 disclosure-note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, mono label, body in `ink` (fixes in `ink-muted`), no semantic fill / pill / icon / alert-red: (1) a **live inline lint** rendering the deterministic zero-LLM `POST /simulations/preflight` answerability + leading-framing reasons/fixes as the user authors, and (2) the **needs_input surface** that catches the create path's `422` and renders the named reasons + fixes as guidance (never a dead-end), offering an explicit `Run anyway as generic reception` quiet affordance when `allow_override` (resubmits with `run_as_generic_reception`). No new colors/pills/icons; no migration; `confidence_score` arithmetic untouched (panel hard constraints). |
+| 2026-06-16 | 0.3.6 | **Glanceable completeness checklist** (epic #309 T6, `#337`). §8.2 codifies a display-only `Completeness` block in the `simulations/new` manifest rail: an `N OF M ESSENTIALS` count rendered as a §8.2 panel-verdict-chip (mono, `paper-recessed` fill, `rule` border) over a per-item present/absent list in the §7.10 text-glyph register — present `✓` (`success`) + `ink` label, absent `·` + `ink-muted` label, each row prefixed with a mono `PRESENT`/`MISSING` word so color never carries state alone (§4.3 / §7.8). The six essentials (change · cohort · OEC metric · direction · conditional design attached · advisory mechanism) are derived **deterministically, zero-LLM** from the wizard's form state + the EXISTING live `POST /simulations/preflight` `reason_codes` (the "conditional design attached" item reuses the gate's own `structurally_invisible_change` signal rather than re-deriving the regime classifier client-side); the count is a human-glance number **never fed to `confidence_score` / the verdict / persistence** and **never gates submit** (the authoritative block/override stays in the T4 needs_input/`422` path). The lone advisory item (mechanism) is excluded from the count and mono-tagged `· advisory`. Frontend-only — no backend / no route / no migration. No new colors/pills/icons; `confidence_score` arithmetic untouched (panel hard constraint). |
 
 ---
 
