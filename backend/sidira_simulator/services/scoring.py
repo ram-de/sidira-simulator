@@ -1195,6 +1195,12 @@ def metric_lift_honesty(
     verb_lower: str = "converts directionally lower than control",
     verb_same: str = "convert at the same directional rate",
     weak_signal_noun: str = "Synthetic conversion",
+    # The regime-strength clause of the uncalibrated caveat. Defaults to the
+    # weak-behavioral wording (conversion/retention sit on the §5 modality cliff);
+    # CTR overrides it so a strong-regime metric is never described as "a weak
+    # behavioral signal" while still carrying the read-as-rank/direction caveat that
+    # every uncalibrated metric needs pre-#222 (codex P2).
+    signal_strength_clause: str = "is a weak behavioral signal",
     propensity_noun: str = "conversion propensity",
 ) -> tuple[str, str | None]:
     """Map a `MetricLiftResult` to (regime, relative-statement) per §5 (#275).
@@ -1234,7 +1240,7 @@ def metric_lift_honesty(
         )
     else:
         magnitude_caveat = (
-            f"{weak_signal_noun} is a weak behavioral signal — read as "
+            f"{weak_signal_noun} {signal_strength_clause} — read as "
             "rank/direction, not as a calibrated effect size."
         )
     relative = (

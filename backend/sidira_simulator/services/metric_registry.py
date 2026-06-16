@@ -254,6 +254,12 @@ def _ctr_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
         verb_lower="clicks through directionally lower than control",
         verb_same="click through at the same directional rate",
         weak_signal_noun="Synthetic CTR",
+        # CTR is a STRONG regime (§5), so it must NOT inherit the weak-behavioral
+        # caveat wording — but its magnitude is still uncalibrated pre-#222, so the
+        # read-as-rank/direction caveat stays (codex P2).
+        signal_strength_clause=(
+            "is a strong behavioral signal whose magnitude is not yet calibrated"
+        ),
         propensity_noun="click-through propensity",
     )
 

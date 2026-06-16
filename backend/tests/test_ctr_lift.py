@@ -125,6 +125,11 @@ def test_ctr_honesty_uses_native_unit_wording() -> None:
     assert "clicks through directionally higher" in relative
     assert "Synthetic CTR" in relative
     assert "rank/direction" in relative
+    # CTR is the STRONG regime — it must NOT inherit the weak-behavioral caveat
+    # wording, but it still carries the uncalibrated read-as-rank caveat (codex P2).
+    assert "weak behavioral signal" not in relative
+    assert "strong behavioral signal" in relative
+    assert "not yet calibrated" in relative
 
 
 def test_ctr_honesty_none_when_uncomputable() -> None:
