@@ -545,6 +545,18 @@ class ScoringService:
             # Separability gate is CI-excludes-zero, NOT a pp magnitude threshold,
             # so a small-but-separable +2.0pp metric vs negative sentiment is
             # correctly caught (the exact failure mode #222 will calibrate).
+            #
+            # NOTE (codex P2): the metric lift and the sentiment lift are each a
+            # paired statistic over the SAME `(persona_id, sample_index)` key, but
+            # they may drop different members (a metric drops on `metric_p is None`;
+            # sentiment drops on a failed classification). We deliberately compare
+            # the two ARM-LEVEL read-outs — the metric verdict vs the sentiment
+            # verdict — rather than gating on the per-identity intersection, because
+            # that IS the validated finding's framing (the metric greenlit a change
+            # the sentiment read flagged as harm). Both reads being separable over
+            # their own usable pairs is a stronger, not weaker, signal; the wording
+            # says "across the paired arms", never that a single identity carries
+            # both signals.
             metric_ci_pp = composed.metric_lift_ci_pp
             sentiment_ci = composed.lift_ci
             metric_positive_separable = metric_ci_pp is not None and metric_ci_pp[0] > 0
@@ -597,10 +609,10 @@ class ScoringService:
                             summary=(
                                 f"The {hypothesis.metric_name} metric is positive and "
                                 f"separable ({metric_pp:+.1f}pp), but sentiment is "
-                                f"negative and separable ({sentiment_lift:+.1f}) on the "
-                                f"same paired identities — the metric would greenlight a "
-                                f"change users dislike. Pre-calibration (#222), trust "
-                                f"sentiment for harm: do not ship on the metric alone."
+                                f"negative and separable ({sentiment_lift:+.1f}) across "
+                                f"the paired arms — the metric would greenlight a change "
+                                f"users dislike. Pre-calibration (#222), trust sentiment "
+                                f"for harm: do not ship on the metric alone."
                             ),
                         )
                     ]
