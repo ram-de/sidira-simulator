@@ -16,7 +16,8 @@ ML stack (numpy/sklearn/scipy + the `sidira_personas` wheel) stays OUT of the AP
 image. The wizard's `202` + status-polling contract is unchanged. Per #268 decision (C).
 
 ## In Progress
-- [ ] Open PR (ram-de) → merge → redeploy WITH migration 013 → verify worker container + real build.
+- [ ] **PR #284 open** (https://github.com/ram-de/sidira-simulator/pull/284) — awaiting merge,
+      then redeploy WITH migration 013 → verify worker container + real build.
 
 ## Built + verified (ready to PR)
 - [x] Migration 013 (`config_json` JSONB on persona_build_runs); single alembic head 013.
