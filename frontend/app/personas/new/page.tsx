@@ -1673,21 +1673,30 @@ function ConnectionPicker({
     }
   };
 
-  // Keydown on the FILTER input: Down steps into the first row; Esc closes;
-  // typing falls through to narrow. Up from the filter is a no-op (already top).
-  const onFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      moveActive(1);
-    } else if (e.key === "Escape") {
+  // Panel-level Esc — fires regardless of which inner control holds focus
+  // (filter input, an option row, or a row's Test/Delete/confirm button), so Esc
+  // always closes the popover and returns focus to the trigger (codex P2). Bound
+  // on the panel container, which sees the bubbled keydown from any child.
+  const onPanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
       e.preventDefault();
       closeAndRefocus();
     }
   };
 
-  // Keydown on an OPTION row's select button: Arrow nav, Enter selects (handled
-  // by the button's own onClick, so we let Enter fall through), Esc closes. Up
-  // from the first row returns to the filter input.
+  // Keydown on the FILTER input: Down steps into the first row; typing falls
+  // through to narrow. Up from the filter is a no-op (already top). Esc is
+  // handled at the panel level above.
+  const onFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActive(1);
+    }
+  };
+
+  // Keydown on a row's select button: Arrow nav; Enter selects (handled by the
+  // button's own onClick, so we let it fall through); Up from the first row
+  // returns to the filter input. Esc is handled at the panel level above.
   const onOptionKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -1700,15 +1709,13 @@ function ConnectionPicker({
       } else {
         moveActive(-1);
       }
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      closeAndRefocus();
     }
     // Enter/Space: the native <button> fires its onClick (handleSelectSaved →
-    // collapse), so we don't intercept them here.
+    // collapse), so we don't intercept them here. Esc bubbles to onPanelKeyDown.
   };
 
-  const listboxId = "saved-connection-listbox";
+  const panelId = "saved-connection-panel";
+  const listId = "saved-connection-list";
 
   return (
     <section style={{ marginBottom: 4 }}>
@@ -1727,9 +1734,9 @@ function ConnectionPicker({
           type="button"
           onClick={() => (open ? closeAndRefocus() : openPanel())}
           onKeyDown={onTriggerKeyDown}
-          aria-haspopup="listbox"
+          aria-haspopup="dialog"
           aria-expanded={open}
-          aria-controls={open ? listboxId : undefined}
+          aria-controls={open ? panelId : undefined}
           style={{
             ...secondaryBtnStyle,
             width: "100%",
@@ -1758,6 +1765,10 @@ function ConnectionPicker({
         {open && (
           <div
             ref={panelRef}
+            id={panelId}
+            role="dialog"
+            aria-label="Saved connections"
+            onKeyDown={onPanelKeyDown}
             style={{
               marginTop: 6,
               border: `0.75px solid ${TOKENS.rule}`,
@@ -1781,16 +1792,19 @@ function ConnectionPicker({
                 onKeyDown={onFilterKeyDown}
                 placeholder="name · account · database · role"
                 autoComplete="off"
-                aria-controls={listboxId}
+                aria-controls={listId}
                 style={monoInputStyle}
               />
             </div>
 
             {/* The register, relocated into the popover: height-capped to ~4
-                rows with internal scroll so it never grows unbounded. */}
+                rows with internal scroll so it never grows unbounded. A plain
+                grouped list of row buttons (NOT role="listbox" — the rows carry
+                their own Test/Delete actions and can become a confirm dialog,
+                which a strict listbox may not contain; codex P2). */}
             <div
-              id={listboxId}
-              role="listbox"
+              id={listId}
+              role="group"
               aria-label="Saved connections"
               style={{ maxHeight: 268, overflowY: "auto" }}
             >
@@ -1811,8 +1825,14 @@ function ConnectionPicker({
                     testing={testingRowId === c.id}
                     testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
                     onSelect={() => {
+                      // Select collapses the whole picker into the #327 "Using
+                      // saved connection" summary, which UNMOUNTS this trigger —
+                      // so we must NOT refocus it (that would land focus on a
+                      // detached node / fall to <body>; codex P3). Just close;
+                      // collapse swaps in the summary section in its place.
+                      setOpen(false);
+                      setActiveIndex(-1);
                       onSelectSaved(c);
-                      closeAndRefocus();
                     }}
                     onTest={() => onTestRow(c.id)}
                     onRequestDelete={() => onRequestDelete(c.id)}
@@ -1977,14 +1997,16 @@ function SavedConnectionRow({
       <button
         type="button"
         onClick={onSelect}
-        // In the picker popover this button IS the listbox option: it carries
-        // role="option" + aria-selected and a roving tabindex, and the picker
-        // drives focus through it on Arrow keys. Standalone (no optionRef) it
-        // stays a plain pressed toggle, exactly as #327 shipped it.
+        // In the picker popover this button is the row's primary action inside a
+        // non-modal dialog (NOT an ARIA listbox option — the row also carries
+        // sibling Test/Delete buttons and can morph into a confirm dialog, which
+        // a strict listbox/option may not contain; codex P2). It takes a roving
+        // tabindex so Arrow keys step focus through the rows, and aria-current
+        // marks the pinned connection. Standalone (no optionRef) it stays a plain
+        // pressed toggle, exactly as #327 shipped it.
         {...(optionRef
           ? {
-              role: "option",
-              "aria-selected": selected,
+              "aria-current": selected ? ("true" as const) : undefined,
               tabIndex: optionTabIndex ?? -1,
               ref: optionRef,
               onKeyDown: onOptionKeyDown,
@@ -2082,9 +2104,23 @@ function SavedConnectionSummary({
     ["Database", conn.schema ? `${conn.database}.${conn.schema}` : conn.database],
     ["Warehouse / role", `${conn.warehouse} · ${conn.role}`],
   ];
+  // Focus landing after a picker selection collapses to this summary (#332/codex
+  // P3): the row button the user clicked unmounts with the picker, so without
+  // this keyboard focus would fall to <body>. We move it to this summary's
+  // heading (a focusable but non-tabbable landmark). Guarded against a COLD page
+  // load where a connection is pre-selected: if focus is still on <body> at
+  // mount, the user didn't drive here, so we don't steal focus.
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (!active || active === document.body) return; // cold load — don't grab focus
+    headingRef.current?.focus();
+  }, []);
   return (
     <section style={{ marginBottom: 4 }}>
-      <div style={sectionLabelStyle}>Using saved connection</div>
+      <div ref={headingRef} tabIndex={-1} style={{ ...sectionLabelStyle, outline: "none" }}>
+        Using saved connection
+      </div>
       <div
         style={{
           ...fieldStyle,
