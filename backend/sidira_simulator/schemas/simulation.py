@@ -433,6 +433,28 @@ class SimulationResult(BaseModel):
     # unchanged; while False, `metric_lift_relative` carries the "uncalibrated
     # — read as rank/direction, not effect size" caveat. The fit is #222-gated.
     metric_lift_calibrated: bool = False
+    # ── Metric↔sentiment disagreement guardrail (#321) ──
+    # True when the metric and the sentiment lift are BOTH separable (their CIs
+    # exclude zero) AND point in OPPOSITE directions. The dangerous case is
+    # HARM-MISREAD: the uncalibrated metric reads positive-and-separable (it would
+    # greenlight the change) while sentiment is negative-and-separable (users hate
+    # it) — the validated failure mode where uncalibrated blinded retention gave
+    # the WRONG SIGN on a harm (+2.0pp metric vs strongly negative sentiment). The
+    # symmetric HIDDEN-IMPROVEMENT case (metric negative-separable, sentiment
+    # positive-separable) also sets this flag. This is an HONEST, pre-calibration
+    # surfacing: it claims NO magnitude, only a sign contradiction; it does NOT
+    # touch `confidence_score`, `lift`, or `metric_lift_pp`. Default False so
+    # non-metric runs, runs where either CI is None, and older `result_json` rows
+    # load byte-identical and this is migration-free (it rides the result JSON
+    # blob, NOT a DB column). Sign convention: positive metric = higher
+    # propensity; positive sentiment lift = better-received. Until the metric is
+    # calibrated (#222), TRUST SENTIMENT for harm when the two disagree.
+    metric_sentiment_disagreement: bool = False
+    # The PM-facing explanation of the disagreement (the actual metric pp + CI and
+    # sentiment lift + CI, and the trust-sentiment-for-harm guidance). None when
+    # there is no disagreement. On HARM-MISREAD a `hidden_guardrail_risk` Weakness
+    # is also appended to `weaknesses`; HIDDEN-IMPROVEMENT sets the caveat only.
+    metric_sentiment_disagreement_caveat: str | None = None
 
 
 class Simulation(BaseModel):

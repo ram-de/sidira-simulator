@@ -530,6 +530,81 @@ class ScoringService:
                     "metric_lift_calibrated": lift.calibrated,
                 }
             )
+
+            # ── Metric↔sentiment disagreement guardrail (#321) ──
+            # Validated finding: uncalibrated blinded retention can give the WRONG
+            # SIGN on a harm — a change read +2.0pp (separable, positive) while
+            # sentiment was strongly negative. When the metric and sentiment lifts
+            # are BOTH separable (CI excludes zero) and point in OPPOSITE
+            # directions, surface the contradiction. This is purely additive: it
+            # does NOT touch `confidence_score` (sentiment is the trusted harm
+            # signal pre-#222), `lift`, or `metric_lift_pp`. The note `lift` here
+            # is the METRIC lift (reassigned above); the sentiment lift + CI ride
+            # on `composed.lift` / `composed.lift_ci` (set from `aggregate_ab`).
+            #
+            # Separability gate is CI-excludes-zero, NOT a pp magnitude threshold,
+            # so a small-but-separable +2.0pp metric vs negative sentiment is
+            # correctly caught (the exact failure mode #222 will calibrate).
+            metric_ci_pp = composed.metric_lift_ci_pp
+            sentiment_ci = composed.lift_ci
+            metric_positive_separable = metric_ci_pp is not None and metric_ci_pp[0] > 0
+            metric_negative_separable = metric_ci_pp is not None and metric_ci_pp[1] < 0
+            sentiment_positive_separable = sentiment_ci is not None and sentiment_ci[0] > 0
+            sentiment_negative_separable = sentiment_ci is not None and sentiment_ci[1] < 0
+
+            harm_misread = metric_positive_separable and sentiment_negative_separable
+            hidden_improvement = metric_negative_separable and sentiment_positive_separable
+            disagreement = harm_misread or hidden_improvement
+
+            if disagreement:
+                metric_pp = composed.metric_lift_pp
+                sentiment_lift = composed.lift
+                if harm_misread:
+                    caveat = (
+                        f"Metric↔sentiment DISAGREEMENT (harm-misread): the "
+                        f"{hypothesis.metric_name} metric reads {metric_pp:+.1f}pp "
+                        f"(CI [{metric_ci_pp[0]:+.1f}, {metric_ci_pp[1]:+.1f}]pp), "
+                        f"positive and separable — it would greenlight this change — "
+                        f"while sentiment is {sentiment_lift:+.1f} "
+                        f"(CI [{sentiment_ci[0]:+.1f}, {sentiment_ci[1]:+.1f}]), "
+                        f"negative and separable. This can indicate real user harm "
+                        f"the uncalibrated metric misses. Trust sentiment for harm "
+                        f"until the metric is calibrated (#222)."
+                    )
+                else:  # hidden_improvement
+                    caveat = (
+                        f"Metric↔sentiment DISAGREEMENT (hidden-improvement): the "
+                        f"{hypothesis.metric_name} metric reads {metric_pp:+.1f}pp "
+                        f"(CI [{metric_ci_pp[0]:+.1f}, {metric_ci_pp[1]:+.1f}]pp), "
+                        f"negative and separable, while sentiment is "
+                        f"{sentiment_lift:+.1f} "
+                        f"(CI [{sentiment_ci[0]:+.1f}, {sentiment_ci[1]:+.1f}]), "
+                        f"positive and separable — users react well. The "
+                        f"uncalibrated metric may understate a real win; read the "
+                        f"two together until the metric is calibrated (#222)."
+                    )
+                update: dict[str, object] = {
+                    "metric_sentiment_disagreement": True,
+                    "metric_sentiment_disagreement_caveat": caveat,
+                }
+                # HARM-MISREAD only: append a guardrail weakness so the PM sees the
+                # contradiction in the weaknesses list, not just the caveat string.
+                # Hidden-improvement is not a risk, so it gets no weakness.
+                if harm_misread:
+                    update["weaknesses"] = composed.weaknesses + [
+                        Weakness(
+                            category="hidden_guardrail_risk",
+                            summary=(
+                                f"The {hypothesis.metric_name} metric is positive and "
+                                f"separable ({metric_pp:+.1f}pp), but sentiment is "
+                                f"negative and separable ({sentiment_lift:+.1f}) on the "
+                                f"same paired identities — the metric would greenlight a "
+                                f"change users dislike. Pre-calibration (#222), trust "
+                                f"sentiment for harm: do not ship on the metric alone."
+                            ),
+                        )
+                    ]
+                composed = composed.model_copy(update=update)
         return composed, list(analyses)
 
     # — Pack-level scoring ——————————————————————————————————————————
