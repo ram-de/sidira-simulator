@@ -83,13 +83,39 @@ credential, no mint) → Map previews/suggests off the id → Build sends
 `connection_id` and the server uses `password_enc`. No plaintext password is
 needed anywhere on the reuse path.
 
+## Codex review round-trip (4 fixes)
+
+Codex review surfaced three real issues across iterations, all fixed on this
+branch (final review: no findings, branch clean):
+
+1. **P1 — Test button stayed disabled on reuse.** `canTest`/`credsFilled` still
+   required `conn.password`, blank on reuse. Added a `reusingSaved` flag and
+   dropped the password from the gate on that path.
+2. **P1 — source coupling broke reuse.** The single `credFingerprint` included
+   `mode/table/sql`, so typing the source after picking a saved connection
+   diverged the fingerprint and snapped the password gate back on. Split into
+   `credFingerprint` (credential-only — mint/reuse decision) and
+   `testFingerprint` (creds + source — Continue gating).
+3. **P1 — stale profiled mapping.** The split removed the side effect where a
+   source edit re-minted and cleared columns/mapping. Added `invalidateSource()`
+   so a source change forces a re-profile.
+4. **P1 — stale completed build.** A finished build/eval/promotion survived a
+   later Connect-step edit (latent on main too). Factored
+   `invalidateMappingAndBuild()` (calls `clearBuild()`) and routed the source
+   path, both connection handlers, and `handleTest`'s mint branch through it.
+
 ## Verification
 
 - `npm ci` in `frontend/` (worktree had no node_modules).
-- `npm run typecheck` (`tsc --noEmit`) → clean, no errors.
-- `npm run build` (`next build`) → green; `/personas/new` compiles (12.4 kB).
+- `npm run typecheck` (`tsc --noEmit`) → clean (run after a build so `.next/types`
+  is generated).
+- `npm run build` (`next build`, which runs the full typecheck) → green;
+  `/personas/new` compiles.
 - `npm run lint` is NOT a configured gate — it drops into Next.js's interactive
   ESLint setup prompt (no eslintrc in repo); typecheck + build are the gates.
+- Codex review: final pass returned no findings (correctness / regressions /
+  DESIGN.md all clean). Live browser QA not run — codex sandbox blocks local
+  port binding.
 
 ## Scope / deploy
 
