@@ -1958,6 +1958,27 @@ function SavedConnectionRow({
   // While a per-row test is in flight we say so honestly (§8.6: no spinners).
   const healthLine = testing ? "TESTING…" : connectionHealthLine(conn);
 
+  // Keyboard focus handoff for the inline delete confirm (#332/codex P2).
+  // Opening the confirm REPLACES the focused Delete button with the alertdialog,
+  // which would drop focus to <body> — especially jarring inside the otherwise
+  // keyboard-managed picker popover. So we focus Cancel when the confirm mounts,
+  // and return focus to the row's Delete button when the confirm closes
+  // (cancel/error path; on a successful delete the whole row unmounts and there's
+  // nothing to return to). Effect runs on every confirmingDelete transition.
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement | null>(null);
+  const wasConfirming = useRef(false);
+  useEffect(() => {
+    if (confirmingDelete) {
+      cancelRef.current?.focus();
+    } else if (wasConfirming.current) {
+      // Confirm just closed without unmounting the row (cancel / delete error) —
+      // restore focus to the Delete affordance the user came from.
+      deleteBtnRef.current?.focus();
+    }
+    wasConfirming.current = confirmingDelete;
+  }, [confirmingDelete]);
+
   // The inline confirm replaces the row's clickable body so a mis-click can't
   // select-and-delete in one motion. Honest text states the exact scope (§7.7).
   if (confirmingDelete) {
@@ -1986,7 +2007,13 @@ function SavedConnectionRow({
           </div>
         )}
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={onCancelDelete} disabled={deleting} style={rowActionStyle}>
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancelDelete}
+            disabled={deleting}
+            style={rowActionStyle}
+          >
             Cancel
           </button>
           <button
@@ -2097,6 +2124,7 @@ function SavedConnectionRow({
           {testing ? "Testing…" : "Test"}
         </button>
         <button
+          ref={deleteBtnRef}
           type="button"
           onClick={onRequestDelete}
           aria-label={`Delete saved connection ${conn.name}`}
