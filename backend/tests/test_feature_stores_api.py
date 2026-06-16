@@ -159,6 +159,70 @@ def test_list_scoped_and_password_free(client):
         assert "password" not in item
 
 
+# ── unique connection names (#327) ─────────────────────────────────────────
+
+
+def test_duplicate_name_rejected_case_insensitive(client):
+    """A second connection whose name matches an existing one (case-insensitive,
+    trimmed) is rejected 409 — app-level uniqueness, no migration. The form
+    surfaces this near the name field."""
+    assert client.post("/feature-stores", json=_CREATE_PAYLOAD).status_code == 201
+    dup = client.post(
+        "/feature-stores", json={**_CREATE_PAYLOAD, "name": "  prod WAREHOUSE  "}
+    )
+    assert dup.status_code == 409
+    assert "already exists" in dup.json()["detail"]
+
+
+def test_distinct_names_both_succeed(client):
+    """Uniqueness is per-name, not a global cap — distinct names both persist."""
+    assert client.post("/feature-stores", json=_CREATE_PAYLOAD).status_code == 201
+    assert (
+        client.post("/feature-stores", json={**_CREATE_PAYLOAD, "name": "Staging"}).status_code
+        == 201
+    )
+
+
+# ── delete connection (#327) ───────────────────────────────────────────────
+
+
+def test_delete_own_connection_is_204_then_gone(client):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    assert client.delete(f"/feature-stores/{cid}").status_code == 204
+    # The row is gone — it no longer lists, and a re-fetch via test 404s.
+    assert client.get("/feature-stores").json() == []
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 404
+
+
+def test_delete_unknown_id_is_404(client):
+    assert client.delete("/feature-stores/fs-nope").status_code == 404
+
+
+def test_delete_is_customer_scoped(client):
+    """A customer may only delete their OWN connection. Deleting another tenant's
+    id returns 404 (never leaks existence), and the row survives untouched. We
+    swap the customer via FastAPI's dependency_overrides (the route captured the
+    real ``current_customer_id`` at import, so a monkeypatch wouldn't take)."""
+    from sidira_simulator.api.deps import current_customer_id
+
+    def _as(cust: str):
+        app.dependency_overrides[current_customer_id] = lambda: cust
+
+    # Customer A creates a connection.
+    _as("cust-A")
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+
+    # Customer B attempts to delete A's connection by its (guessed) id → 404.
+    _as("cust-B")
+    assert client.delete(f"/feature-stores/{cid}").status_code == 404
+
+    # The row still belongs to A and survives.
+    _as("cust-A")
+    assert any(c["id"] == cid for c in client.get("/feature-stores").json())
+
+    app.dependency_overrides.pop(current_customer_id, None)
+
+
 # ── test connection ──────────────────────────────────────────────────────
 
 

@@ -338,6 +338,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feature-stores/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Connection
+         * @description Delete a saved connection (#327). Customer-scoped: the repo only deletes a
+         *     row this customer OWNS, and returns False for an unknown id OR another
+         *     tenant's id alike — both map to 404 here so we never confirm a connection's
+         *     existence across customers (the same non-leak posture as ``get``). 204 on a
+         *     successful owned delete. Existing persona builds keep their own records; this
+         *     only removes the credential future builds could reuse.
+         */
+        delete: operations["delete_connection_feature_stores__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feature-stores/{connection_id}/test": {
         parameters: {
             query?: never;
@@ -2278,6 +2303,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ConnectionSummary"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_connection_feature_stores__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

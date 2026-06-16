@@ -134,6 +134,18 @@ async def create_connection(
     repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
 ) -> ConnectionSummary:
     """Encrypt the password at rest and persist a sanitized connection row."""
+    # Unique connection names per customer (#327). The "Saved connections" picker
+    # disambiguates near-identical rows by name; two rows sharing a name are what
+    # made the live picker unreadable. Enforce uniqueness app-level (a name query,
+    # no DB unique constraint → no Alembic migration). Case-insensitive on the
+    # trimmed name, mirroring the repo helper; a clash returns a clean 409 the
+    # form surfaces near the name field.
+    if await repo.name_exists(customer_id, payload.name):
+        raise HTTPException(
+            status_code=409,
+            detail=f"a saved connection named {payload.name.strip()!r} already exists — "
+            "pick a different name",
+        )
     # Bind the blob to (customer_id, connection_id) via AAD so a password_enc
     # copied to another tenant/connection row cannot decrypt. The id is minted
     # here (not inside the repo) so the same value is the AAD and the row id.
@@ -172,6 +184,23 @@ async def list_connections(
 ) -> list[ConnectionSummary]:
     rows = await repo.list_for_customer(customer_id)
     return [_summary_from_row(row) for row in rows]
+
+
+@router.delete("/{connection_id}", status_code=204)
+async def delete_connection(
+    connection_id: str,
+    customer_id: str = Depends(current_customer_id),
+    repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
+) -> None:
+    """Delete a saved connection (#327). Customer-scoped: the repo only deletes a
+    row this customer OWNS, and returns False for an unknown id OR another
+    tenant's id alike — both map to 404 here so we never confirm a connection's
+    existence across customers (the same non-leak posture as ``get``). 204 on a
+    successful owned delete. Existing persona builds keep their own records; this
+    only removes the credential future builds could reuse."""
+    deleted = await repo.delete(connection_id, customer_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="connection not found")
 
 
 @router.post("/{connection_id}/test", status_code=204)

@@ -39,6 +39,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createFeatureStore,
   createPersonaBuild,
+  deleteFeatureStore,
   getPersonaBuild,
   getPersonaBuildEvents,
   getPersonaPackDetail,
@@ -78,6 +79,7 @@ import {
   monoInputStyle,
   okBannerStyle,
   primaryBtnStyle,
+  railAlertStyle,
   railCaptionStyle,
   secondaryBtnStyle,
   sectionLabelStyle,
@@ -159,6 +161,56 @@ const credFingerprint = (f: ConnForm) =>
 const testFingerprint = (f: ConnForm, mode: SourceMode, table: string, sql: string) =>
   JSON.stringify([credFingerprint(f), mode, table, sql]);
 
+// ── saved-connection identity (#327) ───────────────────────────────────────
+// The live picker showed several cards all titled `prod-analytics`, tellable
+// apart only by a casing wobble in one mono subline — and there was no way to
+// delete a dead/duplicate row. The fix is to render a CANONICAL identity, not
+// just the name, so near-identical rows are legible at a glance.
+
+// The primary identity line: `name · DATABASE.SCHEMA · WAREHOUSE · ROLE`. The
+// schema clause is dropped when empty. This is what the eye reads first — the
+// connection's actual target, not just its label.
+const connectionIdentity = (c: ConnectionSummary): string => {
+  const db = c.schema ? `${c.database}.${c.schema}` : c.database;
+  return `${c.name} · ${db} · ${c.warehouse} · ${c.role}`;
+};
+
+// The secondary mono line: `account · user · <id-8hex>`. The 8-hex id tail is
+// the last-resort tiebreaker (4-hex collides on a page — DESIGN.md §8.8); we
+// take the first 8 chars AFTER the `fs-` prefix so two rows minted seconds
+// apart still differ here.
+const connectionSubline = (c: ConnectionSummary): string => {
+  const idTail = c.id.replace(/^fs-/, "").slice(0, 8);
+  return `${c.account} · ${c.user} · ${idTail}`;
+};
+
+// When two saved rows share the same `name` (case-insensitively, trimmed —
+// DISPLAY normalization only; the stored values are never touched), append a
+// stable duplicate designator (`01`, `02`, …) so the eye stops decoding casing.
+// Order is the list's own stable order (server returns newest-first), so the
+// designators don't reshuffle between renders. Returns a map id → " NN" suffix
+// (empty string when the name is unique in the list).
+const duplicateDesignators = (conns: ConnectionSummary[]): Record<string, string> => {
+  const byName = new Map<string, ConnectionSummary[]>();
+  for (const c of conns) {
+    const key = c.name.trim().toLowerCase();
+    const bucket = byName.get(key);
+    if (bucket) bucket.push(c);
+    else byName.set(key, [c]);
+  }
+  const out: Record<string, string> = {};
+  for (const bucket of byName.values()) {
+    if (bucket.length < 2) {
+      out[bucket[0].id] = "";
+      continue;
+    }
+    bucket.forEach((c, i) => {
+      out[c.id] = ` ${String(i + 1).padStart(2, "0")}`;
+    });
+  }
+  return out;
+};
+
 const POLL_MS = 2500; // #28 watch cadence while pending/running.
 
 export default function NewPersonaPackPage() {
@@ -188,6 +240,13 @@ export default function NewPersonaPackPage() {
   // on connection.id against the stored credential.
   const [savedConns, setSavedConns] = useState<ConnectionSummary[]>([]);
   const [connsPhase, setConnsPhase] = useState<"loading" | "ready" | "error">("loading");
+  // Delete a saved connection (#327). `confirmDeleteId` is the row whose inline
+  // honest-text confirm is open (only one at a time; null when none). `deleting`
+  // is the id currently being deleted (disables that row's action). `deleteError`
+  // is a per-row failure message keyed by id — surfaced inline, never a banner.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -384,6 +443,53 @@ export default function NewPersonaPackPage() {
     invalidateConnection();
   };
 
+  // "Edit as new" (#327): open the full credential form PREFILLED from a saved
+  // connection's non-secret fields, but as a NEW connection mint — drop the
+  // selected `connection`/`connFingerprint` so the next Test creates a fresh row
+  // (a new password + a unique name are required; the name uniqueness guard will
+  // reject a verbatim re-save, which is exactly the point — edit it). The
+  // password stays blank (it's never returned). This is distinct from
+  // handleNewConnection, which clears the form to blank.
+  const handleEditAsNew = (c: ConnectionSummary) => {
+    setConn({
+      name: c.name,
+      account: c.account,
+      user: c.user,
+      password: "",
+      warehouse: c.warehouse,
+      role: c.role,
+      database: c.database,
+      schema: c.schema ?? "",
+    });
+    setConnection(null);
+    setConnFingerprint(null);
+    setOkFingerprint(null);
+    setTestError(null);
+    invalidateConnection();
+  };
+
+  // Delete a saved connection (#327). Customer-scoped server-side (404 if it
+  // isn't ours). On success we drop the row from the list, AND — if it was the
+  // SELECTED connection — clear the selection back to the blank form so the
+  // wizard can't carry a credential that no longer exists into Map/Build. The
+  // inline confirm is the only gate; no browser confirm(), no modal (§10).
+  const handleDeleteConnection = async (id: string) => {
+    setDeleteError(null);
+    setDeletingId(id);
+    try {
+      await deleteFeatureStore(id);
+      setSavedConns((prev) => prev.filter((c) => c.id !== id));
+      setConfirmDeleteId(null);
+      // If the deleted row was the active connection, reset the form — its
+      // credential is gone, so any in-progress Test/Map/Build is stale.
+      if (connection?.id === id) handleNewConnection();
+    } catch (e) {
+      setDeleteError({ id, message: apiErrorMessage(e) });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleTest = async () => {
     setTestError(null);
     setTesting(true);
@@ -408,6 +514,17 @@ export default function NewPersonaPackPage() {
         active = await createFeatureStore(req);
         setConnection(active);
         setConnFingerprint(credFp);
+        // Register the freshly-minted row in the saved list immediately (#327
+        // codex P1). The row is PERSISTED the moment createFeatureStore returns,
+        // even if the connectivity test that follows fails — and the unique-name
+        // guard means re-creating it under the same name would 409. So if it
+        // doesn't already appear (it won't, on a fresh mint), surface it now: the
+        // register lists it, "Use different connection" returns to that list, and
+        // the row's Delete affordance is the in-UI escape from a bad password —
+        // no page reload, no trapped name. (Newest-first, mirroring the server.)
+        setSavedConns((prev) =>
+          prev.some((c) => c.id === active!.id) ? prev : [active!, ...prev],
+        );
         // A fresh connection invalidates a previously-profiled mapping AND any
         // completed build (#27/#304): the columns may differ, so force a
         // re-profile on next Map entry and drop any stale build.
@@ -709,9 +826,25 @@ export default function NewPersonaPackPage() {
             savedConns={savedConns}
             connsPhase={connsPhase}
             selectedConnId={connection?.id ?? null}
+            selectedConn={connection}
             reusingSaved={reusingSaved}
+            confirmDeleteId={confirmDeleteId}
+            deletingId={deletingId}
+            deleteError={deleteError}
             onSelectSaved={handleSelectSaved}
             onNewConnection={handleNewConnection}
+            onRequestDelete={(id) => {
+              setDeleteError(null);
+              setConfirmDeleteId(id);
+            }}
+            onCancelDelete={() => {
+              setConfirmDeleteId(null);
+              setDeleteError(null);
+            }}
+            onConfirmDelete={handleDeleteConnection}
+            onEditAsNew={() => {
+              if (connection) handleEditAsNew(connection);
+            }}
             onField={setConnField}
             onSourceMode={(m) => {
               setSourceMode(m);
@@ -916,9 +1049,17 @@ function StepConnect({
   savedConns,
   connsPhase,
   selectedConnId,
+  selectedConn,
   reusingSaved,
+  confirmDeleteId,
+  deletingId,
+  deleteError,
   onSelectSaved,
   onNewConnection,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+  onEditAsNew,
   onField,
   onSourceMode,
   onTableFqn,
@@ -935,9 +1076,17 @@ function StepConnect({
   savedConns: ConnectionSummary[];
   connsPhase: "loading" | "ready" | "error";
   selectedConnId: string | null;
+  selectedConn: ConnectionSummary | null;
   reusingSaved: boolean;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  deleteError: { id: string; message: string } | null;
   onSelectSaved: (c: ConnectionSummary) => void;
   onNewConnection: () => void;
+  onRequestDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: (id: string) => void;
+  onEditAsNew: () => void;
   onField: (k: keyof ConnForm, v: string) => void;
   onSourceMode: (m: SourceMode) => void;
   onTableFqn: (v: string) => void;
@@ -961,6 +1110,24 @@ function StepConnect({
     conn.database.trim();
   const sourceFilled = sourceMode === "table" ? tableFqn.trim() : sql.trim();
   const canTest = Boolean(credsFilled && sourceFilled) && !testing;
+
+  // Stable per-name duplicate designators for the register (#327) — only the
+  // saved list feeds this, computed once per render.
+  const dupDesignators = duplicateDesignators(savedConns);
+
+  // Collapse-on-select (#327): when a SAVED connection is selected and the
+  // credentials still match it (reusingSaved), we don't render the prefilled
+  // credential form — that's what made the picker read like a gallery of
+  // near-identical forms. Instead we show a compact "Using saved connection"
+  // summary record. The full form returns only via "Use different connection"
+  // (a fresh blank mint) or "Edit as new" (form prefilled as a NEW connection).
+  // We need `selectedConn` (the ConnectionSummary) to render the summary, so the
+  // collapse also requires the selected id to be a row we hold in the saved list
+  // — a connection that isn't listed (it should always be, post-mint) keeps the
+  // editable form so the user is never stuck behind a summary for a row they
+  // can't see or delete (#327 codex P1).
+  const collapsed =
+    reusingSaved && selectedConn !== null && savedConns.some((c) => c.id === selectedConn.id);
 
   const Field = (key: keyof ConnForm, label: string, placeholder: string, type = "text") => (
     <div>
@@ -988,20 +1155,48 @@ function StepConnect({
         </div>
       )}
 
-      {/* ── 00 · Saved connections (#304) ───────────────────────────────────
+      {/* ── 00 · Saved connections — a register, not a gallery (#304/#327) ───
           The customer's persisted feature stores. Selecting one reuses it by
           id — the server holds the encrypted password, so test/preview/build
-          all run against the stored credential with NO password re-entry. The
-          section only renders when there's something to offer (or while the
+          all run against the stored credential with NO password re-entry.
+
+          #327 redesign: this reads like a register you scan (dense paper rows,
+          0.75px hairline rules, mono metadata, radius ≤4, a single ink-hairline
+          selected state), and each row carries a canonical IDENTITY line
+          (name · DB.SCHEMA · WAREHOUSE · ROLE) plus a mono subline
+          (account · user · id-8hex) so near-identical rows are tellable apart.
+          Duplicate names get a stable `NN` designator. Each row also carries a
+          quiet delete affordance (an ink-hairline text button — no red fill, no
+          trash icon, no emoji — §10) gated behind an inline honest-text confirm.
+
+          The section only renders when there's something to offer (or while the
           first read is in flight); an empty list or a failed fetch falls
           straight through to the form below — no empty-state clutter, never a
-          blocked wizard (§8.6 honest text, no spinners). */}
+          blocked wizard (§8.6 honest text, no spinners). When a saved row is
+          SELECTED, the picker hides and a compact summary takes over (collapse-
+          on-select) — see below. */}
       {connsPhase === "loading" && (
         <div style={{ ...statusLineStyle, color: TOKENS.inkMuted, marginBottom: 4 }}>
           LOADING SAVED CONNECTIONS…
         </div>
       )}
-      {connsPhase === "ready" && savedConns.length > 0 && (
+
+      {/* Collapse-on-select: a compact "Using saved connection" record instead
+          of the full prefilled form. Keeps the wizard from showing a credential
+          form under a selected row (which is what made the picker unreadable). */}
+      {collapsed && selectedConn && (
+        <SavedConnectionSummary
+          conn={selectedConn}
+          designator={dupDesignators[selectedConn.id] ?? ""}
+          onUseDifferent={onNewConnection}
+          onEditAsNew={onEditAsNew}
+        />
+      )}
+
+      {/* The register — shown only when NOT collapsed (i.e. while creating or
+          editing a connection). A selected row collapses into the summary above
+          instead of living here. */}
+      {!collapsed && connsPhase === "ready" && savedConns.length > 0 && (
         <section style={{ marginBottom: 4 }}>
           <div style={sectionLabelStyle}>Saved connections</div>
           <div style={hintStyle}>
@@ -1009,41 +1204,30 @@ function StepConnect({
             password. Pick one, then test and continue. Or enter a different
             connection below.
           </div>
-          <div style={{ ...fieldStyle, display: "flex", flexDirection: "column", gap: 8 }}>
-            {savedConns.map((c) => {
-              const selected = c.id === selectedConnId;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => onSelectSaved(c)}
-                  aria-pressed={selected}
-                  style={{
-                    textAlign: "left",
-                    background: selected ? TOKENS.paperRecessed : TOKENS.paperElevated,
-                    // Selection rides an ink hairline (the only emphasis) — no
-                    // color state; meaning is in the wording/border (§4.3).
-                    border: `${selected ? "1px" : "0.75px"} solid ${selected ? TOKENS.ink : TOKENS.rule}`,
-                    borderRadius: 4,
-                    padding: "10px 12px",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: TOKENS.ink }}>{c.name}</span>
-                    <Chip>{c.kind.toUpperCase()}</Chip>
-                    {selected && <Chip>SELECTED</Chip>}
-                  </div>
-                  <div style={railCaptionStyle}>
-                    {c.account} · {c.warehouse} · {c.database}
-                    {c.schema ? `.${c.schema}` : ""} · {c.role}
-                  </div>
-                </button>
-              );
-            })}
+          {/* The register: dense rows separated by hairline rules, top + bottom
+              ruled so it reads as one ledger. */}
+          <div
+            style={{
+              ...fieldStyle,
+              borderTop: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 2,
+            }}
+          >
+            {savedConns.map((c) => (
+              <SavedConnectionRow
+                key={c.id}
+                conn={c}
+                designator={dupDesignators[c.id] ?? ""}
+                selected={c.id === selectedConnId}
+                confirmingDelete={confirmDeleteId === c.id}
+                deleting={deletingId === c.id}
+                deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
+                onSelect={() => onSelectSaved(c)}
+                onRequestDelete={() => onRequestDelete(c.id)}
+                onCancelDelete={onCancelDelete}
+                onConfirmDelete={() => onConfirmDelete(c.id)}
+              />
+            ))}
           </div>
           <div style={{ ...fieldStyle }}>
             <button type="button" onClick={onNewConnection} style={secondaryBtnStyle}>
@@ -1053,41 +1237,37 @@ function StepConnect({
         </section>
       )}
 
-      {/* ── 01 · Snowflake credentials ──────────────────────────────────── */}
-      <section style={connsPhase === "ready" && savedConns.length > 0 ? sectionStyle : undefined}>
-        <div style={sectionLabelStyle}>01 · Snowflake credentials</div>
-        <div style={fieldStyle}>{Field("name", "Connection name", "e.g. prod-analytics")}</div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("account", "Account", "xy12345.us-east-1")}
-          {Field("user", "User", "SIDIRA_READER")}
-        </div>
-        <div style={fieldStyle}>
-          {Field(
-            "password",
-            "Password",
-            // On reuse the saved credential lives server-side — leaving the field
-            // blank is correct; type a value only to re-key/rotate the connection.
-            reusingSaved ? "kept securely — leave blank to reuse" : "••••••••",
-            "password",
-          )}
-        </div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("warehouse", "Warehouse", "COMPUTE_WH")}
-          {Field("role", "Role", "SIDIRA_RO")}
-        </div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("database", "Database", "ANALYTICS")}
-          {Field("schema", "Schema (optional)", "PUBLIC")}
-        </div>
-        <div style={hintStyle}>
-          A read-only role on a non-production warehouse is plenty — the builder
-          only profiles and samples. The password is sent once to test and store
-          the connection; it is never echoed back.
-          {reusingSaved
-            ? " You're reusing a saved connection, so its password stays on the server — leave the field blank and just test. Editing any field switches back to creating a new connection (password required again)."
-            : ""}
-        </div>
-      </section>
+      {/* ── 01 · Snowflake credentials ──────────────────────────────────────
+          The full credential form renders ONLY when NOT collapsed — i.e. when
+          creating a new connection or editing as new. Under a selected saved row
+          the SavedConnectionSummary above stands in its place (#327). */}
+      {!collapsed && (
+        <section style={connsPhase === "ready" && savedConns.length > 0 ? sectionStyle : undefined}>
+          <div style={sectionLabelStyle}>01 · Snowflake credentials</div>
+          <div style={fieldStyle}>{Field("name", "Connection name", "e.g. prod-analytics")}</div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("account", "Account", "xy12345.us-east-1")}
+            {Field("user", "User", "SIDIRA_READER")}
+          </div>
+          <div style={fieldStyle}>
+            {Field("password", "Password", "••••••••", "password")}
+          </div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("warehouse", "Warehouse", "COMPUTE_WH")}
+            {Field("role", "Role", "SIDIRA_RO")}
+          </div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("database", "Database", "ANALYTICS")}
+            {Field("schema", "Schema (optional)", "PUBLIC")}
+          </div>
+          <div style={hintStyle}>
+            A read-only role on a non-production warehouse is plenty — the builder
+            only profiles and samples. The password is sent once to test and store
+            the connection; it is never echoed back. Connection names are unique
+            per workspace — reuse the saved one above rather than re-creating it.
+          </div>
+        </section>
+      )}
 
       {/* ── 02 · Source ─────────────────────────────────────────────────── */}
       <section style={sectionStyle}>
@@ -1179,6 +1359,265 @@ function StepConnect({
         </div>
       </section>
     </div>
+  );
+}
+
+// ── one register row (#327) ─────────────────────────────────────────────────
+// A dense ~2-line paper row: the canonical identity line, then a mono subline,
+// with a quiet delete affordance. Selection rides a single ink hairline (the
+// recessed-paper fill + ink left edge) — no color-coded background. The whole
+// row is a real <button> (keyboard-reachable, §7.8); the delete affordance is a
+// sibling text button (not nested — a button can't contain a button). Deleting
+// opens an INLINE honest-text confirm in place of the row body (§7.7/§10): no
+// browser confirm(), no modal, no red fill, no icon.
+function SavedConnectionRow({
+  conn,
+  designator,
+  selected,
+  confirmingDelete,
+  deleting,
+  deleteError,
+  onSelect,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+}: {
+  conn: ConnectionSummary;
+  designator: string;
+  selected: boolean;
+  confirmingDelete: boolean;
+  deleting: boolean;
+  deleteError: string | null;
+  onSelect: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+}) {
+  // Quiet row action — mono designator button at hairline weight (§7.7). Used
+  // for both the Delete trigger and the confirm/cancel pair so the affordance
+  // language stays consistent.
+  const rowActionStyle: React.CSSProperties = {
+    background: "transparent",
+    border: `0.75px solid ${TOKENS.rule}`,
+    borderRadius: 2,
+    padding: "2px 8px",
+    fontFamily: FONT_MONO,
+    fontSize: 10,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: TOKENS.inkMuted,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const identity = connectionIdentity(conn);
+  const subline = connectionSubline(conn);
+
+  // The inline confirm replaces the row's clickable body so a mis-click can't
+  // select-and-delete in one motion. Honest text states the exact scope (§7.7).
+  if (confirmingDelete) {
+    return (
+      <div
+        style={{
+          borderBottom: `0.75px solid ${TOKENS.rule}`,
+          // alert as a border designator only — the words carry the meaning (§4.3).
+          ...railAlertStyle,
+          borderTopWidth: 0,
+          borderLeftWidth: 0,
+          borderRightWidth: 0,
+          borderRadius: 0,
+        }}
+        role="alertdialog"
+        aria-label={`Confirm delete ${conn.name}`}
+      >
+        <div style={{ fontSize: 13, color: TOKENS.ink, lineHeight: 1.45 }}>
+          Delete saved connection <strong>{conn.name}</strong>
+          {designator ? <span style={railCaptionStyle}>{designator.trim()}</span> : null}? Existing
+          persona builds keep their records; future builds can&apos;t use this credential.
+        </div>
+        {deleteError && (
+          <div style={{ ...railCaptionStyle, marginTop: 6, color: TOKENS.ink }}>
+            COULD NOT DELETE · {deleteError.toUpperCase()}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button type="button" onClick={onCancelDelete} disabled={deleting} style={rowActionStyle}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmDelete}
+            disabled={deleting}
+            style={{
+              ...rowActionStyle,
+              color: TOKENS.ink,
+              borderColor: TOKENS.ink,
+              opacity: deleting ? 0.5 : 1,
+              cursor: deleting ? "not-allowed" : "pointer",
+            }}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        gap: 10,
+        borderBottom: `0.75px solid ${TOKENS.rule}`,
+        background: selected ? TOKENS.paperRecessed : "transparent",
+        // The single selected-state emphasis: a 2px ink left edge. No color fill,
+        // no border recolor beyond the recessed-paper treatment (§7/#327 fix 4).
+        borderLeft: `2px solid ${selected ? TOKENS.ink : "transparent"}`,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        style={{
+          textAlign: "left",
+          background: "transparent",
+          border: "none",
+          padding: "9px 12px",
+          cursor: "pointer",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: TOKENS.ink }}>
+            {identity}
+            {designator ? <span style={{ color: TOKENS.inkMuted }}>{designator}</span> : null}
+          </span>
+          {selected && <Chip>SELECTED</Chip>}
+        </div>
+        <div
+          style={{
+            ...railCaptionStyle,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {subline}
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={onRequestDelete}
+        aria-label={`Delete saved connection ${conn.name}`}
+        style={{ ...rowActionStyle, marginRight: 12 }}
+      >
+        Delete
+      </button>
+    </div>
+  );
+}
+
+// ── collapse-on-select summary (#327) ───────────────────────────────────────
+// Replaces the full prefilled credential form when a saved connection is in use.
+// A compact record: the canonical identity, a key/value grid of the connection's
+// fields, and two actions — "Use different connection" (back to the picker /
+// blank form) and "Edit as new" (the full form, prefilled as a NEW mint). The
+// password never appears (it's never returned); reuse needs none.
+function SavedConnectionSummary({
+  conn,
+  designator,
+  onUseDifferent,
+  onEditAsNew,
+}: {
+  conn: ConnectionSummary;
+  designator: string;
+  onUseDifferent: () => void;
+  onEditAsNew: () => void;
+}) {
+  const rows: [string, string][] = [
+    ["Account", conn.account],
+    ["User", conn.user],
+    ["Database", conn.schema ? `${conn.database}.${conn.schema}` : conn.database],
+    ["Warehouse / role", `${conn.warehouse} · ${conn.role}`],
+  ];
+  return (
+    <section style={{ marginBottom: 4 }}>
+      <div style={sectionLabelStyle}>Using saved connection</div>
+      <div
+        style={{
+          ...fieldStyle,
+          background: TOKENS.paperRecessed,
+          border: `0.75px solid ${TOKENS.rule}`,
+          borderLeft: `2px solid ${TOKENS.ink}`,
+          borderRadius: 4,
+          padding: "12px 14px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: TOKENS.ink }}>
+            {conn.name}
+            {designator ? <span style={{ color: TOKENS.inkMuted }}>{designator}</span> : null}
+          </span>
+          <Chip>{conn.kind.toUpperCase()}</Chip>
+          <Chip>REUSING — NO PASSWORD NEEDED</Chip>
+        </div>
+        <dl
+          style={{
+            margin: 0,
+            marginTop: 10,
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: "4px 16px",
+          }}
+        >
+          {rows.map(([dt, dd]) => (
+            <div key={dt} style={{ display: "contents" }}>
+              <dt
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: TOKENS.inkMuted,
+                }}
+              >
+                {dt}
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontFamily: FONT_MONO,
+                  fontSize: 12,
+                  color: TOKENS.ink,
+                  overflowWrap: "break-word",
+                  ...TNUM,
+                }}
+              >
+                {dd}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div style={{ ...fieldStyle, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" onClick={onUseDifferent} style={secondaryBtnStyle}>
+          Use different connection
+        </button>
+        <button type="button" onClick={onEditAsNew} style={secondaryBtnStyle}>
+          Edit as new
+        </button>
+      </div>
+      <div style={hintStyle}>
+        Reusing this connection — its password stays on the server, so just test
+        and continue. &ldquo;Edit as new&rdquo; opens a fresh form prefilled from these
+        values to mint a separate connection (a new password, a new name).
+      </div>
+    </section>
   );
 }
 
