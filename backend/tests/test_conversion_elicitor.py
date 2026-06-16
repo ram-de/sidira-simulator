@@ -101,10 +101,11 @@ def test_hypothesis_conversion_valid_with_template_fields() -> None:
 
 
 def test_hypothesis_rejects_unknown_metric() -> None:
-    """metric_name is a closed Literal — an unknown metric fails loudly rather
-    than silently degrading to sentiment."""
+    """metric_name is a closed Literal — an unknown metric fails loudly at the
+    Literal (NOT via a missing-required-field path) rather than silently degrading
+    to sentiment. Uses an unregistered name (`ctr` is registered as of #276)."""
     with pytest.raises(ValidationError):
-        Hypothesis(capability_name="reorder", prose="x", metric_name="ctr")
+        Hypothesis(capability_name="reorder", prose="x", metric_name="dwell_time")
 
 
 # ── MetricDecision schema (generic; #275) ─────────────────────────────────────
