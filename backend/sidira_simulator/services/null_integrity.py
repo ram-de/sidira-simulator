@@ -38,13 +38,12 @@ Pure-Python and dependency-free (no scipy/numpy), matching `statistics.py`.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 import random
 from typing import Callable, Sequence
 
 from sidira_simulator.schemas.scoring import NullIntegrityCertificate
+from sidira_simulator.services.canonical_hash import canonical_hash, canonical_json
 from sidira_simulator.services.statistics import spearman_rho
 
 # Arbitrary integer XOR mask used to derive a permutation-specific RNG seed from
@@ -160,12 +159,13 @@ def _canonical_payload(
 ) -> str:
     """Canonical JSON over inputs + config for the hash-commit (§5).
 
-    `sort_keys` + fixed separators make the serialization deterministic and
-    order-stable; the float `repr` round-trips through json exactly on CPython,
-    so the hash moves iff a prediction, an actual, n_permutations, seed, or the
-    experiment count changes — nothing else. Pre-registration depends on this:
-    the same inputs/config ALWAYS produce the same hash, and any retrofit moves
-    it.
+    Delegates to the shared `canonical_hash.canonical_json` so this certificate
+    and the §5 pre-registration artifact serialize through the EXACT same
+    discipline (`sort_keys` + fixed separators; the float `repr` json emits
+    round-trips exactly on CPython), so the hash moves iff a prediction, an
+    actual, n_permutations, seed, or the experiment count changes — nothing else.
+    Pre-registration depends on this: the same inputs/config ALWAYS produce the
+    same hash, and any retrofit moves it.
     """
     payload = {
         "predictions": [float(p) for p in predictions],
@@ -174,7 +174,7 @@ def _canonical_payload(
         "seed": int(seed),
         "n_experiments": len(predictions),
     }
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return canonical_json(payload)
 
 
 def _integrity_hash(
@@ -185,8 +185,14 @@ def _integrity_hash(
     seed: int,
 ) -> str:
     """SHA-256 hex digest of the canonical payload (§5 hash-commit)."""
-    canonical = _canonical_payload(predictions, actuals, n_permutations=n_permutations, seed=seed)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    payload = {
+        "predictions": [float(p) for p in predictions],
+        "actuals": [float(a) for a in actuals],
+        "n_permutations": int(n_permutations),
+        "seed": int(seed),
+        "n_experiments": len(predictions),
+    }
+    return canonical_hash(payload)
 
 
 def certify_null_integrity(
