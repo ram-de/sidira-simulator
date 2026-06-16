@@ -470,6 +470,18 @@ class SimulationResult(BaseModel):
     # unchanged; while False, `metric_lift_relative` carries the "uncalibrated
     # — read as rank/direction, not effect size" caveat. The fit is #222-gated.
     metric_lift_calibrated: bool = False
+    # Variance-collapse honesty flag: True when at least one contributor (EITHER
+    # arm) reacted on a persona lacking per-persona v1.1 `behavioral_seeds`, so its
+    # identity seed fell back to the shared default (cross-agent variance
+    # collapses). A flat / non-separable blinded metric in that condition may
+    # reflect collapsed agent variance rather than a true null effect;
+    # `metric_lift_relative` also carries the caveat text. Defaults False so
+    # non-metric / v1.1 runs and older `result_json` rows are byte-identical
+    # (additive, migration-free — `SimulationResult` has no extra="forbid").
+    metric_lift_variance_collapsed: bool = False
+    # Cheap diagnostic companion: distinct persona count behind the flag (0 when
+    # False).
+    metric_lift_variance_collapsed_persona_count: int = 0
     # ── Metric↔sentiment disagreement guardrail (#321) ──
     # True when the metric and the sentiment lift are BOTH separable (their CIs
     # exclude zero) AND point in OPPOSITE directions. The dangerous case is

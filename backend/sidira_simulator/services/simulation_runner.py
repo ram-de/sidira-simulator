@@ -122,6 +122,13 @@ class AgentRecord:
     # low-confidence and is flagged downstream. Always False at the default K=1
     # and on a failed/None elicitation. Set on EITHER arm.
     metric_paraphrase_unstable: bool = False
+    # Variance-collapse honesty flag: True when this agent's persona lacked
+    # per-persona v1.1 `behavioral_seeds`, so `draw_identity_seed` fell back to the
+    # shared default identity seed (cross-agent variance degraded). Captured at the
+    # draw site (`persona.behavioral_seeds is None`) and threaded onto the
+    # AgentReaction so `aggregate_metric_lift` can surface the collapse. Set on
+    # EITHER arm; never affects any numeric output.
+    behavioral_seeds_fallback: bool = False
 
 
 class _LazyModelChatClient:
@@ -477,6 +484,13 @@ class SimulationRunner:
                 arm=arm,
             )
 
+            # Variance-collapse honesty: a persona without per-persona v1.1
+            # behavioral_seeds gets the shared default seed inside
+            # draw_identity_seed (cross-agent variance degraded). Capture the
+            # condition here — the same predicate draw_identity_seed branches on —
+            # and thread it onto the AgentRecord so aggregation can flag a metric
+            # that flattened from collapse rather than a true null.
+            behavioral_seeds_fallback = persona.behavioral_seeds is None
             identity_seed = draw_identity_seed(persona, sample_index, run_seed)
             # Phase 4.6 #89: thread arm into the composer so treatment/control
             # diverge ONLY in the task block (preamble stays byte-identical,
@@ -776,6 +790,7 @@ class SimulationRunner:
                 metric_p=metric_p,
                 metric_unblinded=metric_unblinded,
                 metric_paraphrase_unstable=metric_paraphrase_unstable,
+                behavioral_seeds_fallback=behavioral_seeds_fallback,
             )
 
     async def _score(
@@ -838,6 +853,7 @@ class SimulationRunner:
                 metric_p=r.metric_p,
                 metric_unblinded=r.metric_unblinded,
                 metric_paraphrase_unstable=r.metric_paraphrase_unstable,
+                behavioral_seeds_fallback=r.behavioral_seeds_fallback,
             )
             for r in agent_records
         ]
