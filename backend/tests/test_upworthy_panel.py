@@ -1,10 +1,13 @@
 """Tests for the pre-registered Upworthy Tier-0 panel (#222).
 
 The panel is a SYNTHETIC general-US-news-audience PersonaPack, fixed and
-pre-registered as the Upworthy CTR-benchmark population. It is a *generic* pack
-by design: no behavioral rows / centroid features, so the simulator degrades to
-its generic identity path. These tests pin that intent plus the schema /
-allocate() contracts (the #246 coverage+sum bug class).
+pre-registered as the Upworthy CTR-benchmark population. It carries NO
+quantitative feature data (behavioral rows / centroid features / v1.1 quad), so
+the quantitative identity path degrades to generic — but it DOES carry
+per-persona qualitative behavioral_seeds (schema v1.1, Option A) so agents draw
+distinct identities instead of sharing the simulator's generic default pool.
+These tests pin that intent plus the schema / allocate() contracts (the #246
+coverage+sum bug class).
 """
 
 from __future__ import annotations
@@ -84,9 +87,11 @@ def test_allocate_small_population_still_valid() -> None:
     assert sum(count for _, count in alloc) == 3
 
 
-def test_panel_has_no_behavioral_or_centroid_data() -> None:
-    """Generic-tier intent: NO fabricated behavioral rows / centroid features,
-    so identity-depth degrades to generic (correct for Upworthy)."""
+def test_panel_has_no_quantitative_feature_data() -> None:
+    """Synthetic-pack intent: NO fabricated quantitative feature data
+    (behavioral rows / centroid features / v1.1 quad), so the quantitative
+    identity path correctly degrades to generic. Fabricating feature vectors
+    for a synthetic pack would yield meaningless z-scores."""
     pack = load_upworthy_panel()
     for p in pack.personas:
         assert p.behavioral_snapshot == {}, p.id
@@ -95,10 +100,84 @@ def test_panel_has_no_behavioral_or_centroid_data() -> None:
         assert p.feature_scale == {}, p.id
         assert p.sample_rows == [], p.id
         assert p.posterior_mean is None, p.id
-        assert p.behavioral_seeds is None, p.id
         # Descriptive fields ARE present — these drive the generic identity path.
         assert p.description.strip()
         assert p.jtbd and p.jtbd.strip()
+
+
+def test_panel_is_schema_v1_1() -> None:
+    """The pack now carries per-persona behavioral_seeds (v1.1, Option A), so
+    its schema_version is bumped to "1.1" for honesty/consistency."""
+    pack = load_upworthy_panel()
+    assert pack.schema_version == "1.1"
+
+
+def test_every_persona_has_complete_behavioral_seeds() -> None:
+    """v1.1 Option A: EVERY persona carries non-None behavioral_seeds with all
+    five pools non-empty. Without these the simulator falls back to the shared
+    _DEFAULT_BEHAVIORAL_SEEDS pool and cross-persona variance collapses."""
+    pack = load_upworthy_panel()
+    for p in pack.personas:
+        bs = p.behavioral_seeds
+        assert bs is not None, p.id
+        assert bs.age_bands, p.id
+        assert bs.locale_bands, p.id
+        assert bs.tenure_bands, p.id
+        assert bs.current_state_pool, p.id
+        assert bs.recent_gripe_pool, p.id
+
+
+def test_seeds_do_not_trigger_generic_fallback() -> None:
+    """draw_identity_seed must NOT fall back to _DEFAULT_BEHAVIORAL_SEEDS for any
+    panel persona — every drawn field must come from that persona's own pools."""
+    from sidira_simulator.services.identity_seed import draw_identity_seed
+
+    pack = load_upworthy_panel()
+    run_seed = 12345
+    for p in pack.personas:
+        bs = p.behavioral_seeds
+        assert bs is not None, p.id
+        for sample_index in range(8):
+            seed = draw_identity_seed(p, sample_index, run_seed)
+            # Each drawn field traces to THIS persona's pool, not the generic
+            # default — proof the fallback path was not taken.
+            assert seed.age_band in bs.age_bands, p.id
+            assert seed.locale_band in bs.locale_bands, p.id
+            assert seed.tenure_band in bs.tenure_bands, p.id
+            assert seed.current_state in bs.current_state_pool, p.id
+            assert seed.recent_gripe in bs.recent_gripe_pool, p.id
+
+
+def test_cross_persona_variance_is_restored() -> None:
+    """The whole point of v1.1: drawing the same (sample_index, run_seed) across
+    different personas yields DISTINCT identity seeds — not the single generic
+    identity every persona shared under the v1.0 fallback."""
+    from sidira_simulator.services.identity_seed import draw_identity_seed
+
+    pack = load_upworthy_panel()
+    run_seed = 999
+    # Aggregate the distinct (state, gripe) pairs seen across personas at a few
+    # fixed sample indices. Under the v1.0 fallback every persona shared one
+    # pool, so variance was near-zero; with per-persona pools it should be high.
+    distinct_states: set[str] = set()
+    distinct_gripes: set[str] = set()
+    for p in pack.personas:
+        for sample_index in range(4):
+            seed = draw_identity_seed(p, sample_index, run_seed)
+            distinct_states.add(seed.current_state)
+            distinct_gripes.add(seed.recent_gripe)
+    # 12 personas with distinct pools should surface many distinct phrases.
+    assert len(distinct_states) >= 8
+    assert len(distinct_gripes) >= 8
+
+    # And at a single fixed sample_index, the panel must NOT collapse to one
+    # identity (the v1.0 degenerate case).
+    seeds_at_zero = [draw_identity_seed(p, 0, run_seed) for p in pack.personas]
+    distinct_tuples = {
+        (s.age_band, s.locale_band, s.tenure_band, s.current_state, s.recent_gripe)
+        for s in seeds_at_zero
+    }
+    assert len(distinct_tuples) >= 8
 
 
 def test_loader_round_trips() -> None:

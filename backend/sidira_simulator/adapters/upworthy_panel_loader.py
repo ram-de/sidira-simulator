@@ -7,13 +7,22 @@ audience for sensational-headline CTR.
 
 A methodology consult decided to build a purpose-built SYNTHETIC
 general-US-news-audience persona pack, fixed and PRE-REGISTERED as the Upworthy
-panel. It is intentionally a *generic* pack: identity-depth correctly degrades
-to generic for Upworthy (no real behavioral rows / centroid features), because
-Upworthy validates the engine's headline rendering + CTR elicitation, not the
-persona-building pipeline. The personas therefore carry description / jtbd only;
-``behavioral_snapshot``, ``centroid_features``, ``centroid_full``,
-``feature_scale``, ``sample_rows``, ``posterior_mean`` and ``behavioral_seeds``
-are all left absent so the simulator falls back to its generic identity path.
+panel. It is a SYNTHETIC pack — no real producer pipeline backs it — so it
+carries NO quantitative feature data: ``behavioral_snapshot``,
+``centroid_features``, ``centroid_full``, ``feature_scale``, ``sample_rows`` and
+``posterior_mean`` are all left absent (fabricating feature vectors here would
+yield meaningless z-scores). Upworthy validates the engine's headline rendering
++ CTR elicitation, not the persona-building pipeline, so that quantitative depth
+is correctly out of scope.
+
+It DOES, however, carry per-persona qualitative ``behavioral_seeds`` (schema
+v1.1, Option A). Without them every persona shared the simulator's generic
+``_DEFAULT_BEHAVIORAL_SEEDS`` identity pool — so every agent drew the same
+behavioral traits and the benchmark produced rank-ρ ≈ 0 (no cross-persona
+signal). The seeds are news/media-audience pools (browsing moment + media
+gripes), authored distinctly per archetype to restore cross-persona variance.
+They are qualitative only; the synthetic pack still degrades to the generic
+*quantitative* identity path.
 
 The pack ships with the application image (not the artifact store) because it is
 application data — a pre-registered benchmark fixture — not a customer artifact.
@@ -29,8 +38,12 @@ from sidira_simulator.schemas.persona import PersonaPack
 
 # The pre-registered panel id. This is the PersonaPack.version of the fixture;
 # the benchmark reports it as the panel_id so a run is traceable to the exact
-# pre-registered population.
-UPWORTHY_PANEL_ID = "upworthy-general-us-news-v1"
+# pre-registered population. Bumped v1 -> v2 when per-persona behavioral_seeds
+# were added: the sampled identities materially changed, so the externally
+# reported panel_id must change too or pre- and post-seed runs would be
+# metadata-indistinguishable (the file name stays *_v1.json; the panel IDENTITY
+# is this version string, not the on-disk filename).
+UPWORTHY_PANEL_ID = "upworthy-general-us-news-v2"
 
 # The single weight scheme this generic pack carries. head_count is the only
 # scheme meaningful for a synthetic panel (there is no order / revenue signal),

@@ -1,8 +1,8 @@
 {
-  "version": "upworthy-general-us-news-v1",
+  "version": "upworthy-general-us-news-v2",
   "customer_id": "upworthy-benchmark",
   "generated_at": "2026-06-15T00:00:00Z",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "is_starter": false,
   "stability_score": 0.0,
   "personas": [
@@ -10,73 +10,277 @@
       "id": "panel_young_scroller",
       "name": "Young mobile feed scroller",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Early-twenties, gets nearly all news incidentally through a fast-moving social feed on a phone. Low deliberate news-seeking, high feed exposure; quick to tap an emotionally vivid or curiosity-gap headline, quick to swipe past dense or dry ones. Moderate clickbait tolerance — annoyed by obvious bait but still reactive to genuine intrigue. No behavioral rows: this generic panel validates headline rendering and CTR elicitation, not a real persona pipeline.",
-      "jtbd": "Stay loosely in the loop and be entertained while scrolling, without slowing down for anything that looks like work."
+      "jtbd": "Stay loosely in the loop and be entertained while scrolling, without slowing down for anything that looks like work.",
+      "behavioral_seeds": {
+        "age_bands": ["18-24", "25-34"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["new (<3mo)", "early (3-12mo)"],
+        "current_state_pool": [
+          "thumb-flicking through the feed between things",
+          "killing time waiting in line on the phone",
+          "late-night doomscroll in bed, half-asleep",
+          "lunch-break social-feed scroll"
+        ],
+        "recent_gripe_pool": [
+          "headline didn't match the actual story",
+          "too many autoplay video ads in the feed",
+          "every post is the same recycled outrage",
+          "had to tap through three screens to read one thing"
+        ]
+      }
     },
     {
       "id": "panel_busy_parent",
       "name": "Time-pressed working parent",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Thirties-to-forties, juggling work and family, checks news in short bursts between tasks. Pragmatic and skeptical of sensationalism, but responsive to headlines that promise something useful, reassuring, or relevant to family and household life. Lower tolerance for pure clickbait; rewards clarity and perceived payoff. No behavioral rows — generic identity depth by design.",
-      "jtbd": "Get a quick, trustworthy sense of what matters today in the few minutes available, and skip the noise."
+      "jtbd": "Get a quick, trustworthy sense of what matters today in the few minutes available, and skip the noise.",
+      "behavioral_seeds": {
+        "age_bands": ["30-39", "35-44"],
+        "locale_bands": ["suburban_us", "urban_us"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "current_state_pool": [
+          "five free minutes between work and the school run",
+          "morning coffee catch-up before the day starts",
+          "checking the phone while making the kids' dinner",
+          "quick scroll after the kids are finally down"
+        ],
+        "recent_gripe_pool": [
+          "panic headline about kids that turned out to be nothing",
+          "had to wade through fluff to get the one useful fact",
+          "paywall hit right when the article got to the point",
+          "alarmist health scares that never pan out"
+        ]
+      }
     },
     {
       "id": "panel_civic_news_junkie",
       "name": "Highly engaged civic news reader",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). College-educated, follows politics and current events closely across multiple outlets, votes and discusses issues. High news interest and high skepticism of clickbait; drawn to headlines signaling substance, stakes, or accountability, and put off by manipulative emotional framing. No behavioral rows — generic by design.",
-      "jtbd": "Stay deeply informed on civic and political developments and judge quickly whether a story has real substance."
+      "jtbd": "Stay deeply informed on civic and political developments and judge quickly whether a story has real substance.",
+      "behavioral_seeds": {
+        "age_bands": ["35-44", "45-54", "55-64"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+          "morning coffee catch-up before work, reading deliberately",
+          "comparing how three outlets framed the same story",
+          "weekend long-read mood, time to dig in",
+          "checking for the latest on a developing story"
+        ],
+        "recent_gripe_pool": [
+          "headline editorialized what should have been straight news",
+          "story buried the actual accountability angle",
+          "manipulative emotional framing on a serious topic",
+          "every outlet runs the same wire copy with no added reporting"
+        ]
+      }
     },
     {
       "id": "panel_casual_skimmer",
       "name": "Casual headline skimmer",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Broad-middle adult with moderate education and moderate news interest, reads headlines but rarely full articles. Average clickbait tolerance, average curiosity responsiveness — a representative center-of-mass reader who clicks when a headline lands an easy hook and otherwise moves on. No behavioral rows — generic by design.",
-      "jtbd": "Skim the surface of the day's news and click into the occasional story that catches the eye."
+      "jtbd": "Skim the surface of the day's news and click into the occasional story that catches the eye.",
+      "behavioral_seeds": {
+        "age_bands": ["25-34", "35-44", "45-54"],
+        "locale_bands": ["suburban_us", "urban_us", "rural_us"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "current_state_pool": [
+          "skimming headlines over morning coffee",
+          "half-watching TV and scrolling at the same time",
+          "lunch-break social-feed scroll",
+          "winding down with the phone before bed"
+        ],
+        "recent_gripe_pool": [
+          "clickbait headlines that don't deliver",
+          "couldn't tell what the story was actually about",
+          "too many ads between me and the article",
+          "same handful of stories everywhere I look"
+        ]
+      }
     },
     {
       "id": "panel_skeptical_boomer",
       "name": "Skeptical older reader",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Sixties-plus, mixes legacy outlets with social feeds, wary of being misled and quick to distrust hyperbole. Low clickbait tolerance, lower curiosity-gap susceptibility; clicks on headlines that feel credible, concrete, and relevant to interests like health, money, or community. No behavioral rows — generic by design.",
-      "jtbd": "Find reliable information without getting baited or manipulated by exaggerated headlines."
+      "jtbd": "Find reliable information without getting baited or manipulated by exaggerated headlines.",
+      "behavioral_seeds": {
+        "age_bands": ["55-64", "65+"],
+        "locale_bands": ["suburban_us", "rural_us"],
+        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+          "morning coffee catch-up with the news on the tablet",
+          "checking the phone after the evening broadcast",
+          "weekend long-read mood, in no hurry",
+          "looking up something specific about health or money"
+        ],
+        "recent_gripe_pool": [
+          "exaggerated headline trying to scare me into clicking",
+          "couldn't tell if the source was even credible",
+          "story turned out to be an ad in disguise",
+          "vague 'you won't believe' headline with no substance"
+        ]
+      }
     },
     {
       "id": "panel_emotion_driven_sharer",
       "name": "Emotion-driven social sharer",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Highly responsive to heartwarming, outrage, or awe-inducing content and an active sharer within their network. High emotion and curiosity responsiveness, higher-than-average clickbait tolerance; the classic viral-content engager who clicks and forwards stories that move them. No behavioral rows — generic by design.",
-      "jtbd": "Find feel-something stories worth reacting to and passing along to friends and family."
+      "jtbd": "Find feel-something stories worth reacting to and passing along to friends and family.",
+      "behavioral_seeds": {
+        "age_bands": ["25-34", "35-44", "45-54"],
+        "locale_bands": ["suburban_us", "urban_us", "rural_us"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "current_state_pool": [
+          "scrolling for something heartwarming to share",
+          "fired up about a story making the rounds",
+          "lunch-break social-feed scroll, looking for a reaction",
+          "evening wind-down, tagging friends in posts"
+        ],
+        "recent_gripe_pool": [
+          "shared a story that turned out to be fake",
+          "tear-jerker headline that was way overhyped",
+          "outrage piece that left out half the context",
+          "feed keeps pushing rage-bait instead of good news"
+        ]
+      }
     },
     {
       "id": "panel_pragmatic_professional",
       "name": "Pragmatic working professional",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Late-twenties-to-forties knowledge worker, time-constrained, scans news on breaks and commutes. Moderate-high education and news interest, moderate-low clickbait tolerance; clicks headlines that promise efficiency, insight, or career/economic relevance and ignores empty sensation. No behavioral rows — generic by design.",
-      "jtbd": "Stay efficiently current on what's relevant to work and the wider world without wasting time."
+      "jtbd": "Stay efficiently current on what's relevant to work and the wider world without wasting time.",
+      "behavioral_seeds": {
+        "age_bands": ["25-34", "35-44"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)"],
+        "current_state_pool": [
+          "scanning headlines on the morning commute",
+          "quick news check between meetings",
+          "coffee-break skim, time-boxed to two minutes",
+          "catching up on market or industry news at the desk"
+        ],
+        "recent_gripe_pool": [
+          "headline promised insight and delivered filler",
+          "had to scroll past an ad wall to reach the point",
+          "empty sensation when I wanted the actual takeaway",
+          "paywall on the one analysis I needed"
+        ]
+      }
     },
     {
       "id": "panel_low_interest_lurker",
       "name": "Low-interest passive lurker",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Minimal active interest in news; encounters it only when it surfaces unavoidably in a feed. Low news-seeking, indifferent baseline, but can be jolted into a click by an unusually strong curiosity gap or emotional hook. Average-to-high susceptibility precisely because there's no strong filter. No behavioral rows — generic by design.",
-      "jtbd": "Mostly ignore the news, but occasionally get pulled in by something genuinely surprising."
+      "jtbd": "Mostly ignore the news, but occasionally get pulled in by something genuinely surprising.",
+      "behavioral_seeds": {
+        "age_bands": ["18-24", "25-34", "35-44"],
+        "locale_bands": ["suburban_us", "rural_us", "urban_us"],
+        "tenure_bands": ["new (<3mo)", "early (3-12mo)"],
+        "current_state_pool": [
+          "passively scrolling, not really looking for news",
+          "bored, half-watching the feed go by",
+          "late-night doomscroll out of habit",
+          "phone in hand while waiting for something to load"
+        ],
+        "recent_gripe_pool": [
+          "feed is mostly stuff I don't care about",
+          "tapped a headline and instantly regretted it",
+          "everything feels like it's trying to upset me",
+          "too many ads for how little I'm even reading"
+        ]
+      }
     },
     {
       "id": "panel_curiosity_seeker",
       "name": "Curiosity-driven explorer",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Intellectually curious generalist who follows interesting threads across science, culture, and human-interest topics. High curiosity responsiveness, moderate skepticism; reliably clicks well-constructed curiosity-gap headlines but resents feeling cheated by a thin payoff. No behavioral rows — generic by design.",
-      "jtbd": "Discover interesting things to learn or think about across a wide range of topics."
+      "jtbd": "Discover interesting things to learn or think about across a wide range of topics.",
+      "behavioral_seeds": {
+        "age_bands": ["25-34", "35-44", "45-54"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["early (3-12mo)", "established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+          "weekend long-read mood, following an interesting thread",
+          "down a rabbit hole on a science or culture story",
+          "evening browse, open to learning something new",
+          "saving longer pieces to read properly later"
+        ],
+        "recent_gripe_pool": [
+          "great curiosity-gap headline with a thin, padded payoff",
+          "felt cheated by a story that never answered its own hook",
+          "interesting topic ruined by an ad every other paragraph",
+          "headline overpromised a discovery that wasn't there"
+        ]
+      }
     },
     {
       "id": "panel_local_community_reader",
       "name": "Local and community-focused reader",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Oriented toward local, regional, and community news over national abstractions; moderate education and civic engagement. Average clickbait tolerance; most responsive to headlines that feel proximate, human, and relevant to everyday community life. No behavioral rows — generic by design.",
-      "jtbd": "Keep up with what's happening close to home and in communities like their own."
+      "jtbd": "Keep up with what's happening close to home and in communities like their own.",
+      "behavioral_seeds": {
+        "age_bands": ["35-44", "45-54", "55-64"],
+        "locale_bands": ["suburban_us", "rural_us"],
+        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+          "checking what's happening around town this morning",
+          "scrolling the local community group on the phone",
+          "looking for news about schools, roads, or local events",
+          "weekend catch-up on neighborhood happenings"
+        ],
+        "recent_gripe_pool": [
+          "national outlet ignoring what matters locally",
+          "headline about 'a town' that turned out to be nowhere near here",
+          "local story locked behind a paywall",
+          "had to dig past national noise to find anything close to home"
+        ]
+      }
     },
     {
       "id": "panel_partisan_engager",
       "name": "Politically engaged partisan reader",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Strong civic engagement and clear political leanings, follows news as part of identity and conviction. High emotional responsiveness to stakes-laden framing, variable clickbait tolerance; clicks headlines that activate values, grievance, or vindication, while still claiming to dislike obvious bait. Designed as a broad civic archetype, not a caricature of any group. No behavioral rows — generic by design.",
-      "jtbd": "Follow developments that bear on deeply held values and stay ahead of the political argument."
+      "jtbd": "Follow developments that bear on deeply held values and stay ahead of the political argument.",
+      "behavioral_seeds": {
+        "age_bands": ["35-44", "45-54", "55-64"],
+        "locale_bands": ["suburban_us", "rural_us", "urban_us"],
+        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+          "morning catch-up on the latest political developments",
+          "fired up about a story that confirms the stakes",
+          "checking the feed for the other side's spin",
+          "late-night scroll through the day's political news"
+        ],
+        "recent_gripe_pool": [
+          "headline framed to flatter the other side",
+          "story left out the context that mattered most to me",
+          "obvious bait dressed up as a values story",
+          "same talking points recycled across every outlet"
+        ]
+      }
     },
     {
       "id": "panel_entertainment_first",
       "name": "Entertainment-first feed user",
       "description": "Synthetic general-US-news-audience persona (pre-registered Upworthy panel). Comes to the feed mainly for entertainment, lifestyle, and lighter content, with news as incidental spillover. High clickbait tolerance and high curiosity responsiveness for fun or surprising hooks; low patience for heavy or dry policy framing. No behavioral rows — generic by design.",
-      "jtbd": "Be entertained and amused while browsing, clicking whatever looks fun or surprising."
+      "jtbd": "Be entertained and amused while browsing, clicking whatever looks fun or surprising.",
+      "behavioral_seeds": {
+        "age_bands": ["18-24", "25-34"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["new (<3mo)", "early (3-12mo)"],
+        "current_state_pool": [
+          "scrolling for something fun, news is just spillover",
+          "looking for a laugh or a surprising clip",
+          "late-night doomscroll that's really just entertainment",
+          "lunch-break feed scroll for lighter content"
+        ],
+        "recent_gripe_pool": [
+          "fun-looking headline that turned into a policy lecture",
+          "too much heavy news clogging up the feed",
+          "thumbnail promised something the post didn't have",
+          "autoplay ad before I could even see the clip"
+        ]
+      }
     }
   ],
   "weights": {
