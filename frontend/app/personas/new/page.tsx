@@ -558,6 +558,10 @@ export default function NewPersonaPackPage() {
     // back to surfacing this error inline (the row must never silently swallow a
     // failed test — the prior masking gap).
     let caught: string | null = null;
+    // Remember this row's last_tested_at BEFORE the test so we can tell whether
+    // the refresh actually captured THIS run. A row already FAILED from an
+    // earlier test would otherwise mask a fresh, unpersisted failure (codex P2).
+    const priorTestedAt = savedConns.find((r) => r.id === id)?.last_tested_at ?? null;
     try {
       await testFeatureStore(id); // 204 on success, throws on failure
     } catch (e) {
@@ -571,12 +575,19 @@ export default function NewPersonaPackPage() {
       // A failed refresh leaves the prior status line in place — the wizard is
       // never blocked by it (mirrors the mount-load graceful fallback).
     }
-    // Only surface the inline fallback error when the test failed AND the
-    // refreshed row does NOT already show it as FAILED (i.e. persistence or the
-    // refresh dropped the verdict). On a clean path the status line is enough.
+    // Surface the inline fallback ONLY when the test failed and the refreshed
+    // row does NOT reflect THIS run as failed. "This run" means the row is
+    // FAILED *and* its last_tested_at advanced past the pre-test value — so a
+    // stale prior FAILED from an earlier test (with an unpersisted new failure)
+    // still surfaces the fresh verdict. On the clean path the status line shows
+    // it and we stay quiet.
     if (caught) {
       const fresh = refreshed?.find((r) => r.id === id);
-      if (!fresh || fresh.last_test_status !== "failed") {
+      const capturedThisRun =
+        fresh?.last_test_status === "failed" &&
+        fresh.last_tested_at != null &&
+        fresh.last_tested_at !== priorTestedAt;
+      if (!capturedThisRun) {
         setRowTestError({ id, message: caught });
       }
     }
