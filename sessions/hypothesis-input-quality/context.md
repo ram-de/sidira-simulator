@@ -1,9 +1,10 @@
 ---
 type: session
 domain: hypothesis-input-quality
-status: active
+status: closed
 started: 2026-06-15
 reopened: 2026-06-16
+closed: 2026-06-16
 owner: ram
 ---
 
@@ -78,23 +79,42 @@ score** is still wrong for the same epic-#309 reasons (uncalibratable, Goodhart,
 (deterministic, not a number) plus a *coherence* judge pass (categorical, folds into the existing
 T3 LLM call) — never a scalar fed to the decision.
 
-- [ ] **T6 (#337)** — Completeness checklist in the wizard (glanceable, deterministic — NOT a scalar).
-      `frontend/app/simulations/new/page.tsx`: "N of M essentials present" chip with per-item ✓/✗
-      (change, cohort, OEC metric, direction, conditional-design-attached, advisory mechanism),
-      derived from form state + T4's live `POST /simulations/preflight` reason_codes. Frontend-only,
-      ZERO LLM, no backend, **no manual redeploy** (Amplify auto-deploys frontend). DESIGN.md §7.7
-      quiet mono + changelog bump. No confidence_score touch; no scalar fed to the decision.
-- [ ] **T7 (#338)** — Coherence pass: extend T3's `input_lint.py` LLM judge to flag weak-but-present
-      fields (cohort="all users" → wrong_cohort; metric mismatched to change → wrong_metric; circular
-      mechanism → broken_mechanism), mapped onto the EXISTING weakness taxonomy via `_VALID_CATEGORIES`,
-      surfaced through the EXISTING amber `input_flags` disclosure note. **Fold into the same judge
-      call** (no new LLM round-trip — preserve T3 cost discipline). No scalar, no migration,
-      confidence_score byte-identical (keep the assertion green). Backend touched → ONE manual
-      redeploy after merge (NO migration).
+- [x] **T6 (#337)** — MERGED (PR #340, squash ea651ab) 2026-06-16. Glanceable completeness checklist
+      in the wizard manifest rail: `N OF M ESSENTIALS` + per-item present/absent (change · cohort ·
+      OEC metric · direction · conditional-design-attached · advisory mechanism), derived from form
+      state + the EXISTING T4 `POST /simulations/preflight` response (no second call); conditional-
+      design item reuses the gate's own `structurally_invisible_change` reason code. **Display-only —
+      no scalar fed to any decision** (never touches confidence_score / verdict / persistence / submit
+      gate; authoritative block/override stays in the T4 needs_input/422 path). Frontend-only
+      (`page.tsx` + `DESIGN.md`). DESIGN.md §8.2 codifies the pattern (count chip, §7.10 text-glyph
+      rows, color-never-alone via PRESENT/MISSING word prefix); changelog 0.3.6. codex P2 fixed
+      (empty form now glances 0-of-M, not 1-of-M). Amplify auto-deploys — no manual redeploy.
+- [x] **T7 (#338)** — MERGED (PR #339, squash d113e64) 2026-06-16. Coherence pass folded into the
+      EXISTING T3 `assess_input_lint` judge (no new LLM round-trip — K-paraphrase still gates on a
+      non-green single-shot). Flags weak-but-present fields onto the existing taxonomy via
+      `_VALID_CATEGORIES`, surfaced through the existing amber `input_flags`: "all users" cohort →
+      wrong_cohort; metric mismatched to change → wrong_metric; circular mechanism → broken_mechanism;
+      vague-but-present prose → untestable_hypothesis. Structured `Hypothesis.metric_name` appended to
+      judge input as a `Declared metric:` line (input-shaping only, never persisted; metric-free
+      hypotheses byte-identical). Files: `services/input_lint.py` + `tests/test_input_lint.py` only.
+      No scalar, no migration, no new persisted field; confidence_score byte-identical (invariance
+      test green); pytest 20/20 lint suite + no new full-suite failures; ruff clean; codex clean.
 
-**Build order:** T6 first (frontend-only, no deploy, lowest risk), then T7 (backend → redeploy).
-Files are independent (T6 = new/page.tsx + DESIGN.md; T7 = input_lint.py + tests) so the two build
-agents can run in parallel; merge T6 first regardless.
+## Follow-up wave Deploy — DONE 2026-06-16 (loop complete)
+T6 is frontend-only → Amplify auto-deployed on merge (no manual step). T7 backend redeploy executed
+via codex/REDEPLOY.md SSM path. Deployed SHA **ea651ab** (`ea651abc9ca43a3b791d10a8a5e4ab288ccd4f4b`;
+includes PR #339 / d113e64). **NO Alembic migration** (SIDIRA_AUTO_MIGRATE not used); no disk-cache
+fill (`docker builder prune` not needed); `sidira-api` healthy, `/health` → `{"status":"ok"}`.
+**In-container verification (TestClient, not external curl — see the 404-wall note above):** a
+mismatched-metric hypothesis returned `input_lint_state: amber`, `reason_codes: ['wrong_metric']`,
+`judge_saw_declared_metric: True`, and **no `score`/`confidence_score` leaked onto the verdict** —
+the coherence pass is live and categorical-only.
+
+**FOLLOW-UP WAVE COMPLETE.** Founder's refined "validate + score the input" instinct shipped the
+right way: a deterministic glanceable checklist (T6) + a categorical coherence judge pass (T7) —
+never a scalar fed to the decision. #314 (T5) remains the only open epic item, still BLOCKED on the
+#222 backtest harness (validate gate labels against held-out real outcomes; cut any axis that
+doesn't earn its place). SESSION CLOSED.
 
 ## Tickets (FILED 2026-06-16, ram-de)
 - Epic **#309** — Hypothesis input answerability (pre-flight gate, not a score)
