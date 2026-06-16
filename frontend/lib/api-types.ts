@@ -1498,6 +1498,62 @@ export interface components {
              * @default 0
              */
             lift_sentiment_failure_drops: number;
+            // ── Metric-lift fields (#221/#275/#276) — HAND-ADDED ──
+            // The gen-types script needs a live backend; like #279 did for the
+            // Hypothesis input fields, these output fields are hand-mirrored
+            // from backend/sidira_simulator/schemas/simulation.py
+            // (SimulationResult, the #275 Decision A GENERIC metric_lift_*
+            // naming). Keep in sync with that Pydantic model. Persona-lift and
+            // current-state-delta result fields remain omitted (no frontend
+            // reader); add them here the same way if a consumer ever needs them.
+            /**
+             * Metric Name
+             * @description Native-unit discriminator (conversion / retention / ctr); null for a sentiment-only run.
+             */
+            metric_name?: string | null;
+            /** Metric Lift Pp */
+            metric_lift_pp?: number | null;
+            /** Metric Lift Ci Pp */
+            metric_lift_ci_pp?: [
+                number,
+                number
+            ] | null;
+            /** Metric Lift Paired N */
+            metric_lift_paired_n?: number | null;
+            /**
+             * Metric Lift Unpaired Treatment
+             * @default 0
+             */
+            metric_lift_unpaired_treatment: number;
+            /**
+             * Metric Lift Unpaired Control
+             * @default 0
+             */
+            metric_lift_unpaired_control: number;
+            /**
+             * Metric Lift Elicitation Failure Drops
+             * @default 0
+             */
+            metric_lift_elicitation_failure_drops: number;
+            /** Metric Regime */
+            metric_regime?: string | null;
+            /** Metric Lift Relative */
+            metric_lift_relative?: string | null;
+            /**
+             * Metric Lift Unblinded Fallback
+             * @default false
+             */
+            metric_lift_unblinded_fallback: boolean;
+            /**
+             * Metric Lift Paraphrase Unstable
+             * @default false
+             */
+            metric_lift_paraphrase_unstable: boolean;
+            /**
+             * Metric Lift Calibrated
+             * @default false
+             */
+            metric_lift_calibrated: boolean;
         };
         /**
          * SimulationRunState
