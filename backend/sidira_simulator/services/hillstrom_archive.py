@@ -379,3 +379,188 @@ def fetch_hillstrom_archive(dest_path: str | Path, *, timeout: float = 120.0) ->
     dest.write_bytes(data)
     logger.info("Wrote %d bytes to %s", len(data), dest)
     return dest
+
+
+# ── offline persona-pack build (PR-B) ────────────────────────────────────────
+#
+# The Hillstrom directional benchmark needs a REAL v1.1 persona pack built from
+# the trial's 8 pre-treatment features — the first benchmark with real per-
+# customer covariates, so the FIRST one to exercise the individual-row
+# (`render_individual_row`) tier with real data. The pack is built ONCE offline
+# from the fetched CSV by the sidira-personas GMM pipeline and the DERIVED pack
+# JSON is committed (`adapters/hillstrom_panel_v1.json`). It is statistics
+# (cluster centroids + privacy-clean synthetic GMM draws), NOT raw rows, so it is
+# safe to redistribute — unlike the raw CSV, which is never committed (PLAN §1).
+#
+# The build is gated (refuses under pytest / CI) for the SAME reason as the
+# fetcher and `score_with_engine`: it imports the heavy ML stack (pandas /
+# scikit-learn via the separate `sidira-personas` repo) which is intentionally
+# absent from the API image, and it is a deliberate, reproducible offline step,
+# never a test/CI side effect. Tests validate the COMMITTED pack instead.
+
+# The producer column → FeatureGroup map, frozen here as the pre-registered
+# feature-mapping for the build (PLAN §3a, researcher-DOF freeze). The outcome
+# columns (segment / visit / conversion / spend) are DELIBERATELY absent: they
+# must never enter the clustering or the pack would leak the answer key into the
+# persona identities. Adapter types are pinned (not inferred) so the build is
+# reproducible byte-for-byte from this source.
+HILLSTROM_FEATURE_GROUPS: dict[str, list[dict[str, str]]] = {
+    "loyalty_lifecycle": [
+        {"name": "recency", "type": "count"},
+        {"name": "newbie", "type": "flag"},
+    ],
+    "value_sensitivity": [
+        {"name": "history", "type": "score"},
+        {"name": "history_segment", "type": "categorical"},
+    ],
+    "motivations_jtbd": [
+        {"name": "mens", "type": "flag"},
+        {"name": "womens", "type": "flag"},
+    ],
+    "demographic_identity": [
+        {"name": "zip_code", "type": "categorical"},
+    ],
+    "channel_tech_behavior": [
+        {"name": "channel", "type": "categorical"},
+    ],
+}
+
+# k is FIXED at 4, not BIC-auto. A spike (STAGE 1) showed the stability/gender-
+# separation tradeoff is non-monotonic over k: BIC-auto (k=8) over-segments
+# (stability ≈ 0.43, below the 0.5 floor); k=3 is very stable (≈ 0.86) but
+# collapses the gender signal (every cluster ≈ 50/50 mens/womens, affinity range
+# ≈ 0.006) — fatal to the heterogeneity claim; k=4 is the only setting that BOTH
+# clears the stability floor (≈ 0.52) AND yields a clean men's-buyer cluster
+# (mens=1, womens=0) and women's-buyer cluster (mens=0, womens=1). The benchmark's
+# sellable endpoint #3 REQUIRES that gender separation, so k is pinned to 4.
+HILLSTROM_PANEL_K = 4
+
+# The pre-registered panel id (the PersonaPack.version, reported as panel_id so a
+# run is traceable to the exact population). Versioned independently of the on-disk
+# filename, mirroring the Upworthy panel convention.
+HILLSTROM_PANEL_VERSION = "hillstrom-email-rct-v1"
+
+
+def _hillstrom_pipeline_config() -> dict:
+    """The frozen sidira-personas pipeline config for the Hillstrom pack build.
+
+    Mirrors the shape `persona_builder._build_pipeline_config` produces, but with
+    adapter types and k PINNED (not inferred) so the offline build is reproducible.
+    No group is excluded from clustering — the gender-affinity group
+    (`motivations_jtbd`) MUST drive the clusters for the heterogeneity endpoint.
+    """
+    return {
+        "company_id": "hillstrom",
+        "run_id_prefix": "hillstrom",
+        "source": {"type": "local", "user_id_column": "customer_id"},
+        "feature_groups": HILLSTROM_FEATURE_GROUPS,
+        "clustering_exclude_groups": [],
+        "encoder": {"method": "pca", "embedding_dim_per_group": 4},
+        "cluster": {
+            "method": "gmm",
+            "k_range": [HILLSTROM_PANEL_K, HILLSTROM_PANEL_K],
+            "selection": "bic",
+            "random_state": 42,
+            "bootstrap_iters": 10,
+            "stability_threshold": 0.5,
+            "holdout_frac": 0.2,
+        },
+        "weights": {"schemes": ["headcount"], "orders_column": None, "revenue_column": None},
+        "sampling": {"n_synthetic_rows": 32, "random_state": 42},
+        "prompt_compiler": {"top_n_distinctive_features_per_group": 4, "threshold_sigma": 0.3},
+    }
+
+
+def build_hillstrom_panel_pack(csv_path: str | Path):
+    """Build the DERIVED Hillstrom v1.1 persona pack from a local CSV (gated).
+
+    Loads the local Hillstrom CSV, runs the `sidira-personas` GMM pipeline over
+    the 8 pre-treatment features (PLAN §3a, outcomes excluded), and translates the
+    producer pack into the simulator's :class:`PersonaPack` (carrying the v1.1
+    quad — centroid_full / feature_scale / sample_rows / posterior_mean — so the
+    individual-row tier fires). Returns the validated `PersonaPack`; the caller
+    writes the JSON to `adapters/hillstrom_panel_v1.json`.
+
+    GATED: refuses under pytest / CI. It imports the heavy ML stack (pandas +
+    `sidira-personas`, absent from the API image) and is a deliberate offline
+    build, never a test side effect — exactly the discipline `score_with_engine`
+    and `fetch_hillstrom_archive` apply. Tests validate the committed pack.
+
+    Raises RuntimeError under pytest / CI or if `sidira-personas` is not installed.
+    """
+    if (
+        "PYTEST_CURRENT_TEST" in os.environ
+        or "pytest" in sys.modules
+        or os.environ.get("CI", "").strip().lower() in {"1", "true", "yes"}
+    ):
+        raise RuntimeError(
+            "build_hillstrom_panel_pack imports the heavy ML stack and runs the GMM "
+            "pipeline; it must not run under pytest / CI. The committed pack "
+            "(adapters/hillstrom_panel_v1.json) is what tests validate; rebuild it "
+            "offline with this function when the source / mapping changes."
+        )
+
+    try:
+        import pandas as pd
+
+        from sidira_personas import run_pipeline
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "sidira-personas not installed — install it (Python 3.11+) to rebuild "
+            "the Hillstrom persona pack: `python3.11 -m pip install -e "
+            "~/Projects/sidira-personas`."
+        ) from exc
+
+    from sidira_simulator.services.persona_pack_translator import translate_producer_pack
+
+    rows, summary = load_hillstrom_csv(csv_path)
+    if not rows:
+        raise RuntimeError(f"no Hillstrom rows loaded from {csv_path} — cannot build pack")
+    logger.info("Building Hillstrom panel pack from %d rows", summary.rows_kept)
+
+    df = pd.DataFrame(
+        [
+            {
+                "customer_id": i,
+                "recency": r.recency,
+                "history": r.history,
+                "history_segment": r.history_segment,
+                "mens": r.mens,
+                "womens": r.womens,
+                "zip_code": r.zip_code,
+                "newbie": r.newbie,
+                "channel": r.channel,
+            }
+            for i, r in enumerate(rows)
+        ]
+    )
+
+    result = run_pipeline(
+        df, _hillstrom_pipeline_config(), run_id=HILLSTROM_PANEL_VERSION, no_llm=True
+    )
+    from dataclasses import asdict
+
+    producer_pack = asdict(result.pack)
+    pack = translate_producer_pack(producer_pack, version=HILLSTROM_PANEL_VERSION)
+    logger.info(
+        "Built Hillstrom pack: k=%d, %d personas, stability=%.3f",
+        result.pack.k_selected,
+        len(pack.personas),
+        pack.stability_score,
+    )
+    return pack
+
+
+def write_hillstrom_panel_pack(csv_path: str | Path, dest_path: str | Path) -> Path:
+    """Build + serialize the Hillstrom panel pack to `dest_path` (gated).
+
+    The reproducible offline build entry point: regenerates the committed
+    `adapters/hillstrom_panel_v1.json`. Refuses under pytest / CI via
+    :func:`build_hillstrom_panel_pack`. Returns the path written.
+    """
+    pack = build_hillstrom_panel_pack(csv_path)
+    dest = Path(dest_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(pack.model_dump_json(indent=2))
+    logger.info("Wrote Hillstrom panel pack to %s", dest)
+    return dest

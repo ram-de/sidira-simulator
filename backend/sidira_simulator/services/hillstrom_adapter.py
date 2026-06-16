@@ -319,30 +319,16 @@ def _email_figma(received: bool, campaign: str) -> ReverseFigma:
     return ReverseFigma(screens=screens, transitions=transitions)
 
 
-def build_hillstrom_case(
-    rows: Sequence[HillstromRow],
-    arm: str,
-    *,
-    metric_name: str = "conversion",
-    seed: int = 0,
-    n_resamples: int = _BOOTSTRAP_RESAMPLES,
-) -> BenchmarkCase:
-    """Build ONE benchmark case for a treatment arm vs the No-E-Mail control.
+def _arm_capability_hypothesis(arm: str) -> tuple[Capability, Hypothesis]:
+    """The shared `(Capability, Hypothesis)` copy-delta pair for a treatment arm.
 
-    The case is the SAME `(Capability, Hypothesis)` shape production builds:
-    control = no campaign e-mail; treatment = the campaign e-mail as a copy delta.
-    `GroundTruth` carries the trial's overall difference-in-means uplift point
-    estimate for `metric_name` (the runner scores predicted-vs-observed lift); the
-    richer per-arm / per-segment CI structure is returned separately by
-    `compute_arm_uplift` / `compute_segment_uplift` for pre-registration.
-
-    Raises ValueError on an unknown arm / metric.
+    The structural blindness boundary: this carries ONLY the e-mail copy delta
+    (control = no e-mail, treatment = the arm's campaign e-mail), never any
+    outcome / ground-truth signal. Reused by the arm-level and per-segment case
+    builders so both score the IDENTICAL rendered change — the per-segment cases
+    differ only in their ground truth + case_id, never in the stimulus.
     """
-    uplift = compute_arm_uplift(
-        rows, arm, metric_name=metric_name, seed=seed, n_resamples=n_resamples
-    )
     campaign = _TREATMENT_ARMS[arm]
-
     reverse_prd = (
         "A returning customer is in their inbox; in the current experience they "
         "receive no promotional e-mail from the store."
@@ -365,6 +351,32 @@ def build_hillstrom_case(
         proposed_prd=None,
         proposed_figma=_email_figma(received=True, campaign=campaign),
     )
+    return capability, hypothesis
+
+
+def build_hillstrom_case(
+    rows: Sequence[HillstromRow],
+    arm: str,
+    *,
+    metric_name: str = "conversion",
+    seed: int = 0,
+    n_resamples: int = _BOOTSTRAP_RESAMPLES,
+) -> BenchmarkCase:
+    """Build ONE benchmark case for a treatment arm vs the No-E-Mail control.
+
+    The case is the SAME `(Capability, Hypothesis)` shape production builds:
+    control = no campaign e-mail; treatment = the campaign e-mail as a copy delta.
+    `GroundTruth` carries the trial's overall difference-in-means uplift point
+    estimate for `metric_name` (the runner scores predicted-vs-observed lift); the
+    richer per-arm / per-segment CI structure is returned separately by
+    `compute_arm_uplift` / `compute_segment_uplift` for pre-registration.
+
+    Raises ValueError on an unknown arm / metric.
+    """
+    uplift = compute_arm_uplift(
+        rows, arm, metric_name=metric_name, seed=seed, n_resamples=n_resamples
+    )
+    capability, hypothesis = _arm_capability_hypothesis(arm)
 
     ground_truth = GroundTruth(
         metric_name=metric_name,
@@ -384,6 +396,77 @@ def build_hillstrom_case(
         hypothesis=hypothesis,
         ground_truth=ground_truth,
     )
+
+
+def build_hillstrom_segment_case(
+    seg: SegmentUplift,
+    arm: str,
+) -> BenchmarkCase:
+    """Build one per-SEGMENT benchmark case from a `SegmentUplift` (endpoint #3).
+
+    The heterogeneity material (PLAN §2 #3): a case whose `GroundTruth` is the
+    arm's uplift WITHIN one purchase-history stratum, so a run can be scored on
+    whether the sim predicts the men's e-mail moves men-history customers more
+    than women-history ones — the only non-trivially-guessable endpoint.
+
+    The stimulus (capability + hypothesis copy delta) is IDENTICAL to the
+    arm-level case for this arm — only the ground truth (per-stratum uplift) and
+    the case_id (which carries the 4th `:<segment>` component the `by_segment`
+    honesty stratifier reads) differ. The predictor stays blind: the stratum is
+    encoded ONLY in the case_id/ground_truth, never in the rendered change.
+    """
+    capability, hypothesis = _arm_capability_hypothesis(arm)
+    ground_truth = GroundTruth(
+        metric_name=seg.metric_name,
+        control_metric=seg.control_rate,
+        treatment_metric=seg.treatment_rate,
+        observed_lift=seg.observed_lift,
+        winner=_winner(seg.observed_lift),
+    )
+    arm_slug = arm.lower().replace(" ", "_").replace("-", "")
+    return BenchmarkCase(
+        case_id=f"hillstrom:{arm_slug}:{seg.metric_name}:{seg.segment}",
+        source=_SOURCE,
+        capability=capability,
+        hypothesis=hypothesis,
+        ground_truth=ground_truth,
+    )
+
+
+def hillstrom_segment_cases(
+    rows: Sequence[HillstromRow],
+    *,
+    metric_name: str = "conversion",
+    seed: int = 0,
+    n_resamples: int = _BOOTSTRAP_RESAMPLES,
+) -> list[BenchmarkCase]:
+    """Enumerate per-(arm × heterogeneity-segment) cases (endpoint #3).
+
+    For each treatment arm (Mens / Womens E-Mail) and each pre-registered
+    purchase-history stratum (`_segment_key`), one case whose ground truth is that
+    arm's uplift within that stratum. These carry the 4-component case_id the
+    `benchmark_honesty.by_segment` stratifier reads, so directional accuracy can
+    be reported per heterogeneity stratum. Raises ValueError if `rows` is empty.
+
+    VALIDITY REQUIREMENT (the endpoint-#3 crux). The cases for one arm differ ONLY
+    in ground truth + case_id — their stimulus (capability + hypothesis) is
+    deliberately IDENTICAL, and the predictor is blind to ground_truth/case_id. So
+    a caller that scores these against ONE undifferentiated audience would have the
+    engine emit the same prediction for every stratum (seed noise), measuring
+    nothing. The runner MUST condition the simulated audience on the stratum —
+    e.g. via `hillstrom_panel_loader.hillstrom_segment_subpack` — for the
+    per-segment scores to reflect heterogeneous response. The `benchmark-hillstrom`
+    CLI does exactly this (it runs each stratum against its sub-pack).
+    """
+    if not rows:
+        raise ValueError("hillstrom_segment_cases requires at least one row")
+    cases: list[BenchmarkCase] = []
+    for arm in (SEGMENT_MENS, SEGMENT_WOMENS):
+        for seg in compute_segment_uplift(
+            rows, arm, metric_name=metric_name, seed=seed, n_resamples=n_resamples
+        ):
+            cases.append(build_hillstrom_segment_case(seg, arm))
+    return cases
 
 
 def hillstrom_rows_to_cases(

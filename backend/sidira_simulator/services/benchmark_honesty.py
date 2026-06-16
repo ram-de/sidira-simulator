@@ -102,6 +102,59 @@ def by_source(case: BenchmarkCaseResult) -> str:
     return case.source
 
 
+# Hillstrom case_ids are structured `hillstrom:<arm_slug>:<metric>[:<segment>]`
+# (services.hillstrom_adapter.build_hillstrom_case). The two stratifiers below
+# read that structure to report directional accuracy PER ARM (Mens vs Womens
+# e-mail) and PER heterogeneity SEGMENT (the endpoint #3 "does the sim know who
+# responds most" claim, PLAN §2). They are deliberately defensive: a case_id that
+# does not carry the expected component falls into an explicit, REPORTED bucket
+# rather than being mislabeled or dropped (the report-every-cell rule, §4).
+_HILLSTROM_PREFIX = "hillstrom"
+_BY_ARM_UNKNOWN = "arm unknown (no hillstrom arm in case_id)"
+_BY_SEGMENT_UNKNOWN = "segment unknown (no heterogeneity stratum in case_id)"
+
+
+def by_arm(case: BenchmarkCaseResult) -> str:
+    """Stratify a Hillstrom case by its randomized treatment ARM.
+
+    Reads the arm slug from the structured Hillstrom case_id
+    (`hillstrom:<arm_slug>:<metric>[:<segment>]`) so directional accuracy /
+    rank-ρ are reported separately for the Mens-E-Mail and Womens-E-Mail arms —
+    the weakest scoring endpoint (PLAN §2 #1/#2), reported per arm so a result
+    that holds for one arm but not the other is never averaged away.
+
+    A non-Hillstrom or malformed case_id maps to a dedicated, still-REPORTED
+    "arm unknown" bucket (never dropped, never mislabeled). The arm slug is
+    surfaced verbatim (e.g. `arm=mens_email`) as the stratum key.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 2 and parts[0] == _HILLSTROM_PREFIX and parts[1]:
+        return f"arm={parts[1]}"
+    return _BY_ARM_UNKNOWN
+
+
+def by_segment(case: BenchmarkCaseResult) -> str:
+    """Stratify a Hillstrom case by its heterogeneity SEGMENT (endpoint #3).
+
+    Reads the optional 4th component of the structured Hillstrom case_id
+    (`hillstrom:<arm_slug>:<metric>:<segment>`) — the pre-registered
+    purchase-history stratum (e.g. `mens_history`, `womens_history`) the adapter
+    encodes when it enumerates per-segment cases. This is the ONLY scoring
+    endpoint that isn't trivially guessable: does the sim predict the men's e-mail
+    moves men-history customers MORE than women-history ones?
+
+    A case_id WITHOUT a segment component (an arm-level case, or a non-Hillstrom
+    case) maps to a dedicated, still-REPORTED "segment unknown" bucket — so an
+    arm-only run is reported honestly (one undifferentiated row) rather than
+    fabricating a stratum the cases don't carry. The segment is surfaced verbatim
+    (e.g. `segment=mens_history`) as the stratum key.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 4 and parts[0] == _HILLSTROM_PREFIX and parts[3]:
+        return f"segment={parts[3]}"
+    return _BY_SEGMENT_UNKNOWN
+
+
 # Label for a stratum where the actual lift is unknown (an unscorable / label-less
 # dropped case): it cannot be magnitude-bucketed, but it is STILL reported (§4).
 _UNKNOWN_MAGNITUDE_KEY = "|effect| unknown (no scorable label)"

@@ -446,6 +446,7 @@ def eval_engine_blind(
     n_resamples: int = _BOOTSTRAP_RESAMPLES,
     metric_name: str = _ENGINE_METRIC_NAME,
     hypothesis_builder: Callable[[BenchmarkCase], Hypothesis] = _ctr_hypothesis_for_case,
+    prediction_cache: dict[str, float] | None = None,
 ) -> BenchmarkRunResult:
     """Score the engine (an injected `CaseRunner`) as the blind predictor (§4).
 
@@ -502,11 +503,22 @@ def eval_engine_blind(
     The cache makes the predictor deterministic for a fixed `seed` and means the
     expensive engine call happens exactly once per case (not once per case per
     null permutation), which is what makes the faithful §4 re-run affordable.
+
+    RESUMABILITY (#222 Hillstrom, PLAN §4). `prediction_cache` may be passed in
+    pre-seeded — e.g. loaded from a bind-mount checkpoint after a redeploy. A
+    case already present is NOT re-run (the engine call is skipped), so a chunked
+    run that died mid-way resumes exactly where it stopped. The cache is mutated
+    in place, so the caller can checkpoint it after the run. Because predictions
+    are structurally label-independent and deterministic for a fixed `seed`, a
+    restored cache yields a byte-identical result — the null cert reads the same
+    cached vectors. Defaults to a fresh empty dict (the non-resumable path).
     """
     # Run-once-per-case cache keyed by case_id. The cached value is the predicted
-    # metric delta (raw probability units). Built lazily by the predictor closure;
-    # the null `predict_fn` reads it back keyed ONLY by case_id (never by label).
-    prediction_cache: dict[str, float] = {}
+    # metric delta (raw probability units). Built lazily by the predictor closure
+    # (or pre-seeded from a checkpoint for resumability); the null `predict_fn`
+    # reads it back keyed ONLY by case_id (never by label).
+    if prediction_cache is None:
+        prediction_cache = {}
 
     def _predict(case: BenchmarkCase) -> float:
         if case.case_id in prediction_cache:
@@ -568,6 +580,7 @@ def score_with_engine(
     n_resamples: int = _BOOTSTRAP_RESAMPLES,
     metric_name: str = _ENGINE_METRIC_NAME,
     hypothesis_builder: Callable[[BenchmarkCase], Hypothesis] = _ctr_hypothesis_for_case,
+    prediction_cache: dict[str, float] | None = None,
 ) -> BenchmarkRunResult:
     """GATED real-engine entry point — refuses to run under pytest / CI.
 
@@ -580,7 +593,9 @@ def score_with_engine(
 
     `metric_name` + `hypothesis_builder` are forwarded to `eval_engine_blind` and
     DEFAULT to the Upworthy CTR behavior, so the Upworthy benchmark CLI path is
-    unchanged; the Hillstrom CLI (#222) passes the conversion/visit builder.
+    unchanged; the Hillstrom CLI (#222) passes the conversion/visit builder. An
+    optional pre-seeded `prediction_cache` (loaded from a bind-mount checkpoint)
+    is forwarded too, so a chunked Hillstrom run resumes across redeploy (PLAN §4).
 
     Raises RuntimeError under pytest/CI (the guard), and ValueError if
     `cases`/`persona_pack` are missing when invoked for real.
@@ -658,4 +673,5 @@ def score_with_engine(
         n_resamples=n_resamples,
         metric_name=metric_name,
         hypothesis_builder=hypothesis_builder,
+        prediction_cache=prediction_cache,
     )
