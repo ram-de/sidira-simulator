@@ -142,10 +142,22 @@ const emptyConnForm = (): ConnForm => ({
   schema: "",
 });
 
-// The credential fingerprint — if this string changes, the stored connection
-// id is stale and a fresh createFeatureStore is owed before testing again.
-const credFingerprint = (f: ConnForm, mode: SourceMode, table: string, sql: string) =>
-  JSON.stringify([f.name, f.account, f.user, f.password, f.warehouse, f.role, f.database, f.schema, mode, table, sql]);
+// The CREDENTIAL fingerprint — connection fields ONLY (no source). If this
+// changes, the stored connection id is stale and a fresh createFeatureStore is
+// owed before testing again (or, for #304 reuse, the form has diverged from the
+// saved row). Deliberately excludes mode/table/sql: the source query feeds
+// preview/build, not which connection to test — conflating them was the bug
+// that broke saved-connection reuse when the user typed the source after
+// picking a connection (the password gate snapped back on).
+const credFingerprint = (f: ConnForm) =>
+  JSON.stringify([f.name, f.account, f.user, f.password, f.warehouse, f.role, f.database, f.schema]);
+
+// The TEST fingerprint — credentials + source. Continue (Step 1) gates on a
+// test having passed for these EXACT values including the source, so editing
+// the table/SQL re-gates Continue (a profiled source must match what was
+// tested). This is the existing okFingerprint behavior, kept intact.
+const testFingerprint = (f: ConnForm, mode: SourceMode, table: string, sql: string) =>
+  JSON.stringify([credFingerprint(f), mode, table, sql]);
 
 const POLL_MS = 2500; // #28 watch cadence while pending/running.
 
@@ -158,13 +170,14 @@ export default function NewPersonaPackPage() {
   const [tableFqn, setTableFqn] = useState("");
   const [sql, setSql] = useState("");
   const [connection, setConnection] = useState<ConnectionSummary | null>(null);
-  // Test lifecycle. `okFingerprint` records the cred fingerprint that PASSED a
-  // test — Continue is enabled only while the current fingerprint matches it.
+  // Test lifecycle. `okFingerprint` records the TEST fingerprint (creds + source)
+  // that PASSED a test — Continue is enabled only while the current one matches.
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<{ kind: string | null; message: string } | null>(null);
   const [okFingerprint, setOkFingerprint] = useState<string | null>(null);
-  // The fingerprint that minted `connection` — reused on the next test if the
-  // user hasn't touched any field since.
+  // The CREDENTIAL fingerprint that minted (or selected, #304) `connection` —
+  // reused on the next test if the user hasn't touched any credential field
+  // since. Source edits do NOT invalidate it (the connection is the same).
   const [connFingerprint, setConnFingerprint] = useState<string | null>(null);
   // Saved connections (#304). These are the customer's persisted feature-store
   // rows — the server keeps the encrypted password (password_enc) and never
@@ -217,16 +230,21 @@ export default function NewPersonaPackPage() {
   const [promoted, setPromoted] = useState<PackSummary | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
 
-  // The live fingerprint of the connect form (recomputed each render).
-  const fingerprint = credFingerprint(conn, sourceMode, tableFqn, sql);
-  const testPassed = okFingerprint !== null && okFingerprint === fingerprint;
+  // The live fingerprints of the connect form (recomputed each render). The
+  // credential fingerprint drives the mint/reuse decision; the test fingerprint
+  // (creds + source) drives Continue gating.
+  const credFp = credFingerprint(conn);
+  const testFp = testFingerprint(conn, sourceMode, tableFqn, sql);
+  const testPassed = okFingerprint !== null && okFingerprint === testFp;
   // Reusing a saved/already-minted connection (#304): a `connection` exists and
-  // the form hasn't diverged from the fingerprint that owns it. On this path the
-  // password is intentionally blank (the server holds password_enc), so the Test
-  // button must NOT require a password — Test runs against connection.id. Edit a
-  // credential field and the fingerprint diverges, flipping us back to the
+  // the CREDENTIAL fields haven't diverged from the fingerprint that owns it. On
+  // this path the password is intentionally blank (the server holds
+  // password_enc), so the Test button must NOT require a password — Test runs
+  // against connection.id. Crucially this ignores the source, so typing the
+  // table/SQL after picking a saved connection does NOT snap the password gate
+  // back on. Edit a CREDENTIAL field and it diverges, flipping us back to the
   // create path where a password is required again (handleTest re-mints).
-  const reusingSaved = connection !== null && connFingerprint === fingerprint;
+  const reusingSaved = connection !== null && connFingerprint === credFp;
 
   // The source body passed to preview/build. Table → SELECT *; SQL verbatim.
   const sourceBody = (): { table_fqn?: string | null; sql?: string | null } =>
@@ -287,15 +305,16 @@ export default function NewPersonaPackPage() {
   // skipping createFeatureStore and the password entirely.
   //
   // The fingerprint dance is the load-bearing part: handleTest mints a fresh
-  // connection only when `connFingerprint !== fingerprint`. We prefill the form
-  // with the row's non-secret fields (password left blank — it's never returned)
-  // and set `connFingerprint` to the fingerprint of THAT password-blank form
-  // (with the current source mode/table/sql). Now the live `fingerprint` matches
-  // `connFingerprint`, so handleTest reuses connection.id against the stored
-  // credential instead of re-minting — and the user reaches build with zero
-  // password re-entry. (If they later edit a credential field the fingerprint
-  // diverges and the existing mint-on-test path correctly takes back over, which
-  // is when a password would be required again — matching existing behavior.)
+  // connection only when `connFingerprint !== credFp`. We prefill the form with
+  // the row's non-secret fields (password left blank — it's never returned) and
+  // set `connFingerprint` to the CREDENTIAL fingerprint of THAT password-blank
+  // form. Now the live `credFp` matches `connFingerprint`, so handleTest reuses
+  // connection.id against the stored credential instead of re-minting — and the
+  // user reaches build with zero password re-entry. Because the fingerprint is
+  // credential-only, typing the source (table/SQL) afterward does NOT break the
+  // reuse. (Edit a credential field and it diverges, so the existing
+  // mint-on-test path correctly takes back over — a password is required again,
+  // matching existing behavior.)
   const handleSelectSaved = (c: ConnectionSummary) => {
     const prefilled: ConnForm = {
       name: c.name,
@@ -309,11 +328,10 @@ export default function NewPersonaPackPage() {
     };
     setConn(prefilled);
     setConnection(c);
-    // Pin both fingerprints to the password-blank form against the current
-    // source. okFingerprint isn't set here — Continue still gates on an actual
-    // 204 from Test, so the user confirms the saved row connects before moving on.
-    const fp = credFingerprint(prefilled, sourceMode, tableFqn, sql);
-    setConnFingerprint(fp);
+    // Pin connFingerprint to the password-blank form's CREDENTIAL fingerprint.
+    // okFingerprint isn't set here — Continue still gates on an actual 204 from
+    // Test, so the user confirms the saved row connects before moving on.
+    setConnFingerprint(credFingerprint(prefilled));
     setOkFingerprint(null);
     setTestError(null);
     // A different connection invalidates any prior profiled mapping (#27) — the
@@ -343,11 +361,12 @@ export default function NewPersonaPackPage() {
     setTestError(null);
     setTesting(true);
     try {
-      // Reuse the stored id if nothing changed since the last create; otherwise
-      // mint a fresh connection (#26). A changed credential MUST NOT test the
-      // old id.
+      // Reuse the stored id if no CREDENTIAL changed since the last create /
+      // saved-connection select; otherwise mint a fresh connection (#26). A
+      // changed credential MUST NOT test the old id. Source-only edits keep the
+      // same connection, so they don't force a re-mint here.
       let active = connection;
-      if (!active || connFingerprint !== fingerprint) {
+      if (!active || connFingerprint !== credFp) {
         const req: SnowflakeConnectionRequest = {
           name: conn.name.trim(),
           kind: "snowflake",
@@ -361,7 +380,7 @@ export default function NewPersonaPackPage() {
         };
         active = await createFeatureStore(req);
         setConnection(active);
-        setConnFingerprint(fingerprint);
+        setConnFingerprint(credFp);
         // A fresh connection invalidates a previously-profiled mapping (#27):
         // the columns may differ, so force a re-profile on next Map entry.
         setColumns(null);
@@ -370,7 +389,9 @@ export default function NewPersonaPackPage() {
         setMapPhase("idle");
       }
       await testFeatureStore(active.id); // 204 on success, throws on failure
-      setOkFingerprint(fingerprint);
+      // Continue gates on the full test fingerprint (creds + source), so a later
+      // source edit re-gates Continue (existing behavior).
+      setOkFingerprint(testFp);
     } catch (e) {
       setTestError(apiErrorParts(e));
       setOkFingerprint(null);
