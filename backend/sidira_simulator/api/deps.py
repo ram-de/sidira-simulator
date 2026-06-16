@@ -207,6 +207,20 @@ def get_background_orchestrator_factory(
     return factory
 
 
+def get_input_lint_chat_client():
+    """Chat client for the #312 / T3 pre-flight input lint judge.
+
+    A dedicated dependency (rather than letting `assess_input_lint` lazily call
+    `get_chat_client()`) so the test suite can override it with a stub — the
+    judge MUST never hit a live LLM in the suite. In production it returns None,
+    and `assess_input_lint` resolves the real client lazily inside the judge
+    (the chat client is process-cheap to construct; resolving it at request time
+    keeps this dep free of import-time LLM config requirements). The override is
+    what the tests target.
+    """
+    return None
+
+
 def get_orchestrator(
     customer_repo: CustomerRepo = Depends(get_customer_repo),
     simulation_repo: SimulationRepo = Depends(get_simulation_repo),

@@ -278,6 +278,32 @@ class Weakness(BaseModel):
     ci_high: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
+class InputFlags(BaseModel):
+    """Pre-flight ordinal input-lint result, stamped on an amber/red/abstain run
+    (epic #309, T3 / #312).
+
+    CATEGORICAL only — an ordinal `state` + named `reasons` + stable
+    `reason_codes`, NEVER a number or score (panel hard constraint: the lint
+    ROUTES, it does not discount `confidence_score`). Populated by the runner
+    from the pre-flight `services.input_lint.assess_input_lint` verdict (LLM
+    judge + deterministic leading-framing lint + paraphrase-abstain). `state` is
+    `amber` | `red` | `abstain`; a `green` run carries NO `input_flags` (the
+    field stays None) so a clean run and every older `result_json` row load
+    byte-identical and this is migration-free (it rides the result JSON blob, NOT
+    a DB column). `reason_codes` are the existing weakness-taxonomy categories
+    (`scoring._VALID_CATEGORIES`) plus the deterministic `leading_framing` code;
+    `fixes` carries auto-neutralize hints for leading framing. The detail page
+    surfaces this as an amber disclosure note (DESIGN.md §7.7 cautionary-note
+    anatomy); the score is computed and persisted unchanged.
+    """
+
+    state: Literal["amber", "red", "abstain"]
+    reasons: list[str] = Field(default_factory=list)
+    reason_codes: list[str] = Field(default_factory=list)
+    fixes: list[str] = Field(default_factory=list)
+    paraphrase_unstable: bool = False
+
+
 class AgentAnalysisSummary(BaseModel):
     """Per-agent post-run summary (#51 result table).
 
@@ -329,6 +355,17 @@ class SimulationResult(BaseModel):
     instrument_scope: Literal["in_scope", "out_of_scope"] = "in_scope"
     out_of_scope_reasons: list[str] = Field(default_factory=list)
     out_of_scope_reason_codes: list[str] = Field(default_factory=list)
+
+    # ── Pre-flight ordinal input lint (epic #309, T3 / #312) ──
+    # The degrade-and-disclose carrier for the amber/red/abstain input lint.
+    # CATEGORICAL only (ordinal state + named reasons), NEVER a number — the lint
+    # ROUTES, it does not discount confidence_score (panel hard constraint).
+    # None on a `green` run (and on every older `result_json` row) so a clean run
+    # loads byte-identical and this is migration-free (rides the result JSON
+    # blob, NOT a DB column). When present, the detail page renders an amber
+    # disclosure note (DESIGN.md §7.7) and the refinement queue is populated. The
+    # headline confidence_score is computed and persisted unchanged.
+    input_flags: InputFlags | None = None
 
     # ── A/B mode fields (Phase 4.6 #90) ──
     # All None / 0 for single-arm sims so older `result_json` rows load.

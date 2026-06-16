@@ -27,6 +27,7 @@ from sidira_simulator.adapters.repositories import (
     SimulationRepo,
 )
 from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.input_lint import InputLintVerdict
 from sidira_simulator.services.simulation_runner import SimulationRunner
 
 log = structlog.get_logger()
@@ -68,6 +69,7 @@ class SimulationOrchestrator:
         sample_size: int = 10,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
+        input_lint: InputLintVerdict | None = None,
     ):
         """Persist a pending simulation row. Returns sim_id and the run-coroutine.
 
@@ -147,6 +149,7 @@ class SimulationOrchestrator:
                         model_id=model_id,
                         include_no_persona_control=include_no_persona_control,
                         include_current_state_control=include_current_state_control,
+                        input_lint=input_lint,
                     )
                 return
 
@@ -165,6 +168,7 @@ class SimulationOrchestrator:
                 model_id=model_id,
                 include_no_persona_control=include_no_persona_control,
                 include_current_state_control=include_current_state_control,
+                input_lint=input_lint,
             )
 
         return sim_id, run
@@ -195,6 +199,7 @@ class SimulationOrchestrator:
         model_id: str | None = None,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
+        input_lint: InputLintVerdict | None = None,
     ) -> None:
         try:
             await self._simulations.update_status(sim_id, customer_id, "running")
@@ -222,6 +227,7 @@ class SimulationOrchestrator:
                 model_id=model_id,
                 include_no_persona_control=include_no_persona_control,
                 include_current_state_control=include_current_state_control,
+                input_lint=input_lint,
             )
 
         except Exception as exc:
@@ -251,6 +257,7 @@ class SimulationOrchestrator:
         model_id: str | None = None,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
+        input_lint: InputLintVerdict | None = None,
     ) -> None:
         """Call SimulationRunner with a pre-assigned sim_id; persist agents + result."""
         simulation = await self._runner.run(
@@ -268,6 +275,7 @@ class SimulationOrchestrator:
             model_id=model_id,
             include_no_persona_control=include_no_persona_control,
             include_current_state_control=include_current_state_control,
+            input_lint=input_lint,
         )
 
         # Persist agent_instances rows using the records the runner exposed.

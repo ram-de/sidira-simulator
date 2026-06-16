@@ -23,8 +23,14 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
+from typing import TYPE_CHECKING
 
 import structlog
+
+if TYPE_CHECKING:
+    # Type-only import: input_lint pulls scoring (LLM-adjacent), which the runner
+    # otherwise imports lazily in _score. Keep it off the module-load path.
+    from sidira_simulator.services.input_lint import InputLintVerdict
 
 from sidira_simulator.adapters.llm import ChatClient, get_chat_client
 from sidira_simulator.adapters.r2 import ArtifactStore, get_store
@@ -36,6 +42,7 @@ from sidira_simulator.schemas.persona import Persona, PersonaPack
 from sidira_simulator.schemas.simulation import (
     AgentAnalysisSummary,
     Hypothesis,
+    InputFlags,
     Simulation,
     SimulationResult,
     SimulationStatus,
@@ -206,6 +213,7 @@ class SimulationRunner:
         model_id: str | None = None,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
+        input_lint: "InputLintVerdict | None" = None,
     ) -> Simulation:
         sim_id = sim_id or str(uuid.uuid4())
         chat_client = self._chat_for_model(model_id)
@@ -423,6 +431,7 @@ class SimulationRunner:
             chat_client,
             include_no_persona_control=include_no_persona_control,
             include_current_state_control=include_current_state_control,
+            input_lint=input_lint,
         )
 
         state.mark_phase(RunPhase.COMPLETE)
@@ -779,6 +788,7 @@ class SimulationRunner:
         chat_client: ChatClient,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
+        input_lint: "InputLintVerdict | None" = None,
     ) -> SimulationResult:
         """Call ScoringService + RefinementService over the agent reactions.
 
@@ -788,16 +798,22 @@ class SimulationRunner:
         """
         if not agent_records:
             self._run_state.emit(state, "score.updated", score=0.0, note="no successful agents")
+            # Degenerate fast-path: still stamp the pre-flight input lint (T3)
+            # and the instrument-fit abstention (T2) — both are pre-run / OEC
+            # signals independent of whether any agent reacted.
             return _stamp_instrument_scope(
-                SimulationResult(
-                    confidence_score=0.0,
-                    weaknesses=[
-                        Weakness(
-                            category="underpowered_design",
-                            summary="No agent reactions completed successfully.",
-                        )
-                    ],
-                    refinement_suggestions=[],
+                _stamp_input_flags(
+                    SimulationResult(
+                        confidence_score=0.0,
+                        weaknesses=[
+                            Weakness(
+                                category="underpowered_design",
+                                summary="No agent reactions completed successfully.",
+                            )
+                        ],
+                        refinement_suggestions=[],
+                    ),
+                    input_lint,
                 ),
                 hypothesis,
             )
@@ -877,7 +893,15 @@ class SimulationRunner:
         ]
         self._run_state.emit(state, "score.updated", score=result.confidence_score)
 
-        # Refinement runs only when there's meaningful room to improve.
+        # Refinement runs when there's meaningful room to improve. The trigger
+        # has TWO arms:
+        #   • post-run score<80 (today's path), AND
+        #   • #312 / T3: the pre-flight ordinal lint flagged the INPUT
+        #     (amber/red/abstain) — refinement fires regardless of score, so a
+        #     leading-framing / vague-prose run still gets a rewrite offer even
+        #     when the agents happened to score it ≥80. This is the ticket's
+        #     "move the refinement trigger earlier" — we REUSE RefinementService
+        #     verbatim, only widening WHEN it fires.
         # Phase 4.6 #90 (codex R6-P2): when A/B mode short-circuited on a
         # missing-arm run, `analyses` is empty and the placeholder result
         # has confidence_score=0 only because lift is uncomputable, not
@@ -885,7 +909,8 @@ class SimulationRunner:
         # surviving arm's reactions would burn an LLM call to "improve"
         # a run that's genuinely broken upstream — skip it.
         ab_missing_arm = is_ab_mode and not analyses
-        if result.confidence_score < 80.0 and not ab_missing_arm:
+        input_flagged = input_lint is not None and input_lint.is_flagged
+        if (result.confidence_score < 80.0 or input_flagged) and not ab_missing_arm:
             # Sample from the persona records only — the shadow arms
             # (no_persona, current_state) are baselines, not material the PM
             # should see paraphrased back as refinement evidence.
@@ -1054,11 +1079,46 @@ class SimulationRunner:
                 paired_n=0,
             )
 
+        # #312 / T3: stamp the pre-flight ordinal input lint (amber/red/abstain)
+        # categorically. No-op (byte-identical) for a green / absent lint; never
+        # touches confidence_score. Stamped before the T2 abstention so both
+        # categorical carriers ride the same result_json blob independently.
+        result = _stamp_input_flags(result, input_lint)
+
         # #311 / T2: stamp the categorical instrument-fit abstention LAST, after
         # every additive baseline has populated, so it composes with (never
         # overwrites) the lift/delta fields. No-op (byte-identical) for in-scope
         # OECs; never touches confidence_score.
         return _stamp_instrument_scope(result, hypothesis)
+
+
+def _stamp_input_flags(
+    result: SimulationResult, input_lint: "InputLintVerdict | None"
+) -> SimulationResult:
+    """Stamp the T3 (#312) pre-flight ordinal input lint onto the result.
+
+    Categorical only — an ordinal state + named reasons; NEVER a number and NEVER
+    a `confidence_score` discount (panel hard constraint). A `green` or absent
+    lint is a no-op (returns the result unchanged, so a clean run and every older
+    `result_json` row load byte-identical and this is migration-free — the flag
+    rides the result JSON blob, not a DB column). The verdict was computed ONCE
+    pre-flight in `api/simulations.py` (the LLM judge runs at create time, not
+    here) and threaded through the orchestrator, so scoring spends no extra
+    tokens. A `model_copy` keeps the in-scope path byte-identical.
+    """
+    if input_lint is None or not input_lint.is_flagged:
+        return result
+    return result.model_copy(
+        update={
+            "input_flags": InputFlags(
+                state=input_lint.state,
+                reasons=list(input_lint.reasons),
+                reason_codes=list(input_lint.reason_codes),
+                fixes=list(input_lint.fixes),
+                paraphrase_unstable=input_lint.paraphrase_unstable,
+            )
+        }
+    )
 
 
 def _stamp_instrument_scope(result: SimulationResult, hypothesis: Hypothesis) -> SimulationResult:
