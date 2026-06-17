@@ -9,7 +9,7 @@ import {
   shouldRedirectProductPathToApp,
 } from "@/lib/site-hosts";
 import { clerkEnabled, SIGN_IN_URL } from "@/lib/clerk";
-import { V2_COOKIE, V2_COOKIE_ON } from "@/lib/v2-flag-shared";
+import { V2_COOKIE, V2_COOKIE_ON, V2_COOKIE_OFF } from "@/lib/v2-flag-shared";
 
 const TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim();
 
@@ -153,16 +153,28 @@ export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
+  // Normalize the host BEFORE the v2 toggle so the opt-out cookie is always set
+  // on the host that will actually serve the content. Otherwise a toggle hit on
+  // a product path via the public host (e.g. sidira.ai/simulations?v2=0) would
+  // set sidira_v2 on sidira.ai, then bounce to app.sidira.ai WITHOUT it — the
+  // opt-out silently fails. hostRedirect clones nextUrl, so the ?v2 param rides
+  // the redirect to app.sidira.ai and the toggle re-runs there on the right
+  // host. For app-host requests this returns null and we fall straight through
+  // (the auth middlewares still call hostRedirect again — a no-op once
+  // normalized). (codex P2.)
+  const hostRedir = hostRedirect(request);
+  if (hostRedir) return hostRedir;
+
   const param = request.nextUrl.searchParams.get("v2");
-  if (param === V2_COOKIE_ON || param === "0") {
+  if (param === V2_COOKIE_ON || param === V2_COOKIE_OFF) {
     const url = request.nextUrl.clone();
     url.searchParams.delete("v2");
     const redirect = NextResponse.redirect(url);
-    if (param === V2_COOKIE_ON) {
-      redirect.cookies.set(V2_COOKIE, V2_COOKIE_ON, { path: "/", sameSite: "lax" });
-    } else {
-      redirect.cookies.set(V2_COOKIE, "", { path: "/", maxAge: 0, sameSite: "lax" });
-    }
+    // v2 is now ON by default, so the cookie carries an EXPLICIT value either
+    // way: "1" re-enables (clears any opt-out), "0" is the sticky per-browser
+    // opt-out that v2Enabled()/v2EnabledClient() check for. Set the param value
+    // directly.
+    redirect.cookies.set(V2_COOKIE, param, { path: "/", sameSite: "lax" });
     return redirect;
   }
 

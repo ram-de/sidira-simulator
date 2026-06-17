@@ -32,14 +32,15 @@ export function suppressesGlobalNav(pathname: string | null): boolean {
 // Routes that ship the v2 shell (AppShellV2) when the flag is on, and must
 // therefore suppress the global TopNav to avoid a double nav. Two kinds:
 //   • EXACT — only the LIST route is migrated; its nested routes still render
-//     legacy and keep the global TopNav (e.g. /personas, until its subtree is
-//     migrated).
+//     legacy and keep the global TopNav.
 //   • PREFIX — the WHOLE subtree is migrated (list + every nested page wraps
-//     AppShellV2), so suppress across the entire prefix (e.g. /simulations:
-//     list + /simulations/[id] + /simulations/new + the persona chat).
-// Migrate a subtree by moving its prefix here once all its pages wrap the shell.
-const V2_MIGRATED_EXACT = new Set(["/personas"]);
-const V2_MIGRATED_PREFIXES = ["/simulations"];
+//     AppShellV2), so suppress across the entire prefix.
+// The /simulations, /personas, and /agents subtrees are now all fully migrated
+// (list + every nested page wraps AppShellV2), so all three are prefix-migrated
+// and nothing remains exact-only. Migrate a subtree by moving its prefix here
+// once all its pages wrap the shell.
+const V2_MIGRATED_EXACT = new Set<string>([]);
+const V2_MIGRATED_PREFIXES = ["/simulations", "/personas", "/agents"];
 
 function suppressesForV2Route(pathname: string | null, v2On: boolean): boolean {
   if (!v2On || !pathname) return false;
