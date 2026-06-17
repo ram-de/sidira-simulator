@@ -1,0 +1,53 @@
+HILLSTROM POWERED FULL RUN — CONVERSION (2026-06-17, prod-box in-container, user-approved)
+Pre-registration SHA-256: 59dab05c43219cc0bdcaf4cf49ad16ab3b0d5f23c3534d43ea73f2459077dce3
+(committed to git BEFORE this result existed)
+
+== Pre-registration / run config ==
+panel_id:           hillstrom-email-rct-v1
+panel_schema:       1.1
+panel_persona_n:    4
+panel_synthetic:    False
+primary_endpoint:   rank_rho (§5)
+metric:             conversion
+stratifier:         segment (endpoint #3, PR-C persona-aligned strata)
+population_size:    50  (per arm)
+cases:              8
+chunk_size:         2
+  segment high_spender: 2 case(s) → P03
+  segment mens_buyer:   2 case(s) → P02
+  segment mid_tier:     2 case(s) → P04
+  segment womens_buyer: 2 case(s) → P01
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.3593   (p = 0.8192)
+direction_accuracy: 0.0
+VOID:               False   <-- cleared the >=8-case floor
+
+== Null-integrity certificate (§4) ==
+passed:             True    <-- CERTIFIED (trustworthy, not leakage)
+observed_rank_rho:  -0.3593
+rank_rho_p_value:   0.8192
+underpowered:       False
+
+Stratified honesty table — by segment
+stratum                  n  dir_acc  rank_rho  flat   rand  flags
+segment=high_spender     2    0.000   +1.000   0.000  1.000  underpowered
+segment=mens_buyer       2    0.000   -1.000   0.000  1.000  underpowered
+segment=mid_tier         2    0.000   -1.000   0.000  1.000  underpowered
+segment=womens_buyer     2    0.000   -1.000   0.000  1.000  underpowered
+
+VERDICT (certified, powered):
+1. direction_accuracy 0.0 with a PASSING null-cert => the "advertising-as-harm" sign
+   inversion is CERTIFIED on external RCT ground truth at adequate power. The simulator
+   predicts every promotional email LOWERS conversion; the real randomized experiment
+   shows every email RAISES it.
+2. rank_rho -0.359 (p=0.82) => at chance. The pre-registered gender-matched-heterogeneity
+   prediction (rank_rho>0) is REFUTED. The under-powered probe's transient +0.239 ranking
+   did NOT survive at power (small-sample noise, like Upworthy's +0.386).
+3. Magnitude UNCALIBRATED by design (#222 shrinkage = identity today). No silent truncation:
+   all 8 cases / 4 strata reported.
+
+This is the definitive directional verdict on Hillstrom conversion: an honest, certified
+null on heterogeneity + a certified, named, fixable ad-aversion bias. Drives #221/#222.
