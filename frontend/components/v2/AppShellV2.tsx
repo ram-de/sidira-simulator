@@ -28,6 +28,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import AuthControls from "@/components/AuthControls";
+import { clerkAppearanceConsole } from "@/lib/clerk";
 import { ConsoleShell } from "./ConsoleShell";
 import { ConsoleMarkMono } from "./Marks";
 import { ProvenanceMarker, type ProvenanceMarkerProps } from "./Provenance";
@@ -121,7 +122,7 @@ export default function AppShellV2({
               + sign-out behave identically to the legacy TopNav. Its own
               marginLeft:auto is harmless inside this flex-column footer. */}
           <div className="v2-rail-account-slot">
-            <AuthControls />
+            <AuthControls appearance={clerkAppearanceConsole} />
           </div>
         </aside>
 
