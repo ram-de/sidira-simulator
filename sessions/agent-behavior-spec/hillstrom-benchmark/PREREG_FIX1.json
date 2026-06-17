@@ -1,0 +1,39 @@
+{
+  "prereg_id": "hillstrom-fix1-decisionpoint-deconfound-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-17",
+  "run_location": "prod-box in-container (i-04b155fafcc90042b), user standing campaign approval + explicit deploy authorization this session",
+  "what_changed_vs_certified": "EXACTLY ONE variable: PR #361 arm-corrected the elicitation decision_point in cli._hillstrom_hypothesis_builder from 'the customer is reading the promotional e-mail in their inbox' (fed to BOTH arms incl. the No-E-Mail control = the confound) to 'the customer is looking at their inbox' (email-free, arm-neutral; the treatment email is carried solely by the already-arm-correct per-arm structural spec). All other config IDENTICAL to the certified run (prereg 59dab05c). This is a single-variable de-confounding re-run.",
+  "config": {
+    "code_head": "974aa766 (origin/main, includes #361; decision_point at cli.py L224)",
+    "panel_id": "hillstrom-email-rct-v1",
+    "panel_schema": "1.1",
+    "panel_personas": 4,
+    "panel_synthetic": false,
+    "csv_path": "/app/local-artifacts/hillstrom/hillstrom.csv",
+    "stratifier": "by-segment (PR-C persona-aligned: mens_buyer->P02, womens_buyer->P01, high_spender->P03, mid_tier->P04)",
+    "expected_cases": 8,
+    "metrics": ["conversion", "visit"],
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "model_id": "None (Groq llama-3.3-70b default)",
+    "primary_endpoint": "direction_accuracy (sign agreement) — the headline for the de-confound test",
+    "secondary_endpoint": "rank_rho (per-segment predicted vs real uplift)"
+  },
+  "prediction_of_record": {
+    "hypothesis": "The certified dir_acc 0.0 (ad-aversion sign inversion) was substantially driven by the decision_point confound: telling the No-E-Mail control it was reading the email inflated control propensity and pushed the treatment-control delta to <=0. With the control de-contaminated, the email's true (positive) effect should surface on at least one arm/segment.",
+    "directional_prediction": "direction_accuracy moves materially OFF 0.0 on at least ONE outcome — most likely VISIT (the more direct 'did the email bring them back' signal) — i.e. the sim now predicts at least some segments where the email RAISES the outcome (positive treatment-control delta), matching the RCT.",
+    "quantitative_threshold_for_RETRACTION": "dir_acc >= 0.5 on >= 1 of {conversion, visit} with a PASSING null-integrity cert (not VOID, n>=8).",
+    "honest_failure_modes": [
+      "(a) Hillstrom's real treatment effect is SMALL and partly sub-deliberative (a marketing nudge) -> a TRUE null can co-exist with the confound removed -> dir_acc may stay at/near 0.0 even with clean control. This is LESS certain to flip than the directional-portfolio's large deliberative effects.",
+      "(b) Partial movement (dir_acc rises but < 0.5) -> the confound was contributory but not the whole story; report as partial."
+    ]
+  },
+  "decision_rule": {
+    "if_dir_acc_off_0_passes_threshold": "RETRACT BENCHMARK_REPORT.md §4 banner + §5.1 'intrinsic/model-independent ad-aversion' verdict as a SECOND self-inflicted stimulus-construction false negative (after the directional-portfolio v1). The sim is materially better than the campaign concluded. Note the model-comparison agreement (Groq==Sonnet==0.0) was a shared-harness artifact, not a model-independence property.",
+    "if_dir_acc_stays_near_0_both_with_clean_control": "The intrinsic-limit verdict SURVIVES de-confounding and is STRENGTHENED (it held under a clean stimulus). §4/§5.1 stand; the sub-deliberative-nudge scope boundary is real.",
+    "if_cert_voids": "report VOID, not trusted; do not draw a conclusion."
+  }
+}
