@@ -452,6 +452,24 @@ probe is reported as suggestive only — at n=2 it is VOID by the same certifica
 the scored set clears.) As a robustness note, the scored 8 cases reproduced *identically* on
 the re-run, so the 0.25 is deterministic, not sampling noise.
 
+**Integrity follow-up (a leak we found in our own data, and fixed).** A post-run read-only
+audit of the harness confirmed the *engine* renders both arms symmetrically — but found that
+the authored case *narratives* did not: the treatment side was often written in more
+benefit-laden language than the control ("more appealing", "preserves the streak",
+"simplest"), and one case (the MSN real-estate widget) literally carried the phrase **"winner
+of 6 variants"** in its treatment text — a direct outcome leak the blindness test missed
+because it checked for "won", not "winner". Since the adapter passes these strings verbatim
+into the blinded stimulus, that asymmetry reached the model, and one of the two "correct"
+calls (MSN real-estate) is therefore contaminated. We have normalized all eight cases to
+neutral, parallel, mechanic-only descriptions (evaluative adjectives and outcome hints
+stripped from *both* arms, no valence flip toward control, factual mechanic preserved),
+sealed a v2 pre-registration (SHA-256 `9f796b55…`, pinning the normalized cases by hash) with
+a registered prediction *before* re-running — the audit's expectation is that direction
+accuracy stays near chance while the 7/8 treatment-rate falls toward ~5/8, because the cxl
+case (whose treatment copy carried a *negative* signal yet was still predicted to win) already
+shows the pro-change prior is structural, not just copy-deep. The clean re-run is the decisive
+test that separates copy-valence artifact from genuine prior; its result is reported next.
+
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
 with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
