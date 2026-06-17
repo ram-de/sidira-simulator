@@ -9,7 +9,6 @@ import {
   shouldRedirectProductPathToApp,
 } from "@/lib/site-hosts";
 import { clerkEnabled, SIGN_IN_URL } from "@/lib/clerk";
-import { V2_COOKIE, V2_COOKIE_ON, V2_COOKIE_OFF } from "@/lib/v2-flag-shared";
 
 const TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim();
 
@@ -137,50 +136,14 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
 // host-redirect behavior is unchanged from above.
 const authMiddleware = clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware;
 
-// Additive v2 preview toggle (#372). A request carrying ?v2=1 / ?v2=0 is a pure
-// toggle hop: set/clear the non-httpOnly sidira_v2 preview cookie, then 307 to
-// the SAME url with the param stripped. Because the page/layout read the cookie
-// off the REQUEST (next/headers cookies()), stamping it on this response is not
-// enough on its own — the redirect makes the cookie live on the very next
-// request, so the toggle takes effect immediately (no manual second refresh).
-// That redirected request re-enters this middleware WITHOUT the param and runs
-// the real auth/host flow, so the actual content load stays fully auth-protected
-// and a toggle hop never exposes protected data (it has no body, just Location +
-// Set-Cookie). Requests WITHOUT the param skip this branch entirely and hit the
-// unchanged auth middleware, so all existing behavior is byte-identical. The
-// cookie is NON-httpOnly on purpose — a client-readable preview switch, not a
-// credential.
+// Entry point — delegates to the auth middleware chosen by Clerk configuration.
+// Both branches call hostRedirect() first (www→apex, public-host product paths
+// →app host), so host normalization and auth all happen inside. clerkMiddleware's
+// handler takes (request, event); basicAuthMiddleware ignores the second arg.
 export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
-  // Normalize the host BEFORE the v2 toggle so the opt-out cookie is always set
-  // on the host that will actually serve the content. Otherwise a toggle hit on
-  // a product path via the public host (e.g. sidira.ai/simulations?v2=0) would
-  // set sidira_v2 on sidira.ai, then bounce to app.sidira.ai WITHOUT it — the
-  // opt-out silently fails. hostRedirect clones nextUrl, so the ?v2 param rides
-  // the redirect to app.sidira.ai and the toggle re-runs there on the right
-  // host. For app-host requests this returns null and we fall straight through
-  // (the auth middlewares still call hostRedirect again — a no-op once
-  // normalized). (codex P2.)
-  const hostRedir = hostRedirect(request);
-  if (hostRedir) return hostRedir;
-
-  const param = request.nextUrl.searchParams.get("v2");
-  if (param === V2_COOKIE_ON || param === V2_COOKIE_OFF) {
-    const url = request.nextUrl.clone();
-    url.searchParams.delete("v2");
-    const redirect = NextResponse.redirect(url);
-    // v2 is now ON by default, so the cookie carries an EXPLICIT value either
-    // way: "1" re-enables (clears any opt-out), "0" is the sticky per-browser
-    // opt-out that v2Enabled()/v2EnabledClient() check for. Set the param value
-    // directly.
-    redirect.cookies.set(V2_COOKIE, param, { path: "/", sameSite: "lax" });
-    return redirect;
-  }
-
-  // No toggle param — run the real auth middleware unchanged. clerkMiddleware's
-  // handler takes (request, event); basicAuthMiddleware ignores the second arg.
   return (await (
     authMiddleware as (req: NextRequest, ev: NextFetchEvent) => Promise<Response> | Response
   )(request, event)) as Response;

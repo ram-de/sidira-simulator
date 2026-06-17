@@ -6,7 +6,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { isPublicSiteHost } from "@/lib/site-hosts";
 import { clerkEnabled, clerkAppearance } from "@/lib/clerk";
-import { v2Enabled } from "@/lib/v2flag";
 import { TOKENS, FONT_SANS } from "@/lib/design";
 
 // MVP ships the fallback column of DESIGN.md §5.1 as production: Archivo
@@ -52,10 +51,6 @@ export default function RootLayout({
 }) {
   const host = headers().get("host");
   const showProductNav = !isPublicSiteHost(host);
-  // v2 flag evaluated SERVER-side (cookie/env) so ConditionalTopNav suppresses
-  // the global nav on the v2 /simulations list deterministically — no flash, no
-  // hydration mismatch (#372).
-  const v2On = v2Enabled();
 
   const fontClass = [
     fontSans.variable,
@@ -86,7 +81,7 @@ export default function RootLayout({
             `,
           }}
         />
-        {showProductNav ? <ConditionalTopNav v2On={v2On} /> : null}
+        {showProductNav ? <ConditionalTopNav /> : null}
         <div style={{ minHeight: showProductNav ? "calc(100vh - 56px)" : "100vh" }}>
           {children}
         </div>

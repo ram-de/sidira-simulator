@@ -26,6 +26,17 @@ import TopNav from "@/components/TopNav";
 // global TopNav would double up on the page's own bar. Suppress both so each
 // page keeps exactly one nav, on either host. ("/about"/"/product" subsume the
 // "/about/v2"/"/product/v2" prefixes, kept above for the Sheet/Console mocks.)
+// Two groups of prefixes suppress the global product TopNav, for the same
+// reason — the route already ships its OWN single top bar:
+//   1. Marketing / auth surfaces ship their own bar (dark Console / Sheet /
+//      auth stage): /product, /about (and their /v2 mocks), the /v2/<slug>
+//      preview namespace, and the live auth routes (/sign-in, /sign-up,
+//      /sso-callback). "/about"/"/product" subsume their "/v2" variants.
+//   2. The app subtrees /simulations, /personas, /agents wrap the v2 Reading-
+//      Console shell (AppShellV2) on every page, which carries its own rail +
+//      app bar — so the global TopNav would double up.
+// (Until the global v2 rollout these app prefixes were gated on a runtime flag;
+// v2 is now permanent, so they are unconditional.)
 const SUPPRESS_NAV_PREFIXES = [
   "/product/v2",
   "/about/v2",
@@ -35,6 +46,9 @@ const SUPPRESS_NAV_PREFIXES = [
   "/sso-callback",
   "/about",
   "/product",
+  "/simulations",
+  "/personas",
+  "/agents",
 ];
 
 export function suppressesGlobalNav(pathname: string | null): boolean {
@@ -44,37 +58,8 @@ export function suppressesGlobalNav(pathname: string | null): boolean {
   );
 }
 
-// The LIVE list routes that ship their own v2 shell (AppShellV2) when the v2
-// flag is on must suppress the global TopNav there to avoid a double nav — but
-// ONLY when the flag is on. The flag value is evaluated on the SERVER (root
-// layout reads the cookie/env via v2Enabled) and passed in as `v2On`, so this
-// stays deterministic across SSR + hydration (no flash, no hydration mismatch).
-// With the flag off, these routes keep the normal nav.
-//
-// Routes that ship the v2 shell (AppShellV2) when the flag is on, and must
-// therefore suppress the global TopNav to avoid a double nav. Two kinds:
-//   • EXACT — only the LIST route is migrated; its nested routes still render
-//     legacy and keep the global TopNav.
-//   • PREFIX — the WHOLE subtree is migrated (list + every nested page wraps
-//     AppShellV2), so suppress across the entire prefix.
-// The /simulations, /personas, and /agents subtrees are now all fully migrated
-// (list + every nested page wraps AppShellV2), so all three are prefix-migrated
-// and nothing remains exact-only. Migrate a subtree by moving its prefix here
-// once all its pages wrap the shell.
-const V2_MIGRATED_EXACT = new Set<string>([]);
-const V2_MIGRATED_PREFIXES = ["/simulations", "/personas", "/agents"];
-
-function suppressesForV2Route(pathname: string | null, v2On: boolean): boolean {
-  if (!v2On || !pathname) return false;
-  if (V2_MIGRATED_EXACT.has(pathname)) return true;
-  return V2_MIGRATED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
-export default function ConditionalTopNav({ v2On = false }: { v2On?: boolean }) {
+export default function ConditionalTopNav() {
   const pathname = usePathname();
   if (suppressesGlobalNav(pathname)) return null;
-  if (suppressesForV2Route(pathname, v2On)) return null;
   return <TopNav />;
 }
