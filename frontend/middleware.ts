@@ -9,7 +9,7 @@ import {
   shouldRedirectProductPathToApp,
 } from "@/lib/site-hosts";
 import { clerkEnabled, SIGN_IN_URL } from "@/lib/clerk";
-import { V2_COOKIE, V2_COOKIE_ON } from "@/lib/v2flag";
+import { V2_COOKIE, V2_COOKIE_ON } from "@/lib/v2-flag-shared";
 
 const TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim();
 
@@ -136,36 +136,41 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
 // host-redirect behavior is unchanged from above.
 const authMiddleware = clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware;
 
-// Additive v2 preview toggle (#372). We run the real auth middleware first and
-// stamp the sidira_v2 cookie onto WHATEVER Response it returns (next(), a host
-// redirect, a sign-in redirect, or a 401) when the request carries ?v2=1 (set)
-// or ?v2=0 (clear). When neither param is present the response is returned
-// untouched, so all existing auth / host behavior is byte-identical. The cookie
-// is NON-httpOnly on purpose — it is a client-readable preview switch
-// (lib/v2flag.ts), not a credential.
+// Additive v2 preview toggle (#372). A request carrying ?v2=1 / ?v2=0 is a pure
+// toggle hop: set/clear the non-httpOnly sidira_v2 preview cookie, then 307 to
+// the SAME url with the param stripped. Because the page/layout read the cookie
+// off the REQUEST (next/headers cookies()), stamping it on this response is not
+// enough on its own — the redirect makes the cookie live on the very next
+// request, so the toggle takes effect immediately (no manual second refresh).
+// That redirected request re-enters this middleware WITHOUT the param and runs
+// the real auth/host flow, so the actual content load stays fully auth-protected
+// and a toggle hop never exposes protected data (it has no body, just Location +
+// Set-Cookie). Requests WITHOUT the param skip this branch entirely and hit the
+// unchanged auth middleware, so all existing behavior is byte-identical. The
+// cookie is NON-httpOnly on purpose — a client-readable preview switch, not a
+// credential.
 export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
-  // clerkMiddleware's handler takes (request, event); basicAuthMiddleware
-  // ignores the second arg. Pass both so either implementation works.
-  const response = (await (
+  const param = request.nextUrl.searchParams.get("v2");
+  if (param === V2_COOKIE_ON || param === "0") {
+    const url = request.nextUrl.clone();
+    url.searchParams.delete("v2");
+    const redirect = NextResponse.redirect(url);
+    if (param === V2_COOKIE_ON) {
+      redirect.cookies.set(V2_COOKIE, V2_COOKIE_ON, { path: "/", sameSite: "lax" });
+    } else {
+      redirect.cookies.set(V2_COOKIE, "", { path: "/", maxAge: 0, sameSite: "lax" });
+    }
+    return redirect;
+  }
+
+  // No toggle param — run the real auth middleware unchanged. clerkMiddleware's
+  // handler takes (request, event); basicAuthMiddleware ignores the second arg.
+  return (await (
     authMiddleware as (req: NextRequest, ev: NextFetchEvent) => Promise<Response> | Response
   )(request, event)) as Response;
-
-  const param = request.nextUrl.searchParams.get("v2");
-  if (param === V2_COOKIE_ON) {
-    response.headers.append(
-      "set-cookie",
-      `${V2_COOKIE}=${V2_COOKIE_ON}; Path=/; SameSite=Lax`,
-    );
-  } else if (param === "0") {
-    response.headers.append(
-      "set-cookie",
-      `${V2_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`,
-    );
-  }
-  return response;
 }
 
 export const config = {
