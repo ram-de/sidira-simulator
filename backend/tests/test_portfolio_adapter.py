@@ -192,3 +192,10 @@ def test_held_out_probe_cases_are_separate_non_scored() -> None:
 def test_empty_cases_raises() -> None:
     with pytest.raises(ValueError, match="at least one case"):
         portfolio_cases_to_benchmark_cases([])
+
+
+def test_duplicate_case_ids_raise() -> None:
+    """Two cases with the same id would collapse to one case_id and silently reuse a
+    prediction (the cache is keyed by case_id) — must FAIL LOUD (codex)."""
+    with pytest.raises(ValueError, match="duplicate portfolio case id"):
+        portfolio_cases_to_benchmark_cases([_case(id="dup"), _case(id="dup")])

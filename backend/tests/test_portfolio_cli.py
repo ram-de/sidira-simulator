@@ -144,39 +144,72 @@ def test_benchmark_portfolio_include_heldout_runs_separate_nonscored(monkeypatch
 
 
 def test_benchmark_portfolio_checkpoint_resumes(tmp_path: Path, monkeypatch):
-    from sidira_simulator.adapters.upworthy_panel_loader import upworthy_panel_registration
-    from sidira_simulator.services.portfolio_archive import load_portfolio_cases
-
-    panel_version = upworthy_panel_registration().version
-    portfolio_id = load_portfolio_cases()[0].portfolio_id
+    """A first run WRITES a checkpoint (incl. the content digest); a second run with
+    the same config RESUMES from it. Running the CLI to seed the checkpoint avoids
+    hand-computing the cases_digest and exercises the real round-trip."""
     ckpt = tmp_path / "sub" / "ckpt.json"
     ckpt.parent.mkdir()
-    ckpt.write_text(
-        json.dumps(
-            {
-                "run_config": {
-                    "seed": 0,
-                    "model_id": None,
-                    "population_size": 10,
-                    "max_agents": None,
-                    "panel_version": panel_version,
-                    "portfolio_id": portfolio_id,
-                },
-                "predictions": {"portfolio:cookiecats_gate_move": -0.02},
-            }
-        )
-    )
 
     captured: dict = {}
     _patch_engine(monkeypatch, captured)
 
-    result = CliRunner().invoke(cli, ["benchmark-portfolio", "--checkpoint-path", str(ckpt)])
-    assert result.exit_code == 0, result.output
-    assert "resumed 1 cached prediction" in result.output
-    assert captured["kwargs"]["prediction_cache"]["portfolio:cookiecats_gate_move"] == -0.02
+    # First run: populates + persists the checkpoint (the fake engine fills cache).
+    first = CliRunner().invoke(cli, ["benchmark-portfolio", "--checkpoint-path", str(ckpt)])
+    assert first.exit_code == 0, first.output
     persisted = json.loads(ckpt.read_text())
-    assert persisted["predictions"]["portfolio:cookiecats_gate_move"] == -0.02
-    assert persisted["run_config"]["seed"] == 0
+    assert "cases_digest" in persisted["run_config"]
+    assert len(persisted["predictions"]) == 8
+
+    # Second run: same config → resumes all 8 cached predictions.
+    second = CliRunner().invoke(cli, ["benchmark-portfolio", "--checkpoint-path", str(ckpt)])
+    assert second.exit_code == 0, second.output
+    assert "resumed 8 cached prediction" in second.output
+
+
+def test_benchmark_portfolio_checkpoint_invalidated_by_edited_cases(tmp_path: Path, monkeypatch):
+    """Editing the cases file (same portfolio_id) changes the content digest, so a
+    stale checkpoint is REFUSED rather than silently reusing predictions made from
+    different control/treatment narratives (codex)."""
+    ckpt = tmp_path / "ckpt.json"
+    captured: dict = {}
+    _patch_engine(monkeypatch, captured)
+    # Seed the checkpoint from the committed cases.
+    first = CliRunner().invoke(cli, ["benchmark-portfolio", "--checkpoint-path", str(ckpt)])
+    assert first.exit_code == 0, first.output
+
+    # Now write an EDITED cases file with the SAME portfolio_id but changed copy.
+    from sidira_simulator.services.portfolio_archive import load_portfolio_cases
+
+    arc = load_portfolio_cases()[0]
+    edited = tmp_path / "edited_cases.json"
+    edited.write_text(
+        json.dumps(
+            {
+                "portfolio_id": arc.portfolio_id,  # SAME id — only content differs
+                "scored_cases": [
+                    {
+                        "id": c.id,
+                        "domain": c.domain,
+                        "control": c.control + " (EDITED)",
+                        "treatment": c.treatment,
+                        "metric": c.metric,
+                        "real_winner": c.real_winner,
+                        "effect": c.effect,
+                        "raw_data": c.raw_data,
+                    }
+                    for c in arc.scored_cases
+                ],
+                "held_out_memorization_probe": [],
+                "human_baseline_anchors": arc.human_baseline_anchors,
+            }
+        )
+    )
+    result = CliRunner().invoke(
+        cli,
+        ["benchmark-portfolio", "--cases-path", str(edited), "--checkpoint-path", str(ckpt)],
+    )
+    assert result.exit_code != 0
+    assert "DIFFERENT run config" in result.output
 
 
 def test_benchmark_portfolio_all_dropped_reports_void_not_crash(monkeypatch):

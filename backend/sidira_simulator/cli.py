@@ -1070,7 +1070,22 @@ def benchmark_portfolio(
 
     # ── 3. Resumable checkpoint: load any prior predictions from the bind-mount. ──
     # Keyed to the FULL run configuration: a config change forces a fresh run
-    # rather than silently serving stale predictions.
+    # rather than silently serving stale predictions. The cases are hashed by their
+    # RENDERED content (case_id + the blinded stimulus the engine actually sees +
+    # ground truth), so editing PORTFOLIO_CASES.json or pointing --cases-path at a
+    # different file with the same portfolio_id INVALIDATES the cache (codex): the
+    # prediction_cache is keyed by case_id, so a stale narrative under the same id
+    # would otherwise silently reuse a prediction from different control/treatment
+    # copy and corrupt the score.
+    import hashlib
+
+    _hasher = hashlib.sha256()
+    for c in cases:
+        _hasher.update(c.case_id.encode("utf-8"))
+        _hasher.update(c.capability.model_dump_json().encode("utf-8"))
+        _hasher.update(c.hypothesis.model_dump_json().encode("utf-8"))
+        _hasher.update(c.ground_truth.model_dump_json().encode("utf-8"))
+    cases_digest = _hasher.hexdigest()
     run_config = {
         "seed": seed,
         "model_id": model_id,
@@ -1078,6 +1093,7 @@ def benchmark_portfolio(
         "max_agents": max_agents,
         "panel_version": registration.version,
         "portfolio_id": archive.portfolio_id,
+        "cases_digest": cases_digest,
     }
     prediction_cache: dict[str, float] = {}
     ckpt = Path(checkpoint_path) if checkpoint_path else None

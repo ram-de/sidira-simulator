@@ -239,9 +239,28 @@ def portfolio_cases_to_benchmark_cases(cases: Sequence[PortfolioCase]) -> list[B
     ValueError on an empty sequence (nothing to score is a caller bug) — the
     null-integrity certificate needs >= 8 cases, so an empty/too-small set must
     fail loud rather than silently produce an uncertifiable run.
+
+    DUPLICATE-ID GUARD (codex). Two scored cases with the same `id` would collapse
+    to the same `case_id`; the runner's prediction_cache is keyed by case_id, so
+    the second would silently reuse the first's prediction — quietly reducing the
+    count of independent experiments and corrupting the direction score / cert. A
+    duplicate id therefore FAILS LOUD here rather than producing a stealthily
+    under-powered run.
     """
     if not cases:
         raise ValueError("portfolio_cases_to_benchmark_cases requires at least one case")
+    seen: set[str] = set()
+    dupes: set[str] = set()
+    for c in cases:
+        if c.id in seen:
+            dupes.add(c.id)
+        seen.add(c.id)
+    if dupes:
+        raise ValueError(
+            f"duplicate portfolio case id(s) {sorted(dupes)}: each scored case must have a "
+            "UNIQUE id (case_id is the prediction-cache key — a collision would "
+            "silently reuse one case's prediction for another and corrupt the score)."
+        )
     return [build_portfolio_case(c) for c in cases]
 
 
