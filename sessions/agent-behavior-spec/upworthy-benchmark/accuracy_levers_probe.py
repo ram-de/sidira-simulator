@@ -159,11 +159,19 @@ def main() -> int:
     ap.add_argument("--modes", default="comparative,popshare")
     ap.add_argument("--models", default="sonnet,groq")
     ap.add_argument("--cases", type=int, default=150)
+    ap.add_argument("--confirm", action="store_true",
+                    help="use a SECOND disjoint slice (excludes the first 150 + original 60)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    cases = MCP.load_fresh_cases(args.cases, MCP.original_test_ids())
+    orig = MCP.original_test_ids()
+    if args.confirm:
+        first = MCP.load_fresh_cases(150, orig)
+        first_tids = {c["case_id"].split(":")[0] for c in first}
+        cases = MCP.load_fresh_cases(args.cases, orig | first_tids)
+    else:
+        cases = MCP.load_fresh_cases(args.cases, orig)
     if args.smoke:
         cases = cases[:3]
     csh = hashlib.sha256(json.dumps(sorted(c["case_id"] for c in cases), sort_keys=True).encode()).hexdigest()
@@ -172,12 +180,14 @@ def main() -> int:
     out = {"case_set_hash": csh, "n_cases": len(cases), "results": {}}
     for mode in args.modes.split(","):
         for mk in args.models.split(","):
-            tag = f"{mode}_{mk}{'_smoke' if args.smoke else ''}"
+            tag = f"{mode}_{mk}{'_confirm' if args.confirm else ''}{'_smoke' if args.smoke else ''}"
             ckpt = HERE / f"levers_ckpt_{tag}.json"
             print(f"\n### {mode} / {mk} ###")
             st = run(mode.strip(), mk.strip(), cases, ckpt)
             out["results"][f"{mode}/{mk}"] = score(cases, st["sig"], f"{mode} / {mk}", args.seed)
-    out_path = HERE / ("accuracy_levers_smoke.json" if args.smoke else "accuracy_levers_result.json")
+    out_path = HERE / ("accuracy_levers_smoke.json" if args.smoke else
+                       ("accuracy_levers_confirm_result.json" if args.confirm
+                        else "accuracy_levers_result.json"))
     out_path.write_text(json.dumps(out, indent=2))
     print(f"\nwrote {out_path}")
     return 0
