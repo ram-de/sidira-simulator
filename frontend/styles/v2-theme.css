@@ -984,7 +984,12 @@
    max-width + margins, so the surface just spans the column edge-to-edge.
    Default color is reset to legacy ink so any unstyled text is legible (the
    .v2-console scope would otherwise inherit light --text on this light bg). */
-.v2-appmain--sheet{
+/* Compound selector (.v2-appmain.v2-appmain--sheet) so this padding:0 outranks
+   the equal-specificity `.v2-appmain{padding:…}` rules inside the responsive
+   media queries below — AppShellV2 emits BOTH classes, so a single-class rule
+   would lose to those later media rules on tablet/mobile and double-pad the
+   legacy <main>. */
+.v2-appmain.v2-appmain--sheet{
   padding:0;
   background:#F4EFE6;
   color:#0E1A2B;
