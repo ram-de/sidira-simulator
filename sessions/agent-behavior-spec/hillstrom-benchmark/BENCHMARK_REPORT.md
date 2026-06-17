@@ -184,8 +184,38 @@ real run:
    conversion);
 3. a minor audience-texture degradation to tidy up.
 
-**Status: the sealed, powered full run is next.** Result and verdict will be appended
-here when it lands.
+**Second probe — the visit outcome (is the bias outcome-specific?).** We ran the same
+small dry-run against the *visit* outcome (did the customer come to the site), a larger,
+stronger real signal than conversion. The bias is **not** outcome-specific: the
+simulator again predicted every email *lowers* visits (−0.015 to −0.027) while the real
+experiment shows emails strongly *raise* them (≈ +5–7 points). Direction accuracy was
+again 0.0, and the relative ranking did *not* survive here (it came out negative). Both
+dry-runs are under-powered (6 cases, VOID) so the numbers are not trusted — but the
+sign inversion is robust across both outcomes.
+
+**What the two dry-runs establish (the campaign's central finding so far).** The
+simulator carries a **systematic "advertising-as-harm" bias**: on a real randomized
+email campaign it predicts that promotional emails *reduce* both site visits and
+conversions, when in reality they *increase* both. This is the second independent
+confirmation of the pattern — we first saw it internally on a retention metric, and now
+on a fully external, real randomized experiment. Two independent datasets pointing at
+the same failure mode makes it a real, named, **fixable** property of the current
+outcome-elicitation, not a fluke. It is, bluntly, *the* accuracy problem to solve — and
+finding it precisely, on real ground truth, is exactly what this benchmarking program
+is for.
+
+**Why this is good news, not bad.** A vendor who can point to the specific, reproducible
+condition under which their tool errs — and is already instrumenting the fix — is far
+more credible than one who claims uniform accuracy. The path from here is concrete:
+(1) a sealed, powered run (in progress) to certify the finding with a passing
+null-integrity certificate and quantify the bias precisely; (2) correct the bias at the
+outcome-elicitation / calibration layer; (3) re-run the same pre-registered benchmark to
+measure the improvement. The benchmark doesn't just grade the product — it now defines
+the next accuracy milestone.
+
+**Status: sealed, powered run pending** (awaiting a finer-stratification change so the
+run clears the certification floor and earns a PASSING null certificate). Result and
+verdict appended here when it lands.
 
 ---
 

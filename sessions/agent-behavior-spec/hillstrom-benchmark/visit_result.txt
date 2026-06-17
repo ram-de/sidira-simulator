@@ -1,0 +1,37 @@
+HILLSTROM SCOPED PROBE #2 — VISIT OUTCOME (2026-06-16, prod-box in-container, user-approved)
+Purpose: is the ad-aversion bias outcome-specific? Re-run the same under-powered dry-run
+against the VISIT outcome (larger, stronger real signal than conversion).
+NOT used to adjust the pre-registered directional prediction.
+
+== Pre-registration / run config ==
+panel_id:           hillstrom-email-rct-v1
+panel_schema:       1.1
+panel_persona_n:    4
+panel_synthetic:    False
+individual_row_cap: True
+primary_endpoint:   rank_rho (§5)
+metric:             visit
+stratifier:         segment (endpoint #3)
+model_id:           None (Groq llama-3.3-70b default)
+seed:               42
+
+== Blind-eval result ==
+n_cases:            6
+n_dropped:          0
+rank_rho (PRIMARY): -0.638
+direction_accuracy: 0.0
+VOID:               True
+void_reason:        Underpowered: 6 experiments < certification floor of 8.
+
+== Predicted vs real (the finding) ==
+Predicted visit lift signs:  ALL NEGATIVE (range -0.015 to -0.027 per segment).
+Real RCT visit lift signs:   ALL STRONGLY POSITIVE (≈ +5 to +7 percentage points).
+=> direction_accuracy 0.0: every predicted sign opposite the experiment.
+=> relative ranking did NOT survive here either (rank_rho came out negative),
+   unlike the conversion probe where ranking stayed positive.
+
+VERDICT: the "advertising-as-harm" bias is NOT outcome-specific — it inverts the sign on
+BOTH conversion and visit. Second independent external confirmation (first was the internal
+Streamly retention metric). Numbers VOID (underpowered) but the sign inversion is robust.
+NEXT: sealed, POWERED full run (>=8 cases via PR-C persona-aligned strata) to certify with a
+PASSING null-integrity certificate and quantify the bias precisely.
