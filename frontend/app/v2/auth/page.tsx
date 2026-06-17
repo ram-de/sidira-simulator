@@ -132,7 +132,7 @@ const AUTH_CSS = `
   z-index:0;
   pointer-events:none;
   background:
-    radial-gradient(60% 50% at 50% 30%, rgba(57,184,148,.06), transparent 62%),
+    radial-gradient(60% 50% at 50% 30%, var(--signal-wash), transparent 62%),
     linear-gradient(180deg, var(--console-850) 0%, var(--console-900) 100%);
 }
 .v2-auth-card{
