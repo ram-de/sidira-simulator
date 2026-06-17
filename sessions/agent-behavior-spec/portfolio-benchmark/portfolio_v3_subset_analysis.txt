@@ -1,0 +1,78 @@
+PRODUCT-CHANGE PORTFOLIO v3 — STIMULUS-TYPE SUBSET ANALYSIS (EXPLORATORY)
+=========================================================================
+Date: 2026-06-17. No new sim run — joins a frozen blind classification to the
+per-case correctness already on record in portfolio_results_v3.txt.
+
+INTEGRITY MECHANISM (why this is not a cherry-pick):
+- The 15 cases were classified by stimulus TYPE — substantive_deliberative (A)
+  vs subtle/micro/aesthetic (B) — by an INDEPENDENT agent BLIND to the sim's
+  per-case correctness (it read only PORTFOLIO_CASES_V3.json; it was forbidden
+  the results file). Classification rubric was fixed a priori.
+- That classification was SEALED before any subset number was computed:
+  v3_blind_classification.json, canonical SHA-256
+  feb220998f1ede04f8d5b7d1658cf4caacd73eba3c4210652133ed9be5354243
+- The operator knew the aggregate result but did NOT influence the classification.
+- HONEST CAVEAT: choosing to split on THIS dimension, after seeing the aggregate
+  null, is itself a post-hoc researcher decision. So this is EXPLORATORY /
+  hypothesis-generating, NOT a confirmatory certified result. The confirmatory
+  test is a NEW pre-registered class-A-only powered run (see NEXT).
+
+== RESULT ==
+CLASS A (substantive_deliberative, n=10):  7/10 = 0.700
+   ✓ amazon_credit_card_offer_relocation (T)   ✓ cookiecats_gate_move (C)
+   ✓ duolingo_weekend_amulet (T)               ✓ etsy_infinite_scroll_search (C)
+   ✓ msn_homepage_extra_offers (C)             ✓ msn_realestate_widget (T)
+   ✓ tinkoff_defer_passport (T)
+   ✗ cxl_form_fields_9_to_6 (C)  ✗ multistep_form_3_vs_6 (C)  ✗ office_online_redesign (C)
+CLASS B (subtle_micro_aesthetic, n=5):     0/5 = 0.000
+   ✗ linkedin_volunteer_section_value_copy (T) ✗ msn_hotmail_link_new_tab (T)
+   ✗ msn_support_personalized_answers (T)      ✗ pinterest_signup_color_scheme (T)
+   ✗ price_com_hk_price_ranges (T)
+(overall reconciles to 7/15 = 0.467, the headline.)
+
+== SIGNIFICANCE / BASELINES ==
+Class A 7/10: one-sided binomial vs chance(0.5) p=0.1719 — NOT significant.
+              vs always-control baseline (A is 6C/4T -> 0.60) p=0.3823 — NOT significant.
+              => SUGGESTIVE, UNDERPOWERED. 0.70 > chance and > baseline numerically,
+                 but n=10 cannot clear p<0.05; needs ~13-15/18+ to be significant.
+Class B 0/5: P(0 hits | chance) = 0.0312 — but CONFOUNDED: all 5 B cases are
+              treatment-won, so 0/5 == "sim predicted no-change/control on every
+              thin micro stimulus." This conflates (a) genuine no-signal on
+              micro/aesthetic with (b) a status-quo default under a thin one-sentence
+              stimulus. UNINFORMATIVE-LEANING-NEGATIVE; do not read as clean anti-signal.
+
+== WITHIN CLASS A — balance diagnostic (the prereg's key concern) ==
+treatment-class 4/4 = 1.00 ; control-class 3/6 = 0.50.
+=> A residual PRO-CHANGE tilt persists even within substantive cases: the sim nails
+   every treatment-won substantive change but is a coin-flip on control-won ones.
+   All 3 class-A misses are the SAME failure mode: "simplification / fewer fields /
+   fewer steps / less clutter WINS" (cxl 9->6 fields, multistep 6->3 steps,
+   office_online declutter). The sim keeps betting the richer/treatment variant wins.
+   This is the #221 lever (de-bias the pro-change prior) — now LOCALIZED to control-won
+   simplification cases, where it actually bites.
+
+== HONEST INTERPRETATION ==
+1. The aggregate v3 null (0.467) is substantially DILUTION. The v2.1 signal did not
+   "fail to generalize" so much as get diluted by adding 5 micro/aesthetic cases the
+   sim has no purchase on. On substantive deliberative changes it held at 0.70 — and
+   the 2 genuinely-new substantive cases (amazon, etsy) BOTH scored correct.
+2. The defensible, testable hypothesis: the engine reads SUBSTANTIVE DELIBERATIVE
+   product-change direction at ~0.70 (above chance/baseline, underpowered), but has
+   NO signal on subtle/micro/aesthetic/nudge changes (consistent with the Hillstrom
+   nudge-class weakness + the §7 thin-stimulus caveat). This is a FINER, more honest
+   scope boundary than "in-scope positive."
+3. It is NOT yet a certified positive: post-hoc dimension + underpowered + residual
+   tilt on control-won simplification cases.
+
+== NEXT (the confirmatory step this motivates) ==
+Pre-register and run a NEW class-A-only powered portfolio:
+  - All cases substantive_deliberative (scope micro/aesthetic OUT as out-of-format:
+    a one-sentence blinded stimulus cannot carry sub-deliberative cues).
+  - DELIBERATELY enrich with control-won "simplification/reduction wins" cases — the
+    sim's localized weak spot — so the test is BALANCED, not treatment-lean-flattered.
+  - Target n>=18-20 for power to clear p<0.05 at ~0.70.
+  - If class-A holds >=0.70 WITH control-class >= ~0.5 -> first genuinely balanced,
+    significant, in-scope NARROW positive -> the sellable claim, scoped honestly.
+  - If control-class stays collapsed -> the lever is #221, reported as such (no spin).
+Artifacts: this file; v3_blind_classification.json(+.sha256); subset_score.py;
+  portfolio_results_v3.txt; BENCHMARK_REPORT §7.

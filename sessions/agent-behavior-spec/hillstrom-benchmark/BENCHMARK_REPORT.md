@@ -566,6 +566,31 @@ the headline must beat 0.5 rather than an inflated constant baseline and n clear
 > boundary than §7 first stated.** Next: report the deliberative vs micro subsets separately, and
 > either render subtle cases more richly (arm-symmetric) or scope them out. Artifact:
 > `portfolio_results_v3.txt`.
+>
+> **↳ SUBSET FOLLOW-UP (2026-06-17, EXPLORATORY — the dilution is confirmed).** We did the
+> deliberative-vs-micro split *without cherry-picking*: an **independent agent, blind to the sim's
+> per-case correctness**, classified all 15 cases by stimulus type (substantive-deliberative=A vs
+> subtle/micro/aesthetic=B) under a fixed a-priori rubric; that classification was **sealed**
+> (`v3_blind_classification.json`, canonical SHA `feb22099…`) *before* any subset number was
+> computed. Result: **Class A (substantive, n=10) = 7/10 = 0.70; Class B (micro/aesthetic, n=5) =
+> 0/5 = 0.00.** So the aggregate 0.467 is substantially **dilution** — adding 5 micro cases the sim
+> has no purchase on dragged down a substantive-class 0.70, and the two *new* substantive cases
+> (Amazon, Etsy) both scored correct. **But three honest brakes:** (i) Class A's 0.70 is
+> **underpowered — not significant** (one-sided binomial p=0.17 vs chance, p=0.38 vs the 0.60
+> always-control baseline; n=10 can't clear p<0.05). (ii) A **residual pro-change tilt persists
+> even within Class A**: treatment-class 4/4 but control-class 3/6 — all three misses are the same
+> "*simplification / fewer fields / fewer steps wins*" failure (cxl 9→6, multistep 6→3,
+> office_online declutter); this localises the #221 lever to control-won simplification cases.
+> (iii) Class B's 0/5 is **confounded** (all 5 micro cases were treatment-won, so 0/5 just means
+> the sim defaulted to no-change on every thin stimulus) — uninformative-leaning-negative, not a
+> clean anti-signal. **Status: EXPLORATORY / hypothesis-generating** (splitting on this dimension
+> after seeing the null is itself a post-hoc choice; the blind+sealed classification only guards
+> the *split*, not the *decision to split*). The confirmatory test is a **new pre-registered
+> class-A-only powered run** (n≥18–20, deliberately enriched with control-won simplification cases
+> to force balanced discrimination; micro/aesthetic scoped out as out-of-format). If Class A holds
+> ≥0.70 with control-class ≥~0.5 → first genuinely balanced, significant, **narrow** in-scope
+> positive. Artifacts: `portfolio_v3_subset_analysis.txt`, `v3_blind_classification.json(+.sha256)`,
+> `subset_score.py`.
 
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
