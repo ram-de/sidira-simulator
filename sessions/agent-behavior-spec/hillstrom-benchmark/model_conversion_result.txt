@@ -1,0 +1,22 @@
+HILLSTROM MODEL COMPARISON — CONVERSION, claude-sonnet-4-6, GATE OFF (2026-06-17, user spend-approved)
+Model-comparison prereg SHA-256: 147236f1ed77d2c394b2e6e45831c198959cd32d1b4dbdc183caf1296997e40d
+Only difference from certified Groq baseline: model_id Groq llama-3.3-70b -> claude-sonnet-4-6.
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.3234   (p = 0.8002)
+direction_accuracy: 0.0
+VOID:               False
+null-cert passed:   True   underpowered: False
+
+== Comparison ==
+                 Groq baseline   Sonnet       verdict
+direction_acc    0.0             0.0          IDENTICAL — no model effect
+rank_rho         -0.359          -0.323       both at chance (p 0.82 / 0.80)
+
+VERDICT (conversion): a much stronger model gives the SAME direction_accuracy 0.0 — every
+predicted sign still opposite the RCT. The ad-aversion bias is MODEL-INDEPENDENT on conversion
+=> strong evidence it is INTRINSIC to introspective elicitation, not a weak-model reasoning
+failure. Confirms the §5.1 honest-scope boundary (deliberative reactions IN, sub-deliberative
+marketing nudges OUT). (Visit arm pending to complete the pre-registered both-outcome design.)
