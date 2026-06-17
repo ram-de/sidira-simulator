@@ -16,7 +16,11 @@ import "@/styles/v2-theme.css";
 //
 // When Clerk is not configured (local dev / CI, no publishable key) we render
 // the dark Console "unavailable" surface instead of redirecting to prod.
-export default function SignInPage() {
+export default function SignInPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   if (!clerkEnabled()) {
     return (
       <AuthStage>
@@ -25,7 +29,9 @@ export default function SignInPage() {
     );
   }
 
-  redirect(hostedSignInUrl());
+  // Forward incoming query params (e.g. Clerk invitation `__clerk_ticket`) to
+  // the hosted portal; our return URL is pinned server-side in hostedSignInUrl.
+  redirect(hostedSignInUrl(searchParams));
 }
 
 // ── Dark Console auth stage (Clerk-unavailable surface only) ────────────────

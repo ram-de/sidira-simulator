@@ -42,13 +42,39 @@ const CLERK_ACCOUNT_PORTAL = "https://accounts.sidira.ai";
 // open — the hosted portal can only ever bounce back to the real app.
 const APP_POST_AUTH_RETURN = `https://${APP_HOST}${POST_AUTH_URL}`;
 
-const hostedAuthUrl = (path: "sign-in" | "sign-up"): string =>
-  `${CLERK_ACCOUNT_PORTAL}/${path}?redirect_url=${encodeURIComponent(
-    APP_POST_AUTH_RETURN,
-  )}`;
+// Next.js page `searchParams` shape.
+type IncomingParams = Record<string, string | string[] | undefined>;
 
-export const hostedSignInUrl = (): string => hostedAuthUrl("sign-in");
-export const hostedSignUpUrl = (): string => hostedAuthUrl("sign-up");
+// Forward the incoming query string to the hosted portal — Clerk organization
+// invitation links arrive at /sign-in or /sign-up carrying ticket params
+// (`__clerk_ticket`, `__clerk_status`, …) that the portal must consume so the
+// invitee JOINS the invited org instead of creating their own. We forward every
+// incoming param EXCEPT `redirect_url`, which we always pin to the canonical app
+// gateway ourselves so a caller-supplied value can never turn this into an open
+// redirect. Forwarding to Clerk's own trusted portal host is safe.
+const buildPortalParams = (incoming?: IncomingParams): URLSearchParams => {
+  const params = new URLSearchParams();
+  if (incoming) {
+    for (const [key, value] of Object.entries(incoming)) {
+      if (value === undefined || key === "redirect_url") continue;
+      if (Array.isArray(value)) value.forEach((v) => params.append(key, v));
+      else params.append(key, value);
+    }
+  }
+  params.set("redirect_url", APP_POST_AUTH_RETURN);
+  return params;
+};
+
+const hostedAuthUrl = (
+  path: "sign-in" | "sign-up",
+  incoming?: IncomingParams,
+): string =>
+  `${CLERK_ACCOUNT_PORTAL}/${path}?${buildPortalParams(incoming).toString()}`;
+
+export const hostedSignInUrl = (incoming?: IncomingParams): string =>
+  hostedAuthUrl("sign-in", incoming);
+export const hostedSignUpUrl = (incoming?: IncomingParams): string =>
+  hostedAuthUrl("sign-up", incoming);
 
 // Brand-aligned Clerk appearance — maps the prebuilt components onto DESIGN.md
 // tokens (§4 palette, §5 type, 4px radius, 2px input borders). Refinements are
