@@ -433,6 +433,25 @@ pilot. A single generic-conversion act under-fits a case whose real mechanism is
 delayed-return / retention effect — the pre-registered fidelity risk, realized. Per-metric
 (and per-domain) elicitation is a documented follow-up.
 
+**The held-out probe seals the diagnosis: reciting, not reasoning.** Two famous results were
+kept *out* of the certified set as a contamination check — with a pre-registered rule: if the
+sim aces the famous cases but flunks the obscure ones, it is reciting, not reasoning. That is
+exactly what happened. The sim scored **2/2 (100%)** on the famous cases (Netflix's
+browse-vs-wall, Highrise's simple page) while scoring **2/8 (and 0/5 on the obscure
+control-won cases)** on the certified set. The decisive tell is Netflix: the real winner is
+the *control* (the registration wall won, even though 46% of users *said* they wanted to
+browse) — and the sim called control correctly there, **against its own pro-change bias.** The
+only good explanation for it abandoning that strong prior on the single most-famous case is
+that it *recited* the textbook result. (Highrise is consistent with both memory and the
+pro-change prior, so it is ambiguous on its own; Netflix is the smoking gun.) The complete
+picture: the simulator **pattern-matches** — it falls back on the framing's prior when a case
+is obscure, and on a memorized answer when a case is famous. Neither is the deliberative
+reasoning the product claims, and this is precisely why "just ask an LLM which variant wins"
+is an invalid measurement and why the obscure, balanced portfolio is the honest test. (The
+probe is reported as suggestive only — at n=2 it is VOID by the same certification floor that
+the scored set clears.) As a robustness note, the scored 8 cases reproduced *identically* on
+the re-run, so the 0.25 is deterministic, not sampling noise.
+
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
 with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
@@ -507,4 +526,13 @@ Highrise) to confirm priors-echoing rather than reciting.
   generic-conversion elicitation vs right in §6's retention-specific pilot (registered fidelity risk,
   realized). Result artifact `portfolio-benchmark/portfolio_results.txt`. Next levers: de-bias the
   pro-change prior at elicitation (#221), per-metric elicitation (#222), held-out memorization probe.
+- 2026-06-17: **Held-out memorization probe + scored re-run — RECITING-NOT-REASONING confirmed.**
+  The pre-registered contamination check ran (`--include-heldout`): the sim scored **2/2 (100%)** on
+  the two famous cases (Netflix browse-vs-wall, Highrise simple page) while scoring **2/8 (0/5 on
+  obscure control-won)** on the certified set — the exact "aces famous, flunks obscure" red flag.
+  Decisive tell: on Netflix (real winner = control) the sim called control correctly, *against* its
+  own pro-change bias — only explicable as recitation of the textbook result. Conclusion: the sim
+  **pattern-matches** (framing-prior when obscure, memory when famous), not deliberative reasoning —
+  validating why "ask an LLM which wins" is invalid. The scored 8 reproduced identically (dir_acc
+  0.25 deterministic). §7 updated.
 </content>

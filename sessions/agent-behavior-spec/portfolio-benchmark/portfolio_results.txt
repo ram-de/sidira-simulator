@@ -65,6 +65,31 @@ multistep_form_3_vs_6         control       treatment       0  (WRONG)
 - Vendor/CRO cases (tinkoff, cxl, multistep) are narratives, not raw data; scored vs the
   reported winner. tinkoff (a RIGHT) is one of these -- direction-only credit.
 
+== HELD-OUT MEMORIZATION PROBE (run 2026-06-17 06:23→06:32 UTC, --include-heldout) ==
+Two FAMOUS results held OUT of the certified set (NON-scored contamination control):
+  netflix_browse_before_signup  real_winner=control  (registration wall WON all 5 variants;
+                                  46% SAID they wanted browsing -> textbook stated-vs-revealed
+                                  inversion)            sim dir_acc 1.000 (RIGHT)
+  highrise_simple_person_page   real_winner=treatment (simpler page +47% paid signups)
+                                                        sim dir_acc 1.000 (RIGHT)
+probe direction_accuracy (NON-SCORED): 1.0 over 2 probes. VOID (n=2 < cert floor 8 — cannot
+certify; reported as suggestive contamination signal only).
+ROBUSTNESS: the SCORED 8 cases re-ran IDENTICALLY in this run (dir_acc 0.25, same per-case
+signs, cert PASSED p=0.55) -> the 2/8 result is STABLE/deterministic, not sampling noise.
+
+VERDICT ON THE PROBE — RECITING, NOT REASONING (the pre-registered red flag, confirmed):
+The sim ACED both famous cases (2/2) while FLUNKING 5/8 obscure cases (and scoring 0/5 on the
+obscure CONTROL-won cases). The decisive tell is NETFLIX: real_winner=control, and the sim
+predicted control CORRECTLY — i.e. it went AGAINST its own strong pro-change prior on the single
+most-famous case. The only good explanation for abandoning the prior exactly there is RECITATION
+of the textbook result. (Highrise is consistent with BOTH memorization and the pro-change prior,
+so it is ambiguous alone; Netflix is the smoking gun.) CONCLUSION: the sim PATTERN-MATCHES — it
+falls back on the framing's prior when a case is obscure (pro-change bias) and on a MEMORIZED
+answer when a case is famous. Neither is deliberative reasoning. This validates the contamination-
+control design and is exactly why "just ask an LLM which wins" is an invalid measurement.
+(Minor: one agent's metric output failed to coerce on highrise — Young-mobile-feed-scroller; the
+run continued and aggregated over the remaining agents; immaterial at pop=50/arm.)
+
 == CAMPAIGN CONSEQUENCE ==
 The benchmark did its job: it converted "is the sim accurate on in-scope product changes?"
 into a CERTIFIED, reproducible engineering target with a NAMED, fixable bias (pro-change
