@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { Archivo, Archivo_Narrow, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
-import TopNav from "@/components/TopNav";
+import ConditionalTopNav from "@/components/ConditionalTopNav";
 import { isPublicSiteHost } from "@/lib/site-hosts";
 import { clerkEnabled, clerkAppearance } from "@/lib/clerk";
 import { TOKENS, FONT_SANS } from "@/lib/design";
@@ -81,7 +81,7 @@ export default function RootLayout({
             `,
           }}
         />
-        {showProductNav ? <TopNav /> : null}
+        {showProductNav ? <ConditionalTopNav /> : null}
         <div style={{ minHeight: showProductNav ? "calc(100vh - 56px)" : "100vh" }}>
           {children}
         </div>

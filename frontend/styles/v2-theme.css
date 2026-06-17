@@ -1,0 +1,315 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   SIDIRA — DESIGN SYSTEM v2 · "THE READING CONSOLE" — scoped theme stylesheet
+   Canonical: design-rethink/system/design-system-v2.md §8 (+ v2.1-patch).
+
+   ALL of v2's CSS custom properties and base component classes are scoped under
+   the `.v2-console` wrapper, so this never touches the live app's global
+   "paper" theme (lib/design.ts / DESIGN.md). Mirrors the precedent set by the
+   `.rconsole` scoping in the console-results preview.
+
+   The shared v2 React components (components/v2/*) consume the classes below;
+   the page composes the components. Tokens are also exported as TS constants in
+   lib/design-v2.ts.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Geist / Geist Mono / Newsreader — loaded only for the v2 preview (§2.1).
+   The live app ships Archivo + JetBrains Mono; this @import does not change
+   that — it just makes the v2 families available to .v2-console subtrees. */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap");
+
+/* ── tokens — scoped, never on :root (§8) ─────────────────────────────────── */
+.v2-console {
+  /* Console (dark) */
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  /* console-line at fixed alphas — panels/rules use these instead of inline rgba */
+  --console-line-60: rgba(51, 64, 92, 0.6);
+  --console-line-55: rgba(51, 64, 92, 0.55);
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --console-line-40: rgba(51, 64, 92, 0.4);
+  --console-line-30: rgba(51, 64, 92, 0.3);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae; /* AA-clear [v2-fix] */
+  --text-faint: #646e84; /* DISABLED ONLY */
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --signal-wash: rgba(72, 239, 202, 0.12);
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --spread-wash: rgba(200, 182, 138, 0.14);
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn: #c9a227;
+  --alert: #f0683c; /* borders + word, never fill */
+  /* no --verdict-ship / --verdict-hold token — a verdict is not a color */
+
+  /* Sheet (light) — AA-corrected */
+  --sheet: #f3f4f7;
+  --sheet-raised: #fbfbfd;
+  --sheet-sunk: #e6e8ee;
+  --sheet-line: #d4d8e0;
+  --sheet-ink: #1a2336;
+  --sheet-mut: #5e6678;
+  --sheet-signal: #00785f;
+  --sheet-spread: #6f5e33;
+
+  /* Radius / motion */
+  --r-well: 4px;
+  --r-panel: 8px;
+  --r-frame: 10px;
+  --r-dot: 9999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-mech: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Spacing */
+  --space-snug: 8px;
+  --space-cozy: 12px;
+  --space-base: 16px;
+  --space-room: 24px;
+  --space-section: 48px;
+  --space-bay: 64px;
+  --space-rest: 96px;
+  --space-vast: 128px;
+
+  /* Type families — Geist loaded above; literal fallback chain after */
+  --v2-font-sans: "Geist", system-ui, sans-serif;
+  --v2-font-mono: "Geist Mono", ui-monospace, monospace;
+  --v2-font-serif: "Newsreader", Georgia, serif;
+
+  /* surface defaults (Console mode is the page default for /product) */
+  background: var(--console-900);
+  color: var(--text);
+  font-family: var(--v2-font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.v2-console *,
+.v2-console *::before,
+.v2-console *::after {
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums; /* §2.2 global numeric law */
+}
+.v2-console a {
+  color: inherit;
+  text-decoration: none;
+}
+.v2-console ::selection {
+  background: var(--signal-wash);
+  color: var(--text-hi);
+}
+
+/* shared atoms ───────────────────────────────────────────────────────────── */
+.v2-mono {
+  font-family: var(--v2-font-mono);
+}
+.v2-tnum {
+  font-variant-numeric: tabular-nums;
+}
+/* elevation = lightness-step + 1px top inner highlight, never a drop shadow (§3.5) */
+.v2-elevated {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* designator / chip (§4.8, §2.3) ─────────────────────────────────────────── */
+.v2-desig {
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+}
+.v2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  border: 1px solid rgba(51, 64, 92, 0.6);
+  border-radius: var(--r-well);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+/* glyphs — only the ◇ glyph / ± value may wear spread-dim (P7) ────────────── */
+.v2-gh {
+  color: var(--spread-dim);
+} /* ◇ uncalibrated glyph ONLY */
+.v2-gf {
+  color: var(--signal-dim);
+} /* ◆ graded glyph */
+
+/* buttons (§4.1) ─────────────────────────────────────────────────────────── */
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-well);
+  font-family: var(--v2-font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--console-line);
+  background: transparent;
+  color: var(--text);
+  transition: background 0.14s var(--ease-out), color 0.14s var(--ease-out),
+    transform 0.14s var(--ease-out);
+  white-space: nowrap;
+}
+.v2-btn:focus-visible {
+  outline: 2px solid var(--signal-dim);
+  outline-offset: 2px;
+}
+.v2-btn:active {
+  transform: translateY(1px);
+}
+.v2-btn--hero {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+.v2-btn--primary {
+  background: var(--console-700);
+  color: var(--text-hi);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.v2-btn--primary:hover {
+  background: var(--console-750);
+}
+/* the ONE button that may carry signal — it initiates a live reading (§4.1) */
+.v2-btn--live {
+  background: transparent;
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.v2-btn--live:hover {
+  background: var(--signal-wash);
+}
+.v2-btn--secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--console-line);
+}
+.v2-btn--secondary:hover {
+  background: var(--console-800);
+  color: var(--text-hi);
+}
+.v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-mut);
+}
+.v2-btn--ghost:hover {
+  color: var(--text-hi);
+}
+.v2-btn--destructive {
+  border-color: var(--alert);
+  color: var(--text-hi);
+}
+.v2-btn--destructive:hover {
+  background: rgba(240, 104, 60, 0.08);
+}
+.v2-btn:disabled {
+  color: var(--text-faint);
+  border-color: rgba(51, 64, 92, 0.5);
+  cursor: not-allowed;
+}
+
+/* card / panel (§4.4) ────────────────────────────────────────────────────── */
+.v2-panel {
+  background: var(--console-800);
+  border: 1px solid rgba(51, 64, 92, 0.5);
+  border-radius: var(--r-panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* status badge (§4.8) — border + word only, never a filled pill ──────────── */
+.v2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+}
+.v2-badge--live {
+  color: var(--signal);
+}
+.v2-badge--hold {
+  color: var(--spread);
+}
+.v2-badge--failed {
+  color: var(--alert);
+}
+
+/* status dot (§5.4) — resting (ink) by default; .v2-dot--live breathes ───── */
+.v2-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-dot);
+  background: var(--text-mut);
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.v2-dot--live {
+  background: var(--signal);
+  animation: v2-pulse 2s var(--ease-settle) infinite;
+}
+@keyframes v2-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* scroll reveal (§5.3 — 400–600ms, settle once, no looping decoration) ─────
+   Progressive enhancement: with NO JS, .v2-reveal is fully visible (the
+   opacity:0 start state applies ONLY once ConsoleShell has marked the root
+   `.v2-js` on mount). With JS, content starts hidden then settles in via `.in`. */
+.v2-console.v2-js .v2-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.v2-console.v2-js .v2-reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+/* the one sanctioned infinite loop is the status dot; reduced-motion freezes
+   every settle and the dot to its poster (§5.1, P3) */
+@media (prefers-reduced-motion: reduce) {
+  .v2-console *,
+  .v2-console *::before,
+  .v2-console *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+  .v2-console.v2-js .v2-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
