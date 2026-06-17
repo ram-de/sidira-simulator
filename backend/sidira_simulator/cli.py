@@ -879,5 +879,347 @@ def benchmark_cookiecats(
     click.echo(render(table))
 
 
+# ── product-change directional portfolio (the in-scope positive campaign) ──────
+#
+# The portfolio scores ~8 DIFFERENT real product-change A/B tests, each a whole-
+# experiment directional bit, through the SHARED blinded engine. Heterogeneous
+# real metrics (retention / conversion / clicks / revenue / signups) all map to
+# ONE generic engine elicitation: the `conversion` metric ("would you take this
+# variant's primary action?"). Direction (which variant wins) is all that's scored
+# — magnitude is OUT of scope for these publication-biased narratives — so a single
+# generic conversion elicitation is the clean choice (see portfolio_adapter).
+_PORTFOLIO_ENGINE_METRIC = "conversion"
+
+# The generic, metric-NEUTRAL, direction-NEUTRAL conversion decision moment. It
+# must NOT name which variant is preferred nor the case's real metric (a metric
+# like "buy-button clickers" can hint the direction), so the SAME hypothesis drives
+# both arms and each arm's own narrative is rendered into its per-arm state view.
+_PORTFOLIO_DECISION_POINT = (
+    "You are looking at this version of the product experience right now; decide "
+    "whether you would take its primary action (continue / sign up / buy / proceed)."
+)
+
+
+def _portfolio_hypothesis_builder():
+    """Build the portfolio `conversion` `hypothesis_builder` (one generic metric).
+
+    Mirrors `_cookiecats_hypothesis_builder` / `_hillstrom_hypothesis_builder` but
+    forces the GENERIC `conversion` engine metric for every case (the portfolio
+    cases' real metrics are heterogeneous; only direction is scored). It takes the
+    case's hypothesis verbatim, forces metric_name="conversion" + the conversion
+    metric's required template fields (conversion_action / conversion_action_label /
+    decision_point), and RE-VALIDATES via `Hypothesis.model_validate` (never
+    `model_copy`, so a missing required field fails loud). It reads ONLY
+    `case.hypothesis` — `case.ground_truth` is never touched (structural blindness).
+    """
+    from sidira_simulator.schemas.simulation import Hypothesis
+
+    def _build(case):
+        data = case.hypothesis.model_dump()
+        data.update(
+            {
+                "metric_name": _PORTFOLIO_ENGINE_METRIC,
+                "conversion_action": "take the experience's primary action",
+                "conversion_action_label": "take the primary action",
+                "decision_point": _PORTFOLIO_DECISION_POINT,
+            }
+        )
+        return Hypothesis.model_validate(data)
+
+    return _build
+
+
+@cli.command("benchmark-portfolio")
+@click.option(
+    "--cases-path",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to PORTFOLIO_CASES.json (default: the committed curated set).",
+)
+@click.option("--model-id", default=None, help="LLM model id to drive the engine.")
+@click.option(
+    "--population-size", default=10, type=int, help="Agents per arm (engine population_size)."
+)
+@click.option(
+    "--max-agents", default=None, type=int, help="Bounded pilot: hard cap on agents per arm."
+)
+@click.option("--seed", default=0, type=int, help="Base seed (per-case + null/bootstrap RNG).")
+@click.option("--n-permutations", default=1000, type=int, help="Null-integrity label permutations.")
+@click.option(
+    "--chunk-size",
+    default=None,
+    type=int,
+    help="Run cases in chunks of this size (resumable). None = one chunk.",
+)
+@click.option(
+    "--checkpoint-path",
+    default=None,
+    type=click.Path(dir_okay=False),
+    help="Bind-mount JSON checkpoint of {case_id: prediction}; resumes across redeploy.",
+)
+@click.option(
+    "--include-heldout/--no-heldout",
+    "include_heldout",
+    default=False,
+    help=(
+        "Additionally run the memorization-probe set as a SEPARATE, clearly-labelled, "
+        "NON-scored section (contamination control). Default off."
+    ),
+)
+def benchmark_portfolio(
+    cases_path: str | None,
+    model_id: str | None,
+    population_size: int,
+    max_agents: int | None,
+    seed: int,
+    n_permutations: int,
+    chunk_size: int | None,
+    checkpoint_path: str | None,
+    include_heldout: bool,
+) -> None:
+    """Run the product-change DIRECTIONAL PORTFOLIO benchmark vs the LIVE engine.
+
+    The in-scope POSITIVE campaign: ~8 DIFFERENT real product-change A/B tests,
+    each a WHOLE-EXPERIMENT directional bit (a published control-vs-treatment
+    narrative with a known winner), scored as one independent bit so the run can
+    clear the null-integrity certificate's 8-case floor with GENUINELY independent
+    cases (not re-slices of one experiment).
+
+    End-to-end: load the curated PORTFOLIO_CASES.json → adapt each scored case to a
+    BenchmarkCase whose GroundTruth encodes the real winner's SIGN → load a generic
+    consumer panel → score the live engine as the blind predictor through the
+    generic `conversion` metric → emit the run result, the per-experiment honesty
+    table, the null-integrity certificate, and the human-baseline anchors.
+
+    GATED live path: builds the real SimulationRunner and needs live LLM keys; it
+    refuses under pytest / CI. --chunk-size + --checkpoint-path make it RESUMABLE.
+
+    SCORING IS DIRECTION-ONLY (the headline is direction_accuracy). Magnitude is
+    OUT of scope for these publication-biased narrative/vendor cases; rank-ρ is
+    reported for cross-case ordering only, not as a calibrated effect-size claim.
+    """
+    import json
+    from pathlib import Path
+
+    from sidira_simulator.adapters.upworthy_panel_loader import (
+        load_upworthy_panel,
+        upworthy_panel_registration,
+    )
+    from sidira_simulator.services.benchmark_honesty import (
+        by_portfolio_case,
+        render,
+        stratify,
+    )
+    from sidira_simulator.services.benchmark_runner import score_with_engine
+    from sidira_simulator.services.portfolio_adapter import (
+        held_out_probe_cases,
+        scored_portfolio_cases,
+    )
+    from sidira_simulator.services.portfolio_archive import (
+        DEFAULT_CASES_PATH,
+        load_portfolio_cases,
+    )
+
+    # ── 1. Load + adapt the curated portfolio into benchmark cases. ──
+    archive, summary = load_portfolio_cases(cases_path or DEFAULT_CASES_PATH)
+    if not archive.scored_cases:
+        raise click.ClickException(
+            f"no scored portfolio cases loaded from {cases_path or DEFAULT_CASES_PATH}"
+        )
+    cases = scored_portfolio_cases(archive)
+
+    # ── 2. Pre-registration metadata (generic panel + run config). ──
+    # A GENERIC consumer panel: the portfolio spans domains (mobile game, edtech,
+    # fintech, media, CRO forms), so a single generic consumer panel is a first
+    # pass — DOCUMENTED as a limitation (no per-domain panels; see PREREG). The
+    # Upworthy general-US-news panel is the closest existing generic consumer pack.
+    registration = upworthy_panel_registration()
+    panel = load_upworthy_panel()
+
+    click.echo("== Pre-registration / run config ==")
+    click.echo(f"portfolio_id:       {archive.portfolio_id}")
+    click.echo(f"panel_id:           {registration.panel_id} (GENERIC consumer panel — see PREREG)")
+    click.echo(f"panel_version:      {registration.version}")
+    click.echo(f"panel_persona_n:    {registration.persona_count}")
+    click.echo(f"panel_synthetic:    {registration.is_synthetic_generic}")
+    click.echo("primary_endpoint:   direction_accuracy (magnitude OUT of scope)")
+    click.echo(f"engine_metric:      {_PORTFOLIO_ENGINE_METRIC} (generic; real metrics vary)")
+    click.echo(f"model_id:           {model_id}")
+    click.echo(f"seed:               {seed}")
+    click.echo(f"population_size:    {population_size}")
+    click.echo(f"max_agents:         {max_agents}")
+    click.echo(
+        f"scored_cases:       {len(cases)} (kept {summary.scored_kept}/{summary.scored_read})"
+    )
+    click.echo(f"chunk_size:         {chunk_size}")
+    click.echo(f"checkpoint_path:    {checkpoint_path}")
+    click.echo(f"include_heldout:    {include_heldout}")
+    click.echo("")
+
+    # ── 3. Resumable checkpoint: load any prior predictions from the bind-mount. ──
+    # Keyed to the FULL run configuration: a config change forces a fresh run
+    # rather than silently serving stale predictions.
+    run_config = {
+        "seed": seed,
+        "model_id": model_id,
+        "population_size": population_size,
+        "max_agents": max_agents,
+        "panel_version": registration.version,
+        "portfolio_id": archive.portfolio_id,
+    }
+    prediction_cache: dict[str, float] = {}
+    ckpt = Path(checkpoint_path) if checkpoint_path else None
+    if ckpt is not None and ckpt.exists():
+        stored = json.loads(ckpt.read_text())
+        stored_config = stored.get("run_config")
+        if stored_config != run_config:
+            raise click.ClickException(
+                f"checkpoint {ckpt} was written for a DIFFERENT run config "
+                f"({stored_config}) than this run ({run_config}); its cached "
+                "predictions would be stale. Use a fresh --checkpoint-path or "
+                "delete the stale file."
+            )
+        prediction_cache = {str(k): float(v) for k, v in (stored.get("predictions") or {}).items()}
+        click.echo(f"resumed {len(prediction_cache)} cached prediction(s) from {ckpt}")
+
+    def _checkpoint() -> None:
+        if ckpt is not None:
+            ckpt.parent.mkdir(parents=True, exist_ok=True)
+            ckpt.write_text(
+                json.dumps(
+                    {"run_config": run_config, "predictions": prediction_cache},
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+
+    # ── 4. Run the live engine as the blind predictor (GATED), chunked + resumable. ──
+    builder = _portfolio_hypothesis_builder()
+    step = chunk_size if (chunk_size and chunk_size > 0) else len(cases) or 1
+    for start in range(0, len(cases), step):
+        chunk = cases[start : start + step]
+        score_with_engine(
+            chunk,
+            persona_pack=panel,
+            customer_id="benchmark",
+            model_id=model_id,
+            population_size=population_size,
+            max_agents=max_agents,
+            seed=seed,
+            n_permutations=1,  # warm-up only; the real cert is the final full run
+            metric_name=_PORTFOLIO_ENGINE_METRIC,
+            hypothesis_builder=builder,
+            prediction_cache=prediction_cache,
+        )
+        _checkpoint()
+
+    # Final scoring over ALL scored cases (every prediction already cached).
+    result = score_with_engine(
+        cases,
+        persona_pack=panel,
+        customer_id="benchmark",
+        model_id=model_id,
+        population_size=population_size,
+        max_agents=max_agents,
+        seed=seed,
+        n_permutations=n_permutations,
+        metric_name=_PORTFOLIO_ENGINE_METRIC,
+        hypothesis_builder=builder,
+        prediction_cache=prediction_cache,
+    )
+    _checkpoint()
+
+    # ── 5. Emit the run result + null certificate (direction_accuracy is the headline). ──
+    click.echo("== Blind-eval result (SCORED portfolio) ==")
+    click.echo(f"n_cases:                {result.n_cases}")
+    click.echo(f"n_dropped:              {result.n_dropped}")
+    if result.dropped_case_ids:
+        click.echo(f"dropped_case_ids:       {result.dropped_case_ids}")
+    click.echo(f"direction_accuracy (HEADLINE): {result.direction_accuracy}")
+    click.echo(f"rank_rho (ordering-only):      {result.rank_rho}")
+    click.echo(f"VOID:                   {result.void}")
+    if result.void_reason:
+        click.echo(f"void_reason:            {result.void_reason}")
+    click.echo("")
+
+    cert = result.certificate
+    if cert is not None:
+        click.echo("== Null-integrity certificate ==")
+        click.echo(f"passed:             {cert.passed}")
+        click.echo(f"observed_rank_rho:  {cert.observed_rank_rho}")
+        click.echo(f"rank_rho_p_value:   {cert.rank_rho_p_value}")
+        click.echo(f"underpowered:       {cert.underpowered}")
+        if cert.caveat:
+            click.echo(f"caveat:             {cert.caveat}")
+        click.echo("")
+
+    # ── 6. Human-baseline anchors (Kohavi ~2.3/8; MSN 3/21) next to the sim. ──
+    sim_correct = round(result.direction_accuracy * result.n_cases, 1)
+    click.echo("== Human-baseline anchors (for context) ==")
+    click.echo(f"sim:                {sim_correct}/{result.n_cases} correct (direction)")
+    for label, value in archive.human_baseline_anchors.items():
+        click.echo(f"{label + ':':<20}{value}")
+    if archive.balance_check:
+        click.echo(f"balance_check:      {archive.balance_check.get('control_won_fraction', '?')}")
+    click.echo(
+        "note: magnitude is OUT of scope for the vendor/narrative cases; scoring is "
+        "DIRECTION-ONLY. rank_rho is cross-case ordering, not a calibrated effect size."
+    )
+    click.echo("")
+
+    # ── 7. Per-experiment honesty table (one row per whole-experiment bit). ──
+    table = stratify(result, by_portfolio_case, stratifier_name="portfolio case")
+    click.echo(render(table))
+
+    # ── 8. OPTIONAL held-out memorization probe — SEPARATE, NON-scored section. ──
+    if include_heldout:
+        click.echo("")
+        click.echo("== HELD-OUT MEMORIZATION PROBE (NON-SCORED contamination control) ==")
+        click.echo(
+            "These are famous results an LLM may have MEMORIZED, kept OUT of the "
+            "certified portfolio. If the sim aces these but flunks the obscure scored "
+            "cases, it is RECITING, not reasoning. NOT counted in the headline score."
+        )
+        probe_cases = held_out_probe_cases(archive)
+        probe_cache: dict[str, float] = {}
+        probe_step = chunk_size if (chunk_size and chunk_size > 0) else len(probe_cases) or 1
+        for start in range(0, len(probe_cases), probe_step):
+            chunk = probe_cases[start : start + probe_step]
+            score_with_engine(
+                chunk,
+                persona_pack=panel,
+                customer_id="benchmark",
+                model_id=model_id,
+                population_size=population_size,
+                max_agents=max_agents,
+                seed=seed,
+                n_permutations=1,
+                metric_name=_PORTFOLIO_ENGINE_METRIC,
+                hypothesis_builder=builder,
+                prediction_cache=probe_cache,
+            )
+        probe_result = score_with_engine(
+            probe_cases,
+            persona_pack=panel,
+            customer_id="benchmark",
+            model_id=model_id,
+            population_size=population_size,
+            max_agents=max_agents,
+            seed=seed,
+            n_permutations=n_permutations,
+            metric_name=_PORTFOLIO_ENGINE_METRIC,
+            hypothesis_builder=builder,
+            prediction_cache=probe_cache,
+        )
+        click.echo(
+            f"probe direction_accuracy (NON-SCORED): {probe_result.direction_accuracy} "
+            f"over {probe_result.n_cases} probe(s)"
+        )
+        probe_table = stratify(
+            probe_result, by_portfolio_case, stratifier_name="held-out probe (NON-scored)"
+        )
+        click.echo(render(probe_table))
+
+
 if __name__ == "__main__":
     cli()
