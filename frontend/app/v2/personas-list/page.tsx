@@ -239,8 +239,13 @@ export default function PersonasListV2Page() {
         </Panel>
       </div>
 
-      {/* page-local token-driven styling (no raw hex / no raw font names) */}
-      <style>{PLIST_CSS}</style>
+      {/* page-local token-driven styling (no raw hex / no raw font names).
+          Injected via dangerouslySetInnerHTML (the same React-safe pattern as
+          the root layout's focus-ring <style>): PLIST_CSS contains `"` chars
+          (grid-template-areas / content), which a `<style>{string}</style>`
+          text child would HTML-escape on the server (&quot;) but leave literal
+          on the client — a React 18 text-content hydration mismatch. */}
+      <style dangerouslySetInnerHTML={{ __html: PLIST_CSS }} />
     </AppFrame>
   );
 }

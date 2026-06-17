@@ -283,8 +283,11 @@ export default function SimulationsListV2Page() {
         </p>
       </div>
 
-      {/* page-local token-driven styling (no raw hex / no raw font names) */}
-      <style>{SIMS_CSS}</style>
+      {/* page-local token-driven styling (no raw hex / no raw font names).
+          dangerouslySetInnerHTML (root-layout pattern): SIMS_CSS holds `"` chars
+          (grid-template-areas) that a `<style>{string}</style>` text child would
+          HTML-escape server-side only → React 18 hydration text mismatch. */}
+      <style dangerouslySetInnerHTML={{ __html: SIMS_CSS }} />
     </AppFrame>
   );
 }
