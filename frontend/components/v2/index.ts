@@ -43,3 +43,4 @@ export {
   type Bar,
   type DistributionPosterProps,
 } from "./DistributionPoster";
+export { PopulationField, type PopulationFieldProps } from "./PopulationField";
