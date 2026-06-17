@@ -975,6 +975,25 @@
   min-width:0;
   padding:var(--space-section);
 }
+/* Sheet content surface inside the Console rail (AppShellV2 surface="sheet").
+   A light reading surface for pages whose body still renders the legacy
+   ink-on-paper markup, so their dark text stays legible inside the dark shell.
+   Background is the LEGACY paper (#F4EFE6 = TOKENS.paper) so a shell-wrapped
+   legacy page renders pixel-faithful to its pre-v2 self — only the rail
+   replaces the old top nav. Padding is 0: the legacy <main> owns its own
+   max-width + margins, so the surface just spans the column edge-to-edge.
+   Default color is reset to legacy ink so any unstyled text is legible (the
+   .v2-console scope would otherwise inherit light --text on this light bg). */
+/* Compound selector (.v2-appmain.v2-appmain--sheet) so this padding:0 outranks
+   the equal-specificity `.v2-appmain{padding:…}` rules inside the responsive
+   media queries below — AppShellV2 emits BOTH classes, so a single-class rule
+   would lose to those later media rules on tablet/mobile and double-pad the
+   legacy <main>. */
+.v2-appmain.v2-appmain--sheet{
+  padding:0;
+  background:#F4EFE6;
+  color:#0E1A2B;
+}
 /* ── responsive — rail collapses to a glyph strip, then a top strip ──────── */
 @media(max-width:1024px){
   .v2-appframe{grid-template-columns:64px minmax(0,1fr);}

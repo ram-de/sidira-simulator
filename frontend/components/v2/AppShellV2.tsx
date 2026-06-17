@@ -67,6 +67,13 @@ export type AppShellV2Props = {
   actions?: ReactNode;
   // optional single global provenance marker for the appbar.
   provenance?: ProvenanceMarkerProps;
+  // content surface. "console" (default) = the dark Reading-Console body, for
+  // pages reskinned to the v2 console language. "sheet" = a light reading
+  // surface inside the console rail, for pages whose body still renders the
+  // legacy ink-on-paper markup (a sanctioned Console-rail + Sheet-content
+  // composition). The interim shell-wrap for the dense simulation pages uses
+  // "sheet" so their dark-ink content stays legible until a full reskin.
+  surface?: "console" | "sheet";
   // the page body.
   children: ReactNode;
 };
@@ -76,6 +83,7 @@ export default function AppShellV2({
   title,
   actions,
   provenance,
+  surface = "console",
   children,
 }: AppShellV2Props) {
   const pathname = usePathname() ?? "/";
@@ -136,7 +144,13 @@ export default function AppShellV2({
             </div>
           </header>
 
-          <main className="v2-appmain">{children}</main>
+          <main
+            className={
+              surface === "sheet" ? "v2-appmain v2-appmain--sheet" : "v2-appmain"
+            }
+          >
+            {children}
+          </main>
         </div>
       </div>
     </ConsoleShell>
