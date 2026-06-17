@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO, TNUM } from "@/lib/design";
+import { ConsoleShell } from "@/components/v2";
+import "@/styles/v2-theme.css";
 
 // Login-gated research surface (middleware: "/research(.*)" is a protected
-// route). The customer-facing accuracy & methodology report, honest-null
-// framing. Authored as JSX per the repo convention (no markdown runtime).
-// DESIGN.md §5 typography, §4 palette. The internal disclosure-boundary
-// appendix is deliberately NOT published here.
+// route — the gate + redirect live in middleware.ts, untouched here). The
+// customer-facing accuracy & methodology report, honest-null framing. Authored
+// as JSX per the repo convention (no markdown runtime). Reskinned into the dark
+// "Reading Console" language (styles/v2-theme.css tokens) to match the other
+// public surfaces. The internal disclosure-boundary appendix is deliberately
+// NOT published here.
 export const metadata: Metadata = {
   title: "How we measure Sidira — Accuracy & Methodology",
   description: "How Sidira measures its own accuracy, the benchmarks we run, and what they show.",
@@ -17,20 +20,18 @@ const SECTION: React.CSSProperties = {
 };
 
 const H2: React.CSSProperties = {
-  fontFamily: FONT_NARROW,
   fontSize: 22,
   fontWeight: 600,
-  textTransform: "uppercase",
-  letterSpacing: "0.01em",
+  letterSpacing: "-0.02em",
   lineHeight: 1.15,
-  color: TOKENS.ink,
+  color: "var(--text-hi)",
   margin: "0 0 18px 0",
 };
 
 const BODY: React.CSSProperties = {
   fontSize: 16,
   lineHeight: 1.7,
-  color: TOKENS.ink,
+  color: "var(--text)",
   margin: "0 0 18px 0",
 };
 
@@ -42,17 +43,17 @@ const LEAD: React.CSSProperties = {
 const LI: React.CSSProperties = {
   fontSize: 16,
   lineHeight: 1.65,
-  color: TOKENS.ink,
+  color: "var(--text)",
   marginBottom: 12,
 };
 
-const STRONG: React.CSSProperties = { fontWeight: 600 };
+const STRONG: React.CSSProperties = { fontWeight: 600, color: "var(--text-hi)" };
 
 const MONO_FIGURE: React.CSSProperties = {
-  fontFamily: FONT_MONO,
+  fontFamily: "var(--v2-font-mono)",
   fontSize: 13,
-  ...TNUM,
-  color: TOKENS.ink,
+  fontVariantNumeric: "tabular-nums",
+  color: "var(--text-hi)",
 };
 
 function Term({ children }: { children: React.ReactNode }) {
@@ -88,22 +89,22 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
 
 export default function AccuracyReportPage() {
   return (
-    <main style={{ fontFamily: FONT_SANS, color: TOKENS.ink }}>
-      <article style={{ maxWidth: 760, margin: "0 auto", padding: "56px 32px 120px" }}>
+    <ConsoleShell>
+      <article style={{ maxWidth: 760, margin: "0 auto", padding: "56px 24px 128px" }}>
         <header
           style={{
-            borderBottom: `1px solid ${TOKENS.rule}`,
+            borderBottom: "1px solid var(--console-line-50)",
             paddingBottom: 32,
             marginBottom: 8,
           }}
         >
           <div
             style={{
-              fontFamily: FONT_MONO,
+              fontFamily: "var(--v2-font-mono)",
               fontSize: 11,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: TOKENS.inkMuted,
+              color: "var(--text-mut)",
               marginBottom: 20,
             }}
           >
@@ -111,14 +112,13 @@ export default function AccuracyReportPage() {
           </div>
           <h1
             style={{
-              fontFamily: FONT_NARROW,
-              fontSize: 46,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.01em",
-              lineHeight: 1.08,
-              color: TOKENS.ink,
+              fontSize: "clamp(2.4rem, 4vw, 2.875rem)",
+              fontWeight: 700,
+              letterSpacing: "-0.035em",
+              lineHeight: 1.06,
+              color: "var(--text-hi)",
               margin: 0,
+              textWrap: "balance",
             }}
           >
             How we measure Sidira
@@ -127,7 +127,7 @@ export default function AccuracyReportPage() {
             style={{
               fontSize: 17,
               lineHeight: 1.6,
-              color: TOKENS.inkMuted,
+              color: "var(--text-mut)",
               margin: "16px 0 0 0",
             }}
           >
@@ -245,10 +245,11 @@ export default function AccuracyReportPage() {
           </p>
           <div
             style={{
-              border: `1px solid ${TOKENS.rule}`,
-              borderRadius: 6,
+              border: "1px solid var(--console-line-50)",
+              borderRadius: "var(--r-panel)",
               overflow: "hidden",
-              background: TOKENS.paperElevated,
+              background: "var(--console-850)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
               margin: "8px 0 24px 0",
             }}
           >
@@ -260,25 +261,25 @@ export default function AccuracyReportPage() {
                   gridTemplateColumns: "1fr",
                   gap: 6,
                   padding: "16px 18px",
-                  borderTop: i === 0 ? "none" : `1px solid ${TOKENS.rule}`,
+                  borderTop: i === 0 ? "none" : "1px solid var(--console-line-40)",
                 }}
               >
                 <div
                   style={{
-                    fontFamily: FONT_MONO,
+                    fontFamily: "var(--v2-font-mono)",
                     fontSize: 12,
                     letterSpacing: "0.04em",
                     textTransform: "uppercase",
-                    color: TOKENS.ink,
+                    color: "var(--text-hi)",
                     fontWeight: 600,
                   }}
                 >
                   {row.benchmark}
                 </div>
-                <div style={{ fontSize: 14, color: TOKENS.inkMuted, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 14, color: "var(--text-mut)", lineHeight: 1.5 }}>
                   {row.tested}
                 </div>
-                <div style={{ fontSize: 14.5, color: TOKENS.ink, lineHeight: 1.55 }}>
+                <div style={{ fontSize: 14.5, color: "var(--text)", lineHeight: 1.55 }}>
                   {row.result}
                 </div>
               </div>
@@ -361,10 +362,10 @@ export default function AccuracyReportPage() {
           style={{
             marginTop: 64,
             paddingTop: 24,
-            borderTop: `1px solid ${TOKENS.rule}`,
+            borderTop: "1px solid var(--console-line-50)",
             fontSize: 13,
             lineHeight: 1.6,
-            color: TOKENS.inkMuted,
+            color: "var(--text-mut)",
           }}
         >
           Every figure above is drawn from a sealed, pre-registered run. Methodology is described
@@ -372,6 +373,6 @@ export default function AccuracyReportPage() {
           generates a prediction are not part of this report.
         </footer>
       </article>
-    </main>
+    </ConsoleShell>
   );
 }
