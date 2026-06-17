@@ -1,0 +1,17 @@
+{
+  "title": "Powered confirmation: does expert-forecaster elicitation fix the certified advertising-as-harm sign inversion? (#342)",
+  "timestamp_utc": "2026-06-17T23:58:50Z",
+  "context": "Certified reader-roleplay run: visit direction_accuracy 0.0 (sign-inverted), heterogeneity rank_rho -0.29 at chance. Exploratory 6-case forecaster probe: Sonnet visit dir_acc 0.0->1.0, Spearman -0.29->+0.65. This confirms at power.",
+  "design": "Finer stratification gender(3) x recency-tier(3) x email(2) from the real Hillstrom RCT CSV; real per-cell visit uplift = ground truth (cells >=300/arm). Expert-forecaster elicitation (Sonnet + Groq), VISIT outcome. Label-permutation p-value (5000) on Spearman.",
+  "predicted": {
+    "sonnet_visit_dir_acc": ">=0.85",
+    "sonnet_visit_spearman": "~0.40",
+    "sonnet_visit_perm_p": "<0.10"
+  },
+  "hypotheses": {
+    "H1 (sign-fix)": "Sonnet expert-forecaster visit direction_accuracy >= 0.85 (vs certified reader-roleplay 0.0)",
+    "H2 (heterogeneity)": "Sonnet visit Spearman rho > 0 with permutation p < 0.05"
+  },
+  "decision_rule": "If H1 holds at n>=12 -> the advertising-as-harm sign inversion is FIXED by elicitation framing, certified at power on real RCT ground truth (the report's #1 accuracy problem). If H2 also holds -> visit heterogeneity ranking recovered. Honest null reported if either fails.",
+  "ground_truth": "computed from local Hillstrom CSV (MineThatData 2008), not the simulator"
+}

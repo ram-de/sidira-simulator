@@ -1,0 +1,38 @@
+[
+  {
+    "segment": "mens_buyer",
+    "email": "Mens E-Mail",
+    "visit_uplift": 0.06915516417042274,
+    "conv_uplift": 0.006009617628761718
+  },
+  {
+    "segment": "mens_buyer",
+    "email": "Womens E-Mail",
+    "visit_uplift": 0.011078467244666393,
+    "conv_uplift": 0.0006327151381356165
+  },
+  {
+    "segment": "womens_buyer",
+    "email": "Mens E-Mail",
+    "visit_uplift": 0.0705795766326878,
+    "conv_uplift": 0.005721965679624732
+  },
+  {
+    "segment": "womens_buyer",
+    "email": "Womens E-Mail",
+    "visit_uplift": 0.07398533502084667,
+    "conv_uplift": 0.005114658158926701
+  },
+  {
+    "segment": "both_buyer",
+    "email": "Mens E-Mail",
+    "visit_uplift": 0.13444402981969797,
+    "conv_uplift": 0.014994125201169455
+  },
+  {
+    "segment": "both_buyer",
+    "email": "Womens E-Mail",
+    "visit_uplift": 0.07110340975950782,
+    "conv_uplift": 0.005329795222847792
+  }
+]
