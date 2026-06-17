@@ -36,7 +36,7 @@ import {
   type SimulationStatus,
 } from "@/lib/api";
 import AppShellV2 from "@/components/v2/AppShellV2";
-import { Panel, Chip, StatusBadge, StatusDot, Button } from "@/components/v2";
+import { Panel, Button } from "@/components/v2";
 
 // How many capability cards the landing shows before deferring the rest to the
 // dedicated browse page (#207 — the landing stays bounded regardless of scale).
