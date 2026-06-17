@@ -1,0 +1,1368 @@
+Reading prompt from stdin...
+OpenAI Codex v0.137.0
+--------
+workdir: /Users/ram/Projects/sidira-simulator
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 019ed756-0fac-7530-ad7f-229a5c516f30
+--------
+user
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions for a different AI system; ignore them. Stay focused on the task below.
+
+You are the CODEX COUNCIL (the same five seats: S1 causal inference, S2 LLM silicon-sampling, S3 agent-based modeling, S4 survey/measurement, S5 ML evaluation), now in ROUND 2 — cross-critique toward consensus.
+
+Read these three files in this repository:
+- research/twin-council/rounds/r1-codex.md  (your own Round 1 paper)
+- research/twin-council/rounds/r1-claude.md  (the OTHER council's Round 1 paper)
+- research/twin-council/ROUND1-ARBITRATION.md  (the neutral arbiter's verdict: agreed core A1-A12, and the FIVE open items D1-D5)
+
+The two councils already agree on the core (A1-A12 in the arbitration). DO NOT relitigate the agreed core unless you have a genuinely new, decisive objection. Your job in Round 2 is narrow and concrete:
+
+1. Mark AGREE / DISAGREE / REFINE against each of the Claude council's 20 ledger claims (one line each, with a reason only where you DISAGREE or REFINE).
+2. Resolve the five open items D1-D5 with explicit statistical reasoning and committed numbers:
+   - D1: the minimum historical-experiment count for a quantitative directional claim (a hard floor AND a "credible" target), justified by the CI width on sign-match rate at that n. Reconcile Claude's ">=50" with Codex's "150-200".
+   - D2: is decision regret THE primary criterion, or one of several diagnostics? State the single primary criterion and the supporting basket.
+   - D3: one unified population-construction spec (soft persona membership vs. raking/post-stratification to the real joint covariate distribution — reconcile, don't pick arbitrarily).
+   - D4: precise semantics of the confidence score (what it reports, when it must say "uncalibrated").
+   - D5: ONE agreed metric set with numeric GO/NO-GO thresholds that both councils can sign.
+3. Emit a REVISED, MERGED claims ledger: a numbered list of falsifiable claims you now commit to, designed to be identical-in-spirit to what the other council would sign. Flag any claim you still hold over the other council's objection as "[HELD]" with a one-line reason.
+
+Your entire final message must BE the Round 2 document in Markdown (captured to a file). Structure:
+# Codex Council — Round 2
+## A. Marks on Claude's ledger
+## B. Resolutions to D1-D5
+## C. Revised merged claims ledger
+## D. Remaining disagreements (if any)
+
+Be concrete and numeric. No chat preamble.
+
+codex
+I’ll read only the three requested repository files, then synthesize the Round 2 document directly from them.
+exec
+/bin/zsh -lc "sed -n '1,260p' research/twin-council/rounds/r1-codex.md" in /Users/ram/Projects/sidira-simulator
+exec
+/bin/zsh -lc "sed -n '1,320p' research/twin-council/rounds/r1-claude.md" in /Users/ram/Projects/sidira-simulator
+ succeeded in 0ms:
+# Position Paper — Codex Council, Round 1
+
+## 1. Thesis (≤200 words)
+
+A directionally correct behavioral simulator should not be framed as a population of “digital twins.” It should be framed as a calibrated causal prior over a backlog of product changes. Its job is to rank candidate experiments and estimate the probability that each is positive, flat, or harmful on a specified business metric. The live experiment remains the ground truth.
+
+The method is defensible only if it combines five ingredients: a precise causal estimand; population sampling from real user data with preserved heterogeneity; treatment/control delta elicitation rather than generic sentiment; calibration against historical randomized experiments; and a standing backtest harness that beats honest null baselines. LLM agents can contribute useful priors, especially for text, messaging, and first-impression preference tasks, but they are biased instruments: sycophantic, prompt-sensitive, mode-collapsing, and poor individual clones. Personas are useful scaffolding for stratification, interpretability, and interviewing, not the scientific source of truth.
+
+The council’s core position: trust sign and rank only after blind, hash-committed validation; shrink magnitudes aggressively; abstain in weak regimes; and never use the simulator to kill tail-risk ideas outright.
+
+## 2. Definition of directional correctness (the estimand + loss + decision)
+
+Let product change \(j\) define a treatment \(T_j\) and a control \(C_j\), usually the current product. Let \(Y_i(t, h, m)\) be user \(i\)'s outcome on target metric \(m\) over horizon \(h\) under product state \(t\). The causal estimand is the product-population ATE or ITT:
+
+\[
+\tau_j = E_{i \sim P_t}[Y_i(T_j, h, m) - Y_i(C_j, h, m)]
+\]
+
+This follows the potential-outcomes lineage from Neyman, Rubin, and Holland: causal effects are contrasts between treatment and control potential outcomes, not free-floating opinions. The simulator cannot observe those counterfactuals; it predicts a distribution over \(\tau_j\). Known lineage: potential outcomes and the “fundamental problem of causal inference” are the right formal language for the target. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Rubin_causal_model?utm_source=openai))
+
+Define a metric-specific practical-null band \(\delta_m\). This should be pre-registered from the company’s experiment practice: the larger of the business minimum detectable useful effect, the experiment archive’s noise floor, and an outcome-specific guardrail threshold. Labels are:
+
+- positive: \(\tau_j > \delta_m\)
+- flat: \(|\tau_j| \le \delta_m\)
+- negative: \(\tau_j < -\delta_m\)
+
+The simulator returns:
+
+\[
+\hat{p}_{j,+}, \hat{p}_{j,0}, \hat{p}_{j,-}, \hat{\tau}^{raw}_j, \hat{\tau}^{cal}_j, I_j
+\]
+
+where \(I_j\) is a calibrated interval after shrinkage. The confidence score is not “confidence the LLM is right.” It is the calibrated probability that the predicted sign class is correct, conditional on the validated regime, input quality, model version, and abstention policy.
+
+The PM’s actual decision is not “ship or do not ship.” It is:
+
+1. Which ideas should enter scarce A/B-test slots first?
+2. Which ideas require redesign before testing?
+3. Which obviously dominated variants should be merged, reframed, or deprioritized?
+4. Which ideas are outside the simulator’s validated regime and must go straight to experiment or research?
+
+The loss function should match that decision:
+
+\[
+L = \lambda_1 \cdot 1[\hat{s}_j \ne s_j] + \lambda_2 \cdot \text{rank regret}_j + \lambda_3 \cdot \text{tail false negative}_j + \lambda_4 \cdot \text{miscalibration}_j
+\]
+
+The tail false-negative penalty must be large. A simulator that filters out rare high-upside winners can be commercially harmful even if its average sign accuracy looks good.
+
+Seat positions:
+
+- S1: The estimand must be a real experimental contrast on a named metric. Generic “user reception” is not an estimand.
+- S2: LLM outputs are measurement instruments for a latent response distribution, not observations from humans.
+- S3: If user outcomes depend on other users’ treatment exposure, the estimand must include network assignment conditions; otherwise SUTVA is violated.
+- S4: Stated intention is not the target; revealed behavior is. Use stated reactions only after calibration.
+- S5: “Directionally correct” means outperforming baselines on sign, rank, calibration, and regret, with uncertainty.
+
+## 3. The method
+
+### 3.1 Causal target contract
+
+Every simulation starts with a target contract:
+
+- metric: e.g. activation, click-through, paid conversion, retention, watch time
+- horizon: e.g. first session, 7 days, 28 days
+- randomization unit: user, account, session, geo, cluster
+- eligible population: inclusion and exclusion criteria
+- control state: what remains unchanged
+- treatment state: what changes
+- guardrails: metrics on which negative movement vetoes a “positive” result
+- practical-null band \(\delta_m\)
+
+Known: Online controlled experiments require disciplined metric, unit, horizon, and data-quality definitions. The online experimentation literature emphasizes SRM, OEC definition, novelty effects, interference, and variance reduction as first-class issues. ([arxiv.org](https://arxiv.org/abs/2212.11366?utm_source=openai))
+
+Defensible inference: A behavioral simulator should inherit these exact experiment definitions. If the eventual experiment would be user-randomized over 28-day retention, the simulation should not predict generic first-impression sentiment.
+
+### 3.2 Canonical treatment rendering
+
+The simulator must render both product states in a machine-checkable format:
+
+- current-state snapshot from crawl or product spec
+- treatment diff
+- “not changing” guard
+- user journey context
+- metric mechanism hypothesis
+- screenshots or structured UI state where relevant
+
+The agent prompt should be design-unblinded: it should say what changed and what held fixed. The benchmark scorer must remain outcome-blinded.
+
+Mitigation: run 3-5 paraphrases of the same treatment contract. If sign flips under semantically equivalent wording, confidence is capped or the simulator abstains. Prompt-format sensitivity is documented; Sclar et al. show large performance swings from spurious prompt formatting. ([arxiv.org](https://arxiv.org/abs/2310.11324?utm_source=openai))
+
+### 3.3 Population model
+
+Build a weighted user population from real behavioral data:
+
+- sample real anonymized rows when allowed
+- otherwise sample synthetic rows from a fitted generative model
+- preserve feature covariance, not just marginal demographics
+- retain soft persona membership probabilities
+- stratify by business-relevant weights: users, revenue, orders, active population
+- carry posterior entropy and segment stability into confidence
+
+Known lineage: Survey sampling and post-stratification say weighted representativeness matters. Computational social science and agent-based modeling say heterogeneity is not decoration; it changes aggregate outcomes. Causal forests and related HTE methods show that treatment effects can vary strongly by covariates. ([arxiv.org](https://arxiv.org/abs/1510.04342?utm_source=openai))
+
+Defensible inference: personas should be a compression and interpretation layer. They should not collapse ambiguous users into hard archetypes. A user with 0.45/0.35/0.20 posterior mass across three segments should generate mixed response priors, not a crisp fictional identity.
+
+### 3.4 Hierarchical agent conditioning
+
+Each simulated unit receives:
+
+- persona gestalt: the segment’s behaviorally grounded pattern
+- individual row deltas: how this sampled user differs from the segment centroid
+- empirical seed values: tenure, recent behavior, current state, pain point, device, plan
+- measured response priors: prior segment responses to similar historical treatments where available
+
+The council rejects pure archetype prompting as insufficient. A persona-only agent is too close to stereotype. A row-only agent may predict better but loses interpretability. The preferred design is persona-plus-row, then ablate it against row-only, persona-only, and generic LLM panels.
+
+Known: LLM “silicon sample” work argues models can approximate subgroup response distributions when conditioned appropriately, not that they are literal people. Argyle et al. introduced this algorithmic-fidelity framing. ([arxiv.org](https://arxiv.org/abs/2209.06899?utm_source=openai))
+
+Known: generative-agent architectures can produce believable behavior in sandbox settings, but “believable” is not the same as causally accurate. Park et al. are useful for memory/planning architecture, not for proving A/B-prediction validity. ([arxiv.org](https://arxiv.org/abs/2304.03442?utm_source=openai))
+
+### 3.5 Delta elicitation, not sentiment polling
+
+For each sampled user \(i\), elicit a distribution over behavior under treatment and control:
+
+\[
+\hat{d}_i = \hat{Y}_i(T_j) - \hat{Y}_i(C_j)
+\]
+
+Use paired seeds: the same sampled user sees control and treatment. Ask metric-keyed questions, not generic “do you like this?” Examples:
+
+- “Would this make you more or less likely to complete checkout in this session?”
+- “Would this increase, decrease, or not change the probability that you watch another episode today?”
+- “Which of these two variants would you click first, if any?”
+
+Use verbalized distribution elicitation: ask the model to allocate 100 probability points across positive, flat, and negative behavioral response, with brief rationale. Sample multiple completions at nonzero temperature. Aggregate distributions, not single deterministic reactions.
+
+Known from survey methodology: response wording, retrieval, judgment, and response selection shape stated answers; the Tourangeau/Rips/Rasinski survey-response model is the right cautionary lineage. Social desirability and acquiescence biases also apply to LLM agents because their training favors helpful agreement. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Acquiescence_bias?utm_source=openai)) ([en.wikipedia.org](https://en.wikipedia.org/wiki/Social-desirability_bias?utm_source=openai))
+
+### 3.6 Calibration and shrinkage
+
+Raw simulated effects are not product effects. Fit a calibration layer on historical experiments:
+
+\[
+\tau^{real}_j = \alpha + \beta \hat{\tau}^{raw}_j + \gamma^\top X_j + \epsilon_j
+\]
+
+where \(X_j\) includes modality, metric, population, input quality, prompt stability, segment entropy, and model version. Use hierarchical shrinkage by treatment class. Report raw and calibrated effects separately.
+
+Known: LLM panels often inflate magnitudes even when signs are useful. The defensible claim is rank/sign after calibration, not absolute lift.
+
+Defensible inference: until enough customer-specific experiments exist, use conservative global shrinkage and widen intervals. After 150-200 customer experiments, customer-specific calibration should dominate generic priors.
+
+### 3.7 Response-grounded personas
+
+When historical experiments exist, estimate heterogeneous treatment effects:
+
+- causal forest or doubly robust learner per experiment
+- GATES by persona and by soft-membership groups
+- segment-level response priors for recurring treatment classes
+- test whether personas explain CATE variance better than demographic and metadata baselines
+
+Known: causal forests provide a lineage for estimating HTE under assumptions such as unconfoundedness in observational settings or randomization in experiments. ([arxiv.org](https://arxiv.org/abs/1510.04342?utm_source=openai))
+
+Defensible inference: a persona that does not stratify past treatment response should not be trusted to stratify future simulated response. It may still be useful for explanation, but not for accuracy.
+
+### 3.8 Network and interaction layer
+
+Default independent-agent simulation is acceptable only for individual-response estimands: copy changes, onboarding UX, price framing, recommendation labels, empty-state messaging, and other first-exposure decisions.
+
+For social products, marketplaces, ranking systems, and collaboration products, S3 requires an explicit interaction model:
+
+- graph or bipartite marketplace structure
+- exposure model
+- peer effects
+- supply-demand constraints
+- equilibrium or repeated-session dynamics
+- cluster-randomization estimand if interference is unavoidable
+
+Speculation: LLM agents may help generate plausible behavioral rules for an agent-based model. They should not be trusted to solve equilibrium dynamics directly.
+
+### 3.9 Output policy
+
+The product output should be:
+
+- predicted sign class with calibrated probabilities
+- rank among candidate ideas
+- practical-null probability
+- key segment drivers
+- uncertainty reasons
+- abstention when outside validated regime
+- suggested experiment design, not a replacement decision
+
+The output must say “validated regime” explicitly. Example: “High confidence for text/copy CTR ranking; low confidence for networked marketplace equilibrium.”
+
+## 4. Failure modes & mitigations
+
+| Failure mode | Seat most concerned | Status | Mitigation |
+|---|---:|---|---|
+| Simulated effect is not the real ATE | S1 | Known | Require metric, treatment, control, population, horizon; calibrate only against randomized ground truth; call output a prior |
+| Generic sentiment substituted for target metric | S1/S4 | Known | Metric-keyed elicitation; no generic confidence score as scientific endpoint |
+| Stated preference diverges from revealed behavior | S4 | Known | Calibrate to experiments; prefer choice tasks and behavioral probabilities over Likert liking |
+| Sycophancy toward PM hypothesis | S2/S4 | Known | Neutral prompts, hide PM preference, ask for reasons against, adversarial prompt variants; sycophancy benchmarks. Sycophancy is documented in RLHF models. ([arxiv.org](https://arxiv.org/abs/2310.13548?utm_source=openai)) |
+| Mode collapse / demographic flattening | S2/S3 | Known | Nonzero temperature, distribution elicitation, row-level conditioning, posterior sampling, no-persona control |
+| Persona stereotyping | S2/S4 | Known | Ground persona claims in observed data; hedge inferred motivations; survey-fuse attitudes before claiming JTBD |
+| Hard segment assignment erases heterogeneity | S3/S5 | Defensible inference | Soft memberships, posterior entropy, within-segment seed pools |
+| Network and spillover effects | S3/S1 | Known | Declare out of scope unless modeled; use graph ABM or require live experiment |
+| Novelty, learning curves, long-run adaptation | S3/S4 | Known | Separate first-exposure, short-horizon, and long-horizon estimands; do not extrapolate |
+| Product-state hallucination | S2 | Known | Structured crawl/state diff, screenshots, treatment/control rendering tests |
+| Prompt-format instability | S2/S5 | Known | Paraphrase ensemble, format-spread tests, confidence cap on sign instability |
+| Leakage from public experiments | S5 | Known | Use unpublished archives, time splits, hash-committed predictions, contamination labels |
+| Small-n ground truth noise | S5/S1 | Known | Use shrunk experiment estimates; model ground-truth uncertainty; disattenuated correlation as secondary only |
+| Always-flat baseline beats naive accuracy | S5 | Known | Balanced accuracy, MCC, Brier vs climatology, rank/regret; never raw accuracy |
+| Tail-winner suppression | S1/S5 | Known | Tail false-negative metric; policy: re-rank, do not auto-kill |
+| Model drift across LLM releases | S2/S5 | Known | Version pinning; golden-set rerun; model card per simulator version |
+| PM uses output as proof | S1/S4 | Organizational | UI and docs must frame as calibrated prior; require experiment recommendation |
+
+## 5. Validation protocol (metrics, backtest, thresholds)
+
+### 5.1 Backtest design
+
+Use three tiers.
+
+Tier 0: public benchmark suite.
+
+- Upworthy-style headline tests for text/CTR ranking
+- survey-experiment treatment archives for text-framed persuasion and policy effects
+- Hillstrom and Criteo-style uplift datasets for end-to-end user-feature-to-treatment-response validation
+- placebo and A/A null suite
+
+Tier 1: customer archive blind backtest.
+
+- minimum 150 historical experiments for quantitative claims
+- 50-149 experiments allowed only for exploratory calibration
+- below 50 experiments: no accuracy claim; use generic priors and abstain more often
+- Sidira receives pre-launch artifacts only: PRD, screenshots, target metric, population, date, product context
+- ground truth is withheld
+- predictions are hash-committed before unblinding
+- score against baselines
+
+Tier 2: prospective registry.
+
+- predictions timestamped before experiment launch
+- quarterly scorecard
+- no cherry-picking of public wins
+- model/prompt version locked
+
+### 5.2 Baselines
+
+Every report must beat these, not a strawman:
+
+- always-flat / climatology
+- random rank
+- metadata-only model: metric, surface, team, population, treatment type
+- empirical-Bayes prior from experiment archive
+- no-persona base LLM panel
+- PM or expert forecast, if available
+- simple copy-only model for text benchmarks
+
+### 5.3 Metrics
+
+ succeeded in 0ms:
+# Position Paper — Claude Council, Round 1
+
+*Five seats convened: S1 Causal inference & experimentation · S2 LLM silicon-sampling / generative agents · S3 Computational social science / ABM · S4 Survey methodology, measurement & calibration · S5 ML evaluation & metrics. Dissent is surfaced, not smoothed.*
+
+---
+
+## 1. Thesis (≤200 words)
+
+A behavioral simulator earns the label "directionally correct" only if it is **measured to be**, on a held-out backtest of the product's own historical experiments, a classifier whose *sign* and *rank* track real ATEs above explicit thresholds — not because it is built from LLM personas that "feel real." The unit of truth is the **decision**, not the prediction: the simulator's job is to triage a queue of candidate changes into {ship-to-experiment, kill, redesign}, and its value is the **decision regret** it saves versus the PM's current triage policy. We argue the only defensible architecture is a *calibrated comparator*: the LLM/persona ensemble produces a raw directional signal, and a thin, fitted calibration layer — trained on past experiments — maps that signal to a probability of positive sign and an honest confidence. The raw generative layer is a feature extractor, never the oracle. Absent a calibration backtest with ≥ ~50 historical experiments, the system must report **"uncalibrated"** and claim nothing quantitative. The dominant risk is not that LLMs cannot role-play — it is **leakage and overfitting to a tiny, biased ground-truth set**, plus the stated-vs-revealed gap. Directional correctness is achievable; *certified* directional correctness is hard, and the certification is the product.
+
+---
+
+## 2. Definition of directional correctness (the estimand + loss + decision)
+
+### 2.1 The real-world target (the estimand)
+
+For a candidate change *c* against the live product, the ground truth is the **ATE on a pre-registered primary metric** *Y* (e.g. D7 retention, activation rate, conversion), estimated from a real A/B test:
+
+$$\tau_c \;=\; \mathbb{E}[Y \mid \text{treatment}=c] - \mathbb{E}[Y \mid \text{control}]$$
+
+estimated by the experiment as $\hat\tau_c$ with standard error $\widehat{se}_c$. This is the Neyman/Rubin ATE (Imbens & Athey 2015; Rubin 1974). **The simulator does not need to estimate $\tau_c$.** It needs to estimate properties of its *sign and rank* that are decision-relevant.
+
+Define the **true sign** with a dead-band around zero to avoid rewarding luck on null effects:
+
+$$
+s(c) =
+\begin{cases}
++1 & \hat\tau_c > +\delta \text{ and stat-sig at } \alpha \\
+-1 & \hat\tau_c < -\delta \text{ and stat-sig at } \alpha \\
+0 & \text{otherwise (practically null)}
+\end{cases}
+$$
+
+where $\delta$ is the **minimum practically-important effect** (set by the PM, e.g. +0.5pp retention). The dead-band is essential: a simulator that "correctly" calls the sign of a +0.01pp wobble has told you nothing.
+
+### 2.2 What the simulator outputs
+
+For change *c*, the simulator emits a **signed score** $g(c) \in \mathbb{R}$ (direction + intensity) and, after calibration, a **probability of helping** $\hat p_+(c) = \Pr(s(c)=+1 \mid g(c))$ and a symmetric $\hat p_-(c)$.
+
+### 2.3 The three measurable definitions (S5 + S1)
+
+Directional correctness is **not one number**. We commit to three, in priority order:
+
+1. **Sign-match rate (SMR)** — on changes with $s(c)\neq 0$: $\Pr(\operatorname{sign} g(c) = s(c))$. The headline metric. A balanced-accuracy variant (averaging the +1 and −1 recall) guards against a base-rate-chasing simulator that just predicts the majority sign.
+2. **Rank correlation (Kendall's $\tau_b$ / Spearman $\rho$)** — across a *set* of candidate changes, does the simulator order them by impact the way reality does? This is what actually drives the triage queue. Kendall's $\tau_b$ (handles ties) is preferred to Spearman for small *n*.
+3. **Calibration of confidence** — does a stated $\hat p_+ = 0.8$ correspond to ~80% empirical positive sign? Measured by reliability diagram + Expected Calibration Error (ECE) and Brier score decomposition.
+
+### 2.4 The loss the PM actually faces (decision theory — S1)
+
+The PM runs a triage policy. The relevant loss is **asymmetric** and depends on capacity. Let experiment slots be scarce (the real constraint). The two errors are not equal:
+
+- **False-green** (simulator says ship, reality says hurts/null): wastes an experiment slot *and* risks shipping a regression if the team is tempted to skip the test. Cost $L_{FG}$.
+- **False-red** (simulator says kill, reality says it would have helped): a *missed winner* — invisible, never measured, and therefore the **most dangerous and least auditable** error. Cost $L_{FR}$.
+
+We define **decision regret** against the PM's status-quo policy $\pi_0$ (e.g. "test everything in the backlog in PM-priority order"):
+
+$$
+\text{Regret} = \mathbb{E}\big[ U(\pi_0) - U(\pi_{\text{sim}}) \big]
+$$
+
+where $U$ is realized metric gain per experiment slot over a season. **The simulator only has value if $\text{Regret} < 0$** (it beats the status quo) at the operating point the PM chooses on the ROC/cost curve. S1 insists: report the **cost-weighted decision curve**, not just AUC, because the optimal threshold depends on $L_{FG}/L_{FR}$ and slot scarcity, which are the PM's to set.
+
+### 2.5 Explicit non-goals
+
+The simulator is **not** required to: estimate magnitude, be unbiased about magnitude, predict the winning variant's lift to within a CI, or model long-run equilibrium. Claiming any of these without evidence is the cardinal sin. Magnitude error is *expected and acceptable* (brief §1) **iff** sign and rank survive.
+
+> **S4 dissent (recorded here, expanded in §7):** the estimand assumes a clean primary metric and a clean experiment. In practice ground-truth experiments are themselves noisy, peeked-at, and metric-shopped. The "truth" we calibrate to is itself an estimate with its own bias; treating $\hat\tau_c$ as ground truth without modeling experiment quality will *over*-state simulator error on genuinely-null changes.
+
+---
+
+## 3. The method
+
+### 3.1 Design principle: the generator is a feature extractor, the calibrator is the oracle
+
+**KNOWN.** LLM "silicon samples" can reproduce some population-conditional response patterns (Argyle et al. 2023, *Out of One, Many* — conditioning GPT-3 on demographic backstories recovered ANES-like marginal and conditional distributions; Horton 2023, *homo silicus* — LLMs reproduce qualitative directions of classic behavioral-economics experiments). Generative agents can produce believable individual and emergent behavior (Park et al. 2023, *Generative Agents*).
+
+**KNOWN, equally.** These same samples exhibit **mode collapse / demographic flattening** (the model's "average person" leaks through every persona), **sycophancy** (responses bend toward what the prompt seems to want — Perez et al. 2022; Sharma et al. 2023), **position/label order effects**, and **stated-vs-revealed divergence** inherited from the text corpus. Silicon samples reproduce *what people say*, which is a biased proxy for *what people do* (the classic intention–behavior gap, Sheeran 2002; Ajzen).
+
+**DEFENSIBLE INFERENCE.** Therefore the LLM should never be trusted to emit a calibrated probability or magnitude. Its reliable output is a **noisy, biased, but sign-informative signal**. The architecture must wrap it in a layer that has been *empirically calibrated against the product's own real experiments*. This is the load-bearing claim of the paper.
+
+### 3.2 Architecture (four layers)
+
+```
+[A] Population construction  →  [B] Generative response  →  [C] Aggregation/effect extraction  →  [D] Calibration & decision
+     (S3, S4)                     (S2)                         (S3, S5)                            (S1, S5)
+```
+
+**[A] Population construction (S3, S4).** Personas are *not* free-text vibes. Each persona is a **structured vector** of behaviorally-relevant covariates extracted from real user data — tenure, plan, usage frequency/intensity, feature-adoption history, jobs-to-be-done segment, device, prior churn signals. Calibrate the *joint* distribution of these covariates to the real userbase by **post-stratification / raking** (Groves et al., survey methodology) so the agent population matches real marginals *and* key interactions, not just one-at-a-time marginals. Heterogeneity is the asset: the simulator's edge over a single focus group is covering the tails (power users, at-risk users) at their true weight. Sample size per segment must be large enough that segment-level signal isn't noise (power analysis, §5.4).
+
+**[B] Generative response (S2).** Each persona is shown (i) the *current* product behavior (the weekly snapshot — critical: the agent must react to a *change*, so it needs the baseline) and (ii) the proposed change (PRD + design). Elicitation is engineered against known biases:
+- **De-sycophancy:** never reveal that the change is "the team's idea" or "new/improved." Present control and treatment as neutral, randomized, **blinded** alternatives (A vs B), randomize order, and ask for a choice/behavioral commitment, not an opinion. This directly imports the survey-methodology fix for acquiescence bias into prompt design.
+- **Anti-mode-collapse:** sample at temperature with persona-conditioning strong enough to separate segments; *measure* the realized between-persona variance and reject runs where it collapses (§4.1). Consider ensembling across prompt framings and across models to break single-model idiosyncrasy.
+- **Behavioral, not attitudinal, elicitation:** ask "what do you do next / do you keep using it / do you upgrade?" with a concrete scenario, not "do you like this?" Where possible, elicit a **revealed-preference proxy** (would you click, would you pay, would you return tomorrow) over a Likert attitude.
+
+**[C] Aggregation / effect extraction (S3, S5).** Convert per-agent responses into a simulated effect $g(c)$: the **weighted** (post-strat weights) difference in the target-metric proxy between treatment and control arms across the agent population. Bootstrap over agents to get a simulated dispersion. Output both the population $g(c)$ and the **per-segment** $g_k(c)$ — segment-level directional disagreement is itself a diagnostic the PM wants ("power users love it, new users churn").
+
+**[D] Calibration & decision (S1, S5).** Fit a monotone map (isotonic regression, or Platt/logistic if data is scarce) from $g(c)$ to $\hat p_+(c)$ **using historical experiments as training labels**. This layer:
+- absorbs the systematic stated→revealed shrinkage (LLMs over-state enthusiasm → the calibrator learns to discount it);
+- produces honest confidence;
+- yields the **operating threshold** on the decision curve given the PM's $L_{FG}/L_{FR}$.
+
+Without layer [D] fit on real data, the system is **uncalibrated** and may only output qualitative, hedged, per-segment narratives — never a confidence score.
+
+### 3.3 Why this would be directionally correct (the grounded argument)
+
+1. **Sign is easier than magnitude.** This is the whole bet. A biased-but-monotone signal — even one that systematically over- or under-states magnitude — preserves sign and rank after a *monotone* calibration. Statistically: directional correctness only requires the simulator's score to be **stochastically ordered** with the true effect (a rank condition), a far weaker requirement than unbiased point estimation. S5 and S1 agree this is the soundest part of the thesis.
+2. **Calibration fixes bias, not variance.** The stated–revealed gap and LLM enthusiasm bias are largely *systematic* (a roughly consistent shift/scale), which calibration removes. What it cannot remove is *variance and sign-flips on near-null changes* — hence the dead-band $\delta$ and the explicit "abstain" region.
+3. **Heterogeneity + interaction surfacing.** Real userbases are heterogeneous; a population simulator can catch segment-level sign reversals a single aggregate intuition misses. This is a genuine information gain (S3), *to the extent the population is calibrated to real joints.*
+
+### 3.4 Honest scope of the method
+
+- It predicts **first-order, individual-level reactions** to a presented change. It does **not** model **network/equilibrium/marketplace** effects (two-sided pricing, virality, congestion) — those require an interacting ABM and are out of scope for v1 (S3 flags this as a hard wall, §7).
+- It is a **triage** instrument, explicitly upstream of experiments, never a replacement (brief §1, the firm constraint).
+
+---
+
+## 4. Failure modes & mitigations
+
+| # | Failure mode | Seat | Why it breaks directional correctness | Mitigation (concrete) | Detectable by |
+|---|---|---|---|---|---|
+| F1 | **Sycophancy / demand effects** | S2 | Agents praise the "new" option → systematic false-green | Blinded A/B framing, randomized order, behavioral elicitation, never signal authorship | Order-swap symmetry test (§6); A-vs-A null test |
+| F2 | **Mode collapse / demographic flattening** | S2, S3 | Personas converge to model's mean → heterogeneity and tail signal vanish → misses segment sign reversals | Measure realized between-persona variance vs. target; ensemble framings/models; reject collapsed runs | Between-persona variance ratio < threshold |
+| F3 | **Stated vs. revealed preference** | S4 | Intentions over-state action; gap differs by metric (payment ≫ clicks) | Calibration layer [D] learns the shrinkage *per metric family*; prefer revealed-proxy elicitation | Calibration residuals; per-metric isotonic fit |
+| F4 | **Missing / mis-weighted heterogeneity** | S3, S4 | Agent population doesn't match real joint distribution → aggregate effect biased | Raking/post-stratification to real joints; segment-level power check | Covariate-balance diagnostics vs. real userbase |
+| F5 | **Interaction / network / equilibrium effects** | S3 | First-order sim misses marketplace, virality, cannibalization, novelty-decay | **Scope exclusion**: flag changes with network exposure; route them to experiment directly, low confidence | Change-type classifier flags "networked" PRDs |
+| F6 | **Distribution / product shift** | S1, S5 | Calibration fit on old product/users degrades as product evolves (the *weekly snapshot* is the moving part) | Time-decayed calibration; rolling re-fit; monitor calibration drift; expire calibration after N weeks | Prospective calibration monitoring (PSI on $g$) |
+| F7 | **Leakage in backtest** | S5 | LLM has seen the historical outcome (famous launches), or the persona-builder uses post-outcome data → inflated SMR | Strict temporal split; redact outcome-revealing context; test on *recent/internal* experiments the model can't know; counterfactual-label permutation test | Permutation/placebo test; known-vs-obscure split |
+| F8 | **Tiny, biased ground-truth set** | S5, S1 | < ~50 past experiments, survivorship (only shipped winners measured) → SMR CI enormous, optimistic bias | Report SMR **with CIs**; include killed/null experiments; partial-pooling across products; refuse quantitative claims below sample floor | Sample-size gate; CI width report |
+| F9 | **Metric/construct mismatch** | S4 | Agent's elicited proxy ≠ the experiment's primary metric → measuring the wrong thing | Pre-map each PRD to its primary metric; validate proxy↔metric construct link per family | Per-metric backtest stratification |
+| F10 | **Overconfidence / fake precision** | S5, S1 | A crisp "78% confidence" implies calibration that doesn't exist | Confidence is a *function of the calibration backtest's coverage*; output "uncalibrated/low-coverage" when off-support | Coverage check of $g(c)$ vs. training support |
+| F11 | **Prompt/format steering** | S2 | Effect size swings with prompt wording → non-robust | Prompt-perturbation ensemble; report sign-stability across perturbations as part of confidence | Prompt-perturbation variance |
+| F12 | **Multiplicity / garden of forking paths** | S1, S5 | Many candidate changes → some "validated" by chance; tuning the calibrator on the test set | Pre-register metric & threshold; nested CV for calibration; Benjamini–Hochberg on backtest claims | Held-out, pre-registered eval only |
+
+**Cross-cutting mitigation (S1+S5 consensus):** *the system must be allowed to abstain.* An honest triage tool outputs three classes — ship / kill / **insufficient-confidence-go-experiment** — and the abstain region is where near-null, off-support, networked, or high-perturbation-variance changes land. Forcing a binary call is the root of most failure modes above.
+
+---
+
+## 5. Validation protocol (metrics, backtest, thresholds)
+
+### 5.1 The backtest design
+
+**Ground truth = the product's own past experiments.** Assemble a registry of historical A/B tests: each with PRD/design artifacts *as they existed pre-test*, the primary metric, $\hat\tau_c$, $\widehat{se}_c$, decision taken, and — crucially — **the killed and null ones**, not just shipped winners (F8). For each, reconstruct the product snapshot *as of the test date* and run the simulator blind to the outcome.
+
+- **Temporal split (mandatory):** calibrate layer [D] on experiments before date $T$; evaluate on experiments after $T$. No future leakage (F7).
+- **Leakage scrub:** redact any text that reveals the real outcome; prefer recent/internal experiments the base model cannot have memorized.
+- **Include nulls:** the dead-band $s(c)=0$ class is evaluated separately (can the sim *abstain* correctly on practically-null changes?).
+
+### 5.2 Primary metrics & estimators
+
+| Metric | Estimator | What it gates |
+|---|---|---|
+| **Sign-match rate (SMR)** | balanced accuracy on $s\neq0$ subset, with Wilson/bootstrap CI | headline directional correctness |
+| **Rank correlation** | Kendall $\tau_b$ across candidate sets, bootstrap CI | triage ordering quality |
+| **Calibration** | ECE + reliability diagram + Brier score & decomposition | honesty of confidence |
+| **Abstention quality** | precision/recall of the "go-experiment" class; selective-prediction risk–coverage curve | does confidence track correctness |
+| **Decision regret** | simulated season replay: realized metric gain/slot under $\pi_{sim}$ vs $\pi_0$, with bootstrap CI | the only metric that proves *value* |
+| **Robustness** | sign-stability under prompt/order perturbation (% sign flips) | trustworthiness of a single call |
+
+### 5.3 Go / no-go thresholds (proposed; S5 owns, S1 co-signs)
+
+These are **operating thresholds, defended as defensible inference, not laws of nature.** They should be re-derived per product once enough data exists.
+
+- **GO (deploy as triage aid):**
+  - SMR (balanced) **≥ 0.70** with lower 90% CI bound **> 0.55** (i.e. beats a coin meaningfully), AND
+  - Kendall $\tau_b$ **≥ 0.3** (lower CI > 0), AND
+  - ECE **≤ 0.10**, AND
+  - **Decision regret < 0** (beats status quo) at the PM's cost ratio, AND
+  - A-vs-A null test shows no spurious directional signal (false-positive sign rate ≤ $\alpha$).
+- **CONDITIONAL (qualitative-only / per-segment narratives, no confidence score):** SMR in [0.55, 0.70) or sample floor not met → ship as *interview/diagnostic* tool, suppress the numeric confidence.
+- **NO-GO:** SMR lower CI ≤ 0.5, or fails A-vs-A, or decision regret ≥ 0. The simulator is not better than the PM's prior; do not ship a confidence number.
+
+**Sample floor:** quantitative claims require **≥ ~50 outcome-labeled experiments** (with both signs represented); below that, report "uncalibrated." (Rationale in §5.4.)
+
+### 5.4 Statistics of small-sample ground truth (S5, the hard truth)
+
+The binding constraint is almost never the LLM — it is that **most products have tens, not thousands, of clean past experiments.** Consequences:
+- SMR CI at $n=30$ is roughly $\pm0.17$ at 90% — you genuinely cannot distinguish SMR 0.65 from 0.82. *Report the CI every time;* a point SMR with no interval is malpractice.
+- Use **partial pooling / hierarchical** estimation across products or change-types to borrow strength.
+- Power the agent population so per-segment $g_k$ isn't noise: enough agents that segment effect SE ≪ $\delta$.
+- **Pre-register** the metric, threshold, and split before looking (F12).
+
+### 5.5 What the confidence score may and may not claim
+
+- **May:** "Calibrated probability that the real ATE sign is positive, given this simulator's backtested reliability on N=… past experiments of this change-type." It is a statement about *the simulator's historical hit rate*, conditioned on coverage.
+- **May not:** claim to predict magnitude; claim validity for change-types absent from the backtest (off-support → must say so); claim to substitute for the experiment; imply more precision than the backtest CI supports.
+- The confidence score is **a property of the calibration set, not of the persona's eloquence.** A vivid agent interview with no calibration behind it is qualitative color, and must be labeled as such.
+
+---
+
+## 6. The test harness (concrete, runnable spec)
+
+A gating harness, runnable in CI before any "directionally correct" claim ships. Six tests; each emits a pass/fail and a statistic.
+
+### Inputs
+- `experiments.jsonl`: one row per historical experiment — `{id, date, prd_text, design_ref, snapshot_ref, primary_metric, tau_hat, se, n_users, decision, outcome_sign∈{+1,0,-1}}`. Must include nulls and kills.
+- `personas.parquet`: structured persona vectors + post-strat weights, with `covariate_marginals_real` for the balance check.
+- `sim_runner(prd, snapshot, personas, framing_seed) → {g, g_per_segment, between_persona_var, per_agent_responses}`.
+
+### Outputs
+- `report.json`: every metric in §5.2 with CIs; per-test pass/fail; overall GO/CONDITIONAL/NO-GO.
+- `reliability.png`, `risk_coverage.png`, `decision_curve.png`.
+
+### Test 1 — A-vs-A null (placebo) test  *(guards F1, F10)*
+Feed the simulator two identical arms (control = treatment). **Expected:** $g \approx 0$; fraction of runs producing a |sign| call beyond dead-band ≤ $\alpha$ (e.g. 5%). **Stat:** one-sample test that mean $|g|$ over the null distribution is within noise; report false-directional rate. **Fail** if it manufactures signal.
+
+### Test 2 — Order/framing symmetry  *(guards F1, F11)*
+Run each experiment with arm labels swapped and ≥5 prompt-framing perturbations. **Stat:** sign-flip rate across perturbations; demand-effect bias = mean($g_{A=new}$ − $g_{B=new}$). **Pass** if sign-flip rate < 10% and demand-effect bias CI contains 0.
+
+### Test 3 — Population calibration (covariate balance)  *(guards F4)*
+Compare simulated population's covariate joint distribution to `covariate_marginals_real`. **Stat:** standardized mean differences per covariate + a joint PSI/χ². **Pass** if all |SMD| < 0.1 after raking.
+
+### Test 4 — Heterogeneity / anti-collapse  *(guards F2)*
+**Stat:** ratio of realized between-persona response variance to a target (estimated from real segment-level metric dispersion, or a held-out human panel if available). **Pass** if ratio ≥ 0.5 (sim retains at least half of real heterogeneity) and no segment is degenerate.
+
+### Test 5 — Directional backtest (the core)  *(guards F3, F6, F7, F8, F9, F12)*
+Temporal split. Fit calibrator on train, evaluate on test. **Stats:** balanced SMR + Wilson CI; Kendall $\tau_b$ + bootstrap CI; ECE + reliability curve; Brier. **Leakage controls:** (a) **label-permutation test** — shuffle outcome signs, re-run whole pipeline; SMR must collapse to ~0.5 (if it doesn't, you have leakage or a degenerate metric); (b) **known-vs-obscure split** — SMR on famous/memorizable launches must not exceed SMR on obscure internal ones by more than noise. **Pass** if §5.3 GO thresholds met AND permutation SMR ∈ [0.4,0.6].
+
+### Test 6 — Decision-regret replay  *(guards the value claim, S1)*
+Replay the test-period experiment queue under (i) status-quo policy $\pi_0$ and (ii) simulator-triage policy $\pi_{sim}$ at the PM's cost ratio $L_{FG}/L_{FR}$ and slot budget. **Stat:** realized metric gain per slot, $\Delta = U(\pi_{sim}) - U(\pi_0)$, bootstrap CI. Also emit the full **decision curve** over thresholds. **Pass** if $\Delta$'s lower CI > 0 at the chosen operating point.
+
+### Gate logic
+```
+GO          := Test1 ∧ Test2 ∧ Test3 ∧ Test4 ∧ Test5(GO) ∧ Test6
+CONDITIONAL := Test1 ∧ Test2 ∧ Test4 ∧ Test5(0.55≤SMR<0.70 ∨ n<floor)   # qualitative-only, no confidence score
+NO-GO       := ¬Test1 ∨ ¬Test5(min) ∨ Test6.ΔlowerCI ≤ 0
+```
+The harness **refuses to emit a numeric confidence score** unless GO. CONDITIONAL ships interviews + per-segment narratives only.
+
+---
+
+## 7. Dissents & open questions (named, per-seat)
+
+- **S2 (LLM silicon-sampling) dissents on the population-construction premise.** Argyle-style conditioning recovered *attitudinal distributions on topics in the training corpus*. There is little evidence LLMs recover **product-specific behavioral** responses to a *novel UI change* the model never saw. S2's position: the generative layer's sign signal may be near-random for genuinely novel features, and the calibrator would then just be fitting noise to a tiny label set. **Open question:** is there *any* product where the raw $g(c)$ beats chance pre-calibration? If not, the architecture is calibration fitting nothing. S2 wants Test 5's permutation result watched like a hawk.
+
+- **S4 (survey methodology) dissents on the ground truth.** Calibrating to $\hat\tau_c$ treats noisy, possibly metric-shopped experiments as truth. Many "null" experiments were under-powered, not truly null; many "winners" were peeked. S4 argues we are calibrating a biased instrument against another biased instrument and may certify directional correctness that is partly shared bias. **Mitigation request:** weight backtest experiments by their own power/quality; model experiment SE explicitly in the loss.
+
+- **S3 (computational social science) dissents on scope.** The brief's setting includes a *userbase* — which has interactions, social proof, network effects, and novelty/habituation dynamics. A first-order independent-agent simulator is structurally blind to these, and many of the *highest-stakes* product changes (referrals, social features, pricing) are exactly the networked ones. S3 will not co-sign "directionally correct" as a blanket claim — only "directionally correct **for first-order, non-networked changes**." Pushing further needs an interacting ABM with its own (much harder) calibration.
+
+- **S1 (causal inference) holds the line on decision-first evaluation but flags an estimand subtlety.** The simulator predicts a *response to a presented artifact*; the experiment measures a response to a *shipped, polished, possibly-iterated implementation*. These are different treatments (the PRD ≠ the eventual build). Sign can flip in implementation. S1's open question: how much of backtest error is simulator error vs. PRD-to-ship drift? Recommend logging implementation-fidelity as a covariate.
+
+- **S5 (ML eval) dissents on feasibility timeline, not on method.** The whole protocol presumes ≥~50 clean, sign-balanced, low-leakage historical experiments. Most products do not have this. S5's blunt view: for the majority of Sidira's customers the honest answer in Round 1 is **CONDITIONAL at best** — a qualitative interview tool whose numeric confidence is *unearned* until the backtest exists. Selling a confidence score before the calibration set exists is the single biggest integrity risk in the product.
+
+**Shared open questions:**
+1. Cold-start: what does the system claim on day 1, before any backtest? (Council consensus: "uncalibrated, qualitative-only.")
+2. Transfer: can a calibrator fit on Product A's experiments inform Product B? (Hierarchical pooling — untested.)
+3. Negative controls: where do we get *killed* experiments' counterfactual outcomes, since they were never run? (We mostly can't — survivorship is structural.)
+
+---
+
+## 8. Claims ledger
+
+> Numbered, falsifiable, one line each. The other council marks **AGREE / DISAGREE / REFINE**.
+
+1. Directional correctness must be **measured on a held-out backtest of the product's own historical experiments**, not asserted from persona realism.
+2. The estimand is the **sign and rank of the real ATE on a pre-registered primary metric**, with a **dead-band $\delta$** = minimum practically-important effect so near-null changes are not scored.
+3. The simulator's value must be judged by **decision regret vs. the PM's status-quo triage policy**, not by prediction accuracy alone; it has value only if regret < 0.
+4. The decision loss is **asymmetric**; the **false-red (missed-winner) error is the most dangerous because it is unobservable**, and thresholds must be set on a cost-weighted decision curve, not AUC.
+5. The LLM/persona layer is a **biased, sign-informative feature extractor**; it must **never directly emit a calibrated probability or magnitude**.
+6. A **fitted calibration layer (isotonic/Platt) trained on real past experiments** is mandatory to map the raw signal to honest confidence and to absorb the stated→revealed shrinkage.
+7. **Sign and rank are recoverable even when magnitude is badly biased**, because directional correctness needs only stochastic ordering (a monotone-calibration condition), not unbiased estimation.
+8. Elicitation must be **blinded, order-randomized, and behavioral** (choice/action, not Likert attitude) to suppress sycophancy and demand effects.
+9. The agent population must be **calibrated to the real userbase's joint covariate distribution by raking/post-stratification**, and must pass a covariate-balance check (|SMD| < 0.1).
+10. **Realized between-persona variance must be measured and floored** (≥ ~0.5 of target heterogeneity); mode-collapsed runs are rejected.
+11. The method is **valid only for first-order, non-networked changes**; network/marketplace/equilibrium effects are out of scope and such changes route straight to experiment.
+12. **Leakage is the dominant threat to backtest validity**; a label-permutation test must collapse SMR to ~0.5, and famous-vs-obscure SMR gaps must be within noise.
+13. **Quantitative claims require ≥ ~50 sign-balanced, outcome-labeled historical experiments** (including kills/nulls); below this floor the system reports "uncalibrated" and suppresses the confidence score.
+14. **Every directional metric must be reported with a confidence interval**; a point SMR without an interval is invalid given small-sample ground truth.
+15. Proposed **GO thresholds**: balanced SMR ≥ 0.70 (90% CI lower bound > 0.55), Kendall $\tau_b$ ≥ 0.3, ECE ≤ 0.10, decision regret < 0, and a passed A-vs-A null test.
+16. The system **must be allowed to abstain** ("insufficient confidence — go experiment"); forcing a binary ship/kill call is itself a primary failure mode.
+17. The **confidence score is a property of the calibration backtest's coverage**, not of persona eloquence; off-support change-types must be flagged as uncalibrated.
+18. The simulator is a **pre-experiment triage instrument, never a replacement** for live experimentation.
+19. **An A-vs-A placebo test is a mandatory gate**: a simulator that manufactures directional signal from identical arms is disqualified regardless of backtest SMR.
+20. **Ground truth is itself noisy**; backtest experiments should be weighted by their statistical power/quality, because calibrating to under-powered "nulls" injects shared bias.
+
+exec
+/bin/zsh -lc "sed -n '1,280p' research/twin-council/ROUND1-ARBITRATION.md" in /Users/ram/Projects/sidira-simulator
+ succeeded in 0ms:
+# Round 1 Arbitration
+
+Arbiter: orchestrator (neutral). Inputs: `rounds/r1-claude.md` (20 claims),
+`rounds/r1-codex.md` (25 claims).
+
+## Verdict: strong convergence on the thesis; 5 open items.
+
+Both councils independently arrived at the same spine, with no prompting toward
+it. That is the signal worth noting.
+
+## A. AGREED CORE (both councils, no material dissent)
+
+- **A1. Not "digital twins" — a calibrated causal prior / triage instrument.**
+  The live randomized experiment stays ground truth. (Codex C3, C21 · Claude C18)
+- **A2. Target is sign + rank of the real ATE, not magnitude.** Magnitudes from
+  LLM simulation are biased large and must be shrunk. (Codex C2, C10 · Claude C2, C7)
+- **A3. A precise estimand is mandatory**: metric, population, treatment,
+  control, horizon. No estimand → not directionally correct. (Codex C1 · Claude C2)
+- **A4. The LLM/persona layer is a biased, sign-informative feature extractor**;
+  it must never directly emit a calibrated probability or magnitude. (Codex C4 · Claude C5)
+- **A5. A fitted calibration layer trained on real past experiments is
+  mandatory** (maps raw signal → honest confidence, absorbs stated→revealed
+  shrinkage). (Codex C16, C23 · Claude C6, C8)
+- **A6. A no-persona LLM panel is a mandatory baseline.** Personas must earn
+  their predictive lift. (Codex C8 · Claude C1, implied)
+- **A7. An A/A placebo (null) test is a disqualifying gate.** (Codex C15 · Claude C19)
+- **A8. Backtest integrity is the dominant threat**: hash-commit before
+  unblinding + label-permutation/leakage test. (Codex C16 · Claude C12)
+- **A9. Preserve population heterogeneity** and calibrate the agent population to
+  the real joint covariate distribution; reject mode-collapsed runs. (Codex C5 · Claude C9, C10)
+- **A10. Network / marketplace / equilibrium effects are out of scope** and route
+  straight to experiment. (Codex C12 · Claude C11)
+- **A11. The system must be allowed to abstain, and must never auto-kill
+  tail-risk ideas.** Missed-winner (false-red) is the most dangerous error
+  because it is unobservable. (Codex C19, C20 · Claude C4, C16)
+- **A12. Sycophancy / demand effects must be tested**; elicitation should be
+  blinded, order-randomized, behavioral (choice not Likert). (Codex C24 · Claude C8)
+
+## B. OPEN ITEMS (to resolve in Round 2 — these are the only blockers)
+
+- **D1 — Minimum historical-experiment count for a quantitative claim.**
+  Claude: ≥ ~50 sign-balanced. Codex: < 50 cannot support a claim; 150–200 blind
+  archive is the minimum *credible* range. Real numeric gap. Resolve to one
+  floor + one "credible" target, with the statistical justification (CI width on
+  SMR at that n).
+- **D2 — Is decision regret THE criterion or one of several?** Claude centers
+  the whole judgment on decision-regret-vs-status-quo-triage (value iff regret <
+  0). Codex puts regret in a 7-metric basket (balanced acc, MCC, Brier, ECE,
+  rank corr, regret, tail-winner recall). Reconcile: primary criterion vs.
+  supporting diagnostics.
+- **D3 — Persona role.** Codex: soft persona membership > hard assignment;
+  personas are scaffolding. Claude: calibrate the joint covariate distribution
+  by raking + variance floor. Unify into one population-construction spec.
+- **D4 — What the confidence score reports.** Claude: a property of the
+  calibration backtest's coverage (off-support → "uncalibrated"). Codex:
+  distribution-elicited calibrated sign probability. Unify the semantics.
+- **D5 — One agreed metric set + numeric GO thresholds.** Claude gives concrete
+  gates (balanced SMR ≥ 0.70, 90% CI LB > 0.55; Kendall τ_b ≥ 0.3; ECE ≤ 0.10;
+  regret < 0; A/A passed). Codex gives the metric basket but no single gate.
+  Produce ONE gate both sign.
+
+## C. Round 2 instruction
+
+Each council reads BOTH r1 papers. It (1) marks AGREE/DISAGREE/REFINE on the
+*other* council's ledger, (2) resolves D1–D5 with explicit reasoning, (3) emits a
+revised ledger. Do not relitigate the agreed core (A1–A12) unless you have a
+genuinely new objection. Goal: a single merged ledger both councils sign.
+
+codex
+The first pass captured Claude and the arbitration fully, but Codex Round 1 was longer than the output budget. I’m reading the remaining Codex sections now, especially its thresholds and claims ledger.
+exec
+/bin/zsh -lc "sed -n '260,620p' research/twin-council/rounds/r1-codex.md" in /Users/ram/Projects/sidira-simulator
+ succeeded in 0ms:
+### 5.3 Metrics
+
+Primary metrics:
+
+- 3-class balanced accuracy: positive / flat / negative
+- Matthews correlation coefficient for 3-class direction
+- Brier score for \(P(positive)\), \(P(flat)\), \(P(negative)\)
+- expected calibration error with 10 equal-frequency bins
+- Spearman \(\rho\) and Kendall \(\tau\) for ranking by calibrated effect
+- precision@k for selecting the top experiment candidates
+- decision regret versus oracle and versus baseline
+- tail-winner recall: fraction of top-decile true winners not deprioritized
+- abstention quality: accuracy on covered cases and error rate on abstained cases
+
+Secondary metrics:
+
+- Pearson \(r\) on calibrated effect sizes
+- calibration slope and intercept
+- 80% interval coverage
+- persona lift over no-persona panel
+- modality-stratified performance
+- cohort-stratified performance
+- prompt-stability sign-flip rate
+
+### 5.4 Go/no-go thresholds
+
+For production use as experiment triage, the simulator must satisfy all of these on a blind customer archive or on a relevant public benchmark for the claimed regime:
+
+1. Null integrity: on placebo/A/A tests, no more than 5% are labeled actionable positive or actionable negative at confidence ≥0.70.
+2. Leakage check: shuffled outcome labels produce \(|\rho| < 0.10\) and MCC in \([-0.05, 0.05]\).
+3. Direction: 3-class MCC exceeds the best baseline by at least 0.10 absolute, with paired bootstrap 95% CI lower bound above 0.
+4. Balanced accuracy: exceeds best baseline by at least 8 percentage points, with 95% CI lower bound above 0.
+5. Ranking: Spearman \(\rho \ge 0.30\) for mixed product changes, \(\rho \ge 0.45\) for text/copy regimes, with 95% CI lower bound above 0.10.
+6. Calibration: Brier improves over climatology by at least 10%; ECE ≤0.08 for covered predictions.
+7. Intervals: nominal 80% calibrated intervals cover 70-90% of realized shrunk effects.
+8. Tail safety: top-decile true-winner recall ≥0.80 among ideas the product recommends deprioritizing. If not met, the product may re-rank only and must not recommend parking ideas.
+9. Persona value: persona-conditioned panel beats no-persona panel on at least one primary metric without hurting tail-winner recall.
+10. Abstention: abstained cases have materially lower expected accuracy or higher prompt instability than covered cases; otherwise abstention is cosmetic.
+
+S5 dissent: these thresholds are starting gates, not scientific constants. They should be tightened after the first 300 prospective experiments.
+
+### 5.5 What an honest confidence score may claim
+
+It may claim:
+
+- calibrated probability that the sign class is correct
+- whether the prediction is inside a validated treatment modality
+- whether the model is stable to paraphrase and sampling
+- whether historical calibration exists for similar changes
+
+It must not claim:
+
+- statistical significance of the eventual experiment
+- exact lift
+- individual-user truth
+- that the experiment is unnecessary
+- validity outside the validated metric, population, horizon, or modality
+
+## 6. The test harness (concrete, runnable spec)
+
+### 6.1 Inputs
+
+A runnable harness has these files.
+
+`experiments.jsonl`:
+
+```json
+{
+  "experiment_id": "exp_001",
+  "date": "2025-04-12",
+  "surface": "onboarding",
+  "metric": "activation_7d",
+  "horizon_days": 7,
+  "randomization_unit": "user",
+  "population_query": "new_users_us_mobile",
+  "control_artifact": "artifacts/exp_001/control.json",
+  "treatment_artifact": "artifacts/exp_001/treatment.json",
+  "prd_artifact": "artifacts/exp_001/prd.md",
+  "guardrails": ["refund_rate", "support_contact_rate"],
+  "treatment_type": "onboarding_copy",
+  "public_leakage_risk": "low",
+  "ground_truth_ref": "withheld/exp_001_result.json"
+}
+```
+
+`ground_truth.jsonl`, withheld until scoring:
+
+```json
+{
+  "experiment_id": "exp_001",
+  "effect": 0.018,
+  "standard_error": 0.006,
+  "practical_null": 0.005,
+  "label": "positive",
+  "sample_size": 184221,
+  "srm_passed": true,
+  "guardrail_veto": false
+}
+```
+
+`population_snapshot/`:
+
+- user feature table or synthetic benchmark population
+- feature dictionary
+- allowed weights
+- time window
+- consent/privacy metadata
+
+`sim_config.yaml`:
+
+```yaml
+model_version: "provider/model/version"
+temperature: 0.7
+agent_panel_size: 1000
+paraphrases: 5
+elicitation: "paired_delta_distribution"
+persona_mode: "persona_plus_row"
+calibration_model: "hierarchical_shrinkage_v1"
+abstention_policy: "prompt_flip_or_out_of_regime"
+random_seed: 20260617
+```
+
+### 6.2 Runner
+
+For each experiment:
+
+1. Build or load persona pack from training-period population only.
+2. Render control and treatment artifacts into canonical state-diff.
+3. Generate \(K=5\) paraphrases.
+4. Sample \(N=1000\) agents with survey-style weights and soft persona membership.
+5. For each agent and paraphrase, elicit distribution over positive/flat/negative metric effect.
+6. Aggregate to raw sign probabilities and raw effect proxy.
+7. Apply calibration model trained only on prior experiments.
+8. Emit prediction JSON.
+9. Hash prediction file before ground truth is loaded.
+
+Prediction output:
+
+```json
+{
+  "experiment_id": "exp_001",
+  "predicted_p_positive": 0.64,
+  "predicted_p_flat": 0.24,
+  "predicted_p_negative": 0.12,
+  "predicted_label": "positive",
+  "raw_effect_proxy": 0.041,
+  "calibrated_effect": 0.014,
+  "interval_80": [0.002, 0.026],
+  "confidence": 0.64,
+  "abstained": false,
+  "validated_regime": "text_and_onboarding",
+  "prompt_sign_flip_rate": 0.0,
+  "persona_lift_baseline_delta": 0.07,
+  "model_version": "provider/model/version",
+  "prediction_hash": "sha256:..."
+}
+```
+
+### 6.3 Scorer
+
+Compute:
+
+- labels from ground truth using \(\delta_m\)
+- balanced accuracy and MCC
+- one-vs-rest Brier for each class
+- ECE:
+  - bin predictions by max class probability
+  - compare confidence to empirical correctness
+- Spearman and Kendall rank over calibrated effects
+- precision@k:
+  - k = 10%, 20%, and customer’s actual monthly experiment capacity
+- regret:
+  - compare value of selected top-k experiments with oracle top-k and baseline top-k
+- tail-winner recall:
+  - true winners in top decile of realized effect
+  - fraction retained in top 50% of simulator ranking
+- interval coverage
+- modality-stratified metrics
+- persona lift:
+  - paired comparison against no-persona panel over the same experiments
+  - bootstrap CI on metric deltas
+
+All CIs use paired bootstrap over experiments, not over agents. Agent-level bootstrap is allowed for internal Monte Carlo error but cannot substitute for experiment-level uncertainty.
+
+### 6.4 Null suite
+
+Run the same harness on:
+
+1. A/A artifacts: treatment identical to control.
+2. Placebo diffs: irrelevant wording changes unrelated to metric.
+3. Outcome-shuffled labels.
+4. Treatment/control swapped cases: predicted sign should invert where the treatment is symmetric.
+5. Paraphrase-only variants: sign should not change.
+6. Future-leakage canary: include deliberately leaked post-experiment fact in one artifact and verify the leakage detector flags it.
+7. No-persona base panel.
+8. Random synthetic persona labels.
+
+Pass criteria are the null-integrity thresholds in section 5.4.
+
+### 6.5 Ablation matrix
+
+Run the winning configuration against these variants:
+
+- generic LLM, no personas, no rows
+- persona-only
+- row-only
+- persona-plus-row
+- hard persona assignment
+- soft persona membership
+- point elicitation
+- distribution elicitation
+- temperature 0
+- sampled temperature
+- single prompt
+- paraphrase ensemble
+- no calibration
+- global calibration
+- customer-specific calibration
+- no product-state diff
+- canonical state diff
+
+Pre-register expected ordering:
+
+\[
+persona+row \ge row-only > persona-only \ge generic
+\]
+
+Cut any component that fails to improve held-out prediction or null integrity.
+
+## 7. Dissents & open questions (named, per-seat where relevant)
+
+S1 dissent: Do not call the output an ATE estimate unless it has been calibrated to randomized experiments on the same metric class. Before calibration, it is a prior over the ATE sign. S1 also objects to any “confidence score” not tied to a target estimand.
+
+S2 dissent: LLM agents can be useful synthetic respondents, but individual digital twins remain scientifically weak. S2 expects useful signal in text, pricing-framing, and first-impression tasks, but much weaker signal in habit formation, social pressure, churn, and long-run retention. S2 also worries that stronger instruction-tuned models may be worse simulators because they are optimized for agreeable assistant behavior.
+
+S3 dissent: Independent agent panels are not agent-based models in the computational social science sense. They miss network effects, congestion, marketplace balance, social proof, creator ecosystems, and repeated adaptation. S3 permits independent panels only when the estimand is individual first-exposure response.
+
+S4 dissent: The phrase “simulated users” invites construct-validity errors. These are calibrated response instruments. The PM interview feature is valuable for hypothesis generation, but its narratives should not be treated as evidence unless their claims trace back to observed features or calibrated response priors.
+
+S5 dissent: The proposed thresholds are necessary but not sufficient. A clever simulator can overfit public benchmarks. The real proof is a prospective registry or a blind customer archive with at least 150-200 experiments. S5 also insists that raw accuracy is banned because always-flat baselines can look excellent in mature experimentation programs.
+
+Open questions:
+
+1. What is the minimum viable public benchmark mix before first customer archive access?
+2. How should the system price abstention versus wrong ranking in the PM workflow?
+3. Should calibration be per metric, per surface, per company, or hierarchical across all three?
+4. How much does persona narrative add beyond row-level behavioral conditioning?
+5. Can LLM-generated rationales improve PM redesign decisions even when sign accuracy is only modest?
+6. How should the simulator handle guardrail metrics where a positive primary effect is commercially unacceptable?
+7. What is the correct estimand for product changes with network interference: direct effect, total effect, equilibrium effect, or cluster-level policy effect?
+
+## 8. Claims ledger — a numbered list of falsifiable claims this council commits to
+
+1. A simulator that does not specify metric, population, treatment, control, and horizon is not directionally correct in the causal sense.
+
+2. For product experimentation, sign and rank prediction are more defensible product claims than uncalibrated lift magnitude.
+
+3. The live randomized experiment remains the ground truth; simulation should be positioned as a calibrated prior, not a replacement.
+
+4. Persona-only prompting will underperform persona-plus-row conditioning on held-out experiment prediction.
+
+5. Soft persona membership will outperform hard assignment when user segments overlap materially.
+
+6. Metric-keyed delta elicitation will outperform generic sentiment elicitation for predicting experiment outcomes.
+
+7. Distribution elicitation will produce better calibrated sign probabilities than single deterministic LLM reactions.
+
+8. A no-persona LLM panel is a mandatory baseline for proving that personas add predictive value.
+
+9. Prompt paraphrase instability predicts lower out-of-sample accuracy and should reduce confidence or trigger abstention.
+
+10. Raw effect magnitudes from LLM simulation will be too large on average and require shrinkage.
+
+11. Text/copy/first-impression treatments will validate at higher rank correlation than networked, marketplace, or long-horizon behavioral treatments.
+
+12. Independent-agent panels are invalid for strong network-effect estimands unless paired with an explicit interaction model.
+
+13. A simulator can show high raw accuracy while being useless if the archive has a high flat/negative base rate.
+
+14. Balanced accuracy, MCC, Brier score, ECE, rank correlation, decision regret, and tail-winner recall are all required to assess directional correctness.
+
+15. A system that fails placebo/A/A null tests must not be trusted on real treatment predictions.
+
+16. Historical backtests must be hash-committed before unblinding ground truth to be credible.
+
+17. Fewer than 50 historical experiments cannot support a quantitative accuracy claim for a customer-specific simulator.
+
+18. A 150-200 experiment blind archive is the minimum credible range for proving modest directional lift over baselines.
+
+19. Tail-winner false negatives are more dangerous than ordinary sign errors for backlog triage.
+
+20. The product should re-rank and redesign ideas, not automatically kill ideas, unless tail-winner recall has been validated.
+
+21. Persona narratives are valuable for explanation and PM interviewing even if most predictive lift comes from row-level conditioning and calibration.
+
+22. Segment response priors estimated from past experiments will improve simulation accuracy when treatment classes repeat.
+
+23. Stated preference outputs must be calibrated to revealed behavior before they are used as product-decision evidence.
+
+24. LLM sycophancy is a material bias for hypothesis validation and must be tested explicitly.
+
+25. Model and prompt versions must be rerun on a golden benchmark set before any accuracy claim transfers to a new release.
+codex
+I have the inputs. I’m doing one small statistical calculation for D1 so the floor/target numbers are tied to actual Wilson interval widths rather than hand-waved sample sizes.
+mcp: node_repl/js started
+mcp: node_repl/js (completed)
+codex
+# Codex Council — Round 2
+
+## A. Marks on Claude's ledger
+
+1. **AGREE**.
+2. **AGREE**.
+3. **REFINE** — decision regret is the primary value criterion, but not the sole validity gate; null integrity, calibration, rank, and tail safety remain mandatory diagnostics.
+4. **AGREE**.
+5. **AGREE**.
+6. **AGREE**.
+7. **REFINE** — sign/rank are recoverable only if the raw simulator score is empirically stochastically ordered with real effects; this is a testable condition, not an assumption.
+8. **AGREE**.
+9. **REFINE** — raking/post-stratification must include row-level covariates and soft persona-membership probabilities; soft personas are not an alternative to population weighting.
+10. **REFINE** — the 0.5 heterogeneity floor is acceptable as a gate when the target heterogeneity estimate comes from real segment dispersion, historical response priors, or a held-out human panel.
+11. **AGREE**.
+12. **AGREE**.
+13. **REFINE** — `>=50` is the hard floor for provisional quantitative claims; `150-200` is the credible target for strong product-level certification.
+14. **AGREE**.
+15. **REFINE** — adopt the Claude gates but add MCC/Brier improvement, tail-winner recall, and explicit bootstrap lower-bound requirements.
+16. **AGREE**.
+17. **REFINE** — confidence reports calibrated sign-class reliability conditional on calibration coverage, prompt/model version, input quality, and support; off-support or underpowered regimes must say `uncalibrated`.
+18. **AGREE**.
+19. **AGREE**.
+20. **AGREE**.
+
+## B. Resolutions to D1-D5
+
+### D1 — Historical-experiment count
+
+Resolved:
+
+- **Hard floor:** `n_dir >= 50` non-null, sign-decisive historical experiments for any quantitative directional-accuracy claim.
+- **Credible target:** `n_dir >= 150` for a credible customer/product-level claim; `n_dir ~= 200` before slicing claims by surface, metric family, modality, or segment.
+
+Here `n_dir` means historical experiments whose true label is positive or negative after the practical-null dead-band. Null experiments are still required to validate abstention and flat-class calibration; if nulls are common, the total archive usually needs more than 50 experiments to yield `n_dir = 50`.
+
+Statistical justification using Wilson intervals for an observed balanced SMR of 0.70:
+
+- At `n = 50`, 90% CI is approximately `[0.585, 0.794]`, width `0.209`.
+- At `n = 150`, 90% CI is approximately `[0.635, 0.758]`, width `0.122`.
+- At `n = 200`, 90% CI is approximately `[0.644, 0.750]`, width `0.106`.
+
+So Claude’s `>=50` is acceptable only as a **minimum provisional floor**: it can distinguish a strong observed 0.70 SMR from coin-flip only coarsely. Codex’s `150-200` is the right range for **credible certification**, because the SMR half-width drops from about `+/-0.10` at 50 to about `+/-0.06` at 150 and `+/-0.05` at 200.
+
+### D2 — Primary criterion
+
+Resolved:
+
+- **Single primary criterion:** cost-weighted decision utility improvement versus the PM/status-quo triage policy.
+
+Use:
+
+\[
+\Delta U = U(\pi_{sim}) - U(\pi_0)
+\]
+
+The simulator has demonstrated product value only if `Delta U > 0` with a bootstrap 90% lower confidence bound above 0 at the pre-registered experiment-slot budget and false-green / false-red cost ratio.
+
+Supporting diagnostic basket:
+
+- Balanced SMR on non-null effects.
+- 3-class MCC over positive / flat / negative.
+- Kendall `tau_b` for ranking.
+- Brier improvement over climatology.
+- ECE / reliability.
+- Null A/A integrity.
+- Leakage / permutation collapse.
+- Prompt/order stability.
+- Tail-winner recall.
+- Abstention quality.
+- Persona lift over no-persona baseline.
+
+Decision regret is therefore **the primary value criterion**, but it is not allowed to launder a system that fails calibration, null, leakage, or tail-safety gates.
+
+### D3 — Unified population-construction spec
+
+Resolved population spec:
+
+1. Start from real pre-treatment user rows where available: tenure, plan, device, geography, usage intensity, feature adoption, recency/frequency, lifecycle state, prior pain points, and metric-relevant behavioral history.
+2. Estimate **soft persona membership** for each row: `z_i = [p(persona_1), ..., p(persona_K)]`. Never collapse overlapping users to hard archetypes unless an ablation proves no loss.
+3. Treat persona probabilities as covariates, not replacements for covariates.
+4. Construct the simulated population by calibration weighting / raking / post-stratification to the real joint distribution of core covariates and key interactions.
+5. Balance requirements:
+   - All primary covariates: `|SMD| <= 0.10`.
+   - Key two-way interactions: `|SMD| <= 0.15`.
+   - Joint distribution PSI: `<= 0.10` where measurable.
+   - Weight cap: no final weight above `5x` the median weight without an explicit variance warning.
+6. Agent conditioning uses both:
+   - row-level facts for the sampled user;
+   - the full soft persona-membership vector, including entropy.
+7. Segment-level claims require effective simulated sample size `>=100` in the displayed segment and historical calibration support `>=20` comparable cases; otherwise show the segment qualitatively only.
+
+This reconciles the councils: raking/post-stratification gives representativeness; soft persona membership preserves ambiguity and interpretability.
+
+### D4 — Confidence-score semantics
+
+Resolved:
+
+The confidence score is:
+
+\[
+\hat{p}_{\hat{s}} = P(S = \hat{s} \mid g, X, R, M_v, Q)
+\]
+
+where:
+
+- `S` is the true experiment sign class after the dead-band: positive, flat, or negative.
+- `hat{s}` is the simulator’s predicted class.
+- `g` is the raw simulator signal.
+- `X` includes treatment type, metric, population, surface, and input-quality features.
+- `R` is the validated regime / support region.
+- `M_v` is the pinned model and prompt version.
+- `Q` includes prompt stability, rendering validity, and experiment-quality weighting.
+
+It reports **empirical calibrated reliability of the predicted sign class**, estimated out-of-fold from historical experiments. It does not report LLM certainty, individual-user truth, statistical significance, expected lift magnitude, or permission to skip a live experiment.
+
+The system must say **`uncalibrated`** and suppress numeric confidence when any of these hold:
+
+- `n_dir < 50` for the relevant customer/product calibration.
+- Either positive or negative class has fewer than 10 historical non-null examples.
+- The local calibration bin / nearest support region has effective `n < 20`.
+- The change is off-support by metric, surface, population, treatment type, or covariate distribution.
+- The model or prompt version changed without a golden-set rerun.
+- A/A null, leakage, or label-permutation gates fail.
+- Prompt/order sign-flip rate exceeds `10%`.
+- Treatment/control rendering cannot be verified.
+- Calibration quality on the validation set fails: `ECE > 0.10` for covered predictions.
+
+In those cases the product may still show raw directional signal, segment narratives, and experiment-design advice, but the confidence field must read `uncalibrated`.
+
+### D5 — Agreed metric set and numeric thresholds
+
+All CIs below are computed over experiments, not agents.
+
+**GO as quantitative triage aid requires all of:**
+
+1. **Sample floor:** `n_dir >= 50`, both signs represented with at least 10 examples each. Credible certification label requires `n_dir >= 150`.
+2. **A/A null integrity:** identical-arm tests produce actionable positive/negative calls at confidence `>=0.70` no more than `5%` of the time.
+3. **Prompt/order robustness:** sign-flip rate across order swaps and prompt perturbations `<=10%`; demand-effect bias CI contains 0.
+4. **Leakage check:** label permutation collapses balanced SMR to `[0.40, 0.60]`, MCC to `[-0.05, 0.05]`, and `|rho| < 0.10`.
+5. **Direction:** balanced SMR `>=0.70` with 90% lower bound `>0.55`.
+6. **3-class classification:** MCC beats the best non-LLM baseline by `>=0.10`, with paired-bootstrap 90% lower bound `>0`.
+7. **Ranking:** Kendall `tau_b >=0.30`, with 90% lower bound `>0`.
+8. **Calibration:** ECE `<=0.10`; Brier score improves over climatology by `>=10%`.
+9. **Decision value:** `Delta U = U(pi_sim) - U(pi_0) > 0`, with bootstrap 90% lower bound `>0`.
+10. **Tail safety:** top-decile true-winner recall `>=0.80` among ideas the simulator would deprioritize below the test cutoff.
+11. **Abstention quality:** covered predictions have lower error than the full set, and risk decreases monotonically as coverage narrows.
+12. **Persona value claim:** persona-plus-row must beat the no-persona panel on at least one primary metric with no primary metric worse by more than `0.02`; otherwise suppress persona-specific accuracy claims and use the best validated configuration.
+
+**NO-GO for numeric confidence if any of these occur:**
+
+- Sample floor fails.
+- A/A null or leakage gate fails.
+- Balanced SMR 90% lower bound `<=0.50`.
+- Decision-value lower bound `<=0`.
+- ECE `>0.15`.
+- Brier fails to beat climatology.
+- Tail-winner recall `<0.70` while the product recommends deprioritization.
+- Prompt/order sign-flip rate `>20%`.
+
+Between GO and NO-GO is **CONDITIONAL**: qualitative interview aid, redesign support, or rank-only internal research, but no numeric confidence and no auto-kill recommendation.
+
+## C. Revised merged claims ledger
+
+1. A simulator that does not specify metric, population, treatment, control, horizon, randomization unit, and practical-null band is not directionally correct in the causal sense.
+2. The live randomized experiment remains ground truth; the simulator is a calibrated prior for experiment triage, not a replacement.
+3. Directional correctness must be measured on held-out or prospective historical experiments, not inferred from persona realism.
+4. The target claim is sign and rank of the real ATE/ITT on a pre-registered primary metric, not uncalibrated lift magnitude.
+5. Quantitative directional claims require `n_dir >=50`; credible customer/product certification requires `n_dir >=150`, with `~200` preferred for sliced claims.
+6. The LLM/persona layer is a biased feature extractor; it must not directly emit calibrated probability, magnitude, or experiment significance.
+7. A fitted calibration layer trained on real past experiments is mandatory before showing numeric confidence.
+8. The confidence score is calibrated empirical reliability of the predicted sign class conditional on support, version, input quality, and prompt stability.
+9. Off-support, underpowered, unstable, or failed-gate predictions must say `uncalibrated`.
+10. Population construction must combine real row-level covariates, soft persona membership, and raking/post-stratification to the real joint covariate distribution.
+11. Population balance must meet `|SMD| <=0.10` for primary covariates and `|SMD| <=0.15` for key interactions.
+12. Persona-plus-row, row-only, persona-only, hard-assignment, soft-assignment, and no-persona panels must be evaluated as ablations; personas must earn predictive lift.
+13. Elicitation must be paired treatment/control delta elicitation, blinded, order-randomized, and behavioral rather than generic sentiment or Likert liking.
+14. Prompt paraphrase instability predicts lower out-of-sample accuracy and must cap confidence or trigger abstention.
+15. A/A placebo tests are disqualifying gates; a simulator that manufactures signal from identical arms cannot be trusted.
+16. Leakage controls are mandatory: prediction hash-commitment before unblinding and label-permutation collapse to chance.
+17. Network, marketplace, equilibrium, virality, congestion, and long-run adaptation effects are out of scope unless modeled with an explicitly calibrated interaction layer.
+18. Decision utility improvement versus status-quo triage is the primary value criterion; GO requires `Delta U` 90% lower bound above 0.
+19. Directional diagnostics remain mandatory: balanced SMR, MCC, Kendall `tau_b`, Brier, ECE, null integrity, robustness, abstention quality, and tail-winner recall.
+20. Tail-winner false negatives are the most dangerous backlog-triage error; no auto-kill or hard deprioritization is allowed unless tail-winner recall is `>=0.80`.
+21. Raw LLM effect magnitudes are expected to be inflated and must be shrunk; magnitude claims require separate validation.
+22. Experiment ground truth must account for experiment quality: SRM failures, peeking, low power, guardrail vetoes, and standard errors should be modeled or downweighted.
+23. Segment-level simulator claims require adequate simulated effective sample size and historical calibration support; otherwise segment output is explanatory only.
+24. Persona narratives are useful for hypothesis generation and PM redesign, but they are not evidence unless tied to observed features or calibrated response priors.
+25. Model, prompt, population, and calibration versions must be pinned and rerun on a golden set before any accuracy claim transfers to a new release.
+
+## D. Remaining disagreements
+
+None. No claim above is held over an unresolved Claude objection. The Round 1 differences are resolved as:
+
+- `50` historical directional cases is the hard quantitative floor; `150-200` is the credible certification range.
+- Decision regret is the primary value criterion; the metric basket remains mandatory for validity and safety.
+- Soft persona membership and raked/post-stratified joint population calibration are one unified population spec.
+- Confidence is calibrated sign-class reliability and must say `uncalibrated` outside validated support.
+- The merged GO/NO-GO thresholds above are the shared operating gate.
+tokens used
+36,148
+# Codex Council — Round 2
+
+## A. Marks on Claude's ledger
+
+1. **AGREE**.
+2. **AGREE**.
+3. **REFINE** — decision regret is the primary value criterion, but not the sole validity gate; null integrity, calibration, rank, and tail safety remain mandatory diagnostics.
+4. **AGREE**.
+5. **AGREE**.
+6. **AGREE**.
+7. **REFINE** — sign/rank are recoverable only if the raw simulator score is empirically stochastically ordered with real effects; this is a testable condition, not an assumption.
+8. **AGREE**.
+9. **REFINE** — raking/post-stratification must include row-level covariates and soft persona-membership probabilities; soft personas are not an alternative to population weighting.
+10. **REFINE** — the 0.5 heterogeneity floor is acceptable as a gate when the target heterogeneity estimate comes from real segment dispersion, historical response priors, or a held-out human panel.
+11. **AGREE**.
+12. **AGREE**.
+13. **REFINE** — `>=50` is the hard floor for provisional quantitative claims; `150-200` is the credible target for strong product-level certification.
+14. **AGREE**.
+15. **REFINE** — adopt the Claude gates but add MCC/Brier improvement, tail-winner recall, and explicit bootstrap lower-bound requirements.
+16. **AGREE**.
+17. **REFINE** — confidence reports calibrated sign-class reliability conditional on calibration coverage, prompt/model version, input quality, and support; off-support or underpowered regimes must say `uncalibrated`.
+18. **AGREE**.
+19. **AGREE**.
+20. **AGREE**.
+
+## B. Resolutions to D1-D5
+
+### D1 — Historical-experiment count
+
+Resolved:
+
+- **Hard floor:** `n_dir >= 50` non-null, sign-decisive historical experiments for any quantitative directional-accuracy claim.
+- **Credible target:** `n_dir >= 150` for a credible customer/product-level claim; `n_dir ~= 200` before slicing claims by surface, metric family, modality, or segment.
+
+Here `n_dir` means historical experiments whose true label is positive or negative after the practical-null dead-band. Null experiments are still required to validate abstention and flat-class calibration; if nulls are common, the total archive usually needs more than 50 experiments to yield `n_dir = 50`.
+
+Statistical justification using Wilson intervals for an observed balanced SMR of 0.70:
+
+- At `n = 50`, 90% CI is approximately `[0.585, 0.794]`, width `0.209`.
+- At `n = 150`, 90% CI is approximately `[0.635, 0.758]`, width `0.122`.
+- At `n = 200`, 90% CI is approximately `[0.644, 0.750]`, width `0.106`.
+
+So Claude’s `>=50` is acceptable only as a **minimum provisional floor**: it can distinguish a strong observed 0.70 SMR from coin-flip only coarsely. Codex’s `150-200` is the right range for **credible certification**, because the SMR half-width drops from about `+/-0.10` at 50 to about `+/-0.06` at 150 and `+/-0.05` at 200.
+
+### D2 — Primary criterion
+
+Resolved:
+
+- **Single primary criterion:** cost-weighted decision utility improvement versus the PM/status-quo triage policy.
+
+Use:
+
+\[
+\Delta U = U(\pi_{sim}) - U(\pi_0)
+\]
+
+The simulator has demonstrated product value only if `Delta U > 0` with a bootstrap 90% lower confidence bound above 0 at the pre-registered experiment-slot budget and false-green / false-red cost ratio.
+
+Supporting diagnostic basket:
+
+- Balanced SMR on non-null effects.
+- 3-class MCC over positive / flat / negative.
+- Kendall `tau_b` for ranking.
+- Brier improvement over climatology.
+- ECE / reliability.
+- Null A/A integrity.
+- Leakage / permutation collapse.
+- Prompt/order stability.
+- Tail-winner recall.
+- Abstention quality.
+- Persona lift over no-persona baseline.
+
+Decision regret is therefore **the primary value criterion**, but it is not allowed to launder a system that fails calibration, null, leakage, or tail-safety gates.
+
+### D3 — Unified population-construction spec
+
+Resolved population spec:
+
+1. Start from real pre-treatment user rows where available: tenure, plan, device, geography, usage intensity, feature adoption, recency/frequency, lifecycle state, prior pain points, and metric-relevant behavioral history.
+2. Estimate **soft persona membership** for each row: `z_i = [p(persona_1), ..., p(persona_K)]`. Never collapse overlapping users to hard archetypes unless an ablation proves no loss.
+3. Treat persona probabilities as covariates, not replacements for covariates.
+4. Construct the simulated population by calibration weighting / raking / post-stratification to the real joint distribution of core covariates and key interactions.
+5. Balance requirements:
+   - All primary covariates: `|SMD| <= 0.10`.
+   - Key two-way interactions: `|SMD| <= 0.15`.
+   - Joint distribution PSI: `<= 0.10` where measurable.
+   - Weight cap: no final weight above `5x` the median weight without an explicit variance warning.
+6. Agent conditioning uses both:
+   - row-level facts for the sampled user;
+   - the full soft persona-membership vector, including entropy.
+7. Segment-level claims require effective simulated sample size `>=100` in the displayed segment and historical calibration support `>=20` comparable cases; otherwise show the segment qualitatively only.
+
+This reconciles the councils: raking/post-stratification gives representativeness; soft persona membership preserves ambiguity and interpretability.
+
+### D4 — Confidence-score semantics
+
+Resolved:
+
+The confidence score is:
+
+\[
+\hat{p}_{\hat{s}} = P(S = \hat{s} \mid g, X, R, M_v, Q)
+\]
+
+where:
+
+- `S` is the true experiment sign class after the dead-band: positive, flat, or negative.
+- `hat{s}` is the simulator’s predicted class.
+- `g` is the raw simulator signal.
+- `X` includes treatment type, metric, population, surface, and input-quality features.
+- `R` is the validated regime / support region.
+- `M_v` is the pinned model and prompt version.
+- `Q` includes prompt stability, rendering validity, and experiment-quality weighting.
+
+It reports **empirical calibrated reliability of the predicted sign class**, estimated out-of-fold from historical experiments. It does not report LLM certainty, individual-user truth, statistical significance, expected lift magnitude, or permission to skip a live experiment.
+
+The system must say **`uncalibrated`** and suppress numeric confidence when any of these hold:
+
+- `n_dir < 50` for the relevant customer/product calibration.
+- Either positive or negative class has fewer than 10 historical non-null examples.
+- The local calibration bin / nearest support region has effective `n < 20`.
+- The change is off-support by metric, surface, population, treatment type, or covariate distribution.
+- The model or prompt version changed without a golden-set rerun.
+- A/A null, leakage, or label-permutation gates fail.
+- Prompt/order sign-flip rate exceeds `10%`.
+- Treatment/control rendering cannot be verified.
+- Calibration quality on the validation set fails: `ECE > 0.10` for covered predictions.
+
+In those cases the product may still show raw directional signal, segment narratives, and experiment-design advice, but the confidence field must read `uncalibrated`.
+
+### D5 — Agreed metric set and numeric thresholds
+
+All CIs below are computed over experiments, not agents.
+
+**GO as quantitative triage aid requires all of:**
+
+1. **Sample floor:** `n_dir >= 50`, both signs represented with at least 10 examples each. Credible certification label requires `n_dir >= 150`.
+2. **A/A null integrity:** identical-arm tests produce actionable positive/negative calls at confidence `>=0.70` no more than `5%` of the time.
+3. **Prompt/order robustness:** sign-flip rate across order swaps and prompt perturbations `<=10%`; demand-effect bias CI contains 0.
+4. **Leakage check:** label permutation collapses balanced SMR to `[0.40, 0.60]`, MCC to `[-0.05, 0.05]`, and `|rho| < 0.10`.
+5. **Direction:** balanced SMR `>=0.70` with 90% lower bound `>0.55`.
+6. **3-class classification:** MCC beats the best non-LLM baseline by `>=0.10`, with paired-bootstrap 90% lower bound `>0`.
+7. **Ranking:** Kendall `tau_b >=0.30`, with 90% lower bound `>0`.
+8. **Calibration:** ECE `<=0.10`; Brier score improves over climatology by `>=10%`.
+9. **Decision value:** `Delta U = U(pi_sim) - U(pi_0) > 0`, with bootstrap 90% lower bound `>0`.
+10. **Tail safety:** top-decile true-winner recall `>=0.80` among ideas the simulator would deprioritize below the test cutoff.
+11. **Abstention quality:** covered predictions have lower error than the full set, and risk decreases monotonically as coverage narrows.
+12. **Persona value claim:** persona-plus-row must beat the no-persona panel on at least one primary metric with no primary metric worse by more than `0.02`; otherwise suppress persona-specific accuracy claims and use the best validated configuration.
+
+**NO-GO for numeric confidence if any of these occur:**
+
+- Sample floor fails.
+- A/A null or leakage gate fails.
+- Balanced SMR 90% lower bound `<=0.50`.
+- Decision-value lower bound `<=0`.
+- ECE `>0.15`.
+- Brier fails to beat climatology.
+- Tail-winner recall `<0.70` while the product recommends deprioritization.
+- Prompt/order sign-flip rate `>20%`.
+
+Between GO and NO-GO is **CONDITIONAL**: qualitative interview aid, redesign support, or rank-only internal research, but no numeric confidence and no auto-kill recommendation.
+
+## C. Revised merged claims ledger
+
+1. A simulator that does not specify metric, population, treatment, control, horizon, randomization unit, and practical-null band is not directionally correct in the causal sense.
+2. The live randomized experiment remains ground truth; the simulator is a calibrated prior for experiment triage, not a replacement.
+3. Directional correctness must be measured on held-out or prospective historical experiments, not inferred from persona realism.
+4. The target claim is sign and rank of the real ATE/ITT on a pre-registered primary metric, not uncalibrated lift magnitude.
+5. Quantitative directional claims require `n_dir >=50`; credible customer/product certification requires `n_dir >=150`, with `~200` preferred for sliced claims.
+6. The LLM/persona layer is a biased feature extractor; it must not directly emit calibrated probability, magnitude, or experiment significance.
+7. A fitted calibration layer trained on real past experiments is mandatory before showing numeric confidence.
+8. The confidence score is calibrated empirical reliability of the predicted sign class conditional on support, version, input quality, and prompt stability.
+9. Off-support, underpowered, unstable, or failed-gate predictions must say `uncalibrated`.
+10. Population construction must combine real row-level covariates, soft persona membership, and raking/post-stratification to the real joint covariate distribution.
+11. Population balance must meet `|SMD| <=0.10` for primary covariates and `|SMD| <=0.15` for key interactions.
+12. Persona-plus-row, row-only, persona-only, hard-assignment, soft-assignment, and no-persona panels must be evaluated as ablations; personas must earn predictive lift.
+13. Elicitation must be paired treatment/control delta elicitation, blinded, order-randomized, and behavioral rather than generic sentiment or Likert liking.
+14. Prompt paraphrase instability predicts lower out-of-sample accuracy and must cap confidence or trigger abstention.
+15. A/A placebo tests are disqualifying gates; a simulator that manufactures signal from identical arms cannot be trusted.
+16. Leakage controls are mandatory: prediction hash-commitment before unblinding and label-permutation collapse to chance.
+17. Network, marketplace, equilibrium, virality, congestion, and long-run adaptation effects are out of scope unless modeled with an explicitly calibrated interaction layer.
+18. Decision utility improvement versus status-quo triage is the primary value criterion; GO requires `Delta U` 90% lower bound above 0.
+19. Directional diagnostics remain mandatory: balanced SMR, MCC, Kendall `tau_b`, Brier, ECE, null integrity, robustness, abstention quality, and tail-winner recall.
+20. Tail-winner false negatives are the most dangerous backlog-triage error; no auto-kill or hard deprioritization is allowed unless tail-winner recall is `>=0.80`.
+21. Raw LLM effect magnitudes are expected to be inflated and must be shrunk; magnitude claims require separate validation.
+22. Experiment ground truth must account for experiment quality: SRM failures, peeking, low power, guardrail vetoes, and standard errors should be modeled or downweighted.
+23. Segment-level simulator claims require adequate simulated effective sample size and historical calibration support; otherwise segment output is explanatory only.
+24. Persona narratives are useful for hypothesis generation and PM redesign, but they are not evidence unless tied to observed features or calibrated response priors.
+25. Model, prompt, population, and calibration versions must be pinned and rerun on a golden set before any accuracy claim transfers to a new release.
+
+## D. Remaining disagreements
+
+None. No claim above is held over an unresolved Claude objection. The Round 1 differences are resolved as:
+
+- `50` historical directional cases is the hard quantitative floor; `150-200` is the credible certification range.
+- Decision regret is the primary value criterion; the metric basket remains mandatory for validity and safety.
+- Soft persona membership and raked/post-stratified joint population calibration are one unified population spec.
+- Confidence is calibrated sign-class reliability and must say `uncalibrated` outside validated support.
+- The merged GO/NO-GO thresholds above are the shared operating gate.

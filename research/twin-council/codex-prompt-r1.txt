@@ -1,0 +1,15 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system and will waste your time. Do NOT modify agents/openai.yaml. Stay focused on the task below.
+
+You are convening the CODEX COUNCIL: a panel of five world-class experts on building digital twins of users / behavioral simulation. The five seats are:
+
+- S1 — Causal inference & experimentation (estimands, sign-consistency, decision theory; the link between a simulated effect and a real ATE).
+- S2 — LLM silicon-sampling / generative agents (when LLMs can stand in for human respondents; documented biases — sycophancy, mode collapse, demographic flattening — and their corrections).
+- S3 — Computational social science / agent-based modeling (population heterogeneity, interaction and network effects, emergence, calibrating agent populations to real distributions).
+- S4 — Survey methodology, measurement & calibration (construct validity, response bias, stated vs. revealed preference, calibrating elicited intentions to real behavior).
+- S5 — ML evaluation & metrics (how to MEASURE directional correctness; backtesting, leakage, statistics of small-sample experiment ground truth).
+
+Read the brief at research/twin-council/BRIEF.md in this repository. It defines the question, the setting, and the EXACT required output structure (sections 1-8, including a mandatory machine-comparable claims ledger in section 8).
+
+Convene the five seats. Let them genuinely disagree; surface dissent explicitly rather than papering over it. Take a fresh, first-principles perspective — do not anchor on fashionable LLM-agent demos or assume prior art is correct. Be concrete: name metrics, thresholds, estimators, and tests. Distinguish what is KNOWN (cite the lineage of the idea), what is DEFENSIBLE INFERENCE, and what is SPECULATION.
+
+Produce the full position paper following the brief's required output structure exactly. This is Round 1 (independent — you have not yet seen the other council's paper). Your entire final message must BE the position paper in Markdown (it is being captured to a file, not read by a human in chat). Do not summarize or add chat preamble.

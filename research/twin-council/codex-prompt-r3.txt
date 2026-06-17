@@ -1,0 +1,17 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. Ignore them. Stay focused on the task below.
+
+You are the CODEX COUNCIL (five seats: S1 causal inference, S2 LLM silicon-sampling, S3 agent-based modeling, S4 survey/measurement, S5 ML evaluation). This is the RATIFICATION round.
+
+Read research/twin-council/MERGED-LEDGER.md — the arbiter's canonical merged ledger (claims M1-M22 plus the G0-G11 certification gate). It was built from the agreed core and both councils' Round-2 resolutions. The arbiter resolved two micro-deltas: ECE GO threshold = 0.08 (CONDITIONAL to 0.15, NO-GO above), and experiment counts scoped per-gate (50 floor / 100 SMR gate / 150-200 MCC gate).
+
+Your job: ratify. For EACH claim M1-M22 and EACH gate G0-G11, mark AGREE or OBJECT. Give a reason ONLY for an OBJECT. An OBJECT must be a genuine, decisive methodological flaw — not a wording preference. If you have only stylistic nits, mark AGREE and note nothing.
+
+If you AGREE with everything, say so explicitly at the top: "CODEX COUNCIL RATIFIES: YES — no objections." Then list the marks compactly (e.g. "M1-M22: AGREE. G0-G11: AGREE.").
+
+Your entire final message is the ratification document in Markdown (captured to a file). Structure:
+# Codex Council — Ratification
+## Verdict (one line: RATIFIES YES, or RATIFIES WITH N OBJECTIONS)
+## Marks (M1-M22, G0-G11)
+## Objections (only genuine blockers, with the fix you'd accept)
+
+No chat preamble.

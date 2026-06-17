@@ -1,0 +1,28 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions for a different AI system; ignore them. Stay focused on the task below.
+
+You are the CODEX COUNCIL (the same five seats: S1 causal inference, S2 LLM silicon-sampling, S3 agent-based modeling, S4 survey/measurement, S5 ML evaluation), now in ROUND 2 — cross-critique toward consensus.
+
+Read these three files in this repository:
+- research/twin-council/rounds/r1-codex.md  (your own Round 1 paper)
+- research/twin-council/rounds/r1-claude.md  (the OTHER council's Round 1 paper)
+- research/twin-council/ROUND1-ARBITRATION.md  (the neutral arbiter's verdict: agreed core A1-A12, and the FIVE open items D1-D5)
+
+The two councils already agree on the core (A1-A12 in the arbitration). DO NOT relitigate the agreed core unless you have a genuinely new, decisive objection. Your job in Round 2 is narrow and concrete:
+
+1. Mark AGREE / DISAGREE / REFINE against each of the Claude council's 20 ledger claims (one line each, with a reason only where you DISAGREE or REFINE).
+2. Resolve the five open items D1-D5 with explicit statistical reasoning and committed numbers:
+   - D1: the minimum historical-experiment count for a quantitative directional claim (a hard floor AND a "credible" target), justified by the CI width on sign-match rate at that n. Reconcile Claude's ">=50" with Codex's "150-200".
+   - D2: is decision regret THE primary criterion, or one of several diagnostics? State the single primary criterion and the supporting basket.
+   - D3: one unified population-construction spec (soft persona membership vs. raking/post-stratification to the real joint covariate distribution — reconcile, don't pick arbitrarily).
+   - D4: precise semantics of the confidence score (what it reports, when it must say "uncalibrated").
+   - D5: ONE agreed metric set with numeric GO/NO-GO thresholds that both councils can sign.
+3. Emit a REVISED, MERGED claims ledger: a numbered list of falsifiable claims you now commit to, designed to be identical-in-spirit to what the other council would sign. Flag any claim you still hold over the other council's objection as "[HELD]" with a one-line reason.
+
+Your entire final message must BE the Round 2 document in Markdown (captured to a file). Structure:
+# Codex Council — Round 2
+## A. Marks on Claude's ledger
+## B. Resolutions to D1-D5
+## C. Revised merged claims ledger
+## D. Remaining disagreements (if any)
+
+Be concrete and numeric. No chat preamble.
