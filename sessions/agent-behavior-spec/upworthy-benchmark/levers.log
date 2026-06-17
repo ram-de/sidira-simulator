@@ -1,0 +1,51 @@
+cases=150 case_set_hash=1e54565003e5a00b modes=comparative,popshare models=sonnet,groq
+
+### comparative / sonnet ###
+  [comparative/sonnet] 25/150 (35s, 0 dropped)
+  [comparative/sonnet] 50/150 (66s, 0 dropped)
+  [comparative/sonnet] 75/150 (105s, 0 dropped)
+  [comparative/sonnet] 100/150 (138s, 0 dropped)
+  [comparative/sonnet] 125/150 (169s, 0 dropped)
+  [comparative/sonnet] 150/150 (200s, 0 dropped)
+
+=== comparative / sonnet === (n=150, dropped=0)
+  SMR 0.594 (LB 0.526) | Spearman +0.186 | Kendall tau_b +0.133 (LB +0.044) | MCC +0.188 (LB +0.061) | Brier-skill -0.017 | tail 0.47
+  VERDICT: NO-GO
+
+### comparative / groq ###
+  [comparative/groq] 25/150 (4s, 0 dropped)
+  [comparative/groq] 50/150 (8s, 0 dropped)
+  [comparative/groq] 75/150 (12s, 0 dropped)
+  [comparative/groq] 100/150 (15s, 0 dropped)
+  [comparative/groq] 125/150 (19s, 0 dropped)
+  [comparative/groq] 150/150 (23s, 0 dropped)
+
+=== comparative / groq === (n=150, dropped=0)
+  SMR 0.540 (LB 0.473) | Spearman +0.064 | Kendall tau_b +0.051 (LB -0.058) | MCC +0.081 (LB -0.055) | Brier-skill -0.023 | tail 0.33
+  VERDICT: NO-GO
+
+### popshare / sonnet ###
+  [popshare/sonnet] 25/150 (36s, 0 dropped)
+  [popshare/sonnet] 50/150 (70s, 0 dropped)
+  [popshare/sonnet] 75/150 (102s, 0 dropped)
+  [popshare/sonnet] 100/150 (131s, 0 dropped)
+  [popshare/sonnet] 125/150 (162s, 0 dropped)
+  [popshare/sonnet] 150/150 (192s, 0 dropped)
+
+=== popshare / sonnet === (n=150, dropped=0)
+  SMR 0.533 (LB 0.466) | Spearman +0.174 | Kendall tau_b +0.118 (LB +0.031) | MCC +0.066 (LB -0.066) | Brier-skill -0.031 | tail 0.33
+  VERDICT: NO-GO
+
+### popshare / groq ###
+  [popshare/groq] 25/150 (3s, 0 dropped)
+  [popshare/groq] 50/150 (6s, 0 dropped)
+  [popshare/groq] 75/150 (10s, 0 dropped)
+  [popshare/groq] 100/150 (13s, 0 dropped)
+  [popshare/groq] 125/150 (16s, 0 dropped)
+  [popshare/groq] 150/150 (20s, 0 dropped)
+
+=== popshare / groq === (n=150, dropped=0)
+  SMR 0.540 (LB 0.473) | Spearman +0.109 | Kendall tau_b +0.080 (LB -0.019) | MCC +0.079 (LB -0.051) | Brier-skill -0.030 | tail 0.33
+  VERDICT: NO-GO
+
+wrote /Users/ram/Projects/sidira-simulator/.claude/worktrees/benchmark-gate-validation/sessions/agent-behavior-spec/upworthy-benchmark/accuracy_levers_result.json
