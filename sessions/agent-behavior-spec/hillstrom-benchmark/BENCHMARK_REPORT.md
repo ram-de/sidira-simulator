@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-16). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom powered run certified). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -213,9 +213,48 @@ outcome-elicitation / calibration layer; (3) re-run the same pre-registered benc
 measure the improvement. The benchmark doesn't just grade the product — it now defines
 the next accuracy milestone.
 
-**Status: sealed, powered run pending** (awaiting a finer-stratification change so the
-run clears the certification floor and earns a PASSING null certificate). Result and
-verdict appended here when it lands.
+**The sealed, powered run — DONE, and the finding is now CERTIFIED.** We pre-registered the
+full configuration *and* our prediction (canonical-JSON SHA-256
+`59dab05c…dce3`, committed to version control before any result existed), then ran the
+benchmark at adequate power: **8 segment-cases** (a persona-aligned stratification of the
+audience — men's-buyer, women's-buyer, high-spender, mid-tier — each scored against its own
+sub-audience), **50 simulated respondents per arm**, on **both** outcomes. Both runs cleared
+the certification floor and **earned a passing null-integrity certificate** — the numbers are
+trustworthy, not artifacts of leakage or under-powering:
+
+| outcome | null-certificate | direction accuracy | heterogeneity rank-ρ (p) |
+|---|---|---|---|
+| **conversion** | **PASSED** | **0.0** | −0.36 (p = 0.82) — at chance |
+| **visit** | **PASSED** | **0.0** | −0.29 (p = 0.77) — at chance |
+
+Two things are now established with confidence, on real randomized ground truth:
+
+1. **The advertising-as-harm bias is certified.** Direction accuracy is **0.0 on both
+   outcomes** — *every* per-segment prediction has the wrong sign. The simulator predicts the
+   promotional emails *reduce* both visits and conversions; the real experiment shows they
+   *increase* both. This is no longer a hint from an under-powered probe — it is a
+   pre-registered, blind, null-certified result.
+
+2. **The "who-responds-more" claim does not hold today — and we say so plainly.** The
+   per-segment heterogeneity rank correlation is slightly *negative* and statistically
+   indistinguishable from chance on both outcomes (p = 0.82, p = 0.77). Our pre-registered
+   prediction was *positive* gender-matched heterogeneity; that prediction is **refuted**.
+   The encouraging +0.24 ranking the small probe hinted at did **not** survive at power — the
+   same small-sample-mirage lesson Upworthy taught us (§3), caught again by the same
+   discipline. We do not get to claim the headline heterogeneity result on this dataset.
+
+This is, deliberately, a hard result to report — and reporting it cleanly is the entire
+point of the program. We have now found, on fully external real-world ground truth, the
+*precise* condition under which the simulator is wrong (promotional/advertising content,
+both outcomes, sign-inverted) and the *precise* claim it cannot yet support (per-segment
+heterogeneity ranking on this dataset). Both are pre-registered, both are null-certified,
+neither is hidden.
+
+**Status: COMPLETE and certified.** The next move is not another benchmark — it is the
+*fix*: correct the advertising-as-harm bias at the outcome-elicitation / calibration layer,
+then re-run this exact pre-registered benchmark to measure the improvement. The benchmark has
+done its job: it converted a vague worry ("is the simulator accurate?") into a specific,
+reproducible, certified engineering target.
 
 ---
 
@@ -237,4 +276,12 @@ verdict appended here when it lands.
 - 2026-06-16: Report started. Upworthy null finalized (§3). Hillstrom design,
   heterogeneity-prerequisite PASS, pre-registered prediction, and probe dry-run
   recorded (§4). Sealed full run pending.
+- 2026-06-17: Hillstrom **powered run complete and certified** (prereg SHA-256
+  `59dab05c…dce3`; 8 segment-cases, 50/arm, both outcomes). Both arms earned a PASSING
+  null-integrity certificate. **Certified findings:** (1) advertising-as-harm sign
+  inversion — direction accuracy 0.0 on both conversion and visit; (2) per-segment
+  heterogeneity ranking at chance on both (ρ −0.36 p=0.82 / −0.29 p=0.77) → the
+  pre-registered positive-heterogeneity prediction is refuted. §4 updated; "pending"
+  status retired. Next: fix the bias at elicitation/calibration, then re-run this exact
+  pre-registered benchmark to measure the delta.
 </content>
