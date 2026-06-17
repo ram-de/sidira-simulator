@@ -290,8 +290,11 @@ export default function AgentDetailV2Page() {
         </Panel>
       </div>
 
-      {/* page-local token-driven styling (no raw hex / no raw font names) */}
-      <style>{AGT_CSS}</style>
+      {/* page-local token-driven styling (no raw hex / no raw font names).
+          dangerouslySetInnerHTML (root-layout pattern): AGT_CSS holds `"` chars
+          (grid-template-areas) that a `<style>{string}</style>` text child would
+          HTML-escape server-side only → React 18 hydration text mismatch. */}
+      <style dangerouslySetInnerHTML={{ __html: AGT_CSS }} />
     </AppFrame>
   );
 }

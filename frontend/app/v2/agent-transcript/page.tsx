@@ -235,8 +235,13 @@ export default function AgentTranscriptV2Page() {
         </p>
       </div>
 
-      {/* page-local token-driven styling (no raw hex / no raw font names) */}
-      <style>{TX_CSS}</style>
+      {/* page-local token-driven styling (no raw hex / no raw font names).
+          Injected via dangerouslySetInnerHTML (the same React-safe pattern as
+          the root layout's focus-ring <style>): TX_CSS contains a `'` char (the
+          "viewer's voice" comment), which a `<style>{string}</style>` text child
+          would HTML-escape on the server (&#x27;) but leave literal on the
+          client — a React 18 text-content hydration mismatch. */}
+      <style dangerouslySetInnerHTML={{ __html: TX_CSS }} />
     </AppFrame>
   );
 }
