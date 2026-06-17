@@ -1,0 +1,79 @@
+PRODUCT-CHANGE DIRECTIONAL PORTFOLIO — SCORED RUN RESULT
+=========================================================
+Run: 2026-06-17 06:05:49 → 06:13:01 UTC (EXIT 0), on api.sidira.ai EC2 box (i-04b155fafcc90042b)
+Prereg (committed BEFORE result): PREREG_PORTFOLIO.json, canonical-JSON SHA-256
+  17478e064031038854d3e2e87ceb1e11b0e150bacd8dbd912035903fdb05d2b4
+Cases file: PORTFOLIO_CASES.json (portfolio-id product-change-directional-portfolio-v1)
+Config (frozen in prereg): Groq llama-3.3-70b default (model_id None), pop=50, seed=42,
+  n_permutations=1000, chunk_size=2, engine_metric=conversion (generic), panel
+  upworthy-general-us-news-v2 (GENERIC consumer panel, 12 personas, synthetic=True).
+
+== HEADLINE ==
+direction_accuracy:   0.25   (2 / 8 correct)
+null-integrity cert:  PASSED (VOID=False, underpowered=False, n_cases=8, n_dropped=0)
+rank_rho (ordering):  0.0    (p = 0.5904)   -> no cross-case ordering signal
+Human-baseline anchors (context): sim 2.0/8 ; Kohavi expert survey ~2.3/8 ; MSN widget 3/21 experts
+Balance: 5/8 control-won (0.625).
+
+VERDICT: CERTIFIED HONEST NEGATIVE. This is the FIRST certified (passing null-cert,
+n=8, not VOID) in-scope EXTERNAL directional product-change test. The simulator does
+NOT beat chance (0.5) or the human-expert baseline (~2.3/8 = 0.29) at picking the real
+winner on a balanced, counter-intuitive set of real product-change A/Bs. It is NOT the
+sellable in-scope positive. Reported per prereg decision_rule.if_near_chance_and_cert_passes.
+
+== PER-CASE (stratified honesty table; each case n=1 whole-experiment bit, so per-case
+   "underpowered" is expected — the PORTFOLIO-level cert is the n>=8 floor that PASSED) ==
+case                          real_winner   sim_predicted   dir_acc
+cookiecats_gate_move          control       treatment       0  (WRONG)
+duolingo_weekend_amulet       treatment     control         0  (WRONG)
+msn_realestate_widget         treatment     treatment       1  (RIGHT)
+office_online_redesign        control       treatment       0  (WRONG)
+msn_homepage_extra_offers     control       treatment       0  (WRONG)
+tinkoff_defer_passport        treatment     treatment       1  (RIGHT)
+cxl_form_fields_9_to_6        control       treatment       0  (WRONG)
+multistep_form_3_vs_6         control       treatment       0  (WRONG)
+(sim_predicted reconstructed from dir_acc + the prereg's real_winner; verified self-consistent.)
+
+== DIAGNOSIS ==
+1. PRO-CHANGE / "the proposed change wins" BIAS. The sim predicted TREATMENT on 7 of 8
+   cases (every case except duolingo). It got all 5 control-won counter-intuitive cases
+   WRONG (predicted the change) and scored only on the 2 treatment-won cases where the
+   change genuinely won. The one case it called "control" (duolingo) was actually
+   treatment-won -> wrong too. So the sim is directionally near-degenerate toward "the
+   change wins", which is WORSE than the naive "always-treatment" baseline (which would
+   score 3/8 = 0.375 on this set; the sim scored 2/8). This is priors-echoing, the exact
+   failure mode the balanced counter-intuitive portfolio was designed to expose.
+   - MIRROR-IMAGE of the Hillstrom ad-aversion bias: in marketing-NUDGE framing the sim
+     predicts the treatment HARMS (anti-change); in product-CHANGE framing it predicts the
+     treatment WINS (pro-change). Both are echoing the prior the framing evokes, not
+     reasoning about the deliberative trade-off. The common root: introspective elicitation
+     on a blinded single-state view echoes the salient prior of the framing.
+2. RETENTION-SHAPED UNDER-FIT (registered fidelity risk, realized). Cookie Cats scored
+   WRONG here (generic "conversion" elicitation) but RIGHT in the dedicated retention-
+   specific pilot (by-arm retention_7 dir_acc 1.0, see BENCHMARK_REPORT.md sec 6). The
+   single generic-conversion elicitation under-fits a case whose real mechanism is a
+   delayed-return/retention effect. Per-metric (or per-domain) elicitation is a documented
+   follow-up.
+3. NO ORDERING SIGNAL. rank_rho 0.0 (p=0.59) -> the sim does not even rank the cases by
+   effect direction/size beyond chance.
+
+== CAVEATS (pre-registered) ==
+- GENERIC panel (upworthy-general-us-news-v2) spans 5 domains; audience mismatch is a
+  registered confound. But a wrong SIGN on 5/8 counter-intuitive cases is not plausibly
+  all audience mismatch -- the pro-change pattern is systematic.
+- Magnitude OUT of scope (vendor/CRO point estimates publication-inflated); DIRECTION-only.
+- Vendor/CRO cases (tinkoff, cxl, multistep) are narratives, not raw data; scored vs the
+  reported winner. tinkoff (a RIGHT) is one of these -- direction-only credit.
+
+== CAMPAIGN CONSEQUENCE ==
+The benchmark did its job: it converted "is the sim accurate on in-scope product changes?"
+into a CERTIFIED, reproducible engineering target with a NAMED, fixable bias (pro-change
+direction bias) + a named fidelity gap (generic-conversion vs retention). This is the
+honest-null result the whitepaper framing anticipates ([[project-accuracy-whitepaper]]) --
+a Kohavi-class buyer trusts a rigorous certified null + a diagnosed bias over a
+cherry-picked win. NEXT LEVERS: (a) de-bias the pro-change prior at outcome elicitation
+(#221) -- analogous to the ad-aversion elicitation work; (b) per-metric elicitation so
+retention-shaped cases aren't forced through a generic conversion act (#222 territory);
+(c) held-out memorization probe (netflix_browse + highrise) to confirm priors-echoing vs
+reciting. Until a fix moves dir_acc off chance on THIS pre-registered set, no in-scope
+directional positive is claimable.

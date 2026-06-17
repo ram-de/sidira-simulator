@@ -376,6 +376,77 @@ claim will be built on.
 
 ---
 
+## 7. Benchmark 4 — the product-change directional portfolio (the first *certified* in-scope test)
+
+Cookie Cats gave one correct but uncertifiable bit. Benchmark 4 is the program's first
+**certified** in-scope external directional test: a portfolio of **8 different real
+product-change A/B experiments**, each contributing one clean whole-population directional
+bit, run blinded through the real simulation engine and scored only on **direction** (did the
+sim pick the real winner?). The set is deliberately **balanced** (5/8 control-won) and
+**counter-intuitive** — a prettier redesign that lost, fewer form fields that lost, a
+skip-day valve that *raised* return, the simplest of six widgets that won where only 3/21
+experts guessed it — so a sim that merely parrots product-design priors gets several signs
+wrong. Eight cases is exactly the null-integrity certificate's floor, so the portfolio
+clears it with genuinely independent bits. Pre-registered before the run (SHA-256
+`17478e06…fdb05d2b4`).
+
+**The headline result.** Direction accuracy **0.25 (2/8)**, with a **PASSING** null-integrity
+certificate (not VOID, not underpowered, 0 dropped). rank-ρ 0.0 (p=0.59). That is **below
+chance (0.5) and below the human-expert baseline (~2.3/8 = 0.29).** This is the first
+certified in-scope external directional measurement — and it is an **honest negative**: the
+simulator does not, today, beat chance or expert intuition at calling real product-change
+winners. It is not the sellable in-scope positive.
+
+**The diagnosis (this is the valuable part).** The misses are not random — they are
+systematic. Reconstructing each prediction from the per-case sign agreement:
+
+| case | real winner | sim predicted | ✓/✗ |
+|---|---|---|---|
+| cookiecats_gate_move | control | treatment | ✗ |
+| duolingo_weekend_amulet | treatment | control | ✗ |
+| msn_realestate_widget | treatment | treatment | ✓ |
+| office_online_redesign | control | treatment | ✗ |
+| msn_homepage_extra_offers | control | treatment | ✗ |
+| tinkoff_defer_passport | treatment | treatment | ✓ |
+| cxl_form_fields_9_to_6 | control | treatment | ✗ |
+| multistep_form_3_vs_6 | control | treatment | ✗ |
+
+The sim predicted **"treatment wins" on 7 of 8 cases.** It got **all five control-won
+counter-intuitive cases wrong** and scored only on the two treatment-won cases where the
+change genuinely won. (The one case it called "control" — Duolingo — was treatment-won, so
+that was wrong too.) The behaviour is directionally near-degenerate toward *"the proposed
+change wins"* — in fact slightly **worse** than a naive "always-treatment" rule (which would
+score 3/8 on this set). This is the exact priors-echoing failure mode the balanced
+counter-intuitive set was curated to expose.
+
+**This is the mirror image of the Hillstrom ad-aversion bias, and that symmetry is the real
+finding.** On a marketing *nudge*, the sim predicts the treatment **harms** (anti-change); on
+a product *change*, it predicts the treatment **wins** (pro-change). The framing flips the
+sign of the prior, and the sim echoes whichever prior the framing evokes — rather than
+reasoning about the deliberative trade-off underneath. Same root cause as §4/§5.1:
+introspective elicitation on a blinded single-state view returns the salient prior of the
+framing, not a genuine valuation.
+
+**One more registered caveat fired.** Cookie Cats scored *wrong* here under the portfolio's
+generic "conversion" elicitation, even though it scored *right* in §6's retention-specific
+pilot. A single generic-conversion act under-fits a case whose real mechanism is a
+delayed-return / retention effect — the pre-registered fidelity risk, realized. Per-metric
+(and per-domain) elicitation is a documented follow-up.
+
+**What it means for the program.** The benchmark did its job: it converted "is the sim
+accurate on in-scope product changes?" into a *certified, reproducible* engineering target
+with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
+(generic-conversion vs retention). That is exactly the honest-null foundation §5 commits to —
+a rigorous certified null plus a diagnosed mechanism is a stronger trust signal to a
+sophisticated buyer than a cherry-picked win. No in-scope directional positive is claimable
+until a fix moves direction accuracy off chance on *this* pre-registered set. The next levers
+are (a) de-biasing the pro-change prior at outcome elicitation (#221, analogous to the
+ad-aversion work), (b) per-metric elicitation so retention-shaped cases aren't forced through
+a generic conversion act (#222), and (c) the held-out memorization probe (Netflix browse +
+Highrise) to confirm priors-echoing rather than reciting.
+
+---
+
 ## Appendix — running changelog
 - 2026-06-16: Report started. Upworthy null finalized (§3). Hillstrom design,
   heterogeneity-prerequisite PASS, pre-registered prediction, and probe dry-run
@@ -425,4 +496,15 @@ claim will be built on.
   covariate to split on; random splits are hollow). **Cookie Cats = case #1 of a directional-accuracy
   portfolio, and it's correct.** Next: assemble ~8 different real product-change A/Bs to certify a
   directional claim across whole-experiment cases.
+- 2026-06-17: **Product-change directional PORTFOLIO — the first *certified* in-scope test; §7 added
+  (prereg `17478e06…fdb05d2b4`, committed before result).** 8 balanced (5/8 control-won),
+  counter-intuitive real product-change A/Bs, blinded through the engine, direction-only scored.
+  **Direction accuracy 0.25 (2/8), null-integrity certificate PASSED** (not VOID) — below chance
+  (0.5) and below the Kohavi expert baseline (~2.3/8). **Honest negative.** Diagnosis: the sim
+  predicted "treatment wins" on 7/8 cases (all 5 control-won counter-intuitive cases wrong) — a
+  **pro-change direction bias**, the *mirror image* of the Hillstrom ad-aversion bias (framing flips
+  the prior; the sim echoes whichever prior the framing evokes). Cookie Cats scored wrong here under
+  generic-conversion elicitation vs right in §6's retention-specific pilot (registered fidelity risk,
+  realized). Result artifact `portfolio-benchmark/portfolio_results.txt`. Next levers: de-bias the
+  pro-change prior at elicitation (#221), per-metric elicitation (#222), held-out memorization probe.
 </content>
