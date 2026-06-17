@@ -5,7 +5,7 @@
   "run_location": "prod-box in-container (i-04b155fafcc90042b), user standing campaign approval",
   "purpose": "Out-of-sample CONFIRMATORY test of the exploratory v3 subset finding (substantive-deliberative class scored 7/10=0.70 in-sample). All 14 scored cases are FRESH (none in the v2.1/v3 sets) and all substantive-deliberative. The set is deliberately CONTROL-HEAVY (8 control-won / 6 treatment-won) to power the primary endpoint.",
   "cases_file": "PORTFOLIO_CASES_CONFIRM.json",
-  "cases_canonical_sha256": "82d3086ff5abdd75a8b4a1417c9274572923043de462b89cd37cb089ff447566",
+  "cases_canonical_sha256": "1821242508caef941e5685326e3dfd7539877c0dce953ea0a7b5f8b2bf275308",
   "audit": {
     "independent_blind_audit": true,
     "auditor_blind_guess_accuracy": "6/14 = 0.429 (below chance) -> wording does not leak winners",
@@ -50,5 +50,7 @@
     "Control-heavy by design: real control-won product-change cases are scarce (publication bias); 8 is near the obtainable ceiling from primary sources. n=8 control-won is decisive for the tilt question (0-2/8 = tilt; >=4/8 = resistance) even though the headline is underpowered.",
     "Memorization control: the famous jam study and a near-null Bing case are HELD OUT (not scored) so recitation cannot inflate control-class.",
     "Treatment-won half includes 2 vendor-sourced directional cases (bionicgloves, blivakker) flagged lower-credibility; they only affect the secondary treatment-class, not the primary."
-  ]
+  ],
+  "cases_scored_content_sha256": "4ef9494fe6dc5e4c59d1a8b42d2098d1c5333d58499d267ecdb82e5da6892cb2",
+  "integrity_note": "Pre-result metadata FORMAT fix (methodology/human_baseline_anchors/further_sources str->dict + balance_check to id-lists) to satisfy the portfolio parser; applied BEFORE any result was observed (the run errored at file-load, never scored). The scored_cases+held_out CONTENT fingerprint is INVARIANT across the fix (cases_scored_content_sha256 4ef9494f\u2026, identical before and after) \u2014 proving the experiment itself was not altered. Original pre-fix full-file SHA was 82d3086f\u2026; new full-file SHA 1821242508\u2026. The content SHA is the binding integrity anchor."
 }

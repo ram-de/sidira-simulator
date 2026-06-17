@@ -1,7 +1,9 @@
 {
   "portfolio_id": "class-A-confirmatory-v1",
   "purpose": "A fresh, pre-registered, out-of-sample test of whether the simulator reads the DIRECTION of substantive deliberative product changes rather than defaulting to its measured pro-change tilt. The PRIMARY endpoint is control-class accuracy on the 8 control-won cases (the plausible change backfired): does the sim resist predicting that the change wins? Secondary endpoints are headline directional accuracy against the always-control/always-treatment baselines, per-class accuracy, and rank correlation.",
-  "methodology": "Each case is run through the real agent-simulation engine on a rendered, BLINDED control-vs-treatment stimulus using generic conversion/engagement elicitation; the sim never sees real_winner, effect, source, or any outcome field. Scoring is direction-only (did the sim pick the real winner?), since these are published point estimates inflated by publication bias. Both arms were authored as neutral, parallel, mechanic-only descriptions, then passed through an independent adversarial valence audit (blind to winners where possible) that blocks any arm-asymmetric valence or outcome leak; the prereg is sealed (canonical SHA) before the run.",
+  "methodology": {
+    "approach": "Each case is run through the real agent-simulation engine on a rendered, BLINDED control-vs-treatment stimulus using generic conversion/engagement elicitation; the sim never sees real_winner, effect, source, or any outcome field. Scoring is direction-only (did the sim pick the real winner?), since these are published point estimates inflated by publication bias. Both arms were authored as neutral, parallel, mechanic-only descriptions, then passed through an independent adversarial valence audit (blind to winners where possible) that blocks any arm-asymmetric valence or outcome leak; the prereg is sealed (canonical SHA) before the run."
+  },
   "scored_cases": [
     {
       "id": "ascarza_proactive_plan_recommendation",
@@ -247,12 +249,32 @@
     }
   ],
   "balance_check": {
-    "scored": 14,
-    "control_won": 8,
-    "treatment_won": 6,
+    "scored_n": 14,
+    "control_won": [
+      "ascarza_proactive_plan_recommendation",
+      "kanuri_andrews_service_recovery_incentive",
+      "algesheimer_ebay_community",
+      "lambrecht_tucker_dynamic_retargeting",
+      "anderson_simester_installment_billing",
+      "dholakia_simonson_reference_points",
+      "anderson_simester_sale_sign_saturation",
+      "office_help_widget"
+    ],
+    "treatment_won": [
+      "alibaba_recommender_set_size",
+      "low_default_charity_pledge",
+      "bing_antimalware_ad_removal",
+      "growthrock_add_star_rating",
+      "bionicgloves_remove_coupon_fields",
+      "blivakker_remove_three_reg_fields"
+    ],
     "always_control_baseline": 0.571,
     "always_treatment_baseline": 0.429
   },
-  "human_baseline_anchors": "Kohavi expert survey ~2.3/8 = 0.29 directional",
-  "further_sources": "see CLASS_A_CANDIDATES_ROUND1/ROUND2.md + CLASS_A_CONFIRMATORY_SET.md"
+  "human_baseline_anchors": {
+    "kohavi_expert_survey": "~2.3 / 8 correct = 0.29 directional"
+  },
+  "further_sources": {
+    "sourcing": "see CLASS_A_CANDIDATES_ROUND1/ROUND2.md + CLASS_A_CONFIRMATORY_SET.md"
+  }
 }
