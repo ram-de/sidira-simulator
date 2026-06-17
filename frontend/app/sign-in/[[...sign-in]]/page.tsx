@@ -1,25 +1,21 @@
-"use client";
-
-import { SignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
 import { ConsoleMarkMono } from "@/components/v2";
-import {
-  clerkEnabled,
-  clerkAppearanceConsole,
-  SIGN_UP_URL,
-  POST_AUTH_URL,
-} from "@/lib/clerk";
+import { clerkEnabled, hostedSignInUrl } from "@/lib/clerk";
 import "@/styles/v2-theme.css";
 
-// Catch-all route ([[...sign-in]]) so Clerk can mount its own sub-paths
-// (e.g. the OAuth /sign-in/sso-callback leg) under this segment. The top-level
-// /sso-callback route is the post-auth app gateway, distinct from Clerk's leg.
+// Catch-all route ([[...sign-in]]) so any /sign-in/* path also lands here.
 //
-// VISUAL ONLY: the page frame is the v2 dark "Reading Console" (design-system-v2
-// §4 / design-rethink/mocks/auth.html). The Clerk <SignIn> widget, its props,
-// routing, and redirects are unchanged; it is themed dark via the shared
-// `clerkAppearanceConsole` (lib/clerk.ts). The Console frame here is the
-// surrounding stage; Clerk renders its own card inside it.
+// HOSTED SIGN-IN: this route redirects to the Clerk-hosted Account Portal
+// (accounts.sidira.ai) rather than mounting the embedded <SignIn> widget. The
+// pinned clerk-js 5.123.13 in our SDK cannot render this instance's Client
+// Trust device-verification step (`needs_client_trust`) on a new device — the
+// embedded submit spinner dead-ends. The hosted portal (clerk-js v6) handles
+// it, then returns to the app's /sso-callback gateway. See lib/clerk.ts
+// (hostedSignInUrl) and memory reference-clerk-dark-console-gotchas.
+//
+// When Clerk is not configured (local dev / CI, no publishable key) we render
+// the dark Console "unavailable" surface instead of redirecting to prod.
 export default function SignInPage() {
   if (!clerkEnabled()) {
     return (
@@ -29,45 +25,14 @@ export default function SignInPage() {
     );
   }
 
-  return (
-    <AuthStage
-      eyebrow="SIGN IN · SIDIRA CONSOLE"
-      title="Open the instrument."
-      sub="Sign in to your workspace to compose a hypothesis and read a synthetic cohort."
-    >
-      <SignIn
-        appearance={clerkAppearanceConsole}
-        signUpUrl={SIGN_UP_URL}
-        forceRedirectUrl={POST_AUTH_URL}
-        fallbackRedirectUrl={POST_AUTH_URL}
-      />
-      {/* Explicit CAPTCHA mount (Clerk bot protection). Without this element
-          Clerk falls back to an INVISIBLE widget that silently blocks devices
-          it flags as suspicious (new IP / device) — the submit spins forever
-          with no challenge to solve. Rendering the smart widget here gives
-          flagged users an interactive challenge so sign-in can complete. Must
-          NOT sit inside an `overflow:hidden`/clipped ancestor. */}
-      <div id="clerk-captcha" className="auth-captcha" />
-    </AuthStage>
-  );
+  redirect(hostedSignInUrl());
 }
 
-// ── Dark Console auth stage (visual frame only) ─────────────────────────────
-// A single centered surface on a brutally-quiet field (design-system-v2 §0.2 —
-// auth is WORKING-class, no showpiece). The `.v2-console` scope carries the v2
-// tokens from v2-theme.css; the Clerk widget (themed via clerkAppearanceConsole)
-// sits where {children} is. Token-driven CSS only — no raw hex, no font names.
-function AuthStage({
-  children,
-  eyebrow,
-  title,
-  sub,
-}: {
-  children: React.ReactNode;
-  eyebrow?: string;
-  title?: string;
-  sub?: string;
-}) {
+// ── Dark Console auth stage (Clerk-unavailable surface only) ────────────────
+// A single centered surface on a brutally-quiet field (design-system-v2 §0.2).
+// The `.v2-console` scope carries the v2 tokens from v2-theme.css. Token-driven
+// CSS only — no raw hex, no font names.
+function AuthStage({ children }: { children: React.ReactNode }) {
   return (
     <main className="v2-console auth-stage">
       <div aria-hidden className="auth-bg" />
@@ -76,9 +41,6 @@ function AuthStage({
           <span className="auth-mark" aria-hidden>
             <ConsoleMarkMono size={34} />
           </span>
-          {eyebrow ? <span className="v2-desig">{eyebrow}</span> : null}
-          {title ? <h1 className="auth-title">{title}</h1> : null}
-          {sub ? <p className="auth-sub">{sub}</p> : null}
         </div>
         {children}
       </div>
@@ -101,8 +63,8 @@ function AuthUnavailableConsole() {
   );
 }
 
-// Shared, token-driven stage CSS (mirrors app/v2/auth + design-rethink/mocks/
-// auth.html). Every value is a v2 CSS var or a plain unit — no raw hex.
+// Token-driven stage CSS for the unavailable surface. Every value is a v2 CSS
+// var or a plain unit — no raw hex.
 const AUTH_CSS = `
 .auth-stage{
   position:relative;
@@ -113,16 +75,6 @@ const AUTH_CSS = `
   justify-content:center;
   padding:64px 24px 96px;
 }
-/* The CAPTCHA mount: centered under the card. Hidden when Clerk injects no
-   challenge (trusted device) so it leaves no empty gap; visible when a bot
-   challenge is required. Never clip this — the challenge iframe must be fully
-   interactive. */
-.auth-captcha{
-  display:flex;
-  justify-content:center;
-  width:100%;
-}
-.auth-captcha:empty{display:none;}
 .auth-bg{
   position:absolute;
   inset:0;
@@ -150,15 +102,6 @@ const AUTH_CSS = `
   display:inline-flex;
   color:var(--text-hi);
   margin-bottom:18px;
-}
-.auth-title{
-  margin:12px 0 0;
-  font-size:1.6rem;
-  line-height:1.1;
-  letter-spacing:-0.025em;
-  font-weight:600;
-  color:var(--text-hi);
-  text-wrap:balance;
 }
 .auth-sub{
   margin:10px auto 0;
