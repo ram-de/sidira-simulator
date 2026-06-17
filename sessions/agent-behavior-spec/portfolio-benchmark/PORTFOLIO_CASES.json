@@ -1,0 +1,163 @@
+{
+  "portfolio_id": "product-change-directional-portfolio-v1",
+  "purpose": "Certify a DIRECTIONAL-accuracy claim for the simulator on the IN-SCOPE deliberative-product-change class, across a curated set of WHOLE-EXPERIMENT cases (each = one real A/B with a known published winner). The unit of evidence is a whole experiment (see BENCHMARK_REPORT.md sec 6); Cookie Cats is case #1 (correct). This portfolio supplies the other independent cases needed to clear the 8-case null-cert floor with GENUINELY independent bits (not re-slices of one experiment).",
+  "methodology": {
+    "structural_reality": "No public source has NAMED treatments + raw per-user data + in-scope product change together (NeurIPS 2021 Liu et al. survey confirms). Cookie Cats is the rare raw-data anchor; all other cases are published narratives with point-estimate outcomes. So the harness scores the sim against the REPORTED winner/direction, not by re-analyzing rows.",
+    "must_run_the_engine": "The sim's claim is that simulating an AUDIENCE yields the right aggregate. So each case MUST be run through the real agent-simulation engine on a rendered control-vs-treatment stimulus, BLINDED to the outcome. Simply asking an LLM 'which wins?' is INVALID — it measures memorization, not the product.",
+    "scoring": "direction_accuracy (sign agreement: did the sim pick the real winner?) is the headline. Magnitude is OUT of scope for narrative/vendor cases (point estimates are inflated by publication bias). rank_rho across cases where effect sizes are credible (peer-reviewed/first-party only). Null-integrity certificate required (>=8 cases, label variation).",
+    "publication_bias_mitigations": [
+      "BALANCE: keep ~40% control-won cases so a sim that always predicts 'the change wins' cannot score well by default. Current scored set: 8 cases, control-won = Office Online, MSN offers, CXL form-fields, Cookie Cats (gate_30=control wins) = 4/8 = 50%.",
+      "DIRECTION-ONLY scoring for vendor/CRO showcases (effect sizes inflated).",
+      "Report as 'directional accuracy on a HARD, curated set', NOT a population estimate.",
+      "HUMAN BASELINE anchor: Kohavi's expert survey ~2.3/8 correct; MSN Real-Estate widget 3/21 experts predicted the winner. Position the sim against these.",
+      "ALWAYS pull the PRIMARY source's number before scoring (secondary retellings miscite, e.g. Etsy -22%/-50%, Highrise 47% vs 37.5%)."
+    ],
+    "contamination_control": "Famous results an LLM may have memorized are HELD OUT of the scored set into a separate memorization probe. If the sim aces the famous ones but flunks the obscure ones, it is reciting, not reasoning."
+  },
+  "scored_cases": [
+    {
+      "id": "cookiecats_gate_move",
+      "domain": "mobile game",
+      "control": "First forced progress gate at level 30",
+      "treatment": "First forced progress gate moved to level 40 (more free play before the wall)",
+      "metric": "7-day retention",
+      "real_winner": "control",
+      "effect": "gate_30 > gate_40, lift(40-30) = -0.0082 (~95% conf)",
+      "counter_intuitive": "high",
+      "contamination": "low-med",
+      "credibility": "high (raw per-user data, 90189 players)",
+      "source": "Cookie Cats A/B; raw mirror ryanschaub/Mobile-Games-A-B-Testing-with-Cookie-Cats",
+      "status": "ALREADY RUN (2026-06-17): clean by-arm dir_acc 1.0 (sign RIGHT) but VOID at n=1; this portfolio gives it company.",
+      "raw_data": true
+    },
+    {
+      "id": "duolingo_weekend_amulet",
+      "domain": "edtech",
+      "control": "Miss a day of practice -> lose your streak",
+      "treatment": "Equippable 'Weekend Amulet' item preserves the streak across a skipped weekend",
+      "metric": "week-later return rate",
+      "real_winner": "treatment",
+      "effect": "+4% week-later return, -5% streak-loss",
+      "counter_intuitive": "high (a skip-day safety valve 'should' weaken the habit loop; it raised return)",
+      "contamination": "low-med",
+      "credibility": "high (official Duolingo blog)",
+      "source": "Duolingo engineering/blog",
+      "raw_data": false
+    },
+    {
+      "id": "msn_realestate_widget",
+      "domain": "media/lead-gen",
+      "control": "Incumbent 'Find a home' widget",
+      "treatment": "Simplest, search-like redesigned layout (winner of 6 variants)",
+      "metric": "referral revenue",
+      "real_winner": "treatment",
+      "effect": "+~10% referral revenue",
+      "counter_intuitive": "high (only 3/21 experts predicted the winner; richer designs were the prior)",
+      "contamination": "med",
+      "credibility": "high (Kohavi DMCS 2009, peer-recognized); carries a HUMAN BASELINE 3/21",
+      "source": "Kohavi et al., Online Experimentation at Microsoft (DMCS 2009)",
+      "raw_data": false
+    },
+    {
+      "id": "office_online_redesign",
+      "domain": "software e-commerce",
+      "control": "Existing Buy page",
+      "treatment": "Redesign most users found MORE appealing (also hid the price)",
+      "metric": "Buy-button clickers",
+      "real_winner": "control",
+      "effect": "control won; treatment -64% buy-button clickers",
+      "counter_intuitive": "high (prettier, better-liked design lost decisively)",
+      "contamination": "med",
+      "credibility": "high (Kohavi DMCS 2009)",
+      "caveat": "Kohavi flags as FLAWED-OEC: treatment HID price so 'clicks' is the wrong metric. Score sim on the STATED metric (clicks -> control) and DISCLOSE the confound.",
+      "source": "Kohavi et al., DMCS 2009",
+      "raw_data": false
+    },
+    {
+      "id": "msn_homepage_extra_offers",
+      "domain": "media/portal",
+      "control": "MSN homepage as-is",
+      "treatment": "Add 3 paid offers below the shopping module",
+      "metric": "clicks and page-views per user-day",
+      "real_winner": "control",
+      "effect": "control won; -0.35% (multi-$M loss)",
+      "counter_intuitive": "med-high (marketing projected big gains; clutter cost net money)",
+      "contamination": "low-med",
+      "credibility": "high (Kohavi DMCS 2009)",
+      "source": "Kohavi et al., DMCS 2009",
+      "raw_data": false
+    },
+    {
+      "id": "tinkoff_defer_passport",
+      "domain": "fintech onboarding",
+      "control": "Card application requires passport details at step 2",
+      "treatment": "'Don't remember? Add later' checkbox lets the user defer the required passport field",
+      "metric": "form conversion",
+      "real_winner": "treatment",
+      "effect": "+35.8% (~100% conf, n=265k)",
+      "counter_intuitive": "med (letting a required field be skipped feels risky)",
+      "contamination": "med-high",
+      "credibility": "med (VWO showcase; large n + significance) -- DIRECTION-only scoring",
+      "source": "VWO case-study showcase",
+      "raw_data": false
+    },
+    {
+      "id": "cxl_form_fields_9_to_6",
+      "domain": "lead/signup form",
+      "control": "9-field form",
+      "treatment": "6-field form (cut the 3 MOST-engaged-with fields)",
+      "metric": "conversions",
+      "real_winner": "control",
+      "effect": "control won; treatment -14% conversions",
+      "counter_intuitive": "high ('fewer fields always win' is near-universal)",
+      "contamination": "med",
+      "credibility": "med (CXL/Aagaard; client anonymized but plain-words describable) -- DIRECTION-only",
+      "source": "CXL / Michael Aagaard",
+      "raw_data": false
+    },
+    {
+      "id": "multistep_form_3_vs_6",
+      "domain": "lead-gen",
+      "control": "6-step form",
+      "treatment": "Simplified to 3 steps",
+      "metric": "lead conversion",
+      "real_winner": "control",
+      "effect": "more steps (6) won; re-adding a step recovered conversion",
+      "counter_intuitive": "high (fewer steps is the textbook answer; it lost)",
+      "contamination": "low-med (essentially un-memorizable; client anonymized)",
+      "credibility": "med-low (named practitioner, no % disclosed) -- DIRECTION-only",
+      "source": "named CRO practitioner case",
+      "raw_data": false,
+      "note": "real_winner=control means the FEWER-steps treatment LOST; control(6-step) won. Double-check primary source phrasing at build time."
+    }
+  ],
+  "held_out_memorization_probe": [
+    {
+      "id": "netflix_browse_before_signup",
+      "change": "registration wall -> let prospects browse catalog first (5 variants)",
+      "real_winner": "control (won all 5); 46% SAID they wanted browsing",
+      "why_held_out": "high contamination (textbook stated-vs-revealed-preference inversion, widely retold)"
+    },
+    {
+      "id": "highrise_simple_person_page",
+      "change": "long info-dense page -> short page w/ big real-customer photo + simple signup",
+      "real_winner": "treatment (+47% paid signups; adding content back = -22%)",
+      "why_held_out": "high contamination (famous 37signals first-party case)"
+    }
+  ],
+  "balance_check": {
+    "scored_n": 8,
+    "control_won": ["office_online_redesign", "msn_homepage_extra_offers", "cxl_form_fields_9_to_6", "multistep_form_3_vs_6", "cookiecats_gate_move"],
+    "treatment_won": ["duolingo_weekend_amulet", "msn_realestate_widget", "tinkoff_defer_passport"],
+    "control_won_fraction": "5/8 = 0.625",
+    "note": "Slightly control-heavy; a naive 'change always wins' sim scores <=3/8. Good. If we add more treatment-won obscure cases later, keep >=40% control-won."
+  },
+  "human_baseline_anchors": {
+    "kohavi_expert_survey": "~2.3 / 8 correct",
+    "msn_realestate_widget": "3 / 21 experts predicted the winner"
+  },
+  "further_sources": {
+    "more_named_cases": "Kohavi/Tang/Xu corpus: DMCS 2009 (Online Experimentation at Microsoft), Trustworthy Online Controlled Experiments (2020), Five Puzzling Outcomes Explained (KDD 2012), Online Controlled Experiments at Large Scale (KDD 2013). Filter OUT SERP/ranking cases (out of scope). High contamination, no raw data.",
+    "dataset_map": "Liu et al., Datasets for Online Controlled Experiments, NeurIPS 2021 (arXiv:2111.10198) -- enumerates all 13 public OCE datasets; confirms named+raw+in-scope does not co-exist publicly. ASOS = anonymized (useless). Upworthy = headline copy, group-level (already a null for us)."
+  }
+}
