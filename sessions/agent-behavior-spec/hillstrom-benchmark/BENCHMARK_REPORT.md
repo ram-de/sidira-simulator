@@ -102,20 +102,27 @@ ever shows wins.
 
 ## 4. Benchmark 2 — Hillstrom email uplift (the directional test, in progress)
 
-> **⚠️ UNDER ACTIVE RE-EXAMINATION (2026-06-17).** After the portfolio reversal (§7) — where a
-> "certified" negative turned out to be a self-inflicted stimulus-construction artifact — we
-> applied the same audit lens to this benchmark and found a concrete harness confound: the
-> elicitation `decision_point` is hardcoded to *"the customer is reading the promotional e-mail
-> in their inbox"* and is fed to **both** arms, including the **No-E-Mail control** — so the
-> control agent is told it is reading the very email the treatment adds, mechanically inflating
-> the control propensity and pushing the treatment−control delta toward zero/negative (the
-> observed −0.01 to −0.03). The model-comparison "intrinsic / model-independent" claim below
-> therefore does **not** establish intrinsicness: Groq and Sonnet ran on the *same confounded
-> harness*, so their agreement reflects a shared stimulus bug, not the model (exactly the
-> portfolio lesson). **Treat every "0.0 direction accuracy / certified ad-aversion / intrinsic"
-> statement in §4 and §5.1 as PROVISIONAL** pending a de-confounded re-run (arm-correct the
-> decision_point; pre-registered; same 8 cases, both outcomes). If that re-run moves dir_acc off
-> 0.0, §4/§5.1 will be retracted and rewritten.
+> **✅ RE-EXAMINED AND CONFIRMED — the ad-aversion SURVIVES de-confounding (2026-06-17).** After
+> the portfolio reversal (§7) — where a "certified" negative turned out to be a self-inflicted
+> stimulus-construction artifact — we applied the same audit lens here and found a real harness
+> confound: the elicitation `decision_point` was hardcoded to *"the customer is reading the
+> promotional e-mail in their inbox"* and fed to **both** arms, including the **No-E-Mail
+> control** — so the control agent was told it was reading the very email the treatment adds.
+> We fixed it (PR #361: decision_point → *"the customer is looking at their inbox"*, email-free;
+> the treatment email is carried only by the already-arm-correct per-arm structural spec; guarded
+> by `test_hillstrom_decision_point_deconfound`) and ran a **pre-registered, single-variable clean
+> re-run** (PREREG_FIX1, canonical SHA `f2947b39…` committed before the result; Groq, same 8
+> cases, both outcomes). **Result: `direction_accuracy` stayed at exactly 0.0 on BOTH conversion
+> and visit** (cert PASSED, not VOID; rank_ρ conv −0.16 / visit +0.19, both at chance). The
+> pre-registered prediction (dir_acc would move off 0.0) was **wrong in the un-flattering
+> direction** — the strongest evidence the verdict is real. So §4/§5.1 **STAND, strengthened**:
+> the decision_point confound was a genuine bug worth fixing but was **not** load-bearing for the
+> sign inversion; the ad-aversion is intrinsic to introspective elicitation of a sub-deliberative
+> nudge, not a rendering artifact. **One narrowing:** "model-independent" originally rested on
+> Groq==Sonnet==0.0 on the *confounded* harness (= shared-stimulus agreement, not a true model
+> property); the clean re-run re-establishes the bias for **Groq** only — a Sonnet clean re-run is
+> an optional confirmation, no longer the load-bearing evidence. (Contrast §7: there, de-leaking
+> *flipped* the score — that one WAS an artifact. The discipline distinguished the two.)
 
 Upworthy answered "can we rank magnitude?" (no). Benchmark 2 asks the question the
 product is actually built around: **does the simulator get the *direction* and the
@@ -339,10 +346,14 @@ the product should be sold, not a hidden weakness:
   marketing-channel or ad-campaign lift prediction. Naming this boundary — on real RCT evidence,
   rather than discovering it in front of a customer — is itself the trustworthy move.
 
-> **⚠️ PROVISIONAL — see the §4 banner.** A 2026-06-17 audit found the Hillstrom harness feeds a
-> control-contaminating `decision_point` to both arms; the model-comparison below cannot establish
-> intrinsicness because both models ran on that same confounded stimulus. The "settled: intrinsic"
-> claim in this paragraph is suspended pending a de-confounded, pre-registered re-run.
+> **✅ UPDATED — see the §4 banner.** A 2026-06-17 audit found the harness fed a control-
+> contaminating `decision_point` to both arms, so the model-comparison agreement below could not,
+> by itself, establish intrinsicness (both models ran on the same confounded stimulus). We fixed
+> the confound (#361) and ran a pre-registered clean re-run (Groq): `direction_accuracy` stayed
+> 0.0 on both outcomes → the ad-aversion is **confirmed robust to de-confounding** and is not a
+> stimulus artifact. The "intrinsic" conclusion now rests on that clean Groq re-run; the original
+> Groq==Sonnet agreement (on the confounded harness) is corroborating, not load-bearing. A Sonnet
+> *clean* re-run remains an optional confirmation of model-independence specifically.
 
 The model-comparison test probed whether that boundary is *intrinsic* to introspective
 simulation or merely a limit of the current model. **It is now settled: intrinsic.** Re-running
@@ -644,4 +655,16 @@ Highrise) to confirm priors-echoing rather than reciting.
   de-contaminated → intrinsic genuinely survives. (Caveat: Hillstrom's real effect is small/partly
   sub-deliberative, so a true null can co-exist with the confound — less certain to flip than the
   portfolio's large deliberative effects.)
+- 2026-06-17: **Fix-1 de-confound RE-RUN DONE → ad-aversion CONFIRMED, not retracted.** PR #361
+  arm-corrected the decision_point (→ "looking at their inbox", email-free; guarded by a regression
+  test) + deployed to the box. Pre-registered single-variable clean re-run (PREREG_FIX1 SHA
+  `f2947b39…`, committed before result; Groq, same 8 cases, both outcomes). **dir_acc stayed 0.0 on
+  BOTH conversion and visit** (cert PASSED, not VOID; rank_ρ conv −0.16 / visit +0.19, chance). The
+  pre-registered prediction (dir_acc moves off 0.0) was wrong in the UN-flattering direction → §4
+  banner + §5.1 caveat changed from PROVISIONAL to CONFIRMED/strengthened: the confound was real and
+  fixed but NOT load-bearing for the sign inversion; the ad-aversion is intrinsic, not a rendering
+  artifact. "Model-independent" narrowed: re-established for Groq on the clean harness; Sonnet clean
+  re-run optional. Contrast §7 portfolio, where de-leaking DID flip the score (that one was an
+  artifact) — the audit→fix→prereg→clean-rerun discipline distinguished the two. Artifact:
+  fix1_deconfound_result.txt.
 </content>
