@@ -601,7 +601,10 @@ def _cookiecats_hypothesis_builder(metric_name: str):
     "--by-segment/--by-arm",
     "use_segments",
     default=False,
-    help="Score per engagement SEGMENT (>=8 cases) instead of the single A/B.",
+    help=(
+        "Score per engagement SEGMENT (>=8 cases, DESCRIPTIVE/non-causal: "
+        "sum_gamerounds is post-treatment) instead of the clean single A/B (--by-arm)."
+    ),
 )
 @click.option("--model-id", default=None, help="LLM model id to drive the engine.")
 @click.option(
@@ -702,7 +705,12 @@ def benchmark_cookiecats(
     click.echo(f"metric:             {metric}")
     click.echo(f"engine_metric:      {_COOKIECATS_ENGINE_METRIC}")
     click.echo(
-        f"stratifier:         {'engagement segment (>=8)' if use_segments else 'single A/B'}"
+        "stratifier:         "
+        + (
+            "engagement segment (>=8, DESCRIPTIVE/non-causal: post-treatment covariate)"
+            if use_segments
+            else "single A/B (clean causal endpoint)"
+        )
     )
     click.echo(f"model_id:           {model_id}")
     click.echo(f"seed:               {seed}")

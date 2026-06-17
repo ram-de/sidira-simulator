@@ -31,14 +31,27 @@ psychology), not purely a deliberative reaction to a visible change. So
 introspective agent simulation MAY get it wrong too — this is a HARD test, not a
 guaranteed positive.
 
-STRATIFICATION (≥8 cases from ONE A/B). Unlike Hillstrom (2 arms × 4 segments),
-Cookie Cats is a single comparison. To clear the null-cert's 8-experiment floor
-we stratify the population by ENGAGEMENT into octiles of `sum_gamerounds` — eight
-`eng_o1`..`eng_o8` strata, each comparing gate_30 vs gate_40 retention WITHIN that
-engagement band. Octile boundaries are read off the pooled (both-arm)
-`sum_gamerounds` distribution so the split is data-driven and reproducible, and
-the strata align to the engagement-tier persona pack the by-segment run conditions
-on. Eight strata × one comparison = 8 cases.
+STRATIFICATION (≥8 cases from ONE A/B) — A DESCRIPTIVE, NON-CAUSAL ENDPOINT.
+Unlike Hillstrom (2 arms × 4 segments), Cookie Cats is a single comparison. To
+clear the null-cert's 8-experiment floor we stratify the population by ENGAGEMENT
+into octiles of `sum_gamerounds` — eight `eng_o1`..`eng_o8` strata, each comparing
+gate_30 vs gate_40 retention WITHIN that engagement band. Octile boundaries are
+read off the pooled (both-arm) `sum_gamerounds` distribution so the split is
+data-driven and reproducible, and the strata align to the engagement-tier persona
+pack the by-segment run conditions on. Eight strata × one comparison = 8 cases.
+
+  ⚠ CAUSAL-VALIDITY CAVEAT (codex P1). `sum_gamerounds` is a POST-TREATMENT
+  variable: it counts rounds played in the first 14 days AFTER randomization, and
+  moving the gate can itself change how many rounds a player accrues. Conditioning
+  on a post-treatment mediator BREAKS the clean randomized comparison — the
+  per-octile within-stratum uplift is therefore a DESCRIPTIVE heterogeneity
+  signal, NOT an unbiased causal CATE. We use it only to (a) reach the
+  8-experiment null-cert floor and (b) condition the simulated audience on a
+  realistic engagement cohort, and we surface it honestly as descriptive. The
+  POPULATION-level A/B (`build_cookiecats_case`, the --by-arm path) IS the clean,
+  pre-registered causal endpoint; the by-segment scores must be read as
+  exploratory, conditioned on a post-treatment covariate. This is recorded in
+  PREREG_COOKIECATS.json.
 
 Reuses `services.statistics` helpers (no scipy/numpy), mirroring the Hillstrom
 adapter. The CIs ride on the adapter's own result dataclasses, NOT on
@@ -203,10 +216,20 @@ def compute_gate_uplift(
 
     The control rate is the gate_30 retention rate over ALL rows; the treatment
     rate is gate_40's. Because assignment was randomized this difference is an
-    unbiased ATE estimate. Raises ValueError on an unknown metric.
+    unbiased ATE estimate. Raises ValueError on an unknown metric, OR if either
+    randomized arm is ABSENT (a filtered/corrupted CSV with only gate_30 or only
+    gate_40 would otherwise let `_rate` return 0.0 for the missing arm and emit a
+    plausible-but-fabricated lift/winner as benchmark ground truth — fail loud
+    instead, codex P2).
     """
     control = [_outcome(r, metric_name) for r in rows if r.version == CONTROL_VERSION]
     treatment = [_outcome(r, metric_name) for r in rows if r.version == TREATMENT_VERSION]
+    if not control or not treatment:
+        raise ValueError(
+            "Cookie Cats A/B requires BOTH arms present to compute an uplift, but "
+            f"got n_control={len(control)} (gate_30), n_treatment={len(treatment)} "
+            "(gate_40). A CSV missing an arm cannot anchor a benchmark ground truth."
+        )
     control_rate = _rate(control)
     treatment_rate = _rate(treatment)
     lift = treatment_rate - control_rate
@@ -283,9 +306,14 @@ def compute_segment_uplift(
     Within each engagement octile, the gate_40 retention rate minus the gate_30
     rate IN THAT SAME stratum (so the control is matched on engagement). Strata
     are emitted in stable sorted order so the pre-registration hash is
-    reproducible. A stratum with no control or no treatment rows is still emitted
-    (with a degenerate CI) rather than dropped, so coverage stays honest. Raises
-    ValueError on an unknown metric or empty rows.
+    reproducible. Raises ValueError on an unknown metric or empty rows.
+
+    ⚠ DESCRIPTIVE, NON-CAUSAL (codex P1). `sum_gamerounds` is a POST-treatment
+    mediator (rounds accrued after randomization, plausibly affected by the gate
+    move), so these within-stratum uplifts are an EXPLORATORY heterogeneity signal,
+    NOT unbiased causal CATEs. See the module docstring + PREREG_COOKIECATS.json.
+    A stratum missing either arm is DROPPED (never emitted with a fabricated
+    0.0-rate winner) so no faked ground truth enters the benchmark.
     """
     if not rows:
         raise ValueError("compute_segment_uplift requires at least one row")
@@ -307,6 +335,12 @@ def compute_segment_uplift(
     for i, key in enumerate(keys):
         control = control_by_seg.get(key, [])
         treatment = treatment_by_seg.get(key, [])
+        if not control or not treatment:
+            # A stratum missing an arm cannot anchor a within-stratum lift; emitting
+            # one would fabricate a 0.0-rate winner (codex P2). DROP it rather than
+            # fake ground truth — randomization gives every populated octile both
+            # arms, so this only fires on degenerate/filtered inputs.
+            continue
         control_rate = _rate(control)
         treatment_rate = _rate(treatment)
         lift = treatment_rate - control_rate
@@ -465,9 +499,14 @@ def cookiecats_segment_cases(
 
     For each engagement octile (`eng_o1`..`eng_o8`), one case whose ground truth
     is the gate move's uplift within that stratum. These carry the 4-component
-    case_id the `benchmark_honesty.by_segment` stratifier reads, so directional
+    case_id the `benchmark_honesty.by_engagement` stratifier reads, so directional
     accuracy can be reported per engagement stratum. Raises ValueError if `rows`
     is empty.
+
+    ⚠ DESCRIPTIVE / NON-CAUSAL (codex P1). The stratifier `sum_gamerounds` is a
+    post-treatment mediator, so these per-segment cases are an EXPLORATORY
+    heterogeneity endpoint, not unbiased causal CATEs — the clean causal endpoint
+    is the population A/B (`build_cookiecats_case`). See the module docstring.
 
     VALIDITY REQUIREMENT. The cases differ ONLY in ground truth + case_id — their
     stimulus is deliberately IDENTICAL, and the predictor is blind to

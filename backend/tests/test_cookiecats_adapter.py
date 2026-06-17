@@ -76,6 +76,31 @@ def test_unsupported_metric_raises() -> None:
         compute_gate_uplift(_known_frame(), metric_name="spend")
 
 
+def test_missing_arm_raises_not_fabricates() -> None:  # codex P2
+    """A CSV with only ONE randomized arm must FAIL loud rather than emit a
+    fabricated 0.0-rate lift/winner as benchmark ground truth."""
+    only_control = [_row("gate_30", retention_7=1) for _ in range(4)]
+    with pytest.raises(ValueError, match="requires BOTH arms present"):
+        compute_gate_uplift(only_control, metric_name="retention_7")
+    only_treatment = [_row("gate_40", retention_7=1) for _ in range(4)]
+    with pytest.raises(ValueError, match="requires BOTH arms present"):
+        build_cookiecats_case(only_treatment, metric_name="retention_7")
+
+
+def test_segment_drops_strata_missing_an_arm() -> None:  # codex P2
+    """An engagement octile that (degenerately) holds only one arm is DROPPED, not
+    emitted with a fabricated 0.0-rate winner."""
+    rows: list[CookieCatsRow] = []
+    # band A (sum_gamerounds ~1): BOTH arms present → kept
+    rows += [_row("gate_30", retention_7=1, sum_gamerounds=1) for _ in range(2)]
+    rows += [_row("gate_40", retention_7=0, sum_gamerounds=1) for _ in range(2)]
+    # band B (sum_gamerounds ~100): ONLY control → must be dropped
+    rows += [_row("gate_30", retention_7=1, sum_gamerounds=100) for _ in range(2)]
+    segs = compute_segment_uplift(rows, metric_name="retention_7", n_resamples=50, n_strata=2)
+    assert all(s.n_control > 0 and s.n_treatment > 0 for s in segs)
+    assert len(segs) == 1  # only the both-arm band survived
+
+
 # ── ENGAGEMENT STRATIFICATION ──────────────────────────────────────────────────
 
 
