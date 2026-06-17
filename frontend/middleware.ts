@@ -153,6 +153,18 @@ export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
+  // Normalize the host BEFORE the v2 toggle so the opt-out cookie is always set
+  // on the host that will actually serve the content. Otherwise a toggle hit on
+  // a product path via the public host (e.g. sidira.ai/simulations?v2=0) would
+  // set sidira_v2 on sidira.ai, then bounce to app.sidira.ai WITHOUT it — the
+  // opt-out silently fails. hostRedirect clones nextUrl, so the ?v2 param rides
+  // the redirect to app.sidira.ai and the toggle re-runs there on the right
+  // host. For app-host requests this returns null and we fall straight through
+  // (the auth middlewares still call hostRedirect again — a no-op once
+  // normalized). (codex P2.)
+  const hostRedir = hostRedirect(request);
+  if (hostRedir) return hostRedir;
+
   const param = request.nextUrl.searchParams.get("v2");
   if (param === V2_COOKIE_ON || param === V2_COOKIE_OFF) {
     const url = request.nextUrl.clone();
