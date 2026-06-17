@@ -69,6 +69,8 @@
   --ease-mech: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Spacing */
+  --space-hairline: 2px;
+  --space-tight: 4px;
   --space-snug: 8px;
   --space-cozy: 12px;
   --space-base: 16px;
