@@ -5,6 +5,7 @@
 // middleware keeps the temporary Basic-Auth fallback. This mirrors the backend's
 // env-gated Clerk middleware (#29).
 import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO } from "@/lib/design";
+import { APP_HOST } from "@/lib/site-hosts";
 
 // NEXT_PUBLIC_* is inlined at build into both server and client bundles, so this
 // reads correctly from middleware (server) and the auth pages (client) alike.
@@ -20,6 +21,60 @@ export const SIGN_UP_URL = "/sign-up";
 // active organization (so #31's organization.created webhook provisions the
 // customer) and then routes by whether the tenant already has a persona pack.
 export const POST_AUTH_URL = "/sso-callback";
+
+// ── Hosted Account Portal fallback ──────────────────────────────────────────
+// The embedded <SignIn>/<SignUp> widgets in our pinned clerk-js 5.123.13 cannot
+// render the Client Trust (`needs_client_trust`) device-verification step that
+// this instance requires on a new/untrusted device — the submit spinner
+// dead-ends with no follow-up request. The Clerk-HOSTED Account Portal
+// (accounts.sidira.ai, served by clerk-js v6) handles that step correctly, so
+// the auth routes redirect there instead of mounting the embedded widget.
+// Until the SDK is upgraded (v7 + Next 15), the hosted portal IS our sign-in.
+// See memory: reference-clerk-dark-console-gotchas.
+const CLERK_ACCOUNT_PORTAL = "https://accounts.sidira.ai";
+// After the portal authenticates, return to the app's post-auth gateway so the
+// org-provisioning + persona-routing logic in /sso-callback still runs. The
+// return MUST be a fixed, canonical app origin (not derived from the request
+// host): there is exactly ONE configured Clerk instance and ONE app host
+// (APP_HOST), and Clerk is gated off entirely without a publishable key, so no
+// Clerk-enabled non-prod environment exists. Pinning the canonical origin also
+// closes the open-redirect surface that trusting a forwarded request host would
+// open — the hosted portal can only ever bounce back to the real app.
+const APP_POST_AUTH_RETURN = `https://${APP_HOST}${POST_AUTH_URL}`;
+
+// Next.js page `searchParams` shape.
+type IncomingParams = Record<string, string | string[] | undefined>;
+
+// Forward the incoming query string to the hosted portal — Clerk organization
+// invitation links arrive at /sign-in or /sign-up carrying ticket params
+// (`__clerk_ticket`, `__clerk_status`, …) that the portal must consume so the
+// invitee JOINS the invited org instead of creating their own. We forward every
+// incoming param EXCEPT `redirect_url`, which we always pin to the canonical app
+// gateway ourselves so a caller-supplied value can never turn this into an open
+// redirect. Forwarding to Clerk's own trusted portal host is safe.
+const buildPortalParams = (incoming?: IncomingParams): URLSearchParams => {
+  const params = new URLSearchParams();
+  if (incoming) {
+    for (const [key, value] of Object.entries(incoming)) {
+      if (value === undefined || key === "redirect_url") continue;
+      if (Array.isArray(value)) value.forEach((v) => params.append(key, v));
+      else params.append(key, value);
+    }
+  }
+  params.set("redirect_url", APP_POST_AUTH_RETURN);
+  return params;
+};
+
+const hostedAuthUrl = (
+  path: "sign-in" | "sign-up",
+  incoming?: IncomingParams,
+): string =>
+  `${CLERK_ACCOUNT_PORTAL}/${path}?${buildPortalParams(incoming).toString()}`;
+
+export const hostedSignInUrl = (incoming?: IncomingParams): string =>
+  hostedAuthUrl("sign-in", incoming);
+export const hostedSignUpUrl = (incoming?: IncomingParams): string =>
+  hostedAuthUrl("sign-up", incoming);
 
 // Brand-aligned Clerk appearance — maps the prebuilt components onto DESIGN.md
 // tokens (§4 palette, §5 type, 4px radius, 2px input borders). Refinements are
