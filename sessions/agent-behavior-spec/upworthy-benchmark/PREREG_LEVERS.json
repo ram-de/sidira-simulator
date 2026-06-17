@@ -1,0 +1,31 @@
+{
+  "title": "Accuracy-levers probe: does expert-forecaster elicitation beat reader-roleplay? (#342)",
+  "timestamp_utc": "2026-06-17T23:15:40Z",
+  "design": "Same fresh disjoint 150-case slice as iter2. Two NEW elicitation modes (single call/case, blinded, order-randomized), contrasted with the prior reader-roleplay null:",
+  "modes": {
+    "comparative": "forced choice + brief reasoning: which headline gets higher CTR + confidence -> P(treatment wins)-0.5",
+    "popshare": "of 100 feed users, how many click A vs B -> clicks_T - clicks_C"
+  },
+  "models": {
+    "sonnet": "claude-sonnet-4-6",
+    "groq": "llama-3.3-70b-versatile"
+  },
+  "case_set_hash": "1e54565003e5a00b8ff23b2adfa0ffc2c7c4202bc9181602ed468a3913e9e9d2",
+  "n_cases": 150,
+  "scoring": "directional_gate G0-G11, delta=0.0, bootstrap=2000 over experiments, 90% CIs, seed=42",
+  "predicted_spearman_rho": {
+    "comparative_sonnet": 0.1,
+    "comparative_groq": 0.05,
+    "popshare_sonnet": 0.08,
+    "popshare_groq": 0.05
+  },
+  "hypotheses": {
+    "H1": "does ANY expert-forecaster arm show rank tracking (Kendall tau_b 90% LB > 0 OR balanced SMR Wilson LB > 0.5)?",
+    "H2": "does expert-forecaster framing beat the prior reader-roleplay null (iter2 sonnet panel rho -0.038)?"
+  },
+  "decision_rule": "If any arm shows robust rank tracking (LB>0) -> elicitation FORMAT was a hidden lever; scale + pre-register confirm. If all null -> format is not the lever on Upworthy; pivot to the supervised avenue (LLM feature-extraction + cross-fit calibration on real CTR).",
+  "elicitation_prompt_ids": [
+    "comparative_ctr_v1",
+    "popshare_ctr_v1"
+  ]
+}
