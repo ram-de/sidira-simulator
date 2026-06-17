@@ -57,6 +57,23 @@ def _r(
 # ── aggregate_conversion_lift ─────────────────────────────────────────────────
 
 
+def test_affordance_gate_does_not_affect_paired_lift(monkeypatch) -> None:
+    """#221/#222: the affordance clause is added symmetrically to BOTH arms'
+    rendered states, so it cancels in the paired delta. `aggregate_metric_lift`
+    (which `aggregate_conversion_lift` rides) operates on the elicited `metric_p`
+    scalars — never on the prompt — so flipping the gate yields the IDENTICAL lift."""
+    treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(4)]
+    control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(4)]
+
+    monkeypatch.delenv("SIDIRA_STIMULUS_AFFORDANCE", raising=False)
+    monkeypatch.delenv("PYTHIA_STIMULUS_AFFORDANCE", raising=False)
+    off = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=42)
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    on = aggregate_conversion_lift(treatment, control, _CI_CFG, run_seed=42)
+    assert on.lift_pp == off.lift_pp == pytest.approx(30.0)
+    assert on.lift_ci_pp == off.lift_ci_pp
+
+
 def test_positive_paired_lift_in_percentage_points() -> None:
     treatment = [_r(persona_id=f"p{i}", arm="treatment", metric_p=0.5) for i in range(4)]
     control = [_r(persona_id=f"p{i}", arm="control", metric_p=0.2) for i in range(4)]

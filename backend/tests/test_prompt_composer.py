@@ -13,6 +13,7 @@ from sidira_simulator.schemas.feature_pack import (
     Component,
     ReverseFigma,
     Screen,
+    Transition,
 )
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
@@ -854,3 +855,101 @@ def test_metric_prompt_no_persona_strips_identity() -> None:
     # Still blinded — proposed state only, no change framing.
     assert "Tip: 20% pre-filled" in prompt
     assert "Tip: choose amount" not in prompt
+
+
+# ─────────────────────────────────────────────────────────────────────
+# #221/#222 stimulus-affordance rendering in the metric pass: the gated,
+# graph-derived affordance clause must (a) be byte-identical OFF, (b) preserve
+# blinding ON, and (c) appear IDENTICALLY in both arms so it cancels in the
+# paired delta.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _stimulus_capability() -> Capability:
+    """Current state: an interactive stimulus surface (a `notice` screen whose
+    component is the source of an outbound cross-screen transition to `feed`)."""
+    return Capability(
+        name="reengagement",
+        surfaces=["mobile"],
+        roles=["consumer"],
+        entry_points=["notice"],
+        reverse_prd="A re-engagement surface that can pull the user into the feed.",
+        reverse_figma=ReverseFigma(
+            screens=[
+                Screen(id="feed", name="Feed", components=[]),
+                Screen(
+                    id="notice",
+                    name="Notice",
+                    components=[Component(id="cta", role="button", text="See what's new")],
+                ),
+            ],
+            transitions=[Transition(trigger="tap_cta", from_screen="notice", to_screen="feed")],
+        ),
+    )
+
+
+def _stimulus_hypothesis() -> Hypothesis:
+    """Proposed state: SAME structure + transition, only the component copy changes
+    — so the affordance clause is identical in both arms and cancels in the delta."""
+    return Hypothesis(
+        capability_name="reengagement",
+        prose="Reword the re-engagement CTA.",
+        proposed_figma=ReverseFigma(
+            screens=[
+                Screen(id="feed", name="Feed", components=[]),
+                Screen(
+                    id="notice",
+                    name="Notice",
+                    components=[Component(id="cta", role="button", text="Catch up now")],
+                ),
+            ],
+            transitions=[Transition(trigger="tap_cta", from_screen="notice", to_screen="feed")],
+        ),
+    )
+
+
+def test_metric_prompt_byte_identical_when_affordance_gate_off(monkeypatch) -> None:
+    """Gate OFF (default): the metric prompt for a stimulus capability is
+    byte-for-byte the historical output — no affordance clause."""
+    monkeypatch.delenv("SIDIRA_STIMULUS_AFFORDANCE", raising=False)
+    monkeypatch.delenv("PYTHIA_STIMULUS_AFFORDANCE", raising=False)
+    for arm in ("treatment", "control"):
+        prompt, blinded = compose_metric_prompt(
+            customer_id="acme",
+            persona=_persona(),
+            capability=_stimulus_capability(),
+            hypothesis=_stimulus_hypothesis(),
+            identity_seed=_seed(),
+            arm=arm,
+        )
+        assert blinded is True
+        assert "leads to" not in prompt
+        assert "↳" not in prompt
+
+
+def test_metric_prompt_stays_blinded_with_affordance_clause(monkeypatch) -> None:
+    """Honesty constraint 3: gate ON, both arms stay blinded=True and BOTH carry
+    the identical neutral affordance clause, with NO change framing — so the clause
+    cancels in the paired treatment−control delta and blinding is preserved."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    args = dict(
+        customer_id="acme",
+        persona=_persona(),
+        capability=_stimulus_capability(),
+        hypothesis=_stimulus_hypothesis(),
+        identity_seed=_seed(),
+    )
+    treatment, t_blinded = compose_metric_prompt(**args, arm="treatment")
+    control, c_blinded = compose_metric_prompt(**args, arm="control")
+
+    # Blinding preserved on BOTH arms.
+    assert t_blinded is True and c_blinded is True
+    # The affordance clause appears IDENTICALLY in both arms (paired symmetry).
+    assert "↳ opens: Feed" in treatment
+    assert "↳ opens: Feed" in control
+    # No change framing leaked into either blinded prompt.
+    for marker in _CHANGE_FRAMING_MARKERS:
+        assert marker not in treatment and marker not in control
+    # Blinding intact: treatment shows ONLY proposed copy, control ONLY current.
+    assert "Catch up now" in treatment and "See what's new" not in treatment
+    assert "See what's new" in control and "Catch up now" not in control

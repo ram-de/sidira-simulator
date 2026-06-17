@@ -13,6 +13,15 @@ DEFAULT_ELICITATION_TEMPERATURE = 0.0
 # conversion pass byte-for-byte (paraphrase index 0 is the canonical wording), so
 # the ensemble is opt-in via env — same cost posture as the resampling knob above.
 DEFAULT_CONVERSION_PARAPHRASES = 1
+# #221/#222 affordance rendering. Default OFF reproduces the historical structural
+# render byte-for-byte: an interactive component on a screen with an outbound
+# cross-screen transition is shown as a static structural component, with the
+# transition listed separately. When ON, the renderer appends a neutral, graph-
+# derived affordance clause naming the destination screen(s) so the model can
+# connect the component to where it leads (treatment_renderer.summarize_reverse_figma).
+# The flag is symmetric across arms and the clause cancels in the paired delta, so
+# blinding (compose_metric_prompt) is preserved.
+DEFAULT_STIMULUS_AFFORDANCE = False
 PRIMARY_ENV_PREFIX = "SIDIRA_"
 LEGACY_ENV_PREFIX = "PYTHIA_"
 
@@ -94,6 +103,29 @@ def resolve_conversion_paraphrases() -> int:
     except ValueError:
         return DEFAULT_CONVERSION_PARAPHRASES
     return max(1, parsed)
+
+
+def resolve_stimulus_affordance_rendering() -> bool:
+    """Whether to render interactive components with their affordance/destination (#221/#222).
+
+    Default False reproduces the historical structural render byte-for-byte. When
+    enabled, `treatment_renderer.summarize_reverse_figma` appends a neutral,
+    transition-graph-derived affordance clause to a component that lives on a screen
+    with an outbound cross-screen transition, naming the destination screen(s). The
+    clause states only the navigation MECHANIC ("opens: <screen>"), never intent
+    or valence, and is derived purely from the structural transition graph — it
+    fires identically for a button, a re-engagement push, a sale banner, or an
+    email. The rule is symmetric across arms, so the clause cancels in the paired
+    treatment-control delta and blinding is preserved.
+
+    Truthiness mirrors the project convention: "1", "true", "yes", "on" (any case)
+    enable it; everything else (including unset, blank, and malformed) is False, so
+    a bad deployment env can never silently turn the feature on.
+    """
+    raw = resolve_sidira_env("STIMULUS_AFFORDANCE")
+    if raw is None:
+        return DEFAULT_STIMULUS_AFFORDANCE
+    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 def resolve_elicitation_temperature() -> float:
