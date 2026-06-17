@@ -306,6 +306,28 @@ introspective elicitation" (which would redefine the product's honest scope).
   independent real-world experiment is the natural next anchor before any claim of
   generality.
 
+### 5.1 The scope the evidence actually supports (honest positioning)
+
+The Hillstrom null draws a clean line worth stating plainly, because it is a *feature* of how
+the product should be sold, not a hidden weakness:
+
+- **In scope — deliberative reactions to a product change.** Sidira's core job is to simulate
+  how a real audience *consciously reacts* to something you can show them: a new feature, a
+  redesign, a pricing change, a flow. These are decisions a person can introspect and report on
+  ("given this screen, what would I do?") — exactly what verbalized agent simulation is built
+  to capture. The directional discipline in this report (blind, pre-registered, null-certified)
+  is what makes that claim trustworthy.
+- **Out of scope (today) — sub-deliberative channel effects.** A marketing email's lift is a
+  *nudge*: it works by reminding and re-surfacing, below the level a person would report when
+  asked to introspect their own behavior. The Hillstrom benchmark is precisely such a nudge, and
+  the certified null shows the current method does not capture it. We do **not** claim
+  marketing-channel or ad-campaign lift prediction. Naming this boundary — on real RCT evidence,
+  rather than discovering it in front of a customer — is itself the trustworthy move.
+
+The model-comparison test (below / next) probes whether that boundary is *intrinsic* to
+introspective simulation or merely a limit of the current model. Either answer is publishable;
+neither widens the claim beyond what the evidence supports.
+
 ---
 
 ## Appendix — running changelog
