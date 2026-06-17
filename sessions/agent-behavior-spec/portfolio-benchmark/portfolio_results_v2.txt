@@ -98,3 +98,39 @@ office_online confirmation) — a STRONG in-scope signal pointing the right way 
 counter-intuitive external set, FAR above expert intuition, but SUGGESTIVE not certified at n=8
 (6/8 vs chance p~=0.15). Path to a certified positive: confirm office_online, then EXPAND the
 portfolio (more obscure real product-change A/Bs) and re-run for statistical power.
+
+== v2.1 CONFIRMATION RESULT (office_online stricter rewrite; prereg 390c5606…, run 07:02 UTC) ==
+direction_accuracy: 0.625 (5/8). cert PASSED. rank_rho 0.570 (p=0.116).
+office_online: REVERTED to treatment (WRONG) under the de-salienced wording -> per the v2.1
+pre-registered rule, the honest clean score is **5/8**. The other 7 cases reproduced their v2
+directions exactly (cookiecats C✓, duolingo T✓, msn_realestate T✓, msn_homepage C✓, tinkoff T✓,
+cxl T✗, multistep T✗). So the v2 office_online point WAS carried by price-salience — the
+adversarial auditor was right.
+
+THE HONEST, AUDITED HEADLINE: **5/8 (0.625)**. Trajectory: v1 2/8 (valence-leak false negative)
+-> v2 6/8 (clean but office_online salience-inflated) -> v2.1 5/8 (de-salienced, conservative).
+
+== THE KOHAVI-PROOF CAVEAT (must lead any external framing) ==
+On THIS set (5/8 control-won), the **"always predict control" constant baseline also scores 5/8
+= 0.625** — so the sim's HEADLINE direction-accuracy does NOT beat the strongest naive constant
+baseline. The sim is NOT constant, though: it predicted treatment 6x / control 2x and
+  - got ALL 3 treatment-won cases RIGHT (duolingo, msn_realestate, tinkoff) — always-control gets
+    these WRONG;
+  - got 2/5 control-won RIGHT (cookiecats gate-timing, msn_homepage clutter);
+  - MISSED 3 control-won (office_online redesign, cxl fewer-fields, multistep fewer-steps) — all
+    "the streamlined/improved change wins" prior cases.
+The discriminating evidence is rank_rho (0.57, p=0.12) + correctly detecting all treatment-wins
+(impossible for a control-only rule). But headline accuracy alone ties always-control because the
+set is control-heavy (5/8). => A balanced set (≈4/4) would drop both constant baselines to 0.5 and
+let real discrimination show in the headline. This is WHY the next step is a BALANCED, LARGER
+portfolio, not a victory lap.
+
+vs baselines: 5/8 beats human experts (~2.3/8) and always-treatment (3/8); TIES always-control
+(5/8); not significant vs chance at n=8 (one-sided binomial p≈0.36). rank_rho positive but p=0.12.
+
+NEXT (path to a CERTIFIED positive): EXPAND the portfolio with more obscure real product-change
+A/Bs AND rebalance toward ~50/50 control/treatment-won, then re-run for power — so the headline
+must beat 0.5 (not an inflated constant baseline) and n is large enough to clear significance.
+Also: the residual misses cluster on "simplification/redesign wins" priors (office_online, cxl,
+multistep) — a narrower, nameable bias than v1's blanket pro-change, and a candidate for a future
+targeted elicitation study (but NOT a sign-flip).

@@ -494,6 +494,26 @@ headline lesson is a method win: the campaign's own discipline (audit → found 
 leak → re-prereg → clean re-run → adversarial check) caught us about to publish "the sim has an
 intrinsic pro-change bias" when the real cause was a benchmark-construction defect.
 
+**The confirmation run, and the honest number.** We then re-ran with the auditor's stricter,
+de-salienced office-online wording (pre-registered: if it stays control the flip is earned, if it
+reverts it was salience). It **reverted to treatment** — so the office-online v2 hit was carried
+by the price cue, and the honest, audited clean score is **5/8 (0.625)**, rank-ρ 0.57 (p=0.12).
+The full trajectory: v1 2/8 (valence-leak false negative) → v2 6/8 (clean but office-online
+salience-inflated) → **v2.1 5/8 (conservative, de-salienced)**. A sharp caveat must lead any
+external framing: because the set is 5/8 control-won, the trivial **"always predict control"
+baseline also scores 5/8** — so the sim's *headline* direction-accuracy does not beat the
+strongest constant baseline here. The sim is not constant (it predicted treatment 6×, control 2×):
+it correctly called **all three** treatment-wins — which an always-control rule gets wrong — plus
+two of five control-wins (the Cookie Cats gate-timing and the MSN clutter cases), and the
+discriminating signal shows in rank-ρ. Its three misses are all "the streamlined/redesigned
+variant wins" cases (office-online, fewer form fields, fewer steps) — a narrower, nameable
+residual prior, not v1's blanket pro-change. Honest and bounded: 5/8 clears the human-expert
+baseline (~2.3/8) and always-treatment (3/8) and the engine genuinely discriminates direction (it
+nails every real treatment-win), but on this control-heavy set the headline ties always-control
+and nothing is significant against chance at n=8. A real, encouraging in-scope signal — not a
+certified positive. The path to certification is a **larger, balanced (~50/50) portfolio**, where
+the headline must beat 0.5 rather than an inflated constant baseline and n clears significance.
+
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
 with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
@@ -577,4 +597,18 @@ Highrise) to confirm priors-echoing rather than reciting.
   **pattern-matches** (framing-prior when obscure, memory when famous), not deliberative reasoning —
   validating why "ask an LLM which wins" is invalid. The scored 8 reproduced identically (dir_acc
   0.25 deterministic). §7 updated.
+- 2026-06-17: **Portfolio integrity reversal — the v1 negative was OUR OWN benchmark's valence
+  leak, not a model bias.** Adapter audit: engine renders arms symmetrically but the authored
+  narratives carried arm-asymmetric valence + an outcome leak ("winner of 6 variants"). Normalized
+  all 8 to neutral/parallel/mechanic-only copy, sealed v2 prereg (`9f796b55…`) before re-run:
+  **dir_acc 0.25 → 0.75 (6/8)**, cert PASSED. Independent adversarial audit cleared 3/4 flips,
+  flagged office-online (price-salience); the pre-registered stricter-rewrite confirmation
+  (`390c5606…`) reverted office-online → honest **5/8 (0.625)**, rank-ρ 0.57 (p=0.12). Lead caveat:
+  on this 5/8-control set the always-control baseline also scores 5/8, so the headline ties it —
+  the sim's edge is nailing all 3 treatment-wins + positive rank-ρ; the 3 misses are
+  "simplification/redesign wins" priors. Beats the human baseline (~2.3/8), not significant vs
+  chance at n=8. **A real, encouraging in-scope signal — not a certified positive.** Method win:
+  the audit→re-prereg→clean-run→adversarial-check discipline caught a self-inflicted false negative.
+  Opened PR #353 (valence-symmetry blindness-test guard). §7 updated. Next: larger, balanced
+  portfolio, re-run for power.
 </content>
