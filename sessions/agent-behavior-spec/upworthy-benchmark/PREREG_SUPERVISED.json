@@ -1,0 +1,17 @@
+{
+  "title": "Supervised lever: feature+elicited cross-fit calibration on real CTR (#342)",
+  "timestamp_utc": "2026-06-17T23:37:45Z",
+  "design": "300 cases (two disjoint pre-registered slices). Reuse cached comparative+popshare Sonnet signals (no new LLM). Add FIXED rule-based structural diff features (len,nwords,num,q,excl,colon,caps,you,curio). LogisticRegression (default, max_iter=1000) in a StandardScaler pipeline. 5-fold StratifiedKFold, shuffle, seed=42. OUT-OF-FOLD predictions only. No feature selection, no tuning.",
+  "feature_sets": [
+    "structural_only",
+    "elicited_only",
+    "combined"
+  ],
+  "target": "sign(observed_lift) binary",
+  "scoring": "directional_gate G0-G11 on out-of-fold P(T wins)-0.5",
+  "hypotheses": {
+    "H1": "combined beats elicited_only on balanced SMR or Kendall tau_b (point)",
+    "H2": "does any feature set CLEAR a GO bar the raw elicited signal missed (SMR>=0.70 OR tau_b>=0.30 OR tail>=0.80)?"
+  },
+  "decision_rule": "If combined materially exceeds elicited_only and clears new GO bars -> supervised calibration is the lever to decision-grade; report + scale. If combined ~ elicited_only -> the elicited signal is the headline-only ceiling; structural features add nothing; honest stop for Upworthy."
+}
