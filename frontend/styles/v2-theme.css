@@ -313,3 +313,476 @@
     transform: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHEET MODE (§1.7, §6.4, §7.4) — the light blueprint RECORD scope.
+   `.v2-sheet` is the light counterpart to `.v2-console`: ink-on-paper, serif
+   prose, the Provenance Spine. It reuses the SAME token names already declared
+   on `.v2-console` (Sheet block + Console block both present there), but flips
+   the surface defaults to paper. A Console well embedded inside a Sheet (§6.4)
+   re-asserts `.v2-console` locally so the dark instrument keeps its own tokens
+   WITHOUT inverting the route (the provenance inside the well is NOT recolored).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.v2-sheet {
+  /* Console (dark) — needed because a §6.4 Console well lives inside the Sheet */
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae;
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4;
+
+  /* Sheet (light) — AA-corrected (§1.7) */
+  --sheet: #f3f4f7;
+  --sheet-raised: #fbfbfd;
+  --sheet-sunk: #e6e8ee;
+  --sheet-line: #d4d8e0;
+  --sheet-ink: #1a2336;
+  --sheet-mut: #5e6678;
+  --sheet-signal: #00785f;
+  --sheet-spread: #6f5e33;
+  /* the one darkened ink-button hover (derived from --sheet-ink, kept here so
+     no page re-inlines a raw hex) */
+  --sheet-ink-hover: #0f1626;
+  /* paper-blur sticky top bar (SheetTopBar) — tokenized so the component
+     inlines no raw rgba (same value as the mock's .top) */
+  --sheet-topbar-bg: rgba(243, 244, 247, 0.86);
+  --sheet-topbar-border: var(--sheet-line);
+
+  /* Radius / motion (shared scale) */
+  --r-well: 4px;
+  --r-panel: 8px;
+  --r-frame: 10px;
+  --r-dot: 9999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-mech: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --v2-font-sans: "Geist", system-ui, sans-serif;
+  --v2-font-mono: "Geist Mono", ui-monospace, monospace;
+  --v2-font-serif: "Newsreader", Georgia, serif;
+
+  /* surface defaults — paper, ink, sans UI (prose opts into serif) */
+  background: var(--sheet);
+  color: var(--sheet-ink);
+  font-family: var(--v2-font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  position: relative;
+  overflow-x: hidden;
+}
+.v2-sheet *,
+.v2-sheet *::before,
+.v2-sheet *::after {
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+.v2-sheet a {
+  color: inherit;
+  text-decoration: none;
+}
+.v2-sheet ::selection {
+  background: rgba(0, 120, 95, 0.14);
+  color: var(--sheet-ink);
+}
+
+/* the faint ruled blueprint grain — a printed-record texture. RECORD-still:
+   it does not move. (§ "blueprint Sheet over cream") */
+.v2-sheet::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(var(--sheet-line) 0.75px, transparent 0.75px);
+  background-size: 100% 56px;
+  opacity: 0.18;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+/* lift the actual content above the grain */
+.v2-sheet > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Sheet atoms ─────────────────────────────────────────────────────────── */
+.v2-sheet .v2-mono {
+  font-family: var(--v2-font-mono);
+}
+.v2-sheet .v2-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* designator on Sheet — ink-on-paper muted mono eyebrow */
+.v2-sheet .v2-desig {
+  font-family: var(--v2-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sheet-mut);
+}
+
+/* glyphs on Sheet — only the ◇ glyph wears spread; the WORD stays muted (P7) */
+.v2-sheet .v2-gh {
+  color: var(--sheet-spread);
+}
+.v2-sheet .v2-gf {
+  color: var(--sheet-signal);
+}
+
+/* Sheet buttons (§4.11 BUTTON — Sheet) — ink-on-paper, paper hover ────────── */
+.v2-sheet .v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-well);
+  font-family: var(--v2-font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  border: 0.75px solid var(--sheet-line);
+  background: var(--sheet-raised);
+  color: var(--sheet-ink);
+  transition: background 0.14s var(--ease-out), border-color 0.14s var(--ease-out),
+    transform 0.14s var(--ease-out);
+  white-space: nowrap;
+}
+.v2-sheet .v2-btn:hover {
+  background: var(--sheet-sunk);
+}
+.v2-sheet .v2-btn:active {
+  transform: translateY(1px);
+}
+.v2-sheet .v2-btn:focus-visible {
+  outline: 2px solid var(--sheet-signal);
+  outline-offset: 2px;
+}
+.v2-sheet .v2-btn--hero {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+/* primary on Sheet = solid ink, paper text */
+.v2-sheet .v2-btn--primary {
+  background: var(--sheet-ink);
+  border-color: var(--sheet-ink);
+  color: var(--sheet-raised);
+}
+.v2-sheet .v2-btn--primary:hover {
+  background: var(--sheet-ink-hover);
+  border-color: var(--sheet-ink-hover);
+}
+.v2-sheet .v2-btn--secondary {
+  background: var(--sheet-raised);
+  border-color: var(--sheet-line);
+  color: var(--sheet-ink);
+}
+.v2-sheet .v2-btn--secondary:hover {
+  background: var(--sheet-sunk);
+}
+.v2-sheet .v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sheet-mut);
+}
+.v2-sheet .v2-btn--ghost:hover {
+  background: var(--sheet-sunk);
+  color: var(--sheet-ink);
+}
+
+/* Sheet panel/card — raised paper, hairline ───────────────────────────────── */
+.v2-sheet .v2-panel {
+  background: var(--sheet-raised);
+  border: 0.75px solid var(--sheet-line);
+  border-radius: var(--r-panel);
+}
+
+/* Sheet reveal — settle in once, then still (RECORD = still) ───────────────── */
+.v2-sheet.v2-js .v2-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.v2-sheet.v2-js .v2-reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+/* §7.4 Provenance Spine kicker — the section eyebrow with a leading rule ───── */
+.v2-sheet .v2-kicker {
+  font-family: var(--v2-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sheet-mut);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.v2-sheet .v2-kicker::before {
+  content: "";
+  width: 18px;
+  height: 0.75px;
+  background: var(--sheet-line);
+}
+
+/* §2 Newsreader prose (Sheet long-form, max 68ch) ─────────────────────────── */
+.v2-sheet .v2-prose {
+  font-family: var(--v2-font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.68;
+  color: var(--sheet-ink);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.v2-sheet .v2-prose p {
+  margin-top: 24px;
+}
+.v2-sheet .v2-prose p:first-child {
+  margin-top: 0;
+}
+/* in-prose emphasis is sans, slightly smaller — never a serif display flourish */
+.v2-sheet .v2-prose strong {
+  font-weight: 600;
+  font-family: var(--v2-font-sans);
+  font-size: 0.96em;
+}
+/* the one editorial flourish of a printed record: a drop-cap opener */
+.v2-sheet .v2-prose--lead > p:first-child::first-letter {
+  font-family: var(--v2-font-serif);
+  float: left;
+  font-size: 3.4rem;
+  line-height: 0.82;
+  font-weight: 400;
+  padding: 6px 12px 0 0;
+  color: var(--sheet-ink);
+}
+
+/* the §6.4 Console well, embedded in the Sheet — re-asserts the dark tokens
+   locally so the instrument keeps its own surface WITHOUT inverting the route.
+   The provenance inside is NOT recolored to Sheet (route-mode law). */
+.v2-sheet .v2-well {
+  position: relative;
+  background: var(--console-900);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-frame);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+/* The §6.4 Console well token scope — COMPLETE + self-contained. Re-declares
+   EVERY Console var the well's contents read (ProvenanceBar reads
+   --console-line-45 / --text-mut / --text; DistributionPoster + the specimen
+   read text/signal/spread/arm) so an embedded dark instrument renders correctly
+   regardless of the surrounding Sheet scope — nothing leaks in from `.v2-sheet`.
+   Pairs with `.v2-well`; both are applied by the <ConsoleWell> component. */
+.v2-sheet .v2-console-scope,
+.v2-console-scope {
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  --console-line-60: rgba(51, 64, 92, 0.6);
+  --console-line-55: rgba(51, 64, 92, 0.55);
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --console-line-40: rgba(51, 64, 92, 0.4);
+  --console-line-30: rgba(51, 64, 92, 0.3);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae;
+  --text-faint: #646e84;
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --signal-wash: rgba(72, 239, 202, 0.12);
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --spread-wash: rgba(200, 182, 138, 0.14);
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4;
+  --alert: #f0683c;
+}
+
+/* Re-assert Console CLASS styling inside the well. The scope above fixes the
+   variables, but `.v2-sheet .v2-gh` / `.v2-btn` / `.v2-panel` (specificity 0,2,0)
+   still outrank the base `.v2-X` rules for any primitive embedded in the well.
+   These `.v2-sheet .v2-console-scope .v2-X` rules (0,3,0) restore the Console
+   look so an embedded glyph/button/panel renders dark, not Sheet-recolored
+   (§6.4 route-mode law). Values mirror the base Console component rules. */
+.v2-sheet .v2-console-scope .v2-gh {
+  color: var(--spread-dim);
+}
+.v2-sheet .v2-console-scope .v2-gf {
+  color: var(--signal-dim);
+}
+.v2-sheet .v2-console-scope .v2-desig {
+  font-size: 10.5px;
+  color: var(--text-mut);
+}
+.v2-sheet .v2-console-scope .v2-panel {
+  background: var(--console-800);
+  border: 1px solid var(--console-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.v2-sheet .v2-console-scope .v2-btn {
+  border: 1px solid var(--console-line);
+  background: transparent;
+  color: var(--text);
+}
+.v2-sheet .v2-console-scope .v2-btn:focus-visible {
+  outline-color: var(--signal-dim);
+}
+.v2-sheet .v2-console-scope .v2-btn--primary {
+  background: var(--console-700);
+  border-color: var(--console-line);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--primary:hover {
+  background: var(--console-750);
+}
+.v2-sheet .v2-console-scope .v2-btn--secondary {
+  background: transparent;
+  border-color: var(--console-line);
+  color: var(--text);
+}
+.v2-sheet .v2-console-scope .v2-btn--secondary:hover {
+  background: var(--console-800);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-mut);
+}
+.v2-sheet .v2-console-scope .v2-btn--ghost:hover {
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--live {
+  background: transparent;
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.v2-sheet .v2-console-scope .v2-btn--live:hover {
+  background: var(--signal-wash);
+}
+.v2-sheet .v2-console-scope .v2-btn--destructive {
+  border-color: var(--alert);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn:disabled {
+  color: var(--text-faint);
+  border-color: var(--console-line-50);
+  cursor: not-allowed;
+}
+
+/* ── SheetTopBar layout + responsive collapse (shared, §4.5 Sheet) ──────────
+   Desktop is identical to the mock: brand left, nav + actions right, one nowrap
+   row. On narrow viewports the inner row may wrap, and below 720px the non-active
+   nav LINKS hide (matching the mock's `.nav a:not([aria-current]):not(.btn)`),
+   collapsing to brand + active page + the action buttons (Sign in / Request
+   access stay reachable down to ~360px under `.v2-sheet` overflow-x:hidden). */
+.v2-sheet-topbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.v2-sheet-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+@media (max-width: 720px) {
+  .v2-sheet-topbar-inner {
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    gap: 12px;
+  }
+  .v2-sheet-nav {
+    flex-wrap: wrap;
+  }
+  /* hide non-active nav text links; the action buttons (.v2-btn) survive */
+  .v2-sheet-nav-link:not([aria-current]) {
+    display: none;
+  }
+}
+
+/* ── RecordGrid / ProvenanceSpine responsive collapse (shared primitives) ───
+   Generic to the RecordGrid + ProvenanceSpine primitives (NOT /about content):
+   below 1024px the binder margin disestablishes, the spine un-stickies and lays
+   its facts in a 3-col band; below 720px facts stack. Any Sheet page composing
+   these primitives gets correct layout without re-shipping these rules. */
+/* `!important` here intentionally overrides the primitives' inline layout
+   styles (RecordGrid/ProvenanceSpine set grid/border/padding/position inline). */
+@media (max-width: 1024px) {
+  .v2-sheet .v2-record {
+    grid-template-columns: 1fr !important;
+  }
+  .v2-sheet .v2-spine {
+    border-right: 0 !important;
+    border-bottom: 0.75px solid var(--sheet-line);
+    padding: 96px 0 28px !important;
+  }
+  .v2-sheet .v2-spine-sticky {
+    position: static !important;
+  }
+  .v2-sheet .v2-spine-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .v2-sheet .v2-spine-rule {
+    display: none;
+  }
+  .v2-sheet .v2-spine-tail {
+    margin-top: 18px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .v2-sheet .v2-spine-tail .v2-spine-item {
+    margin-bottom: 0 !important;
+  }
+}
+@media (max-width: 720px) {
+  .v2-sheet .v2-spine-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-sheet *,
+  .v2-sheet *::before,
+  .v2-sheet *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+  .v2-sheet.v2-js .v2-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

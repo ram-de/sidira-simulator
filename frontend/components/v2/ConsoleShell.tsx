@@ -38,6 +38,33 @@ export function ConsoleShell({
   );
 }
 
+// ── Sheet shell (§1.7, §6.4) — the LIGHT counterpart to ConsoleShell. ───────
+// Applies the `.v2-sheet` scope (paper tokens + blueprint grain in v2-theme.css)
+// and the same `.v2-js` mount marker that gates ScrollReveal's hidden start
+// state (so with JS off, all revealed content stays visible). A Sheet page is a
+// RECORD: still, ink-on-paper, serif prose. A §6.4 Console well embedded inside
+// stays dark by re-asserting `.v2-console` locally — the route never inverts.
+export function SheetShell({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
+  const [js, setJs] = useState(false);
+  useEffect(() => {
+    setJs(true);
+  }, []);
+  return (
+    <main
+      className={js ? "v2-sheet v2-js" : "v2-sheet"}
+      style={{ minHeight: "100vh", ...style }}
+    >
+      {children}
+    </main>
+  );
+}
+
 // Marketing wrap — 1240px max, 24px gutter (§3.3).
 export function Wrap({
   children,

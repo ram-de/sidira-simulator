@@ -10,7 +10,23 @@ export {
   Button,
   Panel,
 } from "./primitives";
-export { ConsoleShell, Wrap, TopBar, type NavItem } from "./ConsoleShell";
+export {
+  ConsoleShell,
+  SheetShell,
+  Wrap,
+  TopBar,
+  type NavItem,
+} from "./ConsoleShell";
+export {
+  SheetTopBar,
+  RecordGrid,
+  ProvenanceSpine,
+  Prose,
+  SheetSection,
+  SheetKicker,
+  type SheetNavItem,
+  type SpineFact,
+} from "./Sheet";
 export {
   ProvenanceBar,
   ProvenanceMarker,
@@ -18,6 +34,7 @@ export {
   type ProvenanceMarkerProps,
 } from "./Provenance";
 export { Section, SectionHead, ScrollReveal } from "./Section";
+export { ConsoleWell } from "./ConsoleWell";
 export {
   DistributionPoster,
   PosterFigure,
