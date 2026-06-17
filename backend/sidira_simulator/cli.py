@@ -210,9 +210,18 @@ def _hillstrom_hypothesis_builder(metric_name: str):
     """
     from sidira_simulator.schemas.simulation import Hypothesis
 
-    # The on-screen decision moment is ARM-NEUTRAL (it must not name the men's vs
-    # women's campaign, or the control arm would be exposed to treatment copy).
-    decision_point = "the customer is reading the promotional e-mail in their inbox"
+    # The on-screen decision moment is ARM-NEUTRAL and e-mail-FREE: it must be
+    # equally true for BOTH arms and must NOT mention the e-mail/promo/ad. The
+    # No-E-Mail control arm receives this same `decision_point`; the old wording
+    # ("reading the promotional e-mail in their inbox") asserted the control agent
+    # was reading the very e-mail the treatment ADDS — contaminating control,
+    # inflating its propensity, and mechanically driving the treatment−control
+    # delta toward zero/negative (the suspected cause of direction_accuracy 0.0).
+    # The treatment e-mail is conveyed where it belongs: the per-arm STRUCTURAL
+    # spec (treatment renders a `promo_email` screen; control renders only the
+    # `inbox` screen) in `prompt_composer.compose_metric_prompt`. The decision
+    # moment here is just the shared touchpoint both arms genuinely share.
+    decision_point = "the customer is looking at their inbox"
 
     def _build(case):
         data = case.hypothesis.model_dump()
