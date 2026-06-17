@@ -1,0 +1,29 @@
+{
+  "title": "Model-comparison probe: does a stronger model break the Upworthy rank-ceiling? (#342)",
+  "timestamp_utc": "2026-06-17T22:00:42Z",
+  "design": "light blinded order-randomized clickability elicitation on the IDENTICAL 60 cases as the committed Groq confirming run; controlled light-elicitation arm (NOT the heavy 200-agent panel)",
+  "case_set_hash": "f9db8c1fb90c68b1d931b7f757565bb57cb07a41729d967f6a59ddf8b12f1f3e",
+  "n_cases": 60,
+  "models": {
+    "groq": "llama-3.3-70b-versatile",
+    "sonnet": "claude-sonnet-4-6"
+  },
+  "arms": [
+    "panel(k=8 diverse reader personas)",
+    "no_persona baseline"
+  ],
+  "scoring": "directional_gate G0-G11, delta=0.0, budget=15 (top 25%), bootstrap=2000 over experiments, 90% CIs, seed=42",
+  "predicted_spearman_rho": {
+    "groq_panel": 0.0,
+    "groq_no_persona": 0.0,
+    "sonnet_panel": 0.1,
+    "sonnet_no_persona": 0.05
+  },
+  "hypotheses": {
+    "H1": "sonnet_panel rank-rho > groq_panel rank-rho",
+    "H2": "does EITHER arm show any rank tracking (rho 90% LB > 0)?",
+    "H3": "does ANY arm clear the gate (balanced SMR>=0.70 & Kendall tau_b>=0.30)? predicted NO"
+  },
+  "decision_rule": "If sonnet_panel rho 90% LB > 0 AND exceeds groq_panel -> signal worth a heavy pre-registered Sonnet pass. Else: rank-ceiling looks model-robust at light elicitation; feed into whitepaper.",
+  "elicitation_prompt_id": "clickability_AB_blinded_v1"
+}
