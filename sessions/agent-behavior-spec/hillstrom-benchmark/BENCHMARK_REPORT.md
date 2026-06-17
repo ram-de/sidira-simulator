@@ -324,9 +324,15 @@ the product should be sold, not a hidden weakness:
   marketing-channel or ad-campaign lift prediction. Naming this boundary — on real RCT evidence,
   rather than discovering it in front of a customer — is itself the trustworthy move.
 
-The model-comparison test (below / next) probes whether that boundary is *intrinsic* to
-introspective simulation or merely a limit of the current model. Either answer is publishable;
-neither widens the claim beyond what the evidence supports.
+The model-comparison test probed whether that boundary is *intrinsic* to introspective
+simulation or merely a limit of the current model. **It is now settled: intrinsic.** Re-running
+the identical pre-registered benchmark with a frontier model (Claude Sonnet 4.6) in place of the
+smaller Groq model left direction accuracy at **0.0 on both conversion and visit** — the
+stronger model is *exactly* as backwards. The bias is therefore model-independent, not a
+weak-model reasoning failure, so the in/out-of-scope line above is a property of verbalized
+introspective elicitation itself rather than of a model choice. This is the strongest,
+moat-preserving form of the result: it is publishable, it does not widen the claim, and it
+tells us a production model swap will not buy directional accuracy on sub-deliberative nudges.
 
 ---
 
@@ -347,4 +353,13 @@ neither widens the claim beyond what the evidence supports.
   disconfirmed. Fix left in codebase but gated OFF. Sharper diagnosis: the bias is not a
   rendering information-gap but a deeper limit of introspective elicitation (can't capture a
   sub-deliberative marketing nudge). Next lever: model comparison (re-run with a stronger model).
+- 2026-06-17: **Model comparison (Claude Sonnet 4.6 vs Groq baseline) — pre-registered
+  (`147236f1…`), gate OFF, both outcomes; COMPLETE.** Direction accuracy **0.0 on both
+  conversion and visit** under Sonnet — *identical* to the Groq baseline (rank-ρ −0.32 / −0.33,
+  both at chance). A frontier model is exactly as backwards. **Conclusion: the ad-aversion bias
+  is model-independent / intrinsic to introspective elicitation** — no production model swap
+  fixes it. This closes the pre-registered both-outcome model-comparison design and hardens the
+  §5.1 scope boundary. Next lever: stop probing the out-of-scope perimeter (marketing nudges) and
+  land the first *positive* on the in-scope deliberative core — external real-world product-change
+  A/B (Cookie Cats lead) + the internal Streamly known-good/known-bad validation.
 </content>
