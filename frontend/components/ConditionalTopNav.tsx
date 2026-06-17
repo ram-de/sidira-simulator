@@ -22,22 +22,27 @@ export function suppressesGlobalNav(pathname: string | null): boolean {
   );
 }
 
-// The LIVE /simulations route ships its own v2 shell (AppShellV2) when the v2
-// flag is on, so the global TopNav must be suppressed there to avoid a double
-// nav — but ONLY when the flag is on (#372). The flag value is evaluated on the
-// SERVER (root layout reads the cookie/env via v2Enabled) and passed in as
-// `v2On`, so this stays deterministic across SSR + hydration (no flash, no
-// hydration mismatch). With the flag off, /simulations keeps the normal nav.
-function suppressesForV2Sims(pathname: string | null, v2On: boolean): boolean {
+// The LIVE list routes that ship their own v2 shell (AppShellV2) when the v2
+// flag is on must suppress the global TopNav there to avoid a double nav — but
+// ONLY when the flag is on. The flag value is evaluated on the SERVER (root
+// layout reads the cookie/env via v2Enabled) and passed in as `v2On`, so this
+// stays deterministic across SSR + hydration (no flash, no hydration mismatch).
+// With the flag off, these routes keep the normal nav.
+//
+// Membership set, one EXACT list path per migrated route (#372 /simulations,
+// then /personas). Only the LIST route renders the v2 shell — nested routes
+// (/simulations/[id], /personas/new, …) still render legacy and keep the
+// global TopNav. Add a route by appending one entry (e.g. "/agents").
+const V2_MIGRATED_ROUTES = new Set(["/simulations", "/personas"]);
+
+function suppressesForV2Route(pathname: string | null, v2On: boolean): boolean {
   if (!v2On || !pathname) return false;
-  // Only the LIST route renders the v2 shell in this pilot. /simulations/[id]
-  // and /simulations/new still render legacy and keep the global TopNav.
-  return pathname === "/simulations";
+  return V2_MIGRATED_ROUTES.has(pathname);
 }
 
 export default function ConditionalTopNav({ v2On = false }: { v2On?: boolean }) {
   const pathname = usePathname();
   if (suppressesGlobalNav(pathname)) return null;
-  if (suppressesForV2Sims(pathname, v2On)) return null;
+  if (suppressesForV2Route(pathname, v2On)) return null;
   return <TopNav />;
 }
