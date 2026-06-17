@@ -104,6 +104,9 @@ export function AppFrame({
                     active ? "v2-rail-item v2-rail-item--active" : "v2-rail-item"
                   }
                   aria-current={active ? "page" : undefined}
+                  // collapsed rail (≤1024px) hides the label and aria-hides the
+                  // glyph, so name the link explicitly for screen readers.
+                  aria-label={item.label}
                 >
                   {/* active = 1px left ink bar (neutral, never signal) */}
                   <span className="v2-rail-bar" aria-hidden />
@@ -352,7 +355,9 @@ const APP_FRAME_CSS = `
   }
   .v2-rail-account{margin-top:0;margin-left:auto;}
   .v2-rail-account-name{display:none;}
-  .v2-appbar{padding:var(--space-cozy) var(--space-room);}
+  /* rail becomes the sticky top strip on mobile; the appbar stops sticking so
+     it can't slide under the rail (both were pinned at top:0). */
+  .v2-appbar{position:static;padding:var(--space-cozy) var(--space-room);}
   .v2-appmain{padding:var(--space-room);}
 }
 `;
