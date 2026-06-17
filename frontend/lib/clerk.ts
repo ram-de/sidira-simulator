@@ -112,6 +112,31 @@ export const clerkAppearanceConsole = {
     formFieldInput: {
       borderWidth: "2px",
     },
+    // Social ("Continue with Google") button. Clerk's default paints it as a
+    // light-surface button (near-black label) — invisible on the dark console
+    // card. Re-theme it as an outlined console button: transparent fill, light
+    // label, CONSOLE.line border, c750 hover well. The provider glyph (Google
+    // "G") is an inline SVG that keeps its own brand colors.
+    socialButtonsBlockButton: {
+      background: "transparent",
+      border: "1px solid #33405C", // CONSOLE.line
+      color: "#F2F4F8", // TEXT.hi
+      "&:hover": {
+        backgroundColor: "#1D2740", // CONSOLE.c750 — hover well
+        borderColor: "#929BAE", // TEXT.mut
+      },
+    },
+    socialButtonsBlockButtonText: {
+      color: "#F2F4F8", // TEXT.hi — the fix: provider label now legible on dark
+      fontWeight: 500,
+    },
+    // The "or" separator between social and email — keep it muted but legible.
+    dividerLine: {
+      backgroundColor: "#33405C", // CONSOLE.line
+    },
+    dividerText: {
+      color: "#929BAE", // TEXT.mut
+    },
     // The org switcher trigger is the workspace chip in the dark rail — the org
     // NAME must read as light text (TEXT.hi) over the console surface.
     organizationSwitcherTrigger: {
