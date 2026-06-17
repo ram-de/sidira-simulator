@@ -156,7 +156,7 @@ def test_benchmark_hillstrom_by_segment(tmp_path: Path, monkeypatch):
     # AUDIENCE CONDITIONING (the endpoint-#3 validity crux): each segment's warm-up
     # call must run against a stratum-CONDITIONED sub-panel (a strict subset of the
     # full pack), not the full panel — otherwise the blind engine can't tell strata
-    # apart. The two test strata (mens_history / womens_history) each condition on
+    # apart. The two test strata (mens_buyer / womens_buyer) each condition on
     # a different, smaller cohort.
     full_n = len(load_hillstrom_panel().personas)
     warm_panels = [c["panel"] for c in captured["calls"][:-1]]  # all but the final full-set run

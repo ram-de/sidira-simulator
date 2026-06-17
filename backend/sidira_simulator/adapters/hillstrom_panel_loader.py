@@ -89,75 +89,107 @@ def _is_individual_row_capable(pack: PersonaPack) -> bool:
     )
 
 
+# The 4 heterogeneity strata, aligned to the committed pack's 4 GMM personas
+# (services.hillstrom_adapter._segment_key). Each maps to ONE distinct cohort so
+# the audience is meaningfully conditioned per stratum (endpoint #3 signal). The
+# spend axis (high-spender vs mid-tier, which split the both-gender clusters) is
+# read off the `history` centroid coordinate — the GMM clusters separate the
+# both-buyer population into a high-history (P03) and a mid-history (P04) cluster.
+_GENDER_HIGH = 0.5  # a flag-mean above this = the cluster predominantly buys it
+
+
 def segment_persona_ids(pack: PersonaPack, segment_key: str) -> list[str]:
     """The personas whose centroid matches a heterogeneity stratum (endpoint #3).
 
     The per-segment scoring endpoint is only valid if the SIMULATED AUDIENCE is
     conditioned on the stratum — otherwise every segment case for an arm reuses
     the identical full panel + identical stimulus and the blind engine cannot tell
-    `mens_history` from `womens_history`, so its predictions measure seed noise,
-    not heterogeneous response. This maps a stratum (the adapter's `_segment_key`)
-    to the pack's matching personas by their centroid purchase-history affinity::
+    one stratum from another, so its predictions measure seed noise, not
+    heterogeneous response. This maps a stratum (the adapter's `_segment_key`) to
+    the pack's matching personas by centroid, aligned to the 4 GMM clusters::
 
-        mens_history    → personas with mens-centroid > womens-centroid
-        womens_history  → personas with womens-centroid > mens-centroid
-        both_history    → personas that buy BOTH (both centroids high)
-        no_history      → personas with neither high (cold/newbie)
+        mens_buyer    → mens-centroid high, womens-centroid low      (P02)
+        womens_buyer  → womens-centroid high, mens-centroid low      (P01)
+        high_spender  → BOTH genders high AND high `history` centroid (P03)
+        mid_tier      → BOTH genders high AND lower `history`         (P04)
 
-    Read straight off `centroid_full` (raw 0..1 flag means), so it tracks whatever
-    the committed pack actually clustered.
+    Read straight off `centroid_full` (raw 0..1 flag means + the `history` score),
+    so it tracks whatever the committed pack actually clustered. The high/mid split
+    is RELATIVE: among the both-gender clusters, those at or above the MEDIAN
+    `history` centroid are high_spender, the rest mid_tier — so the boundary tracks
+    the pack instead of pinning a magic dollar threshold the GMM might shift.
+
+    STRUCTURALLY BLIND: keyed only on the persona's pre-treatment centroid
+    coordinates (gender flags, spend history) — never on any observed outcome /
+    ground truth, which the pack does not even carry (outcomes are excluded from
+    the clustering, hillstrom_archive.HILLSTROM_FEATURE_GROUPS).
 
     NEAREST-COHORT FALLBACK (never the full panel). If the EXACT predicate matches
-    no persona — e.g. a `no_history` case from an edge CSV when the committed pack
-    (built from the real trial, which has zero mens=0∧womens=0 customers) has no
-    cold cluster — we fall back to the single CLOSEST cohort by an affinity distance
-    to the stratum's prototype, NOT to the full panel. A whole-panel fallback would
+    no persona we fall back to the single CLOSEST cohort by distance to the
+    stratum's prototype, NOT to the full panel. A whole-panel fallback would
     re-introduce the exact undifferentiated-audience degenerate the conditioning
     exists to prevent; the nearest single cohort keeps the audience conditioned (a
     still-honest, still-distinct sub-panel) so the endpoint stays valid even on
     strata the committed pack under-represents. Only an UNKNOWN stratum key raises.
     Returns the matching persona ids in pack order.
     """
-    high = 0.5  # a flag-mean above 0.5 means "this cluster predominantly buys it"
-    # Prototype (mens, womens) affinity each stratum represents — used both for the
-    # exact predicate and for the nearest-cohort fallback distance.
+    # Prototype (mens, womens, history) affinity each stratum represents — used for
+    # the nearest-cohort fallback distance. `history` is a z-like score; the
+    # high/mid prototypes use a coarse ±1 so the fallback still orders sensibly.
     prototypes = {
-        "mens_history": (1.0, 0.0),
-        "womens_history": (0.0, 1.0),
-        "both_history": (1.0, 1.0),
-        "no_history": (0.0, 0.0),
+        "mens_buyer": (1.0, 0.0, 0.0),
+        "womens_buyer": (0.0, 1.0, 0.0),
+        "high_spender": (1.0, 1.0, 1.0),
+        "mid_tier": (1.0, 1.0, -1.0),
     }
     if segment_key not in prototypes:
         raise ValueError(f"unknown Hillstrom segment key {segment_key!r}")
 
+    def _gender(p) -> tuple[float, float]:
+        cf = p.centroid_full or {}
+        return cf.get("mens", 0.0), cf.get("womens", 0.0)
+
+    # Among the both-gender clusters, the median `history` centroid is the relative
+    # high/mid boundary (so the split tracks the pack, not a magic dollar value).
+    both_personas = [p for p in pack.personas if all(g >= _GENDER_HIGH for g in _gender(p))]
+    history_vals = sorted((p.centroid_full or {}).get("history", 0.0) for p in both_personas)
+    if history_vals:
+        mid = len(history_vals) // 2
+        spend_boundary = (
+            history_vals[mid]
+            if len(history_vals) % 2
+            else (history_vals[mid - 1] + history_vals[mid]) / 2.0
+        )
+    else:
+        spend_boundary = 0.0
+
     matches: list[str] = []
     for p in pack.personas:
-        cf = p.centroid_full or {}
-        mens = cf.get("mens", 0.0)
-        womens = cf.get("womens", 0.0)
-        if segment_key == "mens_history":
-            # Single-history = buys mens but NOT womens. The opposite flag must be
-            # BELOW threshold, else a both-buyer cluster (e.g. P03 mens≈womens≈0.67)
-            # that merely leans slightly would contaminate the cohort with an
-            # audience that doesn't match the mens=1,womens=0 ground truth.
-            ok = mens >= high and womens < high
-        elif segment_key == "womens_history":
-            ok = womens >= high and mens < high
-        elif segment_key == "both_history":
-            ok = mens >= high and womens >= high
-        else:  # no_history
-            ok = mens < high and womens < high
+        mens, womens = _gender(p)
+        history = (p.centroid_full or {}).get("history", 0.0)
+        if segment_key == "mens_buyer":
+            ok = mens >= _GENDER_HIGH and womens < _GENDER_HIGH
+        elif segment_key == "womens_buyer":
+            ok = womens >= _GENDER_HIGH and mens < _GENDER_HIGH
+        elif segment_key == "high_spender":
+            ok = mens >= _GENDER_HIGH and womens >= _GENDER_HIGH and history >= spend_boundary
+        else:  # mid_tier
+            ok = mens >= _GENDER_HIGH and womens >= _GENDER_HIGH and history < spend_boundary
         if ok:
             matches.append(p.id)
     if matches:
         return matches
 
     # No exact match — condition on the single NEAREST cohort (never the full panel).
-    px, py = prototypes[segment_key]
+    px, py, ph = prototypes[segment_key]
 
     def _dist(p) -> float:
         cf = p.centroid_full or {}
-        return (cf.get("mens", 0.0) - px) ** 2 + (cf.get("womens", 0.0) - py) ** 2
+        return (
+            (cf.get("mens", 0.0) - px) ** 2
+            + (cf.get("womens", 0.0) - py) ** 2
+            + (cf.get("history", 0.0) - ph) ** 2
+        )
 
     nearest = min(pack.personas, key=_dist)
     return [nearest.id]

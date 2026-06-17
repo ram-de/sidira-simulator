@@ -20,10 +20,17 @@ from sidira_simulator.services.hillstrom_adapter import (
 from sidira_simulator.services.hillstrom_archive import HillstromRow
 
 
-def _row(segment: str, *, mens: int, womens: int, conversion: int):
+def _row(
+    segment: str,
+    *,
+    mens: int,
+    womens: int,
+    conversion: int,
+    history_segment: str = "1) $0 - $100",
+):
     return HillstromRow(
         recency=1,
-        history_segment="1) $0 - $100",
+        history_segment=history_segment,
         history=100.0,
         mens=mens,
         womens=womens,
@@ -37,30 +44,62 @@ def _row(segment: str, *, mens: int, womens: int, conversion: int):
     )
 
 
+_HIGH = "6) $750 - $1,000"  # high spend tier (rank >= 5) → high_spender
+_MID = "3) $200 - $350"  # mid spend tier (rank < 5) → mid_tier
+
+
 def _frame() -> list[HillstromRow]:
-    """Two purchase-history strata (mens_history / womens_history) across all arms."""
+    """All four persona-aligned strata (mens_buyer / womens_buyer / high_spender /
+    mid_tier) across all three arms — the partition the committed 4-persona pack
+    clusters and the by-segment endpoint conditions on."""
     rows: list[HillstromRow] = []
-    # mens_history customers
+    # mens_buyer (mens=1, womens=0)
     rows += [_row("No E-Mail", mens=1, womens=0, conversion=c) for c in (0, 0)]
     rows += [_row("Mens E-Mail", mens=1, womens=0, conversion=c) for c in (1, 1)]
     rows += [_row("Womens E-Mail", mens=1, womens=0, conversion=c) for c in (0, 1)]
-    # womens_history customers
+    # womens_buyer (mens=0, womens=1)
     rows += [_row("No E-Mail", mens=0, womens=1, conversion=c) for c in (0, 0)]
     rows += [_row("Mens E-Mail", mens=0, womens=1, conversion=c) for c in (0, 0)]
     rows += [_row("Womens E-Mail", mens=0, womens=1, conversion=c) for c in (1, 1)]
+    # high_spender (mens=1, womens=1, high history tier)
+    rows += [
+        _row("No E-Mail", mens=1, womens=1, conversion=c, history_segment=_HIGH) for c in (0, 1)
+    ]
+    rows += [
+        _row("Mens E-Mail", mens=1, womens=1, conversion=c, history_segment=_HIGH) for c in (1, 1)
+    ]
+    rows += [
+        _row("Womens E-Mail", mens=1, womens=1, conversion=c, history_segment=_HIGH) for c in (0, 1)
+    ]
+    # mid_tier (mens=1, womens=1, low/mid history tier)
+    rows += [
+        _row("No E-Mail", mens=1, womens=1, conversion=c, history_segment=_MID) for c in (0, 0)
+    ]
+    rows += [
+        _row("Mens E-Mail", mens=1, womens=1, conversion=c, history_segment=_MID) for c in (1, 0)
+    ]
+    rows += [
+        _row("Womens E-Mail", mens=1, womens=1, conversion=c, history_segment=_MID) for c in (1, 0)
+    ]
     return rows
 
 
 def test_segment_cases_enumerate_arm_by_segment() -> None:
     cases = hillstrom_segment_cases(_frame(), metric_name="conversion", n_resamples=50)
     ids = {c.case_id for c in cases}
-    # 2 arms × 2 strata = 4 cases, each with a 4-component case_id.
+    # 2 arms × 4 persona-aligned strata = 8 cases, each with a 4-component case_id.
+    # 8 clears the null-integrity certificate's _MIN_EXPERIMENTS floor.
     assert ids == {
-        "hillstrom:mens_email:conversion:mens_history",
-        "hillstrom:mens_email:conversion:womens_history",
-        "hillstrom:womens_email:conversion:mens_history",
-        "hillstrom:womens_email:conversion:womens_history",
+        "hillstrom:mens_email:conversion:mens_buyer",
+        "hillstrom:mens_email:conversion:womens_buyer",
+        "hillstrom:mens_email:conversion:high_spender",
+        "hillstrom:mens_email:conversion:mid_tier",
+        "hillstrom:womens_email:conversion:mens_buyer",
+        "hillstrom:womens_email:conversion:womens_buyer",
+        "hillstrom:womens_email:conversion:high_spender",
+        "hillstrom:womens_email:conversion:mid_tier",
     }
+    assert len(cases) == 8
     assert all(len(c.case_id.split(":")) == 4 for c in cases)
     assert all(c.source == "hillstrom" for c in cases)
 
@@ -79,8 +118,8 @@ def test_segment_case_ground_truth_matches_segment_uplift() -> None:
         c.case_id: c
         for c in hillstrom_segment_cases(rows, metric_name="conversion", n_resamples=50)
     }
-    case = cases["hillstrom:mens_email:conversion:mens_history"]
-    assert case.ground_truth.observed_lift == pytest.approx(segs["mens_history"].observed_lift)
+    case = cases["hillstrom:mens_email:conversion:mens_buyer"]
+    assert case.ground_truth.observed_lift == pytest.approx(segs["mens_buyer"].observed_lift)
 
 
 def test_segment_case_stimulus_matches_arm_case() -> None:
@@ -92,7 +131,7 @@ def test_segment_case_stimulus_matches_arm_case() -> None:
     seg_case = next(
         c
         for c in hillstrom_segment_cases(rows, metric_name="conversion", n_resamples=50)
-        if c.case_id == "hillstrom:mens_email:conversion:mens_history"
+        if c.case_id == "hillstrom:mens_email:conversion:mens_buyer"
     )
     assert seg_case.capability == arm_case.capability
     assert seg_case.hypothesis == arm_case.hypothesis
