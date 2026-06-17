@@ -7,6 +7,7 @@ const PRODUCT_PATH_PREFIXES = [
   "/api",
   "/personas",
   "/product",
+  "/research",
   "/simulations",
 ] as const;
 
