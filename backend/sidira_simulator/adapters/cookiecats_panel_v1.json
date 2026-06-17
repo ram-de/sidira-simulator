@@ -1,0 +1,379 @@
+{
+  "version": "cookiecats-gate-ab-v1",
+  "customer_id": "cookiecats",
+  "generated_at": "2026-06-16T00:00:00",
+  "schema_version": "1.1",
+  "personas": [
+    {
+      "id": "P01",
+      "name": "LowEngagement",
+      "description": "Discovered engagement cluster (k=3 GMM on sum_gamerounds). Centroid sum_gamerounds = -0.95sigma vs population mean \u2014 lowest early-game engagement tier.",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "behavioral_snapshot": {},
+      "centroid_features": {
+        "sum_gamerounds": -0.95
+      },
+      "behavioral_seeds": null,
+      "centroid_full": {
+        "sum_gamerounds": -0.95
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.42
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": -1.010518
+        },
+        {
+          "sum_gamerounds": -1.02262
+        },
+        {
+          "sum_gamerounds": -0.996753
+        },
+        {
+          "sum_gamerounds": -0.655167
+        },
+        {
+          "sum_gamerounds": -1.003587
+        },
+        {
+          "sum_gamerounds": -1.578888
+        },
+        {
+          "sum_gamerounds": -0.810426
+        },
+        {
+          "sum_gamerounds": -1.062282
+        },
+        {
+          "sum_gamerounds": -1.041123
+        },
+        {
+          "sum_gamerounds": -0.901328
+        },
+        {
+          "sum_gamerounds": -0.852435
+        },
+        {
+          "sum_gamerounds": -0.461305
+        },
+        {
+          "sum_gamerounds": -0.674213
+        },
+        {
+          "sum_gamerounds": -0.903587
+        },
+        {
+          "sum_gamerounds": -1.260095
+        },
+        {
+          "sum_gamerounds": -1.376158
+        },
+        {
+          "sum_gamerounds": -0.846536
+        },
+        {
+          "sum_gamerounds": -0.399346
+        },
+        {
+          "sum_gamerounds": -0.932504
+        },
+        {
+          "sum_gamerounds": -0.994656
+        },
+        {
+          "sum_gamerounds": -0.726654
+        },
+        {
+          "sum_gamerounds": -1.560489
+        },
+        {
+          "sum_gamerounds": -1.081156
+        },
+        {
+          "sum_gamerounds": -0.744048
+        },
+        {
+          "sum_gamerounds": -0.58317
+        },
+        {
+          "sum_gamerounds": -1.051064
+        },
+        {
+          "sum_gamerounds": -0.791828
+        },
+        {
+          "sum_gamerounds": -0.84575
+        },
+        {
+          "sum_gamerounds": -0.621423
+        },
+        {
+          "sum_gamerounds": -1.417553
+        },
+        {
+          "sum_gamerounds": -0.711335
+        },
+        {
+          "sum_gamerounds": -1.586099
+        }
+      ],
+      "posterior_mean": {
+        "P01": 1.0,
+        "P02": 0.0,
+        "P03": 0.0
+      }
+    },
+    {
+      "id": "P02",
+      "name": "MidEngagement",
+      "description": "Discovered engagement cluster (k=3 GMM on sum_gamerounds). Centroid sum_gamerounds = +0.35sigma vs population mean \u2014 mid early-game engagement tier.",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "behavioral_snapshot": {},
+      "centroid_features": {
+        "sum_gamerounds": 0.35
+      },
+      "behavioral_seeds": null,
+      "centroid_full": {
+        "sum_gamerounds": 0.35
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.55
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": -1.09097
+        },
+        {
+          "sum_gamerounds": 0.01621
+        },
+        {
+          "sum_gamerounds": -0.153696
+        },
+        {
+          "sum_gamerounds": 0.831807
+        },
+        {
+          "sum_gamerounds": 0.715346
+        },
+        {
+          "sum_gamerounds": -0.320491
+        },
+        {
+          "sum_gamerounds": 0.816049
+        },
+        {
+          "sum_gamerounds": -0.201212
+        },
+        {
+          "sum_gamerounds": 0.302566
+        },
+        {
+          "sum_gamerounds": 0.188355
+        },
+        {
+          "sum_gamerounds": 0.412931
+        },
+        {
+          "sum_gamerounds": 0.80025
+        },
+        {
+          "sum_gamerounds": 0.701128
+        },
+        {
+          "sum_gamerounds": 0.542437
+        },
+        {
+          "sum_gamerounds": 0.707471
+        },
+        {
+          "sum_gamerounds": 0.613171
+        },
+        {
+          "sum_gamerounds": 0.005158
+        },
+        {
+          "sum_gamerounds": -0.044554
+        },
+        {
+          "sum_gamerounds": 0.091517
+        },
+        {
+          "sum_gamerounds": 0.62463
+        },
+        {
+          "sum_gamerounds": 0.212436
+        },
+        {
+          "sum_gamerounds": 1.634665
+        },
+        {
+          "sum_gamerounds": -0.100611
+        },
+        {
+          "sum_gamerounds": -0.254381
+        },
+        {
+          "sum_gamerounds": 0.77266
+        },
+        {
+          "sum_gamerounds": 1.132017
+        },
+        {
+          "sum_gamerounds": 0.628131
+        },
+        {
+          "sum_gamerounds": 0.8097
+        },
+        {
+          "sum_gamerounds": 1.13449
+        },
+        {
+          "sum_gamerounds": 0.298285
+        },
+        {
+          "sum_gamerounds": -0.432627
+        },
+        {
+          "sum_gamerounds": 0.057358
+        }
+      ],
+      "posterior_mean": {
+        "P01": 0.0,
+        "P02": 1.0,
+        "P03": 0.0
+      }
+    },
+    {
+      "id": "P03",
+      "name": "HeavyEngagement",
+      "description": "Discovered engagement cluster (k=3 GMM on sum_gamerounds). Centroid sum_gamerounds = +1.85sigma vs population mean \u2014 highest early-game engagement tier.",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "behavioral_snapshot": {},
+      "centroid_features": {
+        "sum_gamerounds": 1.85
+      },
+      "behavioral_seeds": null,
+      "centroid_full": {
+        "sum_gamerounds": 1.85
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.7
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": 2.517027
+        },
+        {
+          "sum_gamerounds": 0.839425
+        },
+        {
+          "sum_gamerounds": 1.873472
+        },
+        {
+          "sum_gamerounds": 2.027266
+        },
+        {
+          "sum_gamerounds": 1.629085
+        },
+        {
+          "sum_gamerounds": 2.356542
+        },
+        {
+          "sum_gamerounds": 2.256546
+        },
+        {
+          "sum_gamerounds": 3.474986
+        },
+        {
+          "sum_gamerounds": 2.283977
+        },
+        {
+          "sum_gamerounds": 1.423418
+        },
+        {
+          "sum_gamerounds": 1.456742
+        },
+        {
+          "sum_gamerounds": 1.267893
+        },
+        {
+          "sum_gamerounds": 2.516591
+        },
+        {
+          "sum_gamerounds": 1.453217
+        },
+        {
+          "sum_gamerounds": 1.800817
+        },
+        {
+          "sum_gamerounds": 2.374512
+        },
+        {
+          "sum_gamerounds": 1.343576
+        },
+        {
+          "sum_gamerounds": 1.644439
+        },
+        {
+          "sum_gamerounds": 0.5611
+        },
+        {
+          "sum_gamerounds": 1.092265
+        },
+        {
+          "sum_gamerounds": 1.452585
+        },
+        {
+          "sum_gamerounds": 2.141033
+        },
+        {
+          "sum_gamerounds": 2.685445
+        },
+        {
+          "sum_gamerounds": 1.837073
+        },
+        {
+          "sum_gamerounds": 2.032955
+        },
+        {
+          "sum_gamerounds": 1.967579
+        },
+        {
+          "sum_gamerounds": 2.609319
+        },
+        {
+          "sum_gamerounds": 2.475349
+        },
+        {
+          "sum_gamerounds": 2.041585
+        },
+        {
+          "sum_gamerounds": 1.142339
+        },
+        {
+          "sum_gamerounds": 2.48237
+        },
+        {
+          "sum_gamerounds": 2.116733
+        }
+      ],
+      "posterior_mean": {
+        "P01": 0.0,
+        "P02": 0.0,
+        "P03": 1.0
+      }
+    }
+  ],
+  "weights": {
+    "head_count": {
+      "P01": 0.62,
+      "P02": 0.27,
+      "P03": 0.11
+    },
+    "order_weighted": null,
+    "revenue_weighted": null
+  },
+  "stability_score": 0.71,
+  "is_starter": false
+}

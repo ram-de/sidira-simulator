@@ -533,5 +533,343 @@ def benchmark_hillstrom(
     click.echo(render(table))
 
 
+# ── Cookie Cats gate-move benchmark (in-scope product-change directional test) ──
+
+
+# The engine's retention metric returns metric_name="retention" (the in-scope
+# deliberative-return class). The Cookie Cats `--metric` flag selects which DATA
+# column anchors ground truth (retention_7 primary / retention_1 secondary) and
+# how the post-experience moment is phrased; both score through the engine's
+# single `retention` metric. This is the engine metric_name passed to the scorer.
+_COOKIECATS_ENGINE_METRIC = "retention"
+
+
+def _cookiecats_hypothesis_builder(metric_name: str):
+    """Build the Cookie Cats retention `hypothesis_builder` for a day-window.
+
+    Mirrors `_hillstrom_hypothesis_builder` but for the gate-move retention
+    metrics. `metric_name` is the DATA-layer selector (`retention_7` /
+    `retention_1`); the engine metric is always `retention` (which requires only
+    `decision_point`). The builder takes the case's hypothesis verbatim, forces
+    metric_name="retention" + a day-windowed decision_point, and RE-VALIDATES via
+    `Hypothesis.model_validate`. It reads ONLY `case.hypothesis` —
+    `case.ground_truth` is never touched (structural blindness).
+    """
+    from sidira_simulator.schemas.simulation import Hypothesis
+
+    if metric_name == "retention_7":
+        horizon = "over the next 7 days after installing the game"
+    elif metric_name == "retention_1":
+        horizon = "the day after installing the game"
+    else:  # pragma: no cover - guarded by the CLI choice list
+        raise click.ClickException(
+            f"unsupported Cookie Cats metric {metric_name!r}; v1 scores "
+            "retention_7 / retention_1"
+        )
+    # The post-experience moment is GATE-NEUTRAL (it must not name which gate
+    # level the player saw, or the control arm would be exposed to treatment copy).
+    decision_point = f"you just installed the game and played your first session; {horizon}"
+
+    def _build(case):
+        data = case.hypothesis.model_dump()
+        data.update(
+            {
+                "metric_name": _COOKIECATS_ENGINE_METRIC,
+                "conversion_action_label": "come back and keep playing",
+                "decision_point": decision_point,
+            }
+        )
+        return Hypothesis.model_validate(data)
+
+    return _build
+
+
+@cli.command("benchmark-cookiecats")
+@click.option(
+    "--csv-path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to a pre-downloaded Cookie Cats CSV (fetch with cookiecats_archive).",
+)
+@click.option(
+    "--metric",
+    type=click.Choice(["retention_7", "retention_1"]),
+    default="retention_7",
+    help="Scored data outcome (v1: retention_7 [primary] or retention_1 [secondary]).",
+)
+@click.option(
+    "--by-segment/--by-arm",
+    "use_segments",
+    default=False,
+    help="Score per engagement SEGMENT (>=8 cases) instead of the single A/B.",
+)
+@click.option("--model-id", default=None, help="LLM model id to drive the engine.")
+@click.option(
+    "--population-size", default=10, type=int, help="Agents per arm (engine population_size)."
+)
+@click.option(
+    "--max-agents", default=None, type=int, help="Bounded pilot: hard cap on agents per arm."
+)
+@click.option("--seed", default=0, type=int, help="Base seed (per-case + null/bootstrap RNG).")
+@click.option("--n-permutations", default=1000, type=int, help="Null-integrity label permutations.")
+@click.option(
+    "--chunk-size",
+    default=None,
+    type=int,
+    help="Run cases in chunks of this size (resumable). None = one chunk.",
+)
+@click.option(
+    "--checkpoint-path",
+    default=None,
+    type=click.Path(dir_okay=False),
+    help="Bind-mount JSON checkpoint of {case_id: prediction}; resumes across redeploy.",
+)
+def benchmark_cookiecats(
+    csv_path: str,
+    metric: str,
+    use_segments: bool,
+    model_id: str | None,
+    population_size: int,
+    max_agents: int | None,
+    seed: int,
+    n_permutations: int,
+    chunk_size: int | None,
+    checkpoint_path: str | None,
+) -> None:
+    """Run the Cookie Cats gate-move DIRECTIONAL benchmark vs the LIVE engine.
+
+    The in-scope mirror of `benchmark-hillstrom`: the product change is moving the
+    first progress gate from level 30 to level 40 — a deliberative reaction to a
+    PRODUCT change, the class Sidira actually sells. The real RCT's COUNTER-
+    INTUITIVE ground truth is that gate_30 (the earlier gate) OUTPERFORMS gate_40
+    on 7-day retention, so a sim that just parrots priors gets the SIGN wrong.
+
+    End-to-end: load a local Cookie Cats CSV → adapt to BenchmarkCases (one A/B,
+    or >=8 engagement-octile cases with --by-segment) → load the v1.1 Cookie Cats
+    engagement panel → score the live engine as the blind predictor for the
+    selected retention horizon (through the engine `retention` metric) → emit the
+    run result, the stratified honesty table, the null-integrity certificate, and
+    the pre-registration metadata.
+
+    GATED live path: builds the real SimulationRunner and needs live LLM keys; it
+    refuses under pytest / CI. --chunk-size + --checkpoint-path make it RESUMABLE.
+
+    HONESTY CAVEAT: the gate-timing → retention effect is PARTLY behavioral /
+    sub-deliberative, so introspective agent simulation may get it wrong too — this
+    is a HARD test, not a guaranteed positive (see PREREG_COOKIECATS.json).
+    """
+    import json
+    from pathlib import Path
+
+    from sidira_simulator.adapters.cookiecats_panel_loader import (
+        cookiecats_panel_registration,
+        load_cookiecats_panel,
+    )
+    from sidira_simulator.services.benchmark_honesty import (
+        by_engagement,
+        by_source,
+        render,
+        stratify,
+    )
+    from sidira_simulator.services.benchmark_runner import score_with_engine
+    from sidira_simulator.services.cookiecats_adapter import (
+        cookiecats_rows_to_cases,
+        cookiecats_segment_cases,
+    )
+    from sidira_simulator.services.cookiecats_archive import load_cookiecats_csv
+
+    # ── 1. Load + adapt the A/B into benchmark cases. ──
+    rows, summary = load_cookiecats_csv(csv_path)
+    if not rows:
+        raise click.ClickException(f"no Cookie Cats rows loaded from {csv_path}")
+    if use_segments:
+        cases = cookiecats_segment_cases(rows, metric_name=metric, seed=seed)
+    else:
+        cases = cookiecats_rows_to_cases(rows, metric_name=metric, seed=seed)
+
+    # ── 2. Pre-registration metadata (panel + run config). ──
+    registration = cookiecats_panel_registration()
+    panel = load_cookiecats_panel()
+
+    click.echo("== Pre-registration / run config ==")
+    click.echo(f"panel_id:           {registration.panel_id}")
+    click.echo(f"panel_version:      {registration.version}")
+    click.echo(f"panel_persona_n:    {registration.persona_count}")
+    click.echo(f"panel_schema:       {registration.schema_version}")
+    click.echo(f"panel_synthetic:    {registration.is_synthetic_generic}")
+    click.echo(f"individual_row_cap: {registration.is_individual_row_capable}")
+    click.echo("primary_endpoint:   rank_rho")
+    click.echo(f"metric:             {metric}")
+    click.echo(f"engine_metric:      {_COOKIECATS_ENGINE_METRIC}")
+    click.echo(
+        f"stratifier:         {'engagement segment (>=8)' if use_segments else 'single A/B'}"
+    )
+    click.echo(f"model_id:           {model_id}")
+    click.echo(f"seed:               {seed}")
+    click.echo(f"population_size:    {population_size}")
+    click.echo(f"max_agents:         {max_agents}")
+    click.echo(f"rows_kept:          {summary.rows_kept}")
+    click.echo(f"cases:              {len(cases)}")
+    click.echo(f"chunk_size:         {chunk_size}")
+    click.echo(f"checkpoint_path:    {checkpoint_path}")
+    click.echo("")
+
+    # ── 3. Resumable checkpoint: load any prior predictions from the bind-mount. ──
+    # Keyed to the FULL run configuration (incl. panel_version): a config change
+    # forces a fresh run rather than silently serving stale predictions.
+    run_config = {
+        "metric": metric,
+        "seed": seed,
+        "model_id": model_id,
+        "population_size": population_size,
+        "max_agents": max_agents,
+        "use_segments": use_segments,
+        "panel_version": registration.version,
+    }
+    prediction_cache: dict[str, float] = {}
+    ckpt = Path(checkpoint_path) if checkpoint_path else None
+    if ckpt is not None and ckpt.exists():
+        stored = json.loads(ckpt.read_text())
+        stored_config = stored.get("run_config")
+        if stored_config != run_config:
+            raise click.ClickException(
+                f"checkpoint {ckpt} was written for a DIFFERENT run config "
+                f"({stored_config}) than this run ({run_config}); its cached "
+                "predictions would be stale. Use a fresh --checkpoint-path or "
+                "delete the stale file."
+            )
+        prediction_cache = {str(k): float(v) for k, v in (stored.get("predictions") or {}).items()}
+        click.echo(f"resumed {len(prediction_cache)} cached prediction(s) from {ckpt}")
+
+    def _checkpoint() -> None:
+        if ckpt is not None:
+            ckpt.parent.mkdir(parents=True, exist_ok=True)
+            ckpt.write_text(
+                json.dumps(
+                    {"run_config": run_config, "predictions": prediction_cache},
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+
+    # ── 4. Run the live engine as the blind predictor (GATED), chunked + resumable. ──
+    #
+    # AUDIENCE CONDITIONING (the validity crux of the heterogeneity endpoint). In
+    # --by-segment mode each engagement octile's case MUST run against an audience
+    # CONDITIONED on that engagement tier — else every octile case reuses the
+    # identical full panel + identical stimulus and the blind engine cannot tell
+    # one engagement band from another. So we group the cases by their per-case
+    # panel: A/B mode uses the full panel; segment mode uses an engagement sub-pack
+    # per group. We WARM the prediction_cache per panel-group, then the FINAL
+    # score_with_engine over ALL cases computes the cert/rank-ρ as cache hits.
+    builder = _cookiecats_hypothesis_builder(metric)
+    panel_groups: list[tuple[str, object, list]] = []  # (stratum, panel, cases)
+    if use_segments:
+        from sidira_simulator.adapters.cookiecats_panel_loader import (
+            cookiecats_segment_subpack,
+        )
+
+        by_stratum: dict[str, list] = {}
+        for c in cases:
+            stratum = c.case_id.split(":")[3]
+            by_stratum.setdefault(stratum, []).append(c)
+        for stratum, group in by_stratum.items():
+            subpack = cookiecats_segment_subpack(panel, stratum)
+            click.echo(
+                f"segment {stratum}: {len(group)} case(s) conditioned on "
+                f"{len(subpack.personas)} persona(s) → {subpack.version}"
+            )
+            panel_groups.append((stratum, subpack, group))
+    else:
+        panel_groups.append(("__all__", panel, list(cases)))
+
+    def _warm(group_cases: list, group_panel) -> None:
+        step = chunk_size if (chunk_size and chunk_size > 0) else len(group_cases) or 1
+        for start in range(0, len(group_cases), step):
+            chunk = group_cases[start : start + step]
+            score_with_engine(
+                chunk,
+                persona_pack=group_panel,
+                customer_id="benchmark",
+                model_id=model_id,
+                population_size=population_size,
+                max_agents=max_agents,
+                seed=seed,
+                n_permutations=1,  # warm-up only; the real cert is the final full run
+                metric_name=_COOKIECATS_ENGINE_METRIC,
+                hypothesis_builder=builder,
+                prediction_cache=prediction_cache,
+            )
+            _checkpoint()
+
+    for _stratum, group_panel, group_cases in panel_groups:
+        _warm(group_cases, group_panel)
+
+    # CONDITIONING INTEGRITY (segment mode). A cache MISS on the final full-set run
+    # would re-score a segment case against the FULL panel (wrong audience). So in
+    # --by-segment mode every case MUST be in the cache after warm-up; FAIL LOUD
+    # otherwise rather than silently contaminate the heterogeneity endpoint.
+    if use_segments:
+        missing = [c.case_id for c in cases if c.case_id not in prediction_cache]
+        if missing:
+            raise click.ClickException(
+                "segment warm-up failed to score "
+                f"{len(missing)} case(s) against their conditioned sub-panel "
+                f"({missing[:5]}{'…' if len(missing) > 5 else ''}); refusing the "
+                "final run because a cache miss would re-score them against the "
+                "full panel and invalidate the heterogeneity endpoint. Re-run "
+                "(the bind-mount checkpoint resumes the scored cases)."
+            )
+
+    # Final scoring over ALL cases. Every prediction is already cached (warmed
+    # against the correct per-segment panel), so the panel passed here only labels
+    # the run; the cached, segment-conditioned predictions are what get scored.
+    result = score_with_engine(
+        cases,
+        persona_pack=panel,
+        customer_id="benchmark",
+        model_id=model_id,
+        population_size=population_size,
+        max_agents=max_agents,
+        seed=seed,
+        n_permutations=n_permutations,
+        metric_name=_COOKIECATS_ENGINE_METRIC,
+        hypothesis_builder=builder,
+        prediction_cache=prediction_cache,
+    )
+    _checkpoint()
+
+    # ── 5. Emit the run result + null certificate. ──
+    click.echo("== Blind-eval result ==")
+    click.echo(f"n_cases:            {result.n_cases}")
+    click.echo(f"n_dropped:          {result.n_dropped}")
+    if result.dropped_case_ids:
+        click.echo(f"dropped_case_ids:   {result.dropped_case_ids}")
+    click.echo(f"rank_rho (PRIMARY): {result.rank_rho}")
+    click.echo(f"direction_accuracy: {result.direction_accuracy}")
+    click.echo(f"VOID:               {result.void}")
+    if result.void_reason:
+        click.echo(f"void_reason:        {result.void_reason}")
+    click.echo("")
+
+    cert = result.certificate
+    if cert is not None:
+        click.echo("== Null-integrity certificate ==")
+        click.echo(f"passed:             {cert.passed}")
+        click.echo(f"observed_rank_rho:  {cert.observed_rank_rho}")
+        click.echo(f"rank_rho_p_value:   {cert.rank_rho_p_value}")
+        click.echo(f"underpowered:       {cert.underpowered}")
+        if cert.caveat:
+            click.echo(f"caveat:             {cert.caveat}")
+        click.echo("")
+
+    # ── 6. Stratified honesty table (by engagement segment, or by source for A/B). ──
+    if use_segments:
+        table = stratify(result, by_engagement, stratifier_name="engagement")
+    else:
+        table = stratify(result, by_source, stratifier_name="source")
+    click.echo(render(table))
+
+
 if __name__ == "__main__":
     cli()

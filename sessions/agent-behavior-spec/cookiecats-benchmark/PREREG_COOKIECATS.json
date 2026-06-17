@@ -1,0 +1,62 @@
+{
+  "prereg_id": "cookiecats-gate-move-v1-DRAFT",
+  "committed_before_result": false,
+  "_committed_before_result_note": "DRAFT. The operator must (1) freeze the final config, (2) compute the SHA-256 of this file, (3) commit it BEFORE any sim run, then flip committed_before_result to true. Hashing/commit-before-result is deliberately left to the operator; this draft must not be retrofit after a result.",
+  "datetime_local": "2026-06-16",
+  "purpose": "First IN-SCOPE directional benchmark: a deliberative reaction to a PRODUCT change (the class Sidira actually sells), as a counterweight to the Hillstrom e-mail RCT (an OUT-of-scope marketing nudge where the sim is certified directionally backwards, dir_acc 0.0, model-independent). The product change under test is moving Cookie Cats' first forced progress gate from level 30 (gate_30, control) to level 40 (gate_40, treatment).",
+  "dataset": {
+    "name": "Cookie Cats mobile-game A/B test",
+    "n_players_real": 90189,
+    "columns": ["userid", "version", "sum_gamerounds", "retention_1", "retention_7"],
+    "arms": {"control": "gate_30 (gate at level 30)", "treatment": "gate_40 (gate at level 40)"},
+    "provenance": "External real-world A/B (DataCamp/Kaggle teaching mirror). Fetch-don't-redistribute: the raw CSV is NEVER committed; only the DERIVED engagement persona pack (statistics) is committed. Real data goes on the prod box at run time; tests use a committed synthetic fixture (tests/data/cookiecats_sample.csv).",
+    "real_ground_truth": "gate_30 OUTPERFORMS gate_40 on 7-day retention at ~95% confidence — the EARLIER gate is better. So observed_lift (gate_40 - gate_30) is NEGATIVE for retention_7."
+  },
+  "why_this_is_a_discriminating_test": "The ground truth is COUNTER-INTUITIVE: naive intuition ('a later gate = more free play = happier players') predicts gate_40 should WIN, but the earlier gate wins. A sim that merely parrots product-design priors gets the SIGN wrong. Getting the sign RIGHT would be real evidence the engine reasons about deliberative product reactions rather than echoing intuition.",
+  "config": {
+    "panel_id": "cookiecats-gate-ab-v1",
+    "panel_schema": "1.1",
+    "panel_personas": 3,
+    "panel_synthetic": false,
+    "individual_row_cap": true,
+    "panel_separation_gate": "STAGE-1 engagement separation PASSED on the committed pack: sum_gamerounds centroid spread across the 3 GMM tiers is ~2.8 sigma (low ~ -0.95, mid ~ +0.35, heavy ~ +1.85), every adjacent pair separated; the by-engagement endpoint conditions on distinguishable cohorts.",
+    "stratifier": "by-segment: 8 engagement octiles of pooled sum_gamerounds (eng_o1..eng_o8), each comparing gate_30 vs gate_40 WITHIN the band. Octiles map onto the 3 engagement-tier personas low->heavy (o1-o3 low, o4-o6 mid, o7-o8 heavy) so each stratum conditions on its matching cohort.",
+    "expected_cases": 8,
+    "case_floor": "8 octiles == the null-integrity certificate's 8-experiment floor (clears it exactly).",
+    "metrics": ["retention_7 (primary)", "retention_1 (secondary)"],
+    "engine_metric": "retention (both data outcomes route through the in-scope deliberative `retention` metric; the day window is carried in the decision_point)",
+    "population_size_per_arm": "TBD by operator (suggest 50 for a powered run; keep small for a first pilot)",
+    "seed": "TBD by operator (suggest 42)",
+    "n_permutations": 1000,
+    "chunk_size": "TBD (suggest 2 for resumability across redeploy)",
+    "model_id": "TBD by operator (None = Groq llama-3.3-70b default; consider also a Sonnet comparison run)",
+    "primary_endpoint": "rank_rho (per-engagement-octile predicted vs real gate-move uplift)",
+    "secondary_endpoint": "direction_accuracy (sign agreement: does the sim predict gate_40 LOWERS retention?)"
+  },
+  "prediction": {
+    "note": "HONEST and UNCERTAIN by design. This block does NOT assume a positive outcome. It is the directional prediction-of-record once the operator freezes + hashes it.",
+    "primary_lean": "UNCERTAIN, ~50/50. The sim COULD get the sign right if its agents reason 'a later first wall means I burn through the easy early levels faster, hit a harder slog with less novelty left, and churn' or 'the forced break at level 30 actually paces me and brings me back'. It could equally get it WRONG by echoing the naive 'more free play = better' prior (predicting gate_40 raises retention).",
+    "endpoint_sign_prediction": "NO STRONG COMMITMENT. If forced to a point lean: a small risk the sim predicts the WRONG (positive) sign on retention_7, matching naive intuition rather than the RCT. Stated explicitly so a wrong-sign result is a registered outcome, not a surprise.",
+    "heterogeneity_prediction": "WEAK/UNCERTAIN. The real gate effect's heterogeneity across engagement bands is itself noisy; we do not predict a clean monotone pattern. Score vs whatever the RCT octiles actually show.",
+    "gate": "The null-integrity certificate MUST PASS for the result to count. A VOID result is reported as VOID, not trusted."
+  },
+  "CRITICAL_behavioral_confound_caveat": {
+    "headline": "This is a HARD test, NOT a guaranteed positive — register the confound honestly.",
+    "detail": "The gate-timing -> retention effect is itself PARTLY BEHAVIORAL / SUB-DELIBERATIVE: it operates through forced-break psychology and hedonic adaptation (an enforced pause reduces fatigue/satiation and brings players back), not purely through a deliberative reaction to a visible product change. A player does not consciously decide 'the gate moved, therefore I will return less' — much of the effect is a non-introspectable behavioral dynamic.",
+    "implication_for_the_sim": "Sidira's engine elicits INTROSPECTIVE, deliberative reactions. To the extent the real effect is sub-deliberative, introspective agent simulation MAY fail to recover it EVEN ON AN IN-SCOPE product change — the same class of limitation the Hillstrom certification exposed for nudges. So a wrong sign here would NOT necessarily refute in-scope deliberative capability; it could instead pinpoint that THIS particular product change's mechanism is behavioral rather than deliberative.",
+    "why_we_run_it_anyway": "It is the best obtainable EXTERNAL, REAL, per-user product-change A/B with a counter-intuitive verified winner. Even a null/wrong result is publishable and moat-preserving: it sharpens the deliberative-vs-behavioral scope boundary with external ground truth."
+  },
+  "decision_rule": {
+    "if_sign_right_and_cert_passes": "Real evidence the engine recovers a counter-intuitive deliberative product-change direction on external ground truth -> the strongest in-scope positive to date; fit a calibrator next and feature in the accuracy whitepaper.",
+    "if_sign_wrong_and_cert_passes": "Report honestly. Attribute via the behavioral-confound caveat: probe whether the miss is (a) the engine echoing the naive prior, or (b) the effect being genuinely sub-deliberative. Either way it refines the published scope boundary, not a hidden failure.",
+    "if_cert_voids": "Report VOID, not trusted; increase population_size / re-check octile coverage."
+  },
+  "offline_artifacts_in_this_PR": {
+    "loader": "backend/sidira_simulator/services/cookiecats_archive.py",
+    "adapter": "backend/sidira_simulator/services/cookiecats_adapter.py",
+    "panel": "backend/sidira_simulator/adapters/cookiecats_panel_v1.json + cookiecats_panel_loader.py",
+    "cli": "benchmark-cookiecats in backend/sidira_simulator/cli.py",
+    "fixture": "backend/tests/data/cookiecats_sample.csv (synthetic; gate_30 > gate_40 on retention_7)",
+    "tests": "backend/tests/test_cookiecats_*.py"
+  }
+}
