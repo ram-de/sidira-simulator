@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "id": "ascarza_proactive_plan_recommendation",
+      "domain": "telecom retention",
+      "control": "The firm does not contact the customer; the customer remains on the current plan.",
+      "treatment": "The firm contacts the customer and recommends a different plan with a lower monthly cost for the customer's usage.",
+      "metric": "churn over the next 3 months"
+    },
+    {
+      "id": "kanuri_andrews_service_recovery_incentive",
+      "domain": "subscription / service recovery",
+      "control": "After a delivery failure, the customer is offered no price-based incentive.",
+      "treatment": "After a delivery failure, the customer is offered a discount or account credit.",
+      "metric": "contract renewal"
+    },
+    {
+      "id": "algesheimer_ebay_community",
+      "domain": "marketplace",
+      "control": "The customer is not invited to the marketplace community.",
+      "treatment": "The customer is emailed an invitation to join and participate in the marketplace community.",
+      "metric": "amount spent and listings created over the year"
+    },
+    {
+      "id": "lambrecht_tucker_dynamic_retargeting",
+      "domain": "display advertising",
+      "control": "The user is shown a generic brand or category banner.",
+      "treatment": "The user is shown a dynamic banner displaying the specific products the user previously browsed.",
+      "metric": "purchase probability"
+    },
+    {
+      "id": "anderson_simester_installment_billing",
+      "domain": "catalog retail (prestige goods)",
+      "control": "The catalog presents the item without an installment-billing option.",
+      "treatment": "The same catalog presents the item with an installment-billing option added.",
+      "metric": "demand"
+    },
+    {
+      "id": "dholakia_simonson_reference_points",
+      "domain": "online auctions",
+      "control": "The listing includes no instruction to compare the price against other items.",
+      "treatment": "The listing includes an added advisory to compare the price against similar items before bidding.",
+      "metric": "bidding intensity and seller outcome"
+    },
+    {
+      "id": "anderson_simester_sale_sign_saturation",
+      "domain": "retail signage",
+      "control": "Sale signs are placed on some of the products in a category.",
+      "treatment": "Sale signs are placed on most of the products in the category.",
+      "metric": "per-sign demand and category sales"
+    },
+    {
+      "id": "office_help_widget",
+      "domain": "help-article feedback widget",
+      "control": "The feedback widget asks a Yes/No question and then a follow-up question asking why.",
+      "treatment": "The feedback widget asks for a single 5-star rating.",
+      "metric": "response rate"
+    },
+    {
+      "id": "alibaba_recommender_set_size",
+      "domain": "e-commerce recommender",
+      "control": "The recommendation message presents 3-4 products.",
+      "treatment": "The recommendation message presents 2 products.",
+      "metric": "purchase probability"
+    },
+    {
+      "id": "low_default_charity_pledge",
+      "domain": "fundraising",
+      "control": "The pledge form presents a high suggested default amount, or no suggested default.",
+      "treatment": "The pledge form presents a low suggested default amount.",
+      "metric": "revenue per person"
+    },
+    {
+      "id": "bing_antimalware_ad_removal",
+      "domain": "search results page",
+      "control": "The results page includes third-party content injected into the page by software on the user's device.",
+      "treatment": "The results page blocks third-party injection so only first-party content is shown.",
+      "metric": "time-to-success and revenue"
+    },
+    {
+      "id": "growthrock_add_star_rating",
+      "domain": "product page",
+      "control": "The product page does not show a star-rating summary near the top.",
+      "treatment": "The product page shows a star-rating summary block near the top.",
+      "metric": "conversion"
+    },
+    {
+      "id": "bionicgloves_remove_coupon_fields",
+      "domain": "checkout",
+      "control": "The cart page includes two coupon-code entry fields.",
+      "treatment": "The cart page includes no coupon-code entry fields.",
+      "metric": "revenue"
+    },
+    {
+      "id": "blivakker_remove_three_reg_fields",
+      "domain": "signup form",
+      "control": "The registration form includes the full set of fields.",
+      "treatment": "The registration form includes the full set with three fields removed.",
+      "metric": "registration conversion"
+    }
+  ]
+}
