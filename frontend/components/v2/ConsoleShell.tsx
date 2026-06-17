@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { ProvenanceMarker, type ProvenanceMarkerProps } from "./Provenance";
+import { ConsoleMarkMono } from "./Marks";
 
 // The page MUST import v2-theme.css so .v2-console resolves its tokens.
 // On mount we add `.v2-js` to the root: that marker gates the ScrollReveal
@@ -119,13 +120,18 @@ export function TopBar({
       >
         <a
           href="/"
+          aria-label="Sidira home"
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
             fontWeight: 600,
             letterSpacing: "0.06em",
             color: "var(--text-hi)",
             fontSize: 15,
           }}
         >
+          <ConsoleMarkMono size={26} />
           SIDIRA
         </a>
         <nav style={{ display: "flex", gap: 2, marginLeft: 8 }}>

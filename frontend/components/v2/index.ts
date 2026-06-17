@@ -35,6 +35,7 @@ export {
 } from "./Provenance";
 export { Section, SectionHead, ScrollReveal } from "./Section";
 export { ConsoleWell } from "./ConsoleWell";
+export { SheetMarkDuo, ConsoleMarkMono } from "./Marks";
 export {
   DistributionPoster,
   PosterFigure,

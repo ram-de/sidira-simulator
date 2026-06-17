@@ -9,6 +9,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import { SheetMarkDuo } from "./Marks";
 
 // ── Sheet top bar (§4.5, Sheet) — light counterpart to Console TopBar. ──────
 // Wordmark + route nav left; quiet + primary actions right. Sticky, paper blur.
@@ -40,7 +41,7 @@ export function SheetTopBar({
           aria-label="Sidira home"
           style={{ display: "flex", alignItems: "center", gap: 11 }}
         >
-          <SheetMark />
+          <SheetMarkDuo size={30} />
           <span
             style={{
               fontWeight: 600,
@@ -75,33 +76,6 @@ export function SheetTopBar({
         </nav>
       </div>
     </header>
-  );
-}
-
-// The Sheet aperture mark — single-tone ink iris (NOT the dual-tone founder
-// variant, which is reserved for brand-mode surfaces only).
-function SheetMark() {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden
-      style={{ width: 25, height: 25, display: "block" }}
-    >
-      <circle cx="16" cy="16" r="14.5" stroke="var(--sheet-line)" strokeWidth="1" />
-      <circle cx="16" cy="16" r="9" stroke="var(--sheet-mut)" strokeWidth="1.3" />
-      <circle
-        cx="16"
-        cy="16"
-        r="9"
-        stroke="var(--sheet-ink)"
-        strokeWidth="1.4"
-        strokeDasharray="14 42.5"
-        strokeDashoffset="-8"
-        strokeLinecap="round"
-      />
-      <circle cx="16" cy="16" r="2.4" fill="var(--sheet-ink)" />
-    </svg>
   );
 }
 

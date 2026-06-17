@@ -437,6 +437,19 @@
   color: var(--sheet-mut);
 }
 
+/* chip on Sheet — ink-on-paper bordered designator (recolors the base Console
+   chip to the paper palette so a Sheet page never paints a Console gray/border
+   on cream). A chip inside an embedded §6.4 ConsoleWell restores Console color
+   via `.v2-sheet .v2-console-scope .v2-chip` below (route-mode law). */
+.v2-sheet .v2-chip {
+  color: var(--sheet-mut);
+  border-color: var(--sheet-line);
+}
+.v2-sheet .v2-console-scope .v2-chip {
+  color: var(--text-mut);
+  border-color: var(--console-line-60);
+}
+
 /* glyphs on Sheet — only the ◇ glyph wears spread; the WORD stays muted (P7) */
 .v2-sheet .v2-gh {
   color: var(--sheet-spread);
