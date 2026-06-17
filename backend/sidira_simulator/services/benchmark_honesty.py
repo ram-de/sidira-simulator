@@ -155,6 +155,36 @@ def by_segment(case: BenchmarkCaseResult) -> str:
     return _BY_SEGMENT_UNKNOWN
 
 
+# Cookie Cats case_ids are structured `cookiecats:gate40_vs_gate30:<metric>[:<segment>]`
+# (services.cookiecats_adapter.build_cookiecats_case). The engagement stratifier
+# below reads the optional 4th component to report directional accuracy PER
+# engagement octile (the heterogeneity endpoint). Defensive, same as the Hillstrom
+# stratifiers: a case_id without the component lands in an explicit, REPORTED
+# bucket rather than being mislabeled or dropped (the report-every-cell rule, §4).
+_COOKIECATS_PREFIX = "cookiecats"
+_BY_ENGAGEMENT_UNKNOWN = "engagement unknown (no cookiecats stratum in case_id)"
+
+
+def by_engagement(case: BenchmarkCaseResult) -> str:
+    """Stratify a Cookie Cats case by its engagement-octile SEGMENT.
+
+    Reads the optional 4th component of the structured Cookie Cats case_id
+    (`cookiecats:gate40_vs_gate30:<metric>:<segment>`) — the pre-registered
+    engagement-octile stratum (e.g. `eng_o1`..`eng_o8`) the adapter encodes when
+    it enumerates per-segment cases. This is the heterogeneity endpoint: does the
+    sim predict the gate move's effect varies by engagement band?
+
+    A case_id WITHOUT a segment component (the population-level case, or a
+    non-Cookie-Cats case) maps to a dedicated, still-REPORTED "engagement unknown"
+    bucket — so a population-only run is reported honestly (one undifferentiated
+    row) rather than fabricating a stratum the cases don't carry.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 4 and parts[0] == _COOKIECATS_PREFIX and parts[3]:
+        return f"engagement={parts[3]}"
+    return _BY_ENGAGEMENT_UNKNOWN
+
+
 # Label for a stratum where the actual lift is unknown (an unscorable / label-less
 # dropped case): it cannot be magnitude-bucketed, but it is STILL reported (§4).
 _UNKNOWN_MAGNITUDE_KEY = "|effect| unknown (no scorable label)"

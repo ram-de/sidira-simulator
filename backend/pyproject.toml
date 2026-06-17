@@ -53,11 +53,14 @@ include = ["sidira_simulator*"]
 # installs don't FileNotFoundError. starter_persona_pack.json is the generic
 # starter served to empty tenants (#212); upworthy_general_panel_v1.json is the
 # pre-registered Upworthy CTR-benchmark panel (#222); hillstrom_panel_v1.json is
-# the real v1.1 Hillstrom email-uplift directional-benchmark panel (#222 PR-B).
+# the real v1.1 Hillstrom email-uplift directional-benchmark panel (#222 PR-B);
+# cookiecats_panel_v1.json is the v1.1 Cookie Cats gate-move (product-change)
+# directional-benchmark engagement panel.
 sidira_simulator = [
     "adapters/starter_persona_pack.json",
     "adapters/upworthy_general_panel_v1.json",
     "adapters/hillstrom_panel_v1.json",
+    "adapters/cookiecats_panel_v1.json",
 ]
 
 [tool.ruff]
