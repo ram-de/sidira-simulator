@@ -185,6 +185,35 @@ def by_engagement(case: BenchmarkCaseResult) -> str:
     return _BY_ENGAGEMENT_UNKNOWN
 
 
+# Portfolio case_ids are structured `portfolio:<case id>` (one whole experiment =
+# one directional bit, services.portfolio_adapter.build_portfolio_case). The
+# stratifier below reads the trailing component so the honesty table reports
+# directional accuracy PER EXPERIMENT — each portfolio case IS its own bit, so a
+# per-case row is the honest unit (no silent averaging across heterogeneous
+# experiments). Defensive, same as the other stratifiers: a case_id without the
+# component lands in an explicit, REPORTED bucket rather than being mislabeled.
+_PORTFOLIO_PREFIX = "portfolio"
+_BY_PORTFOLIO_CASE_UNKNOWN = "case unknown (no portfolio id in case_id)"
+
+
+def by_portfolio_case(case: BenchmarkCaseResult) -> str:
+    """Stratify a portfolio case by its experiment id (one bit per experiment).
+
+    Reads the trailing component of the structured portfolio case_id
+    (`portfolio:<case id>`) so the honesty table reports each whole experiment as
+    its own row — the portfolio's unit of evidence is a WHOLE experiment, so
+    averaging across experiments would hide which directional bits the sim got
+    right. The case id is surfaced verbatim (e.g. `case=cookiecats_gate_move`).
+
+    A non-portfolio or malformed case_id maps to a dedicated, still-REPORTED "case
+    unknown" bucket (never dropped, never mislabeled).
+    """
+    parts = case.case_id.split(":", 1)
+    if len(parts) == 2 and parts[0] == _PORTFOLIO_PREFIX and parts[1]:
+        return f"case={parts[1]}"
+    return _BY_PORTFOLIO_CASE_UNKNOWN
+
+
 # Label for a stratum where the actual lift is unknown (an unscorable / label-less
 # dropped case): it cannot be magnitude-bucketed, but it is STILL reported (§4).
 _UNKNOWN_MAGNITUDE_KEY = "|effect| unknown (no scorable label)"
