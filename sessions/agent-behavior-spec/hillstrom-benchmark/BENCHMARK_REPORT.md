@@ -362,4 +362,18 @@ tells us a production model swap will not buy directional accuracy on sub-delibe
   §5.1 scope boundary. Next lever: stop probing the out-of-scope perimeter (marketing nudges) and
   land the first *positive* on the in-scope deliberative core — external real-world product-change
   A/B (Cookie Cats lead) + the internal Streamly known-good/known-bad validation.
+- 2026-06-17: **Pivot to the in-scope deliberative core — Cookie Cats harness built + merged
+  (PR #348).** Every certified result to date is a null/inversion on the *out-of-scope* nudge
+  class; the product's actual job (deliberative reactions to a product change) has no external
+  positive yet. Cookie Cats is the best obtainable external real-world product-change A/B (mobile
+  game: first progress gate moved level 30→40, ~90k per-user rows, counter-intuitive verified
+  winner — the *earlier* gate wins on 7-day retention). The harness mirrors Hillstrom (gated data
+  fetcher, derived GMM engagement pack, `benchmark-cookiecats` CLI, 56 tests). **Honest scoping
+  caveat baked into the pre-registration:** the dataset carries no pre-treatment covariates, so the
+  only clean *causal* endpoint is the single whole-population A/B (one directional bit — does the
+  sim predict the counter-intuitive winner?); engagement-octile strata are descriptive, not causal
+  (they condition on a post-treatment mediator). And the gate-timing effect is itself partly
+  *behavioral* (forced-break psychology), so a wrong sign here would refine the deliberative-vs-
+  behavioral boundary rather than simply refute in-scope capability. The run is the next step,
+  pending a deliberate go/no-go (it spends API budget on the shared prod box).
 </content>
