@@ -256,13 +256,41 @@ its framing evokes** rather than reason case-by-case:
 Same engine, opposite bias, flipped purely by framing. That pattern is the signature of
 echoing a prior, not deliberating.
 
+### 5.8 Replication and *failed* replication
+This is the single most important idea in the whole campaign, so it gets its own section.
+
+A **result replicates** if you see it *again* on **fresh data you didn't use to find it**.
+A promising number on the data that first suggested it is only a *hypothesis* — it might
+be real skill, or it might be that *those particular cases* happened to line up well by
+luck or by how you composed the set. The only way to tell the two apart is to **lock a
+prediction in advance (prereg) and run it on brand-new cases.** If the number holds → it
+replicated → it's real. If it collapses → **failed replication** → the original number
+was an artifact of that specific sample, not a skill the product actually has.
+
+> **Example (this is exactly what just happened).** On our 15-case set, the *substantive*
+> subset scored **7/10 = 0.70** — exciting, looked like a narrow sellable skill. But that
+> 0.70 was found *by splitting the very data that produced it*. So I built the honest test:
+> **14 brand-new substantive cases**, balanced and control-heavy, blind-audited, with the
+> prediction sealed before the run. The 0.70 **did not replicate — it came back 0.286**
+> (below chance). Verdict: the 0.70 was favorable composition of those 10 cases, **not** a
+> real skill. Catching this *before* telling a customer is the entire point of the
+> discipline. A failed replication is disappointing but it is a *success of the method* —
+> it stopped us shipping a false claim.
+
 ---
 
 ## Part 6 — What we've actually found (decoder for my observations)
 
-### 6.1 The two named biases
-- **Pro-change tilt** (a.k.a. pro-change prior): on product changes, the sim
-  over-predicts that the **treatment/change wins**.
+### 6.1 The named biases
+- **More-is-better bias** (our *current best* understanding — see 6.5): the sim
+  over-predicts that the arm offering **more** (more content, options, features, steps,
+  higher value) wins — *regardless of whether that arm is the control or the treatment*.
+- **Pro-change tilt** (a.k.a. pro-change prior): the *older, narrower* reading — on
+  product changes the sim over-predicts the **treatment/change wins**. This turned out to
+  be a **special case** of more-is-better: in our earlier sets the changes were almost all
+  *additions*, so "the change wins" and "the bigger arm wins" looked identical. When we
+  deliberately tested *reduction* changes (remove a feature, fewer form fields), the sim
+  backed the **control** — i.e. it was *not* pro-change; it was pro-*more*.
 - **Ad-aversion / sign inversion**: on marketing nudges, it predicts the **wrong
   direction** (treatment harms). "Sign inversion" = it got the +/− backwards.
 
@@ -282,10 +310,10 @@ didn't.
 > **Example.** Within our substantive cases: treatment-class **4/4** (perfect),
 > control-class **3/6** (coin-flip). That gap *is* the pro-change tilt, made visible.
 > And all three misses were the same shape: "**simpler/fewer/removed** actually won" —
-> the sim kept betting the richer option. That's why the confirmatory run I'm building
-> right now deliberately loads up on **control-won** cases: it's a direct test of
-> whether the sim can resist that tilt on fresh data. The **control-class accuracy on
-> those fresh cases is the primary thing I'm measuring.**
+> the sim kept betting the richer option. That's why the confirmatory run deliberately
+> loaded up on **control-won** cases: a direct test of whether the sim can resist that
+> tilt on fresh data, with **control-class accuracy as the pre-registered primary
+> endpoint.** It could not — control-class came back **2/8** (see 6.5).
 
 ### 6.3 Counter-intuitive case
 A case where the obvious guess is wrong (Cookie Cats: the *earlier* gate won). These are
@@ -300,8 +328,38 @@ Our current best understanding of *where* the sim has skill:
   opens-in-new-tab, price formatting). *No* skill here (0/5).
 
 A **scope boundary** is an honest statement of *what we can and can't do*. "Reads
-substantive product-change direction better than chance, but not cosmetic nudges" is a
-scope boundary — and a perfectly sellable one if it holds up, because it's *true*.
+substantive product-change direction better than chance, but not cosmetic nudges" *would*
+have been a scope boundary — and a sellable one *if it had held up*. It did not (see 6.5),
+so we don't get to claim it.
+
+### 6.5 The confirmatory result — where the campaign actually stands (2026-06-17)
+This is the bottom line as of today, and it supersedes the hopeful 0.70 above.
+
+We ran the decisive test the subset analysis demanded: 14 **fresh** substantive cases,
+deliberately balanced control-heavy (8 control-won / 6 treatment-won), independently
+blind-audited (the auditor couldn't guess winners → no wording leak), prereg sealed first.
+
+- **Headline: dir_acc 0.286 (4/14)** — *below* chance, *below* both naive baselines
+  (always-control 0.571, always-treatment 0.429), about tied with the human-expert floor.
+- **The 0.70 failed to replicate** (5.8). It was favorable composition, not a skill.
+- **Both per-class accuracies failed**: control-class 2/8, treatment-class 2/6. My
+  pre-registered prediction that control-class would be low (2-3/8) was **right in the
+  un-flattering direction** (2/8) — the credible kind of being right.
+- **The bias is more-is-better, not pro-change** (6.1): across the 14 cases the sim
+  picked the *bigger/richer* arm 12 times regardless of which arm actually won — and the
+  effect sizes were tiny (near-zero), so it's a faint lean over an almost-flat signal, not
+  confident wrongness.
+
+**What this means in plain terms:** on fresh, fair, carefully-built cases the simulator
+does **not** beat a coin flip at calling which product version wins. There is, today, **no
+certified in-scope directional positive** to sell. That's the honest standing. The value
+we *can* stand behind shifts to the **honest-null measurement report** (we measure
+rigorously and say what's true), and the one remaining in-scope avenue is first-party
+**Streamly** validation against *real per-user data* — not published case narratives.
+
+This is not a failure of the campaign; it's the campaign working. The whole point of the
+prereg/blind-audit/replication discipline is to find this out *in private* instead of
+discovering it after a customer does.
 
 ---
 
@@ -354,7 +412,9 @@ Decoded:
 | **held-out probe** | famous cases graded separately to detect recitation |
 | **publication bias** | wins get published, flops don't → data skews "change wins" |
 | **dilution** | averaging a real signal away by mixing in cases the sim can't do |
-| **pro-change tilt** | sim over-predicts the change/treatment wins |
+| **replication / failed replication** | seeing a result again on fresh data; failure = the original number was a sample artifact, not a skill |
+| **more-is-better bias** | sim over-predicts the *bigger/richer* arm wins, regardless of control vs. treatment (the deeper bias; pro-change tilt is a special case) |
+| **pro-change tilt** | sim over-predicts the change/treatment wins (now understood as a special case of more-is-better) |
 | **ad-aversion / sign inversion** | sim predicts the wrong direction on nudges |
 | **priors-echoing** | sim echoes the prior its framing evokes instead of reasoning |
 | **per-class diagnostic** | split accuracy by which arm really won — exposes the tilt |
