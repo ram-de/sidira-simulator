@@ -397,6 +397,36 @@ def fetch_hillstrom_archive(dest_path: str | Path, *, timeout: float = 120.0) ->
 # scikit-learn via the separate `sidira-personas` repo) which is intentionally
 # absent from the API image, and it is a deliberate, reproducible offline step,
 # never a test/CI side effect. Tests validate the COMMITTED pack instead.
+#
+# KNOWN GAP — behavioral_seeds (cross-persona texture), DEFERRED (#222 PR-C).
+# The committed pack's personas carry behavioral_seeds=None, so the simulator's
+# `identity_seed.draw_identity_seed` falls back to its generic default pools for
+# EVERY Hillstrom persona and logs "identity_seed fallback active - cross-persona
+# variance degraded". This is the CROSS-persona texture path only; the WITHIN-
+# persona individual-row path (render_individual_row via the v1.1 sample_rows
+# quad) already fires correctly (test_render_individual_row_fires_not_fallback),
+# and the fallback NEVER affects any numeric output — it is flagged honestly via
+# AgentReaction.behavioral_seeds_fallback. It is deferred, not fixed, because:
+#   1. The producer (sidira-personas GMM pipeline) emits NO behavioral_seeds at
+#      all — `persona_pack_translator` defaults the field to None for every
+#      translated pack (see its module docstring). This is an upstream producer
+#      gap, not a Hillstrom-build bug; fixing it in the producer would benefit
+#      every real pack, not just this one.
+#   2. behavioral_seeds is FIVE pools (age_bands / locale_bands / tenure_bands /
+#      current_state_pool / recent_gripe_pool). The Hillstrom trial carries NO
+#      age, locale, tenure, current-state, or gripe signal — only recency,
+#      history, gender flags, zip-tier, newbie, channel. Four of the five pools
+#      could only be FABRICATED (authored, not measured), which would dress the
+#      pack's real-measured-statistics provenance (PLAN §1) in invented texture.
+#   3. Populating them requires REGENERATING the committed pack via this gated
+#      GMM build, which risks perturbing the centroids / sample_rows the #222
+#      PR-C by-segment stratification + the committed-pack tests are pinned to.
+# FIX PATH (when prioritized): add a `behavioral_seeds` emitter to the producer
+# (sidira-personas) — or, if Hillstrom-only, hand-author domain-appropriate
+# RETAIL pools per cluster here and inject them post-translate before serialize
+# (mirroring identity_seed._PERSONA_OVERRIDES) — then rebuild + re-commit the
+# pack and assert is_individual_row_capable stays True and the centroids are
+# unchanged. Until then the honest fallback is the correct behavior.
 
 # The producer column → FeatureGroup map, frozen here as the pre-registered
 # feature-mapping for the build (PLAN §3a, researcher-DOF freeze). The outcome

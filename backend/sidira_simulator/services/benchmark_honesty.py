@@ -138,10 +138,10 @@ def by_segment(case: BenchmarkCaseResult) -> str:
 
     Reads the optional 4th component of the structured Hillstrom case_id
     (`hillstrom:<arm_slug>:<metric>:<segment>`) — the pre-registered
-    purchase-history stratum (e.g. `mens_history`, `womens_history`) the adapter
-    encodes when it enumerates per-segment cases. This is the ONLY scoring
-    endpoint that isn't trivially guessable: does the sim predict the men's e-mail
-    moves men-history customers MORE than women-history ones?
+    persona-aligned stratum (e.g. `mens_buyer`, `womens_buyer`, `high_spender`,
+    `mid_tier`) the adapter encodes when it enumerates per-segment cases. This is
+    the ONLY scoring endpoint that isn't trivially guessable: does the sim predict
+    the men's e-mail moves the mens-buyer cohort MORE than the womens-buyer one?
 
     A case_id WITHOUT a segment component (an arm-level case, or a non-Hillstrom
     case) maps to a dedicated, still-REPORTED "segment unknown" bucket — so an

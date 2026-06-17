@@ -30,7 +30,7 @@ def test_by_arm_reads_arm_slug() -> None:
     assert by_arm(_case("hillstrom:mens_email:conversion")) == "arm=mens_email"
     assert by_arm(_case("hillstrom:womens_email:visit")) == "arm=womens_email"
     # A segment case still stratifies by its arm (4-component id).
-    assert by_arm(_case("hillstrom:mens_email:conversion:mens_history")) == "arm=mens_email"
+    assert by_arm(_case("hillstrom:mens_email:conversion:mens_buyer")) == "arm=mens_email"
 
 
 def test_by_arm_unknown_bucket_for_non_hillstrom() -> None:
@@ -42,12 +42,10 @@ def test_by_arm_unknown_bucket_for_non_hillstrom() -> None:
 
 
 def test_by_segment_reads_segment_component() -> None:
+    assert by_segment(_case("hillstrom:mens_email:conversion:mens_buyer")) == "segment=mens_buyer"
     assert (
-        by_segment(_case("hillstrom:mens_email:conversion:mens_history")) == "segment=mens_history"
-    )
-    assert (
-        by_segment(_case("hillstrom:womens_email:conversion:womens_history"))
-        == "segment=womens_history"
+        by_segment(_case("hillstrom:womens_email:conversion:womens_buyer"))
+        == "segment=womens_buyer"
     )
 
 
@@ -76,16 +74,16 @@ def test_stratify_by_arm_reports_each_arm_as_a_row() -> None:
 
 def test_stratify_by_segment_reports_each_stratum() -> None:
     results = [
-        _case("hillstrom:mens_email:conversion:mens_history", observed=0.03, prediction=0.04),
-        _case("hillstrom:mens_email:conversion:womens_history", observed=0.00, prediction=0.01),
-        _case("hillstrom:womens_email:conversion:mens_history", observed=0.01, prediction=0.00),
-        _case("hillstrom:womens_email:conversion:womens_history", observed=0.04, prediction=0.05),
+        _case("hillstrom:mens_email:conversion:mens_buyer", observed=0.03, prediction=0.04),
+        _case("hillstrom:mens_email:conversion:womens_buyer", observed=0.00, prediction=0.01),
+        _case("hillstrom:womens_email:conversion:mens_buyer", observed=0.01, prediction=0.00),
+        _case("hillstrom:womens_email:conversion:womens_buyer", observed=0.04, prediction=0.05),
     ]
     run = BenchmarkRunResult(
         rank_rho=0.0, direction_accuracy=0.5, n_cases=4, case_results=results, seed=0
     )
     table = stratify(run, by_segment, stratifier_name="segment")
     keys = {s.key for s in table.strata}
-    assert keys == {"segment=mens_history", "segment=womens_history"}
+    assert keys == {"segment=mens_buyer", "segment=womens_buyer"}
     # Both strata reported, no cell dropped.
     assert sum(s.n_cases for s in table.strata) == 4

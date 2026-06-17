@@ -125,16 +125,21 @@ def test_loader_round_trips_and_caches() -> None:
     assert reparsed == pack
 
 
-def test_segment_persona_ids_map_to_distinct_cohorts() -> None:
-    """The endpoint-#3 conditioning map: mens_history and womens_history resolve
-    to DIFFERENT, non-empty persona cohorts (the men's-buyer vs women's-buyer
-    clusters) — proof the pack can actually condition the audience per stratum."""
+def test_segment_persona_ids_map_to_four_distinct_cohorts() -> None:
+    """The endpoint-#3 conditioning map: the four persona-aligned strata each
+    resolve to a non-empty cohort, and the four cohorts are mutually DISTINCT
+    (each is a different GMM cluster) — proof the pack can condition the audience
+    per stratum and that the >=8 by-segment cases carry real heterogeneity signal
+    rather than re-using one persona across strata."""
     pack = load_hillstrom_panel()
-    mens = segment_persona_ids(pack, "mens_history")
-    womens = segment_persona_ids(pack, "womens_history")
-    assert mens and womens
-    # Disjoint cohorts: a men's-buyer cluster is not also the women's-buyer cohort.
-    assert set(mens).isdisjoint(set(womens))
+    strata = ["mens_buyer", "womens_buyer", "high_spender", "mid_tier"]
+    cohorts = {s: segment_persona_ids(pack, s) for s in strata}
+    for s, ids in cohorts.items():
+        assert ids, s  # non-empty
+    # All four cohorts are distinct singletons (one persona each) — maximally
+    # separable conditioning, so every stratum adds its own signal.
+    flat = [pid for ids in cohorts.values() for pid in ids]
+    assert len(flat) == len(set(flat)), f"strata share a persona: {cohorts}"
 
 
 def test_segment_persona_ids_rejects_unknown_stratum() -> None:
@@ -143,15 +148,15 @@ def test_segment_persona_ids_rejects_unknown_stratum() -> None:
         segment_persona_ids(pack, "not_a_stratum")
 
 
-def test_no_history_falls_back_to_nearest_cohort_not_full_panel() -> None:
-    """A known stratum the committed pack under-represents (no_history — the real
-    trial has zero such customers) resolves to the single NEAREST cohort, never
-    the full panel, so the audience stays conditioned and endpoint #3 stays valid.
-    A whole-panel fallback would re-introduce the undifferentiated-audience bug."""
+def test_high_vs_mid_spender_resolve_to_different_cohorts() -> None:
+    """The spend axis (the finer stratification that lifts the case count past the
+    8-experiment floor) genuinely separates: high_spender and mid_tier — both
+    both-gender strata — resolve to DIFFERENT persona cohorts, not the same one."""
     pack = load_hillstrom_panel()
-    ids = segment_persona_ids(pack, "no_history")
-    assert ids  # resolves (does not raise)
-    assert len(ids) < len(pack.personas)  # NOT the full panel
+    high = segment_persona_ids(pack, "high_spender")
+    mid = segment_persona_ids(pack, "mid_tier")
+    assert high and mid
+    assert set(high).isdisjoint(set(mid))
 
 
 def test_segment_subpack_is_conditioned_and_renormalized() -> None:
@@ -161,11 +166,11 @@ def test_segment_subpack_is_conditioned_and_renormalized() -> None:
     from sidira_simulator.services.population_sampler import allocate
 
     pack = load_hillstrom_panel()
-    sub = hillstrom_segment_subpack(pack, "mens_history")
+    sub = hillstrom_segment_subpack(pack, "mens_buyer")
     assert 0 < len(sub.personas) < len(pack.personas)
     assert set(sub.weights.head_count) == {p.id for p in sub.personas}
     assert math.isclose(sum(sub.weights.head_count.values()), 1.0, abs_tol=1e-6)
-    assert sub.version.endswith(":mens_history")
+    assert sub.version.endswith(":mens_buyer")
     # The conditioned cohort allocates cleanly (the full population on the cohort).
     alloc = allocate(sub, population_size=10, max_agents=100)
     assert sum(c for _, c in alloc) == 10

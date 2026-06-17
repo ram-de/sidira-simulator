@@ -96,17 +96,17 @@ def test_unsupported_metric_raises() -> None:
 
 def test_segment_uplift_strata_are_matched_and_sorted() -> None:
     rows: list[HillstromRow] = []
-    # mens-history stratum: control 0/2, treatment 2/2 → +1.0
+    # mens_buyer stratum: control 0/2, treatment 2/2 → +1.0
     rows += [_row("No E-Mail", conversion=0, mens=1, womens=0) for _ in range(2)]
     rows += [_row("Mens E-Mail", conversion=1, mens=1, womens=0) for _ in range(2)]
-    # womens-history stratum: control 1/2, treatment 1/2 → 0.0
+    # womens_buyer stratum: control 1/2, treatment 1/2 → 0.0
     rows += [_row("No E-Mail", conversion=c, mens=0, womens=1) for c in (1, 0)]
     rows += [_row("Mens E-Mail", conversion=c, mens=0, womens=1) for c in (1, 0)]
 
     segs = compute_segment_uplift(rows, "Mens E-Mail", n_resamples=100)
     by_seg = {s.segment: s for s in segs}
-    assert by_seg["mens_history"].observed_lift == pytest.approx(1.0)
-    assert by_seg["womens_history"].observed_lift == pytest.approx(0.0)
+    assert by_seg["mens_buyer"].observed_lift == pytest.approx(1.0)
+    assert by_seg["womens_buyer"].observed_lift == pytest.approx(0.0)
     # stable sorted order so the pre-registration hash is reproducible
     assert [s.segment for s in segs] == sorted(s.segment for s in segs)
 

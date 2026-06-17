@@ -22,8 +22,12 @@ is structural, not a benchmark-only renderer (treatment-rendering-layer.md §4).
 
 Ground truth + heterogeneity. `compute_arm_uplift` returns the overall per-arm
 uplift with a bootstrap CI; `compute_segment_uplift` returns the PER-SEGMENT
-uplift across a pre-registered stratifier (e.g. `mens` / `womens` purchase
-history) — the endpoint #3 "does the sim know who responds most" claim (PLAN §2).
+uplift across a pre-registered stratifier aligned to the committed 4-persona pack
+(`mens_buyer` / `womens_buyer` / `high_spender` / `mid_tier` — see `_segment_key`)
+— the endpoint #3 "does the sim know who responds most" claim (PLAN §2). Four
+strata × two arms = 8 cases, clearing the null-cert's 8-experiment floor, and each
+stratum conditions on ONE distinct persona sub-pack so the cases carry real
+heterogeneity signal rather than re-using one audience.
 Both reuse `services.statistics` helpers (no scipy/numpy). The CIs ride on the
 adapter's own result dataclasses, NOT on `GroundTruth` (kept unchanged): the case
 carries the point-estimate `GroundTruth` the runner scores; the richer CI /
@@ -102,7 +106,7 @@ class SegmentUplift:
     """Per-segment uplift of one treatment arm vs No E-Mail within a stratum.
 
     The endpoint #3 heterogeneity material (PLAN §2): does the arm move THIS
-    stratum (e.g. men-history customers) more than another? Same fields as
+    stratum (e.g. the mens_buyer cohort) more than another? Same fields as
     `ArmUplift`, plus the `segment` key naming the stratum.
     """
 
@@ -216,17 +220,60 @@ def compute_arm_uplift(
     )
 
 
+# The leading rank (1..7) of a `history_segment` cell (e.g. "5) $500 - $750" → 5).
+# A high-spender is rank >= this; everything below is mid/low tier. This boundary
+# matches the committed pack's clustering: the high-spender persona (P03) centres
+# on history_segment 5-7 ($500+), the mid-tier persona (P04) on 3-4 ($200-500).
+_HIGH_SPEND_TIER = 5
+
+
+def _history_tier(history_segment: str) -> int:
+    """The leading integer rank of a Hillstrom `history_segment` cell.
+
+    The dataset spells the cell as ``"<rank>) $lo - $hi"`` (rank 1..7, ascending
+    spend). We read the rank off the leading digits so the spend-tier split is
+    robust to the exact dollar wording. Returns 0 for an unparseable cell so it
+    falls into the low/mid tier rather than crashing the stratifier."""
+    head = history_segment.strip().split(")", 1)[0].strip()
+    try:
+        return int(head)
+    except ValueError:
+        return 0
+
+
 def _segment_key(row: HillstromRow) -> str:
-    """Pre-registered heterogeneity stratifier: the customer's purchase-history
-    leaning (PLAN §2). `mens` / `womens` are 0/1 prior-purchase flags; a customer
-    can have both. Stable, freezable keys so the pre-registration can pin them."""
+    """Pre-registered heterogeneity stratifier aligned to the committed 4-persona
+    pack (PLAN §2, endpoint #3).
+
+    The earlier (gender-only) stratifier collapsed every both-gender buyer into a
+    single ``both_history`` stratum, yielding only 3 strata on the real trial (it
+    has no mens=0∧womens=0 customers) → 6 by-segment cases, below the null-cert's
+    8-experiment floor. This finer key matches the 4 GMM personas the pack
+    actually clusters, so each stratum conditions on ONE distinct persona sub-pack
+    (the heterogeneity signal endpoint #3 measures):
+
+        womens_buyer  → P01  (womens-only buyer)
+        mens_buyer    → P02  (mens-only buyer)
+        high_spender  → P03  (buys BOTH genders, history_segment >= 5 i.e. $500+)
+        mid_tier      → P04  (buys BOTH genders, history_segment <= 4)
+
+    STRUCTURALLY BLIND: keyed ONLY on pre-treatment features (mens / womens flags
+    + history_segment spend tier) — never on `segment` (the arm), `visit`,
+    `conversion`, or any outcome. Stable, freezable keys so the pre-registration
+    hash can pin them. A single-gender buyer is keyed by gender regardless of
+    spend (P01/P02 are the trial's low-spend single-gender clusters); a both-gender
+    buyer is split by spend tier into the high-spender / mid-tier clusters."""
+    single_gender = row.mens != row.womens  # exactly one of the two flags set
+    if single_gender:
+        return "mens_buyer" if row.mens else "womens_buyer"
     if row.mens and row.womens:
-        return "both_history"
-    if row.mens:
-        return "mens_history"
-    if row.womens:
-        return "womens_history"
-    return "no_history"
+        return (
+            "high_spender" if _history_tier(row.history_segment) >= _HIGH_SPEND_TIER else "mid_tier"
+        )
+    # Neither gender flag (no recorded purchase history). The real trial has none,
+    # but an edge CSV could; key it to the mid-tier cluster (the lowest-commitment
+    # both/neither cohort) so it stays a known stratum the loader can condition.
+    return "mid_tier"
 
 
 def compute_segment_uplift(
