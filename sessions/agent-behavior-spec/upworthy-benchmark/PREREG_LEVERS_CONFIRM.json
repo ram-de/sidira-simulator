@@ -1,0 +1,36 @@
+{
+  "title": "CONFIRMATION: does the expert-forecaster lever replicate on a fresh disjoint slice? (#342)",
+  "timestamp_utc": "2026-06-17T23:26:05Z",
+  "design": "Re-run comparative + popshare (Sonnet + Groq) on a SECOND disjoint 150-case slice (excludes the first levers/iter2 slice AND the original 60). Tests replication of the lever found on slice-1.",
+  "case_set_hash": "b225c6f8d4da25a2cfaebb1a91d294e1e9bd1090b7f101999a515cf8cb3d0705",
+  "n_cases": 150,
+  "slice_1_result_being_confirmed": {
+    "comparative_sonnet": {
+      "SMR": 0.594,
+      "smr_LB": 0.526,
+      "spearman": 0.186,
+      "tau_b": 0.133,
+      "tau_b_LB": 0.044
+    },
+    "popshare_sonnet": {
+      "spearman": 0.174,
+      "tau_b": 0.118,
+      "tau_b_LB": 0.031
+    }
+  },
+  "predicted_spearman_rho": {
+    "comparative_sonnet": 0.15,
+    "popshare_sonnet": 0.12,
+    "comparative_groq": 0.05,
+    "popshare_groq": 0.08
+  },
+  "hypotheses": {
+    "H1": "comparative_sonnet replicates: balanced SMR Wilson 90% LB > 0.5 AND Kendall tau_b 90% LB > 0 on this disjoint slice",
+    "H2": "the two Sonnet expert-forecaster arms both show spearman rho > 0.10"
+  },
+  "decision_rule": "If comparative_sonnet replicates (SMR LB>0.5 AND tau_b LB>0) -> the elicitation-format lever is CONFIRMED (real, ~2x slices, pre-registered); worth scaling + reporting as a genuine accuracy gain (still sub-decision-grade). If it collapses to chance -> slice-1 was noise; format is not a robust lever; pivot to supervised feature+calibration avenue.",
+  "elicitation_prompt_ids": [
+    "comparative_ctr_v1",
+    "popshare_ctr_v1"
+  ]
+}
