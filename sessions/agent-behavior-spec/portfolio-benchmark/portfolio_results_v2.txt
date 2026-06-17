@@ -1,0 +1,100 @@
+PRODUCT-CHANGE DIRECTIONAL PORTFOLIO — v2 (NARRATIVE-NORMALIZED) SCORED RUN RESULT
+==================================================================================
+Run: 2026-06-17 06:44→06:51 UTC (EXIT 0), on api.sidira.ai EC2 box.
+Prereg (sealed BEFORE result): PREREG_PORTFOLIO_V2.json, canonical-JSON SHA-256
+  9f796b552bcbbfc5af92c495b275528a1e7bc1cd065dc5b04dc526ee6017dea7
+Pinned cases: PORTFOLIO_CASES.json (normalized v2), cases canonical SHA-256
+  7adc72438e3b64b26099e797c0c697e882979eb6560b3ea726e00515b8f60147
+Config: IDENTICAL to v1 except the normalized narratives (Groq default, pop=50, seed=42,
+  n_perm=1000, chunk=2, generic conversion elicitation).
+
+== HEADLINE ==
+direction_accuracy:   0.75   (6 / 8 correct)     [v1 was 0.25 / 2-of-8]
+null-integrity cert:  PASSED (VOID=False, underpowered=False, n_cases=8, n_dropped=0)
+rank_rho (ordering):  0.507  (p = 0.132)
+Human-baseline anchors: sim 6.0/8 ; Kohavi expert survey ~2.3/8 ; MSN widget 3/21 experts
+
+== PER-CASE (real_winner -> v1_pred -> v2_pred) ==
+cookiecats_gate_move      control   | v1 treatment WRONG | v2 control   RIGHT  (FLIPPED ->control)
+duolingo_weekend_amulet   treatment | v1 control   WRONG | v2 treatment RIGHT  (FLIPPED ->treatment)
+msn_realestate_widget     treatment | v1 treatment RIGHT(leaked) | v2 treatment RIGHT (clean now)
+office_online_redesign    control   | v1 treatment WRONG | v2 control   RIGHT  (FLIPPED ->control)
+msn_homepage_extra_offers control   | v1 treatment WRONG | v2 control   RIGHT  (FLIPPED ->control)
+tinkoff_defer_passport    treatment | v1 treatment RIGHT | v2 treatment RIGHT  (held)
+cxl_form_fields_9_to_6    control   | v1 treatment WRONG | v2 treatment WRONG  (still wrong)
+multistep_form_3_vs_6     control   | v1 treatment WRONG | v2 treatment WRONG  (still wrong)
+
+== WHAT CHANGED ==
+The ONLY difference vs v1 is the normalized narratives (asymmetric treatment-positive valence +
+the 'winner of 6 variants' outcome leak removed; both arms now neutral/parallel/mechanic-only).
+The score went 0.25 -> 0.75. So the v1 "pro-change bias" (treatment predicted 7/8) was
+SUBSTANTIALLY A MEASUREMENT ARTIFACT of our own benchmark's asymmetric copy, NOT a genuine /
+intrinsic model prior. The clean flips go in BOTH directions (3 ->control, 1 ->treatment), which
+argues the normalization removed a uniform pro-treatment tilt and let per-case mechanic reasoning
+surface — rather than a uniform pro-control swing. The 2 remaining misses (cxl, multistep) are
+exactly the "simplification wins" prior cases (fewer fields / fewer steps), a real but NARROWER
+prior. The cleanest single demonstration: cookiecats has NO valence in either arm version — only
+v1's parenthetical "(more free play before the wall)" differs — and removing it flipped the sim
+from gate_40(wrong) to gate_30(right).
+
+THIS REFUTES (in the FLATTERING direction) the v2 pre-registered prediction (which expected
+dir_acc to STAY near chance, treatment-rate 7/8 -> ~5/8). A registered prediction that was wrong
+in the good direction is the honest setup; it is NOT retrofitted.
+
+== HARD CAVEATS — WHY THIS IS NOT YET A CLAIMED "CERTIFIED POSITIVE" ==
+1. n=8 IS NOT CONCLUSIVE vs chance. 6/8 correct: one-sided binomial p(>=6 | 0.5) ~= 0.145 -> NOT
+   significant at 0.05. The cert "PASSED" tests that the permutation null is well-formed / centered
+   at chance (not VOID, not underpowered); it does NOT assert dir_acc significantly beats chance.
+   The DECISIVE comparison is vs the human-expert baseline (6/8 vs ~2.3/8) and vs v1 (artifact).
+2. NEW-ARTIFACT RISK (the gating check). The rewrites were authored BY THE SAME OPERATOR who saw
+   the v1 result. An ADVERSARIAL audit is running to test whether the v2 narratives leak the answer
+   or inject pro-control / anti-treatment valence on the control-won cases — the hardest to defend
+   are office_online ("price is not shown") and msn_homepage ("3 additional paid offers"). UNTIL
+   that audit clears, treat the 6/8 as PROVISIONAL. If it finds planted valence, a stricter-neutral
+   rewrite + re-run is required.
+3. rank_rho 0.507 is positive but p=0.132 (not significant at n=8).
+4. Generic-conversion elicitation + generic panel limitations from v1 still apply.
+
+== INTERPRETATION (provisional, pending the adversarial leak-check) ==
+The big, honest story is the METHOD WIN: the campaign's own discipline (post-run audit -> found a
+self-inflicted valence/outcome leak -> normalized -> sealed a new prereg -> clean re-run) caught
+us about to publish "the sim has an intrinsic pro-change bias, pivot to honest-null" when the real
+cause was a benchmark-construction defect. With the leak removed, the sim is directionally RIGHT on
+6/8 and far above expert intuition — a genuinely encouraging IN-SCOPE signal, the first that points
+strongly the right way on a balanced counter-intuitive external set. But it is SUGGESTIVE, not
+certified: it needs (a) the adversarial leak-check to clear, then (b) MORE CASES for power (push n
+well past 8 so 6/8-class accuracy clears significance vs chance, not just vs the human baseline).
+NEXT: await adversarial audit -> if clean, expand the portfolio (more Kohavi/obscure cases) and
+re-run for power; if planted, stricter rewrite + re-run. Either way this REOPENS the in-scope
+positive question that v1 had appeared to close.
+
+== ADVERSARIAL LEAK-CHECK RESULT (independent agent, 2026-06-17) ==
+Verdict per flipped case:
+  cookiecats_gate_move      CLEAN  (pure numeric 30-vs-40, identical frames, gloss removed)
+  duolingo_weekend_amulet   CLEAN  (punitive-vs-lenient valence is INTRINSIC to the real mechanic,
+                                    not injected; winner not stated)
+  msn_homepage_extra_offers CLEAN  ("3 additional paid offers" is descriptive, no evaluative
+                                    adjective; the ads-hurt-engagement inference is MODEL-derived)
+  office_online_redesign    BORDERLINE / VALENCE-SALIENT  ("price is not shown" is factual but
+                                    becomes THE salient cue on a Buy page = a strong implicit steer)
+EXCULPATORY PATTERN (argues the 6/8 is real, not a contaminating swing):
+  - flips are HETEROGENEOUS (3 ->control, 1 ->treatment); a uniform pro-control rewrite-thumb would
+    NOT flip duolingo to treatment.
+  - the 2 surviving misses (cxl, multistep) show the rewriter "left the hard cases hard" — a
+    contaminator does not leave 2/8 on the table.
+BOTTOM LINE (auditor): 6/8 is MOSTLY TRUSTWORTHY, not a leak. Conservative read discounts
+office_online -> 5/8. Both 5/8 and 6/8 are far above the ~2.3/8 expert baseline.
+AUDITOR-PROPOSED STRICTER office_online rewrite (to settle the one soft spot):
+  control:   "The existing Buy page layout."
+  treatment: "A redesigned Buy page with a reorganized layout; one element shown on the existing
+              page (the price) is not shown."
+  (leads with layout = the treatment's real intent; demotes price to a subordinate clause; does
+   NOT add a price clause to control). PREDICTION: if the sim still picks control here, the
+   office_online flip is EARNED and 6/8 stands; if it reverts to treatment, the honest score is 5/8.
+  -> This confirmation re-run is sealed in PREREG_PORTFOLIO_V2_1.json and run next.
+
+HONEST STANDING: clean in-scope directional accuracy is 5/8 (conservative) to 6/8 (pending the
+office_online confirmation) — a STRONG in-scope signal pointing the right way on a balanced
+counter-intuitive external set, FAR above expert intuition, but SUGGESTIVE not certified at n=8
+(6/8 vs chance p~=0.15). Path to a certified positive: confirm office_online, then EXPAND the
+portfolio (more obscure real product-change A/Bs) and re-run for statistical power.

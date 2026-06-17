@@ -62,8 +62,8 @@
     {
       "id": "office_online_redesign",
       "domain": "software e-commerce",
-      "control": "The existing Buy page; the price is shown.",
-      "treatment": "A redesigned Buy page with a different layout; the price is not shown.",
+      "control": "The existing Buy page layout.",
+      "treatment": "A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.",
       "metric": "Buy-button clickers",
       "real_winner": "control",
       "effect": "control won; treatment -64% buy-button clickers",

@@ -1,0 +1,21 @@
+{
+  "prereg_id": "product-change-directional-portfolio-v2.1-office-online-stricter",
+  "purpose": "ONE-CASE CONFIRMATION. The v2 clean run scored 6/8. An independent adversarial audit cleared 3 of the 4 flips but flagged office_online as BORDERLINE: its v2 treatment ('the price is not shown') made price THE salient cue on a Buy page. This v2.1 applies the AUDITOR-PROPOSED stricter, less-salient office_online rewrite (lead with layout, demote price to a subordinate clause, no price clause on control) and re-runs the full 8. All other 7 cases are UNCHANGED from v2 and serve as a reproduction check.",
+  "committed_before_result": true,
+  "_note": "Sealed + committed BEFORE the v2.1 run. The stricter office_online wording was authored by the INDEPENDENT adversarial auditor, not retrofitted to flatter.",
+  "datetime_local": "2026-06-17",
+  "pinned_cases": {
+    "cases_file": "sessions/agent-behavior-spec/portfolio-benchmark/PORTFOLIO_CASES.json (v2.1, office_online stricter)",
+    "cases_canonical_sha256": "8b8cd1905fc55504871c3c8b8429e525eba0f5af29de4c997a22a0ac26c6047f",
+    "only_diff_vs_v2": "office_online control='The existing Buy page layout.' / treatment='A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.'"
+  },
+  "config": "IDENTICAL to v2 (Groq default, pop=50, seed=42, n_perm=1000, chunk=2, generic conversion).",
+  "prediction": {
+    "decisive_case": "office_online (real_winner=CONTROL).",
+    "if_office_online_stays_CONTROL": "the office_online flip is EARNED under a stricter-neutral framing -> the v2 headline 6/8 STANDS (the price fact is legitimate mechanic the model reasons over, not a salience trick).",
+    "if_office_online_reverts_to_TREATMENT": "the v2 office_online point was carried by price-salience -> the honest clean score is 5/8.",
+    "other_7": "expected to REPRODUCE their v2 directions (cookiecats control, duolingo treatment, msn_realestate treatment, msn_homepage control, tinkoff treatment, cxl treatment[wrong], multistep treatment[wrong]); material drift would indicate run-to-run instability worth noting.",
+    "registered_lean": "UNCERTAIN — genuinely a coin on office_online under the stricter framing; the audit itself declined to call it."
+  },
+  "gate": "null-integrity cert must PASS; report honestly whichever way office_online lands."
+}

@@ -470,6 +470,30 @@ case (whose treatment copy carried a *negative* signal yet was still predicted t
 shows the pro-change prior is structural, not just copy-deep. The clean re-run is the decisive
 test that separates copy-valence artifact from genuine prior; its result is reported next.
 
+**The clean re-run overturned the artifact — and reopened the in-scope-positive question.**
+With the narratives normalized (and *nothing else* changed), direction accuracy went from
+**0.25 (2/8) to 0.75 (6/8)**, null-cert PASSED, rank-ρ 0.51 (p=0.13). Four cases flipped
+wrong→right (cookiecats, Duolingo, office-online, MSN-homepage); the two that stayed wrong are
+exactly the "simplification wins" cases (fewer form fields, fewer steps). So the v1 "pro-change
+bias" was **substantially a measurement artifact of our own benchmark's asymmetric copy**, not a
+genuine intrinsic prior — the cleanest proof being cookiecats, whose only v1/v2 difference was a
+parenthetical pro-treatment gloss, and whose removal flipped the prediction to correct. This
+also *refutes our own v2 pre-registered prediction* (which expected the clean score to stay near
+chance) — in the flattering direction, which is precisely when to be most skeptical, so we ran
+an **independent adversarial audit** of the rewrites before trusting the number. Its verdict:
+three of the four flips are clean (the punitive-vs-lenient or clutter framing is *intrinsic to
+the real mechanic*, not injected), and the heterogeneous flip direction (3 toward control, 1
+toward treatment) plus the two surviving misses rule out a contaminating uniform pro-control
+swing. The one soft spot is office-online, where "the price is not shown" — though factual —
+becomes the single most salient cue on a Buy page; a strict reading discounts that case, giving
+a **conservative 5/8**. Both 5/8 and 6/8 sit far above the ~2.3/8 expert baseline. Two honest
+limits remain before this is a *certified* positive rather than a strong signal: at n=8, 6/8 is
+not significant against pure chance (one-sided binomial p≈0.15 — the decisive comparison is vs
+the human baseline, not vs a coin), and the portfolio needs *more cases* for power. The
+headline lesson is a method win: the campaign's own discipline (audit → found a self-inflicted
+leak → re-prereg → clean re-run → adversarial check) caught us about to publish "the sim has an
+intrinsic pro-change bias" when the real cause was a benchmark-construction defect.
+
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
 with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
