@@ -102,6 +102,21 @@ ever shows wins.
 
 ## 4. Benchmark 2 — Hillstrom email uplift (the directional test, in progress)
 
+> **⚠️ UNDER ACTIVE RE-EXAMINATION (2026-06-17).** After the portfolio reversal (§7) — where a
+> "certified" negative turned out to be a self-inflicted stimulus-construction artifact — we
+> applied the same audit lens to this benchmark and found a concrete harness confound: the
+> elicitation `decision_point` is hardcoded to *"the customer is reading the promotional e-mail
+> in their inbox"* and is fed to **both** arms, including the **No-E-Mail control** — so the
+> control agent is told it is reading the very email the treatment adds, mechanically inflating
+> the control propensity and pushing the treatment−control delta toward zero/negative (the
+> observed −0.01 to −0.03). The model-comparison "intrinsic / model-independent" claim below
+> therefore does **not** establish intrinsicness: Groq and Sonnet ran on the *same confounded
+> harness*, so their agreement reflects a shared stimulus bug, not the model (exactly the
+> portfolio lesson). **Treat every "0.0 direction accuracy / certified ad-aversion / intrinsic"
+> statement in §4 and §5.1 as PROVISIONAL** pending a de-confounded re-run (arm-correct the
+> decision_point; pre-registered; same 8 cases, both outcomes). If that re-run moves dir_acc off
+> 0.0, §4/§5.1 will be retracted and rewritten.
+
 Upworthy answered "can we rank magnitude?" (no). Benchmark 2 asks the question the
 product is actually built around: **does the simulator get the *direction* and the
 *who-responds-more* right, against a real randomized experiment?**
@@ -323,6 +338,11 @@ the product should be sold, not a hidden weakness:
   the certified null shows the current method does not capture it. We do **not** claim
   marketing-channel or ad-campaign lift prediction. Naming this boundary — on real RCT evidence,
   rather than discovering it in front of a customer — is itself the trustworthy move.
+
+> **⚠️ PROVISIONAL — see the §4 banner.** A 2026-06-17 audit found the Hillstrom harness feeds a
+> control-contaminating `decision_point` to both arms; the model-comparison below cannot establish
+> intrinsicness because both models ran on that same confounded stimulus. The "settled: intrinsic"
+> claim in this paragraph is suspended pending a de-confounded, pre-registered re-run.
 
 The model-comparison test probed whether that boundary is *intrinsic* to introspective
 simulation or merely a limit of the current model. **It is now settled: intrinsic.** Re-running
@@ -611,4 +631,17 @@ Highrise) to confirm priors-echoing rather than reciting.
   the audit→re-prereg→clean-run→adversarial-check discipline caught a self-inflicted false negative.
   Opened PR #353 (valence-symmetry blindness-test guard). §7 updated. Next: larger, balanced
   portfolio, re-run for power.
+- 2026-06-17: **Hillstrom "intrinsic ad-aversion" put UNDER RE-EXAMINATION — same audit lens, a
+  real harness confound found.** Applying the portfolio's stimulus-construction lens to Hillstrom:
+  the elicitation `decision_point` ("the customer is reading the promotional e-mail in their
+  inbox", cli.py) is fed to BOTH arms incl. the No-E-Mail control → control agent told it's reading
+  the email the treatment adds → inflates control, drives treatment−control delta to ≈0/negative
+  (matches the observed −0.01..−0.03). The model-comparison "intrinsic/model-independent" claim
+  does NOT survive: both models ran on the same confounded harness (shared stimulus bug ≠ model
+  property). §4 + §5.1 marked PROVISIONAL. Decisive next experiment: arm-correct the decision_point
+  (Fix 1, isolating), pre-register, re-run the 8 cases on both outcomes (Groq). If dir_acc moves
+  off 0.0 → §4/§5.1 retracted (a second self-inflicted false negative); if it stays 0.0 with control
+  de-contaminated → intrinsic genuinely survives. (Caveat: Hillstrom's real effect is small/partly
+  sub-deliberative, so a true null can co-exist with the confound — less certain to flip than the
+  portfolio's large deliberative effects.)
 </content>
