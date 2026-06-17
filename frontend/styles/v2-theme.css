@@ -1255,3 +1255,238 @@ a.v2-sims-row:hover{
   .v2-sims-c-verdict,
   .v2-sims-c-agree{justify-self:start;}
 }
+
+/* ── /personas — the Library (v2 reskin) ──────────────────────────────────────
+   Three-entity IA (§7.6): feature pack · persona packs · stimuli, rendered as
+   card grids on the Console surface. Mirrors the .v2-sims-* precedent: all the
+   Library layout lives here so the page island ships no inline <style>.
+   Every value is a v2 token / plain unit — no raw hex, no font names. */
+.v2-lib{
+  max-width:1120px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-section);
+}
+/* header strip: the IA kicker + the §7.6 honesty law */
+.v2-lib-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-base);
+  flex-wrap:wrap;
+}
+.v2-lib-kicker{
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  text-transform:uppercase;
+}
+.v2-lib-law{
+  margin-left:auto;
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  padding:3px 8px;
+  white-space:nowrap;
+}
+/* ── sections ─────────────────────────────────────────────────────────────── */
+.v2-lib-section{
+  display:flex;
+  flex-direction:column;
+}
+.v2-lib-section-label{
+  display:block;
+  letter-spacing:0.16em;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--console-line-40);
+}
+.v2-lib-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
+  gap:var(--space-base);
+  margin-top:14px;
+}
+/* ── cards ────────────────────────────────────────────────────────────────── */
+.v2-lib-card{
+  padding:var(--space-base);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  transition:border-color .14s var(--ease-out);
+}
+.v2-lib-card:hover{
+  border-color:var(--console-line);
+}
+/* ghost card — dashed, recessed surface for the "new …" affordances */
+.v2-lib-card--ghost{
+  background:var(--console-850);
+  border:1px dashed var(--console-line-50);
+  border-radius:var(--r-panel);
+}
+.v2-lib-cardhead{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  margin-bottom:10px;
+  width:100%;
+}
+.v2-lib-cardname{
+  font-size:0.9375rem;
+  font-weight:600;
+  color:var(--text-hi);
+  flex:1;
+  min-width:0;
+}
+.v2-lib-chip--strong{
+  color:var(--text-hi);
+  border-color:var(--console-line);
+}
+/* record rows — label (mut, caps) / value (mono) pairs */
+.v2-lib-rows{
+  margin:0;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:3px 14px;
+  width:100%;
+}
+.v2-lib-rows-dt{
+  font-size:0.625rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  padding-top:2px;
+}
+.v2-lib-rows-dd{
+  margin:0;
+  font-size:0.71875rem;
+  color:var(--text);
+}
+.v2-lib-cardnote{
+  margin:10px 0 0;
+  font-size:0.75rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-cardlink{
+  display:inline-block;
+  margin-top:12px;
+  font-size:0.78125rem;
+  font-weight:500;
+  color:var(--text);
+  border-bottom:1px dotted var(--text-mut);
+  transition:border-color .14s var(--ease-out), color .14s var(--ease-out);
+}
+.v2-lib-cardlink:hover{
+  color:var(--text-hi);
+  border-bottom-color:var(--text-hi);
+}
+/* helper / body notes outside cards */
+.v2-lib-bodynote{
+  margin:12px 0 0;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-pending{
+  margin:12px 0 0;
+  font-size:0.8125rem;
+  color:var(--text-mut);
+}
+/* designed empty-state — neutral note surface, never alert (§4.3, §7.7) */
+.v2-lib-empty{
+  margin-top:12px;
+  padding:var(--space-base);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  background:var(--console-850);
+  color:var(--text);
+  font-size:0.8125rem;
+  line-height:1.5;
+}
+.v2-lib-inline-link{
+  color:var(--text-hi);
+  border-bottom:1px dotted var(--text-mut);
+}
+.v2-lib-inline-link:hover{
+  border-bottom-color:var(--text-hi);
+}
+/* error note — alert border carries severity, message reads in ink (§7.7) */
+.v2-lib-error{
+  margin-top:12px;
+  padding:var(--space-cozy);
+  border:1px solid var(--alert);
+  border-radius:var(--r-well);
+  background:var(--console-750);
+  color:var(--text-hi);
+  font-size:0.8125rem;
+}
+/* stimulus card prose — 2-line clamp */
+.v2-lib-stim-prose{
+  margin:0 0 10px;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.v2-lib-stim-runs{
+  display:inline-flex;
+  flex-direction:column;
+}
+.v2-lib-stim-run{
+  display:block;
+}
+/* live carrier — the single sanctioned pulse under a running run (§9.5).
+   Frozen to a static underline by the .v2-console reduced-motion block. */
+.v2-lib-carrier{
+  position:relative;
+}
+.v2-lib-carrier::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-3px;
+  height:2px;
+  background:var(--signal);
+  animation:v2-sims-carrier 3.4s ease-in-out infinite;
+}
+/* ── sample workspace seed (empty tenants only) ──────────────────────────── */
+.v2-lib-sample{
+  margin-top:var(--space-base);
+  padding:var(--space-base);
+  background:var(--console-800);
+  border:1px solid var(--console-line-50);
+  border-radius:var(--r-well);
+}
+.v2-lib-sample-title{
+  font-weight:500;
+  font-size:0.875rem;
+  color:var(--text-hi);
+}
+.v2-lib-sample-body{
+  margin:6px 0 12px;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-sample-done{
+  font-size:0.8125rem;
+  color:var(--text);
+}
+.v2-lib-sample-error{
+  margin-top:10px;
+  font-size:0.8125rem;
+  color:var(--text-hi);
+  padding:8px 12px;
+  background:var(--console-750);
+  border:1px solid var(--alert);
+  border-radius:var(--r-well);
+}
+@media(max-width:560px){
+  .v2-lib-grid{grid-template-columns:1fr;}
+  .v2-lib-law{margin-left:0;}
+}
