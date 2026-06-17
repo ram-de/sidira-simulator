@@ -80,8 +80,10 @@ def _run_sim_and_send_one_agent_turn(client: TestClient, chat: _PhaseAwareChat):
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -280,8 +282,10 @@ def _run_sim_and_send_group_turn(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -303,9 +307,11 @@ def _run_ab_sim_pick_persona_and_send_group_turn(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Surface a one-tap reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 6,
             "arm_split": {"treatment_fraction": 0.5},
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]

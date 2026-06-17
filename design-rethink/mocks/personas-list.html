@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personas · v_2 · Streamly — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — AA-clear v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* border + word, never fill */
+  /* no --verdict-ship / --verdict-hold — a verdict is not a color */
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html,body{background:var(--console-900);color:var(--text);font-family:var(--font-sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+::selection{background:var(--signal-wash);color:var(--text-hi);}
+a{color:inherit;text-decoration:none;}
+.mono{font-family:var(--font-mono);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.desig{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);}
+:focus-visible{outline:none;box-shadow:0 0 0 2px var(--signal-dim);border-radius:var(--r-well);}
+
+/* ───────── App shell ───────── */
+.app{display:grid;grid-template-columns:56px 1fr;min-height:100vh;}
+.rail{position:fixed;top:0;left:0;bottom:0;width:56px;background:var(--console-850);border-right:1px solid rgba(51,64,92,.5);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;z-index:40;}
+.rail .mark{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;margin-bottom:14px;}
+.rail .mark svg{display:block;}
+.railbtn{width:40px;height:40px;border-radius:var(--r-well);display:grid;place-items:center;color:var(--text-mut);position:relative;cursor:pointer;transition:color 140ms var(--ease-out),background 140ms var(--ease-out);}
+.railbtn:hover{color:var(--text);background:var(--console-800);}
+.railbtn.active{color:var(--text-hi);}
+.railbtn.active::before{content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--signal-dim);}
+.railbtn svg{width:19px;height:19px;}
+.rail .spacer{flex:1;}
+
+.content{grid-column:2;display:flex;flex-direction:column;min-width:0;}
+
+/* ───────── Top bar ───────── */
+.topbar{position:sticky;top:0;height:52px;background:rgba(16,25,42,.86);backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid rgba(51,64,92,.5);display:flex;align-items:center;gap:18px;padding:0 32px;z-index:30;}
+.wordmark{font-family:var(--font-sans);font-weight:600;font-size:14px;letter-spacing:.06em;color:var(--text-hi);text-transform:uppercase;}
+.crumbs{display:flex;align-items:center;gap:8px;color:var(--text-mut);font-size:13px;}
+.crumbs .sep{color:var(--text-mut);opacity:.7;}
+.crumbs .here{color:var(--text);}
+/* top bar carries NO second legend — provenance lives once, on the poster region */
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.topbar .ref{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--text-mut);}
+.topbar .ref b{color:var(--text);font-weight:500;}
+
+/* ───────── Page ───────── */
+.page{padding:0 32px 96px;max-width:1320px;width:100%;margin:0 auto;}
+.hdr{padding:var(--space-bay) 0 0;}
+.hdr .eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.hdr h1{font-size:32px;line-height:1.08;font-weight:600;letter-spacing:-.025em;color:var(--text-hi);text-wrap:balance;}
+.hdr .sub{margin-top:12px;color:var(--text);font-size:16px;max-width:60ch;line-height:1.55;text-wrap:pretty;}
+.hdr .sub b{color:var(--text-hi);font-weight:500;}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mut);border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);padding:3px 7px;line-height:1;white-space:nowrap;}
+.chip.strong{color:var(--text-hi);border-color:var(--console-line);}
+.chip.warn{color:var(--edge-warn);border-color:rgba(201,162,39,.45);}
+
+/* ───────── The distribution poster (static figure) ─────────
+   A WORKING list page earns no live field — only a frozen histogram of the
+   2,500-agent population, drawn once. The table below carries the detail. */
+.poster{margin-top:var(--space-room);border:1px solid var(--console-line);border-radius:var(--r-frame);background:var(--console-900);overflow:hidden;}
+.poster .prov{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 18px;border-bottom:1px solid rgba(51,64,92,.5);}
+.poster .prov .ch{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-mut);}
+.poster .prov .seg{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-mut);}
+.poster .prov .seg b{color:var(--text);font-weight:500;}
+/* uncalibrated WORD stays AA-clear ink; only the ◇ glyph carries spread-dim */
+.poster .prov .seg .unc{color:var(--text-mut);}
+.poster .prov .seg .unc .g{color:var(--spread-dim);}
+.poster .prov .spacer{flex:1;}
+.poster .prov .frozen{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);}
+.poster-body{display:grid;grid-template-columns:1fr 200px;gap:0;}
+.poster-fig{position:relative;padding:18px 18px 8px;}
+.poster-fig svg{display:block;width:100%;height:auto;}
+.poster-axis{display:flex;justify-content:space-between;padding:2px 4px 14px;}
+.poster-axis span{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;color:var(--text-mut);text-transform:uppercase;}
+.poster-read{border-left:1px solid rgba(51,64,92,.5);padding:18px 18px 18px 20px;display:flex;flex-direction:column;justify-content:center;gap:0;}
+.poster-read .lbl{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);}
+.poster-read .lbl .lbl-inferred{letter-spacing:0;text-transform:none;color:var(--text-mut);}
+
+/* the marquee mean reaction is the page's focal reading on first paint;
+   the exempt raw count is demoted to a quiet supporting fact below it */
+.poster-read .marquee{display:flex;align-items:flex-end;gap:8px;margin-top:6px;line-height:1;}
+.poster-read .marquee .fig{font-family:var(--font-mono);font-weight:500;font-size:42px;line-height:.86;color:var(--text-hi);letter-spacing:-.025em;}
+.poster-read .marquee .stk{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding-bottom:4px;}
+.poster-read .marquee .ci{font-family:var(--font-mono);font-size:14px;color:var(--spread);letter-spacing:.01em;line-height:1;}
+.poster-read .marquee .g{font-size:13px;color:var(--spread-dim);line-height:1;}
+
+/* a hairline reaction-axis tick places +0.16 against the indifferent centre,
+   tying the marquee figure to the histogram's own axis below */
+.poster-read .axistick{position:relative;height:5px;margin-top:14px;border-radius:2px;
+  background:linear-gradient(90deg,rgba(79,168,224,.16),rgba(51,64,92,.30) 50%,rgba(224,139,196,.16));}
+.poster-read .axistick .mid{position:absolute;top:-3px;bottom:-3px;left:50%;width:1px;background:rgba(146,155,174,.55);}
+.poster-read .axistick .mk{position:absolute;top:50%;width:7px;height:7px;border-radius:50%;
+  background:var(--console-900);box-shadow:0 0 0 1.5px var(--spread-dim);transform:translate(-50%,-50%);}
+.poster-read .axistick .axistick-mk{left:60%;}
+.poster-read .axiscap{display:flex;justify-content:space-between;margin-top:5px;}
+.poster-read .axiscap span{font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);}
+
+/* supporting facts row: the demoted exempt count + distribution shape — quiet ink */
+.poster-read .facts{display:flex;align-items:baseline;gap:8px;margin-top:16px;
+  padding-top:13px;border-top:1px solid rgba(51,64,92,.42);}
+.poster-read .facts .n{font-family:var(--font-mono);font-size:15px;font-weight:500;color:var(--text);}
+.poster-read .facts .lab{font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mut);}
+.poster-read .meta{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);margin-top:9px;line-height:1.55;}
+.poster-read .meta b{color:var(--text);font-weight:500;}
+
+/* finite, accessible drift (§5.6): ≤2px amplitude, freezes on hover/focus and
+   reduced-motion; the resting figure stays legible (~0.72), drift the only cue */
+@keyframes uncal-drift{0%,100%{transform:translateY(0);}50%{transform:translateY(2px);}}
+.uncal{opacity:.72;animation:uncal-drift 15s var(--ease-settle) infinite;}
+.uncal:hover,.uncal:focus-within{animation-play-state:paused;opacity:1;}
+
+/* ───────── Buttons ───────── */
+.btn{height:36px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;border-radius:var(--r-well);font-family:var(--font-sans);font-size:14px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all 140ms var(--ease-out);white-space:nowrap;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--console-700);border-color:var(--console-line);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.btn-primary:hover{background:var(--console-750);}
+.btn-secondary{background:transparent;border-color:var(--console-line);color:var(--text);}
+.btn-secondary:hover{background:var(--console-800);color:var(--text-hi);}
+.btn-ghost{background:transparent;color:var(--text-mut);border:none;padding:0 8px;}
+.btn-ghost:hover{color:var(--text-hi);}
+.btn svg{width:15px;height:15px;}
+
+/* ───────── Toolbar ───────── */
+.toolbar{display:flex;align-items:center;gap:14px;margin-top:var(--space-bay);padding-bottom:16px;border-bottom:1px solid rgba(51,64,92,.5);flex-wrap:wrap;}
+.toolbar .seg-label{display:flex;align-items:baseline;gap:10px;}
+.toolbar h2{font-size:20px;font-weight:600;letter-spacing:-.015em;color:var(--text-hi);}
+.toolbar .count{font-family:var(--font-mono);font-size:12px;color:var(--text-mut);}
+.toolbar .spacer{flex:1;}
+.search{position:relative;display:flex;align-items:center;}
+.search svg{position:absolute;left:10px;width:14px;height:14px;color:var(--text-mut);pointer-events:none;}
+.search input{height:36px;width:230px;background:var(--console-700);border:1px solid var(--console-line);border-radius:var(--r-well);color:var(--text-hi);font-family:var(--font-sans);font-size:13.5px;padding:0 12px 0 30px;transition:border-color 140ms var(--ease-out);}
+.search input::placeholder{color:rgba(146,155,174,.7);}
+.search input:focus{outline:none;border-color:var(--signal-dim);box-shadow:0 0 0 2px var(--signal-dim);}
+
+/* weight-scheme tabs — a real ordered choice, carried by underline (no 01/02) */
+.wtabs{display:flex;align-items:center;gap:0;margin-top:var(--space-room);}
+.wtab{position:relative;font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mut);padding:8px 14px 11px;cursor:pointer;background:none;border:none;transition:color 140ms var(--ease-out);}
+.wtab.on{color:var(--text-hi);}
+.wtab:hover:not(.on):not(.disabled){color:var(--text);}
+.wtab.disabled{color:var(--text-faint);cursor:not-allowed;}
+.wtab .ul{position:absolute;left:14px;right:14px;bottom:0;height:2px;background:var(--signal-dim);border-radius:2px;transform:scaleX(0);transform-origin:left;transition:transform 180ms var(--ease-mech);}
+.wtab.on .ul{transform:scaleX(1);}
+
+/* ───────── Persona logbook ───────── */
+.logbook{margin-top:6px;border:1px solid var(--console-line);border-radius:var(--r-panel);overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.04);background:var(--console-800);}
+table{width:100%;border-collapse:collapse;}
+thead th{text-align:left;font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);padding:12px 18px;border-bottom:1px solid var(--console-line);background:var(--console-850);white-space:nowrap;}
+thead th.num{text-align:right;}
+thead th .sortarrow{color:var(--text-mut);margin-left:5px;}
+tbody tr{border-bottom:1px solid rgba(51,64,92,.42);transition:background 120ms var(--ease-out);cursor:pointer;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--console-750);}
+tbody td{padding:15px 18px;vertical-align:top;}
+td.num{text-align:right;font-family:var(--font-mono);font-size:13.5px;color:var(--text);white-space:nowrap;}
+
+.pname{display:flex;align-items:flex-start;gap:12px;}
+.swatch{width:9px;height:9px;border-radius:2px;margin-top:6px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.06);}
+.pname .body{min-width:0;}
+.pname .nm{font-size:15px;font-weight:550;color:var(--text-hi);letter-spacing:-.005em;}
+.pname .id{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--text-mut);margin-top:3px;}
+.pname .jtbd{font-size:13px;color:var(--text-mut);margin-top:7px;max-width:48ch;line-height:1.45;}
+
+/* ── ONE compact Spread Stamp pattern, shared by EVERY inferred cell ── */
+.stamp-cell{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.stamp-cell .v{font-family:var(--font-mono);font-size:14px;color:var(--text-hi);display:inline-flex;align-items:baseline;gap:6px;}
+.stamp-cell .v .g{font-size:11px;line-height:1;}
+.stamp-cell .v .g.hollow{color:var(--spread-dim);}
+.stamp-cell .v .g.filled{color:var(--signal-dim);}
+.stamp-cell .ci{font-family:var(--font-mono);font-size:11px;color:var(--spread);letter-spacing:.01em;}
+.stamp-cell .raw{font-family:var(--font-mono);font-size:10.5px;color:var(--text-mut);} /* bare fact: raw n */
+
+/* share cell adds a hairline bar under the shared stamp */
+.wbar{height:3px;margin-top:7px;width:104px;margin-left:auto;border-radius:2px;background:var(--console-700);overflow:hidden;position:relative;}
+.wbar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;display:block;transition:width 320ms var(--ease-settle);}
+
+/* trend cell: direction is PLAIN INK + glyph, never valence color */
+.trend{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.trend .v{font-family:var(--font-mono);font-size:13.5px;color:var(--text-hi);display:inline-flex;align-items:baseline;gap:5px;}
+.trend .v .dir{font-size:11px;color:var(--text-mut);} /* glyph in ink, no green/red */
+.trend .v .g.hollow{font-size:11px;line-height:1;color:var(--spread-dim);}
+.trend .ci{font-family:var(--font-mono);font-size:11px;color:var(--spread);}
+
+/* status: border+word vocabulary, hedged for uncalibrated */
+.statusword{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;display:inline-flex;align-items:center;gap:5px;}
+.sw-stable{color:var(--text-hi);}
+.sw-test{color:var(--spread);}
+.sw-low{color:var(--edge-warn);}
+.statusword .g{font-size:11px;}
+.statusword .g.glyph-unc{color:var(--spread-dim);}
+
+.rowarrow{color:var(--text-mut);transition:color 120ms var(--ease-out),transform 120ms var(--ease-out);}
+tbody tr:hover .rowarrow{color:var(--text-hi);transform:translateX(2px);}
+
+/* ───────── Split readout — the second editorial beat ─────────
+   After the table, one pulled callout names the real tension in the population:
+   it does not react as one bloc. Two poles, drawn from the actual segment means —
+   a focal moment that interrogates the distribution, not decoration. */
+.split{margin-top:var(--space-section);border-top:1px solid rgba(51,64,92,.5);padding-top:var(--space-room);
+  display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);gap:0 var(--space-room);align-items:stretch;}
+.split .rail{background:rgba(51,64,92,.42);width:1px;}
+.split .lede{grid-column:1 / -1;display:flex;align-items:baseline;gap:12px;margin-bottom:var(--space-base);}
+.split .lede h3{font-size:17px;font-weight:600;letter-spacing:-.01em;color:var(--text-hi);}
+.split .lede .note{font-size:13px;color:var(--text-mut);line-height:1.5;max-width:52ch;}
+.pole{display:flex;flex-direction:column;gap:9px;padding:2px 0;}
+.pole .ph{display:flex;align-items:center;gap:8px;}
+.pole .ph .dot{width:8px;height:8px;border-radius:2px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.06);}
+.pole .ph .who{font-size:14px;font-weight:550;color:var(--text-hi);}
+.pole .ph .tag{margin-left:auto;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mut);}
+.pole .read{display:flex;align-items:baseline;gap:8px;}
+.pole .read .fig{font-family:var(--font-mono);font-weight:500;font-size:26px;line-height:1;color:var(--text-hi);letter-spacing:-.02em;}
+.pole .read .ci{font-family:var(--font-mono);font-size:12px;color:var(--spread);}
+.pole .read .g{font-size:11px;color:var(--spread-dim);}
+.pole .why{font-size:12.5px;color:var(--text-mut);line-height:1.5;max-width:44ch;}
+.pole .why b{color:var(--text);font-weight:450;}
+@media(max-width:1080px){.split{grid-template-columns:1fr;gap:var(--space-room);}.split .rail{display:none;}}
+
+/* ───────── Provenance record (single panel, collapsed secondary) ───────── */
+.recordrow{margin-top:var(--space-section);}
+.panel{border:1px solid var(--console-line);border-radius:var(--r-panel);background:var(--console-800);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);padding:20px 24px;}
+.panel .ph{display:flex;align-items:baseline;gap:10px;margin-bottom:16px;}
+.panel .ph h3{font-size:15px;font-weight:550;color:var(--text-hi);}
+.panel .ph .spacer{flex:1;}
+.kvgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:10px 0;border-bottom:1px solid rgba(51,64,92,.4);}
+.kv .k{font-size:13px;color:var(--text-mut);}
+.kv .v{font-family:var(--font-mono);font-size:12.5px;color:var(--text);text-align:right;}
+.kv .v .unc{color:var(--spread-dim);}
+.kv .v .ci{color:var(--spread);}
+
+/* collapsed calibration ledger — one summary line that expands */
+.collapse{margin-top:var(--space-room);border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);background:var(--console-850);overflow:hidden;}
+.collapse summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 18px;}
+.collapse summary::-webkit-details-marker{display:none;}
+.collapse summary .chev{color:var(--text-mut);transition:transform 160ms var(--ease-out);}
+.collapse[open] summary .chev{transform:rotate(90deg);}
+.collapse summary .lbl{font-size:13.5px;color:var(--text);font-weight:450;}
+.collapse summary .lbl b{color:var(--text-hi);font-weight:500;}
+.collapse summary .state{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-mut);}
+.collapse summary .state .g{color:var(--spread-dim);}
+.collapse .body{padding:0 18px 18px;border-top:1px solid rgba(51,64,92,.4);}
+.ledger-empty{border:1px solid rgba(51,64,92,.6);border-radius:var(--r-well);padding:16px;background:var(--console-900);margin-top:16px;}
+.ledger-empty .grid{height:48px;position:relative;border-bottom:1px solid rgba(51,64,92,.5);}
+.ledger-empty .grid::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,rgba(51,64,92,.28) 0 1px,transparent 1px 42px);}
+.ledger-empty .cap{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-mut);margin-top:10px;}
+.collapse .body p{font-size:13.5px;color:var(--text-mut);margin-top:14px;line-height:1.55;max-width:60ch;}
+.collapse .body p b{color:var(--text);font-weight:450;}
+.collapse .body .glyph{color:var(--spread-dim);}
+
+.footnote{margin-top:var(--space-section);display:flex;align-items:flex-start;gap:10px;color:var(--text-mut);font-size:12.5px;max-width:78ch;line-height:1.6;}
+.footnote .glyph{color:var(--spread-dim);margin-top:1px;}
+.footnote b{color:var(--text);font-weight:450;}
+
+@media(max-width:1080px){.kvgrid{grid-template-columns:1fr;}.poster-body{grid-template-columns:1fr;}.poster-read{border-left:none;border-top:1px solid rgba(51,64,92,.5);}.search input{width:170px;}.pname .jtbd{display:none;}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:1ms!important;}.uncal{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- left icon rail -->
+  <nav class="rail" aria-label="primary">
+    <div class="mark" title="Sidira">
+      <!-- resting brand mark renders in ink, never lime -->
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <rect x="1" y="1" width="28" height="28" rx="7" fill="#10192A" stroke="#33405C"/>
+        <circle cx="15" cy="15" r="8.5" stroke="#F2F4F8" stroke-width="1.5"/>
+        <circle cx="15" cy="15" r="2.4" fill="#F2F4F8"/>
+        <path d="M15 6.5v3M15 20.5v3M6.5 15h3M20.5 15h3" stroke="#929BAE" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <a class="railbtn" title="Home" aria-label="Home" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg></a>
+    <a class="railbtn active" title="Library · Personas" aria-label="Personas" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.3 2.5-5.2 5.5-5.2s5.5 1.9 5.5 5.2"/><circle cx="17.5" cy="9" r="2.4"/><path d="M15.6 20c0-2.4 1.4-3.9 3.4-3.9 1.2 0 2.2.5 2.8 1.4"/></svg></a>
+    <a class="railbtn" title="Simulations" aria-label="Simulations" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h3l2.5-6 4 14L18 8l2 4h1"/></svg></a>
+    <a class="railbtn" title="Capabilities" aria-label="Capabilities" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></a>
+    <div class="spacer"></div>
+    <a class="railbtn" title="Settings" aria-label="Settings" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></a>
+    <a class="railbtn" title="Account" aria-label="Account" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3-5.6 7-5.6s7 2 7 5.6"/></svg></a>
+  </nav>
+
+  <div class="content">
+    <!-- top bar — NO second legend here; one route ref only -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <nav class="crumbs">
+        <span>Library</span><span class="sep">/</span>
+        <span class="here">Personas</span>
+      </nav>
+      <div class="right">
+        <span class="ref">PACK <b>v_2</b> · STREAMLY</span>
+      </div>
+    </header>
+
+    <div class="page">
+      <!-- page header -->
+      <div class="hdr">
+        <!-- Calibration state is carried ONCE, structurally, by the poster's
+             provenance bar below (§7.3) — not duplicated as an eyebrow chip.
+             The eyebrow names the population; the poster owns the ◇. -->
+        <div class="eyebrow">
+          <span class="desig">MODELLED POPULATION</span>
+          <span class="chip strong">PACK v_2</span>
+        </div>
+        <h1>Personas</h1>
+        <p class="sub">Six segments clustered from <b>2,500</b> Streamly listeners — the synthetic population every simulation reacts through. Each persona is one bin of the distribution; open a run to watch the field re-sort.</p>
+      </div>
+
+      <!-- Distribution poster: a frozen binned histogram of the 2,500-agent
+           population, drawn once. The one inferred reading on it (mean reaction)
+           wears its spread and drifts gently until you look at it. -->
+      <section class="poster" aria-label="Population distribution (settled poster)">
+        <div class="prov">
+          <span class="ch">CH1</span>
+          <span class="seg"><b>2,500</b> AGENTS</span>
+          <span class="seg">· 6 SEGMENTS</span>
+          <span class="seg">· SEED 0x4f</span>
+          <span class="seg">· groq/llama-3.3-70b</span>
+          <span class="seg">· 2026-W25</span>
+          <span class="seg">· <span class="unc"><span class="g">◇</span> UNCALIBRATED</span></span>
+          <span class="spacer"></span>
+          <span class="frozen">STATIC FIGURE · NO READING RUNNING</span>
+        </div>
+        <div class="poster-body">
+          <div>
+            <div class="poster-fig">
+              <svg id="dist" viewBox="0 0 720 168" preserveAspectRatio="none" aria-hidden="true"></svg>
+            </div>
+            <div class="poster-axis">
+              <span>← rejects</span>
+              <span>indifferent</span>
+              <span>adopts →</span>
+            </div>
+          </div>
+          <div class="poster-read">
+            <!-- the inferred mean reaction is the focal reading; drifts ≤2px
+                 until looked at, resting at full-ink legibility -->
+            <div class="lbl">Mean reaction <span class="lbl-inferred">· inferred</span></div>
+            <div class="marquee uncal" tabindex="0" aria-label="Mean reaction plus 0.20, spread plus or minus 0.07, uncalibrated">
+              <span class="fig">+0.20</span>
+              <span class="stk">
+                <span class="ci">±0.07</span>
+                <span class="g">◇</span>
+              </span>
+            </div>
+            <!-- place the mean against the indifferent centre on its own axis -->
+            <div class="axistick" aria-hidden="true">
+              <span class="mid"></span>
+              <!-- +0.20 on a -1..+1 axis → 60% across; mark carries the ◇-dim ring -->
+              <span class="mk axistick-mk"></span>
+            </div>
+            <div class="axiscap" aria-hidden="true"><span>rejects</span><span>adopts</span></div>
+
+            <!-- demoted exempt FACTS: the raw count is a fact, not the reading -->
+            <div class="facts">
+              <span class="n">2,500</span><span class="lab">agents · at rest</span>
+            </div>
+            <div class="meta">Spread <b>σ 0.41</b> · bimodal · 2,500 agents binned · settled</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── toolbar ── -->
+      <div class="toolbar">
+        <div class="seg-label">
+          <h2>Segments</h2>
+          <span class="count">6 of 6 · 100% of population</span>
+        </div>
+        <span class="spacer"></span>
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input type="text" placeholder="Filter segments…" aria-label="Filter segments" />
+        </div>
+        <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg> Build a pack</button>
+      </div>
+
+      <!-- weight-scheme tabs (a real choice → underline; not a section scaffold) -->
+      <div class="wtabs" role="tablist" aria-label="Weighting scheme">
+        <button class="wtab on" role="tab" aria-selected="true">Head count<div class="ul"></div></button>
+        <button class="wtab" role="tab" aria-selected="false">Order-weighted<div class="ul"></div></button>
+        <button class="wtab disabled" role="tab" aria-disabled="true" title="revenue mapping not provided in this pack">Revenue-weighted ◇<div class="ul"></div></button>
+      </div>
+
+      <!-- ── persona logbook ── -->
+      <div class="logbook elevated">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40%">Segment <span class="sortarrow">↓</span></th>
+              <th class="num" style="width:18%">Share of pop.</th>
+              <th class="num" style="width:15%">Δ engagement</th>
+              <th class="num" style="width:15%">Stability</th>
+              <th class="num" style="width:12%">State</th>
+            </tr>
+          </thead>
+          <tbody id="rows"><!-- injected --></tbody>
+        </table>
+      </div>
+
+      <!-- ── split readout: the population does not react as one bloc ── -->
+      <section class="split" aria-label="Population reaction split">
+        <div class="lede">
+          <h3>The pack does not move as one</h3>
+          <span class="note">Two segments pull hardest in opposite directions — the mean reaction sits near indifferent only because they cancel.</span>
+        </div>
+        <div class="pole" id="poleAdopt"></div>
+        <div class="rail" aria-hidden="true"></div>
+        <div class="pole" id="poleReject"></div>
+      </section>
+
+      <!-- ── single provenance record (the one supporting panel) ── -->
+      <div class="recordrow">
+        <div class="panel">
+          <div class="ph"><span class="swatch" style="background:var(--arm-control)"></span><h3>Pack provenance</h3><span class="spacer"></span><span class="chip">RECORD</span></div>
+          <div class="kvgrid">
+            <div class="kv"><span class="k">Built from</span><span class="v">USERS_FEATURE_STORE</span></div>
+            <div class="kv"><span class="k">Model · seed</span><span class="v">groq/llama-3.3-70b · 0x4f</span></div>
+            <div class="kv"><span class="k">Rows clustered</span><span class="v">2,500</span></div>
+            <div class="kv"><span class="k">Snapshot</span><span class="v">2026-W25 · 06-14</span></div>
+            <div class="kv"><span class="k">Schema</span><span class="v">v1.1 · individual rows</span></div>
+            <div class="kv"><span class="k">Pack stability</span><span class="v">0.74 <span class="ci">±0.04</span> · thr 0.60</span></div>
+          </div>
+
+          <!-- collapsed-by-default calibration ledger -->
+          <details class="collapse">
+            <summary>
+              <span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
+              <span class="lbl">Calibration ledger — <b>empty</b>, no holdout graded yet</span>
+              <span class="state"><span class="g">◇</span> NO GROUND TRUTH</span>
+            </summary>
+            <div class="body">
+              <div class="ledger-empty">
+                <div class="grid"></div>
+                <div class="cap">LEDGER EMPTY · AXIS ONLY · NO READING YET</div>
+              </div>
+              <p>These shares and reactions are <b>estimates</b>, not measured facts. Until a run is graded against real Streamly outcomes, every inferred reading wears the hollow <span class="glyph">◇</span> stamp and the poster's mean drifts without locking. Grade a holdout to earn the filled ◆.</p>
+              <button class="btn btn-secondary cal-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4v16h16"/><path d="M4 14l5-5 4 4 6-7"/></svg> Open calibration</button>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="footnote">
+        <span class="glyph">◇</span>
+        <span>Shares sum to 100% under the active scheme. <b>Head count</b> treats every listener equally; <b>order-weighted</b> weights by play volume. Revenue-weighting is unavailable — this pack carried no revenue mapping. A persona is a bin, not a person: open one for its behavioral profile.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────────────────
+   Data — six Streamly segments (realistic synthetic fixture).
+   share/reaction/Δengagement/stability are INFERRED about people
+   → each wears a Spread Stamp (±, ◇/◆). headN, id, seed, model,
+   snapshot are recorded FACTS → bare mono, no ±.
+   ─────────────────────────────────────────────────────────── */
+/* cohort ramp = perceptual cold→warm identity interpolation (arm-control →
+   arm-treat and one warm stop past it), never signal — zero lime in any swatch */
+const RAMP = ["#4FA8E0","#7C9ECF","#A797C9","#C28FC6","#E08BC4","#D178A6"];
+const SEGMENTS = [
+  { id:"p_01", name:"Commute Streamers", share:0.281, shareCi:0.018, headN:703, reaction:+0.34, stability:0.81, stabCi:0.05, dEng:+0.23, dCi:0.06,
+    jtbd:"Fill a 40-minute commute with zero-friction audio; never break flow to manage a queue.", color:RAMP[0] },
+  { id:"p_02", name:"Deep-Focus Listeners", share:0.224, shareCi:0.017, headN:560, reaction:-0.18, stability:0.77, stabCi:0.06, dEng:-0.19, dCi:0.07,
+    jtbd:"Stay in one uninterrupted soundscape for hours of work; treat any UI nudge as an intrusion.", color:RAMP[1] },
+  { id:"p_03", name:"Discovery Grazers", share:0.186, shareCi:0.016, headN:465, reaction:+0.61, stability:0.79, stabCi:0.05, dEng:+0.50, dCi:0.06,
+    jtbd:"Surface something new every session; bored the moment the feed repeats itself.", color:RAMP[2] },
+  { id:"p_04", name:"Lapsed Returners", share:0.131, shareCi:0.014, headN:328, reaction:+0.08, stability:0.62, stabCi:0.09, dEng:+0.06, dCi:0.10,
+    jtbd:"Re-onboard after months away; need the app to remember who they were without a setup wall.", color:RAMP[3] },
+  { id:"p_05", name:"Social Sharers", share:0.104, shareCi:0.013, headN:260, reaction:+0.47, stability:0.73, stabCi:0.07, dEng:+0.34, dCi:0.08,
+    jtbd:"Push a track to a group chat in under three taps; the share is the listening.", color:RAMP[4] },
+  { id:"p_06", name:"Price-Sensitive Free Tier", share:0.074, shareCi:0.011, headN:184, reaction:-0.42, stability:0.69, stabCi:0.08, dEng:-0.31, dCi:0.09,
+    jtbd:"Get maximum listening on the free plan; flinch at any change that smells like a paywall.", color:RAMP[5] },
+];
+const ORDER_SHARE={p_01:{s:0.318,c:0.020},p_02:{s:0.196,c:0.018},p_03:{s:0.241,c:0.019},p_04:{s:0.071,c:0.012},p_05:{s:0.121,c:0.014},p_06:{s:0.053,c:0.010}};
+
+/* ── render the static distribution poster — a REAL binned histogram ──
+   Not a smooth density blob: every one of the 2,500 agents is placed on the
+   reaction axis (its segment's mean + a deterministic within-segment jitter
+   keyed to the segment's own spread), then counted into 40 fixed bins. The
+   bars are the actual headcount per bin → an interrogable distribution, one
+   stepped mark per occupied bin, never a hand-drawn bezier. */
+(function(){
+  const svg=document.getElementById("dist");
+  const W=720,H=168,padB=14,padT=12;
+  const NBINS=40;
+  const bins=new Array(NBINS).fill(0);
+  // deterministic PRNG (mulberry32) so the poster is reproducible from the seed
+  function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  const rand=rng(0x4f);
+  const idxOf=rx=>Math.max(0,Math.min(NBINS-1,Math.floor((rx+1)/2*NBINS)));
+  // place each agent: segment mean ± within-segment spread (σ≈0.16, box-muller)
+  SEGMENTS.forEach(s=>{
+    for(let k=0;k<s.headN;k++){
+      const u1=Math.max(1e-9,rand()),u2=rand();
+      const z=Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+      const rx=Math.max(-1,Math.min(1,s.reaction+z*0.16));
+      bins[idxOf(rx)]++;
+    }
+  });
+  const max=Math.max(...bins);
+  const bw=W/NBINS;
+  const yOf=c=> H-padB - (c/max)*(H-padB-padT);
+  const mid=W*0.5; // indifferent centre
+  // build a STEPPED density outline (top edge of the bars) for the settled trace
+  let step="M0 "+(H-padB).toFixed(1);
+  bins.forEach((c,i)=>{ const y=yOf(c).toFixed(1); step+=" L"+(i*bw).toFixed(1)+" "+y+" L"+((i+1)*bw).toFixed(1)+" "+y; });
+  step+=" L"+W+" "+(H-padB).toFixed(1);
+  // settled poster: dim trace (never bright live signal); the bars are the marks
+  let barsHtml="";
+  bins.forEach((c,i)=>{
+    if(c===0)return;
+    const x=(i*bw+0.6).toFixed(1), y=yOf(c).toFixed(1), w=(bw-1.2).toFixed(1), h=(H-padB-yOf(c)).toFixed(1);
+    barsHtml+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="rgba(57,184,148,0.13)"/>`;
+  });
+  svg.innerHTML=`
+    <line x1="0" y1="${H-padB}" x2="${W}" y2="${H-padB}" stroke="rgba(51,64,92,0.6)" stroke-width="1"/>
+    <line x1="${mid}" y1="${padT-6}" x2="${mid}" y2="${H-padB}" stroke="rgba(51,64,92,0.55)" stroke-width="1" stroke-dasharray="3 5"/>
+    <g>${barsHtml}</g>
+    <path id="distline2" d="${step}" fill="none" stroke="#39B894" stroke-width="1.5" stroke-linejoin="round" opacity="0.78"/>`;
+  // stepped trace draws itself once on first paint (700ms mech)
+  const p=document.getElementById("distline2");
+  const len=p.getTotalLength();
+  p.style.strokeDasharray=len; p.style.strokeDashoffset=len;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    p.style.transition="stroke-dashoffset 700ms cubic-bezier(.32,.72,0,1)";
+    p.style.strokeDashoffset="0";
+  }));
+})();
+
+/* ── inject persona rows — ONE shared Spread Stamp for every inferred cell ── */
+function stamp(val,ci,filled,sign){
+  const g = filled ? '<span class="g filled">◆</span>' : '<span class="g hollow">◇</span>';
+  const v = (sign && val>=0 ? "+" : "") + val;
+  return `<span class="v">${v} ${g}</span><span class="ci">±${ci}</span>`;
+}
+const rows=document.getElementById("rows");
+/* This pack is ungraded (empty calibration ledger), so every inferred reading
+   wears the hollow ◇; the filled ◆ is earned only against a populated ledger.
+   "STABLE" is a stability classification in ink, not a ship verdict. */
+function stateOf(s){
+  if(s.stability<0.65) return ['sw-low','LOW STABILITY','◇'];
+  if(s.stability<0.75) return ['sw-test','TEST FIRST','◇'];
+  return ['sw-stable','STABLE','◇'];
+}
+function render(scheme){
+  rows.innerHTML="";
+  let max=0;
+  SEGMENTS.forEach(s=>{const v=scheme==="order"?ORDER_SHARE[s.id].s:s.share;if(v>max)max=v;});
+  SEGMENTS.forEach(s=>{
+    const share = scheme==="order"?ORDER_SHARE[s.id].s:s.share;
+    const shareCi = scheme==="order"?ORDER_SHARE[s.id].c:s.shareCi;
+    const st=stateOf(s);
+    // ungraded pack → every inferred reading stays hollow ◇
+    const filledStab = false;
+    // direction glyph in INK only (no valence color)
+    const dirGlyph = s.dEng>0 ? "▲" : s.dEng<0 ? "▼" : "—";
+    const tr=document.createElement("tr");
+    tr.tabIndex=0;
+    tr.innerHTML=`
+      <td>
+        <div class="pname">
+          <span class="swatch" style="background:${s.color}"></span>
+          <div class="body">
+            <div class="nm">${s.name}</div>
+            <div class="id">${s.id.toUpperCase()} · v_2 · n=${s.headN}</div>
+            <div class="jtbd">${s.jtbd}</div>
+          </div>
+        </div>
+      </td>
+      <td class="num">
+        <div class="stamp-cell">
+          <span class="v">${(share*100).toFixed(1)}% <span class="g hollow">◇</span></span>
+          <span class="ci">±${(shareCi*100).toFixed(1)}pp</span>
+        </div>
+        <div class="wbar"><i style="width:${(share/max*100).toFixed(1)}%;background:${s.color}"></i></div>
+      </td>
+      <td class="num">
+        <div class="trend">
+          <span class="v"><span class="dir">${dirGlyph}</span>${s.dEng>0?"+":""}${s.dEng.toFixed(2)} <span class="g hollow">◇</span></span>
+          <span class="ci">±${s.dCi.toFixed(2)}</span>
+        </div>
+      </td>
+      <td class="num">
+        <div class="stamp-cell">
+          <span class="v">${s.stability.toFixed(2)} <span class="g ${filledStab?'filled':'hollow'}">${filledStab?'◆':'◇'}</span></span>
+          <span class="ci">±${s.stabCi.toFixed(2)}</span>
+        </div>
+      </td>
+      <td class="num"><span class="statusword ${st[0]}">${st[1]} <span class="g glyph-unc">${st[2]}</span></span></td>
+    `;
+    rows.appendChild(tr);
+  });
+}
+render("head");
+
+/* ── split readout: the two opposing poles, straight from the segment means.
+   reaction is inferred → each pole wears its ± and the hollow ◇. ── */
+(function(){
+  const sorted=[...SEGMENTS].sort((a,b)=>b.reaction-a.reaction);
+  const adopt=sorted[0], reject=sorted[sorted.length-1];
+  const ciOf=s=>(0.05+s.stabCi*0.6).toFixed(2);
+  function pole(el,s,tag){
+    const sign=s.reaction>=0?"+":"";
+    el.innerHTML=`
+      <div class="ph">
+        <span class="dot" style="background:${s.color}"></span>
+        <span class="who">${s.name}</span>
+        <span class="tag">${tag}</span>
+      </div>
+      <div class="read">
+        <span class="fig">${sign}${s.reaction.toFixed(2)}</span>
+        <span class="ci">±${ciOf(s)}</span>
+        <span class="g">◇</span>
+      </div>
+      <div class="why">${s.jtbd}</div>`;
+  }
+  pole(document.getElementById("poleAdopt"),adopt,"adopts hardest");
+  pole(document.getElementById("poleReject"),reject,"rejects hardest");
+})();
+
+/* ── Drift law (§5.6): the ≤2px uncalibrated drift PAUSES after 20s of idle,
+   and FREEZES the instant the reading is hovered/focused. Hover/focus freeze is
+   CSS (:hover/:focus-within); the 20s idle pause is wired here. Any pointer or
+   key activity resets the timer and resumes the gentle drift. */
+(function(){
+  const el=document.querySelector(".marquee.uncal");
+  if(!el)return;
+  let timer=null;
+  const idle=()=>{ el.style.animationPlayState="paused"; };
+  const wake=()=>{
+    // don't fight the hover/focus freeze (CSS already pauses those)
+    if(!el.matches(":hover, :focus-within")) el.style.animationPlayState="running";
+    clearTimeout(timer); timer=setTimeout(idle,20000);
+  };
+  ["pointermove","pointerdown","keydown","scroll"].forEach(ev=>
+    window.addEventListener(ev,wake,{passive:true}));
+  timer=setTimeout(idle,20000);
+})();
+
+/* weight-scheme tab switch */
+let scheme="head";
+document.querySelectorAll(".wtab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    if(t.classList.contains("disabled"))return;
+    document.querySelectorAll(".wtab").forEach(x=>{x.classList.remove("on");x.setAttribute("aria-selected","false");});
+    t.classList.add("on");t.setAttribute("aria-selected","true");
+    scheme=t.textContent.toLowerCase().startsWith("order")?"order":"head";
+    render(scheme);
+  });
+});
+</script>
+</body>
+</html>

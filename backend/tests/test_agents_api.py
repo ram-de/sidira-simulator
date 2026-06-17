@@ -131,8 +131,10 @@ def _run_sim_and_pick_agent(
         "hypothesis": {
             "capability_name": "reorder",
             "prose": "Surface a one-tap reorder banner for premium subscribers.",
+            "proposed_figma": {"screens": [], "transitions": []},
         },
         "population_size": 3,
+        "run_as_generic_reception": True,
     }
     if model_id is not None:
         payload["model_id"] = model_id

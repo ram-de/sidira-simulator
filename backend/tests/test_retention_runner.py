@@ -126,6 +126,47 @@ async def test_dual_arm_retention_elicits_per_persona_arm() -> None:
 
 
 @pytest.mark.asyncio
+async def test_v1_pack_surfaces_variance_collapse_flag_end_to_end() -> None:
+    """The `demo` pack is v1.0-class: its personas carry no per-persona
+    behavioral_seeds, so every materialized agent hits `draw_identity_seed`'s
+    shared-default fallback. The composed SimulationResult must then surface the
+    variance-collapse honesty flag (additively) so a flat blinded metric isn't
+    misread as a true null. This exercises the full materialization→reaction→
+    aggregation thread, not just the aggregator in isolation."""
+    store, persona_pack, capability, feature_pack_version = _load()
+    # Guard the premise: the fixture is genuinely a v1.0 pack (no behavioral_seeds).
+    assert all(p.behavioral_seeds is None for p in persona_pack.personas)
+
+    chat = _RetentionChat()
+    runner = SimulationRunner(store=store, chat_client=chat)
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_retention_hypothesis(),
+        population_size=4,
+        run_seed=12345,
+        treatment_fraction=0.5,
+    )
+
+    # Every persona-arm record carries the fallback bit (captured at the draw site).
+    persona_arm_records = [
+        r for r in runner._last_run_agent_records if r.arm in ("treatment", "control")
+    ]
+    assert persona_arm_records
+    assert all(r.behavioral_seeds_fallback for r in persona_arm_records)
+
+    result = simulation.result
+    assert result.metric_lift_variance_collapsed is True
+    assert result.metric_lift_variance_collapsed_persona_count > 0
+    # Honesty caveat carries the explanation; the metric numbers are unchanged.
+    assert "cross-persona variance is degraded" in result.metric_lift_relative
+    assert result.metric_lift_pp == pytest.approx(0.0)
+
+
+@pytest.mark.asyncio
 async def test_retention_metric_runs_on_blinded_prompt() -> None:
     """With a proposed_figma (a faithful standalone steady-state view exists), the
     retention metric pass runs on a BLINDED system prompt — the agent re-encounters

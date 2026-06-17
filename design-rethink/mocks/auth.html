@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign in · Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8;
+  --text-mut:#929BAE;          /* [v2-fix] AA-clear (was #8A93A6) */
+  --text-faint:#646E84;        /* DISABLED CONTROLS ONLY — never a label */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0;
+  --arm-treat:#E08BC4;         /* [v2-fix] calm magenta — no valence (was #F0796B) */
+  --edge-warn:#C9A227; --alert:#F0683C;   /* border + word, never fill */
+  /* no --verdict-ship / --verdict-hold — a verdict is not a color */
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  font-family:var(--font-sans);
+  background:var(--console-900);
+  color:var(--text);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+
+/* ============ LAYOUT ============ */
+.shell{
+  display:grid;
+  grid-template-columns:1fr 516px;
+  height:100vh;
+  position:relative;
+}
+
+/* ============ LEFT — THE READING CARD (a frozen printed artifact) ============
+   R3 reconceive (P9 + band directive): auth is NOT a SHOWPIECE — the four are
+   landing-hero, results, evaluate, manifest. v3 drops the templated
+   split-screen-+-live-canvas-field entirely. The left stage is now a single,
+   distinctive Sidira artifact: a FROZEN reading card — the kind of printed
+   instrument readout the product produces — pinned to the wall, at rest,
+   waiting for you. It is a static Tier-3 SVG poster (no canvas, no rAF, no
+   perpetual loop), so it is more confident than an animated panel and obeys
+   P3/P9. It carries ONE honest uncalibrated atmosphere reading (the held
+   cohort's resting sentiment, ◇), never a manufactured A/B live-comparison.
+   The only motion in this region is the single status dot (P3). */
+.stage{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(135% 120% at 22% 8%, #12182A 0%, #0B1220 54%, #070b15 100%);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex; flex-direction:column;
+  padding:40px 56px 38px;
+}
+/* faint engraved grid behind the card — instrument paper, not décor */
+.stage::before{
+  content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(51,64,92,.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51,64,92,.16) 1px, transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(120% 120% at 30% 24%, #000 0%, transparent 78%);
+          mask-image:radial-gradient(120% 120% at 30% 24%, #000 0%, transparent 78%);
+}
+/* vignette only — two atmosphere layers total (engraved grid + this radial
+   sink), so the "frozen printed artifact" reads clean. R4: the CRT scanline
+   mix-blend-screen layer is dropped — it was the most droppable and the least
+   Stripe/Linear-inevitable of the three; two layers, not three. */
+.stage::after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:6;
+  background:radial-gradient(140% 110% at 50% 50%, transparent 58%, rgba(5,9,18,.55) 100%);
+}
+
+/* top: wordmark + the one live status reference for this region */
+.stage-top{ position:relative; z-index:5; display:flex; align-items:center; gap:14px; }
+.mark{ width:28px; height:28px; flex:none; }
+.wordmark{
+  font-weight:600; font-size:16px; letter-spacing:.06em;
+  color:var(--text-hi); text-transform:uppercase;
+}
+.route-chip{
+  margin-left:auto;
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.6); border-radius:var(--r-well);
+  padding:4px 9px; display:flex; align-items:center; gap:8px;
+}
+.dot{ width:6px; height:6px; border-radius:var(--r-dot); background:var(--signal);
+  animation:breath 2s var(--ease-settle) infinite; }
+@keyframes breath{ 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* the artifact, centred in the air */
+.stage-mid{
+  position:relative; z-index:5; flex:1;
+  display:flex; flex-direction:column; justify-content:center;
+  padding:34px 0 8px;
+}
+
+/* THE READING CARD — a discrete record, framed like cut metal (no drop shadow) */
+.card{
+  position:relative;
+  background:linear-gradient(180deg, #12192B 0%, #0c1322 100%);
+  border:1px solid rgba(51,64,92,.7);
+  border-radius:var(--r-frame);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+  padding:22px 24px 20px;
+  max-width:404px;
+}
+/* binder punch + a quiet pin, so it reads as a pinned printed card */
+.card::before{
+  content:""; position:absolute; top:-7px; left:50%; transform:translateX(-50%);
+  width:12px; height:12px; border-radius:var(--r-dot);
+  background:#0a0f1b; border:1px solid rgba(51,64,92,.85);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.card-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  margin-bottom:16px;
+}
+.card-k{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--text-mut);
+}
+.card-snap{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em;
+  color:var(--text-mut);
+}
+
+/* the one honest reading — resting cohort sentiment, INFERRED → ± + ◇.
+   Sized as the marquee figure so it dominates first paint (P10). It rests
+   legibly (no 0.45 drift); the ≤2px uncalibrated drift is the ONLY motion cue,
+   and it freezes the instant the page is interacted with. */
+.reading{ display:flex; align-items:flex-end; gap:14px; }
+.r-figure{
+  font-family:var(--font-mono); font-weight:500; font-size:54px; line-height:.9;
+  letter-spacing:-.02em; color:var(--text-hi);
+}
+.r-figure small{ font-size:17px; color:var(--text-mut); font-weight:400; letter-spacing:0; }
+.r-stamp{
+  display:flex; flex-direction:column; gap:3px; padding-bottom:5px;
+  font-family:var(--font-mono); font-size:12px; line-height:1.2;
+}
+.r-stamp .ci{ color:var(--spread); }                 /* the ±value carries spread */
+.r-stamp .cal{ color:var(--text-mut); display:flex; align-items:center; gap:5px; }
+.r-stamp .cal .gl{ color:var(--spread-dim); }        /* ◇ glyph ONLY carries spread-dim */
+.r-cap{
+  margin-top:8px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text-mut);
+}
+
+/* the frozen distribution poster — a real interrogable artifact (P5/P10):
+   baseline axis (rejects → adopts), labelled mean, arm-tinted bins ≥0.6α,
+   --signal-dim mean line (NOT bright --signal — this is at REST, not live). */
+.poster{ margin-top:18px; }
+.poster svg{ display:block; width:100%; height:auto; }
+
+/* arm key — provenance identity, never valence; not a signal carrier.
+   Doubles as poster legend + frozen-status line (R4 card edit-down). */
+.armkey{ display:flex; align-items:center; gap:16px; margin-top:14px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--text-mut); }
+.armkey span{ display:flex; align-items:center; gap:6px; }
+.armkey i{ width:8px; height:8px; border-radius:2px; display:inline-block; }
+.armkey i.c{ background:var(--arm-control); }
+.armkey i.t{ background:var(--arm-treat); }
+.armkey .frozen{ margin-left:auto; opacity:.62; letter-spacing:.06em; text-transform:uppercase; font-size:9.5px; }
+
+/* ONE Provenance Bar for this live reading region (§7.3) — n/seed/model/snapshot bare */
+.card-prov{
+  margin-top:16px; padding-top:13px; border-top:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.03em;
+  color:var(--text-mut); display:flex; flex-wrap:wrap; align-items:center;
+  gap:0 7px; line-height:1.85;
+}
+.card-prov .sep{ color:var(--text-mut); opacity:.5; }   /* P7: not --text-faint */
+.card-prov .unc{ color:var(--text-mut); }               /* P7: the WORD clears AA */
+.card-prov .unc .gl{ color:var(--spread-dim); }         /* ◇ glyph only carries spread-dim */
+
+/* the one editorial line under the card — what this surface promises */
+.stage-foot{ position:relative; z-index:5; max-width:42ch; }
+.sf-line{
+  color:var(--text); font-size:14.5px; line-height:1.6;
+}
+.sf-line b{ color:var(--text-hi); font-weight:550; }
+
+/* P10: lift the resting hero figure; the ≤2px drift is the only uncal cue,
+   and it FREEZES on any pointer/focus interaction so it never twitches under
+   the eye. It also PAUSES after 20s idle (handled in JS via a class toggle). */
+.uncal{ animation:uncalDrift 15s var(--ease-settle) infinite; }
+@keyframes uncalDrift{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(2px)} }  /* P4: ≤2px */
+.stage:hover .uncal,
+.stage:focus-within .uncal,
+body.drift-idle .uncal{ animation-play-state:paused; }
+
+/* ============ RIGHT — AUTH PANEL ============ */
+.auth{
+  background:var(--console-850);
+  display:flex; flex-direction:column;
+  position:relative;
+  overflow-y:auto;
+}
+.auth-top{
+  display:flex; align-items:center; justify-content:flex-end; gap:10px;
+  padding:26px 48px 0;
+  font-size:13px; color:var(--text-mut);
+}
+.auth-top a{ color:var(--text-hi); text-decoration:none; border-bottom:1px solid var(--console-line); padding-bottom:1px; }
+.auth-top a:hover{ border-color:var(--signal-dim); }
+
+/* compact mobile artifact strip — shown when the stage collapses */
+.mobile-strip{ display:none; }
+
+.auth-body{
+  flex:1; display:flex; flex-direction:column; justify-content:center;
+  padding:24px 56px 48px;
+  max-width:496px; width:100%; margin:0 auto;
+}
+.eyebrow{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-mut);
+  margin-bottom:18px;
+}
+h1{
+  font-weight:600; font-size:32px; line-height:1.06; letter-spacing:-.025em;
+  color:var(--text-hi); text-wrap:balance;
+}
+.sub{ margin-top:12px; color:var(--text-mut); font-size:14.5px; max-width:40ch; }
+
+/* segmented mode toggle */
+.segment{
+  margin-top:30px; display:grid; grid-template-columns:1fr 1fr;
+  background:var(--console-900); border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-well); padding:3px; position:relative;
+}
+.segment button{
+  position:relative; z-index:2; background:none; border:none; cursor:pointer;
+  font-family:var(--font-sans); font-weight:500; font-size:13.5px;
+  color:var(--text-mut); padding:8px 0; border-radius:3px;
+  transition:color 140ms var(--ease-out);
+}
+.segment button.on{ color:var(--text-hi); }
+.segment button:focus-visible{ outline:2px solid var(--signal-dim); outline-offset:2px; }
+.seg-thumb{
+  position:absolute; z-index:1; top:3px; left:3px; bottom:3px;
+  width:calc(50% - 3px); background:var(--console-750);
+  border:1px solid rgba(51,64,92,.7); border-radius:3px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  transition:transform 180ms var(--ease-mech);
+}
+.segment.signup .seg-thumb{ transform:translateX(100%); }
+
+/* SSO row */
+.sso{ margin-top:26px; display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+.sso-btn{
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  height:42px; background:var(--console-800);
+  border:1px solid rgba(51,64,92,.6); border-radius:var(--r-well);
+  color:var(--text-hi); font-family:var(--font-sans); font-weight:500; font-size:13.5px;
+  cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  transition:background 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.sso-btn:hover{ background:var(--console-750); border-color:var(--console-line); }
+.sso-btn:focus-visible{ outline:2px solid var(--signal-dim); outline-offset:2px; }
+.sso-btn svg{ width:17px; height:17px; }
+.sso-full{ grid-column:1 / -1; }
+
+.divider{
+  display:flex; align-items:center; gap:14px; margin:24px 0 22px;
+  color:var(--text-mut);
+}
+.divider::before,.divider::after{ content:""; height:1px; flex:1; background:rgba(51,64,92,.5); }
+.divider span{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; }
+
+/* fields */
+.field{ margin-bottom:16px; }
+.field label{
+  display:block; font-size:12px; color:var(--text-mut); margin-bottom:7px;
+  font-weight:450;
+}
+.field label .opt{ color:var(--text-mut); font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; }
+.inp{
+  width:100%; height:42px; background:var(--console-700);
+  border:1px solid rgba(51,64,92,.7); border-radius:var(--r-well);
+  color:var(--text-hi); font-family:var(--font-sans); font-size:14.5px;
+  padding:0 13px; transition:border-color 140ms var(--ease-out);
+}
+.inp::placeholder{ color:var(--text-mut); opacity:.7; }   /* never --text-faint */
+.inp:focus{ outline:none; border-color:var(--signal-dim); box-shadow:0 0 0 2px rgba(57,184,148,.35); }
+.inp.mono{ font-family:var(--font-mono); letter-spacing:.01em; }
+.pw-wrap{ position:relative; }
+.pw-wrap .toggle{
+  position:absolute; right:11px; top:50%; transform:translateY(-50%);
+  background:none; border:none; cursor:pointer; color:var(--text-mut);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; padding:4px 5px;
+}
+.pw-wrap .toggle:hover{ color:var(--text-hi); }
+.pw-wrap .toggle:focus-visible{ outline:2px solid var(--signal-dim); outline-offset:2px; }
+.row-between{ display:flex; align-items:center; justify-content:space-between; margin-top:-2px; margin-bottom:20px; }
+.remember{ display:flex; align-items:center; gap:9px; font-size:13px; color:var(--text-mut); cursor:pointer; }
+.chk{
+  width:16px; height:16px; border:1px solid var(--console-line); border-radius:3px;
+  background:var(--console-700); display:grid; place-items:center; flex:none;
+}
+.chk svg{ width:11px; height:11px; color:var(--text-hi); }
+.forgot{ font-size:13px; color:var(--text-hi); text-decoration:none; border-bottom:1px solid transparent; }
+.forgot:hover{ border-color:var(--console-line); }
+
+/* primary submit — INK, not lime. Sign-in/Request-access initiates NO live
+   reading, so it must NOT carry --signal (P2/§1.9/§4.1 Primary). Lime is
+   reserved strictly for the Run/Read-now control that fires a reading — which
+   lives behind this gate, not on it. This is the §4.1 Primary workhorse:
+   --console-700 fill, 1px --console-line, --text-hi label, inner highlight. */
+.submit{
+  width:100%; height:44px; cursor:pointer;
+  background:var(--console-700); border:1px solid var(--console-line);
+  color:var(--text-hi); font-family:var(--font-sans); font-weight:500; font-size:14.5px;
+  border-radius:var(--r-well); display:flex; align-items:center; justify-content:center; gap:10px;
+  transition:background 140ms var(--ease-out), transform 90ms var(--ease-out);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.submit:hover{ background:var(--console-750); }
+.submit:active{ transform:translateY(1px); box-shadow:inset 0 1px 0 rgba(255,255,255,.02); }
+.submit:focus-visible{ outline:2px solid var(--signal-dim); outline-offset:2px; }
+.submit svg{ width:15px; height:15px; color:var(--text-mut); }
+
+.legal{
+  margin-top:22px; font-size:11.5px; color:var(--text-mut); line-height:1.55;
+  max-width:46ch;
+}
+.legal a{ color:var(--text); text-decoration:none; border-bottom:1px solid rgba(51,64,92,.6); }
+.legal a:hover{ color:var(--text-hi); }
+
+/* spacer before submit in signup mode (replaces a mock-grade inline height) */
+.form-gap{ height:6px; }
+
+/* signup-only fields hidden by default */
+.signup-only{ display:none; }
+body.is-signup .signup-only{ display:block; }
+body.is-signup .signin-only{ display:none; }
+.sso .sso-full.signup-only{ display:none; }
+body.is-signup .sso .sso-full.signup-only{ display:flex; }
+
+/* trust / provenance footer */
+.auth-foot{
+  border-top:1px solid rgba(51,64,92,.5);
+  padding:16px 56px; display:flex; align-items:center; gap:0 8px; flex-wrap:wrap;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  color:var(--text-mut); max-width:496px; margin:0 auto; width:100%;
+}
+.auth-foot .sep{ color:var(--text-mut); opacity:.55; }   /* P7: not --text-faint */
+.auth-foot .unc{ color:var(--text-mut); }                /* P7: the WORD clears AA */
+.auth-foot .unc .gl{ color:var(--spread-dim); }          /* ◇ glyph only carries spread-dim */
+
+/* responsive — keep a compact frozen artifact strip when the full stage collapses */
+@media (max-width:1040px){
+  .shell{ grid-template-columns:1fr; }
+  .stage{ display:none; }
+  .auth{ background:var(--console-900); }
+  .mobile-strip{
+    display:block; position:relative; overflow:hidden;
+    border-bottom:1px solid rgba(51,64,92,.5);
+    background:radial-gradient(130% 180% at 22% 0%, #12182A 0%, #0B1220 72%);
+    padding:22px 24px 18px;
+  }
+  .ms-top{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .ms-top .ms-mark{ width:22px; height:22px; flex:none; }
+  .ms-top .ms-word{ font-weight:600; letter-spacing:.06em; color:var(--text-hi); text-transform:uppercase; font-size:14px; }
+  .ms-top .ms-prov{
+    margin-left:auto; font-family:var(--font-mono); font-size:10px; letter-spacing:.05em;
+    color:var(--text-mut); display:flex; align-items:center; gap:6px;
+  }
+  .ms-top .ms-prov .dot{ width:5px; height:5px; }
+  .ms-read{ display:flex; align-items:flex-end; gap:11px; }
+  .ms-fig{ font-family:var(--font-mono); font-weight:500; font-size:34px; line-height:.9; letter-spacing:-.02em; color:var(--text-hi); }
+  .ms-fig small{ font-size:13px; color:var(--text-mut); font-weight:400; }
+  .ms-stamp{ display:flex; flex-direction:column; gap:2px; padding-bottom:3px;
+    font-family:var(--font-mono); font-size:11px; }
+  .ms-stamp .ci{ color:var(--spread); }
+  .ms-stamp .cal{ color:var(--text-mut); display:flex; align-items:center; gap:4px; }
+  .ms-stamp .cal .gl{ color:var(--spread-dim); }
+  .ms-prov2{
+    margin-top:12px; font-family:var(--font-mono); font-size:10px; letter-spacing:.04em;
+    color:var(--text-mut); display:flex; flex-wrap:wrap; gap:0 6px; line-height:1.7;
+  }
+  .ms-prov2 .sep{ opacity:.5; }
+  .ms-prov2 .unc{ color:var(--text-mut); }
+  .ms-prov2 .unc .gl{ color:var(--spread-dim); }
+  .auth-body{ padding:32px 28px 40px; }
+  .auth-top{ padding:22px 28px 0; }
+  .auth-foot{ padding:16px 28px; }
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body class="is-signin">
+<div class="shell">
+
+  <!-- ============ LEFT STAGE — THE FROZEN READING CARD ============ -->
+  <section class="stage">
+
+    <div class="stage-top">
+      <!-- P1: the resting brand mark is INK, never lime. Both aperture arms
+           render in ink tints (--text-hi / --text-mut); the only lime in this
+           region is the live status dot (P2: one signal carrier). -->
+      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+        <g transform="translate(6 6)" stroke-width="3.4" stroke-linejoin="round" fill="none">
+          <g stroke="#F2F4F8">
+            <polygon points="44,80 13,62 34,50 44,56"/>
+            <polygon points="13,62 13,26 34,38 34,50"/>
+            <polygon points="13,26 44,8 44,33 34,38"/>
+          </g>
+          <g stroke="#929BAE">
+            <polygon points="75,62 44,80 44,56 54,50"/>
+            <polygon points="44,8 75,26 54,38 44,33"/>
+            <polygon points="75,26 75,62 54,50 54,38"/>
+          </g>
+        </g>
+      </svg>
+      <span class="wordmark">Sidira</span>
+      <span class="route-chip"><span class="dot"></span> COHORT&nbsp;HELD</span>
+    </div>
+
+    <div class="stage-mid">
+      <!-- THE READING CARD: one frozen printed artifact. No canvas, no rAF, no
+           wavefront, no A/B live-comparison. Just the held cohort's resting
+           temperature, stamped uncalibrated, waiting for a bet. -->
+      <div class="card elevated">
+        <div class="card-head">
+          <span class="card-k">Resting cohort reading</span>
+          <span class="card-snap">2026-W25</span>
+        </div>
+
+        <!-- the ONE honest reading — INFERRED resting sentiment → ± + ◇.
+             P10: this is the marquee figure, full ink, dominant. The ≤2px
+             uncal drift is the only motion cue and freezes on interaction. -->
+        <div class="reading uncal">
+          <span class="r-figure">0.58<small>sentiment</small></span>
+          <span class="r-stamp">
+            <span class="ci">±0.06</span>
+            <span class="cal"><span class="gl">◇</span> uncalibrated</span>
+          </span>
+        </div>
+        <div class="r-cap">No bet running · estimate only</div>
+
+        <!-- frozen distribution poster — interrogable: axis, labelled mean,
+             arm bins ≥0.6α, mean line in --signal-dim (rest, not live --signal) -->
+        <div class="poster">
+          <svg viewBox="0 0 360 132" role="img"
+               aria-label="Resting reaction distribution across the held cohort, mean 0.58 uncalibrated">
+            <defs>
+              <linearGradient id="ctrlG" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#4FA8E0" stop-opacity=".42"/>
+                <stop offset="1" stop-color="#4FA8E0" stop-opacity=".72"/>
+              </linearGradient>
+              <linearGradient id="treatG" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#E08BC4" stop-opacity=".42"/>
+                <stop offset="1" stop-color="#E08BC4" stop-opacity=".72"/>
+              </linearGradient>
+            </defs>
+
+            <!-- baseline axis -->
+            <line x1="8" y1="108" x2="352" y2="108" stroke="#33405C" stroke-width="1"/>
+
+            <!-- control bins (cool blue) — left/centre mass -->
+            <g fill="url(#ctrlG)">
+              <rect x="14"  y="92"  width="20" height="16"/>
+              <rect x="38"  y="80"  width="20" height="28"/>
+              <rect x="62"  y="62"  width="20" height="46"/>
+              <rect x="86"  y="50"  width="20" height="58"/>
+              <rect x="110" y="58"  width="20" height="50"/>
+              <rect x="134" y="72"  width="20" height="36"/>
+            </g>
+            <!-- treatment bins (calm magenta) — slightly warmer, nudged right -->
+            <g fill="url(#treatG)">
+              <rect x="158" y="46"  width="20" height="62"/>
+              <rect x="182" y="40"  width="20" height="68"/>
+              <rect x="206" y="52"  width="20" height="56"/>
+              <rect x="230" y="66"  width="20" height="42"/>
+              <rect x="254" y="78"  width="20" height="30"/>
+              <rect x="278" y="88"  width="20" height="20"/>
+              <rect x="302" y="96"  width="20" height="12"/>
+              <rect x="326" y="100" width="20" height="8"/>
+            </g>
+
+            <!-- CI ribbon around the resting mean (--spread, low α) -->
+            <rect x="176" y="20" width="28" height="88" fill="rgba(200,182,138,.14)"/>
+            <!-- resting mean line — --signal-dim (settled, NOT bright live signal) -->
+            <line x1="190" y1="16" x2="190" y2="108" stroke="#39B894" stroke-width="1.5"/>
+            <circle cx="190" cy="16" r="2.4" fill="#39B894"/>
+            <!-- labelled mean: number in --text-mut (P7), ◇ glyph in --spread-dim -->
+            <text x="190" y="11" text-anchor="middle"
+                  font-family="'Geist Mono',monospace" font-size="9"
+                  letter-spacing=".04em" fill="#929BAE">x&#772; 0.58 <tspan fill="#90815F">◇</tspan></text>
+
+            <!-- axis captions: the reaction axis, legible (--text-mut) -->
+            <text x="8"   y="124" font-family="'Geist Mono',monospace" font-size="8.5"
+                  letter-spacing=".09em" fill="#929BAE">REJECTS</text>
+            <text x="352" y="124" text-anchor="end" font-family="'Geist Mono',monospace"
+                  font-size="8.5" letter-spacing=".09em" fill="#929BAE">ADOPTS</text>
+          </svg>
+        </div>
+
+        <!-- arm key — the ONE annotation under the poster (R4: poster-foot
+             dropped to edit the card down). It doubles as the legend that ties
+             blue/magenta to control/treatment AND states the frozen/no-reading
+             status, so the poster keeps its legibility key without a second row. -->
+        <div class="armkey">
+          <span><i class="c"></i> Control · Sid</span>
+          <span><i class="t"></i> Treatment · Avira</span>
+          <span class="frozen">Frozen · no bet running</span>
+        </div>
+
+        <!-- ONE Provenance Bar for this live reading region; raw facts print bare -->
+        <div class="card-prov">
+          <span>CH1</span><span class="sep">·</span>
+          <span>n=1,200</span><span class="sep">·</span>
+          <span>seed 0x4f</span><span class="sep">·</span>
+          <span>groq/llama-3.3-70b</span><span class="sep">·</span>
+          <span class="unc"><span class="gl">◇</span> UNCALIBRATED</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage-foot">
+      <p class="sf-line"><b>Twelve hundred synthetic customers, crawled from Streamly and held at rest.</b> Sign in to propose a change and watch this card come alive.</p>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT — AUTH ============ -->
+  <section class="auth">
+
+    <!-- compact frozen artifact strip when the full stage collapses (invite-link mobile) -->
+    <div class="mobile-strip">
+      <div class="ms-top">
+        <!-- P1: resting mobile mark is ink too -->
+        <svg class="ms-mark" viewBox="0 0 100 100" aria-hidden="true">
+          <g transform="translate(6 6)" stroke-width="3.4" stroke-linejoin="round" fill="none">
+            <g stroke="#F2F4F8"><polygon points="44,80 13,62 34,50 44,56"/><polygon points="13,62 13,26 34,38 34,50"/><polygon points="13,26 44,8 44,33 34,38"/></g>
+            <g stroke="#929BAE"><polygon points="75,62 44,80 44,56 54,50"/><polygon points="44,8 75,26 54,38 44,33"/><polygon points="75,26 75,62 54,50 54,38"/></g>
+          </g>
+        </svg>
+        <span class="ms-word">Sidira</span>
+        <span class="ms-prov"><span class="dot"></span> COHORT&nbsp;HELD</span>
+      </div>
+      <div class="ms-read">
+        <span class="ms-fig">0.58<small>&nbsp;sentiment</small></span>
+        <span class="ms-stamp">
+          <span class="ci">±0.06</span>
+          <span class="cal"><span class="gl">◇</span> uncalibrated</span>
+        </span>
+      </div>
+      <div class="ms-prov2">
+        <span>CH1</span><span class="sep">·</span>
+        <span>n=1,200</span><span class="sep">·</span>
+        <span>2026-W25</span><span class="sep">·</span>
+        <span class="unc"><span class="gl">◇</span> UNCAL</span>
+      </div>
+    </div>
+
+    <div class="auth-top">
+      <span class="signin-only">New here?</span>
+      <span class="signup-only">Already have access?</span>
+      <a href="#" id="top-switch" class="signin-only">Request access</a>
+      <a href="#" id="top-switch-2" class="signup-only">Sign in</a>
+    </div>
+
+    <div class="auth-body">
+      <div class="eyebrow signin-only">SIGN&nbsp;IN</div>
+      <div class="eyebrow signup-only">REQUEST&nbsp;ACCESS</div>
+
+      <h1 class="signin-only">Welcome back.</h1>
+      <h1 class="signup-only">Run your first bet.</h1>
+
+      <p class="sub signin-only">Pick up your simulation runs, persona packs, and saved cohorts.</p>
+      <p class="sub signup-only">Crawl a cohort, propose a change, and see how your customers react — before you build it.</p>
+
+      <!-- mode toggle -->
+      <div class="segment" id="segment">
+        <span class="seg-thumb"></span>
+        <button class="on" data-mode="signin">Sign&nbsp;in</button>
+        <button data-mode="signup">Create&nbsp;account</button>
+      </div>
+
+      <!-- SSO -->
+      <div class="sso">
+        <button class="sso-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+          Google
+        </button>
+        <button class="sso-btn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#C6CCD8" d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5Z"/></svg>
+          GitHub
+        </button>
+        <button class="sso-btn sso-full signup-only" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="11" height="11" x="1" y="1" fill="#F25022"/><rect width="11" height="11" x="12" y="1" fill="#7FBA00"/><rect width="11" height="11" x="1" y="12" fill="#00A4EF"/><rect width="11" height="11" x="12" y="12" fill="#FFB900"/></svg>
+          Continue with SSO / SAML
+        </button>
+      </div>
+
+      <div class="divider"><span>or with email</span></div>
+
+      <form id="auth-form" onsubmit="return false;">
+        <!-- signup-only: full name + org -->
+        <div class="field signup-only">
+          <label for="name">Full name</label>
+          <input id="name" class="inp" type="text" placeholder="Dana Reyes" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label for="email">Work email</label>
+          <input id="email" class="inp" type="email" placeholder="you@yourcompany.com" autocomplete="email" value="dana@streamly.app" />
+        </div>
+
+        <div class="field signup-only">
+          <label for="org">Organization <span class="opt">/ OPTIONAL</span></label>
+          <input id="org" class="inp" type="text" placeholder="Streamly" autocomplete="organization" />
+        </div>
+
+        <div class="field">
+          <label class="signin-only" for="pw">Password</label>
+          <label class="signup-only" for="pw">Choose a password</label>
+          <div class="pw-wrap">
+            <input class="inp mono" id="pw" type="password" placeholder="••••••••••••" autocomplete="current-password" value="aperture-close-9" />
+            <button class="toggle" type="button" id="pw-toggle" aria-label="Show password">show</button>
+          </div>
+        </div>
+
+        <!-- signin-only: remember + forgot -->
+        <div class="row-between signin-only">
+          <label class="remember">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            Keep me signed in
+          </label>
+          <a class="forgot" href="#">Forgot password?</a>
+        </div>
+
+        <div class="form-gap signup-only"></div>
+
+        <button class="submit" type="submit">
+          <span class="signin-only">Sign in</span>
+          <span class="signup-only">Request access</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+
+        <p class="legal signin-only">
+          Single sign-on and device verification. Your crawled cohorts and persona
+          packs are encrypted at rest. By signing in you accept the
+          <a href="#">Terms</a> and <a href="#">Privacy Notice</a>.
+        </p>
+        <p class="legal signup-only">
+          Sidira returns a directional read, not a guarantee — every result ships
+          <a href="#">uncalibrated</a> until you grade it against ground truth.
+          By requesting access you accept the <a href="#">Terms</a> and
+          <a href="#">Privacy Notice</a>.
+        </p>
+      </form>
+    </div>
+
+    <!-- trust footer — honest claims only -->
+    <div class="auth-foot">
+      <span>SSO&nbsp;/&nbsp;SAML</span><span class="sep">·</span>
+      <span>ENCRYPTED&nbsp;AT&nbsp;REST</span><span class="sep">·</span>
+      <span>US-EAST&nbsp;RESIDENCY</span><span class="sep">·</span>
+      <span class="unc"><span class="gl">◇</span> UNCALIBRATED&nbsp;BY&nbsp;DEFAULT</span>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =========================================================================
+   Drift law (§5.6 / P4): the resting reading's ≤2px CSS drift FREEZES on
+   pointer/focus over the stage (handled in CSS) and PAUSES after 20s idle.
+   No canvas, no rAF, no perpetual wavefront — the left stage is a frozen
+   artifact (P9), so the only persistent motion on the page is the status dot.
+   ========================================================================= */
+(function(){
+  let idle;
+  function poke(){
+    document.body.classList.remove('drift-idle');
+    clearTimeout(idle);
+    idle = setTimeout(()=> document.body.classList.add('drift-idle'), 20000);
+  }
+  ['pointermove','keydown','pointerdown','scroll'].forEach(ev =>
+    addEventListener(ev, poke, { passive:true }));
+  poke();
+})();
+
+/* =========================================================================
+   Auth UI — mode toggle (sign in / create account)
+   ========================================================================= */
+(function(){
+  const seg = document.getElementById('segment');
+  const btns = seg.querySelectorAll('button');
+  function setMode(mode){
+    btns.forEach(b=>b.classList.toggle('on', b.dataset.mode===mode));
+    seg.classList.toggle('signup', mode==='signup');
+    document.body.classList.toggle('is-signup', mode==='signup');
+    document.body.classList.toggle('is-signin', mode==='signin');
+    document.getElementById('pw').setAttribute('autocomplete', mode==='signup'?'new-password':'current-password');
+  }
+  btns.forEach(b=> b.addEventListener('click', ()=> setMode(b.dataset.mode)));
+  document.getElementById('top-switch').addEventListener('click', e=>{e.preventDefault(); setMode('signup');});
+  document.getElementById('top-switch-2').addEventListener('click', e=>{e.preventDefault(); setMode('signin');});
+
+  // password reveal
+  const pw=document.getElementById('pw'), tg=document.getElementById('pw-toggle');
+  tg.addEventListener('click', ()=>{
+    const show = pw.type==='password';
+    pw.type = show?'text':'password';
+    tg.textContent = show?'hide':'show';
+    tg.setAttribute('aria-label', show?'Hide password':'Show password');
+  });
+})();
+</script>
+</body>
+</html>

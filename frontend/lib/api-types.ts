@@ -338,6 +338,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feature-stores/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Connection
+         * @description Delete a saved connection (#327). Customer-scoped: the repo only deletes a
+         *     row this customer OWNS, and returns False for an unknown id OR another
+         *     tenant's id alike — both map to 404 here so we never confirm a connection's
+         *     existence across customers (the same non-leak posture as ``get``). 204 on a
+         *     successful owned delete. Existing persona builds keep their own records; this
+         *     only removes the credential future builds could reuse.
+         */
+        delete: operations["delete_connection_feature_stores__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feature-stores/{connection_id}/test": {
         parameters: {
             query?: never;
@@ -551,6 +576,31 @@ export interface components {
              * @description Short prefix of the agent's initial reaction.
              */
             top_quote: string;
+        };
+        // ── InputFlags (epic #309, T3 / #312) — HAND-ADDED ──
+        // The gen-types script needs a live backend; hand-mirrored from
+        // backend/sidira_simulator/schemas/simulation.py (InputFlags). The
+        // pre-flight ordinal input-lint disclosure stamped on an amber/red/
+        // abstain run. CATEGORICAL only — never a number; the lint ROUTES, it
+        // does not discount confidence_score.
+        /** InputFlags */
+        InputFlags: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "amber" | "red" | "abstain";
+            /** Reasons */
+            reasons?: string[];
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Fixes */
+            fixes?: string[];
+            /**
+             * Paraphrase Unstable
+             * @default false
+             */
+            paraphrase_unstable: boolean;
         };
         /**
          * AgentChatRequest
@@ -902,6 +952,14 @@ export interface components {
             database: string;
             /** Schema */
             schema?: string | null;
+            /** Last Tested At — #328 per-connection health */
+            last_tested_at?: string | null;
+            /** Last Test Status — 'ok' | 'failed', null if never tested (#328) */
+            last_test_status?: "ok" | "failed" | null;
+            /** Last Error Kind — #328 */
+            last_error_kind?: string | null;
+            /** Last Error Message — #328 */
+            last_error_message?: string | null;
         };
         /** CreateSimulationResponse */
         CreateSimulationResponse: {
@@ -1000,7 +1058,7 @@ export interface components {
              *     None = sentiment-only (today's default). A registered metric adds a
              *     turn-2 blinded decision elicitation + paired metric-lift delta.
              */
-            metric_name?: "conversion" | "retention" | "ctr" | null;
+            metric_name?: "conversion" | "retention" | "ctr" | "visit" | null;
             /** Conversion Action */
             conversion_action?: string | null;
             /** Conversion Action Label */
@@ -1470,6 +1528,32 @@ export interface components {
              * @description Per-agent sentiment + top quote for the result-table render. Populated by the runner when scoring completes. Empty for sims that ran before #51 landed (backwards-compatible).
              */
             per_agent_analyses?: components["schemas"]["AgentAnalysisSummary"][];
+            // ── Abstention / instrument-fit (epic #309, T2 / #311) — HAND-ADDED ──
+            // The gen-types script needs a live backend; hand-mirrored from
+            // backend/sidira_simulator/schemas/simulation.py (SimulationResult).
+            // CATEGORICAL only (state + reasons), never a number — the abstention
+            // WITHHOLDS the verdict, it does not discount confidence_score.
+            /**
+             * Instrument Scope
+             * @description "out_of_scope" → verdictFor() withholds the ship/no-ship verdict.
+             * @default in_scope
+             */
+            instrument_scope: "in_scope" | "out_of_scope";
+            /** Out Of Scope Reasons */
+            out_of_scope_reasons?: string[];
+            /** Out Of Scope Reason Codes */
+            out_of_scope_reason_codes?: string[];
+            // ── Pre-flight ordinal input lint (epic #309, T3 / #312) — HAND-ADDED ──
+            // The gen-types script needs a live backend; hand-mirrored from
+            // backend/sidira_simulator/schemas/simulation.py (InputFlags +
+            // SimulationResult.input_flags). CATEGORICAL only (ordinal state +
+            // named reasons), never a number — the lint ROUTES, it does not
+            // discount confidence_score. None / absent on a green run (and on
+            // every older result_json row); migration-free (rides the JSON blob).
+            /**
+             * @description Pre-flight ordinal input-lint disclosure, present only on an amber/red/abstain run. null on a green run and on legacy rows.
+             */
+            input_flags?: components["schemas"]["InputFlags"] | null;
             /** Treatment Score */
             treatment_score?: number | null;
             /** Control Score */
@@ -2227,6 +2311,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ConnectionSummary"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_connection_feature_stores__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

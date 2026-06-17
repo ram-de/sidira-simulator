@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Persona pack · v_2 — Streamly · Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────────────────────────────────────────────────────────
+   SIDIRA — THE READING CONSOLE · v2 · Sheet (light blueprint record surface)
+   Persona-pack record detail. RECORD class (DS §0.2): light = a printed fact;
+   STILL — serif prose, Provenance Spine, no canvas, no drift, no Population
+   Field. A frozen distribution POSTER (static SVG) is the only figure allowed.
+   The page is brutally quiet so the one record reads like a lab notebook.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root{
+  /* Sheet (light, records only) — the surface — AA-corrected per §1.7 */
+  --sheet:#F3F4F7; --sheet-raised:#FBFBFD; --sheet-sunk:#E6E8EE;
+  --sheet-line:#D4D8E0; --sheet-ink:#1A2336; --sheet-mut:#5E6678;
+  --sheet-signal:#00785F;   /* 4.8:1 text  [v2-fix from #0FA882] */
+  --sheet-spread:#6F5E33;   /* 5.6:1 text  [v2-fix from #857449] */
+
+  /* Console tokens — for the one tiny Console well + arm tints only */
+  --console-900:#0B1220; --console-800:#161F32; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE;  /* AA-clear [v2-fix] */
+  --signal:#48EFCA; --spread:#C8B68A;
+  --arm-control:#4FA8E0;      /* Control · steady blue */
+  --arm-treat:#E08BC4;        /* Treatment · calm magenta [v2-fix from #F0796B] */
+  --edge-warn:#C9A227; --alert:#F0683C;
+  --spread-wash:rgba(200,182,138,.14);
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+
+  --spine:188px;
+}
+*{box-sizing:border-box;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--sheet);
+  color:var(--sheet-ink);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  /* faint blueprint engineering grid — the record is printed on graph paper */
+  background-image:
+    linear-gradient(rgba(26,35,54,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,35,54,.018) 1px, transparent 1px);
+  background-size:34px 34px;
+}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+.serif{font-family:var(--font-serif);}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  height:52px;display:flex;align-items:center;gap:18px;
+  padding:0 32px;
+  background:rgba(243,244,247,.86);
+  backdrop-filter:saturate(140%) blur(8px);
+  border-bottom:.75px solid var(--sheet-line);
+}
+.wordmark{font-family:var(--font-sans);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--sheet-ink);}
+.route-desig{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sheet-mut);}
+.route-desig b{color:var(--sheet-ink);font-weight:500;}
+.topbar .spacer{flex:1;}
+.crumb{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--sheet-mut);text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-bottom:1px dotted transparent;transition:border-color 140ms var(--ease-out);}
+.crumb:hover{border-bottom-color:var(--sheet-mut);}
+.mode-tag{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sheet-mut);border:.75px solid var(--sheet-line);border-radius:var(--r-well);padding:3px 8px;background:var(--sheet-raised);}
+
+/* ── Page shell: Provenance Spine + measure column ──────────────────────────── */
+.shell{display:grid;grid-template-columns:var(--spine) minmax(0,1fr);max-width:1140px;margin:0 auto;}
+.reading{padding:0 64px 168px;min-width:0;}
+
+/* ── 7.4 THE PROVENANCE SPINE — left binder margin (the page's ONE provenance) ─ */
+.spine{
+  position:relative;
+  border-right:.75px solid var(--sheet-line);
+  padding:44px 24px 80px 30px;
+}
+.spine::before{ /* binder edge: perforation hairline */
+  content:"";position:absolute;top:0;right:-1px;width:3px;height:100%;
+  background:repeating-linear-gradient(to bottom, var(--sheet-line) 0 6px, transparent 6px 15px);
+  opacity:.5;
+}
+.spine-sticky{position:sticky;top:80px;display:flex;flex-direction:column;}
+.spine-title{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--sheet-mut);margin:0 0 18px;}
+.spine-row{padding:12px 0;border-top:.75px solid var(--sheet-line);}
+.spine-row:first-of-type{border-top:none;}
+.spine-k{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--sheet-mut);display:block;margin-bottom:5px;}
+.spine-v{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.01em;color:var(--sheet-ink);line-height:1.4;display:block;}
+/* P7: the running WORD "UNCALIBRATED" is --sheet-mut (5.9:1); only the ◇ glyph
+   carries --sheet-spread. Spread is reserved for the glyph + the ± value. */
+.calib{display:inline-flex;align-items:baseline;gap:5px;color:var(--sheet-mut);}
+.glyph-hollow{color:var(--sheet-spread);font-size:12px;}
+.spine-note{font-family:var(--font-sans);font-size:12px;line-height:1.5;color:var(--sheet-mut);margin:18px 0 0;}
+
+/* ── Record masthead — the hero reading dominates the first viewport ────────── */
+.masthead{padding:64px 0 0;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--sheet-mut);margin:0 0 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.eyebrow .org{color:var(--sheet-ink);font-weight:500;}
+h1.title{font-family:var(--font-sans);font-weight:600;font-size:40px;line-height:1.04;letter-spacing:-.028em;margin:0;text-wrap:balance;max-width:16ch;}
+.lede{font-family:var(--font-serif);font-weight:400;font-size:19px;line-height:1.55;letter-spacing:-.003em;color:var(--sheet-mut);max-width:58ch;margin:18px 0 0;text-wrap:pretty;}
+
+/* ── Pack-meta strip (the receipt) — candor SCOPED (§1.10) ──────────────────── */
+.meta-strip{
+  margin:40px 0 0;
+  background:var(--sheet-raised);
+  border:.75px solid var(--sheet-line);
+  border-radius:var(--r-panel);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  /* focal stability cell gets extra width so the 48px reading dominates (P10) */
+  display:grid;grid-template-columns:.85fr .85fr 1.3fr .85fr;
+}
+.meta-cell{padding:18px 20px;border-left:.75px solid var(--sheet-line);}
+.meta-cell:first-child{border-left:none;}
+.meta-k{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--sheet-mut);display:block;margin-bottom:8px;}
+.meta-v{font-family:var(--font-mono);font-size:23px;font-weight:500;letter-spacing:-.01em;color:var(--sheet-ink);display:flex;align-items:baseline;gap:6px;}
+.meta-v small{font-size:12px;color:var(--sheet-mut);font-weight:400;}
+/* P10 — the ONE inferred figure on the record (cluster stability) is the page's
+   focal reading: data-xl weight, glyph attached, spread beneath. Exempt facts
+   (6, 2,480, schema 1.1) stay quiet 23px mono so the inferred number dominates
+   first paint without any live-signal carrier (correct for RECORD). */
+/* R4#3 — the focal cell was so faint (.05) it didn't read as the focal reading on
+   #FBFBFD. Deepen the wash + a 2px spread accent rule on the inner border so the
+   one inferred figure on the record is unmistakably the page's focal cell (P10). */
+.meta-cell.focal{background:linear-gradient(180deg,rgba(111,94,51,.10),rgba(111,94,51,.02) 78%);box-shadow:inset 2px 0 0 var(--sheet-spread);}
+.meta-v.hero{font-size:48px;line-height:.95;font-weight:500;letter-spacing:-.02em;color:var(--sheet-ink);gap:8px;}
+.meta-v.hero .gl{font-size:22px;color:var(--sheet-spread);font-weight:400;align-self:flex-start;line-height:1;position:relative;top:2px;}
+/* P7: the ± value is --sheet-spread; the running word "bootstrapped" is --sheet-mut */
+.ci{font-family:var(--font-mono);font-size:11.5px;color:var(--sheet-mut);display:flex;align-items:center;gap:6px;margin-top:8px;letter-spacing:.01em;}
+.ci .pm{color:var(--sheet-spread);}
+.ci .bar{display:inline-block;width:46px;height:4px;border-radius:2px;background:var(--spread-wash);position:relative;overflow:hidden;}
+.ci .bar i{position:absolute;left:28%;width:44%;top:0;bottom:0;background:var(--sheet-spread);opacity:.5;border-radius:2px;}
+
+/* ── Spread Stamp (compact) — inferred snapshot metrics (P8) ─────────────────────
+   value · within-segment ±. A k-means centroid / per-segment mean is INFERRED,
+   not a recorded fact, so it carries its ± spread. The ◇ uncalibrated mark is NOT
+   repeated on every row — it is carried ONCE by the snap-cap above the grid (P8:
+   carry uncalibrated state once via the region's provenance marker). This is the
+   ~35% candor-scaffolding cut the band directive asks for. The ± value stays in
+   --sheet-spread; the running label does not. Exempt facts keep bare `.fact`. */
+.stamp{display:inline-flex;align-items:baseline;gap:5px;justify-content:flex-end;}
+.stamp .val{color:var(--sheet-ink);}
+.stamp .pm{color:var(--sheet-spread);font-size:11.5px;letter-spacing:.01em;}
+
+/* weight scheme chips + honesty note */
+.scheme-row{display:flex;gap:8px;flex-wrap:wrap;margin:28px 0 0;align-items:center;}
+.chip{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;border:.75px solid var(--sheet-line);color:var(--sheet-ink);background:var(--sheet-raised);border-radius:var(--r-well);padding:4px 9px;}
+.chip.off{color:var(--sheet-mut);border-style:dashed;}
+.honesty{font-family:var(--font-sans);font-size:13.5px;line-height:1.55;color:var(--sheet-mut);max-width:64ch;margin:16px 0 0;}
+.honesty strong{color:var(--sheet-ink);font-weight:500;}
+
+/* ── THE PACK REACTION MAP — the one comparative artifact only Sidira has ──────
+   All six segments on ONE shared rejects→adopts reaction axis, each a settled
+   cohort-mean band sized by head-count share. This is the figure a styled data
+   card cannot fake: it is the whole modelled population's reaction shape on a
+   single scale, the exact object the simulator settles when a change runs. It
+   is a frozen SVG poster (RECORD class), mean bands in --sheet-spread (estimate,
+   not a live reading), arm-neutral. */
+.packmap{
+  margin:52px 0 0;
+  background:var(--sheet-raised);
+  border:.75px solid var(--sheet-line);
+  border-radius:var(--r-panel);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  overflow:hidden;
+}
+.packmap-head{padding:20px 26px 0;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.packmap-head h3{font-family:var(--font-sans);font-weight:600;font-size:16px;letter-spacing:-.012em;margin:0;color:var(--sheet-ink);}
+.packmap-head .src{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--sheet-mut);}
+.packmap-head .src .gl{color:var(--sheet-spread);}
+/* R4#2 — the ONE arm-key for the record (relocated off the three posters) */
+.armkey{display:inline-flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--sheet-mut);}
+.armkey .sw{display:inline-flex;align-items:center;gap:5px;}
+.armkey .sw i{width:7px;height:7px;border-radius:2px;display:inline-block;}
+.armkey .sw i.arm-c{background:var(--arm-control);}
+.armkey .sw i.arm-t{background:var(--arm-treat);}
+.packmap-fig{padding:14px 26px 6px;}
+.packmap-fig svg{display:block;width:100%;height:auto;}
+.packmap-foot{font-family:var(--font-sans);font-size:12px;line-height:1.5;color:var(--sheet-mut);padding:0 26px 20px;max-width:74ch;}
+.packmap-foot b{color:var(--sheet-ink);font-weight:500;}
+
+/* ── Section divider (architecture before cards; NO numbered scaffold) ──────── */
+.sec-head{display:flex;align-items:baseline;gap:14px;margin:88px 0 0;padding-bottom:12px;border-bottom:.75px solid var(--sheet-line);}
+.sec-head h2{font-family:var(--font-sans);font-weight:600;font-size:22px;letter-spacing:-.02em;margin:0;}
+.sec-head .spacerline{flex:1;}
+.sec-head .count{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--sheet-mut);text-transform:uppercase;}
+
+/* ── one persona record (a discrete record = earns a card; never nested) ────── */
+.persona{
+  margin:36px 0 0;
+  background:var(--sheet-raised);
+  border:.75px solid var(--sheet-line);
+  border-radius:var(--r-panel);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+  overflow:hidden;
+}
+.persona-head{
+  display:grid;grid-template-columns:1fr 236px;
+  border-bottom:.75px solid var(--sheet-line);
+}
+.persona-id{padding:24px 30px 22px;}
+.persona-name{font-family:var(--font-sans);font-weight:600;font-size:19px;letter-spacing:-.012em;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.share-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;}
+.desig{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;border:.75px solid var(--sheet-line);color:var(--sheet-mut);border-radius:var(--r-well);padding:2px 7px;white-space:nowrap;}
+.desig.share b{color:var(--sheet-ink);font-weight:500;}
+/* P8 / issue #2 — head count is a defensible COUNT (769/2480 → bare).
+   An order-weighted share is a weighted ESTIMATE → wears the spread treatment:
+   ◇ glyph + value in spread-ink so it never reads as a recorded fact. */
+.desig.share.est{border-style:dashed;}
+.desig.share.est b{color:var(--sheet-ink);}     /* inferred value in ink (P8) */
+.desig.share.est .gl{color:var(--sheet-spread);} /* only the ◇ glyph in spread */
+
+/* ── the FROZEN distribution POSTER (static SVG, §5.5 Tier-3) ───────────────────
+   RECORD class: a frozen distribution poster is permitted as a figure; a live
+   field is NOT. This replaces the v1 live drifting canvas. No motion. The two
+   arm sub-distributions are drawn in arm tints (identity, never valence). The
+   mean tick is the ONE accent carrier for this figure region; it is rendered in
+   --sheet-spread (this is an UNCALIBRATED estimate, not a live reading) — signal
+   green is reserved for a live reading and never appears on a record. ───────── */
+.poster{
+  position:relative;
+  background:var(--sheet-sunk);
+  border-left:.75px solid var(--sheet-line);
+  display:flex;flex-direction:column;
+}
+.poster-cap{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;
+  color:var(--sheet-mut);line-height:1.5;
+  padding:12px 16px 2px;display:flex;justify-content:space-between;align-items:baseline;
+}
+/* P7: ◇ glyph in spread, the word "UNCAL" stays --sheet-mut */
+.poster-cap .gl{color:var(--sheet-spread);}
+.poster svg{display:block;width:100%;height:auto;}
+.poster-foot{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.03em;color:var(--sheet-mut);
+  padding:2px 16px 12px;display:flex;gap:14px;align-items:center;
+}
+/* R4#2 — each poster now carries its own distinguishing trait (uncalibrated WORD
+   stays --sheet-mut per P7) instead of repeating the shared arm legend. */
+.poster-foot .trait{color:var(--sheet-ink);letter-spacing:.04em;}
+.poster-foot .axis{margin-left:auto;color:var(--sheet-mut);letter-spacing:.04em;}
+
+.persona-body{padding:26px 30px 30px;max-width:740px;}
+.prose{font-family:var(--font-serif);font-weight:400;font-size:17px;line-height:1.62;letter-spacing:-.003em;color:var(--sheet-ink);margin:0;max-width:64ch;text-wrap:pretty;}
+.subhead{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--sheet-mut);display:block;margin:26px 0 9px;}
+.jtbd{font-family:var(--font-serif);font-size:17px;line-height:1.6;color:var(--sheet-ink);margin:0;max-width:64ch;}
+
+/* behavioral snapshot — the logbook on Sheet. INFERRED per-segment rates/means
+   (skip, ad tolerance, downloads, session length, saves…) are k-means centroids,
+   NOT recorded facts → each wears a compact Spread Stamp (value · ◇ · ±) (P8).
+   EXEMPT facts (tenure, plan tier) print bare via `.fact`. */
+.snap-cap{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--sheet-mut);margin:-2px 0 12px;display:flex;gap:7px;align-items:baseline;}
+/* P7: only the ◇ glyph carries spread; the running words stay --sheet-mut */
+.snap-cap .gl{color:var(--sheet-spread);}
+.snap{display:grid;grid-template-columns:1fr 1fr;gap:0 44px;margin:0;max-width:700px;}
+.snap dl{margin:0;display:grid;grid-template-columns:1fr auto;align-items:baseline;}
+.snap .pair{display:contents;}
+.snap dt{font-size:13.5px;color:var(--sheet-mut);padding:7px 0;border-top:.75px solid var(--sheet-line);}
+.snap dd{margin:0;font-family:var(--font-mono);font-size:13px;color:var(--sheet-ink);padding:7px 0;border-top:.75px solid var(--sheet-line);text-align:right;white-space:nowrap;}
+.snap dd.fact{color:var(--sheet-ink);}  /* exempt: recorded fact, bare */
+.snap .pair:nth-child(-n+2) dt,.snap .pair:nth-child(-n+2) dd{border-top:none;}
+
+/* comparison block — divergence from population. Direction = ink + glyph only.
+   NO valence color: ▲/▼ ride plain ink; magnitude is a mono word, not a hue. */
+.cmp{margin:28px 0 0;padding:20px 22px;background:var(--sheet-sunk);border-radius:var(--r-well);border:.75px solid var(--sheet-line);}
+.cmp .head{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--sheet-mut);}
+.cmp .intro{font-family:var(--font-serif);font-size:16px;line-height:1.55;margin:11px 0 0;color:var(--sheet-ink);max-width:62ch;}
+.cmp ul{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;}
+.cmp li{font-size:14.5px;line-height:1.5;padding:9px 0;border-top:.75px solid var(--sheet-line);display:flex;gap:12px;align-items:baseline;}
+.cmp li:first-child{border-top:none;}
+.mag{font-family:var(--font-mono);font-size:11px;letter-spacing:.02em;text-transform:uppercase;flex:0 0 auto;min-width:128px;color:var(--sheet-ink);font-weight:500;display:inline-flex;gap:6px;}
+.mag .gl{color:var(--sheet-mut);}           /* glyph carries direction, in ink */
+.cmp .lab{color:var(--sheet-ink);}
+.cmp .note{font-size:12px;line-height:1.5;color:var(--sheet-mut);margin:14px 0 0;border-top:.75px solid var(--sheet-line);padding-top:11px;}
+.cmp .note .src{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--sheet-mut);}
+
+/* collapsed-by-default tail records (§3.2) — the two remaining segments */
+.tail-rec{
+  margin:36px 0 0;border:.75px solid var(--sheet-line);border-radius:var(--r-panel);
+  background:var(--sheet-raised);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
+}
+.tail-rec summary{
+  list-style:none;cursor:pointer;padding:20px 30px;display:flex;align-items:center;gap:14px;
+}
+.tail-rec summary::-webkit-details-marker{display:none;}
+.tail-rec .tw{font-family:var(--font-sans);font-weight:600;font-size:17px;letter-spacing:-.012em;color:var(--sheet-ink);}
+.tail-rec .ts{font-family:var(--font-mono);font-size:11px;color:var(--sheet-mut);letter-spacing:.02em;}
+.tail-rec .chev{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--sheet-mut);transition:transform 160ms var(--ease-out);}
+.tail-rec[open] .chev{transform:rotate(90deg);}
+.tail-rec .tbody{padding:0 30px 24px;border-top:.75px solid var(--sheet-line);}
+.tail-rec .tbody .prose{margin-top:18px;}
+
+/* footer */
+.recfoot{margin:88px 0 0;padding-top:22px;border-top:.75px solid var(--sheet-line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;align-items:center;}
+.recfoot .l{font-family:var(--font-mono);font-size:11px;color:var(--sheet-mut);letter-spacing:.04em;}
+/* P7 — the ◇ glyph carries spread; the running word UNCALIBRATED stays --sheet-mut */
+.recfoot .gl-foot{color:var(--sheet-spread);}
+.recfoot a{font-family:var(--font-mono);font-size:11px;color:var(--sheet-ink);text-decoration:none;border-bottom:1px dotted var(--sheet-mut);padding-bottom:1px;}
+.recfoot a:hover{border-bottom-style:solid;}
+
+/* entrance: a record is STILL — one 400ms print-in on load, then rest (§5.1) */
+.reveal{opacity:0;transform:translateY(8px);animation:print-in .46s var(--ease-out) forwards;}
+@keyframes print-in{to{opacity:1;transform:none;}}
+
+@media (max-width:1100px){
+  .shell{grid-template-columns:1fr;}
+  .spine{border-right:none;border-bottom:.75px solid var(--sheet-line);padding:24px 30px;}
+  .spine::before{display:none;}
+  .spine-sticky{position:static;}
+  .spine-row{padding:9px 0;}
+  .reading{padding:0 30px 120px;}
+  .masthead{padding:44px 0 0;}
+  .meta-strip{grid-template-columns:repeat(2,1fr);}
+  .persona-head{grid-template-columns:1fr;}
+  .poster{border-left:none;border-top:.75px solid var(--sheet-line);}
+  .snap{grid-template-columns:1fr;}
+}
+@media (max-width:560px){.meta-strip{grid-template-columns:1fr;}.meta-cell{border-left:none;border-top:.75px solid var(--sheet-line);}.meta-cell:first-child{border-top:none;}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:1ms!important;}.reveal{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+
+<!-- ── Top bar (Sheet face) ────────────────────────────────────────────────── -->
+<div class="topbar">
+  <span class="wordmark">Sidira</span>
+  <span class="route-desig">/ personas / <b>v_2</b></span>
+  <span class="spacer"></span>
+  <a class="crumb" href="#">← Library</a>
+  <span class="mode-tag">Record · printed</span>
+</div>
+
+<div class="shell">
+
+  <!-- ── 7.4 PROVENANCE SPINE — the ONE provenance for the whole record ──────── -->
+  <aside class="spine">
+    <div class="spine-sticky">
+      <p class="spine-title">Provenance</p>
+
+      <div class="spine-row">
+        <span class="spine-k">Crawl snapshot</span>
+        <span class="spine-v mono">2026-W25</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Captured</span>
+        <span class="spine-v mono">2026-06-14</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Source</span>
+        <span class="spine-v mono">streamly.app<br/>+ snowflake fct_engagement</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Sample n</span>
+        <span class="spine-v mono">2,480 users</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Build seed</span>
+        <span class="spine-v mono">0x4f · k-means k=6</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Model</span>
+        <span class="spine-v mono">sidira-persona-worker<br/>schema 1.1</span>
+      </div>
+      <div class="spine-row">
+        <span class="spine-k">Calibration</span>
+        <span class="spine-v calib"><span class="glyph-hollow">◇</span> UNCALIBRATED</span>
+      </div>
+
+      <p class="spine-note">
+        No ground-truth holdout has graded this pack. Every inferred figure on the
+        record carries the spread shown beside it; recorded facts do not.
+      </p>
+    </div>
+  </aside>
+
+  <!-- ── Reading column ────────────────────────────────────────────────────── -->
+  <main class="reading">
+
+    <header class="masthead reveal">
+      <!-- R4#3: the "V_2" chip duplicated the topbar route-desig + the title's job —
+           dropped. One decorative designator (MODELLED POPULATION) carries the eyebrow. -->
+      <p class="eyebrow">
+        <span class="org">Streamly</span> · persona pack
+        <span class="desig">MODELLED POPULATION</span>
+      </p>
+      <h1 class="title">Streamly listening population</h1>
+      <p class="lede">
+        Six behavioral segments clustered from 2,480 listeners and the Snowflake
+        engagement record. Each segment is a synthetic cohort the simulator runs a
+        proposed change against.
+      </p>
+
+      <!-- the receipt. RECORDED FACTS print bare (no ±); the one inferred
+           figure (stability) wears a Spread Stamp. -->
+      <div class="meta-strip">
+        <div class="meta-cell">
+          <span class="meta-k">Personas</span>
+          <span class="meta-v">6</span>
+        </div>
+        <div class="meta-cell">
+          <span class="meta-k">Population n</span>
+          <span class="meta-v">2,480 <small>users</small></span>
+        </div>
+        <div class="meta-cell focal">
+          <span class="meta-k">Cluster stability</span>
+          <span class="meta-v hero"><span class="gl">◇</span>0.81</span>
+          <span class="ci"><span class="bar"><i></i></span><span class="pm">±0.06</span> · bootstrapped</span>
+        </div>
+        <div class="meta-cell">
+          <span class="meta-k">Schema</span>
+          <span class="meta-v">1.1 <small>per-member rows</small></span>
+        </div>
+      </div>
+
+      <div class="scheme-row">
+        <span class="chip">Head count</span>
+        <span class="chip">Order weighted</span>
+        <span class="chip off">Revenue weighted · unavailable</span>
+      </div>
+      <p class="honesty">
+        <strong>Revenue weighting is unavailable for this pack.</strong> The
+        2026-W25 crawl covered listening and engagement but not the billing record,
+        so revenue share is omitted rather than guessed.
+      </p>
+    </header>
+
+    <!-- ── THE PACK REACTION MAP — the one artifact only Sidira would print ────────
+         The whole modelled population's settled reaction shape (a REAL binned
+         density, summed from the segments) drawn over the six segments that compose
+         it, on ONE shared rejects→adopts axis: parts → whole. A frozen poster
+         (RECORD): no motion, no live field, no signal-green. -->
+    <figure class="packmap reveal" style="animation-delay:.04s">
+      <div class="packmap-head">
+        <h3>The population, decomposed</h3>
+        <!-- R4#2 — the single arm-key for the whole record lives here now (was
+             repeated on every poster). The ◇ glyph carries calibration once. -->
+        <span class="armkey">
+          <span class="sw"><i class="arm-c"></i>control</span>
+          <span class="sw"><i class="arm-t"></i>treatment</span>
+          <span class="src">centroid_full · <span class="gl">◇</span> uncalibrated</span>
+        </span>
+      </div>
+      <div class="packmap-fig">
+        <svg viewBox="0 0 760 268" aria-label="Pack reaction map: the whole modelled Streamly population's reaction shape, drawn as one stepped density across the rejects-to-adopts axis, with the six segment cohort-means decomposed beneath it. Background Utility sits widest at mean 0.44 and splits bimodally on ad load; Weekend Explorer settles furthest right at 0.66; Commute Loyalist sits tight at 0.30." data-packmap></svg>
+      </div>
+      <p class="packmap-foot">
+        The shape on top is the <b>whole modelled population</b> — the reaction the
+        simulator settles when a change runs — and the bands beneath decompose it
+        into its six segments, each at its <b>cohort mean</b>, sized by share. Only
+        the <b>Background Utility</b> is bimodal: ad load splits it, and it is the
+        cohort an ad-experience change would move most.
+      </p>
+    </figure>
+
+    <!-- ── Personas ──────────────────────────────────────────────────────────── -->
+    <div class="sec-head">
+      <h2>The six segments</h2>
+      <span class="spacerline"></span>
+      <span class="count">6 records · schema 1.1</span>
+    </div>
+
+    <!-- PERSONA 1 ──────────────────────────────────────────────────────────── -->
+    <section class="persona reveal" style="animation-delay:.05s">
+      <div class="persona-head">
+        <div class="persona-id">
+          <div class="persona-name">
+            The Commute Loyalist
+            <span class="desig">p_streamly_01</span>
+          </div>
+          <div class="share-row">
+            <span class="desig share">769 / 2480 <b>HEAD COUNT</b></span>
+            <span class="desig share est"><span class="gl">◇</span> <b>38%</b> ORDER WEIGHTED</span>
+          </div>
+        </div>
+        <!-- frozen poster: tight low-reaction distribution -->
+        <div class="poster">
+          <div class="poster-cap"><span>n=769</span><span><span class="gl">◇</span> UNCAL</span></div>
+          <svg viewBox="0 0 236 132" aria-label="Frozen reaction distribution for the Commute Loyalist: tight, low-reaction, mean 0.30 on the rejects-to-adopts axis" data-poster="commute"></svg>
+          <!-- R4#2 — the CONTROL/TREATMENT swatch legend was repeated on all three
+               identical posters; it now lives ONCE on the Pack Reaction Map key.
+               Each poster surfaces its own distinguishing trait instead. -->
+          <div class="poster-foot">
+            <span class="trait">tight · habitual</span>
+            <span class="axis">rejects → adopts</span>
+          </div>
+        </div>
+      </div>
+      <div class="persona-body">
+        <p class="prose">
+          Opens Streamly when they sit down on the train and listens until they
+          reach the office: one forty-minute session, five mornings a week, almost
+          always the same three playlists. They have had the app since 2023, never
+          churned, never upgraded past the mid-tier plan, and treat a buffering gap
+          on the underground as a defect. Reliability is the product to them;
+          discovery is noise.
+        </p>
+
+        <span class="subhead">Jobs to be done</span>
+        <p class="jtbd">
+          Get me from door to desk inside the same familiar sound, with no friction
+          and no surprises, even where the signal drops.
+        </p>
+
+        <span class="subhead">Behavioral snapshot</span>
+        <!-- R4#1 — the Spine owns the ◇-uncalibrated/within-segment-spread provenance;
+             this caption no longer re-narrates it. It states only what the Spine can't:
+             these are k-means centroid means, so each wears its own ±. -->
+        <p class="snap-cap">per-segment centroid means · ± per row</p>
+        <div class="snap">
+          <dl>
+            <div class="pair"><dt>Sessions / week</dt><dd><span class="stamp"><span class="val">5.2</span><span class="pm">±0.8</span></span></dd></div>
+            <div class="pair"><dt>Avg session (min)</dt><dd><span class="stamp"><span class="val">41.8</span><span class="pm">±6.1</span></span></dd></div>
+            <div class="pair"><dt>Offline downloads</dt><dd><span class="stamp"><span class="val">0.74</span><span class="pm">±0.11</span></span></dd></div>
+            <div class="pair"><dt>Skip rate</dt><dd><span class="stamp"><span class="val">0.09</span><span class="pm">±0.04</span></span></dd></div>
+          </dl>
+          <dl>
+            <div class="pair"><dt>Tenure (months)</dt><dd class="fact">34</dd></div>
+            <div class="pair"><dt>Plan tier</dt><dd class="fact">standard</dd></div>
+            <div class="pair"><dt>Discovery taps / wk</dt><dd><span class="stamp"><span class="val">1.3</span><span class="pm">±0.5</span></span></dd></div>
+            <div class="pair"><dt>Ad tolerance</dt><dd><span class="stamp"><span class="val">0.21</span><span class="pm">±0.07</span></span></dd></div>
+          </dl>
+        </div>
+
+        <div class="cmp">
+          <span class="head">How this segment compares</span>
+          <p class="intro">
+            Against the whole Streamly population, the Commute Loyalist is the most
+            habitual and least exploratory cohort in the pack.
+          </p>
+          <ul>
+            <li><span class="mag"><span class="gl">▲</span>much higher</span><span class="lab">offline download rate</span></li>
+            <li><span class="mag"><span class="gl">▲</span>higher</span><span class="lab">session-length consistency</span></li>
+            <li><span class="mag"><span class="gl">▼</span>much lower</span><span class="lab">discovery-surface taps per week</span></li>
+            <li><span class="mag"><span class="gl">▼</span>lower</span><span class="lab">tolerance for mid-session ads</span></li>
+          </ul>
+          <p class="note">
+            <span class="src">centroid_full</span> · divergence is the standardized
+            distance of this cluster's centroid from the population mean; only traits
+            past a 0.6σ salience floor are listed.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERSONA 2 ──────────────────────────────────────────────────────────── -->
+    <section class="persona reveal" style="animation-delay:.1s">
+      <div class="persona-head">
+        <div class="persona-id">
+          <div class="persona-name">
+            The Weekend Explorer
+            <span class="desig">p_streamly_02</span>
+          </div>
+          <div class="share-row">
+            <span class="desig share">471 / 2480 <b>HEAD COUNT</b></span>
+            <span class="desig share est"><span class="gl">◇</span> <b>22%</b> ORDER WEIGHTED</span>
+          </div>
+        </div>
+        <div class="poster">
+          <div class="poster-cap"><span>n=471</span><span><span class="gl">◇</span> UNCAL</span></div>
+          <svg viewBox="0 0 236 132" aria-label="Frozen reaction distribution for the Weekend Explorer: high-reaction, wide, mean 0.66 on the rejects-to-adopts axis" data-poster="explorer"></svg>
+          <div class="poster-foot">
+            <span class="trait">wide · adopts</span>
+            <span class="axis">rejects → adopts</span>
+          </div>
+        </div>
+      </div>
+      <div class="persona-body">
+        <p class="prose">
+          Treats the weekend as an open tab. Where the Loyalist replays, the Explorer
+          hunts: they open the discovery surface dozens of times across Saturday and
+          Sunday, follow algorithmic radio three branches deep, and save aggressively
+          without building a fixed rotation. This is the segment most likely to find
+          a new artist before it charts, and the most likely to forgive a miss so
+          long as the next recommendation lands.
+        </p>
+
+        <span class="subhead">Jobs to be done</span>
+        <p class="jtbd">
+          Surprise me with something I would never have searched for, and keep the
+          rabbit-hole easy to fall down.
+        </p>
+
+        <span class="subhead">Behavioral snapshot</span>
+        <!-- R4#1 — the Spine owns the ◇-uncalibrated/within-segment-spread provenance;
+             this caption no longer re-narrates it. It states only what the Spine can't:
+             these are k-means centroid means, so each wears its own ±. -->
+        <p class="snap-cap">per-segment centroid means · ± per row</p>
+        <div class="snap">
+          <dl>
+            <div class="pair"><dt>Sessions / week</dt><dd><span class="stamp"><span class="val">3.4</span><span class="pm">±1.1</span></span></dd></div>
+            <div class="pair"><dt>Avg session (min)</dt><dd><span class="stamp"><span class="val">62.1</span><span class="pm">±14.2</span></span></dd></div>
+            <div class="pair"><dt>Saves / week</dt><dd><span class="stamp"><span class="val">11.6</span><span class="pm">±4.3</span></span></dd></div>
+            <div class="pair"><dt>Skip rate</dt><dd><span class="stamp"><span class="val">0.34</span><span class="pm">±0.09</span></span></dd></div>
+          </dl>
+          <dl>
+            <div class="pair"><dt>Tenure (months)</dt><dd class="fact">16</dd></div>
+            <div class="pair"><dt>Plan tier</dt><dd class="fact">premium</dd></div>
+            <div class="pair"><dt>Discovery taps / wk</dt><dd><span class="stamp"><span class="val">28.7</span><span class="pm">±9.4</span></span></dd></div>
+            <div class="pair"><dt>Ad tolerance</dt><dd><span class="stamp"><span class="val">0.58</span><span class="pm">±0.12</span></span></dd></div>
+          </dl>
+        </div>
+
+        <div class="cmp">
+          <span class="head">How this segment compares</span>
+          <p class="intro">
+            The Weekend Explorer drives the discovery funnel: it is where new
+            catalogue gets its first real audience inside Streamly.
+          </p>
+          <ul>
+            <li><span class="mag"><span class="gl">▲</span>much higher</span><span class="lab">discovery-surface taps per week</span></li>
+            <li><span class="mag"><span class="gl">▲</span>higher</span><span class="lab">saves of newly-released tracks</span></li>
+            <li><span class="mag"><span class="gl">▲</span>higher</span><span class="lab">skip rate within a session</span></li>
+            <li><span class="mag"><span class="gl">▼</span>lower</span><span class="lab">sessions per week</span></li>
+          </ul>
+          <p class="note">
+            <span class="src">centroid_full</span> · a high skip rate here reads as
+            active triage, not dissatisfaction. Intent is not inferred from a single
+            metric.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERSONA 3 ──────────────────────────────────────────────────────────── -->
+    <section class="persona reveal" style="animation-delay:.15s">
+      <div class="persona-head">
+        <div class="persona-id">
+          <div class="persona-name">
+            The Background Utility
+            <span class="desig">p_streamly_03</span>
+          </div>
+          <div class="share-row">
+            <span class="desig share">595 / 2480 <b>HEAD COUNT</b></span>
+            <span class="desig share est"><span class="gl">◇</span> <b>17%</b> ORDER WEIGHTED</span>
+          </div>
+        </div>
+        <div class="poster">
+          <div class="poster-cap"><span>n=595</span><span><span class="gl">◇</span> UNCAL</span></div>
+          <svg viewBox="0 0 236 132" aria-label="Frozen reaction distribution for the Background Utility: bimodal, ad-load splits the cohort, mean 0.44 on the rejects-to-adopts axis" data-poster="background"></svg>
+          <div class="poster-foot">
+            <span class="trait">bimodal · ad-split</span>
+            <span class="axis">rejects → adopts</span>
+          </div>
+        </div>
+      </div>
+      <div class="persona-body">
+        <p class="prose">
+          Streamly is wallpaper. It runs for hours — focus playlists, ambient mixes,
+          one radio station left on through the workday — and the listener rarely
+          touches the controls once the sound is going. High total listening time,
+          near-zero interaction. They are price sensitive, sit almost entirely on the
+          ad-supported tier, and are the segment most exposed to, and most quietly
+          worn down by, an aggressive ad load.
+        </p>
+
+        <span class="subhead">Jobs to be done</span>
+        <p class="jtbd">
+          Be the sound underneath my day: uninterrupted, undemanding, and not worth
+          the price of upgrading.
+        </p>
+
+        <span class="subhead">Behavioral snapshot</span>
+        <!-- R4#1 — the Spine owns the ◇-uncalibrated/within-segment-spread provenance;
+             this caption no longer re-narrates it. It states only what the Spine can't:
+             these are k-means centroid means, so each wears its own ±. -->
+        <p class="snap-cap">per-segment centroid means · ± per row</p>
+        <div class="snap">
+          <dl>
+            <div class="pair"><dt>Sessions / week</dt><dd><span class="stamp"><span class="val">6.9</span><span class="pm">±1.4</span></span></dd></div>
+            <div class="pair"><dt>Avg session (min)</dt><dd><span class="stamp"><span class="val">97.4</span><span class="pm">±22.7</span></span></dd></div>
+            <div class="pair"><dt>Interactions / hr</dt><dd><span class="stamp"><span class="val">0.41</span><span class="pm">±0.18</span></span></dd></div>
+            <div class="pair"><dt>Skip rate</dt><dd><span class="stamp"><span class="val">0.06</span><span class="pm">±0.03</span></span></dd></div>
+          </dl>
+          <dl>
+            <div class="pair"><dt>Tenure (months)</dt><dd class="fact">22</dd></div>
+            <div class="pair"><dt>Plan tier</dt><dd class="fact">ad-supported</dd></div>
+            <div class="pair"><dt>Ads heard / wk</dt><dd><span class="stamp"><span class="val">54.2</span><span class="pm">±13.6</span></span></dd></div>
+            <div class="pair"><dt>Ad tolerance</dt><dd><span class="stamp"><span class="val">0.37</span><span class="pm">±0.21</span></span></dd></div>
+          </dl>
+        </div>
+
+        <div class="cmp">
+          <span class="head">How this segment compares</span>
+          <p class="intro">
+            The Background Utility carries the most listening minutes per head and
+            the least engagement per minute of any cohort in the pack.
+          </p>
+          <ul>
+            <li><span class="mag"><span class="gl">▲</span>much higher</span><span class="lab">total listening minutes per week</span></li>
+            <li><span class="mag"><span class="gl">▲</span>higher</span><span class="lab">weekly ad-impression exposure</span></li>
+            <li><span class="mag"><span class="gl">▼</span>much lower</span><span class="lab">interactions per listening hour</span></li>
+            <li><span class="mag"><span class="gl">▼</span>lower</span><span class="lab">conversion to a paid tier</span></li>
+          </ul>
+          <p class="note">
+            <span class="src">individual_row</span> · schema 1.1 grounds this block
+            on per-member rows, not the centroid alone, so the within-segment spread
+            on ad tolerance is preserved — and shows in the bimodal poster above.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- the two remaining segments ship COLLAPSED (§3.2) so the reading breathes -->
+    <details class="tail-rec reveal" style="animation-delay:.2s">
+      <summary>
+        <span class="tw">The Lapsing Premium</span>
+        <span class="ts">p_streamly_04 · 273 / 2480 head count</span>
+        <span class="chev">›</span>
+      </summary>
+      <div class="tbody">
+        <p class="prose">
+          A daily premium listener through 2024; listening minutes have fallen
+          quarter on quarter since, and downgrade intent is the highest in the pack.
+          The segment is small but order-weighted heavy, which is why it earns its
+          own record rather than folding into the Background Utility.
+        </p>
+      </div>
+    </details>
+
+    <details class="tail-rec reveal" style="animation-delay:.24s">
+      <summary>
+        <span class="tw">The Family-Plan Anchor &amp; The Niche Completist</span>
+        <span class="ts">p_streamly_05 · p_streamly_06 · 15% combined</span>
+        <span class="chev">›</span>
+      </summary>
+      <div class="tbody">
+        <p class="prose">
+          The Anchor holds a multi-seat plan steady with low individual engagement;
+          the Completist is a deep-catalogue specialist with narrow taste and high
+          tenure. Both are stable, neither drives discovery, and both are documented
+          in full on the schema-1.1 export.
+        </p>
+      </div>
+    </details>
+
+    <footer class="recfoot">
+      <span class="l">RECORD · v_2 · 2026-W25 · <span class="gl-foot">◇</span> UNCALIBRATED · generated 2026-06-14</span>
+      <a href="#">Run a simulation against this pack →</a>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────────────────────────────────
+   FROZEN DISTRIBUTION POSTER — DS §5.5 Tier-3 (RECORD class).
+   A record is STILL: this draws ONCE on load, in place, and never animates,
+   drifts, or loops. No canvas, no rAF, no Population Field — a RECORD page does
+   not earn the live field (§0.2). Each poster is the segment's settled reaction
+   histogram, deterministically seeded so the same persona always prints the same
+   shape. Control + Treatment sub-distributions render in arm tints (identity,
+   never valence). The mean tick is drawn in --sheet-spread (this is an
+   uncalibrated ESTIMATE, not a live reading — signal-green never appears on a
+   record). The ◇ glyph + caption carry the truth; the figure carries the shape.
+   ─────────────────────────────────────────────────────────────────────────── */
+(function(){
+  var CSS = getComputedStyle(document.documentElement);
+  var ARM_C = CSS.getPropertyValue('--arm-control').trim() || '#4FA8E0';
+  var ARM_T = CSS.getPropertyValue('--arm-treat').trim()   || '#E08BC4';
+  var SPREAD= CSS.getPropertyValue('--sheet-spread').trim()|| '#6F5E33';
+  var LINE  = CSS.getPropertyValue('--sheet-line').trim()  || '#D4D8E0';
+  var MUT   = CSS.getPropertyValue('--sheet-mut').trim()   || '#5E6678';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  // per-segment settled shape: mean(0..1 reaction axis), spread, bimodality
+  var SHAPES = {
+    commute:    { mean:0.30, spr:0.10, bi:0.00 }, // tight, low-reaction
+    explorer:   { mean:0.66, spr:0.17, bi:0.00 }, // adopts, wide
+    background: { mean:0.44, spr:0.20, bi:0.62 }  // bimodal: ad-load splits cohort
+  };
+
+  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function gauss(rng){var u=0,v=0;while(!u)u=rng();while(!v)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2831853*v);}
+
+  function buildPoster(svg){
+    var key = svg.dataset.poster;
+    var s = SHAPES[key] || SHAPES.commute;
+    var rng = mulberry(0x4f + key.length*131 + key.charCodeAt(0));
+
+    var W=236, H=132, padL=16, padR=16, padT=24, padB=34;
+    var fw = W-padL-padR, baseY = H-padB;
+    var BINS = 30;
+    var binsC = new Array(BINS).fill(0);
+    var binsT = new Array(BINS).fill(0);
+
+    // sample a fixed population into control/treatment sub-histograms
+    var N = 520;
+    for(var i=0;i<N;i++){
+      var treat = rng()<0.5;
+      var r = s.mean + gauss(rng)*s.spr;
+      if(s.bi>0 && rng()<s.bi){ r += (rng()<0.5?-1:1)*0.22; }
+      r += (treat ? 0.05 : -0.03);            // treatment nudges adoption right
+      r = Math.max(0.01, Math.min(0.99, r));
+      var b = Math.min(BINS-1, Math.floor(r*BINS));
+      (treat ? binsT : binsC)[b] += 1;
+    }
+    var maxB = 1;
+    for(var k=0;k<BINS;k++){ maxB = Math.max(maxB, binsC[k]+binsT[k]); }
+    var colW = fw/BINS;
+    var hMax = baseY - padT;
+
+    var frag = document.createDocumentFragment();
+    function rect(x,y,w,h,fill){var r=document.createElementNS(SVGNS,'rect');r.setAttribute('x',x.toFixed(2));r.setAttribute('y',y.toFixed(2));r.setAttribute('width',w.toFixed(2));r.setAttribute('height',h.toFixed(2));r.setAttribute('fill',fill);frag.appendChild(r);}
+    function line(x1,y1,x2,y2,stroke,w,dash){var l=document.createElementNS(SVGNS,'line');l.setAttribute('x1',x1.toFixed(2));l.setAttribute('y1',y1.toFixed(2));l.setAttribute('x2',x2.toFixed(2));l.setAttribute('y2',y2.toFixed(2));l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',w);if(dash)l.setAttribute('stroke-dasharray',dash);frag.appendChild(l);}
+    function text(x,y,str,fill,size,anchor,family){var t=document.createElementNS(SVGNS,'text');t.setAttribute('x',x.toFixed(2));t.setAttribute('y',y.toFixed(2));t.setAttribute('fill',fill);t.setAttribute('font-size',size);t.setAttribute('font-family',family||"'Geist Mono',monospace");t.setAttribute('text-anchor',anchor||'middle');t.setAttribute('font-variant-numeric','tabular-nums');t.textContent=str;frag.appendChild(t);}
+
+    // baseline axis
+    line(padL, baseY+0.5, W-padR, baseY+0.5, LINE, 1);
+
+    // value scale — the figure is now interrogable (P10): 0 · 0.5 · 1 on the
+    // rejects→adopts axis, with foot ticks. A mean label sits over the tick.
+    [0,0.5,1].forEach(function(t){
+      var x = padL + t*fw;
+      line(x, baseY, x, baseY+3, LINE, 1);
+      text(x, baseY+15, t.toFixed(1), MUT, 8.5, t===0?'start':(t===1?'end':'middle'));
+    });
+
+    // stacked bars: control on the floor, treatment above (arm tints, no valence)
+    for(var j=0;j<BINS;j++){
+      var x = padL + j*colW;
+      var hC = (binsC[j]/maxB)*hMax;
+      var hT = (binsT[j]/maxB)*hMax;
+      if(hC>0.3) rect(x+0.5, baseY-hC, colW-1, hC, ARM_C);
+      if(hT>0.3) rect(x+0.5, baseY-hC-hT, colW-1, hT, ARM_T);
+    }
+
+    // CI ribbon (spread wash) around the estimate mean — uncertainty, by law
+    var meanX = padL + s.mean*fw;
+    var ciW = s.spr*fw*1.5;
+    rect(meanX-ciW, padT, ciW*2, baseY-padT, 'rgba(111,94,51,0.07)');
+
+    // settled mean tick — the ONE accent carrier for this figure, in SPREAD
+    // (uncalibrated estimate, dashed = not locked); never signal-green on a record
+    line(meanX, padT, meanX, baseY, SPREAD, 1, '2 2.5');
+    // labeled mean — the figure is read, not glanced (P10 interrogable):
+    // "mean X.XX" sits over the tick, clamped inside the frame. Word in --sheet-mut
+    // (P7), the trailing ◇ glyph in --sheet-spread.
+    var lx = Math.max(padL+22, Math.min(W-padR-22, meanX));
+    var ml=document.createElementNS(SVGNS,'text');
+    ml.setAttribute('x',lx.toFixed(2));ml.setAttribute('y',(padT-9).toFixed(2));
+    ml.setAttribute('text-anchor','middle');ml.setAttribute('font-size','9');
+    ml.setAttribute('font-family',"'Geist Mono',monospace");ml.setAttribute('font-variant-numeric','tabular-nums');
+    var ms=document.createElementNS(SVGNS,'tspan');ms.setAttribute('fill',MUT);ms.textContent='mean '+s.mean.toFixed(2)+' ';
+    var mg=document.createElementNS(SVGNS,'tspan');mg.setAttribute('fill',SPREAD);mg.textContent='◇';
+    ml.appendChild(ms);ml.appendChild(mg);frag.appendChild(ml);
+
+    svg.appendChild(frag);
+    svg.setAttribute('width','236'); svg.setAttribute('height','132');
+  }
+
+  document.querySelectorAll('svg[data-poster]').forEach(buildPoster);
+
+  /* ── THE PACK REACTION MAP ──────────────────────────────────────────────────
+     One shared rejects→adopts axis; each segment is a horizontal spread band
+     centered on its cohort mean, the dot is the mean, band width is 1σ, and the
+     row height/weight scales by head-count share. The bimodal cohort is drawn as
+     two linked nodes. Frozen poster: drawn once, no motion. */
+  function buildPackMap(svg){
+    /* THE SINGULAR FIGURE — the population, decomposed.
+       Two stacked panels share ONE rejects→adopts axis:
+        (top)  the whole modelled population as a REAL binned stepped density —
+               one stepped mark per bin, built by summing the six segment gaussians
+               weighted by head-count share. This is the object only Sidira prints:
+               the reaction shape the simulator settles, shown as the literal sum of
+               its parts. It is a histogram, never a hand-drawn blob (DESIGN law).
+        (below) the six segments decomposed — each at its cohort mean, sized by share —
+               so the eye reads parts→whole on the same scale, top to bottom. */
+    var W=760, H=268, padL=190, padR=64;
+    var pw = W-padL-padR, x0 = padL;
+    var SVGNS='http://www.w3.org/2000/svg';
+    var frag=document.createDocumentFragment();
+    function el(n,a){var e=document.createElementNS(SVGNS,n);for(var k in a)e.setAttribute(k,a[k]);frag.appendChild(e);return e;}
+    function txt(x,y,str,fill,size,anchor,weight){var t=document.createElementNS(SVGNS,'text');t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('fill',fill);t.setAttribute('font-size',size);t.setAttribute('text-anchor',anchor||'start');t.setAttribute('font-variant-numeric','tabular-nums');if(weight)t.setAttribute('font-weight',weight);t.setAttribute('font-family',"'Geist Mono',monospace");t.textContent=str;frag.appendChild(t);return t;}
+    var ax = function(t){ return x0 + t*pw; };
+
+    // segments, top→bottom, settled cohort means on the rejects→adopts axis
+    var SEG=[
+      {name:'Background Utility', mean:0.44, spr:0.20, share:0.24, bi:true },
+      {name:'Weekend Explorer',   mean:0.66, spr:0.17, share:0.19 },
+      {name:'Commute Loyalist',   mean:0.30, spr:0.10, share:0.31 },
+      {name:'Lapsing Premium',    mean:0.38, spr:0.13, share:0.11 },
+      {name:'Family-Plan Anchor', mean:0.49, spr:0.09, share:0.09 },
+      {name:'Niche Completist',   mean:0.58, spr:0.11, share:0.06 }
+    ];
+
+    // ── (top) POPULATION DENSITY — real binned histogram, summed from the segments
+    var BINS=42, dens=new Array(BINS).fill(0);
+    function g(x,mu,sd){var d=(x-mu)/sd;return Math.exp(-0.5*d*d);}
+    for(var b=0;b<BINS;b++){
+      var xv=(b+0.5)/BINS, acc=0;
+      SEG.forEach(function(s){
+        if(s.bi){ // bimodal: two ad-load lobes, summed
+          acc += s.share*0.5*(g(xv,s.mean-0.16,s.spr*0.8)+g(xv,s.mean+0.16,s.spr*0.8));
+        } else {
+          acc += s.share*g(xv,s.mean,s.spr);
+        }
+      });
+      dens[b]=acc;
+    }
+    var dMax=0; for(var b2=0;b2<BINS;b2++) dMax=Math.max(dMax,dens[b2]);
+    var densTop=16, densBot=120, densH=densBot-densTop, colW=pw/BINS;
+
+    // 0.5 reference gridline through both panels (the rejects/adopts pivot)
+    el('line',{x1:ax(0.5),y1:densTop,x2:ax(0.5),y2:H-30,stroke:LINE,'stroke-width':1,'stroke-dasharray':'1 4'});
+
+    // stepped density: one filled column per bin (a genuine binned histogram,
+    // interrogable bin-by-bin — not a smooth bezier). spread-wash fill, hairline cap.
+    for(var b3=0;b3<BINS;b3++){
+      var h=(dens[b3]/dMax)*densH;
+      var x=x0+b3*colW;
+      el('rect',{x:x.toFixed(2),y:(densBot-h).toFixed(2),width:(colW-0.6).toFixed(2),height:h.toFixed(2),fill:'rgba(111,94,51,0.16)'});
+    }
+    // stepped outline over the bins (the population's settled silhouette)
+    var d='';
+    for(var b4=0;b4<BINS;b4++){
+      var hh=(dens[b4]/dMax)*densH, xa=x0+b4*colW, xb=xa+colW, ytop=densBot-hh;
+      d += (b4===0?('M'+xa.toFixed(1)+' '+densBot.toFixed(1)+' L'+xa.toFixed(1)+' '+ytop.toFixed(1)):('L'+xa.toFixed(1)+' '+ytop.toFixed(1)));
+      d += ' L'+xb.toFixed(1)+' '+ytop.toFixed(1);
+    }
+    d += ' L'+(x0+pw).toFixed(1)+' '+densBot.toFixed(1)+' Z';
+    el('path',{d:d,fill:'none',stroke:SPREAD,'stroke-width':1.25,'stroke-linejoin':'round',opacity:0.8});
+    el('line',{x1:x0,y1:densBot+0.5,x2:x0+pw,y2:densBot+0.5,stroke:LINE,'stroke-width':1});
+
+    // population label + its pooled mean (share-weighted) — an inferred figure, so ◇ + ±
+    var pooled=0; SEG.forEach(function(s){pooled+=s.share*s.mean;});
+    txt(padL-16, densTop+10, 'WHOLE POPULATION', MUT, 10, 'end');
+    txt(padL-16, densTop+24, 'settled reaction shape', MUT, 9, 'end');
+    var pmx=ax(pooled);
+    el('line',{x1:pmx,y1:densTop,x2:pmx,y2:densBot,stroke:SPREAD,'stroke-width':1,'stroke-dasharray':'2 2.5'});
+    var pl=document.createElementNS(SVGNS,'text');
+    pl.setAttribute('x',pmx.toFixed(1));pl.setAttribute('y',(densTop-4).toFixed(1));
+    pl.setAttribute('text-anchor','middle');pl.setAttribute('font-size','9.5');
+    pl.setAttribute('font-family',"'Geist Mono',monospace");pl.setAttribute('font-variant-numeric','tabular-nums');
+    var pa=document.createElementNS(SVGNS,'tspan');pa.setAttribute('fill','#1A2336');pa.setAttribute('font-weight','500');pa.textContent='x̄ '+pooled.toFixed(2)+' ';
+    var pg=document.createElementNS(SVGNS,'tspan');pg.setAttribute('fill',SPREAD);pg.textContent='±0.05 ◇';
+    pl.appendChild(pa);pl.appendChild(pg);frag.appendChild(pl);
+
+    // ── (below) SEGMENT DECOMPOSITION — same axis, parts of the whole above
+    var rowsTop=densBot+24, rowsBot=H-30;
+    txt(ax(0), rowsTop-9, 'rejects', MUT, 10, 'start');
+    txt(ax(1), rowsTop-9, 'adopts', MUT, 10, 'end');
+    var rowH=(rowsBot-rowsTop)/SEG.length;
+    SEG.forEach(function(s,i){
+      var cy = rowsTop + rowH*(i+0.5);
+      txt(padL-16, cy-2, s.name, '#1A2336', 12.5, 'end', 500);
+      txt(padL-16, cy+12, (s.share*100).toFixed(0)+'% share', MUT, 10, 'end');
+      var bx = ax(Math.max(0.02,s.mean - s.spr));
+      var bw = ax(Math.min(0.98,s.mean + s.spr)) - bx;
+      var bh = 6 + s.share*22;                       // weight by share
+      el('rect',{x:bx,y:(cy-bh/2).toFixed(1),width:bw.toFixed(1),height:bh.toFixed(1),rx:bh/2,fill:'rgba(111,94,51,0.13)'});
+      el('line',{x1:bx,y1:cy,x2:(bx+bw),y2:cy,stroke:SPREAD,'stroke-width':0.75,opacity:0.5});
+      if(s.bi){
+        var mA=ax(s.mean-0.16), mB=ax(s.mean+0.16);
+        el('line',{x1:mA,y1:cy,x2:mB,y2:cy,stroke:SPREAD,'stroke-width':1,'stroke-dasharray':'2 2'});
+        [mA,mB].forEach(function(mx){el('circle',{cx:mx,cy:cy,r:3.4,fill:SPREAD});});
+        txt(mB+9, cy+3.4, 'bimodal', MUT, 9.5, 'start');
+      }else{
+        var mx=ax(s.mean);
+        el('circle',{cx:mx,cy:cy,r:4,fill:SPREAD});
+        txt(mx, cy-9, s.mean.toFixed(2), '#1A2336', 10.5, 'middle', 500);
+      }
+    });
+
+    svg.appendChild(frag);
+    svg.setAttribute('width','760'); svg.setAttribute('height','268');
+  }
+  var pm=document.querySelector('svg[data-packmap]');
+  if(pm) buildPackMap(pm);
+})();
+</script>
+</body>
+</html>

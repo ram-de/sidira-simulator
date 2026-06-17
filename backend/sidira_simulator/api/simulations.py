@@ -15,15 +15,19 @@ from sidira_simulator.adapters.repositories import AgentInstanceRepo
 from sidira_simulator.api.deps import (
     current_customer_id,
     get_agent_repo,
+    get_input_lint_chat_client,
     get_orchestrator,
 )
 from sidira_simulator.schemas.simulation import (
     ArmSplit,
+    Hypothesis,
     Simulation,
     SimulationRequest,
     SimulationResult,
     SimulationStatus,
 )
+from sidira_simulator.services.answerability import assess_answerability
+from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
@@ -35,6 +39,51 @@ class CreateSimulationResponse(BaseModel):
     id: str
     status: SimulationStatus
     poll_url: str
+
+
+class PreflightRequest(BaseModel):
+    """Lightweight authoring-time pre-flight check (epic #309, T4 / #313).
+
+    Carries just the `Hypothesis` the wizard is composing — no population,
+    personas, model, or arm config — because the pre-flight verdict depends
+    only on the hypothesis surface. `run_as_generic_reception` mirrors the
+    POST /simulations override so the wizard can preview "would this still
+    block if I run as generic-reception?" without resubmitting the real run.
+    """
+
+    hypothesis: Hypothesis
+    run_as_generic_reception: bool = False
+
+
+class PreflightResponse(BaseModel):
+    """The deterministic, zero-LLM pre-flight verdict (T4 / #313).
+
+    A read-only mirror of the SAME `assess_answerability` (T1) verdict the
+    POST path routes on, plus the SEPARABLE deterministic leading-framing
+    lint (`input_lint._detect_leading_framing`). It lets the wizard catch
+    `needs_input` / `out_of_scope` / leading-framing AT THE KEYBOARD, before
+    submit, so the PM never hits the POST 422 cold.
+
+    Crucially it does NOT run the simulation, does NOT spend an LLM token, and
+    does NOT call the T3 LLM judge (`assess_input_lint`) — only the two cheap
+    deterministic checks. It carries NO number and never touches
+    `confidence_score` (panel hard constraint): it ROUTES, exactly like T1.
+
+    `state` / `reasons` / `fixes` / `reason_codes` / `allow_override` are the
+    `AnswerabilityVerdict` verbatim; `override_field` matches the POST 422
+    payload so the wizard reuses one override affordance. `leading_framing_*`
+    carry the deterministic framing lint (advisory, NOT a block — the T3 LLM
+    judge that finalizes amber/red runs at submit time, never here).
+    """
+
+    state: str
+    reasons: list[str]
+    fixes: list[str]
+    reason_codes: list[str]
+    allow_override: bool
+    override_field: str = "run_as_generic_reception"
+    leading_framing_reasons: list[str]
+    leading_framing_fixes: list[str]
 
 
 class SimulationListItem(BaseModel):
@@ -77,6 +126,43 @@ async def list_simulations(
     return items
 
 
+@router.post("/preflight", response_model=PreflightResponse)
+async def preflight_simulation(
+    payload: PreflightRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> PreflightResponse:
+    """Authoring-time pre-flight check (epic #309, T4 / #313).
+
+    Deterministic, zero-LLM, synchronous. Runs the SAME `assess_answerability`
+    (T1) gate the POST path routes on, plus the SEPARABLE deterministic
+    leading-framing lint, and returns the verdict WITHOUT persisting or running
+    a simulation and WITHOUT calling the T3 LLM judge. The wizard calls this
+    live as the PM authors so `needs_input` / `out_of_scope` / leading framing
+    are caught at the keyboard, not at the POST 422.
+
+    It reuses `assess_answerability` and `_detect_leading_framing` VERBATIM — no
+    forked vocabulary — so the preview can never drift from the POST gate. It
+    ROUTES on a categorical verdict and never touches `confidence_score` (panel
+    hard constraint). Auth-gated like every route so it can't be probed
+    anonymously, but it reads nothing customer-specific (the verdict depends
+    only on the supplied hypothesis).
+    """
+    verdict = assess_answerability(
+        payload.hypothesis,
+        allow_generic_reception=payload.run_as_generic_reception,
+    )
+    framing_reasons, framing_fixes = _detect_leading_framing(payload.hypothesis.prose)
+    return PreflightResponse(
+        state=verdict.state,
+        reasons=verdict.reasons,
+        fixes=verdict.fixes,
+        reason_codes=verdict.reason_codes,
+        allow_override=verdict.allow_override,
+        leading_framing_reasons=framing_reasons,
+        leading_framing_fixes=framing_fixes,
+    )
+
+
 @router.post(
     "",
     response_model=CreateSimulationResponse,
@@ -87,8 +173,70 @@ async def create_simulation(
     background_tasks: BackgroundTasks,
     customer_id: str = Depends(current_customer_id),
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+    input_lint_chat_client=Depends(get_input_lint_chat_client),
 ) -> CreateSimulationResponse:
     """Accepts a hypothesis. Returns 202 + simulation_id; runs after the response is sent."""
+    # #310 / T1: deterministic, zero-LLM pre-flight answerability gate. Runs
+    # PRE-PERSIST, before orchestrator.prepare and before any LLM token is
+    # spent. On `needs_input` (and no override set) we 422 with a
+    # refinement-shaped payload (reasons + fixes) so the wizard can guide the
+    # PM to a one-field fix, signalling whether a generic-reception override is
+    # available. It ROUTES on a categorical verdict and never touches
+    # confidence_score. See services/answerability.py for the two checks.
+    verdict = assess_answerability(
+        payload.hypothesis,
+        allow_generic_reception=payload.run_as_generic_reception,
+    )
+    if verdict.state == "needs_input":
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "needs_input",
+                "reasons": verdict.reasons,
+                "fixes": verdict.fixes,
+                "reason_codes": verdict.reason_codes,
+                # When True, the PM can resubmit with run_as_generic_reception=true
+                # to proceed (sentiment-only, not OEC-aligned). False means the
+                # blocking defect (structural-invisibility) must be fixed first.
+                "allow_override": verdict.allow_override,
+                "override_field": "run_as_generic_reception",
+            },
+        )
+    # #311 / T2: `out_of_scope` ABSTAINS — it does NOT block and does NOT 422.
+    # The run proceeds and the score is still computed; the ship/no-ship verdict
+    # is categorically WITHHELD at result time ("NOT ANSWERABLE BY THIS
+    # INSTRUMENT"). The detector is deterministic and re-run inside the runner's
+    # `_score` so the abstention rides into the persisted SimulationResult
+    # (`instrument_scope` / `out_of_scope_reasons`) with no orchestrator
+    # threading and no DB column. There is NO confidence_score discount — the
+    # override is categorical (panel hard constraint). We deliberately fall
+    # through to the normal run path here.
+
+    # Cheap synchronous validation (model_id) runs BEFORE the LLM input lint so an
+    # unsupported explicit model returns 400 without spending judge tokens.
+    try:
+        model_id = resolve_model_id(
+            payload.model_id,
+            require_available=payload.model_id is not None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # #312 / T3: pre-flight ORDINAL input lint (LLM judge + deterministic
+    # leading-framing lint + paraphrase-abstain). Runs AFTER the T1/T2 gate and
+    # the cheap model_id check so a structural `needs_input` 422 or a 400 bad
+    # model short-circuits before any token is spent. NEVER 422s — semantic
+    # judgments are disclose-and-run: green runs silently; amber/red/abstain
+    # stamp `input_flags` on the result card and offer refinement (the run always
+    # proceeds). The verdict is threaded through the orchestrator into the runner,
+    # which stamps `input_flags` onto SimulationResult and moves the refinement
+    # trigger earlier. It ROUTES and never touches confidence_score (panel hard
+    # constraint). On any judge failure the lint degrades to the deterministic
+    # framing lint alone — a paying user is never blocked on a semantic judgment.
+    input_lint = await assess_input_lint(
+        payload.hypothesis, chat_client=input_lint_chat_client
+    )
+
     # Phase 2.5: population_size is the modeled userbase; the materialized
     # sample is capped by the backend's effective max-agent setting. Phase 4.6
     # #100 shares this resolver with /config/limits so the wizard preview
@@ -101,13 +249,6 @@ async def create_simulation(
     # without using lets the row tell the truth from day one and avoids a
     # subsequent migration when #89 lands.
     treatment_fraction = payload.arm_split.treatment_fraction if payload.arm_split else None
-    try:
-        model_id = resolve_model_id(
-            payload.model_id,
-            require_available=payload.model_id is not None,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         sim_id, run = await orchestrator.prepare(
@@ -121,6 +262,7 @@ async def create_simulation(
             model_id=model_id,
             include_no_persona_control=payload.include_no_persona_control,
             include_current_state_control=payload.include_current_state_control,
+            input_lint=input_lint,
         )
     except ArtifactNotFound as exc:
         # No persona pack or feature pack for this customer yet.

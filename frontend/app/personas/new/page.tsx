@@ -35,14 +35,16 @@
 // note anatomy: message in ink, severity on the alert border (§4.3/§7.7).
 // Confidence and distinctiveness ride the WORDING, never color.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createFeatureStore,
   createPersonaBuild,
+  deleteFeatureStore,
   getPersonaBuild,
   getPersonaBuildEvents,
   getPersonaPackDetail,
   isBuildTerminal,
+  listFeatureStores,
   previewFeatureStore,
   promotePersonaPack,
   suggestMapping,
@@ -77,6 +79,7 @@ import {
   monoInputStyle,
   okBannerStyle,
   primaryBtnStyle,
+  railAlertStyle,
   railCaptionStyle,
   secondaryBtnStyle,
   sectionLabelStyle,
@@ -141,10 +144,146 @@ const emptyConnForm = (): ConnForm => ({
   schema: "",
 });
 
-// The credential fingerprint — if this string changes, the stored connection
-// id is stale and a fresh createFeatureStore is owed before testing again.
-const credFingerprint = (f: ConnForm, mode: SourceMode, table: string, sql: string) =>
-  JSON.stringify([f.name, f.account, f.user, f.password, f.warehouse, f.role, f.database, f.schema, mode, table, sql]);
+// The CREDENTIAL fingerprint — connection fields ONLY (no source). If this
+// changes, the stored connection id is stale and a fresh createFeatureStore is
+// owed before testing again (or, for #304 reuse, the form has diverged from the
+// saved row). Deliberately excludes mode/table/sql: the source query feeds
+// preview/build, not which connection to test — conflating them was the bug
+// that broke saved-connection reuse when the user typed the source after
+// picking a connection (the password gate snapped back on).
+const credFingerprint = (f: ConnForm) =>
+  JSON.stringify([f.name, f.account, f.user, f.password, f.warehouse, f.role, f.database, f.schema]);
+
+// The TEST fingerprint — credentials + source. Continue (Step 1) gates on a
+// test having passed for these EXACT values including the source, so editing
+// the table/SQL re-gates Continue (a profiled source must match what was
+// tested). This is the existing okFingerprint behavior, kept intact.
+const testFingerprint = (f: ConnForm, mode: SourceMode, table: string, sql: string) =>
+  JSON.stringify([credFingerprint(f), mode, table, sql]);
+
+// ── saved-connection identity (#327) ───────────────────────────────────────
+// The live picker showed several cards all titled `prod-analytics`, tellable
+// apart only by a casing wobble in one mono subline — and there was no way to
+// delete a dead/duplicate row. The fix is to render a CANONICAL identity, not
+// just the name, so near-identical rows are legible at a glance.
+
+// The primary identity line: `name · DATABASE.SCHEMA · WAREHOUSE · ROLE`. The
+// schema clause is dropped when empty. This is what the eye reads first — the
+// connection's actual target, not just its label.
+const connectionIdentity = (c: ConnectionSummary): string => {
+  const db = c.schema ? `${c.database}.${c.schema}` : c.database;
+  return `${c.name} · ${db} · ${c.warehouse} · ${c.role}`;
+};
+
+// The secondary mono line: `account · user · <id-8hex>`. The 8-hex id tail is
+// the last-resort tiebreaker (4-hex collides on a page — DESIGN.md §8.8); we
+// take the first 8 chars AFTER the `fs-` prefix so two rows minted seconds
+// apart still differ here.
+const connectionSubline = (c: ConnectionSummary): string => {
+  const idTail = c.id.replace(/^fs-/, "").slice(0, 8);
+  return `${c.account} · ${c.user} · ${idTail}`;
+};
+
+// ── per-connection health, in words (#328) ──────────────────────────────────
+// Users reported "some connections don't work" with nothing signalling WHICH
+// until the Test step. The register now carries the last-known state of each
+// row as TEXT (DESIGN.md §4.3/§10: no green/red dots, no color-coded fill — the
+// words carry the meaning). Derived purely from the persisted health fields.
+
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+// Terse absolute date — `JUN 15` (today/yesterday spelled out when close, since
+// "TESTED TODAY" reads faster than a date for the common just-tested case). No
+// time-of-day: the register is scanned, not audited to the minute. There's no
+// shared date helper in the codebase, so this is the minimal local one.
+const terseTestedDate = (iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOf(now) - startOf(d)) / 86_400_000);
+  if (dayDiff === 0) return "TODAY";
+  if (dayDiff === 1) return "YESTERDAY";
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+};
+
+// The honest-text status line for one row. UNTESTED when never tested;
+// `OK · TESTED JUN 15` on a pass; `FAILED · AUTH` (or the raw kind) on a fail.
+// Returned uppercase to sit in the mono caption rail.
+const connectionHealthLine = (c: ConnectionSummary): string => {
+  if (c.last_test_status === "ok") {
+    const when = c.last_tested_at ? terseTestedDate(c.last_tested_at) : "";
+    return when ? `OK · TESTED ${when}` : "OK";
+  }
+  if (c.last_test_status === "failed") {
+    const kind = (c.last_error_kind ?? "").trim().toUpperCase();
+    return kind ? `FAILED · ${kind}` : "FAILED";
+  }
+  return "UNTESTED";
+};
+
+// When two saved rows share the same `name` (case-insensitively, trimmed —
+// DISPLAY normalization only; the stored values are never touched), append a
+// stable duplicate designator (`01`, `02`, …) so the eye stops decoding casing.
+// Order is the list's own stable order (server returns newest-first), so the
+// designators don't reshuffle between renders. Returns a map id → " NN" suffix
+// (empty string when the name is unique in the list).
+const duplicateDesignators = (conns: ConnectionSummary[]): Record<string, string> => {
+  const byName = new Map<string, ConnectionSummary[]>();
+  for (const c of conns) {
+    const key = c.name.trim().toLowerCase();
+    const bucket = byName.get(key);
+    if (bucket) bucket.push(c);
+    else byName.set(key, [c]);
+  }
+  const out: Record<string, string> = {};
+  for (const bucket of byName.values()) {
+    if (bucket.length < 2) {
+      out[bucket[0].id] = "";
+      continue;
+    }
+    bucket.forEach((c, i) => {
+      out[c.id] = ` ${String(i + 1).padStart(2, "0")}`;
+    });
+  }
+  return out;
+};
+
+// ── picker order + filter (#332) ────────────────────────────────────────────
+// At rest the step shows ONE control (a trigger), not the whole register — see
+// ConnectionPicker. Inside the open popover the rows need a sensible default
+// order and a substring filter, since the list can run to 20+ connections.
+
+// Most-recently-tested first (last_tested_at desc, NULLs last), stable fallback
+// by name then id so the order is deterministic across renders. This puts the
+// connection the user most likely wants (the one they just tested / used) at the
+// top of the popover. Returns a NEW array — never mutates the source list, whose
+// own newest-first order still feeds duplicateDesignators (so designators stay
+// stable regardless of how the picker sorts for display). DISPLAY order only.
+const sortConnsForPicker = (conns: ConnectionSummary[]): ConnectionSummary[] =>
+  [...conns].sort((a, b) => {
+    const ta = a.last_tested_at ? Date.parse(a.last_tested_at) : NaN;
+    const tb = b.last_tested_at ? Date.parse(b.last_tested_at) : NaN;
+    const aHas = !Number.isNaN(ta);
+    const bHas = !Number.isNaN(tb);
+    if (aHas && bHas && ta !== tb) return tb - ta; // newer test first
+    if (aHas !== bHas) return aHas ? -1 : 1; // tested rows ahead of never-tested
+    const byName = a.name.trim().toLowerCase().localeCompare(b.name.trim().toLowerCase());
+    if (byName !== 0) return byName;
+    return a.id.localeCompare(b.id); // last-resort total order
+  });
+
+// Case-insensitive substring match across the fields the eye scans — name,
+// account, user, database, schema, warehouse, role. The 20-connection case is
+// the whole reason the filter exists; it narrows on whatever the user remembers.
+const connMatchesFilter = (c: ConnectionSummary, q: string): boolean => {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [c.name, c.account, c.user, c.database, c.schema ?? "", c.warehouse, c.role]
+    .join(" ")
+    .toLowerCase();
+  return hay.includes(needle);
+};
 
 const POLL_MS = 2500; // #28 watch cadence while pending/running.
 
@@ -157,14 +296,43 @@ export default function NewPersonaPackPage() {
   const [tableFqn, setTableFqn] = useState("");
   const [sql, setSql] = useState("");
   const [connection, setConnection] = useState<ConnectionSummary | null>(null);
-  // Test lifecycle. `okFingerprint` records the cred fingerprint that PASSED a
-  // test — Continue is enabled only while the current fingerprint matches it.
+  // Test lifecycle. `okFingerprint` records the TEST fingerprint (creds + source)
+  // that PASSED a test — Continue is enabled only while the current one matches.
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<{ kind: string | null; message: string } | null>(null);
   const [okFingerprint, setOkFingerprint] = useState<string | null>(null);
-  // The fingerprint that minted `connection` — reused on the next test if the
-  // user hasn't touched any field since.
+  // The CREDENTIAL fingerprint that minted (or selected, #304) `connection` —
+  // reused on the next test if the user hasn't touched any credential field
+  // since. Source edits do NOT invalidate it (the connection is the same).
   const [connFingerprint, setConnFingerprint] = useState<string | null>(null);
+  // Saved connections (#304). These are the customer's persisted feature-store
+  // rows — the server keeps the encrypted password (password_enc) and never
+  // returns it, so a ConnectionSummary is everything we need to REUSE a
+  // connection by id. listFeatureStores was defined but never called; surfacing
+  // it here is the whole fix — select a saved row and you skip createFeatureStore
+  // (and the password) entirely, because test/preview/mapping/build all operate
+  // on connection.id against the stored credential.
+  const [savedConns, setSavedConns] = useState<ConnectionSummary[]>([]);
+  const [connsPhase, setConnsPhase] = useState<"loading" | "ready" | "error">("loading");
+  // Delete a saved connection (#327). `confirmDeleteId` is the row whose inline
+  // honest-text confirm is open (only one at a time; null when none). `deleting`
+  // is the id currently being deleted (disables that row's action). `deleteError`
+  // is a per-row failure message keyed by id — surfaced inline, never a banner.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
+  // Per-row connectivity test (#328). `testingRowId` is the row whose in-place
+  // TEST is in flight (disables just that affordance; null when none). The
+  // server persists the outcome and GET returns it, so a successful test re-
+  // fetches the list and the row's status line updates without leaving the
+  // picker or selecting the connection.
+  const [testingRowId, setTestingRowId] = useState<string | null>(null);
+  // Per-row test failure surfaced ONLY as a fallback (#328): normally a failed
+  // row-test is shown by the refreshed status line (FAILED · KIND), since the
+  // server persists the outcome. But that persistence is best-effort and the
+  // refresh can fail — if the refreshed row doesn't reflect the failure, we keep
+  // the caught error here so the verdict is never silently swallowed. Keyed by id.
+  const [rowTestError, setRowTestError] = useState<{ id: string; message: string } | null>(null);
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -207,9 +375,21 @@ export default function NewPersonaPackPage() {
   const [promoted, setPromoted] = useState<PackSummary | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
 
-  // The live fingerprint of the connect form (recomputed each render).
-  const fingerprint = credFingerprint(conn, sourceMode, tableFqn, sql);
-  const testPassed = okFingerprint !== null && okFingerprint === fingerprint;
+  // The live fingerprints of the connect form (recomputed each render). The
+  // credential fingerprint drives the mint/reuse decision; the test fingerprint
+  // (creds + source) drives Continue gating.
+  const credFp = credFingerprint(conn);
+  const testFp = testFingerprint(conn, sourceMode, tableFqn, sql);
+  const testPassed = okFingerprint !== null && okFingerprint === testFp;
+  // Reusing a saved/already-minted connection (#304): a `connection` exists and
+  // the CREDENTIAL fields haven't diverged from the fingerprint that owns it. On
+  // this path the password is intentionally blank (the server holds
+  // password_enc), so the Test button must NOT require a password — Test runs
+  // against connection.id. Crucially this ignores the source, so typing the
+  // table/SQL after picking a saved connection does NOT snap the password gate
+  // back on. Edit a CREDENTIAL field and it diverges, flipping us back to the
+  // create path where a password is required again (handleTest re-mints).
+  const reusingSaved = connection !== null && connFingerprint === credFp;
 
   // The source body passed to preview/build. Table → SELECT *; SQL verbatim.
   const sourceBody = (): { table_fqn?: string | null; sql?: string | null } =>
@@ -233,6 +413,29 @@ export default function NewPersonaPackPage() {
     setPromoteError(null);
   }, []);
 
+  // ── Step 1 · load saved connections on mount (#304) ──────────────────────
+  // Fetch the customer's persisted connections once. A failed fetch must NOT
+  // block the wizard — we fall back to the blank form (connsPhase "error" just
+  // hides the saved-list section), so the original enter-everything path always
+  // remains available.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await listFeatureStores();
+        if (cancelled) return;
+        setSavedConns(rows);
+        setConnsPhase("ready");
+      } catch {
+        if (cancelled) return;
+        setConnsPhase("error"); // graceful: section hides, form stays usable
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ── Step 1 handlers ──────────────────────────────────────────────────────
   const setConnField = (key: keyof ConnForm, value: string) => {
     setConn((prev) => ({ ...prev, [key]: value }));
@@ -241,15 +444,206 @@ export default function NewPersonaPackPage() {
     setTestError(null);
   };
 
+  // A source (table/SQL/mode) edit invalidates a prior passing test (Continue
+  // re-gates) AND any profiled mapping — the columns are sourced from the OLD
+  // query, so Step 2 must re-profile and Step 3 must not build the new source
+  // with the old column mapping. Before the #304 credential/source fingerprint
+  // split, a source change re-minted the connection in handleTest, which cleared
+  // this state as a side effect; now that source-only edits keep the same
+  // connection, the reset has to happen explicitly here (codex P1).
+  // Drop the profiled mapping (columns/suggestion/mapping/phase) so Step 2
+  // re-profiles, AND any completed build/evaluation/promotion (clearBuild) so a
+  // finished build can't survive a changed input — otherwise Step 3 keeps
+  // rendering the old BuildWatch and Promote could ship a pack built from the
+  // previous source/connection (codex P1). Shared by the source- and
+  // connection-invalidation paths.
+  const invalidateMappingAndBuild = () => {
+    setColumns(null);
+    setSuggestion(null);
+    setMapping({});
+    setMapPhase("idle");
+    clearBuild();
+  };
+
+  // A source (table/SQL/mode) edit invalidates a prior passing test (Continue
+  // re-gates) plus the mapping and build (the columns came from the old query).
+  const invalidateSource = () => {
+    setOkFingerprint(null);
+    invalidateMappingAndBuild();
+  };
+
+  // A connection change (select saved / new / fresh mint) likewise invalidates
+  // the mapping + build — the columns may differ on a different connection.
+  const invalidateConnection = () => {
+    invalidateMappingAndBuild();
+  };
+
+  // Reuse a saved connection (#304). The server already holds this row's
+  // encrypted password, and every downstream call (test/preview/suggest/build)
+  // works off connection.id — so we set `connection` to the saved row DIRECTLY,
+  // skipping createFeatureStore and the password entirely.
+  //
+  // The fingerprint dance is the load-bearing part: handleTest mints a fresh
+  // connection only when `connFingerprint !== credFp`. We prefill the form with
+  // the row's non-secret fields (password left blank — it's never returned) and
+  // set `connFingerprint` to the CREDENTIAL fingerprint of THAT password-blank
+  // form. Now the live `credFp` matches `connFingerprint`, so handleTest reuses
+  // connection.id against the stored credential instead of re-minting — and the
+  // user reaches build with zero password re-entry. Because the fingerprint is
+  // credential-only, typing the source (table/SQL) afterward does NOT break the
+  // reuse. (Edit a credential field and it diverges, so the existing
+  // mint-on-test path correctly takes back over — a password is required again,
+  // matching existing behavior.)
+  const handleSelectSaved = (c: ConnectionSummary) => {
+    const prefilled: ConnForm = {
+      name: c.name,
+      account: c.account,
+      user: c.user,
+      password: "", // never returned by GET — stays blank; reuse needs no password
+      warehouse: c.warehouse,
+      role: c.role,
+      database: c.database,
+      schema: c.schema ?? "",
+    };
+    setConn(prefilled);
+    setConnection(c);
+    // Pin connFingerprint to the password-blank form's CREDENTIAL fingerprint.
+    // okFingerprint isn't set here — Continue still gates on an actual 204 from
+    // Test, so the user confirms the saved row connects before moving on.
+    setConnFingerprint(credFingerprint(prefilled));
+    setOkFingerprint(null);
+    setTestError(null);
+    // A different connection invalidates any prior profiled mapping AND any
+    // completed build (#27/#304) — the columns may differ.
+    invalidateConnection();
+  };
+
+  // Return to the blank-form path (#304) — "Enter a different connection". Drops
+  // the selected/minted connection so the next Test mints fresh from the form.
+  const handleNewConnection = () => {
+    setConn(emptyConnForm());
+    setConnection(null);
+    setConnFingerprint(null);
+    setOkFingerprint(null);
+    setTestError(null);
+    invalidateConnection();
+  };
+
+  // "Edit as new" (#327): open the full credential form PREFILLED from a saved
+  // connection's non-secret fields, but as a NEW connection mint — drop the
+  // selected `connection`/`connFingerprint` so the next Test creates a fresh row
+  // (a new password + a unique name are required; the name uniqueness guard will
+  // reject a verbatim re-save, which is exactly the point — edit it). The
+  // password stays blank (it's never returned). This is distinct from
+  // handleNewConnection, which clears the form to blank.
+  const handleEditAsNew = (c: ConnectionSummary) => {
+    setConn({
+      name: c.name,
+      account: c.account,
+      user: c.user,
+      password: "",
+      warehouse: c.warehouse,
+      role: c.role,
+      database: c.database,
+      schema: c.schema ?? "",
+    });
+    setConnection(null);
+    setConnFingerprint(null);
+    setOkFingerprint(null);
+    setTestError(null);
+    invalidateConnection();
+  };
+
+  // Delete a saved connection (#327). Customer-scoped server-side (404 if it
+  // isn't ours). On success we drop the row from the list, AND — if it was the
+  // SELECTED connection — clear the selection back to the blank form so the
+  // wizard can't carry a credential that no longer exists into Map/Build. The
+  // inline confirm is the only gate; no browser confirm(), no modal (§10).
+  const handleDeleteConnection = async (id: string) => {
+    setDeleteError(null);
+    setDeletingId(id);
+    try {
+      await deleteFeatureStore(id);
+      setSavedConns((prev) => prev.filter((c) => c.id !== id));
+      setConfirmDeleteId(null);
+      // If the deleted row was the active connection, reset the form — its
+      // credential is gone, so any in-progress Test/Map/Build is stale.
+      if (connection?.id === id) handleNewConnection();
+    } catch (e) {
+      setDeleteError({ id, message: apiErrorMessage(e) });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Test a saved connection IN PLACE from its register row (#328). This does NOT
+  // select the row or leave the picker — it just re-runs the connectivity test
+  // (testFeatureStore is a no-body POST against the stored credential) and lets
+  // the server persist the outcome. We then re-fetch the list so the row's
+  // status line reflects the new state (OK · TESTED … or FAILED · KIND). The
+  // route returns the same 204/structured-error contract whether or not the
+  // test passes; either way the persisted health changed, so we refresh
+  // regardless. A failed test surfaces only through the refreshed row's
+  // FAILED · … line — no banner, since this is one row in a register, not the
+  // wizard's own 03 · Test step (which keeps its existing testError banner).
+  const handleTestRow = async (id: string) => {
+    setTestingRowId(id);
+    setRowTestError(null);
+    // Capture the connectivity verdict locally so it's never lost: normally the
+    // refreshed status line carries it, but if persistence/refresh fails we fall
+    // back to surfacing this error inline (the row must never silently swallow a
+    // failed test — the prior masking gap).
+    let caught: string | null = null;
+    // Remember this row's last_tested_at BEFORE the test so we can tell whether
+    // the refresh actually captured THIS run. A row already FAILED from an
+    // earlier test would otherwise mask a fresh, unpersisted failure (codex P2).
+    const priorTestedAt = savedConns.find((r) => r.id === id)?.last_tested_at ?? null;
+    try {
+      await testFeatureStore(id); // 204 on success, throws on failure
+    } catch (e) {
+      caught = apiErrorMessage(e);
+    }
+    let refreshed: ConnectionSummary[] | null = null;
+    try {
+      refreshed = await listFeatureStores();
+      setSavedConns(refreshed);
+    } catch {
+      // A failed refresh leaves the prior status line in place — the wizard is
+      // never blocked by it (mirrors the mount-load graceful fallback).
+    }
+    // Surface the inline fallback ONLY when the test failed and the refreshed
+    // row does NOT reflect THIS run as failed. "This run" means the row is
+    // FAILED *and* its last_tested_at advanced past the pre-test value — so a
+    // stale prior FAILED from an earlier test (with an unpersisted new failure)
+    // still surfaces the fresh verdict. On the clean path the status line shows
+    // it and we stay quiet.
+    if (caught) {
+      const fresh = refreshed?.find((r) => r.id === id);
+      const capturedThisRun =
+        fresh?.last_test_status === "failed" &&
+        fresh.last_tested_at != null &&
+        fresh.last_tested_at !== priorTestedAt;
+      if (!capturedThisRun) {
+        setRowTestError({ id, message: caught });
+      }
+    }
+    setTestingRowId(null);
+  };
+
   const handleTest = async () => {
     setTestError(null);
     setTesting(true);
+    // The id actually tested (set once `active` is resolved/minted below) — the
+    // finally uses it to refresh that row's health (#328), since the `connection`
+    // state captured in this closure is stale after a fresh mint.
+    let testedId: string | null = null;
     try {
-      // Reuse the stored id if nothing changed since the last create; otherwise
-      // mint a fresh connection (#26). A changed credential MUST NOT test the
-      // old id.
+      // Reuse the stored id if no CREDENTIAL changed since the last create /
+      // saved-connection select; otherwise mint a fresh connection (#26). A
+      // changed credential MUST NOT test the old id. Source-only edits keep the
+      // same connection, so they don't force a re-mint here.
       let active = connection;
-      if (!active || connFingerprint !== fingerprint) {
+      if (!active || connFingerprint !== credFp) {
         const req: SnowflakeConnectionRequest = {
           name: conn.name.trim(),
           kind: "snowflake",
@@ -263,21 +657,58 @@ export default function NewPersonaPackPage() {
         };
         active = await createFeatureStore(req);
         setConnection(active);
-        setConnFingerprint(fingerprint);
-        // A fresh connection invalidates a previously-profiled mapping (#27):
-        // the columns may differ, so force a re-profile on next Map entry.
-        setColumns(null);
-        setSuggestion(null);
-        setMapping({});
-        setMapPhase("idle");
+        setConnFingerprint(credFp);
+        // Register the freshly-minted row in the saved list immediately (#327
+        // codex P1). The row is PERSISTED the moment createFeatureStore returns,
+        // even if the connectivity test that follows fails — and the unique-name
+        // guard means re-creating it under the same name would 409. So if it
+        // doesn't already appear (it won't, on a fresh mint), surface it now: the
+        // register lists it, "Use different connection" returns to that list, and
+        // the row's Delete affordance is the in-UI escape from a bad password —
+        // no page reload, no trapped name. (Newest-first, mirroring the server.)
+        setSavedConns((prev) =>
+          prev.some((c) => c.id === active!.id) ? prev : [active!, ...prev],
+        );
+        // A fresh connection invalidates a previously-profiled mapping AND any
+        // completed build (#27/#304): the columns may differ, so force a
+        // re-profile on next Map entry and drop any stale build.
+        invalidateConnection();
       }
+      testedId = active.id;
       await testFeatureStore(active.id); // 204 on success, throws on failure
-      setOkFingerprint(fingerprint);
+      // Continue gates on the full test fingerprint (creds + source), so a later
+      // source edit re-gates Continue (existing behavior).
+      setOkFingerprint(testFp);
     } catch (e) {
       setTestError(apiErrorParts(e));
       setOkFingerprint(null);
     } finally {
       setTesting(false);
+      // The server persisted this test's outcome (#328) whether it passed or
+      // failed. Refresh the saved list so the register row / collapsed summary
+      // for the active connection shows its new health state (OK · TESTED … or
+      // FAILED · KIND) instead of a stale UNTESTED — otherwise the wizard's own
+      // 03 · Test path would leave the picker behind it out of date. We also
+      // re-point `connection` at the refreshed row so the collapsed summary's
+      // health chip updates in place. Best-effort: a failed refresh leaves the
+      // prior state and never blocks the wizard (mirrors the mount-load
+      // fallback). `testedId` is the id actually tested (incl. a fresh mint),
+      // so the refresh is correct even when `connection` (closure) was stale.
+      // Only re-point `connection` when it still refers to the tested row — a
+      // mid-flight switch must not be clobbered.
+      if (testedId) {
+        const refreshId = testedId;
+        void (async () => {
+          try {
+            const rows = await listFeatureStores();
+            setSavedConns(rows);
+            const fresh = rows.find((r) => r.id === refreshId);
+            if (fresh) setConnection((prev) => (prev?.id === refreshId ? fresh : prev));
+          } catch {
+            // leave prior state; never block
+          }
+        })();
+      }
     }
   };
 
@@ -562,18 +993,43 @@ export default function NewPersonaPackPage() {
             testing={testing}
             testPassed={testPassed}
             testError={testError}
+            savedConns={savedConns}
+            connsPhase={connsPhase}
+            selectedConnId={connection?.id ?? null}
+            selectedConn={connection}
+            reusingSaved={reusingSaved}
+            confirmDeleteId={confirmDeleteId}
+            deletingId={deletingId}
+            deleteError={deleteError}
+            testingRowId={testingRowId}
+            rowTestError={rowTestError}
+            onTestRow={handleTestRow}
+            onSelectSaved={handleSelectSaved}
+            onNewConnection={handleNewConnection}
+            onRequestDelete={(id) => {
+              setDeleteError(null);
+              setConfirmDeleteId(id);
+            }}
+            onCancelDelete={() => {
+              setConfirmDeleteId(null);
+              setDeleteError(null);
+            }}
+            onConfirmDelete={handleDeleteConnection}
+            onEditAsNew={() => {
+              if (connection) handleEditAsNew(connection);
+            }}
             onField={setConnField}
             onSourceMode={(m) => {
               setSourceMode(m);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onTableFqn={(v) => {
               setTableFqn(v);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onSql={(v) => {
               setSql(v);
-              setOkFingerprint(null);
+              invalidateSource();
             }}
             onTest={handleTest}
           />
@@ -763,6 +1219,23 @@ function StepConnect({
   testing,
   testPassed,
   testError,
+  savedConns,
+  connsPhase,
+  selectedConnId,
+  selectedConn,
+  reusingSaved,
+  confirmDeleteId,
+  deletingId,
+  deleteError,
+  testingRowId,
+  rowTestError,
+  onTestRow,
+  onSelectSaved,
+  onNewConnection,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+  onEditAsNew,
   onField,
   onSourceMode,
   onTableFqn,
@@ -776,6 +1249,23 @@ function StepConnect({
   testing: boolean;
   testPassed: boolean;
   testError: { kind: string | null; message: string } | null;
+  savedConns: ConnectionSummary[];
+  connsPhase: "loading" | "ready" | "error";
+  selectedConnId: string | null;
+  selectedConn: ConnectionSummary | null;
+  reusingSaved: boolean;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  deleteError: { id: string; message: string } | null;
+  testingRowId: string | null;
+  rowTestError: { id: string; message: string } | null;
+  onTestRow: (id: string) => void;
+  onSelectSaved: (c: ConnectionSummary) => void;
+  onNewConnection: () => void;
+  onRequestDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: (id: string) => void;
+  onEditAsNew: () => void;
   onField: (k: keyof ConnForm, v: string) => void;
   onSourceMode: (m: SourceMode) => void;
   onTableFqn: (v: string) => void;
@@ -784,17 +1274,47 @@ function StepConnect({
 }) {
   // Required credential fields must be filled before a test is meaningful;
   // schema is optional. This only enables the Test button — the real gate is
-  // a 204 from the backend.
+  // a 204 from the backend. The password is required ONLY on the create path:
+  // when reusing a saved connection (#304) it's intentionally blank — Test runs
+  // against the saved connection.id using the server's stored credential — so we
+  // drop it from the gate in that case (else Test would be permanently disabled
+  // for every reused connection).
   const credsFilled =
     conn.name.trim() &&
     conn.account.trim() &&
     conn.user.trim() &&
-    conn.password &&
+    (reusingSaved || conn.password) &&
     conn.warehouse.trim() &&
     conn.role.trim() &&
     conn.database.trim();
   const sourceFilled = sourceMode === "table" ? tableFqn.trim() : sql.trim();
   const canTest = Boolean(credsFilled && sourceFilled) && !testing;
+
+  // Stable per-name duplicate designators for the register (#327) — only the
+  // saved list feeds this, computed once per render.
+  const dupDesignators = duplicateDesignators(savedConns);
+
+  // Collapse-on-select (#327): when a SAVED connection is selected and the
+  // credentials still match it (reusingSaved), we don't render the prefilled
+  // credential form — that's what made the picker read like a gallery of
+  // near-identical forms. Instead we show a compact "Using saved connection"
+  // summary record. The full form returns only via "Use different connection"
+  // (a fresh blank mint) or "Edit as new" (form prefilled as a NEW connection).
+  // We need `selectedConn` (the ConnectionSummary) to render the summary, so the
+  // collapse also requires the selected id to be a row we hold in the saved list
+  // — a connection that isn't listed (it should always be, post-mint) keeps the
+  // editable form so the user is never stuck behind a summary for a row they
+  // can't see or delete (#327 codex P1).
+  const collapsed =
+    reusingSaved && selectedConn !== null && savedConns.some((c) => c.id === selectedConn.id);
+
+  // Explicit "the user just selected from the picker" signal (#332/codex P2). The
+  // picker's selected row unmounts before the collapsed summary mounts, so the
+  // summary can't reliably infer the path from document.activeElement (it's
+  // already <body> on the keyboard path). This ref carries the intent across that
+  // unmount/mount so the summary focuses its heading ONLY when collapse follows a
+  // real selection — never on a cold page load with a pre-selected connection.
+  const justPickedRef = useRef(false);
 
   const Field = (key: keyof ConnForm, label: string, placeholder: string, type = "text") => (
     <div>
@@ -822,29 +1342,122 @@ function StepConnect({
         </div>
       )}
 
-      {/* ── 01 · Snowflake credentials ──────────────────────────────────── */}
-      <section>
-        <div style={sectionLabelStyle}>01 · Snowflake credentials</div>
-        <div style={fieldStyle}>{Field("name", "Connection name", "e.g. prod-analytics")}</div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("account", "Account", "xy12345.us-east-1")}
-          {Field("user", "User", "SIDIRA_READER")}
+      {/* ── 00 · Saved connections — a register, not a gallery (#304/#327) ───
+          The customer's persisted feature stores. Selecting one reuses it by
+          id — the server holds the encrypted password, so test/preview/build
+          all run against the stored credential with NO password re-entry.
+
+          #327 redesign: this reads like a register you scan (dense paper rows,
+          0.75px hairline rules, mono metadata, radius ≤4, a single ink-hairline
+          selected state), and each row carries a canonical IDENTITY line
+          (name · DB.SCHEMA · WAREHOUSE · ROLE) plus a mono subline
+          (account · user · id-8hex) so near-identical rows are tellable apart.
+          Duplicate names get a stable `NN` designator. Each row also carries a
+          quiet delete affordance (an ink-hairline text button — no red fill, no
+          trash icon, no emoji — §10) gated behind an inline honest-text confirm.
+
+          The section only renders when there's something to offer (or while the
+          first read is in flight); an empty list or a failed fetch falls
+          straight through to the form below — no empty-state clutter, never a
+          blocked wizard (§8.6 honest text, no spinners). When a saved row is
+          SELECTED, the picker hides and a compact summary takes over (collapse-
+          on-select) — see below. */}
+      {connsPhase === "loading" && (
+        <div style={{ ...statusLineStyle, color: TOKENS.inkMuted, marginBottom: 4 }}>
+          LOADING SAVED CONNECTIONS…
         </div>
-        <div style={fieldStyle}>{Field("password", "Password", "••••••••", "password")}</div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("warehouse", "Warehouse", "COMPUTE_WH")}
-          {Field("role", "Role", "SIDIRA_RO")}
-        </div>
-        <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-          {Field("database", "Database", "ANALYTICS")}
-          {Field("schema", "Schema (optional)", "PUBLIC")}
-        </div>
-        <div style={hintStyle}>
-          A read-only role on a non-production warehouse is plenty — the builder
-          only profiles and samples. The password is sent once to test and store
-          the connection; it is never echoed back.
-        </div>
-      </section>
+      )}
+
+      {/* Collapse-on-select: a compact "Using saved connection" record instead
+          of the full prefilled form. Keeps the wizard from showing a credential
+          form under a selected row (which is what made the picker unreadable). */}
+      {collapsed && selectedConn && (
+        <SavedConnectionSummary
+          conn={selectedConn}
+          designator={dupDesignators[selectedConn.id] ?? ""}
+          // Focus the summary heading on mount ONLY when this collapse followed a
+          // picker selection (consume the one-shot ref so a later re-render or a
+          // cold load never re-grabs focus).
+          focusOnMount={justPickedRef.current}
+          onFocusConsumed={() => {
+            justPickedRef.current = false;
+          }}
+          onUseDifferent={onNewConnection}
+          onEditAsNew={onEditAsNew}
+        />
+      )}
+
+      {/* The picker — shown only when NOT collapsed (i.e. while creating or
+          editing a connection). A selected row collapses into the summary above
+          instead of living here.
+
+          #332: at REST this renders ONE control — a `Choose a saved connection
+          (N) ▾` trigger — NOT the whole register. With 6, 20, or 40 saved rows
+          the inline ledger dominated the Connect step; a connection picker is
+          management surface, not the step's primary content. The register rows
+          (canonical identity · health line · per-row TEST · DELETE) all still
+          exist — they move INTO a custom popover the trigger opens, capped to a
+          few rows with internal scroll, sorted most-recently-tested-first, and
+          fronted by a substring filter. Selecting a row collapses to the #327
+          summary exactly as before. We use a CUSTOM combobox, not a native
+          <select>, because a native option can carry none of that — no two-line
+          identity, no status line, no per-row Test/Delete, no on-brand paper
+          styling (§10 also bans the native-select chrome here). */}
+      {!collapsed && connsPhase === "ready" && savedConns.length > 0 && (
+        <ConnectionPicker
+          conns={savedConns}
+          dupDesignators={dupDesignators}
+          selectedConnId={selectedConnId}
+          confirmDeleteId={confirmDeleteId}
+          deletingId={deletingId}
+          deleteError={deleteError}
+          testingRowId={testingRowId}
+          rowTestError={rowTestError}
+          onSelectSaved={(c) => {
+            // Mark that the next collapse came from a picker selection, so the
+            // summary rescues keyboard focus (codex P2). Consumed in the summary.
+            justPickedRef.current = true;
+            onSelectSaved(c);
+          }}
+          onTestRow={onTestRow}
+          onRequestDelete={onRequestDelete}
+          onCancelDelete={onCancelDelete}
+          onConfirmDelete={onConfirmDelete}
+          onNewConnection={onNewConnection}
+        />
+      )}
+
+      {/* ── 01 · Snowflake credentials ──────────────────────────────────────
+          The full credential form renders ONLY when NOT collapsed — i.e. when
+          creating a new connection or editing as new. Under a selected saved row
+          the SavedConnectionSummary above stands in its place (#327). */}
+      {!collapsed && (
+        <section style={connsPhase === "ready" && savedConns.length > 0 ? sectionStyle : undefined}>
+          <div style={sectionLabelStyle}>01 · Snowflake credentials</div>
+          <div style={fieldStyle}>{Field("name", "Connection name", "e.g. prod-analytics")}</div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("account", "Account", "xy12345.us-east-1")}
+            {Field("user", "User", "SIDIRA_READER")}
+          </div>
+          <div style={fieldStyle}>
+            {Field("password", "Password", "••••••••", "password")}
+          </div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("warehouse", "Warehouse", "COMPUTE_WH")}
+            {Field("role", "Role", "SIDIRA_RO")}
+          </div>
+          <div style={{ ...fieldStyle, ...fieldRowStyle }}>
+            {Field("database", "Database", "ANALYTICS")}
+            {Field("schema", "Schema (optional)", "PUBLIC")}
+          </div>
+          <div style={hintStyle}>
+            A read-only role on a non-production warehouse is plenty — the builder
+            only profiles and samples. The password is sent once to test and store
+            the connection; it is never echoed back. Connection names are unique
+            per workspace — reuse the saved one above rather than re-creating it.
+          </div>
+        </section>
+      )}
 
       {/* ── 02 · Source ─────────────────────────────────────────────────── */}
       <section style={sectionStyle}>
@@ -936,6 +1549,718 @@ function StepConnect({
         </div>
       </section>
     </div>
+  );
+}
+
+// ── connection picker — custom searchable combobox (#332) ───────────────────
+// At REST this renders ONE control: a `Choose a saved connection (N) ▾` trigger.
+// Zero register rows are visible whether the customer has 4 or 40 connections —
+// a picker is management surface, not the Connect step's primary content. The
+// trigger opens a CUSTOM popover (never a native <select>: a native option can
+// carry none of the two-line canonical identity, the health line, or the per-row
+// TEST/DELETE affordances, and can't be styled on paper — DESIGN.md §10). The
+// popover is a labelled non-modal dialog holding the existing SavedConnectionRow
+// rows, now height-capped with internal scroll (~4 rows), sorted
+// most-recently-tested first, and fronted by a substring filter for the
+// 20-connection case.
+//
+// a11y model: the trigger is a real <button> with aria-haspopup="dialog" /
+// aria-expanded. Enter/Space/ArrowDown open it; on open focus lands on the
+// filter input. We deliberately do NOT use role="listbox"/role="option" — each
+// row carries its own Test/Delete buttons and can morph into a confirm
+// alertdialog, which a strict listbox may not contain (codex). Instead the panel
+// is role="dialog", the row list is role="group", and the selected row carries
+// aria-current. ArrowUp/ArrowDown still move focus through the FILTERED rows
+// (each row's select button takes a roving tabindex); Enter on a focused row
+// selects it (the row's own onClick); typing in the filter narrows. A
+// panel-level onKeyDown makes Esc close from ANY focused control inside the
+// popover, returning focus to the trigger; an outside click closes without
+// returning focus. Selecting a row collapses the picker (unmounting the
+// trigger), so focus is handed to the collapsed summary instead. Focus-visible
+// rides the browser default ink outline — never color-coded state (§4.3). The
+// caret is a text ▾, not an imported icon.
+function ConnectionPicker({
+  conns,
+  dupDesignators,
+  selectedConnId,
+  confirmDeleteId,
+  deletingId,
+  deleteError,
+  testingRowId,
+  rowTestError,
+  onSelectSaved,
+  onTestRow,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+  onNewConnection,
+}: {
+  conns: ConnectionSummary[];
+  dupDesignators: Record<string, string>;
+  selectedConnId: string | null;
+  confirmDeleteId: string | null;
+  deletingId: string | null;
+  deleteError: { id: string; message: string } | null;
+  testingRowId: string | null;
+  rowTestError: { id: string; message: string } | null;
+  onSelectSaved: (c: ConnectionSummary) => void;
+  onTestRow: (id: string) => void;
+  onRequestDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: (id: string) => void;
+  onNewConnection: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  // The option whose select button currently holds (or should hold) DOM focus —
+  // the index into the FILTERED list. Roving tabindex follows it; Arrow keys move
+  // it. -1 means focus is on the filter input (the open default), not a row.
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const filterRef = useRef<HTMLInputElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // One ref slot per FILTERED option, rebuilt each render so Arrow-key focus
+  // always targets the row actually on screen (filtering reshuffles the list).
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Sort once (MRU), then filter — both are display-only and never mutate the
+  // source list (which still feeds duplicateDesignators in its own order).
+  const sorted = useMemo(() => sortConnsForPicker(conns), [conns]);
+  const filtered = useMemo(
+    () => sorted.filter((c) => connMatchesFilter(c, filter)),
+    [sorted, filter],
+  );
+  optionRefs.current = [];
+
+  // The trigger's standing label: the SELECTED connection's identity when one is
+  // pinned (so the rest-state control still says which is in use), else the count
+  // prompt. N is the total saved count, not the filtered count — the trigger is a
+  // rest-state control, it shouldn't flicker as the (closed) filter changes.
+  const selectedConn = selectedConnId ? conns.find((c) => c.id === selectedConnId) ?? null : null;
+  const triggerLabel = selectedConn
+    ? `${selectedConn.name}${dupDesignators[selectedConn.id] ?? ""} · ${conns.length} saved`
+    : `Choose a saved connection (${conns.length})`;
+
+  // Close + return focus to the trigger (the keyboard-correct close: Esc, or
+  // selecting a row, should land the user back on the control they opened).
+  const closeAndRefocus = useCallback(() => {
+    setOpen(false);
+    setActiveIndex(-1);
+    triggerRef.current?.focus();
+  }, []);
+
+  // Open and, on the next frame, focus the filter input (the typing-first
+  // default; Arrow keys then step into the rows).
+  const openPanel = useCallback(() => {
+    setOpen(true);
+    setActiveIndex(-1);
+    requestAnimationFrame(() => filterRef.current?.focus());
+  }, []);
+
+  // Outside-click closes WITHOUT returning focus (the user clicked elsewhere on
+  // purpose — yanking focus back to the trigger would be surprising).
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointer = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setOpen(false);
+      setActiveIndex(-1);
+    };
+    document.addEventListener("mousedown", onDocPointer);
+    return () => document.removeEventListener("mousedown", onDocPointer);
+  }, [open]);
+
+  // Whenever the active option index changes (Arrow nav), pull DOM focus to that
+  // row's select button so the roving tabindex and real focus stay in lockstep.
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    optionRefs.current[activeIndex]?.focus();
+  }, [open, activeIndex, filtered.length]);
+
+  // If the filter narrows the list below the active index (or to empty), pull the
+  // active index back into range so Arrow nav never points at a vanished row.
+  useEffect(() => {
+    if (activeIndex >= filtered.length) setActiveIndex(filtered.length > 0 ? filtered.length - 1 : -1);
+  }, [filtered.length, activeIndex]);
+
+  const moveActive = (delta: number) => {
+    if (filtered.length === 0) return;
+    setActiveIndex((i) => {
+      const start = i < 0 ? (delta > 0 ? 0 : filtered.length - 1) : i + delta;
+      return Math.max(0, Math.min(filtered.length - 1, start));
+    });
+  };
+
+  // Keydown on the TRIGGER: Enter/Space/Down open (Down lands focus on filter).
+  const onTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPanel();
+    }
+  };
+
+  // Panel-level Esc — fires regardless of which inner control holds focus
+  // (filter input, an option row, or a row's Test/Delete/confirm button), so Esc
+  // always closes the popover and returns focus to the trigger (codex P2). Bound
+  // on the panel container, which sees the bubbled keydown from any child.
+  const onPanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeAndRefocus();
+    }
+  };
+
+  // Keydown on the FILTER input: Down steps into the first row; typing falls
+  // through to narrow. Up from the filter is a no-op (already top). Esc is
+  // handled at the panel level above.
+  const onFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActive(1);
+    }
+  };
+
+  // Keydown on a row's select button: Arrow nav; Enter selects (handled by the
+  // button's own onClick, so we let it fall through); Up from the first row
+  // returns to the filter input. Esc is handled at the panel level above.
+  const onOptionKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveActive(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (activeIndex <= 0) {
+        setActiveIndex(-1);
+        filterRef.current?.focus();
+      } else {
+        moveActive(-1);
+      }
+    }
+    // Enter/Space: the native <button> fires its onClick (handleSelectSaved →
+    // collapse), so we don't intercept them here. Esc bubbles to onPanelKeyDown.
+  };
+
+  const panelId = "saved-connection-panel";
+  const listId = "saved-connection-list";
+
+  return (
+    <section style={{ marginBottom: 4 }}>
+      <div style={sectionLabelStyle}>Saved connections</div>
+      <div style={hintStyle}>
+        Reuse a connection you&apos;ve already saved — no need to re-enter its
+        password. Pick one, then test and continue. Or enter a different
+        connection below.
+      </div>
+
+      <div style={{ ...fieldStyle, position: "relative" }}>
+        {/* The rest-state control — ONE button, no rows. ▾ is a text glyph, not
+            an imported icon (§10). */}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => (open ? closeAndRefocus() : openPanel())}
+          onKeyDown={onTriggerKeyDown}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
+          style={{
+            ...secondaryBtnStyle,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            textAlign: "left",
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {triggerLabel}
+          </span>
+          <span aria-hidden="true" style={{ fontFamily: FONT_MONO, fontSize: 11, color: TOKENS.inkMuted }}>
+            {open ? "▴" : "▾"}
+          </span>
+        </button>
+
+        {open && (
+          <div
+            ref={panelRef}
+            id={panelId}
+            role="dialog"
+            aria-label="Saved connections"
+            onKeyDown={onPanelKeyDown}
+            style={{
+              marginTop: 6,
+              border: `0.75px solid ${TOKENS.rule}`,
+              borderRadius: 4,
+              background: TOKENS.paperElevated,
+              overflow: "hidden",
+            }}
+          >
+            {/* Filter — always present (cheap), the part the 20-connection case
+                needs. Plain mono input; narrows by name/account/db/role. */}
+            <div style={{ padding: 8, borderBottom: `0.75px solid ${TOKENS.rule}` }}>
+              <label htmlFor="conn-filter" style={{ ...sublabelStyle, marginBottom: 4 }}>
+                Filter connections
+              </label>
+              <input
+                id="conn-filter"
+                ref={filterRef}
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                onKeyDown={onFilterKeyDown}
+                placeholder="name · account · database · role"
+                autoComplete="off"
+                aria-controls={listId}
+                style={monoInputStyle}
+              />
+            </div>
+
+            {/* The register, relocated into the popover: height-capped to ~4
+                rows with internal scroll so it never grows unbounded. A plain
+                grouped list of row buttons (NOT role="listbox" — the rows carry
+                their own Test/Delete actions and can become a confirm dialog,
+                which a strict listbox may not contain; codex P2). */}
+            <div
+              id={listId}
+              role="group"
+              aria-label="Saved connections"
+              style={{ maxHeight: 268, overflowY: "auto" }}
+            >
+              {filtered.length === 0 ? (
+                <div style={{ ...railCaptionStyle, padding: "12px", textTransform: "uppercase" }}>
+                  No connections match
+                </div>
+              ) : (
+                filtered.map((c, i) => (
+                  <SavedConnectionRow
+                    key={c.id}
+                    conn={c}
+                    designator={dupDesignators[c.id] ?? ""}
+                    selected={c.id === selectedConnId}
+                    confirmingDelete={confirmDeleteId === c.id}
+                    deleting={deletingId === c.id}
+                    deleteError={deleteError && deleteError.id === c.id ? deleteError.message : null}
+                    testing={testingRowId === c.id}
+                    testError={rowTestError && rowTestError.id === c.id ? rowTestError.message : null}
+                    onSelect={() => {
+                      // Select collapses the whole picker into the #327 "Using
+                      // saved connection" summary, which UNMOUNTS this trigger —
+                      // so we must NOT refocus it (that would land focus on a
+                      // detached node / fall to <body>; codex P3). Just close;
+                      // collapse swaps in the summary section in its place.
+                      setOpen(false);
+                      setActiveIndex(-1);
+                      onSelectSaved(c);
+                    }}
+                    onTest={() => onTestRow(c.id)}
+                    onRequestDelete={() => onRequestDelete(c.id)}
+                    onCancelDelete={onCancelDelete}
+                    onConfirmDelete={() => onConfirmDelete(c.id)}
+                    optionTabIndex={activeIndex === i ? 0 : -1}
+                    optionRef={(el) => {
+                      optionRefs.current[i] = el;
+                    }}
+                    onOptionKeyDown={onOptionKeyDown}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...fieldStyle }}>
+        <button type="button" onClick={onNewConnection} style={secondaryBtnStyle}>
+          + Enter a different connection
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// ── one register row (#327) ─────────────────────────────────────────────────
+// A dense ~2-line paper row: the canonical identity line, then a mono subline,
+// with a quiet delete affordance. Selection rides a single ink hairline (the
+// recessed-paper fill + ink left edge) — no color-coded background. The whole
+// row is a real <button> (keyboard-reachable, §7.8); the delete affordance is a
+// sibling text button (not nested — a button can't contain a button). Deleting
+// opens an INLINE honest-text confirm in place of the row body (§7.7/§10): no
+// browser confirm(), no modal, no red fill, no icon.
+function SavedConnectionRow({
+  conn,
+  designator,
+  selected,
+  confirmingDelete,
+  deleting,
+  deleteError,
+  testing,
+  testError,
+  onSelect,
+  onTest,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
+  // #332 listbox-option wiring (optional — only set when the row lives inside
+  // the ConnectionPicker popover). `optionTabIndex` carries roving tabindex (the
+  // active option is 0, the rest -1); `optionRef` lets the picker move DOM focus
+  // through the filtered rows on Arrow keys; `onOptionKeyDown` routes those keys.
+  optionTabIndex,
+  optionRef,
+  onOptionKeyDown,
+}: {
+  conn: ConnectionSummary;
+  designator: string;
+  selected: boolean;
+  confirmingDelete: boolean;
+  deleting: boolean;
+  deleteError: string | null;
+  testing: boolean;
+  testError: string | null;
+  onSelect: () => void;
+  onTest: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+  optionTabIndex?: number;
+  optionRef?: (el: HTMLButtonElement | null) => void;
+  onOptionKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+}) {
+  // Quiet row action — mono designator button at hairline weight (§7.7). Used
+  // for both the Delete trigger and the confirm/cancel pair so the affordance
+  // language stays consistent.
+  const rowActionStyle: React.CSSProperties = {
+    background: "transparent",
+    border: `0.75px solid ${TOKENS.rule}`,
+    borderRadius: 2,
+    padding: "2px 8px",
+    fontFamily: FONT_MONO,
+    fontSize: 10,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: TOKENS.inkMuted,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const identity = connectionIdentity(conn);
+  const subline = connectionSubline(conn);
+  // Last-known health in words (#328) — never a dot or colored fill (§4.3/§10).
+  // While a per-row test is in flight we say so honestly (§8.6: no spinners).
+  const healthLine = testing ? "TESTING…" : connectionHealthLine(conn);
+
+  // Keyboard focus handoff for the inline delete confirm (#332/codex P2).
+  // Opening the confirm REPLACES the focused Delete button with the alertdialog,
+  // which would drop focus to <body> — especially jarring inside the otherwise
+  // keyboard-managed picker popover. So we focus Cancel when the confirm mounts.
+  // When the confirm CLOSES without unmounting the row — i.e. the user cancelled
+  // — we return focus to the row's Delete button. The other two outcomes need no
+  // restore: a successful delete unmounts the whole row (nothing to return to),
+  // and a delete ERROR keeps confirmingDelete true (the dialog stays open showing
+  // COULD NOT DELETE · …, with focus still on Cancel) — so this effect only fires
+  // on the cancel transition, which is exactly right. Runs on each transition.
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement | null>(null);
+  const wasConfirming = useRef(false);
+  useEffect(() => {
+    if (confirmingDelete) {
+      cancelRef.current?.focus();
+    } else if (wasConfirming.current) {
+      // Confirm closed without unmounting the row → the user cancelled; restore
+      // focus to the Delete affordance they came from.
+      deleteBtnRef.current?.focus();
+    }
+    wasConfirming.current = confirmingDelete;
+  }, [confirmingDelete]);
+
+  // The inline confirm replaces the row's clickable body so a mis-click can't
+  // select-and-delete in one motion. Honest text states the exact scope (§7.7).
+  if (confirmingDelete) {
+    return (
+      <div
+        style={{
+          borderBottom: `0.75px solid ${TOKENS.rule}`,
+          // alert as a border designator only — the words carry the meaning (§4.3).
+          ...railAlertStyle,
+          borderTopWidth: 0,
+          borderLeftWidth: 0,
+          borderRightWidth: 0,
+          borderRadius: 0,
+        }}
+        role="alertdialog"
+        aria-label={`Confirm delete ${conn.name}`}
+      >
+        <div style={{ fontSize: 13, color: TOKENS.ink, lineHeight: 1.45 }}>
+          Delete saved connection <strong>{conn.name}</strong>
+          {designator ? <span style={railCaptionStyle}>{designator.trim()}</span> : null}? Existing
+          persona builds keep their records; future builds can&apos;t use this credential.
+        </div>
+        {deleteError && (
+          <div style={{ ...railCaptionStyle, marginTop: 6, color: TOKENS.ink }}>
+            COULD NOT DELETE · {deleteError.toUpperCase()}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button
+            ref={cancelRef}
+            type="button"
+            onClick={onCancelDelete}
+            disabled={deleting}
+            style={rowActionStyle}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmDelete}
+            disabled={deleting}
+            style={{
+              ...rowActionStyle,
+              color: TOKENS.ink,
+              borderColor: TOKENS.ink,
+              opacity: deleting ? 0.5 : 1,
+              cursor: deleting ? "not-allowed" : "pointer",
+            }}
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        gap: 10,
+        borderBottom: `0.75px solid ${TOKENS.rule}`,
+        background: selected ? TOKENS.paperRecessed : "transparent",
+        // The single selected-state emphasis: a 2px ink left edge. No color fill,
+        // no border recolor beyond the recessed-paper treatment (§7/#327 fix 4).
+        borderLeft: `2px solid ${selected ? TOKENS.ink : "transparent"}`,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        // In the picker popover this button is the row's primary action inside a
+        // non-modal dialog (NOT an ARIA listbox option — the row also carries
+        // sibling Test/Delete buttons and can morph into a confirm dialog, which
+        // a strict listbox/option may not contain; codex P2). It takes a roving
+        // tabindex so Arrow keys step focus through the rows, and aria-current
+        // marks the pinned connection. Standalone (no optionRef) it stays a plain
+        // pressed toggle, exactly as #327 shipped it.
+        {...(optionRef
+          ? {
+              "aria-current": selected ? ("true" as const) : undefined,
+              tabIndex: optionTabIndex ?? -1,
+              ref: optionRef,
+              onKeyDown: onOptionKeyDown,
+            }
+          : { "aria-pressed": selected })}
+        style={{
+          textAlign: "left",
+          background: "transparent",
+          border: "none",
+          padding: "9px 12px",
+          cursor: "pointer",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: TOKENS.ink }}>
+            {identity}
+            {designator ? <span style={{ color: TOKENS.inkMuted }}>{designator}</span> : null}
+          </span>
+          {selected && <Chip>SELECTED</Chip>}
+        </div>
+        <div
+          style={{
+            ...railCaptionStyle,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {subline}
+        </div>
+        {/* Health line (#328) — honest text in the mono caption rail. The
+            status reads in WORDS (OK · TESTED … / FAILED · AUTH / UNTESTED);
+            meaning never rides on color or a dot (§4.3/§10). */}
+        <div style={{ ...railCaptionStyle, textTransform: "uppercase" }}>{healthLine}</div>
+        {/* Fallback verdict (#328): only shown when a row-test failed but the
+            persisted/refreshed status line didn't pick it up (best-effort
+            persistence or a failed refresh) — so the verdict is never silently
+            lost. Honest text, ink (no color-coded fill). */}
+        {testError && (
+          <div style={{ ...railCaptionStyle, color: TOKENS.ink }}>
+            TEST FAILED · {testError.toUpperCase()}
+          </div>
+        )}
+      </button>
+      {/* Row actions: a quiet in-place TEST (re-runs the connectivity test and
+          refreshes this row's status without selecting it), then Delete. Both
+          are hairline mono text buttons — no fills, no icons (§7.7/§10). */}
+      <div style={{ display: "flex", gap: 6, marginRight: 12 }}>
+        <button
+          type="button"
+          onClick={onTest}
+          disabled={testing}
+          aria-label={`Test saved connection ${conn.name}`}
+          style={{ ...rowActionStyle, opacity: testing ? 0.5 : 1, cursor: testing ? "not-allowed" : "pointer" }}
+        >
+          {testing ? "Testing…" : "Test"}
+        </button>
+        <button
+          ref={deleteBtnRef}
+          type="button"
+          onClick={onRequestDelete}
+          aria-label={`Delete saved connection ${conn.name}`}
+          style={rowActionStyle}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── collapse-on-select summary (#327) ───────────────────────────────────────
+// Replaces the full prefilled credential form when a saved connection is in use.
+// A compact record: the canonical identity, a key/value grid of the connection's
+// fields, and two actions — "Use different connection" (back to the picker /
+// blank form) and "Edit as new" (the full form, prefilled as a NEW mint). The
+// password never appears (it's never returned); reuse needs none.
+function SavedConnectionSummary({
+  conn,
+  designator,
+  focusOnMount,
+  onFocusConsumed,
+  onUseDifferent,
+  onEditAsNew,
+}: {
+  conn: ConnectionSummary;
+  designator: string;
+  focusOnMount?: boolean;
+  onFocusConsumed?: () => void;
+  onUseDifferent: () => void;
+  onEditAsNew: () => void;
+}) {
+  const rows: [string, string][] = [
+    ["Account", conn.account],
+    ["User", conn.user],
+    ["Database", conn.schema ? `${conn.database}.${conn.schema}` : conn.database],
+    ["Warehouse / role", `${conn.warehouse} · ${conn.role}`],
+  ];
+  // Focus landing after a picker selection collapses to this summary (#332/codex
+  // P2): the row button the user clicked unmounts with the picker, so on the
+  // keyboard path focus would fall to <body>. When the parent signals the
+  // collapse came from a picker selection (focusOnMount), we move focus to this
+  // summary's heading (focusable but non-tabbable). We do NOT infer the path from
+  // document.activeElement — it's already <body> by mount, which is exactly the
+  // case we need to rescue — so the explicit flag is the reliable signal; a cold
+  // load with a pre-selected connection passes focusOnMount=false and is left
+  // alone. onFocusConsumed clears the one-shot flag in the parent.
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!focusOnMount) return;
+    headingRef.current?.focus();
+    onFocusConsumed?.();
+    // Run once on mount for the selection that triggered the collapse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <section style={{ marginBottom: 4 }}>
+      <div ref={headingRef} tabIndex={-1} style={{ ...sectionLabelStyle, outline: "none" }}>
+        Using saved connection
+      </div>
+      <div
+        style={{
+          ...fieldStyle,
+          background: TOKENS.paperRecessed,
+          border: `0.75px solid ${TOKENS.rule}`,
+          borderLeft: `2px solid ${TOKENS.ink}`,
+          borderRadius: 4,
+          padding: "12px 14px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: TOKENS.ink }}>
+            {conn.name}
+            {designator ? <span style={{ color: TOKENS.inkMuted }}>{designator}</span> : null}
+          </span>
+          <Chip>{conn.kind.toUpperCase()}</Chip>
+          <Chip>REUSING — NO PASSWORD NEEDED</Chip>
+          {/* Last-known health in words (#328) — a bordered mono chip, not a
+              colored dot (§4.3/§10). Re-test from the 03 · Test step below. */}
+          <Chip>{connectionHealthLine(conn)}</Chip>
+        </div>
+        <dl
+          style={{
+            margin: 0,
+            marginTop: 10,
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: "4px 16px",
+          }}
+        >
+          {rows.map(([dt, dd]) => (
+            <div key={dt} style={{ display: "contents" }}>
+              <dt
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: TOKENS.inkMuted,
+                }}
+              >
+                {dt}
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontFamily: FONT_MONO,
+                  fontSize: 12,
+                  color: TOKENS.ink,
+                  overflowWrap: "break-word",
+                  ...TNUM,
+                }}
+              >
+                {dd}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div style={{ ...fieldStyle, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" onClick={onUseDifferent} style={secondaryBtnStyle}>
+          Use different connection
+        </button>
+        <button type="button" onClick={onEditAsNew} style={secondaryBtnStyle}>
+          Edit as new
+        </button>
+      </div>
+      <div style={hintStyle}>
+        Reusing this connection — its password stays on the server, so just test
+        and continue. &ldquo;Edit as new&rdquo; opens a fresh form prefilled from these
+        values to mint a separate connection (a new password, a new name).
+      </div>
+    </section>
   );
 }
 

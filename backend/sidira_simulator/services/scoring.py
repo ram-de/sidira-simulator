@@ -78,6 +78,7 @@ class AgentReaction:
         "metric_p",
         "metric_unblinded",
         "metric_paraphrase_unstable",
+        "behavioral_seeds_fallback",
     )
 
     def __init__(
@@ -93,6 +94,7 @@ class AgentReaction:
         metric_p: float | None = None,
         metric_unblinded: bool = False,
         metric_paraphrase_unstable: bool = False,
+        behavioral_seeds_fallback: bool = False,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -116,6 +118,12 @@ class AgentReaction:
         # EITHER arm; any such contributor in a usable pair makes the run's metric
         # lift low-confidence (the pair's delta is wording-driven).
         self.metric_paraphrase_unstable = metric_paraphrase_unstable
+        # Variance-collapse honesty flag: True when this agent's persona lacked
+        # per-persona v1.1 behavioral_seeds, so `draw_identity_seed` fell back to
+        # the shared default seed (cross-agent variance degraded). Set on EITHER
+        # arm; any such contributor makes the run's blinded metric a
+        # variance-collapse candidate (`aggregate_metric_lift` → `variance_collapsed`).
+        self.behavioral_seeds_fallback = behavioral_seeds_fallback
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -528,8 +536,100 @@ class ScoringService:
                     "metric_lift_unblinded_fallback": lift.unblinded_fallback,
                     "metric_lift_paraphrase_unstable": lift.paraphrase_unstable,
                     "metric_lift_calibrated": lift.calibrated,
+                    "metric_lift_variance_collapsed": lift.variance_collapsed,
+                    "metric_lift_variance_collapsed_persona_count": (
+                        lift.variance_collapsed_persona_count
+                    ),
+                    "metric_lift_underpowered": lift.underpowered,
                 }
             )
+
+            # ── Metric↔sentiment disagreement guardrail (#321) ──
+            # Validated finding: uncalibrated blinded retention can give the WRONG
+            # SIGN on a harm — a change read +2.0pp (separable, positive) while
+            # sentiment was strongly negative. When the metric and sentiment lifts
+            # are BOTH separable (CI excludes zero) and point in OPPOSITE
+            # directions, surface the contradiction. This is purely additive: it
+            # does NOT touch `confidence_score` (sentiment is the trusted harm
+            # signal pre-#222), `lift`, or `metric_lift_pp`. The note `lift` here
+            # is the METRIC lift (reassigned above); the sentiment lift + CI ride
+            # on `composed.lift` / `composed.lift_ci` (set from `aggregate_ab`).
+            #
+            # Separability gate is CI-excludes-zero, NOT a pp magnitude threshold,
+            # so a small-but-separable +2.0pp metric vs negative sentiment is
+            # correctly caught (the exact failure mode #222 will calibrate).
+            #
+            # NOTE (codex P2): the metric lift and the sentiment lift are each a
+            # paired statistic over the SAME `(persona_id, sample_index)` key, but
+            # they may drop different members (a metric drops on `metric_p is None`;
+            # sentiment drops on a failed classification). We deliberately compare
+            # the two ARM-LEVEL read-outs — the metric verdict vs the sentiment
+            # verdict — rather than gating on the per-identity intersection, because
+            # that IS the validated finding's framing (the metric greenlit a change
+            # the sentiment read flagged as harm). Both reads being separable over
+            # their own usable pairs is a stronger, not weaker, signal; the wording
+            # says "across the paired arms", never that a single identity carries
+            # both signals.
+            metric_ci_pp = composed.metric_lift_ci_pp
+            sentiment_ci = composed.lift_ci
+            metric_positive_separable = metric_ci_pp is not None and metric_ci_pp[0] > 0
+            metric_negative_separable = metric_ci_pp is not None and metric_ci_pp[1] < 0
+            sentiment_positive_separable = sentiment_ci is not None and sentiment_ci[0] > 0
+            sentiment_negative_separable = sentiment_ci is not None and sentiment_ci[1] < 0
+
+            harm_misread = metric_positive_separable and sentiment_negative_separable
+            hidden_improvement = metric_negative_separable and sentiment_positive_separable
+            disagreement = harm_misread or hidden_improvement
+
+            if disagreement:
+                metric_pp = composed.metric_lift_pp
+                sentiment_lift = composed.lift
+                if harm_misread:
+                    caveat = (
+                        f"Metric↔sentiment DISAGREEMENT (harm-misread): the "
+                        f"{hypothesis.metric_name} metric reads {metric_pp:+.1f}pp "
+                        f"(CI [{metric_ci_pp[0]:+.1f}, {metric_ci_pp[1]:+.1f}]pp), "
+                        f"positive and separable — it would greenlight this change — "
+                        f"while sentiment is {sentiment_lift:+.1f} "
+                        f"(CI [{sentiment_ci[0]:+.1f}, {sentiment_ci[1]:+.1f}]), "
+                        f"negative and separable. This can indicate real user harm "
+                        f"the uncalibrated metric misses. Trust sentiment for harm "
+                        f"until the metric is calibrated (#222)."
+                    )
+                else:  # hidden_improvement
+                    caveat = (
+                        f"Metric↔sentiment DISAGREEMENT (hidden-improvement): the "
+                        f"{hypothesis.metric_name} metric reads {metric_pp:+.1f}pp "
+                        f"(CI [{metric_ci_pp[0]:+.1f}, {metric_ci_pp[1]:+.1f}]pp), "
+                        f"negative and separable, while sentiment is "
+                        f"{sentiment_lift:+.1f} "
+                        f"(CI [{sentiment_ci[0]:+.1f}, {sentiment_ci[1]:+.1f}]), "
+                        f"positive and separable — users react well. The "
+                        f"uncalibrated metric may understate a real win; read the "
+                        f"two together until the metric is calibrated (#222)."
+                    )
+                update: dict[str, object] = {
+                    "metric_sentiment_disagreement": True,
+                    "metric_sentiment_disagreement_caveat": caveat,
+                }
+                # HARM-MISREAD only: append a guardrail weakness so the PM sees the
+                # contradiction in the weaknesses list, not just the caveat string.
+                # Hidden-improvement is not a risk, so it gets no weakness.
+                if harm_misread:
+                    update["weaknesses"] = composed.weaknesses + [
+                        Weakness(
+                            category="hidden_guardrail_risk",
+                            summary=(
+                                f"The {hypothesis.metric_name} metric is positive and "
+                                f"separable ({metric_pp:+.1f}pp), but sentiment is "
+                                f"negative and separable ({sentiment_lift:+.1f}) across "
+                                f"the paired arms — the metric would greenlight a change "
+                                f"users dislike. Pre-calibration (#222), trust sentiment "
+                                f"for harm: do not ship on the metric alone."
+                            ),
+                        )
+                    ]
+                composed = composed.model_copy(update=update)
         return composed, list(analyses)
 
     # — Pack-level scoring ——————————————————————————————————————————
@@ -1185,6 +1285,13 @@ RETENTION_REGIME_WEAK = "weak_behavioral"
 # applies to CTR exactly as it does to conversion/retention — a stronger regime
 # does not mean a fitted effect size (#276).
 CTR_REGIME_STRONG = "strong_behavioral"
+# §5 / #222 (Hillstrom): VISIT is the site-visit sibling of CTR — a binary
+# "came to the site in the window after the touchpoint" event. Like CTR it is a
+# STRONG behavioral signal (a stated intent-to-visit tracks the real visit far
+# better than the conversion/retention modality cliff), so it shares the strong
+# regime label. Its magnitude is still uncalibrated pre-#222, so the uncalibrated
+# caveat (gated on `calibrated`) applies to VISIT exactly as to CTR.
+VISIT_REGIME_STRONG = "strong_behavioral"
 
 
 def metric_lift_honesty(
@@ -1262,12 +1369,50 @@ def metric_lift_honesty(
             f" NOTE: at least one identity's {propensity_noun} moved materially "
             "under paraphrase (wording-driven), so this direction is low-confidence."
         )
+    if lift_result.variance_collapsed:
+        # Variance collapse: one or more personas lacked per-persona v1.1
+        # behavioral seeds, so their identity seeds fell back to a shared default
+        # and cross-persona variance degraded. A flat / non-separable metric here
+        # may be an artifact of collapsed agent variance, not a true null. Append
+        # unconditionally on the flag — it is a property of the inputs (matches the
+        # unblinded note's style), independent of the observed direction.
+        relative += (
+            " NOTE: one or more personas in this run lack per-persona behavioral "
+            "seeds (a v1.0-class pack), so cross-persona variance is degraded — a "
+            "flat or non-separable metric here may reflect collapsed agent variance "
+            "rather than a true null effect. Rebuild the pack to v1.1 to "
+            "de-attenuate."
+        )
+    if lift_result.underpowered:
+        # Underpowered: the metric WAS computed but on a paired sample below the
+        # floor, and the CI is non-separable (the flag already implies that). The
+        # straddle is INCONCLUSIVE, not a null — the panel cannot detect an effect
+        # of plausible size at this n. Append unconditionally on the flag, matching
+        # the unblinded note's style.
+        relative += (
+            f" NOTE: only {lift_result.paired_n} paired identities — below the "
+            f"~{_MIN_PAIRED_N_FOR_METRIC} needed for the paired bootstrap to "
+            "separate a moderate effect, so this non-separable result is "
+            "INCONCLUSIVE (the panel cannot detect an effect of plausible size), "
+            "NOT evidence of no effect. Increase agents per arm to power the "
+            "comparison."
+        )
     return regime_label, relative
 
 
 def conversion_lift_honesty(lift_result: MetricLiftResult) -> tuple[str, str | None]:
     """Back-compat: the conversion metric's honesty hook (#275 → metric_lift_honesty)."""
     return metric_lift_honesty(lift_result)
+
+
+# Paired-sample floor below which a non-separable blinded metric lift is treated
+# as INCONCLUSIVE (underpowered), not a null. A paired bootstrap on a weak
+# behavioral metric (the §5 modality cliff) needs roughly 30+ paired identities
+# to separate a moderate effect; below that the CI is wide by construction, so a
+# straddle-zero interval means "the panel was too small to detect an effect of
+# plausible size", NOT "no effect". Tunable; only governs the `underpowered`
+# honesty flag — it changes no numeric output.
+_MIN_PAIRED_N_FOR_METRIC = 30
 
 
 def aggregate_metric_lift(
@@ -1314,6 +1459,17 @@ def aggregate_metric_lift(
     control_keys = set(control_by_key)
     matched_keys = treatment_keys & control_keys
 
+    # Variance-collapse: a persona lacking v1.1 behavioral_seeds falls back to the
+    # shared default identity seed, degrading cross-agent variance — which afflicts
+    # BOTH arms (the same persona is materialized on each side), so check both. The
+    # distinct-persona count is a cheap diagnostic: collect the persona_ids that
+    # carried the fallback bit on either arm and dedupe.
+    collapsed_persona_ids = {
+        r.persona_id
+        for r in (*treatment_reactions, *control_reactions)
+        if r.behavioral_seeds_fallback
+    }
+
     result = MetricLiftResult(
         unpaired_treatment=len(treatment_keys - control_keys),
         unpaired_control=len(control_keys - treatment_keys),
@@ -1321,6 +1477,8 @@ def aggregate_metric_lift(
         # taints the whole run's lift as low-confidence (control is always
         # blinded, so only the treatment side carries the flag).
         unblinded_fallback=any(r.metric_unblinded for r in treatment_reactions),
+        variance_collapsed=bool(collapsed_persona_ids),
+        variance_collapsed_persona_count=len(collapsed_persona_ids),
     )
 
     # Sort matched keys for deterministic resample ordering (same rationale as
@@ -1382,6 +1540,20 @@ def aggregate_metric_lift(
                 min(ci_low_r, result.lift_pp),
                 max(ci_high_r, result.lift_pp),
             )
+
+    # Underpowered (n, orthogonal to variance collapse's seeds): only the
+    # inconclusive small-n straddle. ALL must hold — `lift_pp` IS computed (None
+    # leaves nothing to qualify), `paired_n` is below the floor, and the CI is
+    # NON-separable (absent, or brackets zero). If the CI excludes zero even at
+    # small n the run DID detect the effect, so it is NOT underpowered. Read off
+    # the finalized point/CI/n above; surfaced by `metric_lift_honesty`, changes
+    # no numeric output.
+    ci = result.lift_ci_pp
+    result.underpowered = (
+        result.lift_pp is not None
+        and result.paired_n < _MIN_PAIRED_N_FOR_METRIC
+        and (ci is None or (ci[0] <= 0 <= ci[1]))
+    )
 
     # #221 shrinkage seam: route the raw lift through the calibrator. Identity
     # default → byte-identical magnitude, `calibrated` stays False.
@@ -1448,5 +1620,27 @@ def aggregate_ctr_lift(
         config,
         run_seed=run_seed,
         metric_name="ctr",
+        calibrator=calibrator,
+    )
+
+
+def aggregate_visit_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    control_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """Paired VISIT-lift (#222 Hillstrom). Thin wrapper over `aggregate_metric_lift`
+    pinning `metric_name="visit"` — the site-visit propensity `p_metric` is the
+    share allocated to the "visit" action, so the paired delta is the site-visit-
+    rate lift in percentage points."""
+    return aggregate_metric_lift(
+        treatment_reactions,
+        control_reactions,
+        config,
+        run_seed=run_seed,
+        metric_name="visit",
         calibrator=calibrator,
     )

@@ -1,0 +1,149 @@
+{
+ "product": {
+  "r3_score": 73,
+  "r3_verdict": "Disciplined, genuinely quiet WORKING-class page with one strong idea (the diff-rendered symmetry compare), but a P8 candor break (inferred arm means printed bare) plus a contradictory looping live-dot keep it strong-shippable, not elite.",
+  "r3_issues": [
+   "P8 break (caps at 85): `CTRL 0.59 \u00b7 TREAT 0.66` (line 479) are inferred per-arm reaction means sitting in the BARE provenance bar with n=240 \u2014 an inferred-about-people estimate printed bare is a hard fail. Give them \u00b1 and a \u25c7, or move them out of the recorded-facts strip into the stamped figure.",
+   "Topbar live dot loops `.breath` forever (lines 75-77, 363) and pairs with a `--signal-dim` active-tab underline \u2014 two signal-family carriers in one region, AND a perpetual 'live reading' cue while the hero itself stamps 'NO READING RUNNING'. On a WORKING/idle snapshot page the dot should rest (ink, no breath) unless a run is actually live.",
+   "`delta: \u00b12 copy` (line 422) misuses the `\u00b1` spread glyph for a copy-count diff \u2014 it reads as an uncertainty stamp on a recorded structural delta, muddying the candor grammar. Use a plain `~2` or `\u03942 copy` so `\u00b1` stays reserved for inferred spread."
+  ]
+ },
+ "auth": {
+  "r3_score": 74,
+  "r3_verdict": "Disciplined candor and clean craft on the era's most templated split-screen auth skeleton, undercut by a real P9 break \u2014 a live 1,200-agent Canvas field (run twice, desktop + mobile) on a non-showpiece surface the page litigates rather than fixes.",
+  "r3_issues": [
+   "P9 break (caps at 85): auth is not one of the 4 showpiece archetypes, yet it runs a live 1,200-pt Canvas drift field \u2014 and a 2nd 420-pt field on mobile. Replace both with a frozen Tier-3 SVG distribution poster (mean line in --signal-dim, arm opacity \u22650.6) or a single isolated-agent motif; a still poster is also more confident than an animated panel.",
+   "\u00a75.6/P3 drift fidelity: the .uncal drift and the canvas rAF loop run perpetually with no 20s idle-pause (only hover freezes). Add the mandated PAUSE-after-20s-idle so the drift isn't a second forever-loop competing with the status dot.",
+   "Reconceive auth instead of dressing it in the system: the submit button is forced to be the lime signal carrier, but signing in is not a live reading \u2014 drop the split-screen-+-animated-panel default and find a layout/idea that stops a top designer, since the candor primitives alone (P7/P8, handled well) don't make a templated skeleton elite."
+  ]
+ },
+ "crawl-setup": {
+  "r3_score": 77,
+  "r3_verdict": "Law-clean, disciplined WORKING config page \u2014 the demoted-inflight-button / single-dot signal handoff is genuinely instrument-grade \u2014 but it's correct rather than memorable, and its one graphic earns its space the least.",
+  "r3_issues": [
+   "The 128px cohort poster is the weakest element: a generic axis-less bell polyline with decorative .5\u03b1 arm dots and no mean label \u2014 P10 says static posters must be interrogable. Give it a real axis/scale + a labeled mean, or cut it and let the manifest carry the page.",
+   "Audit rail reads as four equal-weight bordered slabs; the Manifest (declared the 'primary audit surface') doesn't visually dominate over run-status. Lift the manifest's weight (heavier dt/dd contrast or a quiet ground tint) so the record out-ranks the watch block.",
+   "Latent specificity bug: .btn.live.inflight sets color:--text-mut but the later [aria-disabled=\"true\"] rule overrides it to --text-faint, so the 'Crawl in flight' label renders at ~2.9:1. Resolve to --text-mut so the carefully-authored inflight color actually applies."
+  ]
+ },
+ "about": {
+  "r3_score": 79,
+  "r3_verdict": "Exemplary RECORD-class discipline \u2014 the candor distinction is genuinely *shown* \u2014 but it's a tasteful wireframe of an About page: all hairlines-and-type, one generic signature graphic, zero human warmth, and no stop-scrolling moment.",
+  "r3_issues": [
+   "Give the page ONE crafted visual moment beyond the stock two-bell poster: the distribution SVG is a generic overlap and its CI ribbon (x=130,w=20) sits off-center under the magenta mean at x=140 \u2014 redraw it as a real artifact, or add a bespoke diagram/portrait so the bottom 70% isn't undifferentiated ink-on-sheet.",
+   "The founders section is name+bio text only ('A. Kohavi', no face/presence) \u2014 the best About pages make the team a human beat; this reads as a placeholder, the single biggest gap vs Stripe/Linear tier.",
+   "P7 nick: in the Console-well pbar, .uncal applies --spread-dim (#90815F \u22483.4:1 on #0B1220) to the running WORD 'UNCALIBRATED', not just the \u25c7 glyph \u2014 bump the word to --text-mut and reserve spread-dim for the glyph/\u00b1 per the v2.1 tightening."
+  ]
+ },
+ "simulations-new": {
+  "r3_score": 80,
+  "r3_verdict": "Conceptually rigorous and well-budgeted \u2014 the drift-as-draft-state field and paired-arm preview are genuine ideas \u2014 but a P7 sub-AA break on provenance words and a too-faint resting showpiece keep it just shy of elite.",
+  "r3_issues": [
+   "P7 BREAK (caps at 85): the .word class renders running provenance words \u2014 UNCALIBRATED, DRIFTING, DRAFT, UNCOMMITTED (lines 88/128/146/285) \u2014 in --spread-dim (#90815F, ~3.4:1, the spec's own sub-AA value). P7 reserves --spread-dim strictly for the \u25c7 glyph and the \u00b1 value; running words must be --text-mut (#929BAE). Repaint every .word to --text-mut, leave only .glyph in --spread.",
+   "Resting showpiece under-delivers: dots sit at 0.32\u03b1 core (+0.45\u00d7 glow) graphite dust before any wavefront, so on first paint the field reads as near-empty/low-contrast noise rather than 'a living population.' Lift the resting agent alpha to ~0.5\u20130.6 (still draft-quiet, P10-legible) so the SHOWPIECE earns its 56vh on entry, not only during the 420ms-delayed sweep.",
+   "Borderline candor: persona-share chips (24%/19%/\u2026 lines 469\u2013476) and 'renormalize to 100%' are presented bare. If these are cohort population shares they read as inferred shares (P8) and should carry \u25c7; if they are pack-config composition, label the region so the exemption is unambiguous rather than leaving it to inference."
+  ]
+ },
+ "landing": {
+  "r3_score": 80,
+  "r3_verdict": "High-craft, on-thesis field-as-hero that nails candor scoping and the signal budget \u2014 but the signature Population Field loops its full wavefront\u2192settle\u2192dissolve cycle forever (perpetual lime sweep), a clean P3 break that caps it below elite.",
+  "r3_issues": [
+   "P3 HARD BREAK: the #field canvas runs `c=(t+clockOffset)%CYCLE` (CYCLE=8s) with no termination, re-running the lime wavefront crest + re-sort + dissolve indefinitely. P3 explicitly forbids 'perpetual lime wavefront sweeps' and 're-running count-up/re-sort/dissolve loops' \u2014 make it ONE-SHOT: play once on entry/seed, then rest to pure \u22642px curl-drift holding the settled poster. The status dot must be the page's only infinite loop.",
+   "Two lime elements are live in the first viewport on load \u2014 the topbar `.dot.live` breath AND the hero field wavefront crest. Even though \u00a71.9 scopes the nav as a separate region, having both pulse simultaneously on first paint dilutes the 'lime = one live reading here' read; consider holding the nav status dot until the field actually fires, so a single signal owns first paint.",
+   "Craft-not-law: the mono-dense `field-readout` (+3.6 \u00b11.4pp \u25c7 / day-7 retention \u00b7 sentiment 0.71) plus the silkscreen provbar risks reading as generic fintech-telemetry pastiche rather than a bespoke instrument. Give the marquee figure more typographic distinction from the provenance chrome (scale/weight/position) so the reading clearly dominates the metadata, per P10's spirit."
+  ]
+ },
+ "agent-transcript": {
+  "r3_score": 80,
+  "r3_verdict": "Disciplined, genuinely quiet transcript with excellent candor-scope and a single-carrier composer \u2014 but a P7 break (uncalibrated WORDS in sub-AA --spread-dim) caps it, and first-viewport provenance redundancy keeps it short of elite.",
+  "r3_issues": [
+   "P7 break: the running honesty WORDS are in --spread-dim (#90815F, ~3.4:1, reserved for the \u25c7 glyph + \u00b1 value only). Recolor .uncal (\"UNCAL\"/\"UNCALIBRATED\" at lines 91/128) and .foot-note .stamp (the \"\u25c7 NO GROUND TRUTH \u00b7 reading will not lock until graded\" sentence, line 374) to --text-mut; keep --spread-dim strictly on the \u25c7 glyph.",
+   "Provenance/identity redundancy in the first viewport: \"TREATMENT\"/arm identity prints 3\u00d7 (prov-bar CH2\u00b7TREATMENT, arm-chip \"Treatment \u00b7 Avira\", title) and n=240 prints 3\u00d7 (topbar, prov-bar, persona-title persona-n + chip). The prov-bar already carries CH2\u00b7TREATMENT\u00b7n=240 \u2014 drop the persona-n span and fold \"Avira\" into the prov-bar so the title reads as a name, not a restated receipt.",
+   "Copy duplication weakens the hierarchy: verdict-note (\"gated on a sticky per-profile dismiss\") and syn-line (\"gated on a sticky dismiss\") restate the same gate. Let the verdict own the gate once and let the synthesis add new information, not echo it."
+  ]
+ },
+ "personas-list": {
+  "r3_score": 82,
+  "r3_verdict": "A disciplined, genuinely-restrained WORKING list that nails candor scope and the static-poster law \u2014 but one P7 break (text-faint on the breadcrumb separator) caps it, and an inverted poster hierarchy keeps it just shy of elite.",
+  "r3_issues": [
+   "P7 BREAK (caps at 85): .crumbs .sep uses --text-faint (#646E84, ~2.9:1) for the '/' separator \u2014 P7 forbids --text-faint on separators (disabled-only). Change line 59 to --text-mut.",
+   "P10 inverted hierarchy on the poster: the exempt raw count '2,500' renders at 30px full ink and visually dominates the actual inferred marquee reading '+0.16 \u00b10.07 \u25c7' at only 18px. Promote the inferred mean to the largest figure (or shrink the count) so the reading \u2014 not an exempt fact \u2014 is the focal point.",
+   "P2 signal leak in the logbook: RAMP[5]=#39B894 is literally --signal-dim, so p_06's swatch and its share bar render lime-family as a categorical identity color \u2014 signal must mean 'live reading,' not a ramp endpoint. Swap the last ramp stop to a neutral/arm-tinted hue."
+  ]
+ },
+ "personas-new": {
+  "r3_score": 82,
+  "r3_verdict": "Disciplined, system-fluent SHOWPIECE with a genuinely good binned-depth field \u2014 but a P7 sub-AA break on the \"UNCALIBRATED\" running word caps it, and a muddled axis/figure relationship keeps it short of elite.",
+  "r3_issues": [
+   "P7 break: the running word 'UNCALIBRATED' renders in --spread-dim (#90815F, ~3.4:1, sub-AA) in the topbar prov-bar (line 259), field legend (line 288), and tooltip \u2014 bump the WORD to --text-mut and keep --spread-dim strictly for the \u25c7 glyph and the \u00b1 value.",
+   "Conceptual axis conflict: the field's x-axis is labeled 'distinctiveness' but the hero figure is 'cluster stability' and hover only ever surfaces share% + a canned reaction \u2014 wire hover to the actual distinctiveness value (the x the dots are binned on) so the axis stops being semi-decorative.",
+   "Reactions are rotated by index (REACTIONS[bi % len]) and mislabel personas ('Compliance-first Buyers' \u2192 'rejects on price'); tie each reaction to its persona's real meaning, and pull the field-reading overlay clear of the leftmost column (x:0.18) so the hero label doesn't collide with the data it describes."
+  ]
+ },
+ "agent-detail": {
+  "r3_score": 82,
+  "r3_verdict": "Disciplined, on-system WORKING page \u2014 transcript-as-hero with exemplary candor scope \u2014 but quiet to a fault, with a slightly inverted focal hierarchy and two competing perpetual loops that keep it short of elite.",
+  "r3_issues": [
+   "P3 tension: two infinite breathe loops run at once (topbar `.dot.breathe` LIVE 1:1 + `.cdot.breathe` composing). One viewport should pulse once. Freeze the topbar LIVE dot to static (or drop it) while the in-thread composing breath is active so a single status pulse owns the eye.",
+   "P10/hierarchy: no inferred figure commands first paint. The brightest object is the numberless lime motif dot (opacity 0.45) while the real readings are 10px `--text-mut` sentiment lines and a collapsed drawer. Promote one marquee reading \u2014 e.g. surface the current reaction `+0.71 \u00b10.14 \u25c7` as a resting `data-lg` figure beside the motif at ~0.7 ink \u2014 so the page has a legible focal reading, not just a decorative dot.",
+   "Craft ceiling: the thread is a conventional left-border-agent / filled-PM-bubble chat pattern that reads as a competent supporting surface, not a stop-scroll moment. The 128px motif column is on-spec but inert \u2014 either give it a quantified, interrogable mark (this agent's position vs cohort, labeled) or tighten it and reclaim the width for a denser reading header."
+  ]
+ },
+ "simulations-list": {
+  "r3_score": 83,
+  "r3_verdict": "Elite WORKING-class discipline \u2014 brutal-quiet logbook, finite drift, clean candor scope, no verdict leak \u2014 but uncalibrated PROVENANCE WORDS are painted in sub-AA --spread-dim, the one law-break the honesty surface least forgives (P7 cap).",
+  "r3_issues": [
+   "P7 break (caps at 85): the .uncal class paints running word strings in --spread-dim (#90815F \u2248 3.4:1, below AA) at lines 451 ('UNCALIBRATED'), 485 ('EMPTY (0 GRADED)'), and the topbar/prov-bar 'UNCALIBRATED'. Bump these WORDS to --text-mut (#929BAE, 5.4:1); reserve --spread-dim strictly for the \u25c7 glyph and the \u00b1 value.",
+   "Live state is surfaced three ways in one viewport \u2014 topbar 'CH1 LIVE' breathing dot, the latest-reading strip, and the table running-chip \u2014 which dilutes the 'one live reading' claim the copy makes. Pick the strip as the showpiece and demote the topbar reference to a single quiet \u25c7 provenance token without the lime word, so the region carriers don't echo.",
+   "pending/failed/running rows all reuse the same hollow \u25c7 glyph, conflating 'no reading yet' with 'uncalibrated in progress'. Give the no-reading states a neutral em-dash-only mark (drop the \u25c7, which the system attaches to inferred readings) so the glyph stays meaningful."
+  ]
+ },
+ "capability-detail": {
+  "r3_score": 83,
+  "r3_verdict": "All ten mechanical laws pass cleanly \u2014 the named R2 failure (mid-scroll inversion + inverted P10 hierarchy) is genuinely fixed: route-locked Sheet, a single Console well as the lone dark/signal region, a legible resting hero, an interrogable poster; disciplined and shippable, but bounded by being a deliberately-still RECORD page that can't earn a stop-scrolling moment.",
+  "r3_issues": [
+   "Candor-scope ambiguity on the noise floor: 0.58 is a model-derived/inferred floor yet prints bare both times (lines 427, 483) while every other inferred figure wears \u00b1 + \u25c7 \u2014 either stamp it (0.58 \u00b10.NN \u25c7) or visibly reframe it as a recorded threshold so it stops reading as an unstamped estimate.",
+   "Hero baseline cluster is slightly busy: the big lime 0.71 plus --spread \u00b10.05 plus the --spread-dim \u25c7 glyph (lines 423-425) sit on one baseline at three colors/sizes \u2014 tighten the \u00b1 and \u25c7 into a single quieter stamp unit so the marquee figure lands as one object, not three.",
+   "Minor polish: 'cr-9247\u20269c21' mid-truncation in the spine (line 387) reads unrefined for a provenance id, and the poster-head 'no reading running' label (line 433) is redundant with the legend's static cue \u2014 drop one."
+  ]
+ },
+ "feature-pack": {
+  "r3_score": 84,
+  "r3_verdict": "Elite restraint and a textbook read of the impact budget on a WORKING list page \u2014 but P7 is broken (the \"UNCALIBRATED\" word and the entire footer honesty clause render in --spread-dim #90815F, ~3.4:1, failing AA), which caps it and ironically wounds the system's own candor virtue.",
+  "r3_issues": [
+   "P7 break (hard AA fail): move the running words to --text-mut. .prov-bar .unc UNCALIBRATED (#90815F ~3.4:1) and the whole footer clause '\u25c7 UNCALIBRATED \u2014 coverage readings are uncertain by design' (.foot .gly) must be --text-mut; keep --spread-dim ONLY on the \u25c7 glyph and the \u00b10.04 value.",
+   "Tighten the table's signal discipline (P2 borderline): the coverage cell repeats a --signal-dim \u25c6 graded glyph across many rows, reading as a second quiet carrier competing with the hero's one bright --signal. Demote \u25c6/\u25c7 toward ink/--text-mut so the 0.84 is unambiguously the page's sole signal.",
+   "Kill redundant taxonomy for real breathing room: each row carries a .domain-chip ('Playback') that merely restates the group heading it already sits under ('Playback & Listening'). Drop the per-row domain chip under grouped view to sharpen the row and cut visual noise."
+  ]
+ },
+ "app-shell": {
+  "r3_score": 86,
+  "r3_verdict": "Law-clean and genuinely disciplined \u2014 the epistemology is encoded in pixels (gated verdicts, scoped candor, frozen-poster reclass) \u2014 but the deliberately-quiet hero scatter is competent-not-breathtaking and the 52px topbar is an unresolved cluster of similar-weight mono fragments, keeping it just shy of elite.",
+  "r3_issues": [
+   "Hero poster reads as a generic data-viz scatter: 0.7\u03b1 dots under `lighter` compositing plus grain+vignette muddy the silhouette and bury the --signal-dim mean line and --spread CI ribbon. Make the distribution legibly read as a distribution \u2014 cleaner bin envelope, lift the mean/CI contrast above the overlays, drop the additive blending so dots don't smear into noise.",
+   "Resolve the topbar: wordmark + route-desig + 4 crumb-tabs + run-ref pill + 2 icon-btns all crammed into 52px at similar mono/sans weights makes it the least-resolved region. Give the run-ref chip clearer separation (or move provenance off the chrome), and let the active tab carry more weight than the org designator.",
+   "Below-the-fold reads as one flat gray register (eyebrow, page-sub, section meta, table headers all ~--text-mut). Brutal-quiet still needs one or two crisp focal beats \u2014 tighten the visual hierarchy between section title, meta, and body so 'quiet' doesn't become 'monotone'."
+  ],
+  "codex_note": "codex 73: rebuild around the working object \u2014 one prioritized bet ledger + one live-reading state, zero valence color, drop the decorative poster hero unless it directly improves triage; reads like a dark Linear-ish admin surface with nicer type. Ensure NO lime on any verdict (incl. the graded Ship row)."
+ },
+ "simulation-results": {
+  "r3_score": 87,
+  "r3_verdict": "A genuine measurement instrument \u2014 the live agent field earns its showpiece and every color/candor law holds; held back from elite by triplicated provenance strips and an overcrowded verdict band.",
+  "r3_issues": [
+   "Provenance silkscreen is triplicated: the full 'n=384 \u00b7 seed 0x4f17 \u00b7 groq/llama-3.3-70b \u00b7 2026-W25 \u00b7 \u25c7 UNCALIBRATED' strip repeats in the topbar (471-478), the field legend (490-497), and the glass chan-legend (567-574) within two viewports \u2014 violates \u00a77.3's one-bar-per-region budget. Keep ONE full bar (topbar), demote the field legend and glass legend to a compact 'CH1 \u00b7 \u25c7' reference.",
+   "The field-verdict bottom band is overcrowded: the 86px figure + verdict tag compete with a right-side .field-readout (508-513) that stacks three lines of 11px mono (REJECTS/ADOPTS axis, 71/18/11 split, CTRL\u25cf192 TREAT\u25cf192 \u00b7 hover a dot). It reads as telemetry clutter over the vignette. Cut it to one line (the adopt/neutral/reject split) and let the masthead figure own the band.",
+   "Cohort-register settle deltas print bare ('+0.71 / +0.40', 727+) carrying candor only via one \u25c7 on the column header. These are inferred per-agent sentiment means \u2014 P8's example wants the delta itself stamped. Either add \u00b1NN to at least the column-summary deltas or make the inferred-\u25c7 scope unmistakable, since raw counts in the same table are correctly bare."
+  ],
+  "codex_note": "codex 86: cut repeated provenance/candor scaffolding ~35%; let the Field + one ruthless decision narrative dominate; stop over-explaining honesty so the showpiece keeps authority."
+ },
+ "persona-detail": {
+  "r3_score": 88,
+  "r3_verdict": "A disciplined RECORD page that cleanly passes all ten laws and fixes the exact P8 mislabel R2 flagged \u2014 brutally quiet, serif-led, candor scoped both ways; held just below elite by an under-annotated lone poster, sub-10px mono labels, and a faintly pitchy masthead voice.",
+  "r3_issues": [
+   "The one frozen poster is shape-only and fails P10's 'interrogable' bar: the dashed mean tick has no numeric label, there is no x-axis annotation (reaction axis: rejects\u2192adopts) and no value scale \u2014 add a labeled mean and an axis caption so the figure can be read, not just glanced at.",
+   "Functional labels drop below the legibility floor: poster-cap/poster-foot at 9px and spine-k at 9.5px mono uppercase clear AA contrast but read cramped \u2014 lift functional labels to 10.5\u201311px to match Linear/Stripe-tier label sizing.",
+   "Masthead voice drifts from \u00a77.4's 'lab-notebook, archival' register toward pitch ('in six minds', 'run a change past before you ship it', em-dash lede italic) \u2014 flatten to a plain record sentence so the Sheet reads as a document, not marketing."
+  ],
+  "codex_note": "codex 88 (nearest to elite): make the first persona record feel like a TRUE PRINTED ARTIFACT not a styled data card \u2014 stronger editorial hierarchy, FEWER repeated diamond/pm micro-stamps, add one more memorable comparative figure/table only Sidira would have."
+ }
+}

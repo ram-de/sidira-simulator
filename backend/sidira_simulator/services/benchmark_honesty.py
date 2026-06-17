@@ -102,6 +102,118 @@ def by_source(case: BenchmarkCaseResult) -> str:
     return case.source
 
 
+# Hillstrom case_ids are structured `hillstrom:<arm_slug>:<metric>[:<segment>]`
+# (services.hillstrom_adapter.build_hillstrom_case). The two stratifiers below
+# read that structure to report directional accuracy PER ARM (Mens vs Womens
+# e-mail) and PER heterogeneity SEGMENT (the endpoint #3 "does the sim know who
+# responds most" claim, PLAN §2). They are deliberately defensive: a case_id that
+# does not carry the expected component falls into an explicit, REPORTED bucket
+# rather than being mislabeled or dropped (the report-every-cell rule, §4).
+_HILLSTROM_PREFIX = "hillstrom"
+_BY_ARM_UNKNOWN = "arm unknown (no hillstrom arm in case_id)"
+_BY_SEGMENT_UNKNOWN = "segment unknown (no heterogeneity stratum in case_id)"
+
+
+def by_arm(case: BenchmarkCaseResult) -> str:
+    """Stratify a Hillstrom case by its randomized treatment ARM.
+
+    Reads the arm slug from the structured Hillstrom case_id
+    (`hillstrom:<arm_slug>:<metric>[:<segment>]`) so directional accuracy /
+    rank-ρ are reported separately for the Mens-E-Mail and Womens-E-Mail arms —
+    the weakest scoring endpoint (PLAN §2 #1/#2), reported per arm so a result
+    that holds for one arm but not the other is never averaged away.
+
+    A non-Hillstrom or malformed case_id maps to a dedicated, still-REPORTED
+    "arm unknown" bucket (never dropped, never mislabeled). The arm slug is
+    surfaced verbatim (e.g. `arm=mens_email`) as the stratum key.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 2 and parts[0] == _HILLSTROM_PREFIX and parts[1]:
+        return f"arm={parts[1]}"
+    return _BY_ARM_UNKNOWN
+
+
+def by_segment(case: BenchmarkCaseResult) -> str:
+    """Stratify a Hillstrom case by its heterogeneity SEGMENT (endpoint #3).
+
+    Reads the optional 4th component of the structured Hillstrom case_id
+    (`hillstrom:<arm_slug>:<metric>:<segment>`) — the pre-registered
+    persona-aligned stratum (e.g. `mens_buyer`, `womens_buyer`, `high_spender`,
+    `mid_tier`) the adapter encodes when it enumerates per-segment cases. This is
+    the ONLY scoring endpoint that isn't trivially guessable: does the sim predict
+    the men's e-mail moves the mens-buyer cohort MORE than the womens-buyer one?
+
+    A case_id WITHOUT a segment component (an arm-level case, or a non-Hillstrom
+    case) maps to a dedicated, still-REPORTED "segment unknown" bucket — so an
+    arm-only run is reported honestly (one undifferentiated row) rather than
+    fabricating a stratum the cases don't carry. The segment is surfaced verbatim
+    (e.g. `segment=mens_history`) as the stratum key.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 4 and parts[0] == _HILLSTROM_PREFIX and parts[3]:
+        return f"segment={parts[3]}"
+    return _BY_SEGMENT_UNKNOWN
+
+
+# Cookie Cats case_ids are structured `cookiecats:gate40_vs_gate30:<metric>[:<segment>]`
+# (services.cookiecats_adapter.build_cookiecats_case). The engagement stratifier
+# below reads the optional 4th component to report directional accuracy PER
+# engagement octile (the heterogeneity endpoint). Defensive, same as the Hillstrom
+# stratifiers: a case_id without the component lands in an explicit, REPORTED
+# bucket rather than being mislabeled or dropped (the report-every-cell rule, §4).
+_COOKIECATS_PREFIX = "cookiecats"
+_BY_ENGAGEMENT_UNKNOWN = "engagement unknown (no cookiecats stratum in case_id)"
+
+
+def by_engagement(case: BenchmarkCaseResult) -> str:
+    """Stratify a Cookie Cats case by its engagement-octile SEGMENT.
+
+    Reads the optional 4th component of the structured Cookie Cats case_id
+    (`cookiecats:gate40_vs_gate30:<metric>:<segment>`) — the pre-registered
+    engagement-octile stratum (e.g. `eng_o1`..`eng_o8`) the adapter encodes when
+    it enumerates per-segment cases. This is the heterogeneity endpoint: does the
+    sim predict the gate move's effect varies by engagement band?
+
+    A case_id WITHOUT a segment component (the population-level case, or a
+    non-Cookie-Cats case) maps to a dedicated, still-REPORTED "engagement unknown"
+    bucket — so a population-only run is reported honestly (one undifferentiated
+    row) rather than fabricating a stratum the cases don't carry.
+    """
+    parts = case.case_id.split(":")
+    if len(parts) >= 4 and parts[0] == _COOKIECATS_PREFIX and parts[3]:
+        return f"engagement={parts[3]}"
+    return _BY_ENGAGEMENT_UNKNOWN
+
+
+# Portfolio case_ids are structured `portfolio:<case id>` (one whole experiment =
+# one directional bit, services.portfolio_adapter.build_portfolio_case). The
+# stratifier below reads the trailing component so the honesty table reports
+# directional accuracy PER EXPERIMENT — each portfolio case IS its own bit, so a
+# per-case row is the honest unit (no silent averaging across heterogeneous
+# experiments). Defensive, same as the other stratifiers: a case_id without the
+# component lands in an explicit, REPORTED bucket rather than being mislabeled.
+_PORTFOLIO_PREFIX = "portfolio"
+_BY_PORTFOLIO_CASE_UNKNOWN = "case unknown (no portfolio id in case_id)"
+
+
+def by_portfolio_case(case: BenchmarkCaseResult) -> str:
+    """Stratify a portfolio case by its experiment id (one bit per experiment).
+
+    Reads the trailing component of the structured portfolio case_id
+    (`portfolio:<case id>`) so the honesty table reports each whole experiment as
+    its own row — the portfolio's unit of evidence is a WHOLE experiment, so
+    averaging across experiments would hide which directional bits the sim got
+    right. The case id is surfaced verbatim (e.g. `case=cookiecats_gate_move`).
+
+    A non-portfolio or malformed case_id maps to a dedicated, still-REPORTED "case
+    unknown" bucket (never dropped, never mislabeled).
+    """
+    parts = case.case_id.split(":", 1)
+    if len(parts) == 2 and parts[0] == _PORTFOLIO_PREFIX and parts[1]:
+        return f"case={parts[1]}"
+    return _BY_PORTFOLIO_CASE_UNKNOWN
+
+
 # Label for a stratum where the actual lift is unknown (an unscorable / label-less
 # dropped case): it cannot be magnitude-bucketed, but it is STILL reported (§4).
 _UNKNOWN_MAGNITUDE_KEY = "|effect| unknown (no scorable label)"

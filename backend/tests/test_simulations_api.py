@@ -20,7 +20,10 @@ _FIXTURE_ROOT = Path(__file__).resolve().parents[2] / "local-artifacts"
 os.environ.setdefault("SIDIRA_LOCAL_ARTIFACTS", str(_FIXTURE_ROOT))
 
 from sidira_simulator.adapters.repositories import get_in_memory_repos  # noqa: E402
-from sidira_simulator.api.deps import get_orchestrator  # noqa: E402
+from sidira_simulator.api.deps import (  # noqa: E402
+    get_input_lint_chat_client,
+    get_orchestrator,
+)
 from sidira_simulator.main import app  # noqa: E402
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator  # noqa: E402
 from sidira_simulator.services.simulation_runner import SimulationRunner  # noqa: E402
@@ -77,10 +80,40 @@ class _StubChat:
         raise NotImplementedError(f"stub has no canned response for {schema}")
 
 
+# Handle to the input-lint judge stub the active `client_with_stub_llm` fixture
+# installed, so the T3 (#312) input-lint tests can flip its verdict without
+# widening the 4-tuple every other test unpacks. Set/cleared by the fixture.
+_ACTIVE_LINT_JUDGE: "_StubInputLintJudgeChat | None" = None
+
+
+class _StubInputLintJudgeChat:
+    """Stubbed ChatClient for the T3 (#312) pre-flight input-lint judge.
+
+    Injected via `app.dependency_overrides[get_input_lint_chat_client]` so the
+    judge NEVER hits a live LLM in the suite. Mutable `verdict` / `reasons` let a
+    test flip the pre-flight lint between green (default — every existing test is
+    unaffected) and amber/red. `chat_json` builds the passed `_JudgeOutput`
+    schema so its taxonomy field-validator runs exactly as in prod.
+    """
+
+    def __init__(self) -> None:
+        self.verdict = "green"
+        self.reasons: list[str] = []
+        self.call_count = 0
+
+    def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None):  # pragma: no cover
+        raise NotImplementedError("input-lint judge uses chat_json only")
+
+    def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+        self.call_count += 1
+        return schema(verdict=self.verdict, reasons=list(self.reasons))
+
+
 @pytest.fixture
 def client_with_stub_llm():
     """Override the orchestrator dep with one that uses a stub LLM."""
     chat = _StubChat()
+    lint_judge = _StubInputLintJudgeChat()
 
     customer_repo, sim_repo, agent_repo, _ = get_in_memory_repos()
     # Clear in-memory state between tests via fresh module-level singletons.
@@ -109,7 +142,17 @@ def client_with_stub_llm():
         )
 
     app.dependency_overrides[get_orchestrator] = _orch
+    # T3 (#312): stub the pre-flight input-lint judge so it never hits a live
+    # LLM. Default verdict is green (no input_flags) — every existing test is
+    # unaffected; the input-lint tests below reach the judge via
+    # `client.app` / the module-level `_LAST_LINT_JUDGE` handle to flip it.
+    app.dependency_overrides[get_input_lint_chat_client] = lambda: lint_judge
+    # Stash the active judge stub so the input-lint tests can mutate its verdict
+    # without widening the 4-tuple every other test unpacks.
+    global _ACTIVE_LINT_JUDGE
+    _ACTIVE_LINT_JUDGE = lint_judge
     yield TestClient(app), chat, sim_repo, agent_repo
+    _ACTIVE_LINT_JUDGE = None
     app.dependency_overrides.clear()
 
 
@@ -129,8 +172,10 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -138,6 +183,236 @@ def test_post_simulation_returns_202_immediately(client_with_stub_llm) -> None:
     assert body["status"] == "pending"
     assert body["id"]
     assert body["poll_url"] == f"/simulations/{body['id']}/state"
+
+
+# ── #310 / T1: pre-flight answerability gate ────────────────────────────────
+
+
+def test_oec_undeclared_blocks_with_override_payload(client_with_stub_llm) -> None:
+    """metric_name omitted (non-structural prose) -> 422 with a refinement-shaped
+    payload that advertises the generic-reception override."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "population_size": 3,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert detail["error"] == "needs_input"
+    assert "oec_undeclared" in detail["reason_codes"]
+    assert detail["allow_override"] is True
+    assert detail["override_field"] == "run_as_generic_reception"
+    assert detail["reasons"] and detail["fixes"]
+
+
+def test_oec_override_proceeds_to_202(client_with_stub_llm) -> None:
+    """Resubmitting with run_as_generic_reception=true proceeds past the gate."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    assert resp.json()["status"] == "pending"
+
+
+def test_structurally_invisible_change_blocks_without_override(
+    client_with_stub_llm,
+) -> None:
+    """UI-structure prose + no proposed_figma -> 422; the override does NOT
+    clear it (allow_override stays False even with the flag set)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Move the reorder button to the top of the home screen.",
+            },
+            "population_size": 3,
+            # Override the OEC defect; the structural defect must still block.
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert "structurally_invisible_change" in detail["reason_codes"]
+    assert detail["allow_override"] is False
+
+
+# ── #313 / T4: deterministic pre-flight preview endpoint ────────────────────
+
+
+def test_preflight_oec_undeclared_mirrors_post_block(client_with_stub_llm) -> None:
+    """The preview endpoint returns the SAME needs_input verdict the POST path
+    422s on — caught at the keyboard, before submit — with the override
+    advertised. Zero-LLM and never persists a sim."""
+    client, _, sim_repo, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "needs_input"
+    assert "oec_undeclared" in body["reason_codes"]
+    assert body["allow_override"] is True
+    assert body["override_field"] == "run_as_generic_reception"
+    assert body["reasons"] and body["fixes"]
+    # The preview must NOT persist a simulation.
+    assert sim_repo._sims == {}
+
+
+def test_preflight_override_clears_oec_block(client_with_stub_llm) -> None:
+    """run_as_generic_reception=true in the preview clears the OEC block, so the
+    wizard knows the override resubmit will proceed."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+            },
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["state"] == "answerable"
+
+
+def test_preflight_structural_invisibility_not_overridable(client_with_stub_llm) -> None:
+    """UI-structure prose + no figma stays blocking in the preview even with the
+    override, mirroring the POST gate (no faithful prose-only structural run)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Move the reorder button to the top of the home screen.",
+            },
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "needs_input"
+    assert "structurally_invisible_change" in body["reason_codes"]
+    assert body["allow_override"] is False
+
+
+def test_preflight_out_of_scope_surfaced(client_with_stub_llm) -> None:
+    """A long-horizon OEC previews as out_of_scope (abstain) so the wizard can
+    warn the PM the verdict will be withheld — without running the sim."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Lift 90-day revenue by reordering the home feed.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+                "proposed_figma": {"screens": [], "transitions": []},
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "out_of_scope"
+    assert "out_of_scope_long_horizon" in body["reason_codes"]
+
+
+def test_preflight_leading_framing_surfaced_advisory(client_with_stub_llm) -> None:
+    """The deterministic leading-framing lint surfaces in the preview as advisory
+    reasons + neutralize fixes, alongside an otherwise-answerable verdict (it
+    does NOT block — the T3 LLM judge finalizes amber/red at submit, not here)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "We're excited to ship a reorder button users will love.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+                "proposed_figma": {"screens": [], "transitions": []},
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "answerable"
+    assert body["leading_framing_reasons"]
+    assert body["leading_framing_fixes"]
+
+
+def test_preflight_answerable_clean(client_with_stub_llm) -> None:
+    """A well-posed hypothesis with a declared OEC and no framing previews
+    answerable with empty reasons/framing."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations/preflight",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to be more concise.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["state"] == "answerable"
+    assert body["reasons"] == []
+    assert body["leading_framing_reasons"] == []
+
+
+def test_happy_path_with_declared_metric_unaffected(client_with_stub_llm) -> None:
+    """A hypothesis with a declared OEC and no structural-invisibility passes
+    the gate unchanged (today's 202 path)."""
+    client, _, _, _ = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Reword the welcome message to sound friendlier.",
+                "metric_name": "conversion",
+                "conversion_action": "checkout",
+                "conversion_action_label": "complete checkout",
+                "decision_point": "you've added 2 items to your cart",
+            },
+            "population_size": 3,
+        },
+    )
+    assert resp.status_code == 202, resp.text
 
 
 def test_post_simulation_rejects_unavailable_model_id(monkeypatch) -> None:
@@ -151,9 +426,11 @@ def test_post_simulation_rejects_unavailable_model_id(monkeypatch) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
             "model_id": "gpt-5.5",
+            "run_as_generic_reception": True,
         },
     )
 
@@ -171,9 +448,11 @@ def test_post_simulation_persists_model_id(client_with_stub_llm, monkeypatch) ->
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
             "model_id": "llama-3.3-70b-versatile",
+            "run_as_generic_reception": True,
         },
     )
 
@@ -194,8 +473,10 @@ def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> N
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a 'reorder usual' banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -253,8 +534,10 @@ def test_per_agent_analyses_persisted_on_result_and_join_into_agent_summary(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner for premium subscribers.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -297,8 +580,10 @@ def test_agent_summary_fields_are_none_for_pre_51_result_json(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Show a reorder banner.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
         },
     )
     sim_id = resp.json()["id"]
@@ -326,8 +611,10 @@ def test_default_run_seed_is_persisted_on_db_row(client_with_stub_llm) -> None:
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 3,
+            "run_as_generic_reception": True,
             # run_seed deliberately omitted.
         },
     )
@@ -363,8 +650,10 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 1000,  # would yield 50 agents under default cap
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -395,9 +684,11 @@ def test_post_simulation_with_unknown_persona_returns_400(
             "hypothesis": {
                 "capability_name": "reorder",
                 "prose": "Add a one-tap reorder button.",
+                "proposed_figma": {"screens": [], "transitions": []},
             },
             "population_size": 5,
             "selected_personas": ["made_up_persona_id"],
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 400, resp.text
@@ -447,6 +738,7 @@ def test_simulation_with_persona_filter_completes_against_subset(
             },
             "population_size": 3,
             "selected_personas": chosen,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
@@ -481,9 +773,110 @@ def test_simulation_without_persona_filter_runs_against_all_personas(
                 "prose": "Unfiltered control case.",
             },
             "population_size": 5,
+            "run_as_generic_reception": True,
         },
     )
     assert resp.status_code == 202, resp.text
     sim_id = resp.json()["id"]
     final = client.get(f"/simulations/{sim_id}").json()
     assert final["selected_personas"] is None
+
+
+# ── #312 / T3: pre-flight ordinal input lint (disclose-and-run) ──────────────
+
+
+def test_flagged_input_stamps_result_flags_and_still_returns_202(
+    client_with_stub_llm,
+) -> None:
+    """A semantically-flagged input (judge amber) NEVER 422s — the create call
+    returns 202 and the persisted result carries `input_flags` (state + reasons),
+    while confidence_score is computed unchanged."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    _ACTIVE_LINT_JUDGE.verdict = "amber"
+    _ACTIVE_LINT_JUDGE.reasons = ["wrong_cohort"]
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Make the thing better for some users.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    # Semantic judgment never hard-refuses a paying user.
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+
+    body = client.get(f"/simulations/{sim_id}").json()
+    assert body["status"] == "complete", body
+    flags = body["result"]["input_flags"]
+    assert flags is not None
+    assert flags["state"] == "amber"
+    assert "wrong_cohort" in flags["reason_codes"]
+    assert flags["reasons"]
+    # The headline score is still computed and persisted (the lint ROUTES, it
+    # does not discount).
+    assert body["result"]["confidence_score"] is not None
+
+
+def test_green_input_leaves_input_flags_none(client_with_stub_llm) -> None:
+    """A green pre-flight verdict (the fixture default) leaves input_flags None —
+    a clean run is byte-identical and migration-free."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    assert _ACTIVE_LINT_JUDGE.verdict == "green"
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    body = client.get(f"/simulations/{sim_id}").json()
+    assert body["result"]["input_flags"] is None
+
+
+def test_flagged_input_fires_refinement_even_when_score_high(
+    client_with_stub_llm,
+) -> None:
+    """The refinement trigger moved earlier (#312): a flagged INPUT earns a
+    rewrite offer regardless of the post-run score. The stub LLM's all-positive
+    reactions push the score ≥80, yet refinement_suggestions are still
+    populated because the input was flagged."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    _ACTIVE_LINT_JUDGE.verdict = "amber"
+    _ACTIVE_LINT_JUDGE.reasons = ["untestable_hypothesis"]
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                # All-positive stub reactions -> high score; the flag is what
+                # must trigger refinement here.
+                "prose": "Make engagement better.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    body = client.get(f"/simulations/{sim_id}").json()
+    result = body["result"]
+    assert result["input_flags"] is not None
+    # Refinement fired despite (potentially) high score, because the input was
+    # flagged. The stub RefinementOutput returns two suggestions.
+    assert result["refinement_suggestions"], result["confidence_score"]

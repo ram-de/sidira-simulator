@@ -140,6 +140,7 @@ export type Hypothesis = components["schemas"]["Hypothesis"];
 export type Simulation = components["schemas"]["Simulation"];
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
 export type SimulationResult = components["schemas"]["SimulationResult"];
+export type InputFlags = components["schemas"]["InputFlags"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type ModelInfo = components["schemas"]["ModelInfo"];
 export type ListModelsResponse = components["schemas"]["ListModelsResponse"];
@@ -202,6 +203,9 @@ export const apiPost = <T, U>(path: string, body: T) =>
   _req<U>(path, { method: "POST", body: JSON.stringify(body) });
 export const apiPut = <T, U>(path: string, body: T) =>
   _req<U>(path, { method: "PUT", body: JSON.stringify(body) });
+// DELETE with no body — 204 No Content resolves to undefined (see _req). Throws
+// ApiError on a non-2xx (e.g. 404 when the row isn't the caller's).
+export const apiDelete = (path: string) => _req<void>(path, { method: "DELETE" });
 
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
@@ -336,6 +340,62 @@ export const listCrawls = () => apiGet<CrawlSummary[]>("/crawls");
 export const createSimulation = (req: SimulationRequest) =>
   apiPost<SimulationRequest, CreateSimulationResponse>("/simulations", req);
 
+// ── #313 / T4: deterministic pre-flight answerability preview ────────────────
+// Mirrors the POST /simulations needs_input 422 payload so the wizard reuses a
+// single override affordance. The verdict is the SAME `assess_answerability`
+// (T1) gate the POST path routes on, plus the separable deterministic
+// leading-framing lint — zero-LLM, never runs the simulation, never touches
+// confidence_score. Inline type (same codegen caveat as CreateSimulationResponse:
+// the checked-in api-types.ts predates this route).
+export type AnswerabilityState = "answerable" | "needs_input" | "out_of_scope";
+
+export interface PreflightRequest {
+  hypothesis: Hypothesis;
+  run_as_generic_reception?: boolean;
+}
+
+export interface PreflightResponse {
+  state: AnswerabilityState;
+  reasons: string[];
+  fixes: string[];
+  reason_codes: string[];
+  allow_override: boolean;
+  override_field: string;
+  leading_framing_reasons: string[];
+  leading_framing_fixes: string[];
+}
+
+export const preflightSimulation = (req: PreflightRequest) =>
+  apiPost<PreflightRequest, PreflightResponse>("/simulations/preflight", req);
+
+// The structured shape of the POST /simulations needs_input 422 detail body
+// (T1). `createSimulation` throws an ApiError whose `.body` is the JSON; the
+// wizard parses it through this type to render reasons/fixes + the override.
+export interface NeedsInputDetail {
+  error: "needs_input";
+  reasons: string[];
+  fixes: string[];
+  reason_codes: string[];
+  allow_override: boolean;
+  override_field: string;
+}
+
+// Best-effort parse of an ApiError body into the needs_input detail. Returns
+// null when the body isn't the needs_input shape (e.g. a 409/400), so the
+// caller falls back to the generic error banner.
+export function parseNeedsInput(body: string): NeedsInputDetail | null {
+  try {
+    const parsed = JSON.parse(body);
+    const detail = parsed?.detail ?? parsed;
+    if (detail && detail.error === "needs_input") {
+      return detail as NeedsInputDetail;
+    }
+  } catch {
+    // not JSON — fall through
+  }
+  return null;
+}
+
 export interface SimulationListItem {
   id: string;
   status: SimulationStatus;
@@ -440,6 +500,10 @@ export interface SnowflakeConnectionRequest {
   schema?: string | null;
 }
 
+// Last connectivity-test outcome persisted on a connection (#328). Null on a
+// row that has never been tested (the register renders that as UNTESTED).
+export type ConnectionTestStatus = "ok" | "failed";
+
 // Sanitized connection row — never carries the password.
 export interface ConnectionSummary {
   id: string;
@@ -451,6 +515,14 @@ export interface ConnectionSummary {
   role: string;
   database: string;
   schema?: string | null;
+  // Per-connection HEALTH (#328) — the persisted outcome of the last test, so
+  // the saved-connections register can show a last-known state in words without
+  // re-testing. All null on a never-tested row. The password is still never
+  // returned.
+  last_tested_at?: string | null;
+  last_test_status?: ConnectionTestStatus | null;
+  last_error_kind?: string | null;
+  last_error_message?: string | null;
 }
 
 // Per-column profile from a preview sample (dtype/nulls/sample values).
@@ -576,6 +648,13 @@ export const createFeatureStore = (req: SnowflakeConnectionRequest) =>
 
 export const listFeatureStores = () =>
   apiGet<ConnectionSummary[]>("/feature-stores");
+
+// #327: delete a saved connection (customer-scoped server-side; 404 if it isn't
+// yours, so existence never leaks across customers). 204 on success. Existing
+// persona builds keep their records — this only removes the credential future
+// builds could reuse.
+export const deleteFeatureStore = (id: string) =>
+  apiDelete(`/feature-stores/${encodeURIComponent(id)}`);
 
 // 204 on success; throws ApiError with a structured {error_kind, message}
 // detail body on failure (400 auth/permission, 502 network/unknown).

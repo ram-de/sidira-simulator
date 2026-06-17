@@ -866,3 +866,249 @@ async def test_current_state_control_ignored_in_ab_mode() -> None:
     assert result.current_state_delta_sentiment_failure_drops == 0
     # No current_state shadow leaked into the persisted A/B records.
     assert all(r.arm != "current_state" for r in runner._last_run_agent_records)
+
+
+# ── T2 (#311): instrument-fit abstention rides into the persisted result ─────
+
+
+@pytest.mark.asyncio
+async def test_out_of_scope_run_is_not_blocked_and_result_carries_abstention() -> None:
+    """A run whose OEC is out of scope (long-horizon / network / novelty) still
+    RUNS to completion (no block) and the persisted result carries the
+    categorical abstention flag + named reasons, while confidence_score is still
+    computed — the verdict is WITHHELD, not discounted (#311 / T2)."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    oos_hyp = Hypothesis(
+        capability_name="reorder",
+        prose="Will referral loops drive virality and lift 90-day revenue?",
+    )
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=oos_hyp,
+        population_size=3,
+        run_seed=11,
+    )
+
+    # The run was NOT blocked: agents materialized and a score was computed.
+    assert len(simulation.agent_instance_ids) == 3
+    result = simulation.result
+    assert result is not None
+    assert result.confidence_score is not None  # score still produced
+
+    # The abstention rode into the persisted result, categorically.
+    assert result.instrument_scope == "out_of_scope"
+    assert result.out_of_scope_reasons  # named, human-readable reasons
+    assert result.out_of_scope_reason_codes  # stable machine codes
+
+
+@pytest.mark.asyncio
+async def test_in_scope_run_leaves_instrument_scope_default() -> None:
+    """A normal first-exposure hypothesis leaves the abstention fields at their
+    flag-off defaults (byte-identical persisted result)."""
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),  # "Add a one-tap reorder button…" — in scope
+        population_size=3,
+        run_seed=1,
+    )
+    result = simulation.result
+    assert result is not None
+    assert result.instrument_scope == "in_scope"
+    assert result.out_of_scope_reasons == []
+    assert result.out_of_scope_reason_codes == []
+
+
+# ── T3 (#312): pre-flight input lint stamps input_flags + fires refinement ───
+
+
+@pytest.mark.asyncio
+async def test_flagged_input_lint_stamps_input_flags_on_result() -> None:
+    """A flagged pre-flight lint (amber) threaded into run() stamps
+    `input_flags` (state + reasons) onto the persisted result, categorically —
+    confidence_score is computed unchanged (the lint ROUTES, never discounts)."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    lint = InputLintVerdict(
+        state="amber",
+        reasons=["The prose is too vague to produce a falsifiable prediction."],
+        reason_codes=["untestable_hypothesis"],
+    )
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=7,
+        input_lint=lint,
+    )
+
+    result = simulation.result
+    assert result is not None
+    assert result.confidence_score is not None  # score still produced
+    assert result.input_flags is not None
+    assert result.input_flags.state == "amber"
+    assert "untestable_hypothesis" in result.input_flags.reason_codes
+    assert result.input_flags.reasons
+
+
+@pytest.mark.asyncio
+async def test_green_input_lint_leaves_input_flags_none() -> None:
+    """A green (or absent) lint leaves input_flags None — byte-identical to a
+    pre-#312 run and migration-free."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=8,
+        input_lint=InputLintVerdict(state="green"),
+    )
+    assert simulation.result is not None
+    assert simulation.result.input_flags is None
+
+    # Absent (None) lint behaves identically.
+    sim2 = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=9,
+        input_lint=None,
+    )
+    assert sim2.result is not None
+    assert sim2.result.input_flags is None
+
+
+@pytest.mark.asyncio
+async def test_flagged_input_fires_refinement_regardless_of_score() -> None:
+    """The #312 trigger widening: a flagged input earns refinement even when the
+    post-run score is high (the stub's all-positive reactions). Refinement is
+    REUSED verbatim — only WHEN it fires is widened."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+    from sidira_simulator.schemas.scoring import RefinementOutput
+
+    class _RefiningStub(_StubChat):
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            from sidira_simulator.schemas.scoring import (
+                Sentiment,
+                SentimentClassification,
+                WeaknessClassification,
+            )
+
+            self.json_calls.append((schema, messages))
+            if schema is WeaknessClassification:
+                # No weaknesses -> high score, so only the input flag can trigger
+                # refinement.
+                return WeaknessClassification(categories=[], primary_reason="stub")
+            if schema is SentimentClassification:
+                return SentimentClassification(
+                    sentiment=Sentiment.POSITIVE, confidence=0.95, one_line_summary="stub"
+                )
+            if schema is RefinementOutput:
+                return RefinementOutput(suggestions=["Name the metric and cohort."])
+            raise NotImplementedError(schema)
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    runner = SimulationRunner(store=store, chat_client=_RefiningStub())
+
+    simulation = await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=3,
+        run_seed=10,
+        input_lint=InputLintVerdict(
+            state="amber",
+            reasons=["vague"],
+            reason_codes=["untestable_hypothesis"],
+        ),
+    )
+    result = simulation.result
+    assert result is not None
+    # Score is high (positive sentiment, no weaknesses) yet refinement fired.
+    assert result.confidence_score >= 80.0
+    assert result.refinement_suggestions
+
+
+@pytest.mark.asyncio
+async def test_input_lint_does_not_change_confidence_score() -> None:
+    """Hard constraint (panel): the lint ROUTES, it never discounts. At the same
+    seed an amber/red/abstain verdict must yield a BYTE-identical confidence_score
+    (and CI) to a green/absent verdict. A regression that introduced any
+    multiplier or discount would break exact equality here, where the looser
+    "score is non-null / still high" assertions in the sibling tests would not."""
+    from sidira_simulator.services.input_lint import InputLintVerdict
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+
+    async def _score_with(lint: InputLintVerdict | None):
+        # Fresh runner per call so a flagged lint cannot leak state across runs;
+        # the run_seed is held fixed so scoring is deterministic.
+        runner = SimulationRunner(store=store, chat_client=_StubChat())
+        sim = await runner.run(
+            customer_id="demo",
+            persona_pack=persona_pack,
+            capability=capability,
+            feature_pack_version=feature_pack_version,
+            hypothesis=_hypothesis(),
+            population_size=3,
+            run_seed=42,
+            input_lint=lint,
+        )
+        assert sim.result is not None
+        return sim.result
+
+    green = await _score_with(InputLintVerdict(state="green"))
+    absent = await _score_with(None)
+    amber = await _score_with(
+        InputLintVerdict(
+            state="amber",
+            reasons=["vague"],
+            reason_codes=["untestable_hypothesis"],
+        )
+    )
+    red = await _score_with(
+        InputLintVerdict(
+            state="red",
+            reasons=["wrong cohort"],
+            reason_codes=["wrong_cohort"],
+        )
+    )
+    abstain = await _score_with(
+        InputLintVerdict(state="abstain", reasons=["unstable"], paraphrase_unstable=True)
+    )
+
+    baseline = green.confidence_score
+    assert baseline is not None
+    for variant in (absent, amber, red, abstain):
+        assert variant.confidence_score == baseline
+        assert variant.confidence_score_ci == green.confidence_score_ci

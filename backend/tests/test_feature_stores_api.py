@@ -159,6 +159,70 @@ def test_list_scoped_and_password_free(client):
         assert "password" not in item
 
 
+# ── unique connection names (#327) ─────────────────────────────────────────
+
+
+def test_duplicate_name_rejected_case_insensitive(client):
+    """A second connection whose name matches an existing one (case-insensitive,
+    trimmed) is rejected 409 — app-level uniqueness, no migration. The form
+    surfaces this near the name field."""
+    assert client.post("/feature-stores", json=_CREATE_PAYLOAD).status_code == 201
+    dup = client.post(
+        "/feature-stores", json={**_CREATE_PAYLOAD, "name": "  prod WAREHOUSE  "}
+    )
+    assert dup.status_code == 409
+    assert "already exists" in dup.json()["detail"]
+
+
+def test_distinct_names_both_succeed(client):
+    """Uniqueness is per-name, not a global cap — distinct names both persist."""
+    assert client.post("/feature-stores", json=_CREATE_PAYLOAD).status_code == 201
+    assert (
+        client.post("/feature-stores", json={**_CREATE_PAYLOAD, "name": "Staging"}).status_code
+        == 201
+    )
+
+
+# ── delete connection (#327) ───────────────────────────────────────────────
+
+
+def test_delete_own_connection_is_204_then_gone(client):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    assert client.delete(f"/feature-stores/{cid}").status_code == 204
+    # The row is gone — it no longer lists, and a re-fetch via test 404s.
+    assert client.get("/feature-stores").json() == []
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 404
+
+
+def test_delete_unknown_id_is_404(client):
+    assert client.delete("/feature-stores/fs-nope").status_code == 404
+
+
+def test_delete_is_customer_scoped(client):
+    """A customer may only delete their OWN connection. Deleting another tenant's
+    id returns 404 (never leaks existence), and the row survives untouched. We
+    swap the customer via FastAPI's dependency_overrides (the route captured the
+    real ``current_customer_id`` at import, so a monkeypatch wouldn't take)."""
+    from sidira_simulator.api.deps import current_customer_id
+
+    def _as(cust: str):
+        app.dependency_overrides[current_customer_id] = lambda: cust
+
+    # Customer A creates a connection.
+    _as("cust-A")
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+
+    # Customer B attempts to delete A's connection by its (guessed) id → 404.
+    _as("cust-B")
+    assert client.delete(f"/feature-stores/{cid}").status_code == 404
+
+    # The row still belongs to A and survives.
+    _as("cust-A")
+    assert any(c["id"] == cid for c in client.get("/feature-stores").json())
+
+    app.dependency_overrides.pop(current_customer_id, None)
+
+
 # ── test connection ──────────────────────────────────────────────────────
 
 
@@ -199,6 +263,58 @@ def test_connection_network_error_is_502(client, monkeypatch):
     resp = client.post(f"/feature-stores/{cid}/test")
     assert resp.status_code == 502
     assert resp.json()["detail"]["error_kind"] == "network"
+
+
+# ── per-connection health (#328) ───────────────────────────────────────────
+
+
+def test_untested_connection_reads_null_health(client):
+    """A freshly-created row has never been tested: GET reports all health
+    fields null (the register renders this as UNTESTED)."""
+    client.post("/feature-stores", json=_CREATE_PAYLOAD)
+    item = client.get("/feature-stores").json()[0]
+    assert item["last_test_status"] is None
+    assert item["last_tested_at"] is None
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
+
+
+def test_test_success_persists_ok_status_and_timestamp(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    _patch_connect(monkeypatch, [([("1",)], [(1,)])])
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 204
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "ok"
+    assert item["last_tested_at"] is not None  # ISO timestamp from the test
+    # Success clears any prior error.
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
+
+
+def test_test_failure_persists_failed_status_and_error(client, monkeypatch):
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    exc = RuntimeError("Incorrect username or password was specified.")
+    _patch_connect_raises(monkeypatch, exc)
+    assert client.post(f"/feature-stores/{cid}/test").status_code == 400
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "failed"
+    assert item["last_tested_at"] is not None
+    assert item["last_error_kind"] == "auth"
+    assert item["last_error_message"]  # carries the human-readable reason
+
+
+def test_failed_then_passing_test_clears_the_error(client, monkeypatch):
+    """A row that failed and then passes flips to ok with the error cleared —
+    the register stops showing FAILED once the connection works again."""
+    cid = client.post("/feature-stores", json=_CREATE_PAYLOAD).json()["id"]
+    _patch_connect_raises(monkeypatch, RuntimeError("Insufficient privileges"))
+    client.post(f"/feature-stores/{cid}/test")
+    _patch_connect(monkeypatch, [([("1",)], [(1,)])])
+    client.post(f"/feature-stores/{cid}/test")
+    item = next(c for c in client.get("/feature-stores").json() if c["id"] == cid)
+    assert item["last_test_status"] == "ok"
+    assert item["last_error_kind"] is None
+    assert item["last_error_message"] is None
 
 
 # ── preview ──────────────────────────────────────────────────────────────

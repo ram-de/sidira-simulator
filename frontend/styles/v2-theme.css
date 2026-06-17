@@ -1,0 +1,1511 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   SIDIRA — DESIGN SYSTEM v2 · "THE READING CONSOLE" — scoped theme stylesheet
+   Canonical: design-rethink/system/design-system-v2.md §8 (+ v2.1-patch).
+
+   ALL of v2's CSS custom properties and base component classes are scoped under
+   the `.v2-console` wrapper, so this never touches the live app's global
+   "paper" theme (lib/design.ts / DESIGN.md). Mirrors the precedent set by the
+   `.rconsole` scoping in the console-results preview.
+
+   The shared v2 React components (components/v2/*) consume the classes below;
+   the page composes the components. Tokens are also exported as TS constants in
+   lib/design-v2.ts.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Geist / Geist Mono / Newsreader — loaded only for the v2 preview (§2.1).
+   The live app ships Archivo + JetBrains Mono; this @import does not change
+   that — it just makes the v2 families available to .v2-console subtrees. */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap");
+
+/* ── tokens — scoped, never on :root (§8) ─────────────────────────────────── */
+.v2-console {
+  /* Console (dark) */
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  /* console-line at fixed alphas — panels/rules use these instead of inline rgba */
+  --console-line-60: rgba(51, 64, 92, 0.6);
+  --console-line-55: rgba(51, 64, 92, 0.55);
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --console-line-40: rgba(51, 64, 92, 0.4);
+  --console-line-30: rgba(51, 64, 92, 0.3);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae; /* AA-clear [v2-fix] */
+  --text-faint: #646e84; /* DISABLED ONLY */
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --signal-wash: rgba(72, 239, 202, 0.12);
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --spread-wash: rgba(200, 182, 138, 0.14);
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn: #c9a227;
+  --alert: #f0683c; /* borders + word, never fill */
+  /* no --verdict-ship / --verdict-hold token — a verdict is not a color */
+
+  /* Sheet (light) — AA-corrected */
+  --sheet: #f3f4f7;
+  --sheet-raised: #fbfbfd;
+  --sheet-sunk: #e6e8ee;
+  --sheet-line: #d4d8e0;
+  --sheet-ink: #1a2336;
+  --sheet-mut: #5e6678;
+  --sheet-signal: #00785f;
+  --sheet-spread: #6f5e33;
+
+  /* Radius / motion */
+  --r-well: 4px;
+  --r-panel: 8px;
+  --r-frame: 10px;
+  --r-dot: 9999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-mech: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Spacing */
+  --space-hairline: 2px;
+  --space-tight: 4px;
+  --space-snug: 8px;
+  --space-cozy: 12px;
+  --space-base: 16px;
+  --space-room: 24px;
+  --space-section: 48px;
+  --space-bay: 64px;
+  --space-rest: 96px;
+  --space-vast: 128px;
+
+  /* Type families — Geist loaded above; literal fallback chain after */
+  --v2-font-sans: "Geist", system-ui, sans-serif;
+  --v2-font-mono: "Geist Mono", ui-monospace, monospace;
+  --v2-font-serif: "Newsreader", Georgia, serif;
+
+  /* surface defaults (Console mode is the page default for /product) */
+  background: var(--console-900);
+  color: var(--text);
+  font-family: var(--v2-font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.v2-console *,
+.v2-console *::before,
+.v2-console *::after {
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums; /* §2.2 global numeric law */
+}
+.v2-console a {
+  color: inherit;
+  text-decoration: none;
+}
+.v2-console ::selection {
+  background: var(--signal-wash);
+  color: var(--text-hi);
+}
+
+/* shared atoms ───────────────────────────────────────────────────────────── */
+.v2-mono {
+  font-family: var(--v2-font-mono);
+}
+.v2-tnum {
+  font-variant-numeric: tabular-nums;
+}
+/* elevation = lightness-step + 1px top inner highlight, never a drop shadow (§3.5) */
+.v2-elevated {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* designator / chip (§4.8, §2.3) ─────────────────────────────────────────── */
+.v2-desig {
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+}
+.v2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+  border: 1px solid rgba(51, 64, 92, 0.6);
+  border-radius: var(--r-well);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+/* glyphs — only the ◇ glyph / ± value may wear spread-dim (P7) ────────────── */
+.v2-gh {
+  color: var(--spread-dim);
+} /* ◇ uncalibrated glyph ONLY */
+.v2-gf {
+  color: var(--signal-dim);
+} /* ◆ graded glyph */
+
+/* buttons (§4.1) ─────────────────────────────────────────────────────────── */
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-well);
+  font-family: var(--v2-font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--console-line);
+  background: transparent;
+  color: var(--text);
+  transition: background 0.14s var(--ease-out), color 0.14s var(--ease-out),
+    transform 0.14s var(--ease-out);
+  white-space: nowrap;
+}
+.v2-btn:focus-visible {
+  outline: 2px solid var(--signal-dim);
+  outline-offset: 2px;
+}
+.v2-btn:active {
+  transform: translateY(1px);
+}
+.v2-btn--hero {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+.v2-btn--primary {
+  background: var(--console-700);
+  color: var(--text-hi);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.v2-btn--primary:hover {
+  background: var(--console-750);
+}
+/* the ONE button that may carry signal — it initiates a live reading (§4.1) */
+.v2-btn--live {
+  background: transparent;
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.v2-btn--live:hover {
+  background: var(--signal-wash);
+}
+.v2-btn--secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--console-line);
+}
+.v2-btn--secondary:hover {
+  background: var(--console-800);
+  color: var(--text-hi);
+}
+.v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-mut);
+}
+.v2-btn--ghost:hover {
+  color: var(--text-hi);
+}
+.v2-btn--destructive {
+  border-color: var(--alert);
+  color: var(--text-hi);
+}
+.v2-btn--destructive:hover {
+  background: rgba(240, 104, 60, 0.08);
+}
+.v2-btn:disabled {
+  color: var(--text-faint);
+  border-color: rgba(51, 64, 92, 0.5);
+  cursor: not-allowed;
+}
+
+/* card / panel (§4.4) ────────────────────────────────────────────────────── */
+.v2-panel {
+  background: var(--console-800);
+  border: 1px solid rgba(51, 64, 92, 0.5);
+  border-radius: var(--r-panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* status badge (§4.8) — border + word only, never a filled pill ──────────── */
+.v2-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--v2-font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mut);
+}
+.v2-badge--live {
+  color: var(--signal);
+}
+.v2-badge--hold {
+  color: var(--spread);
+}
+.v2-badge--failed {
+  color: var(--alert);
+}
+
+/* status dot (§5.4) — resting (ink) by default; .v2-dot--live breathes ───── */
+.v2-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-dot);
+  background: var(--text-mut);
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.v2-dot--live {
+  background: var(--signal);
+  animation: v2-pulse 2s var(--ease-settle) infinite;
+}
+@keyframes v2-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* scroll reveal (§5.3 — 400–600ms, settle once, no looping decoration) ─────
+   Progressive enhancement: with NO JS, .v2-reveal is fully visible (the
+   opacity:0 start state applies ONLY once ConsoleShell has marked the root
+   `.v2-js` on mount). With JS, content starts hidden then settles in via `.in`. */
+.v2-console.v2-js .v2-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.v2-console.v2-js .v2-reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+/* the one sanctioned infinite loop is the status dot; reduced-motion freezes
+   every settle and the dot to its poster (§5.1, P3) */
+@media (prefers-reduced-motion: reduce) {
+  .v2-console *,
+  .v2-console *::before,
+  .v2-console *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+  .v2-console.v2-js .v2-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHEET MODE (§1.7, §6.4, §7.4) — the light blueprint RECORD scope.
+   `.v2-sheet` is the light counterpart to `.v2-console`: ink-on-paper, serif
+   prose, the Provenance Spine. It reuses the SAME token names already declared
+   on `.v2-console` (Sheet block + Console block both present there), but flips
+   the surface defaults to paper. A Console well embedded inside a Sheet (§6.4)
+   re-asserts `.v2-console` locally so the dark instrument keeps its own tokens
+   WITHOUT inverting the route (the provenance inside the well is NOT recolored).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.v2-sheet {
+  /* Console (dark) — needed because a §6.4 Console well lives inside the Sheet */
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae;
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4;
+
+  /* Sheet (light) — AA-corrected (§1.7) */
+  --sheet: #f3f4f7;
+  --sheet-raised: #fbfbfd;
+  --sheet-sunk: #e6e8ee;
+  --sheet-line: #d4d8e0;
+  --sheet-ink: #1a2336;
+  --sheet-mut: #5e6678;
+  --sheet-signal: #00785f;
+  --sheet-spread: #6f5e33;
+  /* the one darkened ink-button hover (derived from --sheet-ink, kept here so
+     no page re-inlines a raw hex) */
+  --sheet-ink-hover: #0f1626;
+  /* paper-blur sticky top bar (SheetTopBar) — tokenized so the component
+     inlines no raw rgba (same value as the mock's .top) */
+  --sheet-topbar-bg: rgba(243, 244, 247, 0.86);
+  --sheet-topbar-border: var(--sheet-line);
+
+  /* Radius / motion (shared scale) */
+  --r-well: 4px;
+  --r-panel: 8px;
+  --r-frame: 10px;
+  --r-dot: 9999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-mech: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --v2-font-sans: "Geist", system-ui, sans-serif;
+  --v2-font-mono: "Geist Mono", ui-monospace, monospace;
+  --v2-font-serif: "Newsreader", Georgia, serif;
+
+  /* surface defaults — paper, ink, sans UI (prose opts into serif) */
+  background: var(--sheet);
+  color: var(--sheet-ink);
+  font-family: var(--v2-font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  position: relative;
+  overflow-x: hidden;
+}
+.v2-sheet *,
+.v2-sheet *::before,
+.v2-sheet *::after {
+  box-sizing: border-box;
+  font-variant-numeric: tabular-nums;
+}
+.v2-sheet a {
+  color: inherit;
+  text-decoration: none;
+}
+.v2-sheet ::selection {
+  background: rgba(0, 120, 95, 0.14);
+  color: var(--sheet-ink);
+}
+
+/* the faint ruled blueprint grain — a printed-record texture. RECORD-still:
+   it does not move. (§ "blueprint Sheet over cream") */
+.v2-sheet::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(var(--sheet-line) 0.75px, transparent 0.75px);
+  background-size: 100% 56px;
+  opacity: 0.18;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+/* lift the actual content above the grain */
+.v2-sheet > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Sheet atoms ─────────────────────────────────────────────────────────── */
+.v2-sheet .v2-mono {
+  font-family: var(--v2-font-mono);
+}
+.v2-sheet .v2-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* designator on Sheet — ink-on-paper muted mono eyebrow */
+.v2-sheet .v2-desig {
+  font-family: var(--v2-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sheet-mut);
+}
+
+/* chip on Sheet — ink-on-paper bordered designator (recolors the base Console
+   chip to the paper palette so a Sheet page never paints a Console gray/border
+   on cream). A chip inside an embedded §6.4 ConsoleWell restores Console color
+   via `.v2-sheet .v2-console-scope .v2-chip` below (route-mode law). */
+.v2-sheet .v2-chip {
+  color: var(--sheet-mut);
+  border-color: var(--sheet-line);
+}
+.v2-sheet .v2-console-scope .v2-chip {
+  color: var(--text-mut);
+  border-color: var(--console-line-60);
+}
+
+/* glyphs on Sheet — only the ◇ glyph wears spread; the WORD stays muted (P7) */
+.v2-sheet .v2-gh {
+  color: var(--sheet-spread);
+}
+.v2-sheet .v2-gf {
+  color: var(--sheet-signal);
+}
+
+/* Sheet buttons (§4.11 BUTTON — Sheet) — ink-on-paper, paper hover ────────── */
+.v2-sheet .v2-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-well);
+  font-family: var(--v2-font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  border: 0.75px solid var(--sheet-line);
+  background: var(--sheet-raised);
+  color: var(--sheet-ink);
+  transition: background 0.14s var(--ease-out), border-color 0.14s var(--ease-out),
+    transform 0.14s var(--ease-out);
+  white-space: nowrap;
+}
+.v2-sheet .v2-btn:hover {
+  background: var(--sheet-sunk);
+}
+.v2-sheet .v2-btn:active {
+  transform: translateY(1px);
+}
+.v2-sheet .v2-btn:focus-visible {
+  outline: 2px solid var(--sheet-signal);
+  outline-offset: 2px;
+}
+.v2-sheet .v2-btn--hero {
+  height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+/* primary on Sheet = solid ink, paper text */
+.v2-sheet .v2-btn--primary {
+  background: var(--sheet-ink);
+  border-color: var(--sheet-ink);
+  color: var(--sheet-raised);
+}
+.v2-sheet .v2-btn--primary:hover {
+  background: var(--sheet-ink-hover);
+  border-color: var(--sheet-ink-hover);
+}
+.v2-sheet .v2-btn--secondary {
+  background: var(--sheet-raised);
+  border-color: var(--sheet-line);
+  color: var(--sheet-ink);
+}
+.v2-sheet .v2-btn--secondary:hover {
+  background: var(--sheet-sunk);
+}
+.v2-sheet .v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sheet-mut);
+}
+.v2-sheet .v2-btn--ghost:hover {
+  background: var(--sheet-sunk);
+  color: var(--sheet-ink);
+}
+
+/* Sheet panel/card — raised paper, hairline ───────────────────────────────── */
+.v2-sheet .v2-panel {
+  background: var(--sheet-raised);
+  border: 0.75px solid var(--sheet-line);
+  border-radius: var(--r-panel);
+}
+
+/* Sheet reveal — settle in once, then still (RECORD = still) ───────────────── */
+.v2-sheet.v2-js .v2-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.v2-sheet.v2-js .v2-reveal.in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+/* §7.4 Provenance Spine kicker — the section eyebrow with a leading rule ───── */
+.v2-sheet .v2-kicker {
+  font-family: var(--v2-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sheet-mut);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.v2-sheet .v2-kicker::before {
+  content: "";
+  width: 18px;
+  height: 0.75px;
+  background: var(--sheet-line);
+}
+
+/* §2 Newsreader prose (Sheet long-form, max 68ch) ─────────────────────────── */
+.v2-sheet .v2-prose {
+  font-family: var(--v2-font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.68;
+  color: var(--sheet-ink);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.v2-sheet .v2-prose p {
+  margin-top: 24px;
+}
+.v2-sheet .v2-prose p:first-child {
+  margin-top: 0;
+}
+/* in-prose emphasis is sans, slightly smaller — never a serif display flourish */
+.v2-sheet .v2-prose strong {
+  font-weight: 600;
+  font-family: var(--v2-font-sans);
+  font-size: 0.96em;
+}
+/* the one editorial flourish of a printed record: a drop-cap opener */
+.v2-sheet .v2-prose--lead > p:first-child::first-letter {
+  font-family: var(--v2-font-serif);
+  float: left;
+  font-size: 3.4rem;
+  line-height: 0.82;
+  font-weight: 400;
+  padding: 6px 12px 0 0;
+  color: var(--sheet-ink);
+}
+
+/* the §6.4 Console well, embedded in the Sheet — re-asserts the dark tokens
+   locally so the instrument keeps its own surface WITHOUT inverting the route.
+   The provenance inside is NOT recolored to Sheet (route-mode law). */
+.v2-sheet .v2-well {
+  position: relative;
+  background: var(--console-900);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-frame);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+/* The §6.4 Console well token scope — COMPLETE + self-contained. Re-declares
+   EVERY Console var the well's contents read (ProvenanceBar reads
+   --console-line-45 / --text-mut / --text; DistributionPoster + the specimen
+   read text/signal/spread/arm) so an embedded dark instrument renders correctly
+   regardless of the surrounding Sheet scope — nothing leaks in from `.v2-sheet`.
+   Pairs with `.v2-well`; both are applied by the <ConsoleWell> component. */
+.v2-sheet .v2-console-scope,
+.v2-console-scope {
+  --console-900: #0b1220;
+  --console-850: #10192a;
+  --console-800: #161f32;
+  --console-750: #1d2740;
+  --console-700: #26314c;
+  --console-line: #33405c;
+  --console-line-60: rgba(51, 64, 92, 0.6);
+  --console-line-55: rgba(51, 64, 92, 0.55);
+  --console-line-50: rgba(51, 64, 92, 0.5);
+  --console-line-45: rgba(51, 64, 92, 0.45);
+  --console-line-40: rgba(51, 64, 92, 0.4);
+  --console-line-30: rgba(51, 64, 92, 0.3);
+  --text-hi: #f2f4f8;
+  --text: #c6ccd8;
+  --text-mut: #929bae;
+  --text-faint: #646e84;
+  --signal: #48efca;
+  --signal-dim: #39b894;
+  --signal-wash: rgba(72, 239, 202, 0.12);
+  --spread: #c8b68a;
+  --spread-dim: #90815f;
+  --spread-wash: rgba(200, 182, 138, 0.14);
+  --arm-control: #4fa8e0;
+  --arm-treat: #e08bc4;
+  --alert: #f0683c;
+}
+
+/* Re-assert Console CLASS styling inside the well. The scope above fixes the
+   variables, but `.v2-sheet .v2-gh` / `.v2-btn` / `.v2-panel` (specificity 0,2,0)
+   still outrank the base `.v2-X` rules for any primitive embedded in the well.
+   These `.v2-sheet .v2-console-scope .v2-X` rules (0,3,0) restore the Console
+   look so an embedded glyph/button/panel renders dark, not Sheet-recolored
+   (§6.4 route-mode law). Values mirror the base Console component rules. */
+.v2-sheet .v2-console-scope .v2-gh {
+  color: var(--spread-dim);
+}
+.v2-sheet .v2-console-scope .v2-gf {
+  color: var(--signal-dim);
+}
+.v2-sheet .v2-console-scope .v2-desig {
+  font-size: 10.5px;
+  color: var(--text-mut);
+}
+.v2-sheet .v2-console-scope .v2-panel {
+  background: var(--console-800);
+  border: 1px solid var(--console-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.v2-sheet .v2-console-scope .v2-btn {
+  border: 1px solid var(--console-line);
+  background: transparent;
+  color: var(--text);
+}
+.v2-sheet .v2-console-scope .v2-btn:focus-visible {
+  outline-color: var(--signal-dim);
+}
+.v2-sheet .v2-console-scope .v2-btn--primary {
+  background: var(--console-700);
+  border-color: var(--console-line);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--primary:hover {
+  background: var(--console-750);
+}
+.v2-sheet .v2-console-scope .v2-btn--secondary {
+  background: transparent;
+  border-color: var(--console-line);
+  color: var(--text);
+}
+.v2-sheet .v2-console-scope .v2-btn--secondary:hover {
+  background: var(--console-800);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-mut);
+}
+.v2-sheet .v2-console-scope .v2-btn--ghost:hover {
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn--live {
+  background: transparent;
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.v2-sheet .v2-console-scope .v2-btn--live:hover {
+  background: var(--signal-wash);
+}
+.v2-sheet .v2-console-scope .v2-btn--destructive {
+  border-color: var(--alert);
+  color: var(--text-hi);
+}
+.v2-sheet .v2-console-scope .v2-btn:disabled {
+  color: var(--text-faint);
+  border-color: var(--console-line-50);
+  cursor: not-allowed;
+}
+
+/* ── SheetTopBar layout + responsive collapse (shared, §4.5 Sheet) ──────────
+   Desktop is identical to the mock: brand left, nav + actions right, one nowrap
+   row. On narrow viewports the inner row may wrap, and below 720px the non-active
+   nav LINKS hide (matching the mock's `.nav a:not([aria-current]):not(.btn)`),
+   collapsing to brand + active page + the action buttons (Sign in / Request
+   access stay reachable down to ~360px under `.v2-sheet` overflow-x:hidden). */
+.v2-sheet-topbar-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.v2-sheet-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+@media (max-width: 720px) {
+  .v2-sheet-topbar-inner {
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    gap: 12px;
+  }
+  .v2-sheet-nav {
+    flex-wrap: wrap;
+  }
+  /* hide non-active nav text links; the action buttons (.v2-btn) survive */
+  .v2-sheet-nav-link:not([aria-current]) {
+    display: none;
+  }
+}
+
+/* ── RecordGrid / ProvenanceSpine responsive collapse (shared primitives) ───
+   Generic to the RecordGrid + ProvenanceSpine primitives (NOT /about content):
+   below 1024px the binder margin disestablishes, the spine un-stickies and lays
+   its facts in a 3-col band; below 720px facts stack. Any Sheet page composing
+   these primitives gets correct layout without re-shipping these rules. */
+/* `!important` here intentionally overrides the primitives' inline layout
+   styles (RecordGrid/ProvenanceSpine set grid/border/padding/position inline). */
+@media (max-width: 1024px) {
+  .v2-sheet .v2-record {
+    grid-template-columns: 1fr !important;
+  }
+  .v2-sheet .v2-spine {
+    border-right: 0 !important;
+    border-bottom: 0.75px solid var(--sheet-line);
+    padding: 96px 0 28px !important;
+  }
+  .v2-sheet .v2-spine-sticky {
+    position: static !important;
+  }
+  .v2-sheet .v2-spine-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .v2-sheet .v2-spine-rule {
+    display: none;
+  }
+  .v2-sheet .v2-spine-tail {
+    margin-top: 18px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .v2-sheet .v2-spine-tail .v2-spine-item {
+    margin-bottom: 0 !important;
+  }
+}
+@media (max-width: 720px) {
+  .v2-sheet .v2-spine-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-sheet *,
+  .v2-sheet *::before,
+  .v2-sheet *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+  .v2-sheet.v2-js .v2-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── AppFrame chrome (moved from AppFrame.tsx inline <style> to fix React 18 multi-<style> hydration mismatch) ───── */
+/* Verbatim from the former AppFrame.tsx APP_FRAME_CSS. Selectors are global v2
+   classes using only var(--…) tokens; they resolve because AppFrame renders
+   inside .v2-console (ConsoleShell), where these tokens are defined above. */
+.v2-appframe{
+  display:grid;
+  grid-template-columns:236px minmax(0,1fr);
+  min-height:100vh;
+  align-items:stretch;
+}
+/* ── left rail ─────────────────────────────────────────────────────────── */
+.v2-rail{
+  position:sticky;
+  top:0;
+  align-self:start;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-room);
+  padding:var(--space-room) var(--space-cozy);
+  background:var(--console-850);
+  border-right:1px solid var(--console-line-50);
+}
+.v2-rail-brand{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-snug);
+  padding:0 var(--space-snug);
+  color:var(--text-hi);
+}
+.v2-rail-nav{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.v2-rail-item{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:var(--space-cozy);
+  height:38px;
+  padding:0 var(--space-cozy);
+  border-radius:var(--r-well);
+  color:var(--text-mut);
+  font-size:13.5px;
+  font-weight:450;
+  transition:color .14s var(--ease-out), background .14s var(--ease-out);
+}
+.v2-rail-item:hover{
+  color:var(--text-hi);
+  background:var(--console-800);
+}
+.v2-rail-item--active{
+  color:var(--text-hi);
+  background:var(--console-800);
+}
+/* active marker — 1px left INK bar (neutral, never signal — §1.9 budget) */
+.v2-rail-bar{
+  position:absolute;
+  left:0;
+  top:8px;
+  bottom:8px;
+  width:2px;
+  border-radius:2px;
+  background:transparent;
+}
+.v2-rail-item--active .v2-rail-bar{
+  background:var(--text-hi);
+}
+.v2-rail-glyph{
+  flex:0 0 auto;
+  width:30px;
+  font-size:9.5px;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  text-align:left;
+}
+.v2-rail-item--active .v2-rail-glyph,
+.v2-rail-item:hover .v2-rail-glyph{
+  color:var(--text);
+}
+.v2-rail-label{
+  white-space:nowrap;
+}
+/* workspace / account affordance — pinned to rail bottom */
+.v2-rail-account{
+  margin-top:auto;
+  display:flex;
+  align-items:center;
+  gap:var(--space-snug);
+  padding:var(--space-snug);
+  border-radius:var(--r-well);
+  border:1px solid var(--console-line-45);
+  color:var(--text-mut);
+  font-size:12.5px;
+  transition:color .14s var(--ease-out), background .14s var(--ease-out);
+}
+.v2-rail-account:hover{
+  color:var(--text-hi);
+  background:var(--console-800);
+}
+.v2-rail-account-avatar{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:26px;
+  height:26px;
+  border-radius:var(--r-well);
+  background:var(--console-700);
+  color:var(--text-hi);
+  font-size:11px;
+  font-weight:500;
+}
+.v2-rail-account-name{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* production rail footer (AppShellV2): pins the real AuthControls (Clerk org
+   switcher + user button) to the bottom of the rail. Empty when Clerk is off
+   in dev — collapses to nothing, no border/box. */
+.v2-rail-account-slot{
+  margin-top:auto;
+}
+.v2-rail-account-slot:empty{
+  display:none;
+}
+/* ── content column ────────────────────────────────────────────────────── */
+.v2-appframe-content{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.v2-appbar{
+  position:sticky;
+  top:0;
+  z-index:40;
+  display:flex;
+  align-items:center;
+  gap:var(--space-room);
+  min-height:52px;
+  padding:var(--space-cozy) var(--space-section);
+  background:var(--console-850);
+  border-bottom:1px solid var(--console-line-50);
+}
+.v2-appbar-title{
+  font-size:1.0625rem;
+  line-height:1.2;
+  letter-spacing:-0.01em;
+  font-weight:550;
+  color:var(--text-hi);
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.v2-appbar-right{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:var(--space-base);
+}
+.v2-appbar-actions{
+  display:flex;
+  align-items:center;
+  gap:var(--space-snug);
+}
+.v2-appmain{
+  flex:1 1 auto;
+  min-width:0;
+  padding:var(--space-section);
+}
+/* Sheet content surface inside the Console rail (AppShellV2 surface="sheet").
+   A light reading surface for pages whose body still renders the legacy
+   ink-on-paper markup, so their dark text stays legible inside the dark shell.
+   Background is the LEGACY paper (#F4EFE6 = TOKENS.paper) so a shell-wrapped
+   legacy page renders pixel-faithful to its pre-v2 self — only the rail
+   replaces the old top nav. Padding is 0: the legacy <main> owns its own
+   max-width + margins, so the surface just spans the column edge-to-edge.
+   Default color is reset to legacy ink so any unstyled text is legible (the
+   .v2-console scope would otherwise inherit light --text on this light bg). */
+/* Compound selector (.v2-appmain.v2-appmain--sheet) so this padding:0 outranks
+   the equal-specificity `.v2-appmain{padding:…}` rules inside the responsive
+   media queries below — AppShellV2 emits BOTH classes, so a single-class rule
+   would lose to those later media rules on tablet/mobile and double-pad the
+   legacy <main>. */
+.v2-appmain.v2-appmain--sheet{
+  padding:0;
+  background:#F4EFE6;
+  color:#0E1A2B;
+}
+/* ── responsive — rail collapses to a glyph strip, then a top strip ──────── */
+@media(max-width:1024px){
+  .v2-appframe{grid-template-columns:64px minmax(0,1fr);}
+  .v2-rail{padding:var(--space-room) var(--space-snug);align-items:center;}
+  .v2-rail-label,
+  .v2-rail-account-name{display:none;}
+  .v2-rail-item{justify-content:center;padding:0;width:44px;}
+  .v2-rail-glyph{width:auto;text-align:center;}
+  .v2-rail-account{justify-content:center;padding:var(--space-snug);border:none;}
+  .v2-appbar{padding:var(--space-cozy) var(--space-room);}
+  .v2-appmain{padding:var(--space-room);}
+}
+@media(max-width:640px){
+  .v2-appframe{grid-template-columns:1fr;}
+  .v2-rail{
+    position:sticky;
+    top:0;
+    height:auto;
+    flex-direction:row;
+    align-items:center;
+    gap:var(--space-base);
+    padding:var(--space-snug) var(--space-room);
+    border-right:none;
+    border-bottom:1px solid var(--console-line-50);
+    z-index:45;
+  }
+  .v2-rail-nav{
+    flex-direction:row;
+    gap:2px;
+    overflow-x:auto;
+    flex:1 1 auto;
+  }
+  .v2-rail-item{height:36px;width:auto;padding:0 var(--space-cozy);}
+  .v2-rail-bar{
+    left:var(--space-snug);
+    right:var(--space-snug);
+    top:auto;
+    bottom:0;
+    width:auto;
+    height:2px;
+  }
+  .v2-rail-account{margin-top:0;margin-left:auto;}
+  .v2-rail-account-name{display:none;}
+  /* rail becomes the sticky top strip on mobile; the appbar stops sticking so
+     it can't slide under the rail (both were pinned at top:0). */
+  .v2-appbar{position:static;padding:var(--space-cozy) var(--space-room);}
+  .v2-appmain{padding:var(--space-room);}
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   /simulations Reading Console — the LIVE hypotheses register reskin (#372).
+   Ported grid from the /v2/simulations-list mock, refitted to the REAL columns
+   (ID · Hypothesis · Sim agreement·raw · Verdict·policy · Last run). No
+   directional-reading / lift column — §8.1 forbids a verdict without a
+   persisted policy, so the real list states the absence instead. Token-driven
+   only; numerals carry .v2-tnum at the markup level.
+   ─────────────────────────────────────────────────────────────────────────── */
+.v2-sims{
+  max-width:1120px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-room);
+}
+/* ── header strip: count clause + the honesty designator ─────────────────── */
+.v2-sims-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-base);
+  flex-wrap:wrap;
+}
+.v2-sims-count{
+  font-size:0.8125rem;
+  color:var(--text-mut);
+  letter-spacing:0.04em;
+  white-space:nowrap;
+}
+.v2-sims-count .v2-mono{
+  color:var(--text);
+}
+.v2-sims-law{
+  margin-left:auto;
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  padding:3px 8px;
+  white-space:nowrap;
+}
+/* ── index panel + table ───────────────────────────────────────────────── */
+.v2-sims-panel{
+  padding:var(--space-snug) var(--space-room) var(--space-room);
+}
+.v2-sims-table{
+  display:flex;
+  flex-direction:column;
+}
+.v2-sims-row{
+  display:grid;
+  grid-template-columns:116px minmax(0,1fr) 132px 232px 116px;
+  align-items:center;
+  gap:var(--space-base);
+  min-height:52px;
+  padding:var(--space-snug);
+  border-top:1px solid var(--console-line-40);
+  color:var(--text);
+  font-size:0.875rem;
+  transition:background .14s var(--ease-out);
+}
+.v2-sims-row--head{
+  min-height:40px;
+  border-top:none;
+  align-items:end;
+}
+a.v2-sims-row,
+.v2-sims-row--link{
+  cursor:pointer;
+}
+.v2-sims-row--link:hover,
+a.v2-sims-row:hover{
+  background:var(--console-750);
+}
+.v2-sims-row--link:active{
+  transform:translateY(1px);
+}
+/* id — machine designator, mono */
+.v2-sims-c-id{
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:0.8125rem;
+}
+/* hypothesis cell — prose (hi) over capability (mut) */
+.v2-sims-c-name{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.v2-sims-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--text-hi);
+  font-weight:450;
+}
+.v2-sims-name a{
+  color:inherit;
+}
+.v2-sims-name a:hover{
+  color:var(--text-hi);
+}
+.v2-sims-name-empty{
+  color:var(--text-mut);
+  font-style:italic;
+}
+.v2-sims-cap{
+  font-size:0.75rem;
+  color:var(--text-mut);
+}
+/* agreement — right-aligned recorded numeral (RAW · UNCALIBRATED) */
+.v2-sims-c-agree{
+  text-align:right;
+  color:var(--text);
+  white-space:nowrap;
+}
+.v2-sims-c-agree--muted{
+  color:var(--text-mut);
+}
+.v2-sims-agree-tag{
+  display:block;
+  font-size:0.625rem;
+  letter-spacing:0.08em;
+  color:var(--text-mut);
+}
+/* verdict · policy cell — state badge / honesty clause, left-aligned */
+.v2-sims-c-verdict{
+  display:flex;
+  align-items:center;
+  gap:var(--space-snug);
+  min-width:0;
+}
+.v2-sims-state{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-snug);
+}
+/* §8.1 honesty clause for complete rows — no verdict, mono, muted */
+.v2-sims-nopolicy{
+  font-size:0.6875rem;
+  letter-spacing:0.04em;
+  color:var(--text-mut);
+  white-space:nowrap;
+}
+/* live carrier — the single sanctioned pulse under a READING-IN-PROGRESS badge.
+   Signal is reserved for the live state (§1.9). The .v2-console reduced-motion
+   block above freezes it to a static full-opacity underline automatically. */
+.v2-sims-carrier{
+  position:relative;
+}
+.v2-sims-carrier::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-4px;
+  height:2px;
+  background:var(--signal);
+  animation:v2-sims-carrier 3.4s ease-in-out infinite;
+}
+@keyframes v2-sims-carrier{
+  0%,100%{opacity:0.45;}
+  50%{opacity:1;}
+}
+/* last run — recorded date / LIVE, right-aligned */
+.v2-sims-c-when{
+  text-align:right;
+  color:var(--text-mut);
+  font-size:0.8125rem;
+  white-space:nowrap;
+}
+.v2-sims-row--head .v2-sims-c-agree,
+.v2-sims-row--head .v2-sims-c-when{
+  text-align:right;
+}
+/* empty state row — spans the table */
+.v2-sims-empty{
+  padding:22px var(--space-snug);
+  color:var(--text-mut);
+  font-size:0.875rem;
+}
+.v2-sims-empty a{
+  color:var(--text-hi);
+  font-weight:500;
+}
+/* error + loading rows */
+.v2-sims-alert{
+  padding:var(--space-cozy);
+  border:1px solid var(--signal-dim);
+  border-radius:var(--r-well);
+  background:var(--console-750);
+  color:var(--text-hi);
+  font-size:0.875rem;
+}
+.v2-sims-loading{
+  margin:0;
+  color:var(--text-mut);
+  font-size:0.875rem;
+}
+/* ── responsive — fold the secondary columns under the name ──────────────── */
+@media(max-width:920px){
+  .v2-sims-row{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:
+      "name verdict"
+      "meta agree";
+    row-gap:var(--space-snug);
+    align-items:start;
+  }
+  .v2-sims-c-id{display:none;}
+  .v2-sims-c-name{grid-area:name;}
+  .v2-sims-c-verdict{grid-area:verdict;justify-self:end;}
+  .v2-sims-c-agree{grid-area:agree;justify-self:end;}
+  .v2-sims-c-when{display:none;}
+  .v2-sims-row--head{display:none;}
+}
+@media(max-width:560px){
+  .v2-sims-panel{padding:var(--space-snug) var(--space-cozy) var(--space-cozy);}
+  .v2-sims-row{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "name"
+      "verdict"
+      "agree";
+    row-gap:4px;
+  }
+  .v2-sims-c-verdict,
+  .v2-sims-c-agree{justify-self:start;}
+}
+
+/* ── /personas — the Library (v2 reskin) ──────────────────────────────────────
+   Three-entity IA (§7.6): feature pack · persona packs · stimuli, rendered as
+   card grids on the Console surface. Mirrors the .v2-sims-* precedent: all the
+   Library layout lives here so the page island ships no inline <style>.
+   Every value is a v2 token / plain unit — no raw hex, no font names. */
+.v2-lib{
+  max-width:1120px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-section);
+}
+/* header strip: the IA kicker + the §7.6 honesty law */
+.v2-lib-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-base);
+  flex-wrap:wrap;
+}
+.v2-lib-kicker{
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  text-transform:uppercase;
+}
+.v2-lib-law{
+  margin-left:auto;
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  padding:3px 8px;
+  white-space:nowrap;
+}
+/* ── sections ─────────────────────────────────────────────────────────────── */
+.v2-lib-section{
+  display:flex;
+  flex-direction:column;
+}
+.v2-lib-section-label{
+  display:block;
+  letter-spacing:0.16em;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--console-line-40);
+}
+.v2-lib-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
+  gap:var(--space-base);
+  margin-top:14px;
+}
+/* ── cards ────────────────────────────────────────────────────────────────── */
+.v2-lib-card{
+  padding:var(--space-base);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  transition:border-color .14s var(--ease-out);
+}
+.v2-lib-card:hover{
+  border-color:var(--console-line);
+}
+/* ghost card — dashed, recessed surface for the "new …" affordances */
+.v2-lib-card--ghost{
+  background:var(--console-850);
+  border:1px dashed var(--console-line-50);
+  border-radius:var(--r-panel);
+}
+.v2-lib-cardhead{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  margin-bottom:10px;
+  width:100%;
+}
+.v2-lib-cardname{
+  font-size:0.9375rem;
+  font-weight:600;
+  color:var(--text-hi);
+  flex:1;
+  min-width:0;
+}
+.v2-lib-chip--strong{
+  color:var(--text-hi);
+  border-color:var(--console-line);
+}
+/* record rows — label (mut, caps) / value (mono) pairs */
+.v2-lib-rows{
+  margin:0;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:3px 14px;
+  width:100%;
+}
+.v2-lib-rows-dt{
+  font-size:0.625rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  padding-top:2px;
+}
+.v2-lib-rows-dd{
+  margin:0;
+  font-size:0.71875rem;
+  color:var(--text);
+}
+.v2-lib-cardnote{
+  margin:10px 0 0;
+  font-size:0.75rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-cardlink{
+  display:inline-block;
+  margin-top:12px;
+  font-size:0.78125rem;
+  font-weight:500;
+  color:var(--text);
+  border-bottom:1px dotted var(--text-mut);
+  transition:border-color .14s var(--ease-out), color .14s var(--ease-out);
+}
+.v2-lib-cardlink:hover{
+  color:var(--text-hi);
+  border-bottom-color:var(--text-hi);
+}
+/* helper / body notes outside cards */
+.v2-lib-bodynote{
+  margin:12px 0 0;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-pending{
+  margin:12px 0 0;
+  font-size:0.8125rem;
+  color:var(--text-mut);
+}
+/* designed empty-state — neutral note surface, never alert (§4.3, §7.7) */
+.v2-lib-empty{
+  margin-top:12px;
+  padding:var(--space-base);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  background:var(--console-850);
+  color:var(--text);
+  font-size:0.8125rem;
+  line-height:1.5;
+}
+.v2-lib-inline-link{
+  color:var(--text-hi);
+  border-bottom:1px dotted var(--text-mut);
+}
+.v2-lib-inline-link:hover{
+  border-bottom-color:var(--text-hi);
+}
+/* error note — alert border carries severity, message reads in ink (§7.7) */
+.v2-lib-error{
+  margin-top:12px;
+  padding:var(--space-cozy);
+  border:1px solid var(--alert);
+  border-radius:var(--r-well);
+  background:var(--console-750);
+  color:var(--text-hi);
+  font-size:0.8125rem;
+}
+/* stimulus card prose — 2-line clamp */
+.v2-lib-stim-prose{
+  margin:0 0 10px;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.v2-lib-stim-runs{
+  display:inline-flex;
+  flex-direction:column;
+}
+.v2-lib-stim-run{
+  display:block;
+}
+/* live carrier — the single sanctioned pulse under a running run (§9.5).
+   Frozen to a static underline by the .v2-console reduced-motion block. */
+.v2-lib-carrier{
+  position:relative;
+}
+.v2-lib-carrier::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-3px;
+  height:2px;
+  background:var(--signal);
+  animation:v2-sims-carrier 3.4s ease-in-out infinite;
+}
+/* ── sample workspace seed (empty tenants only) ──────────────────────────── */
+.v2-lib-sample{
+  margin-top:var(--space-base);
+  padding:var(--space-base);
+  background:var(--console-800);
+  border:1px solid var(--console-line-50);
+  border-radius:var(--r-well);
+}
+.v2-lib-sample-title{
+  font-weight:500;
+  font-size:0.875rem;
+  color:var(--text-hi);
+}
+.v2-lib-sample-body{
+  margin:6px 0 12px;
+  font-size:0.8125rem;
+  line-height:1.5;
+  color:var(--text-mut);
+}
+.v2-lib-sample-done{
+  font-size:0.8125rem;
+  color:var(--text);
+}
+.v2-lib-sample-error{
+  margin-top:10px;
+  font-size:0.8125rem;
+  color:var(--text-hi);
+  padding:8px 12px;
+  background:var(--console-750);
+  border:1px solid var(--alert);
+  border-radius:var(--r-well);
+}
+@media(max-width:560px){
+  .v2-lib-grid{grid-template-columns:1fr;}
+  .v2-lib-law{margin-left:0;}
+}

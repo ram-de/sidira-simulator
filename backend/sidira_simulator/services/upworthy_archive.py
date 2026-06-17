@@ -62,9 +62,12 @@ logger = logging.getLogger(__name__)
 # fails loudly rather than silently saving an HTML error page.
 ARCHIVE_PROJECT_URL = "https://osf.io/jd64p/"
 ARCHIVE_FILENAME = "upworthy-archive-exploratory-packages-03.12.2020.csv"
-# File-level OSF id for the exploratory-packages CSV. Confirm against the live
-# project (osf.io/jd64p → upworthy-archive-datasets/) before a fetch run.
-FETCH_OSF_FILE_ID = "vfz9h"
+# File-level OSF id (guid) for the exploratory-packages CSV. Confirm against the
+# live project (osf.io/jd64p → upworthy-archive-datasets/) before a fetch run.
+# Verified 2026-06-15 via the OSF API (api.osf.io/v2/nodes/jd64p/files/osfstorage/)
+# against `upworthy-archive-exploratory-packages-03.12.2020.csv` (≈14.3 MB,
+# 22,666 package rows); a successful fetch + header check confirmed the guid.
+FETCH_OSF_FILE_ID = "3vqmp"
 FETCH_URL = f"https://osf.io/{FETCH_OSF_FILE_ID}/download"
 
 # Default archive column → loader field mapping. Verified against the archive's

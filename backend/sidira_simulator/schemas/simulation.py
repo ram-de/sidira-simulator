@@ -52,8 +52,9 @@ class Hypothesis(BaseModel):
     # metric fails loudly (no silent degradation to sentiment); a metric routes
     # end-to-end iff it is registered. `retention` is the first sibling (#275);
     # `conversion` keeps its byte-identical behavior; `ctr` (#276) is the
-    # on-screen click-through sibling, closest to conversion.
-    metric_name: Literal["conversion", "retention", "ctr"] | None = None
+    # on-screen click-through sibling, closest to conversion; `visit` (#222
+    # Hillstrom) is the post-touchpoint site-visit sibling of ctr.
+    metric_name: Literal["conversion", "retention", "ctr", "visit"] | None = None
     # The metric event + its in-character phrasing. For conversion: the
     # conversion action ("complete checkout") + its label ("check out now"). For
     # retention: the post-experience moment + the "return" label. Required fields
@@ -208,6 +209,19 @@ class SimulationRequest(BaseModel):
             "single-arm path supports it; A/B mode ignores it for now."
         ),
     )
+    run_as_generic_reception: bool = Field(
+        default=False,
+        description=(
+            "Answerability gate override (#310 / T1). When the pre-flight gate "
+            "blocks because no decision metric (OEC) was declared "
+            "(metric_name is None), the PM may resubmit with this flag to "
+            "proceed anyway — the run is then labeled generic-reception "
+            "(sentiment only, NOT OEC-aligned) rather than dead-ended. It does "
+            "NOT override the structurally-invisible-change block (there is no "
+            "faithful way to simulate a wireframe described as prose). Default "
+            "False → today's behavior. Does not touch confidence_score."
+        ),
+    )
 
     @field_validator("selected_personas")
     @classmethod
@@ -265,6 +279,32 @@ class Weakness(BaseModel):
     ci_high: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
+class InputFlags(BaseModel):
+    """Pre-flight ordinal input-lint result, stamped on an amber/red/abstain run
+    (epic #309, T3 / #312).
+
+    CATEGORICAL only — an ordinal `state` + named `reasons` + stable
+    `reason_codes`, NEVER a number or score (panel hard constraint: the lint
+    ROUTES, it does not discount `confidence_score`). Populated by the runner
+    from the pre-flight `services.input_lint.assess_input_lint` verdict (LLM
+    judge + deterministic leading-framing lint + paraphrase-abstain). `state` is
+    `amber` | `red` | `abstain`; a `green` run carries NO `input_flags` (the
+    field stays None) so a clean run and every older `result_json` row load
+    byte-identical and this is migration-free (it rides the result JSON blob, NOT
+    a DB column). `reason_codes` are the existing weakness-taxonomy categories
+    (`scoring._VALID_CATEGORIES`) plus the deterministic `leading_framing` code;
+    `fixes` carries auto-neutralize hints for leading framing. The detail page
+    surfaces this as an amber disclosure note (DESIGN.md §7.7 cautionary-note
+    anatomy); the score is computed and persisted unchanged.
+    """
+
+    state: Literal["amber", "red", "abstain"]
+    reasons: list[str] = Field(default_factory=list)
+    reason_codes: list[str] = Field(default_factory=list)
+    fixes: list[str] = Field(default_factory=list)
+    paraphrase_unstable: bool = False
+
+
 class AgentAnalysisSummary(BaseModel):
     """Per-agent post-run summary (#51 result table).
 
@@ -298,6 +338,35 @@ class SimulationResult(BaseModel):
             "that ran before #51 landed (backwards-compatible)."
         ),
     )
+
+    # ── Abstention / instrument-fit (epic #309, T2 / #311) ──
+    # The sanctioned "fourth verdict state" carrier. CATEGORICAL only — a state
+    # flag + named reasons, NEVER a number or score (panel hard constraint: the
+    # abstention does not arithmetically discount confidence_score, it
+    # categorically WITHHOLDS the ship/no-ship verdict). Populated by the runner
+    # from the deterministic, zero-LLM instrument-fit detector
+    # (services.answerability._detect_out_of_scope) when the OEC is unresolvable
+    # by a first-exposure single-session panel (long-horizon / network /
+    # novelty-decay). Default `False` / empty so a flag-off run and every older
+    # `result_json` row load byte-identical and this is migration-free (it rides
+    # the result JSON blob, NOT a DB column). When `instrument_scope` is
+    # "out_of_scope", `verdictFor()` overrides the numeric verdict to
+    # "NOT ANSWERABLE BY THIS INSTRUMENT" and surfaces `out_of_scope_reasons`.
+    # The headline confidence_score is still computed and persisted unchanged.
+    instrument_scope: Literal["in_scope", "out_of_scope"] = "in_scope"
+    out_of_scope_reasons: list[str] = Field(default_factory=list)
+    out_of_scope_reason_codes: list[str] = Field(default_factory=list)
+
+    # ── Pre-flight ordinal input lint (epic #309, T3 / #312) ──
+    # The degrade-and-disclose carrier for the amber/red/abstain input lint.
+    # CATEGORICAL only (ordinal state + named reasons), NEVER a number — the lint
+    # ROUTES, it does not discount confidence_score (panel hard constraint).
+    # None on a `green` run (and on every older `result_json` row) so a clean run
+    # loads byte-identical and this is migration-free (rides the result JSON
+    # blob, NOT a DB column). When present, the detail page renders an amber
+    # disclosure note (DESIGN.md §7.7) and the refinement queue is populated. The
+    # headline confidence_score is computed and persisted unchanged.
+    input_flags: InputFlags | None = None
 
     # ── A/B mode fields (Phase 4.6 #90) ──
     # All None / 0 for single-arm sims so older `result_json` rows load.
@@ -402,6 +471,56 @@ class SimulationResult(BaseModel):
     # unchanged; while False, `metric_lift_relative` carries the "uncalibrated
     # — read as rank/direction, not effect size" caveat. The fit is #222-gated.
     metric_lift_calibrated: bool = False
+    # Variance-collapse honesty flag: True when at least one contributor (EITHER
+    # arm) reacted on a persona lacking per-persona v1.1 `behavioral_seeds`, so its
+    # identity seed fell back to the shared default (cross-agent variance
+    # collapses). A flat / non-separable blinded metric in that condition may
+    # reflect collapsed agent variance rather than a true null effect;
+    # `metric_lift_relative` also carries the caveat text. Defaults False so
+    # non-metric / v1.1 runs and older `result_json` rows are byte-identical
+    # (additive, migration-free — `SimulationResult` has no extra="forbid").
+    metric_lift_variance_collapsed: bool = False
+    # Cheap diagnostic companion: distinct persona count behind the flag (0 when
+    # False).
+    metric_lift_variance_collapsed_persona_count: int = 0
+    # Underpowered honesty flag (n, orthogonal to variance collapse's seeds): True
+    # when `metric_lift_pp` IS computed but on a paired sample too small for the
+    # paired bootstrap to separate a moderate effect AND the interval is
+    # non-separable. In that regime a straddle-zero CI is INCONCLUSIVE — the panel
+    # cannot detect an effect of plausible size — not evidence of no effect, yet it
+    # reads identically to a true null; `metric_lift_relative` also carries the
+    # caveat text. Defaults False so non-metric runs, separable / large-n runs, and
+    # older `result_json` rows are byte-identical (additive, migration-free —
+    # `SimulationResult` has no extra="forbid").
+    metric_lift_underpowered: bool = False
+    # ── Metric↔sentiment disagreement guardrail (#321) ──
+    # True when the metric and the sentiment lift are BOTH separable (their CIs
+    # exclude zero) AND point in OPPOSITE directions. The dangerous case is
+    # HARM-MISREAD: the uncalibrated metric reads positive-and-separable (it would
+    # greenlight the change) while sentiment is negative-and-separable (users hate
+    # it) — the validated failure mode where uncalibrated blinded retention gave
+    # the WRONG SIGN on a harm (+2.0pp metric vs strongly negative sentiment). The
+    # symmetric HIDDEN-IMPROVEMENT case (metric negative-separable, sentiment
+    # positive-separable) also sets this flag. This is an HONEST, pre-calibration
+    # surfacing: it claims NO magnitude, only a sign contradiction; it does NOT
+    # touch `confidence_score`, `lift`, or `metric_lift_pp`. Default False so
+    # non-metric runs, runs where either CI is None, and older `result_json` rows
+    # load byte-identical and this is migration-free (it rides the result JSON
+    # blob, NOT a DB column). Sign convention: positive metric = higher
+    # propensity; positive sentiment lift = better-received. Until the metric is
+    # calibrated (#222), TRUST SENTIMENT for harm when the two disagree.
+    metric_sentiment_disagreement: bool = False
+    # The explanation of the disagreement (the actual metric pp + CI and sentiment
+    # lift + CI, and the trust-sentiment-for-harm guidance). None when there is no
+    # disagreement. SURFACING: on HARM-MISREAD — the dangerous case, the whole
+    # motivation — a `hidden_guardrail_risk` Weakness is ALSO appended to
+    # `weaknesses`, which the result page already renders, so the harm path is
+    # PM-visible today. HIDDEN-IMPROVEMENT (the symmetric, non-risk case) sets the
+    # caveat ONLY and appends no weakness; like the `metric_lift_*` honesty flags
+    # it rides the result JSON blob and is not yet wired into a dedicated frontend
+    # card (a follow-up can render it on the metric panel — no schema change
+    # needed, the field is already here).
+    metric_sentiment_disagreement_caveat: str | None = None
 
 
 class Simulation(BaseModel):

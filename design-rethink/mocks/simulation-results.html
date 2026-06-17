@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIM-7C4A1E9F · Persona-checkout reduction · Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  /* NOTE: no --verdict-ship / --verdict-hold token — a verdict is not a color */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,monospace;
+  --font-serif:"Newsreader",Georgia,serif;
+}
+
+*{box-sizing:border-box; font-variant-numeric:tabular-nums;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--console-850);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+::selection{background:var(--signal-wash); color:var(--text-hi);}
+a{color:inherit; text-decoration:none;}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.tnum{font-variant-numeric:tabular-nums;}
+.mono{font-family:var(--font-mono);}
+
+/* ── designators ───────────────────────────────────── */
+.desig{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-mut);
+}
+.desig-sm{font-size:10px;}
+.chip{
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.6); border-radius:var(--r-well);
+  padding:2px 6px; display:inline-flex; align-items:center; gap:5px;
+}
+
+/* ── app shell ─────────────────────────────────────── */
+.shell{display:flex; min-height:100vh;}
+.rail{
+  width:56px; flex:0 0 56px; background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex; flex-direction:column; align-items:center;
+  padding-top:14px; gap:4px; position:sticky; top:0; height:100vh; z-index:30;
+}
+.rail .mark{width:34px; height:34px; margin-bottom:14px;}
+.rail-btn{
+  width:40px; height:40px; border-radius:var(--r-well);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--text-mut); position:relative; cursor:pointer;
+  transition:color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.rail-btn:hover{color:var(--text); background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:""; position:absolute; left:-8px; top:9px; bottom:9px; width:2px;
+  background:var(--signal-dim); border-radius:1px;
+}
+.rail-btn svg{width:18px; height:18px;}
+.rail-spacer{flex:1;}
+
+.frame{flex:1; min-width:0; display:flex; flex-direction:column;}
+
+/* ── top bar ───────────────────────────────────────── */
+.topbar{
+  height:52px; flex:0 0 52px; background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex; align-items:center; padding:0 24px; gap:16px;
+  position:sticky; top:0; z-index:20;
+}
+.wordmark{
+  font-family:var(--font-sans); font-weight:600; font-size:15px;
+  letter-spacing:.06em; color:var(--text-hi);
+}
+.topbar .crumb{color:var(--text-mut);}
+.topbar .crumb b{color:var(--text-hi); font-weight:500;}
+.topbar-legend{
+  margin-left:auto; display:flex; align-items:center; gap:14px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  color:var(--text-mut);
+}
+.topbar-legend .sep{color:var(--console-line);}
+/* P7: running words ride --text-mut; only the ◇ glyph is --spread-dim. */
+.topbar-legend .unc{color:var(--text-mut);}
+.live-dot{
+  width:7px; height:7px; border-radius:9999px; background:var(--signal);
+  display:inline-block; animation:breath 2s ease-in-out infinite;
+}
+@keyframes breath{0%,100%{opacity:.5;}50%{opacity:1;}}
+
+/* ── population field (full-bleed canvas behind hero) ── */
+.fieldwrap{
+  position:relative; width:100%;
+  background:
+    radial-gradient(120% 90% at 78% 12%, rgba(72,239,202,.05), transparent 60%),
+    radial-gradient(140% 120% at 20% 0%, var(--console-800), var(--console-900) 70%);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  overflow:hidden;
+}
+#field{display:block; width:100%; height:440px;}
+.field-vignette{
+  position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(11,18,32,.35) 0%, transparent 22%, transparent 68%, rgba(11,18,32,.86) 100%);
+}
+.field-legend{
+  position:absolute; left:24px; top:18px; right:24px;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  pointer-events:none;
+}
+.legend-line{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  color:var(--text-mut); display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+}
+.legend-line .sep{color:var(--console-line);}
+.legend-line .unc{color:var(--text-mut);}
+.legend-line .hi{color:var(--text);}
+/* The hollow ◇ glyph (and ± values) are the ONLY things in --spread-dim. */
+.glyph-hollow{color:var(--spread-dim);}
+
+.field-verdict{
+  position:absolute; left:24px; bottom:24px; right:24px;
+  display:flex; align-items:flex-end; justify-content:space-between; gap:40px;
+  pointer-events:none;
+}
+.verdict-figure .lab{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text-mut); margin-bottom:10px;
+  display:flex; align-items:center; gap:8px;
+}
+/* R4: the masthead figure is the ONE reading that leads on first paint.
+   Sized up + given baseline air so it clearly dominates the band (P10). */
+.verdict-figure .num{
+  font-family:var(--font-mono); font-weight:500; font-size:104px;
+  line-height:.9; letter-spacing:-.02em; color:var(--text-hi);
+  display:flex; align-items:baseline; gap:16px;
+}
+.verdict-figure .num .ci{
+  font-size:24px; font-weight:400; color:var(--spread); letter-spacing:0;
+}
+.verdict-figure .num .of{font-size:24px; color:var(--text-mut); font-weight:400;}
+.verdict-figure .num .stamp{font-size:28px; color:var(--spread-dim); align-self:center;}
+/* Verdict tag: ink + glyph only. No lime, no lime dot, no lime border (P2/P5/P6).
+   The verdict lives HERE, once — masthead-only (R4 de-triplication). */
+.verdict-tag{
+  display:inline-flex; align-items:center; gap:9px; margin-top:16px;
+  font-family:var(--font-mono); font-size:12.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-hi);
+  border:1px solid var(--console-line); border-radius:var(--r-well);
+  padding:6px 12px;
+}
+.verdict-tag .vg{color:var(--spread-dim); font-size:13px;}
+.verdict-tag .delta{color:var(--text-hi);}
+.verdict-tag .vci{color:var(--spread);}
+
+/* ── reaction-split readout: a QUIET, interrogable stepped strip, not a second
+      competing figure. Real binned 71/18/11 split across the −1…+1 reaction
+      axis, colored on the arm perceptual ramp (reject→control blue, adopt→
+      treatment magenta). Recedes beneath the masthead figure (R4 de-crowd). ── */
+.field-readout{max-width:300px; align-self:flex-end; padding-bottom:6px;}
+.field-readout .rlab{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text-mut); margin-bottom:9px;
+  display:flex; justify-content:space-between; align-items:baseline;
+}
+.field-readout .rlab .rej{color:var(--arm-control);}
+.field-readout .rlab .adt{color:var(--arm-treat);}
+.split-strip{display:flex; align-items:flex-end; gap:3px;}
+.split-strip .seg{
+  flex:1; min-width:0; display:flex; flex-direction:column;
+  justify-content:flex-end; height:48px;
+}
+.split-strip .seg .bar{width:100%; min-height:2px; border-radius:1px 1px 0 0; opacity:.85;}
+.split-strip .seg .pc{
+  font-family:var(--font-mono); font-size:11px; color:var(--text-hi);
+  text-align:center; margin-bottom:4px;
+}
+.split-strip .seg .nm{
+  margin-top:5px; font-family:var(--font-mono); font-size:9.5px;
+  letter-spacing:.04em; text-transform:uppercase; color:var(--text-mut);
+  text-align:center;
+}
+.field-readout .rfoot{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.04em;
+  color:var(--text-mut); margin-top:8px; text-align:right;
+}
+.field-tip{
+  position:absolute; transform:translate(-50%,-130%);
+  background:var(--console-800); border:1px solid var(--console-line);
+  border-radius:var(--r-well); padding:7px 10px; pointer-events:none;
+  font-family:var(--font-mono); font-size:11px; color:var(--text);
+  white-space:nowrap; z-index:8; box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  opacity:0; transition:opacity 120ms var(--ease-out);
+}
+
+/* ── content scaffold ──────────────────────────────── */
+.scroll{flex:1; overflow-y:auto;}
+.page{max-width:1320px; margin:0 auto; padding:48px 24px 96px;}
+.grid{display:grid; grid-template-columns:minmax(0,1fr) 348px; gap:48px; align-items:start;}
+.col-main{min-width:0; display:flex; flex-direction:column; gap:48px;}
+
+/* ── panels ────────────────────────────────────────── */
+.panel{
+  background:var(--console-800); border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-panel); box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.panel-pad{padding:24px;}
+.glass{
+  background:var(--console-900);
+  border:1px solid rgba(51,64,92,.5); border-radius:var(--r-frame);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  overflow:hidden;
+}
+.chan-legend{
+  display:flex; flex-wrap:wrap; align-items:center; gap:9px;
+  padding:9px 16px; border-bottom:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  color:var(--text-mut); background:rgba(11,18,32,.4);
+}
+.chan-legend .sep{color:var(--console-line);}
+.chan-legend .ch{color:var(--text);}
+.chan-legend .unc{color:var(--text-mut);}
+
+/* hypothesis header */
+.hcrumb{margin-bottom:14px;}
+.hcrumb a{color:var(--text-mut);}
+.hcrumb b{color:var(--text); font-weight:500;}
+.lineage{display:flex; align-items:center; gap:9px; margin-bottom:18px; flex-wrap:wrap;}
+.lineage .node{display:inline-flex; align-items:center; gap:7px;}
+.lineage .sq{width:6px; height:6px; display:inline-block;}
+.lineage .sq.fill{background:var(--text);}
+.lineage .sq.open{border:1px solid var(--text-mut); background:transparent;}
+.lineage .rule{width:30px; height:1px; background:var(--console-line);}
+.lineage .on{color:var(--text);}
+.lineage .off{color:var(--text-mut);}
+
+.htitle-row{display:flex; align-items:flex-start; gap:18px;}
+.aperture{flex:0 0 auto; margin-top:2px;}
+h1.htitle{
+  font-family:var(--font-sans); font-weight:600; font-size:32px;
+  line-height:1.08; letter-spacing:-.025em; color:var(--text-hi);
+  margin:0 0 12px; text-wrap:balance; max-width:32ch;
+}
+.verdicttag-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+/* Header verdict chip: ink + glyph, hedged. No lime carrier (P2/P5/P6). */
+.vchip{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  text-transform:uppercase; padding:4px 10px; border-radius:var(--r-well);
+  border:1px solid var(--console-line); color:var(--text-hi);
+  display:inline-flex; align-items:center; gap:8px;
+}
+.vchip .vg{color:var(--spread-dim);}
+.vchip .vci{color:var(--spread);}
+.whyline{
+  font-family:var(--font-mono); font-size:12px; letter-spacing:.02em;
+  line-height:1.7; color:var(--text-mut); max-width:78ch;
+}
+.whyline .unc{color:var(--text-mut);}
+.whyline .em{color:var(--text);}
+
+/* telemetry strip */
+.tele{
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px;
+  margin-top:22px; padding-top:16px; border-top:1px solid rgba(51,64,92,.5);
+}
+.tele .cell .k{margin-bottom:5px;}
+.tele .cell .v{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--text-hi);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* glass instrument grid */
+.glassgrid{display:grid; grid-template-columns:1.42fr 1fr;}
+.glass-cell{padding:24px; min-width:0;}
+.glass-cell.left{border-right:1px solid rgba(51,64,92,.5);}
+/* R4: demote cell sub-labels from mono-silkscreen to sentence-case caption ink.
+   The region's ONE silkscreen is the chan-legend strip above; these describe,
+   they don't telemetry-stamp — so they read as captions, not wallpaper. */
+.glass-lab{
+  font-family:var(--font-sans); font-size:12.5px; font-weight:450;
+  letter-spacing:0; text-transform:none; color:var(--text);
+}
+.glass-lab .sub{color:var(--text-mut);}
+.glass-lab .unc{color:var(--text-mut);}
+.reading-row{display:flex; align-items:baseline; gap:14px; margin-top:20px;}
+.reading-num{
+  font-family:var(--font-mono); font-weight:500; font-size:64px; line-height:1;
+  color:var(--text-hi); letter-spacing:-.01em;
+}
+.reading-ci{font-family:var(--font-mono); font-size:18px; color:var(--spread);}
+.reading-unit{font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; color:var(--text-mut); align-self:flex-end; padding-bottom:8px;}
+.stamp{font-size:15px; vertical-align:middle;}
+.stamp.hollow{color:var(--spread-dim);}
+.stamp.filled{color:var(--signal-dim);}
+
+.kvrow{display:flex; gap:26px; flex-wrap:wrap; margin:18px 0 18px;}
+.kv .k{font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut); margin-bottom:3px;}
+.kv .v{font-family:var(--font-mono); font-size:14px; color:var(--text-hi);}
+.kv .v .ci{color:var(--spread); font-size:12px;}
+.kv .v .g{color:var(--spread-dim); font-size:12px;}
+
+.axisnote{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.03em;
+  line-height:1.7; color:var(--text-mut); margin-top:10px;
+}
+.axisnote .clears{color:var(--text-hi);}
+
+.lift-num{font-family:var(--font-mono); font-weight:500; font-size:42px; line-height:1; color:var(--text-hi);}
+
+/* ── paired-arm comparison figure (the one artifact only Sidira has:
+      the SAME 6 personas run through two worlds, both settled) ── */
+.armcompare{margin-top:18px;}
+.arm-track{position:relative; height:30px; margin:0 0 2px;}
+.arm-track .lab{
+  position:absolute; left:0; top:50%; transform:translateY(-50%);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-mut); width:62px;
+}
+.arm-track .lab .dot{display:inline-block; width:7px; height:7px; border-radius:9999px; margin-right:6px; vertical-align:middle;}
+.arm-track .lab .dot.c{background:var(--arm-control);}
+.arm-track .lab .dot.t{background:var(--arm-treat);}
+.arm-plot{position:absolute; left:70px; right:14px; top:0; bottom:0;}
+.arm-plot .strip{
+  position:absolute; left:0; right:0; top:50%; height:1px;
+  background:var(--console-line); transform:translateY(-50%);
+}
+/* settled dot-strip: per-agent settle positions, one arm tint, ≥0.6 opacity (P10) */
+.arm-plot .pt{position:absolute; top:50%; width:3px; height:3px; border-radius:9999px; transform:translate(-50%,-50%);}
+.arm-plot .pt.c{background:var(--arm-control); opacity:.6;}
+.arm-plot .pt.t{background:var(--arm-treat); opacity:.6;}
+/* the arm mean marker */
+.arm-plot .mean{position:absolute; top:18%; bottom:18%; width:2px; transform:translateX(-50%);}
+.arm-plot .mean.c{background:var(--arm-control);}
+.arm-plot .mean.t{background:var(--arm-treat);}
+.arm-plot .mean .v{
+  position:absolute; top:-15px; left:50%; transform:translateX(-50%);
+  font-family:var(--font-mono); font-size:11px; color:var(--text-hi); white-space:nowrap;
+}
+/* the lift gap bracket between the two means — same coord space as .arm-plot */
+.arm-gap{position:relative; margin:2px 14px 0 70px; height:26px;}
+.arm-gap .bracket{position:absolute; top:6px; height:7px; border-left:1px solid var(--spread); border-right:1px solid var(--spread); border-bottom:1px solid var(--spread);}
+.arm-gap .glab{position:absolute; top:13px; transform:translateX(-50%); font-family:var(--font-mono); font-size:11px; color:var(--text-hi); white-space:nowrap;}
+.arm-gap .glab .ci{color:var(--spread); font-size:10px;}
+.arm-gap .glab .g{color:var(--spread-dim);}
+.arm-scale{margin:4px 14px 0 70px; display:flex; justify-content:space-between;}
+
+.glass-foot{
+  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:11px 24px; border-top:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+  color:var(--text-mut); background:rgba(11,18,32,.35);
+}
+.glass-foot .unc{color:var(--text-mut);}
+
+/* section heads */
+.sechead{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-mut); margin:0 0 16px;
+}
+.sechead.tight{margin-bottom:8px;}
+
+/* weakness register */
+.wk-headrow, .wk-row{display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:18px;}
+.wk-headrow{padding-bottom:10px; border-bottom:1px solid rgba(51,64,92,.5);}
+.wk-headrow span{font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut);}
+.wk-row{padding:14px 0; border-top:1px solid rgba(51,64,92,.5);}
+.wk-row:first-of-type{border-top:none;}
+.wk-name{font-size:15px; font-weight:550; color:var(--text-hi); margin-bottom:4px; display:flex; align-items:center; gap:7px;}
+.wk-info{font-family:var(--font-mono); font-size:10px; color:var(--text-mut); border:1px solid var(--console-line); border-radius:9999px; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; cursor:help;}
+.wk-sum{font-size:13.5px; color:var(--text); line-height:1.5;}
+.wk-sum b{color:var(--text-hi); font-weight:500;}
+.freqbar{position:relative; height:9px;}
+.freqbar .base{position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--console-line);}
+.freqbar .ci{position:absolute; bottom:1px; height:6px; background:var(--spread-wash); border-left:1px solid var(--spread); border-right:1px solid var(--spread);}
+.freqbar .val{position:absolute; left:0; bottom:0; height:2px; background:var(--text-hi);}
+.freqlabel{font-family:var(--font-mono); font-size:11px; color:var(--text); margin-top:7px;}
+.freqlabel .ci{color:var(--spread);}
+
+/* method card */
+.method-row{display:grid; grid-template-columns:140px minmax(0,1fr); gap:18px; padding:12px 0; border-top:1px solid rgba(51,64,92,.5);}
+.method-row:first-of-type{border-top:none;}
+.method-row .k{font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut); padding-top:2px;}
+.method-row .v{font-size:13.5px; color:var(--text); line-height:1.6;}
+
+/* cohort register table */
+.logbook{width:100%; border-collapse:collapse;}
+.logbook th{
+  text-align:left; font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--text-mut); font-weight:500;
+  padding:0 12px 9px; border-bottom:1px solid rgba(51,64,92,.5);
+}
+.logbook th.num, .logbook td.num{text-align:right;}
+.logbook td{
+  padding:9px 12px; border-bottom:1px solid rgba(51,64,92,.32);
+  font-size:13.5px;
+}
+.logbook tbody tr:hover td{background:var(--console-750);}
+.logbook tfoot td{
+  padding:11px 12px; border-top:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono); font-size:12.5px; color:var(--text-hi);
+}
+.logbook tfoot .fk{font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut);}
+.logbook tfoot .ci{color:var(--spread); font-size:11px;}
+.logbook tfoot .g{color:var(--spread-dim);}
+.logbook .pname{color:var(--text-hi); font-weight:500;}
+.logbook .pmono{font-family:var(--font-mono); font-size:12.5px; color:var(--text);}
+.logbook .pid{font-family:var(--font-mono); font-size:11px; color:var(--text-mut);}
+.logbook .slash{color:var(--text-mut);}
+.arm-dot{display:inline-block; width:7px; height:7px; border-radius:9999px; margin-right:6px; vertical-align:middle;}
+.arm-dot.c{background:var(--arm-control);}
+.arm-dot.t{background:var(--arm-treat);}
+.sentcell .s-pos{color:var(--text-hi);}
+.sentcell .s-neu{color:var(--text-mut);}
+.sentcell .s-neg{color:var(--text);}
+.sentcell .gly{color:var(--text-mut);}
+.miniquote{color:var(--text-mut); font-style:normal; font-size:12.5px;}
+.chatlink{font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut); border:1px solid var(--console-line); border-radius:var(--r-well); padding:3px 7px;}
+.chatlink:hover{color:var(--text-hi); border-color:var(--text-mut);}
+
+/* refinement queue */
+.refrow{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; align-items:center; padding:13px 0; border-top:1px solid rgba(51,64,92,.5);}
+.refrow:first-of-type{border-top:none;}
+.refrow .txt{font-size:14px; color:var(--text); line-height:1.5;}
+.refrow .txt b{color:var(--text-hi); font-weight:500;}
+.qbtn{font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut); border:1px solid var(--console-line); border-radius:var(--r-well); padding:6px 11px; white-space:nowrap;}
+.qbtn:hover{color:var(--text-hi); border-color:var(--text-mut);}
+
+/* inspector rail */
+.inspector{
+  position:sticky; top:76px; align-self:start;
+  background:var(--console-800); border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-panel); box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  padding:20px;
+}
+.persona-btn{
+  display:flex; align-items:baseline; gap:8px; width:100%; text-align:left;
+  background:transparent; border:none; border-top:1px solid rgba(51,64,92,.45);
+  padding:9px 8px; cursor:pointer; color:var(--text); font-family:var(--font-sans);
+}
+.persona-btn:first-child{border-top:none;}
+.persona-btn:hover{background:var(--console-750);}
+.persona-btn.active{background:var(--console-750);}
+.persona-btn .pn{font-size:13.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);}
+.persona-btn.active .pn{color:var(--text-hi); font-weight:550;}
+.persona-btn .cts{font-family:var(--font-mono); font-size:11px; color:var(--text-mut); white-space:nowrap;}
+.persona-btn .cts .p{color:var(--text);}
+
+.quotewell{background:var(--console-900); border:1px solid rgba(51,64,92,.5); border-radius:var(--r-well); padding:13px; margin:14px 0 20px;}
+.quotewell .ql{font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut); margin-bottom:8px;}
+.quotewell .qt{font-size:13.5px; color:var(--text-hi); line-height:1.55; margin-bottom:11px;}
+.quotewell .qa{display:flex; gap:10px;}
+
+.prov{margin:0 0 18px;}
+.provrow{display:grid; grid-template-columns:108px minmax(0,1fr); gap:8px; padding:6px 0; border-top:1px solid rgba(51,64,92,.4);}
+.provrow:first-child{border-top:none;}
+.provrow dt{font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-mut); padding-top:1px;}
+.provrow dd{margin:0; font-family:var(--font-mono); font-size:11.5px; color:var(--text-hi); overflow-wrap:anywhere;}
+.provrow dd.unc{color:var(--text-mut);}
+
+.artifacts{display:flex; flex-direction:column; gap:8px;}
+.artifacts a{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.04em; color:var(--text);}
+.artifacts a:hover{color:var(--text-hi);}
+
+/* secondary-state strip (hint) */
+.states{margin-top:0; padding-top:48px; border-top:1px solid rgba(51,64,92,.5);}
+.states-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:14px;}
+.state-mini{background:var(--console-800); border:1px solid rgba(51,64,92,.5); border-radius:var(--r-panel); padding:16px; box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.state-mini .st{font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.state-mini.empty .st{color:var(--text-mut);}
+.state-mini.running .st{color:var(--signal);}
+.state-mini.failed .st{color:var(--alert);}
+.state-mini .body{font-size:12.5px; color:var(--text-mut); line-height:1.55;}
+.state-mini svg{display:block; width:100%; height:64px; margin-top:12px;}
+.state-mini.failed{border-color:rgba(240,104,60,.55);}
+
+/* trace draw */
+@keyframes draw{from{stroke-dashoffset:1;}to{stroke-dashoffset:0;}}
+@keyframes bandx{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+.trace-draw{stroke-dasharray:1; stroke-dashoffset:1; animation:draw 700ms var(--ease-mech) 120ms forwards;}
+.band-settle{transform-box:fill-box; transform-origin:left center; transform:scaleX(0); animation:bandx 220ms var(--ease-mech) 760ms forwards;}
+@keyframes rise{from{opacity:0; transform:translateY(6px);}to{opacity:1; transform:none;}}
+.rise{animation:rise 400ms var(--ease-settle) backwards;}
+
+@media (max-width:1120px){
+  .grid{grid-template-columns:minmax(0,1fr); gap:48px;}
+  .inspector{position:static;}
+  .glassgrid{grid-template-columns:1fr;}
+  .glass-cell.left{border-right:none; border-bottom:1px solid rgba(51,64,92,.5);}
+  .tele{grid-template-columns:repeat(3,1fr);}
+  .states-grid{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important; transition-duration:1ms!important;}
+  .trace-draw{stroke-dashoffset:0!important;}
+  .band-settle{transform:scaleX(1)!important;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- ── left icon rail ── -->
+  <nav class="rail">
+    <!-- P1: resting brand mark is INK (text-hi / line), never lime. -->
+    <svg class="mark" viewBox="0 0 34 34" fill="none" aria-label="Sidira">
+      <circle cx="17" cy="17" r="14" stroke="#F2F4F8" stroke-width="1.4" opacity=".92"/>
+      <circle cx="17" cy="17" r="14" stroke="#929BAE" stroke-width="1.4" opacity=".4" transform="rotate(8 17 17)"/>
+      <path d="M17 6 V17 L25 22" stroke="#C6CCD8" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="17" cy="17" r="1.8" fill="#F2F4F8"/>
+    </svg>
+    <a class="rail-btn" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></a>
+    <a class="rail-btn active" title="Simulations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18 9 9l4 5 5-8"/><circle cx="18" cy="6" r="1.4" fill="currentColor"/></svg></a>
+    <a class="rail-btn" title="Personas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M3.5 20c0-3.5 2.5-5.5 5.5-5.5s5.5 2 5.5 5.5"/><circle cx="17.5" cy="9" r="2.2"/></svg></a>
+    <a class="rail-btn" title="Crawls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 2.5 14.5 0 17M12 3.5c-2.5 2.5-2.5 14.5 0 17"/></svg></a>
+    <div class="rail-spacer"></div>
+    <a class="rail-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></a>
+  </nav>
+
+  <div class="frame">
+    <!-- ── top bar ── -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="crumb mono desig">/ SIMULATIONS / <b>SIM-7C4A1E9F</b></span>
+      <div class="topbar-legend">
+        <span>CH1</span><span class="sep">·</span>
+        <span>n=384</span><span class="sep">·</span>
+        <span>seed 0x4f17</span><span class="sep">·</span>
+        <span>groq/llama-3.3-70b</span><span class="sep">·</span>
+        <span>2026-W25</span><span class="sep">·</span>
+        <span class="unc"><span class="glyph-hollow">◇</span> UNCALIBRATED</span>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <!-- ════ THE POPULATION FIELD (full-bleed · SHOWPIECE) ════ -->
+      <!-- P2/P9: the field's wavefront+mean is the ONE signal carrier in this region.
+           P3: it plays ONE bet on entry, then rests to ≤2px curl-drift. -->
+      <section class="fieldwrap">
+        <canvas id="field" width="2640" height="880"></canvas>
+        <div class="field-vignette"></div>
+
+        <!-- Provenance lives ONCE in the topbar bar (§7.3). The field carries a
+             compact CH1 · ◇ reference only — not a second full silkscreen. -->
+        <div class="field-legend">
+          <div class="legend-line">
+            <span class="hi">CH1</span><span class="sep">·</span>
+            <span>POPULATION REACTION</span><span class="sep">·</span>
+            <span class="unc"><span class="glyph-hollow">◇</span></span>
+          </div>
+        </div>
+
+        <div class="field-verdict">
+          <div class="verdict-figure">
+            <div class="lab"><span>SIMULATION AGREEMENT</span><span class="glyph-hollow">◇</span></div>
+            <div class="num"><span class="cnt" data-to="83.4">83.4</span><span class="ci">±5.2</span><span class="of">/ 100</span><span class="stamp">◇</span></div>
+            <!-- P6: hedged verdict on an uncalibrated reading. Ink + glyph, no SHIP wording. -->
+            <div class="verdict-tag"><span class="vg">◇</span>DIRECTIONAL <span class="delta">+11.8</span><span class="vci">±4.1</span> · TEST FIRST</div>
+          </div>
+          <!-- Band hierarchy: the masthead figure owns the band. The reaction
+               split recedes into a quiet, interrogable stepped strip — a real
+               binned 71/18/11 distribution on the arm ramp — not three loose
+               numbers competing as a second figure (R4 de-crowd). -->
+          <div class="field-readout">
+            <div class="rlab"><span class="rej">◀ rejects</span><span class="adt">adopts ▶</span></div>
+            <div class="split-strip" aria-label="Reaction split: 11% reject, 18% neutral, 71% adopt">
+              <div class="seg"><div class="pc">11</div><div class="bar" style="height:16%; background:var(--arm-control);"></div><div class="nm">reject</div></div>
+              <div class="seg"><div class="pc">18</div><div class="bar" style="height:25%; background:#A797C9;"></div><div class="nm">neutral</div></div>
+              <div class="seg"><div class="pc">71</div><div class="bar" style="height:100%; background:var(--arm-treat);"></div><div class="nm">adopt</div></div>
+            </div>
+            <div class="rfoot">reaction split · n=384 <span class="glyph-hollow">◇</span></div>
+          </div>
+        </div>
+        <div class="field-tip" id="tip"></div>
+      </section>
+
+      <!-- ════ PAGE BODY ════ -->
+      <div class="page">
+        <div class="grid">
+          <!-- ── evidence column ── -->
+          <div class="col-main">
+
+            <!-- hypothesis header -->
+            <section class="panel panel-pad rise" style="animation-delay:40ms">
+              <div class="hcrumb desig"><a href="#">SIMULATIONS</a> / <b>SIM-7C4A1E9F</b></div>
+              <div class="lineage desig">
+                <span class="node"><span class="sq fill"></span><span class="on">SIMULATED</span></span>
+                <span class="rule"></span>
+                <span class="node"><span class="sq open"></span><span class="off">DECISION</span></span>
+                <span class="off">· NO LIVE OUTCOMES IN THIS LINEAGE</span>
+              </div>
+
+              <div class="htitle-row">
+                <!-- P1: aperture brand glyph is INK (line + text), not lime. -->
+                <svg class="aperture" width="34" height="34" viewBox="0 0 34 34" fill="none">
+                  <circle cx="17" cy="17" r="14.5" stroke="#33405C" stroke-width="1"/>
+                  <circle cx="17" cy="17" r="14.5" stroke="#929BAE" stroke-width="1.4" stroke-dasharray="91" stroke-dashoffset="34" transform="rotate(-90 17 17)"/>
+                  <circle cx="17" cy="17" r="2.2" fill="#F2F4F8"/>
+                </svg>
+                <div style="min-width:0; flex:1">
+                  <h1 class="htitle">Replacing the 3-step checkout with a single-page express flow lifts completed purchases.</h1>
+                  <div class="verdicttag-row">
+                    <!-- R4: the verdict lives ONCE, on the masthead. This header
+                         carries only the policy reference + calibration state; it
+                         does not re-stamp DIRECTIONAL +11.8 ±4.1 a second time. -->
+                    <span class="vchip"><span class="vg">◇</span>POLICY DR-1 · TEST FIRST</span>
+                    <span class="desig">UNGRADED — LEDGER EMPTY</span>
+                  </div>
+                  <!-- The decision narrative: one line that adds reasoning, not a
+                       restated receipt. Uncalibrated state is carried by the ◇ +
+                       topbar bar — not spelled out a fourth time. -->
+                  <div class="whyline">
+                    Agreement clears the threshold and the lift holds above zero, but <span class="em">two persona cohorts settled negative</span> — so the rule reads <span class="em">directional</span>, not ship, until a graded run populates the ledger.
+                  </div>
+                </div>
+              </div>
+
+              <div class="tele">
+                <div class="cell"><div class="k desig desig-sm">MODEL</div><div class="v">Llama 3.3 70B</div></div>
+                <div class="cell"><div class="k desig desig-sm">CAPABILITY</div><div class="v" title="Checkout">Checkout flow</div></div>
+                <div class="cell"><div class="k desig desig-sm">READINGS</div><div class="v">384</div></div>
+                <div class="cell"><div class="k desig desig-sm">ARMS</div><div class="v">A/B 50/50</div></div>
+                <div class="cell"><div class="k desig desig-sm">POPULATION</div><div class="v" title="12,480 · HAMILTON">12,480 · HAMILTON</div></div>
+                <div class="cell"><div class="k desig desig-sm">STATUS</div><div class="v">COMPLETE</div></div>
+              </div>
+            </section>
+
+            <!-- glass instrument -->
+            <section class="glass rise" style="animation-delay:120ms">
+              <!-- Compact CH1 reference — the full silkscreen lives once in the
+                   topbar (§7.3 one-bar-per-region). This panel inherits it. -->
+              <div class="chan-legend">
+                <span class="ch">CH1</span><span class="sep">·</span>
+                <span>AGREEMENT TRACE</span><span class="sep">·</span>
+                <span class="unc"><span class="glyph-hollow">◇</span></span>
+              </div>
+              <div class="glassgrid">
+                <!-- left: agreement -->
+                <div class="glass-cell left">
+                  <div class="glass-lab">Agreement trace <span class="sub">— how the reading converged</span></div>
+
+                  <!-- agreement trace svg -->
+                  <!-- P5: this glass cell is the field's downstream reading; the field carries
+                       the live signal. The mean line here is the settled trace = signal-dim. -->
+                  <div style="position:relative; height:120px; margin:12px 0 4px;">
+                    <svg viewBox="0 0 100 56" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; display:block;">
+                      <!-- threshold ref -->
+                      <line x1="0" y1="13.6" x2="100" y2="13.6" stroke="#929BAE" stroke-width="1" stroke-dasharray="1.5 1.5" opacity=".55" vector-effect="non-scaling-stroke"/>
+                      <!-- CI ribbon under mean -->
+                      <path d="M0,18 L20,16 L40,13 L62,10.5 L80,9 L100,9.6 L100,15 L80,14.4 L62,15.8 L40,18.3 L20,21.2 L0,23 Z" fill="rgba(200,182,138,.14)"/>
+                      <!-- phosphor underdraw -->
+                      <path class="trace-draw" d="M0,20.5 L20,18.6 L40,15.6 L62,13 L80,11.7 L100,12.3" fill="none" stroke="#39B894" stroke-width="5" opacity=".18" vector-effect="non-scaling-stroke" pathLength="1"/>
+                      <!-- settled mean stroke (signal-dim — not the live bright signal) -->
+                      <path class="trace-draw" d="M0,20.5 L20,18.6 L40,15.6 L62,13 L80,11.7 L100,12.3" fill="none" stroke="#39B894" stroke-width="2" vector-effect="non-scaling-stroke" pathLength="1"/>
+                    </svg>
+                    <div style="position:absolute; top:2px; right:0;" class="desig desig-sm">THR 80</div>
+                    <div style="position:absolute; left:0; right:0; bottom:-14px; display:flex; justify-content:space-between;" class="desig desig-sm">
+                      <span>0</span><span>READINGS</span><span>384</span>
+                    </div>
+                  </div>
+
+                  <!-- Supporting precise value — the masthead figure owns the
+                       marquee (P10); this is the interrogable convergence detail. -->
+                  <div class="reading-row" style="margin-top:24px;">
+                    <span class="reading-num" style="font-size:40px;">83.4</span>
+                    <span class="reading-ci">±5.2</span>
+                    <span class="stamp hollow">◇</span>
+                    <span class="reading-unit">AGREEMENT / 100 · SETTLED</span>
+                  </div>
+
+                  <div class="kvrow">
+                    <div class="kv"><div class="k">THRESHOLD</div><div class="v">80 / 100</div></div>
+                    <div class="kv"><div class="k">MARGIN</div><div class="v">+3.4 <span class="ci">±5.2</span> <span class="g">◇</span></div></div>
+                    <div class="kv"><div class="k">POLICY</div><div class="v">DR-1</div></div>
+                  </div>
+
+                  <!-- CI axis -->
+                  <div>
+                    <div style="display:flex; justify-content:space-between;" class="desig desig-sm">
+                      <span>AGREEMENT SCALE 0–100</span><span>THR 80</span>
+                    </div>
+                    <svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%; height:30px; display:block; margin:3px 0;">
+                      <line x1="0" y1="14" x2="100" y2="14" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="0" y1="11" x2="0" y2="17" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="25" y1="11" x2="25" y2="17" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="50" y1="11" x2="50" y2="17" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="75" y1="11" x2="75" y2="17" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="100" y1="11" x2="100" y2="17" stroke="#33405C" stroke-width="1" vector-effect="non-scaling-stroke"/>
+                      <line x1="80" y1="2" x2="80" y2="18" stroke="#929BAE" stroke-width="1" stroke-dasharray="1.5 1.5" opacity=".6" vector-effect="non-scaling-stroke"/>
+                      <rect class="band-settle" x="78.2" y="6" width="10.4" height="8" fill="#C8B68A" fill-opacity=".22"/>
+                      <!-- settled mean marker: signal-dim (poster), not bright live signal -->
+                      <line x1="83.4" y1="4" x2="83.4" y2="16" stroke="#39B894" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                    </svg>
+                    <div style="display:flex; justify-content:space-between;" class="desig desig-sm"><span>0</span><span>50</span><span>100</span></div>
+                    <div class="axisnote">95% CI [78.2, 88.6] — LOWER BOUND <span class="clears">CLEARS</span> THRESHOLD 80 · <span class="glyph-hollow">◇</span> UNCALIBRATED</div>
+                  </div>
+                </div>
+
+                <!-- right: THE PAIRED-ARM COMPARISON — the one figure only Sidira
+                     can draw: the SAME 6 personas settled in two worlds, both
+                     populations shown, the lift = the gap between their means.
+                     Axis = per-agent settle (REJECTS −1 … +1 ADOPTS). -->
+                <div class="glass-cell">
+                  <div class="glass-lab">Paired arms <span class="sub">— the same cohort, two worlds</span></div>
+
+                  <!-- axis maps settle −1…+1 across the strip; means sit central
+                       with headroom so labels don't clip the panel edge. -->
+                  <div class="armcompare">
+                    <!-- CONTROL arm: settled mean +0.31 → x ≈ 55% -->
+                    <div class="arm-track">
+                      <span class="lab"><span class="dot c"></span>CTRL</span>
+                      <div class="arm-plot">
+                        <div class="strip"></div>
+                        <span class="pt c" style="left:44%"></span><span class="pt c" style="left:49%"></span>
+                        <span class="pt c" style="left:52%"></span><span class="pt c" style="left:55%"></span>
+                        <span class="pt c" style="left:56%"></span><span class="pt c" style="left:53%"></span>
+                        <span class="pt c" style="left:59%"></span><span class="pt c" style="left:47%"></span>
+                        <span class="pt c" style="left:51%"></span><span class="pt c" style="left:58%"></span>
+                        <div class="mean c" style="left:55%"><span class="v">+0.31</span></div>
+                      </div>
+                    </div>
+                    <!-- TREATMENT arm: settled mean +0.55 → x ≈ 67% -->
+                    <div class="arm-track">
+                      <span class="lab"><span class="dot t"></span>TREAT</span>
+                      <div class="arm-plot">
+                        <div class="strip"></div>
+                        <span class="pt t" style="left:60%"></span><span class="pt t" style="left:64%"></span>
+                        <span class="pt t" style="left:67%"></span><span class="pt t" style="left:70%"></span>
+                        <span class="pt t" style="left:72%"></span><span class="pt t" style="left:74%"></span>
+                        <span class="pt t" style="left:69%"></span><span class="pt t" style="left:48%"></span>
+                        <span class="pt t" style="left:66%"></span><span class="pt t" style="left:73%"></span>
+                        <div class="mean t" style="left:67%"><span class="v">+0.55</span></div>
+                      </div>
+                    </div>
+                    <!-- lift gap bracket spans CTRL mean → TREAT mean -->
+                    <div class="arm-gap">
+                      <div class="bracket" style="left:55%; width:12%;"></div>
+                      <div class="glab" style="left:61%;">LIFT +11.8 <span class="ci">±4.1</span> <span class="g glyph-hollow">◇</span></div>
+                    </div>
+                    <div class="arm-scale desig desig-sm"><span>◀ −1 REJECTS</span><span>0</span><span>+1 ADOPTS ▶</span></div>
+                  </div>
+
+                  <div class="axisnote" style="margin-top:30px;">
+                    95% CI [+7.7, +15.9] · n = 176 PAIRED · CI clears zero · SINGLE RUN
+                  </div>
+                </div>
+              </div>
+
+              <div class="glass-foot">
+                <span>n = 384 READINGS · 6 PERSONAS · 176 PAIRED · SINGLE RUN</span>
+                <span class="unc"><span class="glyph-hollow">◇</span> UNGRADED</span>
+              </div>
+            </section>
+
+            <!-- weakness register -->
+            <section class="panel panel-pad rise" style="animation-delay:200ms">
+              <div class="wk-headrow">
+                <span>WEAKNESS REGISTER — FINDING</span>
+                <span>FREQUENCY (95% CI)</span>
+              </div>
+              <div class="wk-row">
+                <div>
+                  <div class="wk-name">Trust Friction <span class="wk-info" title="Agents hesitated at the point a trust signal was removed.">i</span></div>
+                  <div class="wk-sum"><b>94 of 384</b> agents flagged the missing order-review step — they wanted to confirm the total and shipping address before the charge committed.</div>
+                </div>
+                <div>
+                  <div class="freqbar">
+                    <div class="base"></div>
+                    <div class="ci" style="left:20%; width:11%;"></div>
+                    <div class="val" style="width:24.5%;"></div>
+                  </div>
+                  <div class="freqlabel">24% <span class="ci">[20–31%]</span> <span class="stamp hollow" style="font-size:11px;">◇</span></div>
+                </div>
+              </div>
+              <div class="wk-row">
+                <div>
+                  <div class="wk-name">Cognitive Load <span class="wk-info" title="Density of fields presented at once.">i</span></div>
+                  <div class="wk-sum"><b>61 of 384</b> agents found the single-page form dense; lower-literacy personas in particular lost their place among the stacked fields.</div>
+                </div>
+                <div>
+                  <div class="freqbar">
+                    <div class="base"></div>
+                    <div class="ci" style="left:13%; width:9%;"></div>
+                    <div class="val" style="width:15.9%;"></div>
+                  </div>
+                  <div class="freqlabel">16% <span class="ci">[13–22%]</span> <span class="stamp hollow" style="font-size:11px;">◇</span></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- cohort register (logbook) -->
+            <section class="panel panel-pad rise" style="animation-delay:280ms">
+              <h2 class="sechead">COHORT REGISTER — 6 PERSONAS · 384 AGENTS · A/B</h2>
+              <table class="logbook">
+                <thead>
+                  <tr>
+                    <th>PERSONA</th>
+                    <th class="num">AGENTS</th>
+                    <th>SETTLE Δ — T / C <span class="glyph-hollow">◇</span></th>
+                    <th>TREAT SENTIMENT</th>
+                    <th>TOP REACTION</th>
+                    <th class="num"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="pname">Returning Power Buyer</span><div class="pid">prs_9a1c</div></td>
+                    <td class="num pmono">88</td>
+                    <td><span class="arm-dot t"></span>+0.71 <span class="slash">/</span> <span class="arm-dot c"></span>+0.40</td>
+                    <td class="sentcell"><span class="gly">▲</span> <span class="s-pos">positive</span></td>
+                    <td class="miniquote">"One tap and I'm done — finally."</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                  <tr>
+                    <td><span class="pname">First-Time Cautious</span><div class="pid">prs_4e7b</div></td>
+                    <td class="num pmono">76</td>
+                    <td><span class="arm-dot t"></span>+0.18 <span class="slash">/</span> <span class="arm-dot c"></span>+0.31</td>
+                    <td class="sentcell"><span class="gly">■</span> <span class="s-neu">neutral</span></td>
+                    <td class="miniquote">"Where do I check the total before paying?"</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                  <tr>
+                    <td><span class="pname">Mobile-Only Commuter</span><div class="pid">prs_2f93</div></td>
+                    <td class="num pmono">71</td>
+                    <td><span class="arm-dot t"></span>+0.63 <span class="slash">/</span> <span class="arm-dot c"></span>+0.22</td>
+                    <td class="sentcell"><span class="gly">▲</span> <span class="s-pos">positive</span></td>
+                    <td class="miniquote">"Way less typing on the train, love it."</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                  <tr>
+                    <td><span class="pname">Budget-Conscious Parent</span><div class="pid">prs_6c2a</div></td>
+                    <td class="num pmono">63</td>
+                    <td><span class="arm-dot t"></span>+0.29 <span class="slash">/</span> <span class="arm-dot c"></span>+0.34</td>
+                    <td class="sentcell"><span class="gly">▼</span> <span class="s-neg">negative</span></td>
+                    <td class="miniquote">"I need the order summary — I always double-check."</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                  <tr>
+                    <td><span class="pname">Accessibility-First</span><div class="pid">prs_8d40</div></td>
+                    <td class="num pmono">48</td>
+                    <td><span class="arm-dot t"></span>+0.12 <span class="slash">/</span> <span class="arm-dot c"></span>+0.27</td>
+                    <td class="sentcell"><span class="gly">▼</span> <span class="s-neg">negative</span></td>
+                    <td class="miniquote">"The dense form lost my screen-reader focus."</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                  <tr>
+                    <td><span class="pname">Impulse Gifter</span><div class="pid">prs_1b58</div></td>
+                    <td class="num pmono">38</td>
+                    <td><span class="arm-dot t"></span>+0.69 <span class="slash">/</span> <span class="arm-dot c"></span>+0.30</td>
+                    <td class="sentcell"><span class="gly">▲</span> <span class="s-pos">positive</span></td>
+                    <td class="miniquote">"Fast enough that I didn't talk myself out of it."</td>
+                    <td class="num"><a class="chatlink">CHAT →</a></td>
+                  </tr>
+                </tbody>
+                <!-- P8: the column-SUMMARY inferred delta is stamped with ±/◇;
+                     per-row cells read against this scoped header + footnote. -->
+                <tfoot>
+                  <tr>
+                    <td class="fk">POOLED</td>
+                    <td class="num pmono">384</td>
+                    <td><span class="arm-dot t"></span>+0.55 <span class="ci">±0.06</span> <span class="slash">/</span> <span class="arm-dot c"></span>+0.31 <span class="ci">±0.06</span> <span class="g glyph-hollow">◇</span></td>
+                    <td class="sentcell"><span class="gly">▲</span> <span class="s-pos">positive</span></td>
+                    <td class="miniquote">lift +11.8 ±4.1 ◇</td>
+                    <td class="num"></td>
+                  </tr>
+                </tfoot>
+              </table>
+              <div class="desig desig-sm" style="margin-top:12px; color:var(--text-mut);">SETTLE Δ = MEAN PER-AGENT SENTIMENT, INFERRED <span class="glyph-hollow">◇</span> · AGENT COUNTS ARE RAW · PER-ROW Δ SCOPED BY THE POOLED ± ABOVE</div>
+            </section>
+
+            <!-- refinement queue -->
+            <section class="panel panel-pad rise" style="animation-delay:340ms">
+              <h2 class="sechead tight">REFINEMENT QUEUE</h2>
+              <p style="font-size:12.5px; color:var(--text-mut); margin:0 0 14px; line-height:1.5;">Queueing opens a fresh hypothesis in the wizard — suggestions are not prefilled. Copy the wording you want to keep.</p>
+              <div class="refrow">
+                <div class="txt">Add a collapsible order-summary affordance above the pay button to recover the <b>24%</b> trust-friction cohort without restoring the full step.</div>
+                <a class="qbtn">Queue as hypothesis →</a>
+              </div>
+              <div class="refrow">
+                <div class="txt">Re-run with the Accessibility-First persona weighted up to confirm the screen-reader focus loss before shipping.</div>
+                <a class="qbtn">Queue as hypothesis →</a>
+              </div>
+            </section>
+
+            <!-- method card -->
+            <section class="panel panel-pad rise" style="animation-delay:400ms">
+              <h2 class="sechead">METHOD — HOW THIS READING IS COMPUTED</h2>
+              <div class="method-row"><span class="k">AGREEMENT</span><span class="v">Confidence-weighted mean of per-agent sentiment, shrunk toward neutral (Bayesian), penalized by weakness share, scaled 0–100. Raw simulation reading — no live-outcome calibration has been applied (ledger empty), so the verdict stays directional.</span></div>
+              <div class="method-row"><span class="k">INTERVAL</span><span class="v">Bootstrap percentile interval over agents; deterministic for a given run seed.</span></div>
+              <div class="method-row"><span class="k">LIFT</span><span class="v">Paired bootstrap over per-agent sentiment deltas (treatment − control), in confidence points. Unpaired or unclassifiable agents are dropped from the statistic and counted in the drop note.</span></div>
+              <div class="method-row"><span class="k">DECISION RULE</span><span class="v">DR-1 — DIRECTIONAL · TEST FIRST WHEN AGREEMENT ≥ 80 / 100 ON AN UNCALIBRATED READING. "Ship" is reserved for a graded ◆ reading once live outcomes populate the ledger. Display rubric applied by this page; the API does not return a policy object.</span></div>
+              <div class="method-row"><span class="k">MODEL</span><span class="v">Ran on Llama 3.3 70B (Groq). Reactions, classifiers, and lift reflect this model; comparing runs across models should be read as model variance, not only product variance.</span></div>
+            </section>
+
+            <!-- secondary-state hints -->
+            <div class="states">
+              <h2 class="sechead">OTHER READING STATES — HINTED</h2>
+              <div class="states-grid">
+                <div class="state-mini empty">
+                  <div class="st"><span class="glyph-hollow">◇</span> LEDGER EMPTY · NO READING YET</div>
+                  <div class="body">The honest frame: the axis and CI grid render bare. One Run button fills it.</div>
+                  <svg viewBox="0 0 200 64" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="200" y2="50" stroke="#33405C" stroke-width="1"/>
+                    <line x1="0" y1="14" x2="200" y2="14" stroke="#929BAE" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
+                    <line x1="160" y1="6" x2="160" y2="58" stroke="#929BAE" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
+                  </svg>
+                </div>
+                <div class="state-mini running">
+                  <!-- The ONE live-reading hint: bright signal is allowed here, scoped to one tile. -->
+                  <div class="st"><span class="live-dot"></span> LIVE READING · TAKING A READING</div>
+                  <div class="body">Readings plot as they arrive — the trace is the progress indicator. Score prints at the scoring phase.</div>
+                  <svg viewBox="0 0 200 64" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="200" y2="50" stroke="#33405C" stroke-width="1"/>
+                    <line x1="0" y1="14" x2="200" y2="14" stroke="#929BAE" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
+                    <path d="M0,46 L40,40 L78,33" fill="none" stroke="#48EFCA" stroke-width="2"/>
+                    <line x1="20" y1="50" x2="20" y2="46" stroke="#48EFCA" stroke-width="1.5"/>
+                    <line x1="48" y1="50" x2="48" y2="46" stroke="#48EFCA" stroke-width="1.5"/>
+                    <line x1="78" y1="50" x2="78" y2="46" stroke="#48EFCA" stroke-width="1.5"/>
+                  </svg>
+                </div>
+                <div class="state-mini failed">
+                  <div class="st">▲ RUN FAILED — NO VERDICT</div>
+                  <div class="body">1px alert border + a plain-ink line stating what failed and the next action. Never a banner fill.</div>
+                  <svg viewBox="0 0 200 64" preserveAspectRatio="none">
+                    <line x1="0" y1="50" x2="200" y2="50" stroke="#33405C" stroke-width="1"/>
+                    <path d="M0,46 L34,42" fill="none" stroke="#929BAE" stroke-width="2" stroke-dasharray="4 4" opacity=".7"/>
+                    <text x="44" y="40" fill="#929BAE" font-family="Geist Mono" font-size="9">TERMINATED 31%</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── inspector rail ── -->
+          <aside class="inspector rise" style="animation-delay:160ms">
+            <h2 class="sechead tight">PERSONA READINGS</h2>
+            <div style="margin-bottom:4px;">
+              <button class="persona-btn active"><span class="pn">Returning Power Buyer</span><span class="cts"><span class="p">+72</span> ~12 −4</span></button>
+              <button class="persona-btn"><span class="pn">First-Time Cautious</span><span class="cts"><span class="p">+38</span> ~26 −12</span></button>
+              <button class="persona-btn"><span class="pn">Mobile-Only Commuter</span><span class="cts"><span class="p">+51</span> ~14 −6</span></button>
+              <button class="persona-btn"><span class="pn">Budget-Conscious Parent</span><span class="cts"><span class="p">+24</span> ~19 −20</span></button>
+              <button class="persona-btn"><span class="pn">Accessibility-First</span><span class="cts"><span class="p">+14</span> ~16 −18</span></button>
+              <button class="persona-btn"><span class="pn">Impulse Gifter</span><span class="cts"><span class="p">+30</span> ~6 −2</span></button>
+            </div>
+
+            <div class="quotewell">
+              <div class="ql">PINNED QUOTE — TREATMENT ARM</div>
+              <div class="qt">"One tap and I'm done — finally. I've abandoned this cart three times because the old flow made me re-enter everything."</div>
+              <div class="qa">
+                <a class="chatlink">T →</a>
+                <a class="chatlink">C →</a>
+              </div>
+            </div>
+
+            <h2 class="sechead tight">PROVENANCE</h2>
+            <dl class="prov">
+              <div class="provrow"><dt>RUN</dt><dd>7C4A1E9F</dd></div>
+              <div class="provrow"><dt>CREATED</dt><dd>2026-06-15 09:42:11</dd></div>
+              <div class="provrow"><dt>CAPABILITY</dt><dd>Checkout flow</dd></div>
+              <div class="provrow"><dt>PERSONA PACK</dt><dd>v1.1</dd></div>
+              <div class="provrow"><dt>FEATURE PACK</dt><dd>fs-2026.05</dd></div>
+              <div class="provrow"><dt>STIMULUS</dt><dd>PROSE + PRD + FIGMA</dd></div>
+              <div class="provrow"><dt>COHORT</dt><dd>FULL PACK</dd></div>
+              <div class="provrow"><dt>POPULATION</dt><dd>12,480 · HAMILTON</dd></div>
+              <div class="provrow"><dt>SAMPLED</dt><dd>192 PER ARM</dd></div>
+              <div class="provrow"><dt>SEED</dt><dd>0x4f17</dd></div>
+              <div class="provrow"><dt>MODEL</dt><dd>Llama 3.3 70B</dd></div>
+              <div class="provrow"><dt>POLICY</dt><dd>DR-1 (DISPLAY RUBRIC)</dd></div>
+              <div class="provrow"><dt>GRADED</dt><dd class="unc"><span class="glyph-hollow">◇</span> NOT YET — LEDGER EMPTY</dd></div>
+            </dl>
+
+            <h2 class="sechead tight">ARTIFACTS</h2>
+            <div class="artifacts">
+              <a>RESULT JSON →</a>
+              <a>AGENTS JSON →</a>
+            </div>
+          </aside>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── count-up on the two hero figures (settle, once) ── */
+  function countUp(el){
+    var to = parseFloat(el.getAttribute("data-to"));
+    if (reduce){ el.textContent = to.toFixed(1); return; }
+    var start = null, dur = 600, from = to*0.62;
+    function tick(ts){
+      if(!start) start = ts;
+      var t = Math.min(1,(ts-start)/dur);
+      var e = 1 - Math.pow(1-t, 3);
+      el.textContent = (from + (to-from)*e).toFixed(1);
+      if(t<1) requestAnimationFrame(tick);
+      else el.textContent = to.toFixed(1);
+    }
+    requestAnimationFrame(tick);
+  }
+  document.querySelectorAll(".cnt").forEach(countUp);
+
+  /* ════════════════════════════════════════════════════════════
+     THE POPULATION FIELD — Canvas agent field (SHOWPIECE).
+     N points = real cohort (384). On entry it plays ONE bet:
+     a single signal wavefront sweeps L→R (ONE-SHOT, never loops),
+     every agent streams up and re-sorts onto a 1-D reaction axis
+     into a settled, countable distribution; control & treatment
+     dots in arm tints, a spread-amber CI ribbon materializes.
+     After the bet it RESTS — no looping wavefront, only an ambient
+     ≤2px curl-drift "breathing" baseline (P3, P4), which freezes on
+     hover/reduced-motion. The field's wavefront+mean is the page's
+     ONE signal carrier for this region (P2/P9).
+     ════════════════════════════════════════════════════════════ */
+  var canvas = document.getElementById("field");
+  var N = 384;
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  // deterministic PRNG (seed 0x4f17) so the frozen frame is reproducible
+  function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  var rnd = mulberry(0x4f17);
+
+  // reaction score per agent: bimodal toward "adopt", matches 71/18/11 + arms
+  var agents = [];
+  for (var i=0;i<N;i++){
+    var arm = i % 2; // 0 control, 1 treatment
+    var base = arm===1 ? 0.74 : 0.46;      // treatment shifts right (adopts)
+    var spread = 0.20;
+    var u1 = rnd(), u2 = rnd();
+    var g = Math.sqrt(-2*Math.log(u1+1e-6))*Math.cos(6.2831853*u2);
+    var score = Math.max(0.02, Math.min(0.98, base + g*spread));
+    agents.push({
+      arm: arm,
+      score: score,
+      rx: rnd(), ry: rnd(),
+      seedPhase: rnd()*6.2831853,
+      delay: rnd(),
+      x:0,y:0, tx:0,ty:0, sx:0,sy:0
+    });
+  }
+
+  // ── shared geometry: where a given score settles (bin position) ──
+  function layout(W,H){
+    var padX = W*0.07, padTop = H*0.20, padBot = H*0.30;
+    var axisY = H - padBot;
+    var plotW = W - padX*2;
+    var BINS = 48;
+    var counts = new Array(BINS).fill(0);
+    for (var i=0;i<N;i++){
+      var b = Math.min(BINS-1, Math.floor(agents[i].score*BINS));
+      agents[i].bin = b;
+      agents[i].stack = counts[b]++;
+    }
+    var maxStack = Math.max.apply(null, counts);
+    var colH = (axisY - padTop) / Math.max(maxStack, 18);
+    for (var j=0;j<N;j++){
+      var a = agents[j];
+      a.tx = padX + a.score*plotW;
+      a.ty = axisY - (a.stack+0.5)*colH;
+      a.sx = padX*0.4 + a.rx*(W - padX*0.8);
+      a.sy = padTop*0.5 + a.ry*(axisY - padTop*0.4);
+    }
+    return {padX:padX, axisY:axisY, plotW:plotW, padTop:padTop};
+  }
+
+  var t0 = performance.now();
+  var BET_START = 250;     // ms — kick the wavefront almost immediately
+  var BET_DUR = 1500;      // wavefront crosses + agents settle within ~1.2-1.7s
+  var SETTLE_AT = BET_START + BET_DUR + 400;
+
+  function colorFor(arm, mix){
+    // arm tints; treatment = calm magenta-coral (no valence)
+    var c = arm===1 ? [224,139,196] : [79,168,224];
+    var faint = [100,110,132];
+    return [
+      Math.round(faint[0]+(c[0]-faint[0])*mix),
+      Math.round(faint[1]+(c[1]-faint[1])*mix),
+      Math.round(faint[2]+(c[2]-faint[2])*mix)
+    ];
+  }
+
+  // P4: ambient breathing drift — HARD ≤2px ceiling (in CSS px, scaled by DPR).
+  var DRIFT_PX = 2;
+  function drift(a, time){
+    // slow 12-18s-ish ambient cycle; amplitude capped at DRIFT_PX
+    var dx = Math.sin(time*0.00045 + a.seedPhase)*DRIFT_PX*DPR;
+    var dy = Math.cos(time*0.00038 + a.seedPhase*1.3)*DRIFT_PX*DPR;
+    return [dx,dy];
+  }
+
+  var ctx = canvas.getContext("2d");
+  var L;
+  function fit(){
+    var cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+    canvas.width = Math.round(cssW*DPR);
+    canvas.height = Math.round(cssH*DPR);
+    L = layout(canvas.width, canvas.height);
+  }
+  fit();
+  window.addEventListener("resize", function(){ fit(); });
+
+  function easeMech(t){ return t<0 ? 0 : t>1 ? 1 : 1 - Math.pow(1-t, 3); }
+
+  // freeze the ambient drift on hover / reduced motion (P4)
+  var frozen = false;
+  canvas.addEventListener("mouseenter", function(){ frozen = true; });
+  canvas.addEventListener("mouseleave", function(){ frozen = false; });
+
+  // P4: the ambient drift PAUSES after 20s of idle (no interaction), so the
+  // field rests as a settled poster — it is not a second forever-loop.
+  var IDLE_PAUSE_MS = 20000;
+  var lastActivity = performance.now();
+  function bump(){
+    lastActivity = performance.now();
+    if (paused){ paused = false; requestAnimationFrame(frame); }
+  }
+  ["mousemove","pointerdown","focus","scroll"].forEach(function(ev){
+    window.addEventListener(ev, bump, {passive:true});
+  });
+  var paused = false;
+
+  function frame(now){
+    var time = now - t0;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.globalCompositeOperation = "lighter"; // additive — graphite dust catching light
+
+    // bet progress: 0 idle -> 1 fully settled. ONE-SHOT, never loops (P3).
+    var betT = (time - BET_START) / BET_DUR;
+    betT = betT < 0 ? 0 : betT > 1 ? 1 : betT;
+    var settled = time >= SETTLE_AT;
+
+    // wavefront x position — only meaningful during the single bet
+    var wf = -0.15 + 1.3*easeMech(Math.min(1, (time-BET_START)/ (BET_DUR*0.72)));
+    var wfx = wf * canvas.width;
+    var bandW = canvas.width*0.16;
+    var driftTime = (frozen || reduce) ? 0 : time; // freeze ambient drift on hover
+
+    // ── CI ribbon (spread-amber) materializes as settle completes ──
+    if (betT > 0.55){
+      var ribA = Math.min(1,(betT-0.55)/0.45) * 0.16;
+      var meanX = L.padX + 0.60*L.plotW; // population mean of reaction ~0.60
+      var ciHalf = L.plotW*0.066;
+      ctx.globalCompositeOperation = "source-over";
+      var grad = ctx.createLinearGradient(meanX-ciHalf,0,meanX+ciHalf,0);
+      grad.addColorStop(0,"rgba(200,182,138,0)");
+      grad.addColorStop(0.5,"rgba(200,182,138,"+ribA+")");
+      grad.addColorStop(1,"rgba(200,182,138,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(meanX-ciHalf, L.padTop*0.7, ciHalf*2, L.axisY-L.padTop*0.7);
+      // settled mean line — the ONE signal carrier for this region
+      ctx.strokeStyle = "rgba(72,239,202,"+(ribA*4.2)+")";
+      ctx.lineWidth = 1.4*DPR;
+      ctx.beginPath(); ctx.moveTo(meanX, L.padTop*0.7); ctx.lineTo(meanX, L.axisY); ctx.stroke();
+      ctx.globalCompositeOperation = "lighter";
+    }
+
+    // ── agents ──
+    for (var i=0;i<N;i++){
+      var a = agents[i];
+      var lt = (betT - a.delay*0.28) / (1 - a.delay*0.28);
+      lt = lt<0?0:lt>1?1:lt;
+      var p = easeMech(lt);
+
+      // ambient ≤2px drift, applied around the SETTLED bin once settled,
+      // and around the idle scatter before/while the bet runs.
+      var d = drift(a, driftTime);
+      var baseX = settled ? a.tx : (a.sx + (a.tx - a.sx)*p);
+      var baseY = settled ? a.ty : (a.sy + (a.ty - a.sy)*p);
+      a.x = baseX + d[0];
+      a.y = baseY + d[1];
+
+      var frontMix = settled ? 0 : (1 - Math.min(1, Math.abs(a.x - wfx)/bandW));
+      frontMix = frontMix<0?0:frontMix;
+      var passed = (a.x < wfx || settled) ? 1 : 0;
+      var col = colorFor(a.arm, Math.min(1, passed*0.55 + p*0.6));
+
+      var size = (1.2 + frontMix*1.6) * DPR;
+      var alpha = 0.30 + p*0.45 + frontMix*0.35;
+
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, size, 0, 6.2831853);
+      if (frontMix > 0.55){
+        // wavefront crest = signal lime smear (one-shot, only during the bet)
+        ctx.fillStyle = "rgba(72,239,202,"+(0.55*frontMix)+")";
+      } else {
+        ctx.fillStyle = "rgba("+col[0]+","+col[1]+","+col[2]+","+alpha+")";
+      }
+      ctx.fill();
+      a._px = a.x; a._py = a.y; a._r = size;
+    }
+
+    // ── the wavefront crest band (signal) ONLY while the single bet sweeps ──
+    if (!settled && betT < 1 && wfx > 0 && wfx < canvas.width){
+      ctx.globalCompositeOperation = "lighter";
+      var g2 = ctx.createLinearGradient(wfx-bandW*0.5,0,wfx+bandW*0.5,0);
+      g2.addColorStop(0,"rgba(72,239,202,0)");
+      g2.addColorStop(0.5,"rgba(72,239,202,0.10)");
+      g2.addColorStop(1,"rgba(72,239,202,0)");
+      ctx.fillStyle = g2;
+      ctx.fillRect(wfx-bandW*0.5, 0, bandW, canvas.height);
+    }
+
+    // ── axis baseline + threshold tick (source-over) ──
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(51,64,92,0.55)";
+    ctx.lineWidth = 1*DPR;
+    ctx.beginPath(); ctx.moveTo(L.padX*0.5, L.axisY); ctx.lineTo(canvas.width-L.padX*0.5, L.axisY); ctx.stroke();
+    var thrX = L.padX + 0.80*L.plotW;
+    ctx.setLineDash([3*DPR,3*DPR]);
+    ctx.strokeStyle = "rgba(146,155,174,0.55)"; // --text-mut, AA-clear
+    ctx.beginPath(); ctx.moveTo(thrX, L.padTop*0.6); ctx.lineTo(thrX, L.axisY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // After settle, keep rendering ONLY the ambient ≤2px drift (no second loop).
+    // The drift itself is the lone continuous motion; freezes on hover/reduced.
+    if (reduce){
+      return; // single poster frame, no animation loop
+    }
+    // P4: pause the drift after 20s idle once the bet has settled — hold the
+    // poster until the next interaction. Keeps the page to one infinite loop.
+    if (settled && (now - lastActivity) > IDLE_PAUSE_MS){
+      paused = true;
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (reduce){
+    // render one settled poster frame immediately (frozen poster)
+    t0 = performance.now() - (SETTLE_AT + 10);
+    frame(performance.now());
+  } else {
+    requestAnimationFrame(frame);
+  }
+
+  /* ── countable, clickable agents: hover tooltip ── */
+  var tip = document.getElementById("tip");
+  var reactions = [
+    "adopts · +0.71 · \"one tap and done\"",
+    "adopts · +0.63 · \"less typing on the train\"",
+    "neutral · +0.18 · \"where's the total?\"",
+    "rejects · −0.22 · \"I always double-check\"",
+    "adopts · +0.69 · \"didn't talk myself out of it\""
+  ];
+  canvas.addEventListener("mousemove", function(ev){
+    var rect = canvas.getBoundingClientRect();
+    var mx = (ev.clientX-rect.left)*(canvas.width/rect.width);
+    var my = (ev.clientY-rect.top)*(canvas.height/rect.height);
+    var best=null, bd=24*DPR*24*DPR; // ≥24px binned hit-target
+    for (var i=0;i<N;i++){
+      var a=agents[i]; if(a._px==null) continue;
+      var dx=a._px-mx, dy=a._py-my, dd=dx*dx+dy*dy;
+      if(dd<bd){bd=dd;best=a;}
+    }
+    if(best){
+      var armTxt = best.arm===1 ? "TREAT" : "CTRL";
+      var armCol = best.arm===1 ? "#E08BC4" : "#4FA8E0";
+      tip.style.left = (best._px/(canvas.width/rect.width))+"px";
+      tip.style.top  = (best._py/(canvas.height/rect.height))+"px";
+      tip.innerHTML = "<span style='color:"+armCol+"'>●</span> "+armTxt+" · agent "+(best.arm===1?"a"+ (1000+ (best.bin*7%900)) : "c"+(1000+ (best.bin*5%900)) )+" — "+reactions[best.bin % reactions.length];
+      tip.style.opacity = "1";
+      canvas.style.cursor = "pointer";
+    } else {
+      tip.style.opacity = "0";
+      canvas.style.cursor = "default";
+    }
+  });
+  canvas.addEventListener("mouseleave", function(){ tip.style.opacity="0"; });
+
+  /* ── persona rail selection ── */
+  document.querySelectorAll(".persona-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll(".persona-btn").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active");
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -616,6 +616,21 @@ class FeatureStoreConnectionRepo(Protocol):
 
     async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]: ...
 
+    async def name_exists(self, customer_id: str, name: str) -> bool: ...
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool: ...
+
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool: ...
+
 
 class PostgresFeatureStoreConnectionRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -653,13 +668,77 @@ class PostgresFeatureStoreConnectionRepo:
         await _release_read_transaction(self._session)
         return result
 
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        """True if this customer already has a connection whose name matches
+        `name` case-insensitively (after trim). App-level uniqueness guard for
+        #327 — no DB unique constraint, so no Alembic migration. The compare is
+        on the trimmed lowercased name; stored values are never mutated."""
+        target = name.strip().lower()
+        stmt = select(FeatureStoreConnection.id).where(
+            FeatureStoreConnection.customer_id == customer_id,
+            func.lower(func.trim(FeatureStoreConnection.name)) == target,
+        )
+        row = (await self._session.execute(stmt)).first()
+        await _release_read_transaction(self._session)
+        return row is not None
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        """Customer-scoped delete. Returns True if a row owned by `customer_id`
+        was deleted, False if the id is unknown OR belongs to another tenant —
+        the route maps both to 404 so existence never leaks across customers
+        (#327 security requirement)."""
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        await self._session.delete(row)
+        await _commit(self._session)
+        return True
+
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Persist the outcome of a connectivity test (#328). Customer-scoped:
+        only a row this customer OWNS is updated; an unknown id OR another
+        tenant's id returns False and writes nothing (security requirement —
+        never touch another tenant's health). On success the caller passes
+        status='ok' with cleared error fields; on failure status='failed' with
+        the classified ``error_kind`` and human-readable ``error_message``."""
+        row = await self._session.get(FeatureStoreConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        row.last_test_status = status
+        row.last_tested_at = tested_at
+        row.last_error_kind = error_kind
+        row.last_error_message = error_message
+        await _commit(self._session)
+        return True
+
 
 class InMemoryFeatureStoreConnectionRepo:
     def __init__(self) -> None:
         self._connections: dict[str, dict[str, Any]] = {}
 
     async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
-        row = {**connection, "updated_at": datetime.now(timezone.utc)}
+        # Seed the health columns (#328) as None so a freshly-inserted row reads
+        # as UNTESTED, matching the Postgres nullable columns. `connection` never
+        # carries them on the create path; record_test_result fills them later.
+        row = {
+            "last_tested_at": None,
+            "last_test_status": None,
+            "last_error_kind": None,
+            "last_error_message": None,
+            **connection,
+            "updated_at": datetime.now(timezone.utc),
+        }
         self._connections[row["id"]] = row
         return dict(row)
 
@@ -673,6 +752,49 @@ class InMemoryFeatureStoreConnectionRepo:
         rows = [r for r in self._connections.values() if r["customer_id"] == customer_id]
         rows.sort(key=lambda r: r["updated_at"], reverse=True)
         return [dict(r) for r in rows]
+
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        """Mirror of the Postgres app-level uniqueness guard (#327): case-
+        insensitive, trimmed name compare scoped to the customer. Stored values
+        are never mutated — only the comparison is normalized."""
+        target = name.strip().lower()
+        return any(
+            r["customer_id"] == customer_id and r["name"].strip().lower() == target
+            for r in self._connections.values()
+        )
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        """Customer-scoped delete (#327). Returns True on a successful owned
+        delete, False if the id is unknown or owned by another tenant — the
+        route maps False to 404 so existence never leaks across customers."""
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        del self._connections[connection_id]
+        return True
+
+    async def record_test_result(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        tested_at: datetime,
+        error_kind: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Mirror of the Postgres test-result persistence (#328). Customer-
+        scoped: an unknown id OR another tenant's id returns False and mutates
+        nothing. Writes status/timestamp + (cleared on ok / set on failed) the
+        error fields onto the owned row."""
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        row["last_test_status"] = status
+        row["last_tested_at"] = tested_at
+        row["last_error_kind"] = error_kind
+        row["last_error_message"] = error_message
+        return True
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1014,6 +1136,12 @@ def _feature_store_connection_to_dict(row: FeatureStoreConnection) -> dict[str, 
         "schema": row.schema,
         "password_enc": row.password_enc,
         "updated_at": row.updated_at,
+        # Per-connection health (#328) — last connectivity-test outcome. NULL on a
+        # row that has never been tested (reads as UNTESTED in the register).
+        "last_tested_at": row.last_tested_at,
+        "last_test_status": row.last_test_status,
+        "last_error_kind": row.last_error_kind,
+        "last_error_message": row.last_error_message,
     }
 
 

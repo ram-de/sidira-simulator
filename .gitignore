@@ -56,3 +56,4 @@ local-artifacts/customers/*
 # Runtime output written into allowlisted customers (simulation runs from the
 # test suite / local dev) stays out of git regardless of the allowlist above.
 local-artifacts/customers/*/simulations/
+.venv-personas/

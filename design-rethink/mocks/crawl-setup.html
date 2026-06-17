@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Crawl setup · SIDIRA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark, default) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+  /* no --verdict-ship / --verdict-hold — a verdict is not a color */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html,body{height:100%;}
+body{
+  background:var(--console-850);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+::selection{background:rgba(72,239,202,.22);color:var(--text-hi);}
+.mono{font-family:var(--font-mono);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+h1,h2,h3{text-wrap:balance;color:var(--text-hi);}
+button{font-family:inherit;cursor:pointer;}
+input,select{font-family:inherit;}
+a{color:inherit;}
+
+/* ── App shell ─────────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:56px 1fr;min-height:100vh;}
+
+/* Left rail */
+.rail{
+  position:fixed;left:0;top:0;bottom:0;width:56px;z-index:40;
+  background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;align-items:center;
+  padding:12px 0;gap:4px;
+}
+.rail .mark{
+  width:30px;height:30px;margin-bottom:14px;border-radius:7px;
+  background:radial-gradient(circle at 38% 32%, #1D2740, #0B1220);
+  border:1px solid rgba(51,64,92,.7);
+  display:grid;place-items:center;position:relative;
+}
+.rail .mark svg{width:18px;height:18px;display:block;}
+.rail-btn{
+  width:40px;height:40px;border-radius:var(--r-well);
+  display:grid;place-items:center;position:relative;
+  color:var(--text-mut);background:transparent;border:none;
+  transition:color 140ms var(--ease-out),background 140ms var(--ease-out);
+}
+.rail-btn svg{width:19px;height:19px;}
+.rail-btn:hover{color:var(--text-hi);background:var(--console-800);}
+.rail-btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:2px;
+  background:var(--signal-dim);border-radius:1px;
+}
+.rail .spacer{flex:1;}
+
+.main{grid-column:2;display:flex;flex-direction:column;min-width:0;}
+
+/* Top bar — single global provenance reference (one bar, not a second legend) */
+.topbar{
+  position:sticky;top:0;z-index:30;height:52px;
+  background:var(--console-850);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:16px;padding:0 28px;
+}
+.wordmark{font-weight:600;letter-spacing:.06em;font-size:14px;color:var(--text-hi);}
+.crumb{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--text-mut);text-transform:uppercase;}
+.crumb .sep{color:var(--text-mut);opacity:.55;margin:0 8px;} /* P7: separator is muted ink, not disabled-faint */
+.topbar .gref{
+  margin-left:auto;display:flex;align-items:center;gap:10px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--text-mut);
+}
+/* muted in-flight designator — provenance, never a signal carrier (P2). */
+.topbar .gref .run-state{
+  color:var(--text-mut);letter-spacing:.09em;
+  border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);
+  padding:2px 7px;font-size:10px;
+}
+.topbar .gref .run-id{color:var(--text);}
+.dot{width:6px;height:6px;border-radius:var(--r-dot);background:var(--signal);display:inline-block;}
+.dot.run{animation:breath 2s var(--ease-settle) infinite;}
+@keyframes breath{0%,100%{opacity:1;}50%{opacity:.45;}}
+
+/* ── Page header ───────────────────────────────────────────── */
+.pagehead{
+  padding:40px 40px 0;max-width:1320px;margin:0 auto;width:100%;
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+}
+.pagehead h1{font-size:2rem;font-weight:600;letter-spacing:-.025em;line-height:1.08;}
+.pagehead .snap{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.07em;color:var(--text-mut);
+}
+.pagehead .lede{
+  flex-basis:100%;max-width:62ch;margin-top:12px;color:var(--text-mut);
+  font-size:15px;line-height:1.6;
+}
+.pagehead .lede b{color:var(--text);font-weight:450;}
+
+/* ── Layout grid — manifest is the primary audit surface ───── */
+.layout{
+  display:grid;grid-template-columns:1fr 408px;gap:0;
+  max-width:1320px;margin:0 auto;width:100%;
+  align-items:start;
+}
+.formcol{padding:40px 40px 96px;min-width:0;}
+.auditcol{
+  position:sticky;top:52px;align-self:start;
+  border-left:1px solid rgba(51,64,92,.5);
+  min-height:calc(100vh - 52px);
+}
+
+/* ── Sections / form — NO numbered scaffolds, plain ink heads ─ */
+.section{margin-top:48px;}
+.section:first-of-type{margin-top:0;}
+.section-head{
+  display:flex;align-items:baseline;gap:12px;
+  padding-bottom:10px;border-bottom:1px solid rgba(51,64,92,.5);margin-bottom:24px;
+}
+.section-head h2{font-size:1.125rem;font-weight:550;letter-spacing:-.01em;color:var(--text-hi);}
+.section-head .meta{margin-left:auto;font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-mut);}
+.field{margin-top:24px;}
+.field:first-child{margin-top:0;}
+.sublabel{
+  display:block;font-family:var(--font-mono);font-size:11px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);margin-bottom:8px;
+}
+.row{display:flex;gap:8px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.field-wide{grid-column:1 / -1;}
+.sublabel .qual{color:var(--text-mut);letter-spacing:.04em;}
+input.in,select.in{
+  width:100%;height:36px;background:var(--console-700);
+  border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);
+  color:var(--text-hi);padding:0 12px;font-size:14px;
+  transition:border-color 140ms var(--ease-out),box-shadow 140ms var(--ease-out);outline:none;
+}
+input.in::placeholder{color:var(--text-mut);opacity:.7;}
+input.in.mono,select.in{font-family:var(--font-mono);font-size:13px;}
+input.in:focus,select.in:focus{border-color:var(--signal-dim);box-shadow:0 0 0 2px rgba(57,184,148,.35);}
+select.in{
+  appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'><path d='M4 6l4 4 4-4' stroke='%23929BAE' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;
+}
+.hint{font-size:13px;color:var(--text-mut);margin-top:10px;line-height:1.55;max-width:62ch;}
+.hint b{color:var(--text);font-weight:450;}
+.btn-x{
+  flex-shrink:0;width:36px;height:36px;background:transparent;
+  border:1px solid rgba(51,64,92,.7);border-radius:var(--r-well);
+  color:var(--text-mut);font-size:16px;line-height:1;
+  transition:color 140ms var(--ease-out),border-color 140ms var(--ease-out);
+}
+.btn-x:hover{color:var(--text-hi);border-color:var(--alert);}
+.btn-x:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.btn-add{
+  margin-top:12px;background:transparent;border:1px solid rgba(51,64,92,.7);
+  border-radius:var(--r-well);padding:7px 12px;font-family:var(--font-mono);
+  font-size:11px;letter-spacing:.05em;color:var(--text-mut);
+  transition:color 140ms var(--ease-out),background 140ms var(--ease-out);
+}
+.btn-add:hover{color:var(--text-hi);background:var(--console-800);}
+.btn-add:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+
+/* Capability rows — grouped by hairline, NOT nested cards. Collapsed by default. */
+.cap-list{display:flex;flex-direction:column;}
+.cap{
+  border-top:1px solid rgba(51,64,92,.5);
+}
+.cap:last-of-type{border-bottom:1px solid rgba(51,64,92,.5);}
+.cap-summary{
+  display:flex;align-items:center;gap:14px;padding:12px 4px;cursor:pointer;
+  list-style:none;
+}
+.cap-summary::-webkit-details-marker{display:none;}
+.cap-twist{
+  width:14px;height:14px;flex-shrink:0;color:var(--text-mut);
+  transition:transform 160ms var(--ease-out);
+}
+details[open] .cap-twist{transform:rotate(90deg);}
+.cap-slug{
+  font-family:var(--font-mono);font-size:13px;color:var(--text-hi);
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cap-count{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);}
+.cap-body{padding:0 4px 18px 28px;}
+details summary:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;border-radius:var(--r-well);}
+
+.urlrow{display:flex;gap:8px;margin-top:8px;}
+.urlrow:first-child{margin-top:0;}
+.url-tag{
+  flex-shrink:0;width:36px;height:36px;display:grid;place-items:center;
+  font-family:var(--font-mono);font-size:11px;color:var(--text-mut);
+  border:1px solid rgba(51,64,92,.4);border-radius:var(--r-well);background:var(--console-800);
+}
+
+/* failed dispatch — compact one-line log row (collapsible) */
+.faillog{
+  margin-top:16px;border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);
+  overflow:hidden;
+}
+.faillog summary{
+  display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;list-style:none;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
+}
+.faillog summary::-webkit-details-marker{display:none;}
+.faillog summary:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-2px;}
+.faillog .ftag{color:var(--alert);letter-spacing:.08em;}
+.faillog .fwhen{color:var(--text-mut);}
+.faillog .fmore{margin-left:auto;color:var(--text-mut);}
+.faillog .fbody{padding:0 16px 14px 16px;color:var(--text);font-size:13px;line-height:1.55;border-top:1px solid rgba(51,64,92,.4);padding-top:12px;}
+.faillog .fbody .sub{color:var(--text-mut);}
+
+/* ── Audit rail — the primary manifest surface ─────────────── */
+.rail-inner{display:flex;flex-direction:column;}
+/* The ONE Provenance Bar for this reading region */
+.provbar{
+  padding:14px 24px;border-bottom:1px solid rgba(51,64,92,.5);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-mut);
+  line-height:1.7;
+}
+.provbar .seg + .seg::before{content:" · ";color:var(--text-mut);opacity:.55;} /* P7: separator muted, not faint */
+/* P7: the running WORD "UNCALIBRATED" is --text-mut; only the ◇ glyph is --spread-dim. */
+.provbar .uncal{color:var(--text-mut);}
+.provbar .uncal .gly{color:var(--spread-dim);}
+
+/* THE MANIFEST is the primary audit surface — it must visually out-rank the
+   watch/actions blocks (R3 fix #2). It gets a quiet raised ground tint + a
+   heavier dt/dd contrast and per-row hairlines, so the RECORD dominates and the
+   rest of the rail recedes to plain ink-on-canvas. */
+.manifest-block{
+  margin:0 0 0;background:var(--console-800);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.rail-head{
+  padding:18px 24px 12px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+}
+.rail-head .ttl{font-size:1.125rem;font-weight:600;letter-spacing:-.01em;color:var(--text-hi);}
+.rail-head .ttl::before{
+  content:"";display:inline-block;width:2px;height:13px;margin-right:9px;
+  vertical-align:-1px;background:var(--text-mut);border-radius:1px;
+}
+.rail-head .sub{font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;color:var(--text-mut);}
+.manifest{padding:2px 24px 18px;display:grid;grid-template-columns:auto 1fr;gap:0 18px;align-content:start;}
+.manifest dt,.manifest dd{
+  padding:8px 0;border-top:1px solid rgba(51,64,92,.4);
+  align-self:center;
+}
+.manifest dt:first-of-type,.manifest dd:first-of-type{border-top:none;}
+.manifest dt{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mut);}
+.manifest dd{font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--text-hi);overflow-wrap:break-word;min-width:0;text-align:right;}
+.manifest dd.mut{color:var(--text-mut);font-weight:400;}
+.manifest dd.warn{color:var(--spread);}
+/* the promote-gate is the manifest's decision row — give it a faint full-width seat */
+.manifest dt.gate,.manifest dd.gate{border-top:1px solid rgba(51,64,92,.6);padding-top:11px;}
+
+.rail-actions{padding:18px 24px;border-top:1px solid rgba(51,64,92,.5);display:flex;flex-direction:column;gap:12px;}
+.btn{
+  height:36px;border-radius:var(--r-well);font-weight:500;font-size:14px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:background 140ms var(--ease-out),border-color 140ms var(--ease-out),transform 90ms var(--ease-out);
+  border:1px solid transparent;
+}
+.btn:active{transform:translateY(1px);}
+.btn:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+.btn.primary{background:var(--console-700);border-color:rgba(51,64,92,.9);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.btn.primary:hover{background:var(--console-750);}
+/* No lime .btn.live on this page: there is no LIVE-READING control here (P2/§1.9).
+   "Save setup" is ink (it persists config, it does not initiate a reading); a crawl
+   is dispatched to CI, not read in-page. Lime is reserved for Run/Read-now. The one
+   running status dot in the watch summary is the SOLE signal carrier in the rail. */
+.saved-cap{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);}
+
+/* ── In-flight watch — R4 fix #1: demoted to a ONE-LINE summary that expands.
+   The manifest is the rail's primary surface; the live run is a quiet status
+   line beneath it, not a third competing panel (§3.2 3-panel ceiling). The
+   running status dot in the summary is the SOLE signal carrier here (P2). */
+.rail-watch{border-top:1px solid rgba(51,64,92,.5);}
+.rail-watch > summary{
+  display:flex;align-items:center;gap:9px;padding:14px 24px;cursor:pointer;
+  list-style:none;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;
+}
+.rail-watch > summary::-webkit-details-marker{display:none;}
+.rail-watch > summary:focus-visible{outline:2px solid var(--signal-dim);outline-offset:-2px;}
+.rail-watch .w-state{color:var(--text-hi);letter-spacing:.05em;}
+.rail-watch .w-id{color:var(--text-mut);margin-left:auto;}
+.rail-watch .w-twist{
+  width:13px;height:13px;flex-shrink:0;color:var(--text-mut);
+  transition:transform 160ms var(--ease-out);
+}
+.rail-watch[open] .w-twist{transform:rotate(90deg);}
+.watch-body{padding:0 24px 18px;display:flex;flex-direction:column;gap:10px;}
+.watch-body .status{font-family:var(--font-mono);font-size:12px;letter-spacing:.03em;color:var(--text);display:flex;align-items:center;gap:8px;}
+.watch-body .ts{font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;color:var(--text-mut);}
+.watch-body a.ts{color:var(--text);text-decoration:none;}
+.watch-body a.ts:hover{color:var(--text-hi);}
+.progress-track{height:4px;background:var(--console-700);border-radius:2px;overflow:hidden;margin:2px 0;}
+/* P2: progress fill is muted ink, not a second signal source. The dot is the carrier. */
+.progress-track > i{display:block;height:100%;background:var(--text-mut);border-radius:2px;}
+.progress-track > i.pf-46{width:46%;}
+.rail-cap{font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;line-height:1.55;color:var(--text-mut);}
+.rail-cap .w-na{color:var(--text-mut);}
+
+.foot-note{
+  max-width:1320px;margin:0 auto;width:100%;padding:0 40px 48px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--text-mut);
+}
+
+@media (max-width:1080px){
+  .layout{grid-template-columns:1fr;}
+  .auditcol{position:static;border-left:none;border-top:1px solid rgba(51,64,92,.5);min-height:0;}
+  .grid2{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- ── Left icon rail ─────────────────────────────────── -->
+  <nav class="rail" aria-label="Primary">
+    <div class="mark" title="SIDIRA">
+      <!-- P1: resting brand mark is ink, never lime. Live signal is reserved for a reading. -->
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="#929BAE" stroke-width="1.4"/>
+        <circle cx="12" cy="12" r="3.2" fill="#F2F4F8"/>
+      </svg>
+    </div>
+    <button class="rail-btn" title="Simulate" aria-label="Simulate">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l5-6 4 3 4-7 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="rail-btn" title="Personas" aria-label="Personas">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19a5.5 5.5 0 0111 0M16 11a3 3 0 100-6M20.5 19a4.5 4.5 0 00-5-4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <button class="rail-btn active" title="Crawl setup" aria-label="Crawl setup" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.8v16.4M3.8 12h16.4M5.8 6.5c2 1.4 10.4 1.4 12.4 0M5.8 17.5c2-1.4 10.4-1.4 12.4 0" stroke="currentColor" stroke-width="1.2"/></svg>
+    </button>
+    <button class="rail-btn" title="Library" aria-label="Library">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 5h5v14H5zM10 5h4v14h-4zM14.5 5.6l3.8 1 .8 13.4-3.8-1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="spacer"></div>
+    <button class="rail-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+    </button>
+  </nav>
+
+  <div class="main">
+    <!-- ── Top bar: wordmark + route + single global run reference ── -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="crumb">LIBRARY<span class="sep">/</span>CRAWL SETUP</span>
+      <!-- Quiet global pointer: the run id + a muted in-flight designator. No ◇ on an
+           identifier (P8), no second pulsing dot, no lime — the rail owns the live pulse
+           and calibration state (P2). This is a reference, not a second signal carrier. -->
+      <div class="gref mono">
+        <span class="run-state">IN FLIGHT</span>
+        <span class="run-id">cr-924718699c21</span>
+      </div>
+    </header>
+
+    <!-- ── Page header — plain, breathing, no eyebrow chrome ── -->
+    <div class="pagehead">
+      <h1>Crawl setup</h1>
+      <span class="snap mono">STREAMLY · SANDBOX</span>
+      <p class="lede">Configure what the walker crawls to build the next versioned snapshot.
+        This screen only sets the inputs — <b>it never authors the pack.</b> The crawl runs
+        in CI and publishes on its own.</p>
+    </div>
+
+    <!-- ── Layout: form (left) + audit rail (right, primary) ── -->
+    <div class="layout">
+      <!-- FORM COLUMN — brutally quiet config -->
+      <div class="formcol">
+
+        <!-- Capabilities — collapsed rows, grouped by hairline -->
+        <section class="section">
+          <div class="section-head">
+            <h2>Capabilities</h2>
+            <span class="meta">5 named · max 10</span>
+          </div>
+
+          <div class="cap-list">
+            <details class="cap" open>
+              <summary class="cap-summary">
+                <svg class="cap-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="cap-slug">onboarding-checklist</span>
+                <span class="cap-count">2 URLs</span>
+              </summary>
+              <div class="cap-body">
+                <div class="urlrow"><span class="url-tag">01</span><input class="in mono" value="https://sandbox.streamly.app/welcome" aria-label="onboarding-checklist entry URL 1"/></div>
+                <div class="urlrow"><span class="url-tag">02</span><input class="in mono" value="https://sandbox.streamly.app/setup/profile" aria-label="onboarding-checklist entry URL 2"/><button class="btn-x" aria-label="Remove URL">×</button></div>
+                <button class="btn-add">+ ADD ENTRY URL</button>
+              </div>
+            </details>
+
+            <details class="cap">
+              <summary class="cap-summary">
+                <svg class="cap-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="cap-slug">usage-billing</span>
+                <span class="cap-count">1 URL</span>
+              </summary>
+              <div class="cap-body">
+                <div class="urlrow"><span class="url-tag">01</span><input class="in mono" value="https://sandbox.streamly.app/account/billing" aria-label="usage-billing entry URL 1"/></div>
+                <button class="btn-add">+ ADD ENTRY URL</button>
+              </div>
+            </details>
+
+            <details class="cap">
+              <summary class="cap-summary">
+                <svg class="cap-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="cap-slug">team-invite-flow</span>
+                <span class="cap-count">2 URLs</span>
+              </summary>
+              <div class="cap-body">
+                <div class="urlrow"><span class="url-tag">01</span><input class="in mono" value="https://sandbox.streamly.app/team/members" aria-label="team-invite-flow entry URL 1"/><button class="btn-x" aria-label="Remove URL">×</button></div>
+                <div class="urlrow"><span class="url-tag">02</span><input class="in mono" value="https://sandbox.streamly.app/team/invite" aria-label="team-invite-flow entry URL 2"/><button class="btn-x" aria-label="Remove URL">×</button></div>
+                <button class="btn-add">+ ADD ENTRY URL</button>
+              </div>
+            </details>
+
+            <details class="cap">
+              <summary class="cap-summary">
+                <svg class="cap-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="cap-slug">watchlist-alerts</span>
+                <span class="cap-count">1 URL</span>
+              </summary>
+              <div class="cap-body">
+                <div class="urlrow"><span class="url-tag">01</span><input class="in mono" value="https://sandbox.streamly.app/watchlist" aria-label="watchlist-alerts entry URL 1"/></div>
+                <button class="btn-add">+ ADD ENTRY URL</button>
+              </div>
+            </details>
+
+            <details class="cap">
+              <summary class="cap-summary">
+                <svg class="cap-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="cap-slug">export-report</span>
+                <span class="cap-count">1 URL</span>
+              </summary>
+              <div class="cap-body">
+                <div class="urlrow"><span class="url-tag">01</span><input class="in mono" value="https://sandbox.streamly.app/reports/export" aria-label="export-report entry URL 1"/></div>
+                <button class="btn-add">+ ADD ENTRY URL</button>
+              </div>
+            </details>
+          </div>
+
+          <button class="btn-add">+ ADD CAPABILITY</button>
+          <div class="hint">5–10 priority capabilities, each a slug, with 1–3 entry URLs.
+            The walker authenticates, enters at each URL, and walks the flow. <b>Staging or
+            sandbox hosts only — it never touches production.</b></div>
+        </section>
+
+        <!-- Access -->
+        <section class="section">
+          <div class="section-head">
+            <h2>Access</h2>
+            <span class="meta">2 roles · write-only secrets</span>
+          </div>
+
+          <div class="field">
+            <label class="sublabel">Sandbox tenant</label>
+            <input class="in mono" value="https://sandbox.streamly.app" aria-label="Sandbox tenant URL"/>
+          </div>
+
+          <div class="field grid2">
+            <div>
+              <label class="sublabel">Role</label>
+              <input class="in mono" value="admin" aria-label="Role admin"/>
+            </div>
+            <div>
+              <label class="sublabel">Test login</label>
+              <div class="row">
+                <input class="in mono" value="crawler-admin@streamly.app" aria-label="Username admin"/>
+                <button class="btn-x" aria-label="Remove login">×</button>
+              </div>
+            </div>
+            <div class="field-wide">
+              <label class="sublabel">Password <span class="qual">· write-only</span></label>
+              <input class="in mono" type="password" placeholder="•••••••• — re-enter to re-save" aria-label="Password admin"/>
+            </div>
+          </div>
+
+          <div class="field grid2">
+            <div>
+              <label class="sublabel">Role</label>
+              <input class="in mono" value="member" aria-label="Role member"/>
+            </div>
+            <div>
+              <label class="sublabel">Test login</label>
+              <div class="row">
+                <input class="in mono" value="crawler-member@streamly.app" aria-label="Username member"/>
+                <button class="btn-x" aria-label="Remove login">×</button>
+              </div>
+            </div>
+            <div class="field-wide">
+              <label class="sublabel">Password <span class="qual">· write-only</span></label>
+              <input class="in mono" type="password" placeholder="•••••••• — re-enter to re-save" aria-label="Password member"/>
+            </div>
+          </div>
+
+          <button class="btn-add">+ ADD ROLE</button>
+
+          <div class="hint">One test login per role. Passwords are <b>encrypted at rest and
+            never shown again</b>, so re-enter them whenever you re-save. Allowlist the walker's
+            egress IPs in your WAF first.</div>
+        </section>
+
+        <!-- Run -->
+        <section class="section">
+          <div class="section-head">
+            <h2>Run</h2>
+            <span class="meta">weekly · depth 6</span>
+          </div>
+
+          <div class="field grid2">
+            <div>
+              <label class="sublabel">Cadence</label>
+              <select class="in" aria-label="Cadence">
+                <option>WEEKLY · MONDAY 04:00 UTC</option>
+                <option>ON-DEMAND ONLY</option>
+              </select>
+            </div>
+            <div>
+              <label class="sublabel">Walk depth</label>
+              <select class="in" aria-label="Walk depth">
+                <option>2 HOPS</option><option>3 HOPS</option><option>4 HOPS</option>
+                <option>5 HOPS</option><option selected>6 HOPS · DEFAULT</option>
+                <option>7 HOPS</option><option>8 HOPS</option>
+              </select>
+            </div>
+          </div>
+          <div class="hint">Walk depth caps how many hops from each entry URL the crawler
+            explores. The default <b>6</b> sits above the deepest real flow, so it's a safety
+            ceiling — raise it only if a deep flow gets truncated. Each crawl produces a new
+            <b>versioned snapshot</b>; running sims keep their frozen slice either way.</div>
+
+          <!-- R4 fix #2 (category error): the 144px cohort-reaction poster was
+               showpiece-instinct bleeding onto a WORKING URL/auth/cadence config page
+               (§0.2 / P9). The cohort distribution is a READING — it belongs on
+               results / the persona-pack record, not on the screen that sets the crawl
+               inputs. It is removed here; the manifest carries the cohort size as the
+               one config-relevant fact ("1,200 agents"). The form column is now
+               brutally quiet, so the audit rail's manifest can dominate. -->
+
+          <!-- Last failed dispatch — compact, collapsed log row -->
+          <details class="faillog">
+            <summary>
+              <span class="ftag">FAILED</span>
+              <span class="fwhen">cr-3a91 · 2026-06-09 04:02 UTC</span>
+              <span class="fmore">DETAILS ↓</span>
+            </summary>
+            <div class="fbody">Auth handshake rejected at <span class="mono">/account/billing</span> —
+              sandbox session expired before login. <span class="sub">Re-entered the admin password
+              and re-saved; the Monday run recovered cleanly.</span></div>
+          </details>
+        </section>
+      </div>
+
+      <!-- AUDIT RAIL — the primary audit surface (manifest) -->
+      <aside class="auditcol" aria-label="Crawl manifest and run status">
+        <div class="rail-inner">
+
+          <!-- The ONE Provenance Bar for this live reading region -->
+          <div class="provbar mono">
+            <span class="seg">CH1</span><span class="seg">groq/llama-3.3-70b</span><span class="seg">seed 0x4f</span><span class="seg">2026-W25</span><span class="seg uncal"><span class="gly">◇</span> UNCALIBRATED</span>
+          </div>
+
+          <!-- THE MANIFEST — primary audit surface, raised + heavier so the record
+               out-ranks the watch block (R3 fix #2). -->
+          <div class="manifest-block elevated">
+            <div class="rail-head">
+              <span class="ttl">Manifest</span>
+              <!-- snapshot week is an exempt identifier: bare, no ◇ (P8). -->
+              <span class="sub">2026-W26</span>
+            </div>
+
+            <dl class="manifest">
+              <dt>Current</dt><dd class="mut">2026-W25</dd>
+              <dt>Next ver.</dt><dd>2026-W26</dd>
+              <dt>Capabilities</dt><dd>5</dd>
+              <dt>Entry pts</dt><dd>7</dd>
+              <dt>Roles</dt><dd>admin · member</dd>
+              <dt>Model</dt><dd class="mut">groq/llama-3.3-70b</dd>
+              <dt>Cohort</dt><dd>1,200 agents</dd>
+              <dt>Cadence</dt><dd>MON 04:00 UTC</dd>
+              <dt>Depth</dt><dd>6 hops</dd>
+              <dt>Diff vs</dt><dd class="mut">2026-W25</dd>
+              <dt class="gate">Promote</dt><dd class="warn gate">GATED · REVIEW DIFF</dd>
+            </dl>
+          </div>
+
+          <div class="rail-actions">
+            <button class="btn primary">Save setup</button>
+            <div class="saved-cap">SAVED 2026-06-16 · 09:41 UTC</div>
+          </div>
+
+          <!-- One-line, expandable in-flight watch. Collapsed it is a single status
+               row (running dot + state + id); the dot is the sole signal carrier (P2). -->
+          <details class="rail-watch" open>
+            <summary>
+              <svg class="w-twist" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <i class="dot run"></i>
+              <span class="w-state">CRAWL IN FLIGHT</span>
+              <span class="w-id">cr-924718699c21</span>
+            </summary>
+            <div class="watch-body">
+              <div class="status">RUNNING · walking usage-billing · 46%</div>
+              <div class="progress-track"><i class="pf-46"></i></div>
+              <div class="ts">DISPATCHED 2026-06-16 · 09:42 UTC</div>
+              <a class="ts" href="#">CI RUN ↗</a>
+              <div class="rail-cap">The crawl runs in CI (~40 min) and publishes on its own —
+                closing this tab changes nothing. <span class="w-na">Re-run is unavailable
+                while this crawl is in flight.</span></div>
+            </div>
+          </details>
+        </div>
+      </aside>
+    </div>
+
+    <div class="foot-note mono">CRAWL CONFIG NEVER READS OR EDITS REVERSE-PRD / REVERSE-FIGMA CONTENT (#171) · SECRETS WRITE-ONLY, ENCRYPTED AT REST (#206)</div>
+  </div>
+</div>
+</body>
+</html>

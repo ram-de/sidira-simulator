@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marcus Webb · 1:1 — SIDIRA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta — no valence */
+  --edge-warn:#C9A227; --alert:#F0683C;       /* borders + word, never fill */
+
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+
+  --font-sans:"Geist",system-ui,-apple-system,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,monospace;
+  --rail:56px;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-variant-numeric:tabular-nums;}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{
+  font-family:var(--font-sans);
+  background:var(--console-850);
+  color:var(--text);
+  font-size:15px;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+::selection{background:var(--signal-wash);color:var(--text-hi);}
+a{color:inherit;text-decoration:none;}
+.mono{font-family:var(--font-mono);}
+.elevated{box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+
+button,textarea{font-family:inherit;}
+:focus-visible{outline:2px solid var(--signal-dim);outline-offset:2px;}
+
+/* ── designators ───────────────────────────────────── */
+.desig{
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-mut);
+}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--text-mut);
+  border:1px solid var(--console-line);border-radius:var(--r-well);
+  padding:2px 7px;line-height:1.4;white-space:nowrap;
+}
+.chip.arm-treat{color:var(--arm-treat);border-color:rgba(224,139,196,.4);}
+.glyph-hollow{color:var(--spread-dim);}
+
+/* ── app shell ─────────────────────────────────────── */
+.app{display:grid;grid-template-columns:var(--rail) 1fr;min-height:100vh;}
+
+.left-rail{
+  position:fixed;inset:0 auto 0 0;width:var(--rail);
+  background:var(--console-850);border-right:1px solid rgba(51,64,92,.5);
+  display:flex;flex-direction:column;align-items:center;
+  padding:14px 0;gap:4px;z-index:40;
+}
+.rail-mark{width:30px;height:30px;margin-bottom:18px;}
+.rail-btn{
+  width:40px;height:40px;border-radius:var(--r-well);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-mut);position:relative;cursor:pointer;
+  transition:color 140ms var(--ease-out),background 140ms var(--ease-out);
+}
+.rail-btn svg{width:19px;height:19px;}
+.rail-btn:hover{color:var(--text-hi);background:var(--console-800);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{
+  content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:2px;
+  background:var(--signal-dim);border-radius:1px;
+}
+.rail-spacer{flex:1;}
+.rail-avatar{
+  border-radius:var(--r-dot);background:var(--console-700);color:var(--text-hi);
+  font-size:12px;font-weight:600;font-family:var(--font-mono);
+}
+
+.main-col{grid-column:2;min-width:0;}
+
+/* ── top bar ───────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:30;height:52px;
+  background:rgba(16,25,42,.86);backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex;align-items:center;gap:18px;padding:0 28px;
+}
+.wordmark{font-weight:600;letter-spacing:.06em;font-size:14px;color:var(--text-hi);}
+.crumb{display:flex;align-items:center;gap:10px;color:var(--text-mut);font-size:13px;}
+.crumb .sep{color:var(--text-mut);opacity:.55;}
+.crumb a:hover{color:var(--text);}
+.crumb .id{font-family:var(--font-mono);font-size:12px;}
+.crumb .id.here{color:var(--text);}
+.tb-uncal{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;color:var(--text-mut);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+/* topbar status is the QUIET region reference — the LIVE pulse belongs to the
+   in-thread composing dot. Here it rests: ink dot, no breath (P3). */
+.live-pill{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);
+  font-size:10.5px;letter-spacing:.08em;color:var(--signal);}
+.dot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--signal);}
+.dot.rest{background:var(--signal-dim);}
+.dot.breathe{animation:breathe 2s var(--ease-out) infinite;}
+@keyframes breathe{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+/* ── page wrap — single measured column, lots of air ─ */
+.wrap{max-width:880px;margin:0 auto;padding:40px 28px 96px;}
+
+/* ── page header ───────────────────────────────────── */
+.page-head{display:flex;flex-direction:column;gap:12px;margin-bottom:var(--space-section);}
+.ph-eyebrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ph-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;}
+.ph-title{
+  font-size:2rem;font-weight:600;letter-spacing:-.025em;color:var(--text-hi);
+  line-height:1.08;text-wrap:balance;
+}
+.ph-sub{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:var(--text-mut);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;margin-top:2px;}
+.ph-sub a{border-bottom:1px dotted rgba(146,155,174,.4);padding-bottom:1px;}
+.ph-sub a:hover{color:var(--text);border-color:var(--text-mut);}
+.ph-sub .sep{opacity:.5;}
+.ph-actions{display:flex;gap:8px;flex-shrink:0;}
+
+/* ── buttons ───────────────────────────────────────── */
+.btn{
+  height:36px;padding:0 14px;border-radius:var(--r-well);
+  font-family:var(--font-sans);font-size:13.5px;font-weight:500;
+  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  border:1px solid transparent;background:transparent;color:var(--text);
+  transition:background 140ms var(--ease-out),border-color 140ms var(--ease-out),color 140ms var(--ease-out);
+  white-space:nowrap;
+}
+.btn svg{width:15px;height:15px;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--console-700);border-color:var(--console-line);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.btn-primary:hover{background:var(--console-750);}
+.btn-secondary{border-color:var(--console-line);color:var(--text);}
+.btn-secondary:hover{background:var(--console-800);}
+.btn-ghost{color:var(--text-mut);}
+.btn-ghost:hover{color:var(--text-hi);}
+.btn-send{background:var(--console-700);border-color:var(--console-line);color:var(--text-hi);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);}
+.btn-send:hover{background:var(--console-750);}
+
+/* ── reading header (the one supporting panel above the thread) ──
+   The marquee inferred figure dominates first paint (P10); the motif is a
+   labeled, interrogable position mark (this agent vs cohort), not inert. */
+.identity{
+  display:grid;grid-template-columns:1fr 200px;gap:0 28px;
+  background:var(--console-800);border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  padding:var(--space-room);margin-bottom:var(--space-section);align-items:stretch;
+}
+.id-body{display:flex;flex-direction:column;gap:18px;min-width:0;}
+.id-blurb{font-size:13.5px;line-height:1.55;color:var(--text);max-width:54ch;}
+.id-blurb .q{color:var(--text-hi);}
+/* quiet identity fact strip — one provenance line, not a stacked dl grid */
+.id-facts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-mut);}
+.id-facts .sep{opacity:.5;}
+
+/* THE MARQUEE READING — the page's masthead figure. data-xl scale so it
+   wins first paint over the h1 title and the thread (P10): it is the ONE
+   number the page is built around. Resting ink ~0.9 (uncalibrated cue is
+   the ◇ glyph + hedged copy, not a faded figure). */
+.marquee{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;
+  margin-top:4px;}
+.marquee .fig{display:flex;flex-direction:column;gap:7px;}
+.marquee .fig-label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--text-mut);display:flex;align-items:center;gap:6px;}
+.marquee .read{display:flex;align-items:baseline;gap:9px;font-family:var(--font-mono);
+  line-height:1;}
+/* data-xl masthead figure — clamps up to a true 3.4rem so it dominates */
+.marquee .num{font-size:clamp(2.8rem,5.4vw,3.4rem);font-weight:500;
+  letter-spacing:-.015em;color:var(--text-hi);}
+.marquee .stamp{display:inline-flex;align-items:baseline;gap:6px;}
+.marquee .ci{font-size:1.25rem;color:var(--spread);letter-spacing:0;}
+.marquee .gl{font-size:1.1rem;color:var(--spread-dim);}
+.marquee .div{width:1px;align-self:stretch;background:var(--console-line);margin:6px 0;}
+.marquee .sub{display:flex;flex-direction:column;gap:6px;padding-bottom:6px;}
+.marquee .sub .vs{font-family:var(--font-mono);font-size:12px;color:var(--text);
+  display:flex;align-items:baseline;gap:6px;}
+.marquee .sub .vs .up{color:var(--text-mut);}
+.marquee .sub .vs .sci{font-size:10px;color:var(--spread-dim);}
+.marquee .sub .pct{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
+  color:var(--text-mut);text-transform:uppercase;}
+
+/* the position mark — this agent's RANK within the treatment arm. NOT a
+   second distribution (the binned cohort histogram lives once, in the
+   evidence drawer): this is a rank ladder — one notch per arm agent along a
+   percentile axis, with this agent's notch lit. Complements, never duplicates. */
+.posmark{
+  position:relative;border-left:1px solid rgba(51,64,92,.5);
+  padding-left:28px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;
+}
+.posmark-head{font-family:var(--font-mono);font-size:9px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--text-mut);line-height:1.5;}
+.posmark-head b{color:var(--text);font-weight:500;}
+.posmark canvas{width:100%;height:96px;display:block;}
+.posmark-foot{display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--text-mut);}
+.posmark-foot .pp{color:var(--text);}
+
+/* the ONE provenance bar for this reading region */
+.provbar{
+  display:flex;align-items:center;flex-wrap:wrap;gap:0;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;color:var(--text-mut);
+  border-top:1px solid rgba(51,64,92,.5);margin-top:4px;padding-top:14px;
+}
+.provbar .seg{padding:0 10px;border-right:1px solid var(--console-line);white-space:nowrap;}
+.provbar .seg:first-child{padding-left:0;}
+.provbar .seg:last-child{border-right:0;}
+.provbar .lv{color:var(--text);}
+.provbar .arm{color:var(--arm-treat);}
+/* P7: running WORD stays --text-mut; only the ◇ glyph is --spread-dim */
+.provbar .uncal{color:var(--text-mut);}
+.provbar .uncal .gly{color:var(--spread-dim);}
+
+/* ── thread — the hero of this page ────────────────── */
+.thread-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  margin-bottom:var(--space-room);
+}
+.thread-title{display:flex;align-items:baseline;gap:10px;}
+.thread-title h2{font-size:1.125rem;font-weight:550;color:var(--text-hi);letter-spacing:-.01em;}
+.thread-title .turns{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);letter-spacing:.05em;}
+.btn-export{height:30px;padding:0 8px;font-size:11px;font-family:var(--font-mono);letter-spacing:.04em;}
+
+.sys-line{
+  text-align:center;font-size:12px;color:var(--text-mut);padding:2px 0 var(--space-room);
+  border-bottom:1px solid rgba(51,64,92,.35);margin-bottom:var(--space-room);
+}
+.sys-line .mono{font-size:11px;letter-spacing:.04em;color:var(--text);}
+.sys-line .arm{color:var(--arm-treat);}
+
+.msg{margin-bottom:var(--space-section);max-width:64ch;}
+.msg.pm{margin-left:auto;}
+.msg-meta{
+  display:flex;align-items:baseline;gap:9px;margin-bottom:6px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;color:var(--text-mut);
+}
+.msg-meta.right{justify-content:flex-end;}
+.msg-meta .who{font-weight:500;color:var(--text);}
+.msg-meta .who.pm{color:var(--text-hi);}
+.msg-meta .spacer{flex:1;}
+.msg-meta .time{color:var(--text-mut);opacity:.7;}
+.tag{border:1px solid var(--console-line);border-radius:var(--r-well);padding:1px 6px;font-size:9px;letter-spacing:.06em;color:var(--text-mut);}
+.tag.first{color:var(--text);border-color:rgba(146,155,174,.45);}
+
+.msg-body{font-size:14.5px;line-height:1.62;color:var(--text);}
+.msg.agent .msg-body{border-left:1px solid var(--console-line);padding-left:16px;}
+.msg.pm .msg-body{
+  background:var(--console-750);border:1px solid var(--console-line);
+  border-radius:var(--r-well);padding:11px 14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* sentiment line — plain ink + glyph + direction, NO valence color */
+.senti{display:flex;align-items:center;gap:10px;margin-top:9px;}
+.senti-val{font-family:var(--font-mono);font-size:10px;color:var(--text-mut);letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;}
+.senti-val .arrow{color:var(--text);font-size:11px;}
+.senti-val .ci{color:var(--spread-dim);}
+.senti-track{height:2px;width:96px;background:var(--console-700);border-radius:var(--r-dot);position:relative;overflow:hidden;}
+.senti-track::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--console-line);}
+.senti-fill{position:absolute;top:0;bottom:0;background:var(--text-mut);}
+/* data-driven sentiment offsets — set the magnitude via custom prop, not a
+   per-row inline style override */
+.senti-fill{left:50%;width:var(--w,0%);}
+
+.msg-actions{margin-top:10px;display:flex;align-items:center;gap:14px;}
+.msg-actions .act{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-mut);
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  border-bottom:1px dotted rgba(146,155,174,.4);padding-bottom:1px;
+  transition:color 140ms var(--ease-out);
+}
+.msg-actions .act:hover{color:var(--text);}
+.msg-actions .act.disabled{color:var(--text-faint);border-color:rgba(100,110,132,.4);cursor:not-allowed;}
+.thumbs{display:flex;gap:8px;margin-left:auto;}
+.thumb{width:24px;height:24px;border-radius:var(--r-well);display:flex;align-items:center;justify-content:center;
+  color:var(--text-mut);border:1px solid transparent;cursor:pointer;transition:all 140ms var(--ease-out);}
+.thumb svg{width:14px;height:14px;}
+.thumb:hover{color:var(--text-hi);background:var(--console-700);}
+.thumb.on{color:var(--text-hi);border-color:var(--console-line);background:var(--console-700);}
+
+/* composing line — running status (the ONE sanctioned status-dot breath) */
+.composing{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;color:var(--text-mut);
+  display:flex;align-items:center;gap:9px;padding:0 0 var(--space-room);
+}
+.composing .cdot{width:7px;height:7px;border-radius:var(--r-dot);background:var(--signal);flex-shrink:0;}
+
+/* composer */
+.composer-wrap{
+  position:sticky;bottom:0;background:linear-gradient(180deg,rgba(16,25,42,0),var(--console-850) 28%);
+  padding-top:var(--space-room);margin-top:var(--space-snug);
+}
+.composer{
+  display:flex;gap:12px;align-items:flex-end;
+  background:var(--console-800);border:1px solid rgba(51,64,92,.5);
+  border-radius:var(--r-panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px;
+}
+.composer textarea{
+  flex:1;font-size:14.5px;color:var(--text-hi);
+  background:var(--console-700);border:1px solid var(--console-line);
+  border-radius:var(--r-well);padding:10px 13px;line-height:1.5;resize:none;
+  min-height:42px;max-height:120px;outline:none;
+  transition:border-color 140ms var(--ease-out);
+}
+.composer textarea::placeholder{color:var(--text-mut);opacity:.7;}
+.composer textarea:focus{border-color:var(--signal-dim);}
+.composer-hint{font-family:var(--font-mono);font-size:9.5px;color:var(--text-mut);letter-spacing:.04em;
+  padding:8px 4px 0;display:flex;justify-content:space-between;}
+.composer-hint .uncal{color:var(--text-mut);}
+
+/* ── EVIDENCE DRAWER (collapsed by default — analytics live here) ── */
+.evidence{
+  margin-top:var(--space-section);
+  border:1px solid rgba(51,64,92,.5);border-radius:var(--r-panel);
+  background:var(--console-800);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  overflow:hidden;
+}
+.evidence > summary{
+  list-style:none;cursor:pointer;
+  display:flex;align-items:center;gap:12px;padding:14px 18px;
+  transition:background 140ms var(--ease-out);
+}
+.evidence > summary::-webkit-details-marker{display:none;}
+.evidence > summary:hover{background:var(--console-750);}
+.ev-chev{width:14px;height:14px;color:var(--text-mut);flex-shrink:0;transition:transform 160ms var(--ease-out);}
+.evidence[open] .ev-chev{transform:rotate(90deg);}
+.ev-title{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text);}
+.ev-summary{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);letter-spacing:.03em;margin-left:auto;display:flex;align-items:center;gap:8px;}
+.ev-summary .num{color:var(--text-hi);}
+.ev-summary .ci{color:var(--spread-dim);}
+
+.ev-body{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;
+  border-top:1px solid rgba(51,64,92,.5);
+}
+.ev-cell{padding:var(--space-room);}
+.ev-cell + .ev-cell{border-left:1px solid rgba(51,64,92,.5);}
+.ev-cell.full{grid-column:1/-1;border-top:1px solid rgba(51,64,92,.5);border-left:0;}
+.section-label{
+  font-family:var(--font-mono);font-size:10px;font-weight:500;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--text-mut);
+  margin-bottom:14px;display:flex;align-items:center;gap:7px;
+}
+
+.kv{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(51,64,92,.32);}
+.kv:last-child{border-bottom:0;}
+.kv .k{font-size:12.5px;color:var(--text-mut);}
+.reading{display:inline-flex;align-items:baseline;gap:6px;font-family:var(--font-mono);}
+.reading .num{font-size:12.5px;color:var(--text-hi);}
+.reading .ci{font-size:11px;color:var(--spread);}
+.reading .gl{font-size:11px;color:var(--spread-dim);}
+.reading .meta{font-size:11px;color:var(--text-mut);}
+.kv .v{font-family:var(--font-mono);font-size:12.5px;color:var(--text-hi);}
+
+/* distribution poster (static SVG-ish canvas) */
+.poster{width:100%;height:96px;display:block;margin-bottom:10px;}
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;}
+.legend-row .li{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mut);}
+.legend-row .sw{width:9px;height:9px;border-radius:var(--r-dot);}
+.poster-cap{font-family:var(--font-mono);font-size:10px;color:var(--text-mut);letter-spacing:.04em;margin-bottom:10px;}
+.poster-cap .num{color:var(--text-hi);}
+.poster-cap .ci{color:var(--spread-dim);}
+
+/* drivers — ink + arm direction glyph, NO valence color */
+.driver{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:9px 0;border-bottom:1px solid rgba(51,64,92,.32);align-items:center;}
+.driver:last-child{border-bottom:0;}
+.driver .dl{font-size:13px;color:var(--text);display:flex;align-items:center;gap:7px;}
+.driver .dl .arrow{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);width:9px;}
+.driver .dv{font-family:var(--font-mono);font-size:11px;color:var(--text-mut);justify-self:end;}
+.driver-bar{grid-column:1/-1;height:3px;background:var(--console-700);border-radius:var(--r-dot);position:relative;overflow:hidden;}
+.driver-bar::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--console-line);}
+.driver-bar i{position:absolute;left:50%;top:0;bottom:0;width:var(--w,0%);background:var(--text-mut);}
+.driver-bar i.neg{right:50%;left:auto;}
+
+.warn-note{
+  border:1px solid var(--edge-warn);border-radius:var(--r-well);
+  padding:11px 13px;display:flex;gap:11px;align-items:flex-start;
+  font-size:12.5px;line-height:1.5;color:var(--text);margin-top:16px;
+}
+.warn-note .wd{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;color:var(--edge-warn);text-transform:uppercase;flex-shrink:0;padding-top:2px;}
+
+/* responsive */
+@media(max-width:760px){
+  .identity{grid-template-columns:1fr;}
+  .posmark{border-left:0;border-top:1px solid rgba(51,64,92,.5);padding-left:0;padding-top:18px;margin-top:18px;}
+  .posmark canvas{height:72px;}
+  .marquee .num{font-size:1.75rem;}
+  .ev-body{grid-template-columns:1fr;}
+  .ev-cell + .ev-cell{border-left:0;border-top:1px solid rgba(51,64,92,.5);}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:1ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── LEFT ICON RAIL ─────────────────────────────── -->
+  <nav class="left-rail" aria-label="Primary">
+    <div class="rail-mark" aria-label="Sidira">
+      <svg viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="13" stroke="#C6CCD8" stroke-width="1.4" opacity=".85"/><circle cx="15" cy="15" r="6.5" stroke="#929BAE" stroke-width="1.2"/><circle cx="15" cy="15" r="1.6" fill="#F2F4F8"/></svg>
+    </div>
+    <a class="rail-btn" title="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></a>
+    <a class="rail-btn active" title="Simulations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></a>
+    <a class="rail-btn" title="Personas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0112 0"/><circle cx="17" cy="9" r="2.2"/><path d="M16 20a5 5 0 015-3.4"/></svg></a>
+    <a class="rail-btn" title="Crawls"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></a>
+    <div class="rail-spacer"></div>
+    <a class="rail-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.13-1.3l2-1.55-2-3.46-2.36.95A7 7 0 0015 4.6l-.36-2.5h-4l-.36 2.5a7 7 0 00-1.5.86l-2.37-.95-2 3.46 2 1.55A7 7 0 005 12a7 7 0 00.13 1.3l-2 1.55 2 3.46 2.36-.95c.46.35.97.64 1.51.86l.36 2.5h4l.36-2.5c.54-.22 1.05-.51 1.51-.86l2.36.95 2-3.46-2-1.55c.08-.43.13-.86.13-1.3Z"/></svg></a>
+    <div class="rail-btn rail-avatar" title="Founder">RW</div>
+  </nav>
+
+  <div class="main-col">
+
+    <!-- ── TOP BAR — single global provenance reference + status ── -->
+    <header class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <nav class="crumb" aria-label="Breadcrumb">
+        <a href="#">Streamly</a><span class="sep">/</span>
+        <a href="#">runs</a><span class="sep">/</span>
+        <a href="#" class="id">cr-924718</a><span class="sep">/</span>
+        <span class="id here">a4f1c2</span>
+      </nav>
+      <div class="topbar-right">
+        <span class="tb-uncal">CH1 · n=400 · <span class="glyph-hollow">◇</span> UNCAL</span>
+        <div class="live-pill"><span class="dot rest"></span>LIVE 1:1</div>
+      </div>
+    </header>
+
+    <div class="wrap">
+
+      <!-- ── PAGE HEAD ──────────────────────────────── -->
+      <div class="page-head">
+        <div class="ph-eyebrow">
+          <span class="chip">AGENT a4f1c2e8</span>
+          <span class="chip arm-treat">TREATMENT ARM</span>
+        </div>
+        <div class="ph-row">
+          <div>
+            <h1 class="ph-title">Marcus Webb</h1>
+            <div class="ph-sub">
+              <a href="#">Weekend Digest email</a>
+              <span class="sep">·</span>
+              <a href="#">run cr-924718</a>
+              <span class="sep">·</span>
+              <span>1:1 interrogation</span>
+            </div>
+          </div>
+          <div class="ph-actions">
+            <button class="btn btn-secondary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 12h3l2.5-6 4 13 2.5-7H21"/></svg>Run reading</button>
+            <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5v14M5 12h14"/></svg>Pin to record</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── READING HEADER (one supporting panel; marquee figure + labeled position mark) ── -->
+      <section class="identity elevated" aria-label="Agent reading & provenance">
+        <div class="id-body">
+          <!-- THE MARQUEE READING — the masthead figure, leads first paint (P10) -->
+          <div class="marquee">
+            <div class="fig">
+              <span class="fig-label">Reaction to treatment <span class="glyph-hollow">◇</span></span>
+              <span class="read">
+                <span class="num">+0.71</span>
+                <span class="stamp"><span class="ci">±0.14</span><span class="gl">◇</span></span>
+              </span>
+            </div>
+            <div class="div" aria-hidden="true"></div>
+            <div class="sub">
+              <span class="vs">vs cohort&nbsp; <span class="up">↑ +0.33</span> <span class="sci">±0.17 ◇</span></span>
+              <span class="pct">P82 <span class="glyph-hollow">◇</span> of treatment arm</span>
+            </div>
+          </div>
+
+          <!-- one editorial line + a quiet identity fact strip (depth-2; no
+               separate dl grid stacked under the reading) -->
+          <p class="id-blurb">Power listener, 14 sessions/wk, 2–3 yr subscriber; skips most in-app promos. Gripe: <span class="q">"the app keeps surfacing stuff I've already heard."</span></p>
+          <div class="id-facts">
+            <span>US · Pacific</span><span class="sep">·</span>
+            <span>age 34–41</span><span class="sep">·</span>
+            <span class="chip">PACK v1.1</span>
+            <span class="sep">·</span>
+            <span>identity.md frozen 2026-06-15</span>
+          </div>
+
+          <div class="provbar" aria-label="Provenance">
+            <span class="seg">CH1 · <span class="arm">TREATMENT</span></span>
+            <span class="seg">n=<span class="lv">400</span></span>
+            <span class="seg">seed <span class="lv">0x4f1c</span></span>
+            <span class="seg">groq/llama-3.3-70b</span>
+            <span class="seg">2026-W25</span>
+            <span class="seg uncal"><span class="gly">◇</span> UNCALIBRATED</span>
+          </div>
+        </div>
+
+        <!-- the position mark — rank ladder: this agent's standing among the
+             200 treatment-arm agents (NOT a second distribution; the binned
+             cohort histogram lives once, in the evidence drawer) -->
+        <div class="posmark">
+          <div class="posmark-head">Rank in arm<br><b>P82</b> · n=200 treated</div>
+          <canvas id="motif" width="400" height="192" aria-label="This agent ranks at the 82nd percentile of the 200 treatment-arm agents by reaction score (+0.71); the arm median sits at +0.34."></canvas>
+          <div class="posmark-foot"><span>weakest</span><span>strongest</span></div>
+        </div>
+      </section>
+
+      <!-- ── THE THREAD — the hero of this page ─────── -->
+      <div class="thread-head">
+        <div class="thread-title">
+          <h2>Interrogation</h2>
+          <span class="turns">4 turns · arm-scoped</span>
+        </div>
+        <button class="btn btn-ghost btn-export">EXPORT THREAD</button>
+      </div>
+
+      <div class="sys-line">
+        1:1 opened from <span class="mono">run cr-924718</span> — this agent saw the <span class="mono arm">treatment</span> arm only and retains its run memory.
+      </div>
+
+      <!-- INITIAL REACTION -->
+      <div class="msg agent">
+        <div class="msg-meta">
+          <span class="who">MARCUS WEBB</span>
+          <span class="tag first">INITIAL REACTION</span>
+          <span class="spacer"></span>
+          <span class="time">14:02:11Z</span>
+        </div>
+        <div class="msg-body">Honestly? A Saturday digest could be useful — weekends are when I actually have a two-hour stretch to listen. But the bar is high. If it's the same five "trending" shows the home screen already pushes, I'll mute it inside a week. Surface stuff I've half-finished or genuinely haven't touched, and I'd open it.</div>
+        <div class="senti">
+          <span class="senti-val"><span class="arrow">↑</span> leans adopt · sentiment +0.62 <span class="ci">±0.11 ◇</span></span>
+          <div class="senti-track"><div class="senti-fill" style="--w:31%;"></div></div>
+        </div>
+        <div class="msg-actions">
+          <span class="act disabled" title="Pinning lands with the decision record">PIN TO RECORD</span>
+          <span class="act">VIEW RUN READING</span>
+          <span class="thumbs">
+            <span class="thumb on" title="Realistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 11v9H4v-9h3Zm0 0 4.5-8a2 2 0 0 1 2.7 2.7L13 9h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 19H7"/></svg></span>
+            <span class="thumb" title="Unrealistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M17 13V4h3v9h-3Zm0 0-4.5 8a2 2 0 0 1-2.7-2.7L11 15H6a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 7.2 5H17"/></svg></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- PM TURN -->
+      <div class="msg pm">
+        <div class="msg-meta right">
+          <span class="who pm">YOU · PM</span>
+          <span class="time">14:06:48Z</span>
+        </div>
+        <div class="msg-body">What if the first card was always a show you'd already started but not finished — would that change whether you open it on a Saturday?</div>
+      </div>
+
+      <!-- AGENT REPLY -->
+      <div class="msg agent">
+        <div class="msg-meta">
+          <span class="who">MARCUS WEBB</span>
+          <span class="spacer"></span>
+          <span class="time">14:06:53Z</span>
+        </div>
+        <div class="msg-body">That's the difference between a promo and a tool. A "pick up where you left off" card is doing work for me — it's the one thing the app knows that I'd have to dig for otherwise. Lead with that and the email earns its slot. Lead with a new-releases carousel and it's just marketing wearing a digest's clothes.</div>
+        <div class="senti">
+          <span class="senti-val"><span class="arrow">↑</span> leans adopt · sentiment +0.74 <span class="ci">±0.10 ◇</span></span>
+          <div class="senti-track"><div class="senti-fill" style="--w:37%;"></div></div>
+        </div>
+        <div class="msg-actions">
+          <span class="act disabled">PIN TO RECORD</span>
+          <span class="act">VIEW RUN READING</span>
+          <span class="thumbs">
+            <span class="thumb" title="Realistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 11v9H4v-9h3Zm0 0 4.5-8a2 2 0 0 1 2.7 2.7L13 9h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 19H7"/></svg></span>
+            <span class="thumb" title="Unrealistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M17 13V4h3v9h-3Zm0 0-4.5 8a2 2 0 0 1-2.7-2.7L11 15H6a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 7.2 5H17"/></svg></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- PM TURN -->
+      <div class="msg pm">
+        <div class="msg-meta right">
+          <span class="who pm">YOU · PM</span>
+          <span class="time">14:09:02Z</span>
+        </div>
+        <div class="msg-body">And the frequency — weekly Saturdays. Too much? When does it tip into the "mute it" zone for you?</div>
+      </div>
+
+      <!-- AGENT REPLY -->
+      <div class="msg agent">
+        <div class="msg-meta">
+          <span class="who">MARCUS WEBB</span>
+          <span class="spacer"></span>
+          <span class="time">14:09:08Z</span>
+        </div>
+        <div class="msg-body">Weekly is fine if it stays relevant; the second it sends me a digest where I've already heard four of the five, I stop trusting it — and an untrusted email gets muted, not unsubscribed, which is worse for you because you'll never know. Tie the cadence to whether you actually have something new for me. A great every-other-week beats a hollow weekly.</div>
+        <div class="senti">
+          <span class="senti-val"><span class="arrow">→</span> leans neutral · sentiment +0.41 <span class="ci">±0.13 ◇</span></span>
+          <div class="senti-track"><div class="senti-fill" style="--w:21%;"></div></div>
+        </div>
+        <div class="msg-actions">
+          <span class="act disabled">PIN TO RECORD</span>
+          <span class="act">VIEW RUN READING</span>
+          <span class="thumbs">
+            <span class="thumb" title="Realistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 11v9H4v-9h3Zm0 0 4.5-8a2 2 0 0 1 2.7 2.7L13 9h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 19H7"/></svg></span>
+            <span class="thumb" title="Unrealistic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M17 13V4h3v9h-3Zm0 0-4.5 8a2 2 0 0 1-2.7-2.7L11 15H6a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 7.2 5H17"/></svg></span>
+          </span>
+        </div>
+      </div>
+
+      <!-- COMPOSING (live, in-flight) — single sanctioned status-dot breath + static label -->
+      <div class="composing" aria-live="polite">
+        <span class="cdot breathe"></span>
+        MARCUS WEBB … COMPOSING
+      </div>
+
+      <!-- COMPOSER -->
+      <div class="composer-wrap">
+        <div class="composer elevated">
+          <textarea placeholder="Ask Marcus…  (Enter to send · Shift+Enter for newline)" rows="2"></textarea>
+          <button class="btn btn-send">Send<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="composer-hint">
+          <span>ENTER TO SEND · SHIFT+ENTER NEWLINE</span>
+          <span class="uncal">THIS AGENT RETAINS ITS RUN MEMORY</span>
+        </div>
+      </div>
+
+      <!-- ── EVIDENCE DRAWER — analytics, collapsed by default ─── -->
+      <details class="evidence">
+        <summary>
+          <svg class="ev-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+          <span class="ev-title">Evidence · reading & drivers</span>
+          <span class="ev-summary">
+            <span>reaction</span><span class="num">+0.71</span><span class="ci">±0.14 ◇</span>
+          </span>
+        </summary>
+        <div class="ev-body">
+
+          <!-- reading -->
+          <div class="ev-cell">
+            <div class="section-label">Agent reading <span class="glyph-hollow">◇</span></div>
+            <div class="kv"><span class="k">Reaction score</span><span class="reading"><span class="num">+0.71</span><span class="ci">±0.14</span><span class="gl">◇</span></span></div>
+            <div class="kv"><span class="k">vs cohort mean</span><span class="reading"><span class="meta">↑</span><span class="num">+0.33</span><span class="ci">±0.17</span><span class="gl">◇</span></span></div>
+            <div class="kv"><span class="k">Arm percentile</span><span class="reading"><span class="num">P82</span><span class="gl">◇</span></span></div>
+            <div class="kv"><span class="k">Turns</span><span class="v">4</span></div>
+            <div class="kv"><span class="k">Realistic-flagged</span><span class="v">1 / 3 graded</span></div>
+          </div>
+
+          <!-- drivers -->
+          <div class="ev-cell">
+            <div class="section-label">Reaction drivers <span class="glyph-hollow">◇</span></div>
+            <div class="driver"><span class="dl"><span class="arrow">↑</span>Utility over promo</span><span class="dv">+0.44 ±0.09</span><div class="driver-bar"><i style="--w:38%;"></i></div></div>
+            <div class="driver"><span class="dl"><span class="arrow">↑</span>Resume where left off</span><span class="dv">+0.31 ±0.08</span><div class="driver-bar"><i style="--w:27%;"></i></div></div>
+            <div class="driver"><span class="dl"><span class="arrow">↓</span>Redundant content</span><span class="dv">−0.29 ±0.10</span><div class="driver-bar"><i class="neg" style="--w:25%;"></i></div></div>
+            <div class="driver"><span class="dl"><span class="arrow">↓</span>Promo fatigue</span><span class="dv">−0.18 ±0.07</span><div class="driver-bar"><i class="neg" style="--w:16%;"></i></div></div>
+          </div>
+
+          <!-- distribution poster — static, full width -->
+          <div class="ev-cell full">
+            <div class="section-label">Reaction distribution · binned, 26 bins</div>
+            <div class="poster-cap">treatment mean <span class="num">+0.38</span> <span class="ci">±0.09 ◇</span> · this agent <span class="num">+0.71</span> <span class="ci">±0.14 ◇</span> · P82 of arm</div>
+            <canvas id="poster" class="poster" width="1600" height="192" aria-label="Binned reaction histogram: 200 control and 200 treatment agents across 26 reaction-score bins. This agent falls in the +0.71 bin, near the high-adopt edge of the treatment arm; the treatment mean sits at +0.38 with a CI band of ±0.09."></canvas>
+            <div class="legend-row">
+              <span class="li"><span class="sw" style="background:var(--arm-treat);"></span>Treatment n=200</span>
+              <span class="li"><span class="sw" style="background:var(--arm-control);"></span>Control n=200</span>
+              <span class="li"><span class="sw" style="background:var(--signal-dim);"></span>This agent's bin</span>
+              <span class="li"><span class="sw" style="background:var(--spread);"></span>CI ±0.09</span>
+            </div>
+            <div class="warn-note">
+              <span class="wd">◇ Uncal</span>
+              <span>This reading has no ground truth yet. The cohort poster is a settled estimate, not a graded outcome — it will not lock to a verdict until a measured result is attached.</span>
+            </div>
+          </div>
+
+        </div>
+      </details>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ════════════════════════════════════════════════════════════════
+   RANK LADDER (WORKING-class — NOT the Population Field, NOT a second
+   distribution). One vertical notch per treatment-arm agent, sorted left→
+   right by reaction score: a genuinely countable ladder of the 200 treated
+   agents. THIS agent's notch (P82) is lit in --signal-dim (P5, settled —
+   never bright --signal). The full binned cohort HISTOGRAM lives once, in
+   the evidence drawer; this object answers a different question (rank), so
+   the two figures no longer tell the same story.
+   Uncalibrated cue = the lit notch's gentle ≤2px lateral drift along the
+   rank axis; freezes on hover/focus/reduced-motion, pauses after 20s idle.
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+  const cv = document.getElementById('motif'); if(!cv) return;
+  const DPR = Math.min(window.devicePixelRatio||1,2);
+  let t=0, lastInteract=performance.now(), frozen=false, raf=null, W=176, H=96;
+
+  const N=200, PCTL=0.82;                    // this agent at P82 of the arm
+  function rnd(s){let x=Math.sin(s*127.1)*43758.5;return x-Math.floor(x);}
+  // each arm agent's reaction score, sorted ascending (the ladder rungs).
+  // gaussian-ish draw clamped to axis, then sorted so rank reads L→R.
+  const scores=[];
+  for(let i=0;i<N;i++){
+    const u=(rnd(i*3.1)+rnd(i*7.7)+rnd(i*11.3)-1.5)/1.5;
+    scores.push(Math.max(-0.98,Math.min(0.98, 0.34+u*0.34)));
+  }
+  scores.sort((a,b)=>a-b);
+  const meIdx=Math.round((N-1)*PCTL);
+
+  function measure(){
+    const rect=cv.getBoundingClientRect();
+    W=rect.width||176; H=rect.height||96;
+    cv.width=W*DPR; cv.height=H*DPR;
+    cv.getContext('2d').setTransform(DPR,0,0,DPR,0,0);
+  }
+
+  function render(drift){
+    const ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,W,H);
+    const padX=2, baseY=H-13, topY=10, plot=baseY-topY;
+    const rx=i=>padX+(i/(N-1))*(W-padX*2);     // rank → x
+    const sy=s=>baseY-((s+1)/2)*plot;          // score → height of rung
+
+    // every arm agent = one faint vertical rung, height ∝ its reaction score
+    for(let i=0;i<N;i++){
+      if(i===meIdx) continue;
+      const x=rx(i);
+      ctx.strokeStyle='rgba(146,155,174,0.26)';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(x,baseY);ctx.lineTo(x,sy(scores[i]));ctx.stroke();
+    }
+
+    // arm-median rung — labeled neutral ink reference at P50
+    const medX=rx(Math.round((N-1)*0.5));
+    ctx.setLineDash([2,2]);ctx.strokeStyle='rgba(146,155,174,0.55)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(medX,topY-3);ctx.lineTo(medX,baseY);ctx.stroke();ctx.setLineDash([]);
+
+    // baseline
+    ctx.strokeStyle='rgba(51,64,92,0.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padX,baseY+0.5);ctx.lineTo(W-padX,baseY+0.5);ctx.stroke();
+
+    // THIS agent's rung — settled --signal-dim (P5), drifts ≤2px on rank axis
+    const ax=rx(meIdx)+drift, ay=sy(scores[meIdx]);
+    ctx.strokeStyle='rgba(57,184,148,0.9)';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(ax,baseY);ctx.lineTo(ax,ay);ctx.stroke();
+    ctx.fillStyle='#39B894';ctx.beginPath();ctx.arc(ax,ay,2.8,0,6.2832);ctx.fill();
+    ctx.fillStyle='#0B1220';ctx.beginPath();ctx.arc(ax,ay,1.1,0,6.2832);ctx.fill();
+
+    // P50 + P82 axis ticks
+    ctx.font='500 8px "Geist Mono", monospace';
+    ctx.fillStyle='rgba(146,155,174,0.8)';ctx.textAlign='center';
+    ctx.fillText('P50',medX,H-2);
+    ctx.fillStyle='rgba(57,184,148,0.95)';ctx.fillText('P82',ax,H-2);ctx.textAlign='left';
+  }
+
+  function loop(ts){
+    const idle=(ts-lastInteract)>20000;
+    if(!frozen && !idle) t+=0.012;             // ~15s cycle
+    const amp=frozen?0:1.8;                     // ≤2px uncal drift (P4)
+    render(Math.sin(t*0.42)*amp);
+    cv.style.opacity=frozen?'1':'0.92';
+    if(!REDUCE) raf=requestAnimationFrame(loop);
+  }
+
+  const wrap=cv.closest('.posmark');
+  ['mouseenter','focusin'].forEach(ev=>wrap.addEventListener(ev,()=>{frozen=true;}));
+  ['mouseleave','focusout'].forEach(ev=>wrap.addEventListener(ev,()=>{frozen=false;lastInteract=performance.now();}));
+  document.addEventListener('pointermove',()=>{lastInteract=performance.now();});
+
+  measure();
+  if(REDUCE){ frozen=true; cv.style.opacity='1'; render(0); }
+  else raf=requestAnimationFrame(loop);
+  window.addEventListener('resize',()=>{measure();if(REDUCE)render(0);});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){cancelAnimationFrame(raf);}
+    else if(!REDUCE){lastInteract=performance.now();raf=requestAnimationFrame(loop);}
+  });
+})();
+
+/* ════════════════════════════════════════════════════════════════
+   COHORT DISTRIBUTION POSTER (evidence drawer — static, interrogable)
+   A REAL BINNED HISTOGRAM, not a smooth gaussian envelope: each arm's 200
+   agents are dropped into 26 fixed reaction-score bins and drawn as
+   stepped density bars (one mark-stack per bin). Two arms overlaid in their
+   provenance tints; a --spread CI ribbon around the treatment mean; this
+   agent's BIN is lit in --signal-dim (P5, settled — never bright --signal).
+   Self-draws once on open, then STILL. The ◇ glyph carries uncalibration,
+   not motion.
+   ════════════════════════════════════════════════════════════════ */
+(function(){
+  const cv = document.getElementById('poster'); if(!cv) return;
+  const details = cv.closest('details');
+  let drawn = false;
+
+  const BINS=26, N=200;
+  function rnd(s){let x=Math.sin(s*127.1)*43758.5;return x-Math.floor(x);}
+  // bin two arms' agents into fixed score bins (-1..1) → counts per bin
+  function binArm(salt,mean,sd){
+    const c=new Array(BINS).fill(0);
+    for(let i=0;i<N;i++){
+      const u=(rnd(i*3.1+salt)+rnd(i*7.7+salt)+rnd(i*11.3+salt)-1.5)/1.5;
+      const s=Math.max(-0.999,Math.min(0.999, mean+u*sd));
+      c[Math.min(BINS-1,Math.floor((s+1)/2*BINS))]++;
+    }
+    return c;
+  }
+  const control=binArm(0.0, 0.12, 0.40);
+  const treat  =binArm(9.0, 0.34, 0.34);
+  const PEAK=Math.max(...control,...treat);
+  const AGENT=0.71, agentBin=Math.min(BINS-1,Math.floor((AGENT+1)/2*BINS));
+
+  function draw(){
+    const ctx = cv.getContext('2d');
+    const DPR = Math.min(window.devicePixelRatio||1,2);
+    const rect = cv.getBoundingClientRect();
+    const W = rect.width||760, H = 96;
+    cv.width = W*DPR; cv.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.clearRect(0,0,W,H);
+
+    const padX=8, baseY=H-18, topY=8, plot=baseY-topY;
+    const bw=(W-padX*2)/BINS;
+    const bx=i=>padX+i*bw;
+    const bh=c=>(c/PEAK)*plot;
+    function sx(s){return padX + (s+1)/2*(W-padX*2);}
+
+    // CI ribbon (spread) around treatment mean +0.38 ±0.09 — drawn under bars
+    const lo=sx(0.38-0.09), hi=sx(0.38+0.09);
+    ctx.fillStyle='rgba(200,182,138,0.14)';
+    ctx.fillRect(lo, topY, hi-lo, baseY-topY);
+    ctx.strokeStyle='rgba(200,182,138,0.5)';ctx.lineWidth=1;
+    [lo,hi].forEach(x=>{ctx.beginPath();ctx.moveTo(x,baseY-4);ctx.lineTo(x,baseY+4);ctx.stroke();});
+
+    // stepped histogram bars — gap of 1px so each bin reads as a discrete mark
+    function bars(counts,fill,stroke,agentLit){
+      for(let i=0;i<BINS;i++){
+        if(!counts[i]) continue;
+        const x=bx(i)+0.6, w=bw-1.2, h=bh(counts[i]);
+        const lit=agentLit && i===agentBin;
+        ctx.fillStyle = lit ? 'rgba(57,184,148,0.32)' : fill;
+        ctx.fillRect(x, baseY-h, w, h);
+        ctx.strokeStyle = lit ? 'rgba(57,184,148,0.95)' : stroke;
+        ctx.lineWidth = lit ? 1.3 : 1;
+        ctx.strokeRect(x, baseY-h, w, h);
+      }
+    }
+    bars(control,'rgba(79,168,224,0.14)','rgba(79,168,224,0.55)',false);   // control arm
+    bars(treat,  'rgba(224,139,196,0.16)','rgba(224,139,196,0.62)',true);  // treatment arm
+
+    // baseline
+    ctx.strokeStyle='rgba(51,64,92,0.6)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padX,baseY+0.5);ctx.lineTo(W-padX,baseY+0.5);ctx.stroke();
+
+    // this agent's BIN marker — STATIC poster (no live reading): settled
+    // --signal-dim (P5), never the bright live --signal. Annotated with its
+    // value so the lone mark at the adopt edge is legible, not a bare line.
+    const hx=bx(agentBin)+bw/2;
+    ctx.strokeStyle='rgba(57,184,148,0.9)';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(hx,topY-2);ctx.lineTo(hx,baseY);ctx.stroke();
+    ctx.fillStyle='#39B894';ctx.beginPath();ctx.arc(hx,topY-1,2.8,0,6.2832);ctx.fill();
+    ctx.fillStyle='#0B1220';ctx.beginPath();ctx.arc(hx,topY-1,1.1,0,6.2832);ctx.fill();
+    ctx.font='500 9px "Geist Mono", monospace';ctx.fillStyle='rgba(57,184,148,0.95)';
+    ctx.textAlign='right';ctx.fillText('THIS +0.71', hx-6, topY+5);ctx.textAlign='left';
+
+    // axis labels
+    ctx.font='500 9px "Geist Mono", monospace';
+    ctx.fillStyle='rgba(146,155,174,0.85)';ctx.textAlign='left';
+    ctx.fillText('← REJECTS', padX, H-4);
+    ctx.textAlign='right'; ctx.fillText('ADOPTS →', W-padX, H-4); ctx.textAlign='left';
+  }
+
+  function ensure(){ if(!drawn){ drawn=true; draw(); } }
+  // draw when drawer opens (or immediately if already open)
+  details.addEventListener('toggle', ()=>{ if(details.open) requestAnimationFrame(ensure); });
+  if(details.open) requestAnimationFrame(ensure);
+  window.addEventListener('resize', ()=>{ if(details.open){ drawn=false; ensure(); } });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>New persona pack · Evaluate — Sidira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* Console (dark) — v2 tokens */
+  --console-900:#0B1220; --console-850:#10192A; --console-800:#161F32;
+  --console-750:#1D2740; --console-700:#26314C; --console-line:#33405C;
+  --text-hi:#F2F4F8; --text:#C6CCD8; --text-mut:#929BAE; /* AA-clear [v2-fix] */
+  --text-faint:#646E84;                                  /* DISABLED ONLY */
+  --signal:#48EFCA; --signal-dim:#39B894; --signal-wash:rgba(72,239,202,.12);
+  --spread:#C8B68A; --spread-dim:#90815F; --spread-wash:rgba(200,182,138,.14);
+  --arm-control:#4FA8E0; --arm-treat:#E08BC4; /* calm magenta, no valence [v2-fix] */
+  --edge-warn:#C9A227; --alert:#F0683C;
+  /* no --verdict-ship / --verdict-hold — a verdict is not a color */
+  --r-well:4px; --r-panel:8px; --r-frame:10px; --r-dot:9999px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-settle:cubic-bezier(.16,1,.3,1);
+  --ease-mech:cubic-bezier(.32,.72,0,1);
+  --space-snug:8px; --space-cozy:12px; --space-base:16px; --space-room:24px;
+  --space-section:48px; --space-bay:64px;
+  --font-sans:"Geist",system-ui,sans-serif;
+  --font-mono:"Geist Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box; font-variant-numeric:tabular-nums; margin:0; padding:0;}
+html,body{background:var(--console-850); color:var(--text); font-family:var(--font-sans); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;}
+body{font-size:15px; line-height:1.55; overflow-x:hidden;}
+.mono{font-family:var(--font-mono);}
+.tnum{font-variant-numeric:tabular-nums;}
+a{color:inherit; text-decoration:none;}
+::selection{background:rgba(72,239,202,.22); color:var(--text-hi);}
+:focus-visible{outline:none;}
+.btn:focus-visible,.rail-btn:focus-visible,.persona:focus-visible{box-shadow:0 0 0 2px var(--console-850),0 0 0 4px var(--signal-dim);}
+
+/* ── App shell ─────────────────────────────────────────────────── */
+.app{display:grid; grid-template-columns:56px 1fr; min-height:100vh;}
+
+/* Left icon rail */
+.rail{position:fixed; top:0; left:0; bottom:0; width:56px; background:var(--console-850);
+  border-right:1px solid rgba(51,64,92,.5); display:flex; flex-direction:column; align-items:center;
+  padding:14px 0; gap:6px; z-index:40;}
+.rail .mark{width:30px; height:30px; margin-bottom:14px; display:grid; place-items:center;}
+.rail-btn{width:40px; height:40px; border-radius:var(--r-well); display:grid; place-items:center;
+  color:var(--text-mut); position:relative; cursor:pointer; transition:color .14s var(--ease-out);}
+.rail-btn:hover{color:var(--text-hi);}
+.rail-btn.active{color:var(--text-hi);}
+.rail-btn.active::before{content:""; position:absolute; left:-8px; top:9px; bottom:9px; width:2px;
+  background:var(--signal-dim); border-radius:1px;}
+.rail-btn svg{width:18px; height:18px;}
+.rail-spacer{flex:1;}
+
+/* Main column shifted past rail */
+.main{grid-column:2; display:flex; flex-direction:column; min-height:100vh;}
+
+/* Top bar — carries THE single global Provenance Bar for this region */
+.topbar{height:52px; background:var(--console-850); border-bottom:1px solid rgba(51,64,92,.5);
+  display:flex; align-items:center; gap:16px; padding:0 28px 0 20px; position:sticky; top:0; z-index:30;}
+.wordmark{font-weight:600; letter-spacing:.06em; font-size:14px; color:var(--text-hi);}
+.route-desig{font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; color:var(--text-mut);}
+.topbar .sep{width:1px; height:18px; background:rgba(51,64,92,.6);}
+.prov-bar{margin-left:auto; display:flex; align-items:center; gap:13px; font-family:var(--font-mono);
+  font-size:10.5px; letter-spacing:.05em; color:var(--text-mut);}
+/* [P7] running WORD "UNCALIBRATED" is --text-mut (AA-clear); only the ◇ glyph
+   carries --spread-dim. --spread-dim is the glyph/± reservation, never a word. */
+.prov-bar .uncal{color:var(--text-mut);}
+.gl-dim{color:var(--spread-dim);}
+.live-dot{width:7px; height:7px; border-radius:var(--r-dot); background:var(--signal);
+  animation:breath 2s var(--ease-settle) infinite;}
+@keyframes breath{0%,100%{opacity:1;} 50%{opacity:.5;}}
+
+/* ── Stepper — the TRUE ordered flow (wizard), so it keeps numerals (§2.3) ── */
+.stepper{display:flex; background:var(--console-800); border-bottom:1px solid rgba(51,64,92,.5);}
+.step{flex:1; padding:10px 28px; border-right:1px solid rgba(51,64,92,.5); position:relative; display:flex; align-items:baseline; gap:9px;}
+.step:last-child{border-right:none;}
+.step.done{background:var(--console-850);}
+.step.active::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--signal-dim);}
+.step .num{font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; color:var(--text-mut);}
+.step .lbl{font-size:13px; color:var(--text-mut);}
+.step.active .lbl{color:var(--text-hi); font-weight:600;}
+.step.done .lbl{color:var(--text);}
+/* [P2] one signal carrier per region: the active-step underline IS the stepper's
+   signal-dim element. Completed-step numerals demote to ink (--text-mut), not a
+   second signal-family carrier. */
+.step.done .num{color:var(--text-mut);}
+
+/* ── Page header strip ─────────────────────────────────────────── */
+.page-head{padding:30px 48px 22px; display:flex; align-items:baseline; gap:18px; flex-wrap:wrap;}
+.page-head h1{font-size:2rem; line-height:1.08; font-weight:600; letter-spacing:-.025em; color:var(--text-hi); text-wrap:balance;}
+.page-head .sub{font-size:14px; color:var(--text-mut); letter-spacing:.01em;}
+.page-head .sub b{color:var(--text); font-weight:500;}
+
+/* ── Body: showpiece field (≥55%) + one supporting rail ────────── */
+.body{display:grid; grid-template-columns:1fr 312px; gap:0; flex:1; align-items:stretch;}
+.col-main{padding:8px 48px 72px; min-width:0;}
+.rail-right{border-left:1px solid rgba(51,64,92,.5); background:var(--console-850); padding:30px 26px;}
+
+/* ════════════════════════════════════════════════════════════════
+   ✦ THE POPULATION FIELD — the showpiece (SHOWPIECE-class, earned)
+   ════════════════════════════════════════════════════════════════ */
+.field-frame{position:relative; border:1px solid rgba(51,64,92,.7); border-radius:var(--r-frame);
+  background:radial-gradient(120% 100% at 30% 0%, #0d1626 0%, var(--console-900) 60%);
+  overflow:hidden; box-shadow:inset 0 1px 0 rgba(255,255,255,.05), inset 0 0 60px rgba(72,239,202,.015);}
+/* compact provenance reference — the FULL bar lives in the topbar; here just CH1 ref.
+   [P2] CH1 is a designator, NOT a signal carrier — the wavefront/settled mean inside
+   the field is the ONE lime carrier for this region. Legend chrome stays --text-mut. */
+.field-legend{display:flex; align-items:center; gap:0; flex-wrap:wrap; padding:11px 20px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; color:var(--text-mut);}
+.field-legend .seg{padding:0 12px; border-right:1px solid rgba(51,64,92,.35);}
+.field-legend .seg:first-child{padding-left:0;}
+.field-legend .seg:last-child{border-right:none;}
+.field-legend .ch{color:var(--text-mut); font-weight:500;} /* [P2] was --signal — designator, not carrier */
+.field-legend .uncal{color:var(--text-mut);} /* [P7] running word --text-mut; glyph only --spread-dim */
+/* [R5] build-gate stamp — STABILITY figure structurally apart from the field's
+   distribution reading. Pushed to the right edge so it reads as a separate
+   instrument, not a label on the histogram. */
+.field-legend .gate{margin-left:auto; padding-right:0; border-right:none; color:var(--text-mut);}
+.field-legend .gate .gv{color:var(--text-hi);}
+.field-legend .gate .gpm{color:var(--spread); margin-left:1px;} /* ± value → --spread [P7/candor] */
+.field-canvas-wrap{position:relative; height:min(60vh,580px);}
+#field{display:block; width:100%; height:100%;}
+
+/* the hero reading overlaid into the field like an instrument label.
+   [R5] DETERMINISTIC anchor — no magic left:34% dodge. The label is pinned to the
+   field's top-left padding box (left:--space-room), and the canvas reserves a
+   guaranteed top headroom band (TOP_HEADROOM in the shader caps every column below
+   it), so the tallest column provably stacks BELOW the label at any viewport width.
+   The collision is prevented structurally, not by a hand-tuned offset. */
+.field-reading{position:absolute; left:var(--space-room); top:18px; pointer-events:none; max-width:min(340px,52%);
+  padding:14px 18px 16px; border-radius:var(--r-well);
+  background:radial-gradient(120% 130% at 18% 0%, rgba(11,18,32,.72) 0%, rgba(11,18,32,.40) 64%, rgba(11,18,32,0) 100%);}
+.field-reading .eyebrow{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; color:var(--text-mut); text-transform:uppercase;}
+.field-reading .big{font-family:var(--font-mono); font-size:clamp(3rem,7vw,4.4rem); line-height:1; font-weight:500; color:var(--text-hi); letter-spacing:-.01em; margin-top:8px; display:flex; align-items:baseline; gap:4px;}
+.field-reading .big .unit{font-size:1.6rem; color:var(--text-mut); font-weight:400; margin-left:1px;}
+.field-reading .big .pm{font-size:1.15rem; color:var(--spread); font-weight:400; margin-left:8px;} /* INFERRED → ± [candor] */
+.field-reading .sub{font-family:var(--font-mono); font-size:11.5px; color:var(--text-mut); margin-top:12px; letter-spacing:.02em; line-height:1.5;}
+.field-reading .sub .glyph{color:var(--spread-dim);}
+.field-reading .floor{font-family:var(--font-mono); font-size:10.5px; color:var(--text-mut); margin-top:6px; letter-spacing:.02em;}
+.field-reading .floor b{color:var(--text); font-weight:500;}
+
+.field-axis{position:absolute; left:0; right:0; bottom:0; padding:0 28px 12px; display:flex; justify-content:space-between;
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; color:var(--text-mut); pointer-events:none;}
+.field-tooltip{position:absolute; pointer-events:none; background:var(--console-800); border:1px solid rgba(51,64,92,.85);
+  border-radius:var(--r-well); padding:8px 11px; font-family:var(--font-mono); font-size:10.5px; color:var(--text);
+  opacity:0; transform:translateY(4px); transition:opacity .12s var(--ease-out),transform .12s var(--ease-out);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05); max-width:240px; z-index:5; line-height:1.5;}
+.field-tooltip .nm{color:var(--text-hi); font-weight:500;}
+
+/* reading prose under the field — one calm sentence, then quiet */
+.reading-note{margin-top:22px; font-size:14.5px; line-height:1.6; color:var(--text); max-width:74ch; text-wrap:pretty;}
+.reading-note strong{color:var(--text-hi); font-weight:500;}
+.reading-note .gl{color:var(--spread-dim); font-family:var(--font-mono); font-size:13px;}
+
+/* ── Per-persona compact reading (the distribution, broken out) ── */
+.sec-label{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-mut); margin-top:var(--space-bay); padding-bottom:10px; border-bottom:1px solid rgba(51,64,92,.5);}
+.personas{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:rgba(51,64,92,.45); border:1px solid rgba(51,64,92,.45); border-radius:var(--r-panel); margin-top:18px; overflow:hidden;}
+.persona{background:var(--console-850); padding:16px 20px 17px; position:relative; cursor:pointer; transition:background .14s var(--ease-out);}
+.persona:hover{background:var(--console-800);}
+.persona .swatch{position:absolute; left:0; top:0; bottom:0; width:2px;}
+.persona .phead{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+.persona .pname{font-size:15px; font-weight:600; letter-spacing:-.01em; color:var(--text-hi);}
+.desig-chip{font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; border:1px solid rgba(51,64,92,.7);
+  color:var(--text-mut); border-radius:var(--r-well); padding:2px 7px; white-space:nowrap;}
+/* share IS inferred about people → compact Spread Stamp [candor] */
+.persona .share{margin-left:auto; font-family:var(--font-mono); font-size:12px; color:var(--text-hi); white-space:nowrap;}
+.persona .share .pm{color:var(--spread); font-size:10.5px;}
+.persona .share .gl{color:var(--spread-dim); font-size:10.5px;}
+.persona .pshare-bar{height:2px; background:var(--console-700); border-radius:1px; margin-top:12px; overflow:hidden;}
+.persona .pshare-fill{height:100%; border-radius:1px; transform-origin:left; transform:scaleX(0); transition:transform .7s var(--ease-mech);}
+.persona .pdesc{font-size:13px; line-height:1.5; color:var(--text); margin-top:12px;}
+.persona .pdistinct{font-size:12.5px; line-height:1.5; color:var(--text-mut); margin-top:8px;}
+.persona .pdistinct b{color:var(--text); font-weight:500;}
+/* DIST = this persona's centroid on the SAME distinctiveness axis the field bins on.
+   It is inferred, but the card already carries the region's ◇ once (on .share) —
+   per P8 we don't repeat the glyph; this is the compact axis reference. */
+.persona .pdistinct .dist-tag{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em;
+  color:var(--text-mut); border:1px solid rgba(51,64,92,.7); border-radius:var(--r-well);
+  padding:1px 5px; margin-right:7px; white-space:nowrap; vertical-align:1px;}
+
+/* ── Honesty note ──────────────────────────────────────────────── */
+.note{margin-top:26px; border:1px solid rgba(51,64,92,.7); border-left:2px solid var(--spread-dim);
+  border-radius:var(--r-well); background:rgba(200,182,138,.05); padding:15px 18px; font-size:13px;
+  line-height:1.6; color:var(--text); max-width:80ch;}
+.note .k{font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; color:var(--text-mut); display:block; margin-bottom:6px;} /* [P7] running label --text-mut, not --spread-dim */
+.note .tnum{color:var(--text-hi);}
+
+/* ── Actions / bottom nav ──────────────────────────────────────── */
+.actions{display:flex; gap:11px; flex-wrap:wrap; margin-top:26px; align-items:center;}
+.btn{height:36px; padding:0 16px; border-radius:var(--r-well); font-family:var(--font-sans); font-size:14px; font-weight:500;
+  display:inline-flex; align-items:center; gap:7px; cursor:pointer; border:1px solid transparent;
+  transition:background .14s var(--ease-out),border-color .14s var(--ease-out),transform .08s var(--ease-out); white-space:nowrap;}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--console-700); border-color:rgba(51,64,92,.9); color:var(--text-hi); box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.btn-primary:hover{background:var(--console-750);}
+.btn-secondary{background:transparent; border-color:rgba(51,64,92,.9); color:var(--text);}
+.btn-secondary:hover{background:var(--console-800);}
+.btn .arrow{transition:transform .16s var(--ease-out);}
+.btn:hover .arrow{transform:translateX(2px);}
+.nav{display:flex; justify-content:space-between; margin-top:40px; padding-top:20px; border-top:1px solid rgba(51,64,92,.5);}
+
+/* ── Right rail — the supporting manifest (ONE panel; quiet) ────── */
+.rail-right .r-title{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-mut); margin-bottom:16px;}
+.manifest{display:flex; flex-direction:column; gap:0;}
+.mf-row{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid rgba(51,64,92,.3); align-items:baseline;}
+.mf-row:last-of-type{border-bottom:none;}
+.mf-row .mk{font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut); font-family:var(--font-mono);}
+.mf-row .mv{font-family:var(--font-mono); font-size:12px; color:var(--text-hi); text-align:right;}
+.mf-row .mv .dim{color:var(--text-mut);}
+.mf-stamp{color:var(--text-mut);} /* [P7] "none" is a running word → --text-mut; glyph carries --spread-dim */
+
+.r-divider{height:1px; background:rgba(51,64,92,.5); margin:24px 0;}
+
+/* collapsed-by-default build log (a summary row that expands) [breathing room] */
+.disc{border:none; margin-top:2px;}
+.disc summary{list-style:none; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; color:var(--text-mut); padding:3px 0;}
+.disc summary::-webkit-details-marker{display:none;}
+.disc summary .chev{transition:transform .16s var(--ease-out); color:var(--text-mut);}
+.disc[open] summary .chev{transform:rotate(90deg);}
+.disc summary:hover{color:var(--text);}
+.log{margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+.log .ev{display:flex; gap:10px; font-family:var(--font-mono); font-size:10.5px; line-height:1.4;}
+.log .ev .t{color:var(--text-mut); flex-shrink:0; width:62px;}
+.log .ev .m{color:var(--text);}
+.log .ev.done .m{color:var(--text-hi);}
+/* [P8] inferred build-log readings wear their spread; ◇ glyph in spread-dim, ± value in spread */
+.log .ev .pm{color:var(--spread);}
+.log .ev .gl{color:var(--spread-dim);}
+
+/* responsive */
+@media (max-width:1180px){
+  .body{grid-template-columns:1fr;}
+  .rail-right{border-left:none; border-top:1px solid rgba(51,64,92,.5);}
+  .personas{grid-template-columns:1fr;}
+  .field-canvas-wrap{height:min(56vh,480px);}
+}
+@media (max-width:720px){
+  .page-head,.col-main{padding-left:20px; padding-right:20px;}
+  .step{padding:10px 14px;}
+  .field-reading{left:18px; top:24px; max-width:70%; padding:12px 14px 14px;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition-duration:1ms!important;} .field-reading .big{opacity:1;} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Left icon rail -->
+  <nav class="rail" aria-label="Primary">
+    <!-- [P1] resting brand mark is INK chrome, not a live reading — --text-hi ring,
+         --text-mut accents, no lime. Lime in a viewport means a live reading. -->
+    <div class="mark" title="Sidira">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <circle cx="15" cy="15" r="11.5" stroke="#F2F4F8" stroke-width="1.4"/>
+        <circle cx="15" cy="15" r="3.4" fill="#F2F4F8"/>
+        <path d="M15 3.5 V8 M15 22 V26.5 M3.5 15 H8 M22 15 H26.5" stroke="#929BAE" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <a class="rail-btn" title="Dashboard" aria-label="Dashboard" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="11" width="7" height="10" rx="1"/><rect x="3" y="15" width="7" height="6" rx="1"/></svg></a>
+    <a class="rail-btn active" title="Personas" aria-label="Personas" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5"/><circle cx="17.5" cy="9" r="2.4"/><path d="M16 20c.2-2.4 1-4 3-4.4"/></svg></a>
+    <a class="rail-btn" title="Simulations" aria-label="Simulations" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17c3-7 5 4 8-2s5 1 7-5"/><path d="M3 21h18"/></svg></a>
+    <a class="rail-btn" title="Crawls" aria-label="Crawls" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.4 2.5 14.6 0 17M12 3.5c-2.5 2.4-2.5 14.6 0 17"/></svg></a>
+    <div class="rail-spacer"></div>
+    <a class="rail-btn" title="Settings" aria-label="Settings" tabindex="0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></a>
+  </nav>
+
+  <div class="main">
+
+    <!-- Top bar — THE single Provenance Bar for this reading region -->
+    <div class="topbar">
+      <span class="wordmark">SIDIRA</span>
+      <span class="sep"></span>
+      <span class="route-desig">PERSONAS / NEW</span>
+      <div class="prov-bar" aria-label="Provenance">
+        <span>CH1 · BUILD pb_4f1a · n=2,481</span>
+        <span>groq/llama-3.3-70b</span>
+        <span>seed 0x4f</span>
+        <span class="uncal"><span class="gl-dim">◇</span> UNCALIBRATED</span>
+        <span class="live-dot" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <!-- Stepper — the genuine 5-step ordered wizard flow (numerals sanctioned §2.3) -->
+    <div class="stepper">
+      <div class="step done"><span class="num">1</span><span class="lbl">Connect</span></div>
+      <div class="step done"><span class="num">2</span><span class="lbl">Map</span></div>
+      <div class="step done"><span class="num">3</span><span class="lbl">Build</span></div>
+      <div class="step active"><span class="num">4</span><span class="lbl">Evaluate</span></div>
+      <div class="step"><span class="num">5</span><span class="lbl">Promote</span></div>
+    </div>
+
+    <!-- Page header -->
+    <div class="page-head">
+      <h1>Read the pack before you promote</h1>
+      <span class="sub"><b>2,481</b> of your users settled into <b>7 personas</b> — evaluate here, promote only if they hold.</span>
+    </div>
+
+    <!-- Body -->
+    <div class="body">
+      <div class="col-main">
+
+        <!-- ✦ THE POPULATION FIELD — the showpiece (≥55% of viewport) -->
+        <div class="field-frame">
+          <div class="field-legend" aria-label="Reading channel reference">
+            <span class="seg"><span class="ch">CH1</span> · POPULATION</span>
+            <span class="seg">2,481 agents · k=7</span>
+            <span class="seg"><span class="uncal"><span class="gl-dim">◇</span> UNCALIBRATED</span></span>
+            <!-- [R5] STABILITY is a build-QUALITY gate (resample reproducibility),
+                 NOT the field's distinctiveness reading — it lives in the legend
+                 strip, structurally apart from the distribution it does not describe. -->
+            <span class="seg gate">BUILD GATE · STABILITY <span class="tnum gv">0.71</span><span class="gpm">±0.04</span> <span class="gl-dim">◇</span> · floor 0.65 · clears</span>
+          </div>
+          <div class="field-canvas-wrap">
+            <canvas id="field" aria-label="Population field: 2,481 synthetic users settled into 7 binned personas along a distinctiveness axis"></canvas>
+
+            <!-- [R5] the hero reading overlaid into the field describes WHAT THE
+                 FIELD SHOWS — the population's shape on the distinctiveness axis it
+                 bins on. The marquee figure is the modal cluster's share (the tallest
+                 column), an inferred reading that IS the distribution, not the
+                 build-gate stability figure (which now lives in the legend strip).
+                 This resolves the two-statistic conflict: one instrument, one quantity. -->
+            <div class="field-reading">
+              <div class="eyebrow">Pack shape · 7 personas</div>
+              <div class="big tnum"><span id="verdictNum">23.2</span><span class="unit">%</span><span class="pm">±1.8</span></div>
+              <div class="sub"><span class="glyph">◇</span> modal cluster — <b>Price-anchored Accounts</b>, the tallest column</div>
+              <div class="floor">the pack is <b>broad</b> — the largest cluster is under a quarter of users, no single dominant segment</div>
+            </div>
+
+            <div class="field-axis">
+              <span>← LESS DISTINCT FROM POPULATION</span>
+              <span>MORE DISTINCT →</span>
+            </div>
+            <div class="field-tooltip" id="tt"></div>
+          </div>
+        </div>
+
+        <!-- one calm reading sentence -->
+        <p class="reading-note">Every dot is one of your <strong>2,481 users</strong>, settled to the persona it most resembles along a distinctiveness axis. Depth in each band is real density — the taller a column stacks, the more of your users live there. The reading is <strong>uncalibrated</strong> <span class="gl">◇</span> — it drifts gently because no held-out cohort has graded it yet; hover the field and it holds still so you can read it. Hover any band for what that cluster separates on, or open a persona for the accounts inside it.</p>
+
+        <!-- the distribution, broken out per persona -->
+        <div class="sec-label">7 personas · share of 2,481 users · head-count weighted</div>
+        <div class="personas" id="personas"></div>
+
+        <!-- Honesty note -->
+        <div class="note">
+          <span class="k">ON WHAT THIS NUMBER IS</span>
+          Stability (<span class="tnum">0.71 ±0.04</span>) is the quality signal available today — how reproducibly this clustering re-forms across resamples of your data. Calibration against a held-out cohort (Jaccard overlap) is tracked separately under <span class="mono">personas#7</span> and is not shown here yet, so it is not reported as a number you do not have.
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+          <a class="btn btn-secondary" href="#" tabindex="0">View full pack <span class="arrow">↗</span></a>
+          <a class="btn btn-secondary" href="#" tabindex="0">Re-run with different settings</a>
+        </div>
+
+        <!-- Bottom nav -->
+        <div class="nav">
+          <button class="btn btn-secondary">← Back to Build</button>
+          <button class="btn btn-primary">These hold → Promote <span class="arrow">→</span></button>
+        </div>
+      </div>
+
+      <!-- supporting rail — ONE quiet panel (build manifest + collapsed log) -->
+      <aside class="rail-right" aria-label="Build manifest">
+        <div class="r-title">Build manifest</div>
+        <div class="manifest">
+          <div class="mf-row"><span class="mk">Build</span><span class="mv">pb_4f1a9c</span></div>
+          <div class="mf-row"><span class="mk">Source</span><span class="mv">USERS_<span class="dim">FEATURE_STORE</span></span></div>
+          <div class="mf-row"><span class="mk">Rows</span><span class="mv tnum">2,481</span></div>
+          <div class="mf-row"><span class="mk">Columns</span><span class="mv tnum">34 → 7 grps</span></div>
+          <div class="mf-row"><span class="mk">Target k</span><span class="mv">AUTO → 7</span></div>
+          <div class="mf-row"><span class="mk">Floor</span><span class="mv tnum">0.65</span></div>
+          <div class="mf-row"><span class="mk">Model</span><span class="mv">llama-3.3</span></div>
+          <div class="mf-row"><span class="mk">Seed</span><span class="mv">0x4f</span></div>
+          <div class="mf-row"><span class="mk">Snapshot</span><span class="mv">2026-W25</span></div>
+          <div class="mf-row"><span class="mk">Calibration</span><span class="mv mf-stamp"><span class="gl-dim">◇</span> none</span></div>
+        </div>
+
+        <div class="r-divider"></div>
+
+        <!-- build log — collapsed by default so the reading is never crowded.
+             [P8] STABILITY values are inferred readings → they wear ± + ◇.
+             k= is a config fact → bare. Timestamps/version → bare. -->
+        <details class="disc">
+          <summary>BUILD LOG · COMPLETE v_8 <span class="chev">›</span></summary>
+          <div class="log">
+            <div class="ev"><span class="t">14:22:01</span><span class="m">BUILD STARTED</span></div>
+            <div class="ev"><span class="t">14:22:04</span><span class="m">LOADED 2,481 ROWS</span></div>
+            <div class="ev"><span class="t">14:22:31</span><span class="m">STABILITY 0.68<span class="pm"> ±0.05</span> <span class="gl">◇</span> · k=6</span></div>
+            <div class="ev"><span class="t">14:22:52</span><span class="m">STABILITY 0.71<span class="pm"> ±0.04</span> <span class="gl">◇</span> · k=7</span></div>
+            <div class="ev done"><span class="t">14:23:10</span><span class="m">COMPLETE · PACK v_8</span></div>
+          </div>
+        </details>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Real reading data: 7 personas as bins on a distinctiveness axis ──── */
+  // [R5] Single perceptual OKLCH ramp (§1.5) used to colour the k clusters along the
+  // distinctiveness axis — a non-rainbow encoding of POSITION, carrying NO A/B-arm
+  // valence. The same five stops the system defines for ≥3 cohorts.
+  const RAMP = ['#4FA8E0','#7C9ECF','#A797C9','#C28FC6','#E08BC4'];
+  function rampColor(t){
+    const seg = Math.min(RAMP.length-2, Math.floor(t*(RAMP.length-1)));
+    const local = t*(RAMP.length-1) - seg;
+    const a = hex(RAMP[seg]), b = hex(RAMP[seg+1]);
+    return rgb(a[0]+(b[0]-a[0])*local, a[1]+(b[1]-a[1])*local, a[2]+(b[2]-a[2])*local);
+  }
+  function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+  function rgb(r,g,b){return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';}
+  function rgba3(c,al){return c.replace('rgb','rgba').replace(')',', '+al+')');}
+
+  // share IS inferred about people → carries its own ±ci.
+  // x = distinctiveness (0=indistinct from population centre, 1=strongly distinct) —
+  //   the SAME axis the field bins on, surfaced verbatim on hover so the x-label is
+  //   load-bearing, not decorative.
+  // [R5] NO arm/reaction here: this is a clustering (persona-build) step, not an
+  //   experiment — there is no CONTROL/TREATMENT, and "reaction" is simulation
+  //   behaviour that doesn't exist at evaluate time. Each persona instead carries
+  //   `trait` — its REAL distinguishing axis (the cluster's defining lift over the
+  //   population). Colour is the perceptual ramp on the distinctiveness axis alone.
+  const PERSONAS = [
+    {id:'p_01', name:'Price-anchored Accounts', share:0.232, ci:0.018, x:0.18,
+     trait:'lowest distinctiveness in the pack — separates almost entirely on plan & discount-response, not behaviour',
+     desc:'Cost-led accounts on the legacy monthly plan; usage tracks the population except around billing events. Engage in bursts, rarely upgrade unprompted.',
+     dist:'2.4× population on discount-response, 1.9× below on feature-depth usage.'},
+    {id:'p_02', name:'Workflow Power Accounts', share:0.186, ci:0.015, x:0.83,
+     trait:'most distinct cluster in the pack — pulls hard on daily-active depth and integration count',
+     desc:'High-frequency operators living in the editor; integrations-heavy, 6+ seats. The retention backbone — and the densest usage signature in the data.',
+     dist:'3.1× population on daily-active depth, 2.7× on integrations connected.'},
+    {id:'p_03', name:'Early-tenure Accounts', share:0.158, ci:0.014, x:0.61,
+     trait:'separates on recency — short time-since-signup, low milestone reach',
+     desc:'Signed up in the last 30 days, completed setup, low downstream milestone reach. The activation gap lives here.',
+     dist:'2.2× population on time-since-signup, 1.8× below on milestone reach.'},
+    {id:'p_04', name:'Security-gated Accounts', share:0.142, ci:0.013, x:0.74,
+     trait:'separates on security-feature reliance and near-zero price elasticity',
+     desc:'Regulated-industry seats where SSO, audit logs, and data residency gate every expansion. Slow to expand, very low to churn.',
+     dist:'2.9× population on security-feature reliance, 2.1× below on price elasticity.'},
+    {id:'p_05', name:'Dormant Accounts', share:0.118, ci:0.012, x:0.34,
+     trait:'separates on a strong-then-quiet arc — high email-reopen, low session frequency',
+     desc:'Logged a strong first quarter, then went quiet for 90+ days. Re-open on lifecycle emails but session frequency stays low.',
+     dist:'2.0× population on email-reopen rate, 1.6× below on session frequency.'},
+    {id:'p_06', name:'Parallel-trial Accounts', share:0.092, ci:0.011, x:0.49,
+     trait:'separates on export volume and support-ticket rate — a comparison-shopping signature',
+     desc:'Mid-funnel accounts exporting data often and asking sales-shaped questions in support; usage pattern reads as evaluating in parallel.',
+     dist:'1.9× population on export volume, 1.7× on support-ticket rate.'},
+    {id:'p_07', name:'Population-centre Accounts', share:0.072, ci:0.010, x:0.55,
+     trait:'least separable cluster — sits within the typical range on every measured trait',
+     desc:'Sits within the typical range on most measured traits — the settled centre of the population, not strongly distinctive.',
+     dist:null},
+  ];
+
+  /* ── Persona cards — share renders as a compact Spread Stamp (inferred) ── */
+  (function renderCards(){
+    const wrap = document.getElementById('personas');
+    PERSONAS.forEach((p,i)=>{
+      const t = i/(PERSONAS.length-1);
+      const col = rampColor(t);
+      const el = document.createElement('div');
+      el.className='persona'; el.dataset.idx = i; el.tabIndex = 0;
+      const pct = (p.share*100).toFixed(1);
+      const ci = (p.ci*100).toFixed(1);
+      el.innerHTML =
+        '<div class="swatch" style="background:'+col+'"></div>'+
+        '<div class="phead">'+
+          '<span class="pname">'+p.name+'</span>'+
+          '<span class="desig-chip">'+p.id+'</span>'+
+          '<span class="share tnum">'+pct+'<span class="pm"> ±'+ci+'</span> <span class="gl">◇</span></span>'+
+        '</div>'+
+        '<div class="pshare-bar"><span class="pshare-fill" data-w="'+(p.share/0.232*100)+'" style="background:'+col+'"></span></div>'+
+        '<div class="pdesc">'+p.desc+'</div>'+
+        '<div class="pdistinct"><span class="dist-tag">DIST '+p.x.toFixed(2)+'</span>'+(p.dist
+            ? '<b>Distinctive:</b> '+p.dist
+            : '<b>Centre of the population</b> — within the typical range on measured traits.')+'</div>';
+      wrap.appendChild(el);
+    });
+    // self-draw the share bars once on first paint
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      wrap.querySelectorAll('.pshare-fill').forEach(f=>{
+        f.style.transform = 'scaleX('+(f.dataset.w/100)+')';
+      });
+    }));
+  })();
+
+  /* ════════════════════════════════════════════════════════════════════════
+     ✦ THE POPULATION FIELD — Canvas 2D agent field (Tier 2) — R3 SHOWPIECE
+     N points = real cohort (2,481). Each agent streams up and finds its
+     persona BIN on a 1-D distinctiveness axis, then stacks into a genuine
+     binned DEPTH column (the histogram IS the verdict — taller column = more
+     of your users). The wavefront sweeps ONCE on entry (≤18% bloom, the ONE
+     signal carrier for this region) and settles the phosphor mean line + a
+     --spread CI ribbon. [P10] this is the earned "stop scrolling" beat —
+     depth + wavefront + phosphor underdraw, not a faint flat scatter.
+     Then — because this reading is UNCALIBRATED (◇) — the field enters the
+     finite Drift law (§5.6): ≤2px amplitude, slow, freezes on hover/focus,
+     never locks (no settle bloom). It does not fake a verdict.
+     [P3] exactly one looped element on the page = the status dot. The
+     wavefront/settle/count-up all run ONCE on entry, then rest.
+     ════════════════════════════════════════════════════════════════════════ */
+  const canvas=document.getElementById('field');
+  const ctx=canvas.getContext('2d', {alpha:true});
+  let W=0,H=0, DPR=Math.min(2, window.devicePixelRatio||1);
+  const N=2481;
+  const agents=[];
+  let mean=0, ci=0.07;
+  // [R5] reserved top band: the tallest column peaks at this ty fraction, leaving a
+  // guaranteed headroom strip above it for the field-reading label. 0.30 keeps the
+  // peak (~py(0.30)) below the label box (top:18px, ~120px tall) at every height
+  // the field renders (min 56vh / 480px → 1180px), so the two never collide.
+  const TOP_HEADROOM=0.30;
+
+  function rnd(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+  const R=rnd(0x4f5e);
+
+  // bin geometry — 7 persona bins on the distinctiveness axis; each bin owns
+  // a column whose agents stack into rows for genuine binned DEPTH.
+  const NB=PERSONAS.length;
+  let binMeta=[];            // per-bin {cx (axis centre), count, col, arm, w}
+  function computeBins(){
+    // [R5] colour is the perceptual ramp on the distinctiveness axis — no arm tint.
+    binMeta = PERSONAS.map((p,i)=>({cx:p.x, count:0, col:rampColor(i/(NB-1)), idx:i}));
+  }
+
+  function buildAgents(){
+    agents.length=0;
+    computeBins();
+    const table=[]; let acc=0; PERSONAS.forEach((p,i)=>{ acc+=p.share; table.push({i,acc}); });
+    // first pass: assign each agent to a bin
+    const perBin = new Array(NB).fill(0);
+    const assign = new Array(N);
+    for(let k=0;k<N;k++){
+      const r=R();
+      let pick=table.length-1; for(let j=0;j<table.length;j++){ if(r<=table[j].acc){pick=table[j].i;break;} }
+      assign[k]=pick; perBin[pick]++;
+    }
+    binMeta.forEach((b,i)=>b.count=perBin[i]);
+    // column half-width in axis units (wider columns where slightly more spread)
+    const colHalf=0.045;
+    // second pass: lay each agent into a stacked grid inside its bin column.
+    const seen=new Array(NB).fill(0);
+    for(let k=0;k<N;k++){
+      const pick=assign[k];
+      const p=PERSONAS[pick];
+      const b=binMeta[pick];
+      const idxInBin=seen[pick]++;
+      // grid: ~7 agents across the column width, stacking upward as depth grows
+      const cols=7;
+      const colI=idxInBin % cols;
+      const rowI=Math.floor(idxInBin / cols);
+      // jitter so the column reads organic, not graph-paper
+      const jx=(R()-0.5)*0.010;
+      const jy=(R()-0.5)*0.010;
+      const tx=Math.min(0.985, Math.max(0.015, b.cx + ((colI/(cols-1))-0.5)*2*colHalf + jx));
+      // depth target: stack UP from the baseline (ty near bottom = 0 depth)
+      const depthRows=rowI;            // resolved against bin max after loop
+      const t = pick/(NB-1);           // [R5] ramp position on the distinctiveness axis
+      agents.push({pick, tx, depthRows, ty:0, rx:R(), ry:R(), delay:R(), ph:R()*Math.PI*2, col: rampColor(t)});
+    }
+    // normalise depth → ty (taller column = closer to top). Use a shared scale so
+    // relative heights honestly reflect head-count. [R5] TOP_HEADROOM caps the
+    // tallest column ABOVE the field-reading label's reserved band — the columns
+    // provably never climb into the overlay at any viewport width (deterministic
+    // anti-collision; replaces the old hand-tuned left:34% dodge).
+    let maxRows=0; binMeta.forEach(b=>{ maxRows=Math.max(maxRows, Math.ceil(b.count/7)); });
+    const topFrac=TOP_HEADROOM, botFrac=0.93;   // baseline near bottom, peak below the label band
+    agents.forEach(a=>{
+      const frac = a.depthRows / Math.max(1,maxRows);   // 0..1 up the tallest column
+      a.ty = botFrac - frac*(botFrac-topFrac);
+    });
+    let m=0; agents.forEach(a=>m+=a.tx); mean=m/agents.length; ci=0.07;
+  }
+
+  function resize(){
+    const r=canvas.getBoundingClientRect();
+    W=r.width; H=r.height;
+    canvas.width=W*DPR; canvas.height=H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+
+  function drift(x,y,t){
+    return [Math.sin(y*7.0 + t*0.6)*0.5 + Math.cos(x*5.0 - t*0.4)*0.5,
+            Math.cos(x*6.0 + t*0.5)*0.5 + Math.sin(y*4.0 + t*0.3)*0.5];
+  }
+
+  const PAD={l:30,r:30,t:46,b:36};
+  function px(tx){ return PAD.l + (W-PAD.l-PAD.r)*tx; }
+  function py(ty){ return PAD.t + (H-PAD.t-PAD.b)*ty; }
+
+  // state machine: settling → resting(uncalibrated drift, finite)
+  let start=null;
+  const settleDur=1800;        // ms to fully settle
+  const settleTail=620;        // stagger + materialize tail
+  let mode='settle';           // 'settle' → 'rest'
+  let frozen=false;            // hover/focus freeze (drift law)
+  let idleSince=0;             // for 20s idle pause
+  let restStart=0;
+
+  function frame(ts){
+    if(start===null){ start=ts; idleSince=ts; }
+    const elapsed=ts-start;
+    const tGlobal=elapsed/1000;
+    ctx.clearRect(0,0,W,H);
+
+    // faint baseline distribution grid (the empty-ledger structure showing through)
+    ctx.strokeStyle='rgba(51,64,92,.14)'; ctx.lineWidth=1;
+    for(let gx=0; gx<=4; gx++){ const X=px(gx/4); ctx.beginPath(); ctx.moveTo(X,PAD.t-6); ctx.lineTo(X,H-PAD.b+4); ctx.stroke(); }
+    // baseline floor — the bins stack up FROM here, giving the depth a ground
+    ctx.strokeStyle='rgba(51,64,92,.30)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PAD.l, py(0.93)); ctx.lineTo(W-PAD.r, py(0.93)); ctx.stroke();
+
+    const settleAll = Math.min(1, elapsed/(settleDur+settleTail));
+
+    // [P10] BINNED DEPTH UNDERGLOW — soft column footprint per bin, scaled by
+    // head-count, so taller (more populated) bins read as real depth even before
+    // the dots resolve. Phosphor underdraw, never CSS glow. Materialises with settle.
+    const colReveal=Math.max(0,(settleAll-0.30)/0.70);
+    if(colReveal>0){
+      binMeta.forEach(b=>{
+        const maxRows=binMeta.reduce((m,x)=>Math.max(m,Math.ceil(x.count/7)),1);
+        const rows=Math.ceil(b.count/7);
+        const frac=rows/maxRows;                       // 0..1 column height
+        const topY=py(0.93 - frac*(0.93-TOP_HEADROOM));// device px top of column (capped below the label band)
+        const baseY=py(0.93);
+        const cx=px(b.cx);
+        const halfW=(W-PAD.l-PAD.r)*0.052;
+        const g=ctx.createLinearGradient(0, baseY, 0, topY);
+        g.addColorStop(0, rgba3(b.col, (0.16*colReveal).toFixed(3)));
+        g.addColorStop(1, rgba3(b.col, (0.02*colReveal).toFixed(3)));
+        ctx.fillStyle=g;
+        ctx.fillRect(cx-halfW, topY, halfW*2, baseY-topY);
+      });
+    }
+
+    // global uncalibrated drift envelope (finite ≤2px), frozen on hover/focus,
+    // paused after 20s idle. Truth carried by ◇ glyph + copy; motion is secondary.
+    let driftK = 0;
+    if(mode==='rest' && !reduce && !frozen){
+      const sinceIdle = ts - idleSince;
+      const idleFade = sinceIdle < 20000 ? 1 : Math.max(0, 1 - (sinceIdle-20000)/2500);
+      driftK = idleFade; // 0..1 amplitude scalar
+    }
+
+    // ── agents: stream up from baseline into their stacked bin position ──
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<agents.length;i++){
+      const a=agents[i];
+      const local = Math.min(1, Math.max(0, (elapsed - a.delay*settleTail) / settleDur));
+      const e = local<0?0: 1-Math.pow(1-local,3); // out-cubic, no overshoot
+      const dpos = drift(a.rx, a.ry, tGlobal);
+      // pre-settle: agents hover low near the baseline as a calm dust cloud,
+      // then rise INTO their column slot — the rise sells the depth.
+      const startTx = a.rx;
+      const startTy = 0.86 + a.ry*0.10;     // pooled near the floor
+      const driftX = startTx + dpos[0]*0.010*(1-e);
+      const driftY = startTy + dpos[1]*0.008*(1-e);
+      let tx = driftX + (a.tx - driftX)*e;
+      let ty = driftY + (a.ty - driftY)*e;
+      // finite uncalibrated drift once at rest — ≤2px amplitude in device px
+      if(driftK>0){
+        const driftPx = 1.6 * driftK;
+        tx += (driftPx/(W-PAD.l-PAD.r)) * Math.sin(tGlobal*0.5 + a.ph);
+        ty += (driftPx/(H-PAD.t-PAD.b)) * Math.cos(tGlobal*0.42 + a.ph*1.3);
+      }
+      const X=px(tx), Y=py(ty);
+      let col;
+      if(e<0.55){ col='rgba(146,155,174,'+(0.16+0.30*e).toFixed(3)+')'; }   // pre-settle graphite dust
+      else { const al=(0.42+0.30*(e-0.55)/0.45); col=rgba3(a.col, al.toFixed(3)); }  // settled ramp-position dot
+      ctx.fillStyle=col;
+      const sz = e<0.55? 1.2 : 1.85;
+      ctx.fillRect(X-sz/2, Y-sz/2, sz, sz);
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // [P10][P3] WAVEFRONT — fires ONCE during the settle (≤18% bloom). The ONE
+    // signal carrier for this region. A vertical lime front sweeps L→R, lifting
+    // each column as it passes; after settle it is gone (no perpetual loop).
+    if(settleAll<1 && !reduce){
+      const wx = PAD.l + (W-PAD.l-PAD.r)*settleAll;
+      const grad=ctx.createLinearGradient(wx-90,0,wx+14,0);
+      grad.addColorStop(0,'rgba(72,239,202,0)');
+      grad.addColorStop(0.7,'rgba(72,239,202,.05)');
+      grad.addColorStop(1,'rgba(72,239,202,.18)');     // ≤18% bloom ceiling
+      ctx.fillStyle=grad;
+      ctx.fillRect(wx-90,PAD.t-6,104,H-PAD.t-PAD.b+10);
+      // crisp leading edge — a 1px signal line, the wavefront crest
+      ctx.strokeStyle='rgba(72,239,202,'+(0.55*(1-settleAll*0.4)).toFixed(3)+')';
+      ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(wx,PAD.t-6); ctx.lineTo(wx,H-PAD.b+4); ctx.stroke();
+    }
+
+    // settled mean line (THE signal carrier) + CI ribbon (--spread)
+    const ma=Math.max(0,(settleAll-0.55)/0.45);
+    if(ma>0){
+      const mx=px(mean);
+      ctx.fillStyle='rgba(200,182,138,'+(0.13*ma).toFixed(3)+')';
+      ctx.fillRect(px(mean-ci), PAD.t-6, px(mean+ci)-px(mean-ci), H-PAD.t-PAD.b+10);
+      ctx.strokeStyle='rgba(200,182,138,'+(0.5*ma).toFixed(3)+')'; ctx.lineWidth=1;
+      [mean-ci,mean+ci].forEach(v=>{ const vx=px(v); ctx.beginPath(); ctx.setLineDash([3,3]); ctx.moveTo(vx,PAD.t-6); ctx.lineTo(vx,H-PAD.b+4); ctx.stroke(); ctx.setLineDash([]); });
+      // phosphor underdraw + signal mean (never CSS glow) — 5px / ≤18% echo
+      ctx.strokeStyle='rgba(72,239,202,'+(0.18*ma).toFixed(3)+')'; ctx.lineWidth=5;
+      ctx.beginPath(); ctx.moveTo(mx,PAD.t-6); ctx.lineTo(mx,H-PAD.b+4); ctx.stroke();
+      ctx.strokeStyle='rgba(72,239,202,'+(0.82*ma).toFixed(3)+')'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(mx,PAD.t-6); ctx.lineTo(mx,H-PAD.b+4); ctx.stroke();
+      ctx.fillStyle='rgba(72,239,202,'+ma.toFixed(2)+')';
+      ctx.font='9px "Geist Mono",monospace';
+      ctx.fillText('μ', mx-3, PAD.t-10);
+
+      // [R5 craft] MODAL-PEAK MARKER — a thin ink tick + label at the top of the
+      // TALLEST column, so the marquee figure ("23.2% modal cluster") is provably
+      // the field's OWN reading (this column), not an asserted aside. Ink hairline,
+      // never signal: the lime mean line is the only signal carrier in this region.
+      let modalI=0, modalCount=-1;
+      binMeta.forEach((b,i)=>{ if(b.count>modalCount){ modalCount=b.count; modalI=i; } });
+      const mb=binMeta[modalI];
+      const mRows=Math.ceil(mb.count/7);
+      const maxRows2=binMeta.reduce((m,x)=>Math.max(m,Math.ceil(x.count/7)),1);
+      const peakY=py(0.93 - (mRows/maxRows2)*(0.93-TOP_HEADROOM));
+      const peakX=px(mb.cx);
+      ctx.strokeStyle='rgba(198,204,216,'+(0.55*ma).toFixed(3)+')'; ctx.lineWidth=1; // --text ink
+      ctx.beginPath(); ctx.moveTo(peakX-13,peakY-7); ctx.lineTo(peakX+13,peakY-7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(peakX,peakY-7); ctx.lineTo(peakX,peakY-1); ctx.stroke();
+      ctx.fillStyle='rgba(242,244,248,'+(0.85*ma).toFixed(3)+')'; // --text-hi
+      ctx.font='9px "Geist Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText('MODAL · 23.2%', peakX, peakY-12);
+      ctx.textAlign='left';
+    }
+
+    // transition settle → rest (uncalibrated drift). NO settle bloom — never locks.
+    if(mode==='settle' && elapsed >= settleDur+settleTail){
+      mode='rest'; restStart=ts; idleSince=ts;
+    }
+
+    rafId=requestAnimationFrame(frame);
+  }
+
+  let rafId=null;
+  function kick(){
+    resize(); buildAgents();
+    if(reduce){ // instant settled poster, no drift, no wavefront
+      mode='rest'; frozen=true; start=performance.now()-(settleDur+settleTail+10);
+      frame(performance.now());
+      cancelAnimationFrame(rafId); rafId=null;
+      // one static paint
+      start=performance.now()-(settleDur+settleTail+10); frame(performance.now());
+      cancelAnimationFrame(rafId); rafId=null;
+      return;
+    }
+    start=null; mode='settle';
+    rafId=requestAnimationFrame(frame);
+  }
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && rafId){ cancelAnimationFrame(rafId); rafId=null; }
+    else if(!document.hidden && !rafId && !reduce){ rafId=requestAnimationFrame(frame); }
+  });
+
+  let rt=null;
+  window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{
+    resize(); start=null; mode='settle'; if(!rafId && !reduce) rafId=requestAnimationFrame(frame);
+    if(reduce){ kick(); }
+  }, 160); });
+
+  /* ── interactivity: freeze drift on hover/focus (drift law) + cluster-trait tooltip ─
+     hover targets are binned (≥24px column), not per-pixel (operational-noise fix). */
+  const tt=document.getElementById('tt');
+  function binAt(mx){
+    // nearest bin by axis x within a half-column tolerance
+    let best=null, bd=1e9;
+    for(let i=0;i<binMeta.length;i++){
+      const X=px(binMeta[i].cx);
+      const d=Math.abs(X-mx);
+      if(d<bd){bd=d;best=i;}
+    }
+    return bd < (W-PAD.l-PAD.r)*0.07 ? best : null;
+  }
+  canvas.addEventListener('mousemove',(ev)=>{
+    frozen=true; idleSince=performance.now();      // freeze drift while looking
+    const r=canvas.getBoundingClientRect();
+    const mx=ev.clientX-r.left, my=ev.clientY-r.top;
+    const bi=binAt(mx);
+    if(bi!==null){
+      const p=PERSONAS[bi];
+      const pct=(p.share*100).toFixed(1), cci=(p.ci*100).toFixed(1);
+      // distinctiveness = the x the dots are binned on, surfaced verbatim with a
+      // worded band so the axis label is load-bearing.
+      const dx=p.x;
+      const dWord = dx<0.30 ? 'near population centre'
+                  : dx<0.45 ? 'mildly distinct'
+                  : dx<0.65 ? 'moderately distinct'
+                  : dx<0.80 ? 'distinct'
+                  : 'strongly distinct';
+      // craft finesse: a 0→1 distinctiveness track with this persona's tick + μ,
+      // a sharper comparative figure than a bare number. [R5] the tick is the
+      // perceptual-ramp colour for THIS cluster (the same colour as its dots) —
+      // not an A/B arm tint. No experiment exists at clustering time.
+      const tcol=rampColor(bi/(PERSONAS.length-1));
+      const trackW=130, tickX=Math.round(dx*trackW), muX=Math.round(mean*trackW);
+      const track =
+        '<div style="margin-top:7px;width:'+trackW+'px;height:18px;position:relative">'+
+          '<div style="position:absolute;left:0;right:0;top:8px;height:1px;background:rgba(51,64,92,.85)"></div>'+
+          '<div style="position:absolute;left:'+muX+'px;top:4px;width:1px;height:9px;background:var(--spread)" title="population mean"></div>'+
+          '<div style="position:absolute;left:'+tickX+'px;top:2px;width:2px;height:13px;background:'+tcol+';border-radius:1px"></div>'+
+          '<div style="position:absolute;left:0;top:11px;font-size:8.5px;color:var(--text-mut)">0</div>'+
+          '<div style="position:absolute;right:0;top:11px;font-size:8.5px;color:var(--text-mut)">1</div>'+
+        '</div>';
+      tt.innerHTML='<span class="nm">'+p.id+'</span> · '+p.name+
+        '<br><span style="color:var(--text-hi)">'+pct+'<span style="color:var(--spread)"> ±'+cci+'</span> <span style="color:var(--spread-dim)">◇</span></span> of users'+
+        '<br><span style="color:var(--text-mut)">distinctiveness </span><span style="color:var(--text-hi)">'+dx.toFixed(2)+'</span><span style="color:var(--text-mut)"> · '+dWord+'</span>'+
+        track+
+        '<span style="color:var(--text-mut)">separates on: </span><span style="color:var(--text)">'+p.trait+'</span>';
+      tt.style.left=Math.min(W-210,mx+14)+'px';
+      tt.style.top=Math.max(0,my-104)+'px';
+      tt.style.opacity=1; tt.style.transform='translateY(0)';
+      canvas.style.cursor='crosshair';
+    } else { tt.style.opacity=0; tt.style.transform='translateY(4px)'; canvas.style.cursor='default'; }
+  });
+  canvas.addEventListener('mouseleave',()=>{
+    tt.style.opacity=0; canvas.style.cursor='default';
+    frozen=false; idleSince=performance.now();      // resume drift, reset idle clock
+  });
+
+  // marquee count-up — the modal cluster's share (the field's own reading, the
+  // tallest column). No loop, settles to rest. [P3 — runs ONCE]
+  (function countUp(){
+    const el=document.getElementById('verdictNum'); if(!el){ return; }
+    const FINAL='23.2';
+    if(reduce){ el.textContent=FINAL; return; }
+    const target=23.2; let t0=null;
+    function step(ts){ if(t0===null)t0=ts; const e=Math.min(1,(ts-t0)/600); const v=target*(1-Math.pow(1-e,3)); el.textContent=v.toFixed(1); if(e<1) requestAnimationFrame(step); else el.textContent=FINAL; }
+    requestAnimationFrame(step);
+  })();
+
+  if(document.readyState==='complete') kick();
+  else window.addEventListener('load', kick);
+  setTimeout(()=>{ if(rafId===null && !reduce && mode==='settle' && start===null) kick(); }, 40);
+})();
+</script>
+</body>
+</html>
