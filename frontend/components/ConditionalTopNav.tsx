@@ -13,7 +13,19 @@ import TopNav from "@/components/TopNav";
 // "/v2" suppresses the whole clean top-level /v2/<slug> preview namespace (e.g.
 // /v2/auth): each page there ships its own self-contained ConsoleShell/Sheet top
 // bar, so the global product TopNav must never render on top of it.
-const SUPPRESS_NAV_PREFIXES = ["/product/v2", "/about/v2", "/v2"];
+//
+// The live auth routes (/sign-in, /sign-up, /sso-callback) now render the v2
+// dark Console auth stage, which owns the full viewport and carries its own
+// mark in its head (design-rethink/mocks/auth.html). The light paper TopNav
+// must never sit on top of that dark stage, so suppress it across all three.
+const SUPPRESS_NAV_PREFIXES = [
+  "/product/v2",
+  "/about/v2",
+  "/v2",
+  "/sign-in",
+  "/sign-up",
+  "/sso-callback",
+];
 
 export function suppressesGlobalNav(pathname: string | null): boolean {
   if (!pathname) return false;
