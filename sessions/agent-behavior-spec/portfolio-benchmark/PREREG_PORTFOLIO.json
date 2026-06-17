@@ -1,0 +1,53 @@
+{
+  "prereg_id": "product-change-directional-portfolio-v1-groq-pilot",
+  "committed_before_result": true,
+  "_committed_before_result_note": "FINALIZED + committed + pushed to chore/abc-loop-wip BEFORE any sim run (operator, full-autonomy grant 2026-06-17). Canonical-JSON SHA-256 in the sidecar .sha256 is the rigor anchor; the result must not retrofit this file. Supersedes the DRAFT committed on main via PR #352.",
+  "datetime_local": "2026-06-16",
+  "purpose": "Certify a DIRECTIONAL-accuracy claim for the simulator on the IN-SCOPE deliberative-product-change class across a PORTFOLIO of ~8 DIFFERENT real product-change A/B tests, each a WHOLE-EXPERIMENT directional bit (a published control-vs-treatment narrative with a known winner). A single experiment (Cookie Cats) cannot be certified — the null-integrity certificate needs >= 8 INDEPENDENT bits. This portfolio supplies genuinely independent cases (not re-slices of one experiment) so the cert floor is cleared with real diversity.",
+  "dataset": {
+    "name": "Product-change directional portfolio v1 (curated published narratives)",
+    "cases_file": "sessions/agent-behavior-spec/portfolio-benchmark/PORTFOLIO_CASES.json",
+    "scored_n": 8,
+    "held_out_probe_n": 2,
+    "structural_reality": "No public source carries NAMED treatments + raw per-user data + an in-scope product change together (NeurIPS 2021 Liu et al. survey). Cookie Cats is the rare raw-data anchor; the other cases are PUBLISHED NARRATIVES with point-estimate outcomes. So the harness scores the sim against the REPORTED winner / direction, NOT by re-analyzing rows.",
+    "provenance": "Each scored case cites a primary source (Kohavi DMCS 2009 for MSN/Office Online; Duolingo blog; VWO / CXL / named CRO practitioner showcases for the vendor cases; Cookie Cats raw mirror). Effect sizes for vendor / CRO showcases are publication-bias-inflated and OUT of scope — DIRECTION only is scored.",
+    "balance": "5/8 control-won (Office Online, MSN homepage offers, CXL 9->6 fields, multistep 3-vs-6, Cookie Cats) — slightly control-heavy, so a naive 'the change always wins' sim scores <= 3/8."
+  },
+  "why_this_is_a_discriminating_test": "Many cases are COUNTER-INTUITIVE (a prettier redesign LOST; fewer form fields LOST; a skip-day safety valve RAISED return; the simplest of 6 widget variants WON where only 3/21 experts predicted it). A sim that merely parrots product-design priors gets several SIGNS wrong. Getting direction RIGHT across a balanced, counter-intuitive set is real evidence the engine reasons about deliberative product reactions rather than echoing intuition.",
+  "config": {
+    "panel_id": "upworthy-general-us-news-v2 (GENERIC consumer panel — LIMITATION)",
+    "panel_note": "The portfolio spans domains (mobile game, edtech, fintech onboarding, media/portal, CRO lead/signup forms). A single GENERIC consumer panel is a first pass; per-domain panels are a documented FOLLOW-UP, not a v1 blocker. A wrong result attributable to audience mismatch (not engine reasoning) is a registered risk.",
+    "engine_metric": "conversion (a single GENERIC 'would you take this variant's primary action?' elicitation for ALL cases; the per-case real metrics are heterogeneous and are NOT shown to the engine, to keep one directional bit per experiment and avoid metric-name direction leakage).",
+    "metric_mapping_justification": "Direction (which variant wins on the generic act) is all that is scored, so a single generic conversion elicitation is the clean choice. LIMITATION: it may under-fit a case whose real mechanism is retention-shaped (a delayed return) rather than immediate-conversion-shaped — a registered fidelity risk.",
+    "population_size": 50,
+    "seed": 42,
+    "model_id": "None (Groq llama-3.3-70b default — the user-approved/autonomous first pilot; a Sonnet comparison is a separate future prereg if warranted)",
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "include_heldout": "false for the scored run (the 2 famous probes are run SEPARATELY, non-scored, as a memorization check)",
+    "primary_endpoint": "direction_accuracy (sign agreement: did the sim pick the real winner?) — the HEADLINE.",
+    "secondary_endpoint": "rank_rho is reported for CROSS-CASE ORDERING only, NOT a calibrated effect-size claim (narrative magnitudes are publication-inflated, out of scope).",
+    "blindness": "STRUCTURAL and PROVABLE: the rendered stimulus carries ONLY the control/treatment narratives + a generic direction-neutral framing — never real_winner, the effect magnitude string, or the real metric name. Proven by tests/test_portfolio_adapter.py::test_rendered_stimulus_is_structurally_blind.",
+    "case_floor": "8 scored cases == the null-integrity certificate's 8-experiment floor (clears it exactly)."
+  },
+  "prediction": {
+    "note": "HONEST and UNCERTAIN by design. Does NOT assume a positive outcome.",
+    "primary_lean": "UNCERTAIN. The sim COULD beat the ~2.3/8 expert baseline if its agents reason about the deliberative trade-offs (a hidden price kills buy clicks; clutter costs attention; a skip-day valve removes a guilt-quit). It could equally MISS on the counter-intuitive cases by echoing naive priors ('prettier wins', 'fewer fields wins', 'fewer steps wins') — exactly the priors these cases were curated to break.",
+    "point_lean_if_forced": "NO STRONG COMMITMENT. A plausible registered outcome is direction_accuracy modestly above the marginal-chance / always-flat baseline but BELOW a confident certification — stated explicitly so a near-chance result is a registered outcome, not a surprise.",
+    "gate": "The null-integrity certificate MUST PASS for the result to count. A VOID result is reported as VOID, not trusted."
+  },
+  "human_baseline_anchors": {
+    "kohavi_expert_survey": "~2.3 / 8 correct",
+    "msn_realestate_widget": "3 / 21 experts predicted the winner",
+    "framing": "Report the sim's direction_accuracy NEXT TO these human anchors and the always-flat / random-rank baselines — as 'directional accuracy on a HARD, curated, counter-intuitive set', NOT a population estimate."
+  },
+  "contamination_control": {
+    "held_out_memorization_probe": "Netflix browse-before-signup + Highrise simple-person-page are FAMOUS results an LLM may have MEMORIZED; HELD OUT of the scored set into a separate, NON-scored probe (--include-heldout). If the sim aces the famous probes but flunks the obscure scored cases, it is RECITING, not reasoning — a published red flag, not a positive.",
+    "always_pull_primary": "Before any scoring, re-verify each case's winner against its PRIMARY source (secondary retellings miscite)."
+  },
+  "decision_rule": {
+    "if_above_human_baseline_and_cert_passes": "Real evidence the engine recovers counter-intuitive deliberative product-change DIRECTION across diverse external ground truth and beats expert intuition -> the strongest in-scope positive to date; feature in the accuracy whitepaper next to the human baselines.",
+    "if_near_chance_and_cert_passes": "Report honestly against the baselines. Diagnose whether misses cluster on the counter-intuitive cases (engine echoing priors) or on retention-shaped mechanisms (generic-conversion elicitation under-fit). Either way it refines the published scope boundary.",
+    "if_cert_voids": "Report VOID, not trusted; increase population_size and re-check case coverage."
+  }
+}
