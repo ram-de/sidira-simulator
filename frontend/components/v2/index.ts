@@ -34,6 +34,7 @@ export {
   type ProvenanceMarkerProps,
 } from "./Provenance";
 export { Section, SectionHead, ScrollReveal } from "./Section";
+export { AppFrame, APP_NAV, type AppFrameProps, type AppNavItem } from "./AppFrame";
 export { ConsoleWell } from "./ConsoleWell";
 export { SheetMarkDuo, ConsoleMarkMono } from "./Marks";
 export {
