@@ -1,0 +1,44 @@
+{
+  "prereg_id": "hillstrom-full-bysegment-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-16",
+  "run_location": "prod-box in-container (i-04b155fafcc90042b), user standing-approval this session",
+  "config": {
+    "panel_id": "hillstrom-email-rct-v1",
+    "panel_schema": "1.1",
+    "panel_personas": 4,
+    "panel_synthetic": false,
+    "individual_row_cap": true,
+    "stratifier": "by-segment (PR-C persona-aligned: mens_buyer->P02, womens_buyer->P01, high_spender->P03, mid_tier->P04)",
+    "expected_cases": 8,
+    "metrics": ["conversion", "visit"],
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "model_id": "None (Groq llama-3.3-70b default)",
+    "primary_endpoint": "rank_rho (per-segment predicted vs real uplift)",
+    "secondary_endpoint": "direction_accuracy (sign agreement)"
+  },
+  "prediction_of_record": {
+    "note": "This is the ORIGINAL directional prediction, committed BEFORE any Hillstrom sim run (see session 2026-06-16 PRE-RUN DIRECTIONAL PREDICTION). It is the pre-registration anchor and must NOT be retrofit to probe findings.",
+    "endpoint_3_heterogeneity": "GENDER-MATCHED: men's-buyer persona (P02) responds MORE to Mens E-Mail than women's-buyer (P01); per-segment predicted uplift POSITIVELY rank-correlates with real RCT per-segment uplift; rank_rho > 0; null-cert PASSES.",
+    "endpoint_1_sign": "Both emails predicted to RAISE conversion and visit vs no-email (positive lift), matching the RCT.",
+    "honest_failure_modes": [
+      "(a) the RCT may not show clean gender-matched heterogeneity -> score vs whatever it shows",
+      "(b) the sim may not capture it -> report the null"
+    ]
+  },
+  "post_probe_expectation_NOT_the_anchor": {
+    "note": "Recorded transparently for context ONLY. Two under-powered VOID probes (conversion n=6, visit n=6) already suggested the prediction-of-record is REFUTED by a systematic sign inversion. This powered run tests that with adequate power (8 cases) and a PASSING null-integrity certificate. Stating it here does NOT make it the pre-registered anchor.",
+    "expected_direction_accuracy": "near 0 on both conversion and visit (ad-aversion: sim predicts emails LOWER outcomes while RCT shows they RAISE them)",
+    "expected_cert": "PASS (8 cases >= floor of 8)",
+    "expected_rank_rho_conversion": "possibly still positive (relative ranking mens>womens survived the probe sign error)",
+    "expected_rank_rho_visit": "uncertain (probe came out negative)"
+  },
+  "decision_rule": {
+    "if_dir_acc_low_and_cert_passes": "ad-aversion bias is CERTIFIED on external RCT ground truth -> publish as the named, fixable limitation; drives #221 elicitation / #222 calibration.",
+    "if_prediction_of_record_holds": "gender-matched heterogeneity validated -> the Kohavi-proof sellable claim; fit calibrator next.",
+    "if_cert_voids": "report VOID, not trusted; increase cases."
+  }
+}
