@@ -3,8 +3,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { isPublicSiteHost } from "@/lib/site-hosts";
-import PublicTopBar, { APP_URL } from "@/components/PublicTopBar";
-import { TOKENS, FONT_SANS, FONT_NARROW, FONT_MONO } from "@/lib/design";
+import { APP_URL } from "@/components/PublicTopBar";
+import PublicConsoleTopBar from "@/components/PublicConsoleTopBar";
+import { ConsoleShell } from "@/components/v2";
+import "@/styles/v2-theme.css";
 
 export default function HomePage() {
   const host = headers().get("host");
@@ -34,21 +36,15 @@ const STEPS = [
   },
 ];
 
+// Dark "Reading Console" reskin of the public landing. Renders inside a
+// `.v2-console` scope (ConsoleShell) so all `var(--console-*)` / `var(--text*)`
+// tokens resolve from styles/v2-theme.css. Every <Link>/href/CTA target and
+// every piece of copy is preserved byte-for-byte from the prior paper version —
+// only markup structure + styles change.
 function PublicCompanyHome() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: TOKENS.paper,
-        color: TOKENS.ink,
-        fontFamily: FONT_SANS,
-        fontFeatureSettings: '"ss01" on',
-        WebkitFontSmoothing: "antialiased",
-      }}
-    >
-      {/* Narrow-viewport collapse for the multi-column grids. Scoped via
-          classNames so the inline-style convention used elsewhere stays
-          intact. */}
+    <ConsoleShell>
+      {/* Narrow-viewport collapse for the multi-column grids. */}
       <style>{`
         @media (max-width: 768px) {
           .sidira-public-section-head { grid-template-columns: 1fr !important; }
@@ -56,22 +52,22 @@ function PublicCompanyHome() {
         }
       `}</style>
 
-      {/* Top bar — shared with /about */}
-      <PublicTopBar />
+      {/* Top bar — shared with /about and /product */}
+      <PublicConsoleTopBar />
 
       {/* Hero */}
       <section
         style={{
-          maxWidth: 1280,
+          maxWidth: 1240,
           margin: "0 auto",
-          padding: "96px 32px 112px",
+          padding: "96px 24px 112px",
         }}
       >
         <p
           style={{
-            color: TOKENS.inkMuted,
-            fontFamily: FONT_MONO,
-            fontFeatureSettings: '"tnum" on',
+            color: "var(--text-mut)",
+            fontFamily: "var(--v2-font-mono)",
+            fontVariantNumeric: "tabular-nums",
             fontSize: 11,
             letterSpacing: "0.08em",
             margin: "0 0 32px",
@@ -86,37 +82,36 @@ function PublicCompanyHome() {
             style={{
               width: 6,
               height: 6,
-              background: TOKENS.signal,
+              background: "var(--signal)",
               display: "inline-block",
             }}
           />
           Private alpha · 2026
         </p>
-        {/* Marketing display — DESIGN.md §5.1: narrow grotesk SemiBold,
-            uppercase, 64–96px. No serif anywhere in R2. */}
+        {/* Marketing display — narrow grotesk weight, instrument voice at
+            editorial scale on the dark Console. */}
         <h1
           style={{
-            color: TOKENS.ink,
-            fontFamily: FONT_NARROW,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            fontSize: "clamp(48px, 7vw, 96px)",
-            lineHeight: 1.1,
-            letterSpacing: "0.01em",
+            color: "var(--text-hi)",
+            fontWeight: 700,
+            fontSize: "clamp(2.7rem, 6vw, 5rem)",
+            lineHeight: 1.0,
+            letterSpacing: "-0.035em",
             margin: 0,
             maxWidth: "18ch",
+            textWrap: "balance",
           }}
         >
           Validate product bets before you build.
         </h1>
         <p
           style={{
-            color: TOKENS.inkMuted,
-            fontFamily: FONT_SANS,
-            fontSize: 18,
+            color: "var(--text)",
+            fontSize: "1.2rem",
             lineHeight: 1.55,
             margin: "32px 0 0",
             maxWidth: "60ch",
+            fontWeight: 450,
           }}
         >
           Sidira pressure-tests product hypotheses against customer-grounded
@@ -127,43 +122,22 @@ function PublicCompanyHome() {
           style={{
             display: "flex",
             gap: 12,
-            marginTop: 48,
+            marginTop: 40,
             flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
           <Link
             href="mailto:founders@sidira.ai?subject=Sidira%20access"
-            style={{
-              background: TOKENS.ink,
-              border: `0.75px solid ${TOKENS.ink}`,
-              borderRadius: 4,
-              color: TOKENS.paper,
-              fontFamily: FONT_NARROW,
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              padding: "14px 22px",
-              textDecoration: "none",
-              textTransform: "uppercase",
-            }}
+            className="v2-btn v2-btn--primary v2-btn--hero"
+            style={{ textDecoration: "none" }}
           >
             Request access
           </Link>
           <Link
             href={APP_URL}
-            style={{
-              background: "transparent",
-              border: `0.75px solid ${TOKENS.rule}`,
-              borderRadius: 4,
-              color: TOKENS.ink,
-              fontFamily: FONT_NARROW,
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              padding: "14px 22px",
-              textDecoration: "none",
-              textTransform: "uppercase",
-            }}
+            className="v2-btn v2-btn--secondary v2-btn--hero"
+            style={{ textDecoration: "none" }}
           >
             Sign in
           </Link>
@@ -173,9 +147,9 @@ function PublicCompanyHome() {
       {/* How it works — three steps separated by hairlines, no colored circles */}
       <section
         style={{
-          maxWidth: 1280,
+          maxWidth: 1240,
           margin: "0 auto",
-          padding: "0 32px 112px",
+          padding: "0 24px 112px",
         }}
       >
         <div
@@ -189,8 +163,8 @@ function PublicCompanyHome() {
         >
           <p
             style={{
-              color: TOKENS.inkMuted,
-              fontFamily: FONT_MONO,
+              color: "var(--text-mut)",
+              fontFamily: "var(--v2-font-mono)",
               fontSize: 11,
               letterSpacing: "0.08em",
               margin: 0,
@@ -201,14 +175,14 @@ function PublicCompanyHome() {
           </p>
           <h2
             style={{
-              color: TOKENS.ink,
-              fontFamily: FONT_SANS,
-              fontWeight: 500,
-              fontSize: 26,
-              letterSpacing: "-0.01em",
-              lineHeight: 1.25,
+              color: "var(--text-hi)",
+              fontWeight: 600,
+              fontSize: "2.05rem",
+              letterSpacing: "-0.028em",
+              lineHeight: 1.1,
               margin: 0,
               maxWidth: "40ch",
+              textWrap: "balance",
             }}
           >
             One instrument, three steps, no roadmap bet escaping unexamined.
@@ -220,7 +194,7 @@ function PublicCompanyHome() {
             listStyle: "none",
             margin: 0,
             padding: 0,
-            borderTop: `0.75px solid ${TOKENS.rule}`,
+            borderTop: "1px solid var(--console-line-40)",
           }}
         >
           {STEPS.map((step, idx) => (
@@ -232,30 +206,29 @@ function PublicCompanyHome() {
                 gridTemplateColumns: "200px 1fr 1fr",
                 gap: 32,
                 padding: "32px 0",
-                borderBottom: `0.75px solid ${TOKENS.rule}`,
+                borderBottom: "1px solid var(--console-line-40)",
                 alignItems: "baseline",
               }}
             >
               <span
                 style={{
-                  color: TOKENS.ink,
-                  fontFamily: FONT_MONO,
-                  fontFeatureSettings: '"tnum" on',
+                  color: "var(--text)",
+                  fontFamily: "var(--v2-font-mono)",
+                  fontVariantNumeric: "tabular-nums",
                   fontSize: 14,
                   fontWeight: 500,
                   letterSpacing: "0.04em",
                 }}
               >
                 {String(idx + 1).padStart(2, "0")} ·{" "}
-                <span style={{ color: TOKENS.inkMuted }}>step</span>
+                <span style={{ color: "var(--text-mut)" }}>step</span>
               </span>
               <h3
                 style={{
-                  color: TOKENS.ink,
-                  fontFamily: FONT_SANS,
-                  fontWeight: 500,
+                  color: "var(--text-hi)",
+                  fontWeight: 550,
                   fontSize: 20,
-                  letterSpacing: "-0.005em",
+                  letterSpacing: "-0.01em",
                   lineHeight: 1.3,
                   margin: 0,
                 }}
@@ -264,10 +237,9 @@ function PublicCompanyHome() {
               </h3>
               <p
                 style={{
-                  color: TOKENS.inkMuted,
-                  fontFamily: FONT_SANS,
+                  color: "var(--text-mut)",
                   fontSize: 15,
-                  lineHeight: 1.55,
+                  lineHeight: 1.6,
                   margin: 0,
                 }}
               >
@@ -281,10 +253,10 @@ function PublicCompanyHome() {
       {/* Footer */}
       <footer
         style={{
-          maxWidth: 1280,
+          maxWidth: 1240,
           margin: "0 auto",
-          padding: "32px 32px 64px",
-          borderTop: `0.75px solid ${TOKENS.rule}`,
+          padding: "32px 24px 64px",
+          borderTop: "1px solid var(--console-line-50)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
@@ -294,8 +266,8 @@ function PublicCompanyHome() {
       >
         <span
           style={{
-            color: TOKENS.inkMuted,
-            fontFamily: FONT_MONO,
+            color: "var(--text-mut)",
+            fontFamily: "var(--v2-font-mono)",
             fontSize: 11,
             letterSpacing: "0.04em",
           }}
@@ -305,8 +277,8 @@ function PublicCompanyHome() {
         <Link
           href="mailto:founders@sidira.ai"
           style={{
-            color: TOKENS.inkMuted,
-            fontFamily: FONT_MONO,
+            color: "var(--text-mut)",
+            fontFamily: "var(--v2-font-mono)",
             fontSize: 11,
             letterSpacing: "0.04em",
             textDecoration: "none",
@@ -315,6 +287,6 @@ function PublicCompanyHome() {
           founders@sidira.ai
         </Link>
       </footer>
-    </main>
+    </ConsoleShell>
   );
 }

@@ -18,6 +18,14 @@ import TopNav from "@/components/TopNav";
 // dark Console auth stage, which owns the full viewport and carries its own
 // mark in its head (design-rethink/mocks/auth.html). The light paper TopNav
 // must never sit on top of that dark stage, so suppress it across all three.
+//
+// The public marketing pages (/about, /product) ship their OWN dark Console
+// top bar (PublicConsoleTopBar). On the public host the global nav is already
+// off (layout's showProductNav=false); but /product is redirected to the APP
+// host (site-hosts PRODUCT_PATH_PREFIXES) where showProductNav=true, so the
+// global TopNav would double up on the page's own bar. Suppress both so each
+// page keeps exactly one nav, on either host. ("/about"/"/product" subsume the
+// "/about/v2"/"/product/v2" prefixes, kept above for the Sheet/Console mocks.)
 const SUPPRESS_NAV_PREFIXES = [
   "/product/v2",
   "/about/v2",
@@ -25,6 +33,8 @@ const SUPPRESS_NAV_PREFIXES = [
   "/sign-in",
   "/sign-up",
   "/sso-callback",
+  "/about",
+  "/product",
 ];
 
 export function suppressesGlobalNav(pathname: string | null): boolean {
