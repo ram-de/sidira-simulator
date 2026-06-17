@@ -179,6 +179,66 @@ def test_benchmark_portfolio_checkpoint_resumes(tmp_path: Path, monkeypatch):
     assert persisted["run_config"]["seed"] == 0
 
 
+def test_benchmark_portfolio_all_dropped_reports_void_not_crash(monkeypatch):
+    """If the engine drops EVERY case, direction_accuracy is None (n_cases=0) — the
+    CLI must report a VOID run, not crash on None * 0 (codex P2)."""
+
+    def fake_score_with_engine(cases, *, persona_pack, **kwargs):
+        cs = list(cases)
+        case_results = [
+            BenchmarkCaseResult(
+                case_id=c.case_id,
+                source=c.source,
+                observed_lift=c.ground_truth.observed_lift,
+                dropped=True,
+            )
+            for c in cs
+        ]
+        return BenchmarkRunResult(
+            n_cases=0,
+            n_dropped=len(cs),
+            dropped_case_ids=[c.case_id for c in cs],
+            void=True,
+            void_reason="No case produced a prediction (every case dropped).",
+            case_results=case_results,
+            seed=0,
+        )
+
+    monkeypatch.setattr(
+        "sidira_simulator.services.benchmark_runner.score_with_engine",
+        fake_score_with_engine,
+    )
+
+    result = CliRunner().invoke(cli, ["benchmark-portfolio"])
+    assert result.exit_code == 0, result.output
+    assert "VOID:                   True" in result.output
+    # The sim line renders "—/0" rather than crashing on None * 0.
+    assert "—/0 correct" in result.output
+
+
+def test_benchmark_portfolio_missing_cases_path_fails_loud(monkeypatch, tmp_path: Path):
+    """A non-existent --cases-path fails with an actionable message, not a bare
+    FileNotFoundError (codex P2: the default ships only in the source tree)."""
+
+    def must_not_run(*a, **k):  # pragma: no cover - must not be reached
+        raise AssertionError("score_with_engine must not run when the cases file is missing")
+
+    monkeypatch.setattr(
+        "sidira_simulator.services.benchmark_runner.score_with_engine", must_not_run
+    )
+    # The CLI imports DEFAULT_CASES_PATH from portfolio_archive at call time, so
+    # patch it at the source module to simulate a packaged install where the
+    # source-tree cases file is absent.
+    monkeypatch.setattr(
+        "sidira_simulator.services.portfolio_archive.DEFAULT_CASES_PATH",
+        tmp_path / "nope" / "PORTFOLIO_CASES.json",
+    )
+    result = CliRunner().invoke(cli, ["benchmark-portfolio"])
+    assert result.exit_code != 0
+    assert "portfolio cases file not found" in result.output
+    assert "--cases-path" in result.output
+
+
 def test_benchmark_portfolio_refuses_checkpoint_config_drift(tmp_path: Path, monkeypatch):
     ckpt = tmp_path / "ckpt.json"
     ckpt.write_text(

@@ -1021,11 +1021,23 @@ def benchmark_portfolio(
     )
 
     # ── 1. Load + adapt the curated portfolio into benchmark cases. ──
-    archive, summary = load_portfolio_cases(cases_path or DEFAULT_CASES_PATH)
-    if not archive.scored_cases:
+    # The curated cases live in the agent-behavior-spec session dir (a research
+    # artifact OUTSIDE the backend package), so the package-relative default only
+    # resolves from a source checkout. In a packaged/wheel install it will be
+    # absent; fail with an actionable message pointing at --cases-path rather than
+    # a bare FileNotFoundError. (This is an operator-run offline benchmark, run
+    # from the source tree — the same posture as the sibling harnesses.)
+    resolved_cases_path = Path(cases_path) if cases_path else DEFAULT_CASES_PATH
+    if not resolved_cases_path.exists():
         raise click.ClickException(
-            f"no scored portfolio cases loaded from {cases_path or DEFAULT_CASES_PATH}"
+            f"portfolio cases file not found at {resolved_cases_path}. The curated "
+            "PORTFOLIO_CASES.json ships in the source tree (sessions/agent-behavior-"
+            "spec/portfolio-benchmark/), not the installed package; pass an explicit "
+            "--cases-path when running outside a source checkout."
         )
+    archive, summary = load_portfolio_cases(resolved_cases_path)
+    if not archive.scored_cases:
+        raise click.ClickException(f"no scored portfolio cases loaded from {resolved_cases_path}")
     cases = scored_portfolio_cases(archive)
 
     # ── 2. Pre-registration metadata (generic panel + run config). ──
@@ -1154,7 +1166,13 @@ def benchmark_portfolio(
         click.echo("")
 
     # ── 6. Human-baseline anchors (Kohavi ~2.3/8; MSN 3/21) next to the sim. ──
-    sim_correct = round(result.direction_accuracy * result.n_cases, 1)
+    # direction_accuracy is None when EVERY case dropped (n_cases=0) — an honest
+    # all-VOID run, NOT a crash. Render the sim line as "—/0" rather than computing
+    # None * 0; the dropped ids + VOID + honesty table above/below tell the story.
+    if result.direction_accuracy is None or result.n_cases == 0:
+        sim_correct: str = "—"
+    else:
+        sim_correct = str(round(result.direction_accuracy * result.n_cases, 1))
     click.echo("== Human-baseline anchors (for context) ==")
     click.echo(f"sim:                {sim_correct}/{result.n_cases} correct (direction)")
     for label, value in archive.human_baseline_anchors.items():
