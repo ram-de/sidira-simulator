@@ -545,6 +545,28 @@ and nothing is significant against chance at n=8. A real, encouraging in-scope s
 certified positive. The path to certification is a **larger, balanced (~50/50) portfolio**, where
 the headline must beat 0.5 rather than an inflated constant baseline and n clears significance.
 
+> **⚠️ v3 EXPANSION RESULT (2026-06-17) — the v2.1 signal does NOT generalize; standing tempered.**
+> We did the larger-portfolio step: +7 audited tier-1 real product-change A/Bs (independent
+> adversarial valence audit; 3 cases blocked and fixed with the auditor's own rewrites; a
+> social-proof-nudge case excluded), to **n=15** (prereg `3c0c8057…`, cases `b88af0a9…`, sealed
+> before the result). **Result: direction_accuracy 0.467 (7/15) — below chance, below the
+> always-treatment baseline (0.60).** The original 8 reproduced exactly (5/8), but the **7 new
+> cases scored 2/7 (below chance)**, and per-class accuracy was roughly equal (control 3/6,
+> treatment 4/9 — no pro-change tilt). Our pre-registered prediction (≈0.70, treatment-tilted)
+> was wrong in the un-flattering direction. **Honest reading: the encouraging v2.1 5/8 was
+> substantially the favorable composition of those 8 cases; on a broader, harder sample the sim
+> is at chance.** Two non-exclusive causes: (1) several new cases are subtle/aesthetic *micro*
+> changes (signup colour, mail new-tab, price-range display) — closer to sub-deliberative nudges
+> (the §5.1-certified weak class); the only two it got right (Amazon offer relocation, Etsy
+> pagination-vs-infinite-scroll) are the substantive/behavioural ones; (2) audit-neutralised
+> micro-cases may render the one-sentence blinded stimulus *inert* (the neutralisation that kills
+> a leak can kill the signal). **Revised, defensible claim: the engine reads SUBSTANTIVE
+> deliberative product-change direction better than chance/experts on favourable cases, but this
+> does NOT generalise to subtle/aesthetic micro-changes or marketing nudges — a finer scope
+> boundary than §7 first stated.** Next: report the deliberative vs micro subsets separately, and
+> either render subtle cases more richly (arm-symmetric) or scope them out. Artifact:
+> `portfolio_results_v3.txt`.
+
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
 with a **named, fixable** bias (pro-change direction) plus a named fidelity gap
