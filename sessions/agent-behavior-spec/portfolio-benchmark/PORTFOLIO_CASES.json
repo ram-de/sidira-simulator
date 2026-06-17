@@ -12,14 +12,15 @@
       "HUMAN BASELINE anchor: Kohavi's expert survey ~2.3/8 correct; MSN Real-Estate widget 3/21 experts predicted the winner. Position the sim against these.",
       "ALWAYS pull the PRIMARY source's number before scoring (secondary retellings miscite, e.g. Etsy -22%/-50%, Highrise 47% vs 37.5%)."
     ],
-    "contamination_control": "Famous results an LLM may have memorized are HELD OUT of the scored set into a separate memorization probe. If the sim aces the famous ones but flunks the obscure ones, it is reciting, not reasoning."
+    "contamination_control": "Famous results an LLM may have memorized are HELD OUT of the scored set into a separate memorization probe. If the sim aces the famous ones but flunks the obscure ones, it is reciting, not reasoning.",
+    "narrative_normalization_v2": "2026-06-17, AFTER the v1 scored run (dir_acc 0.25, pro-change tilt 7/8). A read-only adapter audit found the engine RENDERING path is arm-symmetric, BUT the authored control/treatment NARRATIVES carried arm-asymmetric VALENCE (treatment described with benefit/positive words: 'more appealing', 'preserves the streak', 'simplest/simplified') and one OUTCOME LEAK ('winner of 6 variants' in msn_realestate's treatment — a direct answer leak the blindness test missed because 'winner' != 'won'). Since the adapter passes these strings VERBATIM into the blinded stimulus, the asymmetry reached the model. v2 NORMALIZES both arms to neutral, parallel, mechanic-only descriptions (strip evaluative adjectives + outcome hints from BOTH arms symmetrically; do NOT flip valence toward control = no over-correction; preserve the factual mechanic of each change). real_winner/effect/etc are unchanged ground-truth (never rendered). This is an INTEGRITY FIX; the v1 result is preserved (portfolio_results.txt) and the v2 re-run is reported as a clean replication that separates copy-valence artifact from genuine model prior. Registered prediction (from the audit): dir_acc stays near chance; the 7/8 treatment-rate drops toward ~5/8."
   },
   "scored_cases": [
     {
       "id": "cookiecats_gate_move",
       "domain": "mobile game",
-      "control": "First forced progress gate at level 30",
-      "treatment": "First forced progress gate moved to level 40 (more free play before the wall)",
+      "control": "The first forced progress gate is at level 30.",
+      "treatment": "The first forced progress gate is at level 40.",
       "metric": "7-day retention",
       "real_winner": "control",
       "effect": "gate_30 > gate_40, lift(40-30) = -0.0082 (~95% conf)",
@@ -33,8 +34,8 @@
     {
       "id": "duolingo_weekend_amulet",
       "domain": "edtech",
-      "control": "Miss a day of practice -> lose your streak",
-      "treatment": "Equippable 'Weekend Amulet' item preserves the streak across a skipped weekend",
+      "control": "Missing a day of practice ends the user's streak.",
+      "treatment": "An equippable 'Weekend Amulet' item keeps the streak active through one skipped weekend day.",
       "metric": "week-later return rate",
       "real_winner": "treatment",
       "effect": "+4% week-later return, -5% streak-loss",
@@ -47,8 +48,8 @@
     {
       "id": "msn_realestate_widget",
       "domain": "media/lead-gen",
-      "control": "Incumbent 'Find a home' widget",
-      "treatment": "Simplest, search-like redesigned layout (winner of 6 variants)",
+      "control": "The incumbent 'Find a home' widget.",
+      "treatment": "A redesigned 'Find a home' widget with a search-box-style layout.",
       "metric": "referral revenue",
       "real_winner": "treatment",
       "effect": "+~10% referral revenue",
@@ -61,8 +62,8 @@
     {
       "id": "office_online_redesign",
       "domain": "software e-commerce",
-      "control": "Existing Buy page",
-      "treatment": "Redesign most users found MORE appealing (also hid the price)",
+      "control": "The existing Buy page layout.",
+      "treatment": "A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.",
       "metric": "Buy-button clickers",
       "real_winner": "control",
       "effect": "control won; treatment -64% buy-button clickers",
@@ -76,8 +77,8 @@
     {
       "id": "msn_homepage_extra_offers",
       "domain": "media/portal",
-      "control": "MSN homepage as-is",
-      "treatment": "Add 3 paid offers below the shopping module",
+      "control": "The MSN homepage as-is.",
+      "treatment": "The MSN homepage with 3 additional paid offers placed below the shopping module.",
       "metric": "clicks and page-views per user-day",
       "real_winner": "control",
       "effect": "control won; -0.35% (multi-$M loss)",
@@ -90,8 +91,8 @@
     {
       "id": "tinkoff_defer_passport",
       "domain": "fintech onboarding",
-      "control": "Card application requires passport details at step 2",
-      "treatment": "'Don't remember? Add later' checkbox lets the user defer the required passport field",
+      "control": "The card application requires passport details at step 2.",
+      "treatment": "The card application adds a 'Don't remember? Add later' checkbox that defers the passport field to a later step.",
       "metric": "form conversion",
       "real_winner": "treatment",
       "effect": "+35.8% (~100% conf, n=265k)",
@@ -104,8 +105,8 @@
     {
       "id": "cxl_form_fields_9_to_6",
       "domain": "lead/signup form",
-      "control": "9-field form",
-      "treatment": "6-field form (cut the 3 MOST-engaged-with fields)",
+      "control": "A 9-field form.",
+      "treatment": "A 6-field form (three of the nine fields removed).",
       "metric": "conversions",
       "real_winner": "control",
       "effect": "control won; treatment -14% conversions",
@@ -118,8 +119,8 @@
     {
       "id": "multistep_form_3_vs_6",
       "domain": "lead-gen",
-      "control": "6-step form",
-      "treatment": "Simplified to 3 steps",
+      "control": "A 6-step form.",
+      "treatment": "A 3-step form (the 6 steps condensed into 3).",
       "metric": "lead conversion",
       "real_winner": "control",
       "effect": "more steps (6) won; re-adding a step recovered conversion",
