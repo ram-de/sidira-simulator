@@ -97,21 +97,8 @@ export default function RootLayout({
   // Wrap in ClerkProvider only when Clerk is configured. Without the publishable
   // key the prebuilt components would throw during render/SSR, so the unconfigured
   // build renders the pre-Clerk tree unchanged (see lib/clerk.ts).
-  //
-  // clerkJSVersion="6": our SDK (@clerk/nextjs 6.39.5) otherwise pins clerk-js
-  // 5.123.13, whose prebuilt <SignIn> CANNOT render Clerk's Client Trust step
-  // (the email-code device verification returned as `needs_client_trust` when
-  // signing in with a password on a NEW device). That left fresh-device sign-in
-  // spinning forever. The Clerk INSTANCE is configured for clerk-js v6
-  // (environment.display_config.clerk_js_version=6) — which is what the hosted
-  // Account Portal loads and why the portal handles new-device verification.
-  // Pinning v6 here aligns the embedded components with the instance + portal so
-  // the prebuilt widget renders the Client Trust step. (The prop is removed in
-  // @clerk/nextjs v7, which would instead require Next.js 15.)
   return clerkEnabled() ? (
-    <ClerkProvider appearance={clerkAppearance} clerkJSVersion="6">
-      {tree}
-    </ClerkProvider>
+    <ClerkProvider appearance={clerkAppearance}>{tree}</ClerkProvider>
   ) : (
     tree
   );
