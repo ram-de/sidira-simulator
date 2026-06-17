@@ -1,0 +1,43 @@
+{
+  "prereg_id": "portfolio-v3-expansion-powered-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-17",
+  "run_location": "prod-box in-container (i-04b155fafcc90042b), user standing campaign approval",
+  "cases_file": "PORTFOLIO_CASES_V3.json",
+  "cases_canonical_sha256": "b88af0a94f4a37129ca5bdbff8378d4c812656ff07f82e3df21b72c37b25e2ef",
+  "what_changed_vs_v2_1": "Appended 7 tier-1 in-scope cases (authored neutral + winners primary-source-verified + INDEPENDENT adversarial valence audit; 3 blocked cases fixed with the auditor's OWN rewrites applied verbatim; wikipedia nudge EXCLUDED). The original 8 v2.1 cases are UNCHANGED. n: 8 -> 15. Same engine/config; same generic conversion elicitation.",
+  "config": {
+    "engine": "live SimulationRunner (blinded control-vs-treatment stimulus, generic conversion metric)",
+    "model_id": "None (Groq llama-3.3-70b default)",
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "scored_cases": 15,
+    "balance": "6 control-won / 9 treatment-won",
+    "headline": "direction_accuracy",
+    "secondary": "rank_rho; PER-CLASS direction_accuracy (control-class vs treatment-class)"
+  },
+  "baselines_to_beat": {
+    "chance": 0.5,
+    "strongest_constant": "always-treatment = 9/15 = 0.600 (the set is treatment-leaning; the headline must beat 0.600, NOT just 0.5, to be non-trivial)",
+    "human_expert_anchor": "Kohavi expert survey ~2.3/8 = 0.29"
+  },
+  "prediction_of_record": {
+    "headline_dir_acc": "0.67 to 0.73 (roughly 10-11 of 15).",
+    "CRITICAL_diagnostic_per_class": "I predict a LARGE per-class gap: treatment-class dir_acc HIGH (~0.85-1.0, ~8-9 of 9) but control-class dir_acc LOW (~0.33, ~2 of 6 — gets cookiecats gate-timing + msn_homepage clutter right; MISSES office_online, cxl, multistep [the v2.1 'simplification/redesign-wins' prior misses] AND etsy infinite-scroll [counter-intuitive: a pro-change tilt predicts the modern infinite-scroll wins, but control won]).",
+    "interpretation_if_confirmed": "A headline that beats always-treatment ONLY because the set is treatment-heavy and the sim has a residual pro-change tilt is NOT a certified balanced positive. The decisive evidence is the per-class gap: if treatment-class >> control-class, the sim is still echoing a pro-change prior on the hard control-won cases, not reasoning symmetrically.",
+    "rank_rho": "predict positive (v2.1 was +0.57), p likely > 0.05 at n=15."
+  },
+  "decision_rule": {
+    "certified_positive_requires": "dir_acc beats always-treatment (0.600) with a margin AND control-class dir_acc is NOT collapsed (>= ~0.5) AND cert passes — i.e. genuine BALANCED discrimination, not a treatment-tilt artifact. Report binomial significance vs 0.5 and vs 0.600.",
+    "if_headline_high_but_control_class_collapsed": "Report as 'power increased, residual pro-change prior on hard control-won cases persists' -> the lever is #221 (de-bias the pro-change prior at outcome elicitation), NOT a victory lap. Still SUGGESTIVE, not certified.",
+    "if_control_class_holds_and_beats_baseline": "FIRST genuinely balanced in-scope signal -> strengthen toward the sellable claim; expand further for significance.",
+    "if_cert_voids": "report VOID."
+  },
+  "honesty_notes": [
+    "The 7 new cases were selected for VALIDITY (verified primary source + in-scope + audit-clean), not winner direction; the treatment-lean is an artifact of which real cases are obtainable (publication bias), reported transparently.",
+    "n=15 is a power step, not a guarantee of significance; to clear chance at ~0.7 needs ~11-12/15 (one-sided binomial p~0.06 at 11/15).",
+    "Memorization risk: amazon/hotmail/pinterest/etsy are medium-memo (eng-famous); price_com/msn_support/linkedin low. If the sim aces only the famous ones, suspect recitation (cross-check vs the held-out probe pattern)."
+  ]
+}
