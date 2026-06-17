@@ -1,0 +1,735 @@
+{
+  "schema_version": "1.1",
+  "company_id": "cookiecats",
+  "run_id": "cookiecats-feasibility",
+  "created_at": "2026-06-17T17:04:53.496511",
+  "n_users": 400,
+  "feature_groups": [
+    "engagement",
+    "retention"
+  ],
+  "personas": [
+    {
+      "id": "P01",
+      "name": "Persona01",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: retention.retention_7 (+1.73\u03c3); retention.retention_1 (-1.09\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 43,
+      "weights": {
+        "by_headcount": 0.1075,
+        "by_orders": null,
+        "by_revenue": null
+      },
+      "stability": 0.5791265986327805,
+      "top_features": [
+        {
+          "feature": "retention_7",
+          "group": "retention",
+          "centroid_value": 1.0,
+          "population_mean": 0.25,
+          "population_std": 0.43355498476206,
+          "z_delta": 1.7298843892006193
+        },
+        {
+          "feature": "retention_1",
+          "group": "retention",
+          "centroid_value": 0.0,
+          "population_mean": 0.5425,
+          "population_std": 0.4988143837878818,
+          "z_delta": -1.0875789023571847
+        }
+      ],
+      "centroid": {
+        "retention_7": 1.0,
+        "retention_1": 0.0
+      },
+      "centroid_full": {
+        "sum_gamerounds": 0.18314094326972938,
+        "retention_1": 0.0,
+        "retention_7": 1.0
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.913236149153274,
+        "retention_1": 1e-09,
+        "retention_7": 1e-09
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": 0.8765913144511805,
+          "retention_1": 0.00030471707975443133,
+          "retention_7": 0.9989600158937595
+        },
+        {
+          "sum_gamerounds": -1.020130991566974,
+          "retention_1": 0.0009405647163912139,
+          "retention_7": 0.9980489648113462
+        },
+        {
+          "sum_gamerounds": 0.1676159244907176,
+          "retention_1": 0.0001278404031672854,
+          "retention_7": 0.9996837574076565
+        },
+        {
+          "sum_gamerounds": 0.9018553771184636,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.615140424018225,
+          "retention_1": 6.603069756121604e-05,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.7029093411191747,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.012319875445083672,
+          "retention_1": 0.0008784503013072726,
+          "retention_7": 0.9999500740890137
+        },
+        {
+          "sum_gamerounds": 0.04034881061954085,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.675018368967729,
+          "retention_1": 0.0,
+          "retention_7": 0.9996478664495118
+        },
+        {
+          "sum_gamerounds": 0.5812387624457419,
+          "retention_1": 0.00036544406436407834,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.2901941817785192,
+          "retention_1": 0.0021416476008704615,
+          "retention_7": 0.9995935849836154
+        },
+        {
+          "sum_gamerounds": 1.2263616880905344,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.5787164676426734,
+          "retention_1": 0.0,
+          "retention_7": 0.9991598435230374
+        },
+        {
+          "sum_gamerounds": 0.6850397090652414,
+          "retention_1": 0.0006505927878247011,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.2909638345015721,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.38975320154683124,
+          "retention_1": 0.00021868859672901294,
+          "retention_7": 1.0
+        }
+      ],
+      "posterior_mean": {
+        "P01": 1.0,
+        "P02": 0.0,
+        "P03": 0.0,
+        "P04": 0.0,
+        "P05": 0.0
+      },
+      "stability_verdict": "unstable",
+      "posterior_entropy": -0.0
+    },
+    {
+      "id": "P02",
+      "name": "Persona02",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: engagement.sum_gamerounds (+0.47\u03c3); retention.retention_7 (+1.73\u03c3); retention.retention_1 (+0.92\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 54,
+      "weights": {
+        "by_headcount": 0.135,
+        "by_orders": null,
+        "by_revenue": null
+      },
+      "stability": 0.9328703703703703,
+      "top_features": [
+        {
+          "feature": "sum_gamerounds",
+          "group": "engagement",
+          "centroid_value": 0.46730042462561355,
+          "population_mean": 1.7763568394002506e-16,
+          "population_std": 1.0,
+          "z_delta": 0.4673004246256134
+        },
+        {
+          "feature": "retention_7",
+          "group": "retention",
+          "centroid_value": 1.0,
+          "population_mean": 0.25,
+          "population_std": 0.43355498476206,
+          "z_delta": 1.7298843892006193
+        },
+        {
+          "feature": "retention_1",
+          "group": "retention",
+          "centroid_value": 1.0,
+          "population_mean": 0.5425,
+          "population_std": 0.4988143837878818,
+          "z_delta": 0.9171748347067503
+        }
+      ],
+      "centroid": {
+        "sum_gamerounds": 0.46730042462561355,
+        "retention_7": 1.0,
+        "retention_1": 1.0
+      },
+      "centroid_full": {
+        "sum_gamerounds": 0.46730042462561355,
+        "retention_1": 1.0,
+        "retention_7": 1.0
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.734579521565907,
+        "retention_1": 1e-09,
+        "retention_7": 1e-09
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": 0.03314338270326744,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 1.1877373030429141,
+          "retention_1": 0.9990913268768746,
+          "retention_7": 0.9980081617888786
+        },
+        {
+          "sum_gamerounds": -0.1137177863881636,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": 0.37697072007677945,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.12486269159934688,
+          "retention_1": 0.9994441365420977,
+          "retention_7": 0.9996433086159414
+        },
+        {
+          "sum_gamerounds": 0.901467208965733,
+          "retention_1": 1.0,
+          "retention_7": 0.9993838322802995
+        },
+        {
+          "sum_gamerounds": 1.6071394117818767,
+          "retention_1": 0.9996405314253413,
+          "retention_7": 0.9996460429360606
+        },
+        {
+          "sum_gamerounds": 0.7388408625716971,
+          "retention_1": 0.9992742804774479,
+          "retention_7": 0.9984320841120545
+        },
+        {
+          "sum_gamerounds": 1.195224123032501,
+          "retention_1": 0.9979221314885907,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -1.0531809019564409,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.4017099036700073,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.7778561109666493,
+          "retention_1": 1.0,
+          "retention_7": 0.9987759837992598
+        },
+        {
+          "sum_gamerounds": 0.7178244584080733,
+          "retention_1": 0.9981889422300894,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -0.13528006893823857,
+          "retention_1": 1.0,
+          "retention_7": 0.9996626400217845
+        },
+        {
+          "sum_gamerounds": -0.429769238751526,
+          "retention_1": 1.0,
+          "retention_7": 0.9991024146134382
+        },
+        {
+          "sum_gamerounds": 0.8167514229655402,
+          "retention_1": 1.0,
+          "retention_7": 1.0
+        }
+      ],
+      "posterior_mean": {
+        "P01": 0.0,
+        "P02": 1.0,
+        "P03": 0.0,
+        "P04": 0.0,
+        "P05": 0.0
+      },
+      "stability_verdict": "highly stable",
+      "posterior_entropy": -0.0
+    },
+    {
+      "id": "P03",
+      "name": "Persona03",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: retention.retention_1 (-1.09\u03c3); retention.retention_7 (-0.58\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 137,
+      "weights": {
+        "by_headcount": 0.3425,
+        "by_orders": null,
+        "by_revenue": null
+      },
+      "stability": 0.8495175496109799,
+      "top_features": [
+        {
+          "feature": "retention_1",
+          "group": "retention",
+          "centroid_value": 0.0,
+          "population_mean": 0.5425,
+          "population_std": 0.4988143837878818,
+          "z_delta": -1.0875789023571847
+        },
+        {
+          "feature": "retention_7",
+          "group": "retention",
+          "centroid_value": 0.0,
+          "population_mean": 0.25,
+          "population_std": 0.43355498476206,
+          "z_delta": -0.5766281297335398
+        }
+      ],
+      "centroid": {
+        "retention_1": 0.0,
+        "retention_7": 0.0
+      },
+      "centroid_full": {
+        "sum_gamerounds": -0.19264230323921364,
+        "retention_1": 0.0,
+        "retention_7": 0.0
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.9982479426719998,
+        "retention_1": 1e-09,
+        "retention_7": 1e-09
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": 0.134735143896597,
+          "retention_1": 0.0014459627328942796,
+          "retention_7": 0.00010230513964028178
+        },
+        {
+          "sum_gamerounds": 0.3874210268694368,
+          "retention_1": 0.0011364623946424639,
+          "retention_7": 0.000824243935767969
+        },
+        {
+          "sum_gamerounds": 0.1842457335521994,
+          "retention_1": 0.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.0190160103402362,
+          "retention_1": 0.0,
+          "retention_7": 0.0008272348654990747
+        },
+        {
+          "sum_gamerounds": 0.5178939467928253,
+          "retention_1": 0.0,
+          "retention_7": 0.0002677252628411601
+        },
+        {
+          "sum_gamerounds": 0.0701882036973683,
+          "retention_1": 0.0001775201162813649,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.5307724681724977,
+          "retention_1": 0.000357001704721309,
+          "retention_7": 0.0008242873759764425
+        },
+        {
+          "sum_gamerounds": 0.41422879632088616,
+          "retention_1": 0.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": -1.0336970092529698,
+          "retention_1": 0.0,
+          "retention_7": 0.0007772288109823668
+        },
+        {
+          "sum_gamerounds": -0.25724846617734215,
+          "retention_1": 0.0,
+          "retention_7": 0.0014433399342491566
+        },
+        {
+          "sum_gamerounds": -0.28676680281983347,
+          "retention_1": 0.0,
+          "retention_7": 0.0002814131031772033
+        },
+        {
+          "sum_gamerounds": 1.7402523872372158,
+          "retention_1": 0.0,
+          "retention_7": 0.0002498575453697524
+        },
+        {
+          "sum_gamerounds": 0.06513376579459276,
+          "retention_1": 0.0009196307357367628,
+          "retention_7": 0.0004379057336192281
+        },
+        {
+          "sum_gamerounds": -1.0510157639890683,
+          "retention_1": 0.0007977890697790292,
+          "retention_7": 0.0006240881317831657
+        },
+        {
+          "sum_gamerounds": 1.5264946664969892,
+          "retention_1": 0.0005070579757016109,
+          "retention_7": 5.2237921489733614e-05
+        },
+        {
+          "sum_gamerounds": -1.3505365240168892,
+          "retention_1": 0.0,
+          "retention_7": 0.0012517617977519638
+        }
+      ],
+      "posterior_mean": {
+        "P01": 0.0,
+        "P02": 0.0,
+        "P03": 1.0,
+        "P04": 0.0,
+        "P05": 0.0
+      },
+      "stability_verdict": "valid",
+      "posterior_entropy": -0.0
+    },
+    {
+      "id": "P04",
+      "name": "Persona04",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: engagement.sum_gamerounds (-2.97\u03c3); retention.retention_7 (+1.73\u03c3); retention.retention_1 (-1.09\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 3,
+      "weights": {
+        "by_headcount": 0.0075,
+        "by_orders": null,
+        "by_revenue": null
+      },
+      "stability": 0.7082868303571428,
+      "top_features": [
+        {
+          "feature": "sum_gamerounds",
+          "group": "engagement",
+          "centroid_value": -2.969659161249082,
+          "population_mean": 1.7763568394002506e-16,
+          "population_std": 1.0,
+          "z_delta": -2.969659161249082
+        },
+        {
+          "feature": "retention_7",
+          "group": "retention",
+          "centroid_value": 1.0,
+          "population_mean": 0.25,
+          "population_std": 0.43355498476206,
+          "z_delta": 1.7298843892006193
+        },
+        {
+          "feature": "retention_1",
+          "group": "retention",
+          "centroid_value": 0.0,
+          "population_mean": 0.5425,
+          "population_std": 0.4988143837878818,
+          "z_delta": -1.0875789023571847
+        }
+      ],
+      "centroid": {
+        "sum_gamerounds": -2.969659161249082,
+        "retention_7": 1.0,
+        "retention_1": 0.0
+      },
+      "centroid_full": {
+        "sum_gamerounds": -2.969659161249082,
+        "retention_1": 0.0,
+        "retention_7": 1.0
+      },
+      "feature_scale": {
+        "sum_gamerounds": 1e-09,
+        "retention_1": 1e-09,
+        "retention_7": 1e-09
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": -2.9701170264554135,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -2.9688152586552756,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -2.9691274932110314,
+          "retention_1": 0.0006898072998697507,
+          "retention_7": 0.9991081013329689
+        },
+        {
+          "sum_gamerounds": -2.969190340824758,
+          "retention_1": 0.0,
+          "retention_7": 0.9993985703017133
+        },
+        {
+          "sum_gamerounds": -2.970336796273458,
+          "retention_1": 0.0,
+          "retention_7": 0.9990064445956647
+        },
+        {
+          "sum_gamerounds": -2.9711180641359607,
+          "retention_1": 6.375738341733588e-05,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -2.9699002929575617,
+          "retention_1": 0.0007400468968032175,
+          "retention_7": 0.999600034396604
+        },
+        {
+          "sum_gamerounds": -2.970654520979187,
+          "retention_1": 0.0,
+          "retention_7": 0.9991797485390391
+        },
+        {
+          "sum_gamerounds": -2.9682058788613728,
+          "retention_1": 0.0,
+          "retention_7": 0.9981836143662857
+        },
+        {
+          "sum_gamerounds": -2.969660434048576,
+          "retention_1": 0.0,
+          "retention_7": 0.9995251978579839
+        },
+        {
+          "sum_gamerounds": -2.9702997376007008,
+          "retention_1": 0.0,
+          "retention_7": 0.9996291060936893
+        },
+        {
+          "sum_gamerounds": -2.9714738564074317,
+          "retention_1": 0.0,
+          "retention_7": 0.9996705994862269
+        },
+        {
+          "sum_gamerounds": -2.968894911501345,
+          "retention_1": 0.000457356829643688,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -2.9684496409429557,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        },
+        {
+          "sum_gamerounds": -2.9686800215235323,
+          "retention_1": 0.00022617851431312172,
+          "retention_7": 0.9981449964843324
+        },
+        {
+          "sum_gamerounds": -2.9700238253443136,
+          "retention_1": 0.0,
+          "retention_7": 1.0
+        }
+      ],
+      "posterior_mean": {
+        "P01": 4.052810735179214e-05,
+        "P02": 0.0,
+        "P03": 0.0,
+        "P04": 0.9999594718926496,
+        "P05": 0.0
+      },
+      "stability_verdict": "unstable",
+      "posterior_entropy": 0.00027985478455410957
+    },
+    {
+      "id": "P05",
+      "name": "Persona05",
+      "description": "Discovered cluster \u2014 LLM naming unavailable. Top distinctive features vs. baseline: retention.retention_1 (+0.92\u03c3); retention.retention_7 (-0.58\u03c3).",
+      "jtbd": "(not generated \u2014 LLM unavailable)",
+      "size": 163,
+      "weights": {
+        "by_headcount": 0.4075,
+        "by_orders": null,
+        "by_revenue": null
+      },
+      "stability": 1.0,
+      "top_features": [
+        {
+          "feature": "retention_1",
+          "group": "retention",
+          "centroid_value": 1.0,
+          "population_mean": 0.5425,
+          "population_std": 0.4988143837878818,
+          "z_delta": 0.9171748347067503
+        },
+        {
+          "feature": "retention_7",
+          "group": "retention",
+          "centroid_value": 0.0,
+          "population_mean": 0.25,
+          "population_std": 0.43355498476206,
+          "z_delta": -0.5766281297335398
+        }
+      ],
+      "centroid": {
+        "retention_1": 1.0,
+        "retention_7": 0.0
+      },
+      "centroid_full": {
+        "sum_gamerounds": 0.01344594808060186,
+        "retention_1": 1.0,
+        "retention_7": 0.0
+      },
+      "feature_scale": {
+        "sum_gamerounds": 0.9678080032176788,
+        "retention_1": 1e-09,
+        "retention_7": 1e-09
+      },
+      "sample_rows": [
+        {
+          "sum_gamerounds": -0.24975432791667732,
+          "retention_1": 0.999497084100064,
+          "retention_7": 0.0012178904370877543
+        },
+        {
+          "sum_gamerounds": -1.374267630644261,
+          "retention_1": 1.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.09894850124928595,
+          "retention_1": 0.9999767272180039,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": -0.33407133000456796,
+          "retention_1": 1.0,
+          "retention_7": 0.0003161798146820059
+        },
+        {
+          "sum_gamerounds": 0.24248654366390493,
+          "retention_1": 0.9990712563931646,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": -1.1440116078721414,
+          "retention_1": 1.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.20079933785655565,
+          "retention_1": 0.9998255596974027,
+          "retention_7": 0.0007939331904940255
+        },
+        {
+          "sum_gamerounds": 0.5427063900536568,
+          "retention_1": 0.9987480664388922,
+          "retention_7": 1.1304560059103099e-05
+        },
+        {
+          "sum_gamerounds": -0.38725361582248596,
+          "retention_1": 1.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 1.1539956623771155,
+          "retention_1": 1.0,
+          "retention_7": 0.001931875281924413
+        },
+        {
+          "sum_gamerounds": -0.4103963641456313,
+          "retention_1": 0.9988989764753309,
+          "retention_7": 0.0009682113878577241
+        },
+        {
+          "sum_gamerounds": 0.31330689379039767,
+          "retention_1": 0.9998755439000355,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.8474027495638866,
+          "retention_1": 1.0,
+          "retention_7": 0.0
+        },
+        {
+          "sum_gamerounds": 0.8390226493196739,
+          "retention_1": 1.0,
+          "retention_7": 0.0008138510066456547
+        },
+        {
+          "sum_gamerounds": 1.2058944264516436,
+          "retention_1": 0.99989245628219,
+          "retention_7": 0.0006741893698847981
+        },
+        {
+          "sum_gamerounds": 0.3412882649760856,
+          "retention_1": 0.9988832802242115,
+          "retention_7": 0.0013017136573260915
+        }
+      ],
+      "posterior_mean": {
+        "P01": 0.0,
+        "P02": 0.0,
+        "P03": 0.0,
+        "P04": 0.0,
+        "P05": 1.0
+      },
+      "stability_verdict": "highly stable",
+      "posterior_entropy": -0.0
+    }
+  ],
+  "cluster_method": "gmm",
+  "k_selected": 5,
+  "encoder_method": "pca",
+  "embedding_dim_per_group": 2,
+  "overall_stability": 0.7604535078632426,
+  "notes": {
+    "stability_method": "per_cluster_jaccard (bootstrap Jaccard, clusterboot-style classify-all variant; Hennig interpretation bands): per-persona stability lives on Persona.stability; bands \u22650.85 highly stable, \u22650.75 valid, \u22640.5 dissolved. overall_stability is the coarse mean-ARI, retained for back-compat.",
+    "per_cluster_jaccard": {
+      "P01": 0.5791265986327805,
+      "P02": 0.9328703703703703,
+      "P03": 0.8495175496109799,
+      "P04": 0.7082868303571428,
+      "P05": 1.0
+    },
+    "holdout": {
+      "test_frac": 0.2,
+      "n_train": 320,
+      "n_test": 80,
+      "train_avg_loglik": 15.343304563183972,
+      "test_avg_loglik": 15.344146474793712,
+      "loglik_gap": -0.0008419116097400092,
+      "proportion_tv_distance": 0.08125
+    }
+  }
+}
