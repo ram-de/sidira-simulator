@@ -41,6 +41,13 @@ export default function SignInPage() {
         forceRedirectUrl={POST_AUTH_URL}
         fallbackRedirectUrl={POST_AUTH_URL}
       />
+      {/* Explicit CAPTCHA mount (Clerk bot protection). Without this element
+          Clerk falls back to an INVISIBLE widget that silently blocks devices
+          it flags as suspicious (new IP / device) — the submit spins forever
+          with no challenge to solve. Rendering the smart widget here gives
+          flagged users an interactive challenge so sign-in can complete. Must
+          NOT sit inside an `overflow:hidden`/clipped ancestor. */}
+      <div id="clerk-captcha" className="auth-captcha" />
     </AuthStage>
   );
 }
@@ -104,9 +111,18 @@ const AUTH_CSS = `
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  overflow:hidden;
   padding:64px 24px 96px;
 }
+/* The CAPTCHA mount: centered under the card. Hidden when Clerk injects no
+   challenge (trusted device) so it leaves no empty gap; visible when a bot
+   challenge is required. Never clip this — the challenge iframe must be fully
+   interactive. */
+.auth-captcha{
+  display:flex;
+  justify-content:center;
+  width:100%;
+}
+.auth-captcha:empty{display:none;}
 .auth-bg{
   position:absolute;
   inset:0;

@@ -93,6 +93,11 @@ export const clerkAppearanceConsole = {
     colorInputBackground: "#26314C", // CONSOLE.c700 — input wells
     colorInputText: "#F2F4F8", // TEXT.hi
     colorDanger: "#F0683C", // STATUS.alert
+    // Clerk derives the neutral shade scale (menu-item text, icons, dividers,
+    // borders) from colorNeutral — default BLACK. On the dark popovers
+    // (org-switcher list, user menu) that paints "Founders", "Manage account",
+    // "Sign out" + their icons near-black-on-dark = invisible. Drive it light.
+    colorNeutral: "#F2F4F8", // TEXT.hi
     borderRadius: "4px",
     fontFamily: FONT_SANS,
   },
@@ -137,6 +142,17 @@ export const clerkAppearanceConsole = {
     dividerText: {
       color: "#929BAE", // TEXT.mut
     },
+    // ── Dark popover legibility (org-switcher list + user menu) ───────────
+    // colorNeutral above fixes most of it; these pin the identifiers + action
+    // rows explicitly so org names ("Founders", "Starter Demo"), the account
+    // email, and the "Manage account" / "Sign out" / "Manage" rows read light
+    // on the dark popover surface rather than near-black.
+    organizationPreviewMainIdentifier: { color: "#F2F4F8" }, // TEXT.hi
+    organizationPreviewSecondaryIdentifier: { color: "#929BAE" }, // TEXT.mut
+    organizationSwitcherPopoverActionButton: { color: "#F2F4F8" }, // TEXT.hi
+    userPreviewMainIdentifier: { color: "#F2F4F8" }, // TEXT.hi
+    userPreviewSecondaryIdentifier: { color: "#929BAE" }, // TEXT.mut
+    userButtonPopoverActionButton: { color: "#F2F4F8" }, // TEXT.hi
     // The org switcher trigger is the workspace chip in the dark rail — the org
     // NAME must read as light text (TEXT.hi) over the console surface.
     organizationSwitcherTrigger: {
