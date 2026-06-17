@@ -921,6 +921,15 @@
   overflow:hidden;
   text-overflow:ellipsis;
 }
+/* production rail footer (AppShellV2): pins the real AuthControls (Clerk org
+   switcher + user button) to the bottom of the rail. Empty when Clerk is off
+   in dev — collapses to nothing, no border/box. */
+.v2-rail-account-slot{
+  margin-top:auto;
+}
+.v2-rail-account-slot:empty{
+  display:none;
+}
 /* ── content column ────────────────────────────────────────────────────── */
 .v2-appframe-content{
   display:flex;
@@ -1013,4 +1022,236 @@
      it can't slide under the rail (both were pinned at top:0). */
   .v2-appbar{position:static;padding:var(--space-cozy) var(--space-room);}
   .v2-appmain{padding:var(--space-room);}
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   /simulations Reading Console — the LIVE hypotheses register reskin (#372).
+   Ported grid from the /v2/simulations-list mock, refitted to the REAL columns
+   (ID · Hypothesis · Sim agreement·raw · Verdict·policy · Last run). No
+   directional-reading / lift column — §8.1 forbids a verdict without a
+   persisted policy, so the real list states the absence instead. Token-driven
+   only; numerals carry .v2-tnum at the markup level.
+   ─────────────────────────────────────────────────────────────────────────── */
+.v2-sims{
+  max-width:1120px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-room);
+}
+/* ── header strip: count clause + the honesty designator ─────────────────── */
+.v2-sims-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-base);
+  flex-wrap:wrap;
+}
+.v2-sims-count{
+  font-size:0.8125rem;
+  color:var(--text-mut);
+  letter-spacing:0.04em;
+  white-space:nowrap;
+}
+.v2-sims-count .v2-mono{
+  color:var(--text);
+}
+.v2-sims-law{
+  margin-left:auto;
+  font-size:0.6875rem;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  border:1px solid var(--console-line-45);
+  border-radius:var(--r-well);
+  padding:3px 8px;
+  white-space:nowrap;
+}
+/* ── index panel + table ───────────────────────────────────────────────── */
+.v2-sims-panel{
+  padding:var(--space-snug) var(--space-room) var(--space-room);
+}
+.v2-sims-table{
+  display:flex;
+  flex-direction:column;
+}
+.v2-sims-row{
+  display:grid;
+  grid-template-columns:116px minmax(0,1fr) 132px 232px 116px;
+  align-items:center;
+  gap:var(--space-base);
+  min-height:52px;
+  padding:var(--space-snug);
+  border-top:1px solid var(--console-line-40);
+  color:var(--text);
+  font-size:0.875rem;
+  transition:background .14s var(--ease-out);
+}
+.v2-sims-row--head{
+  min-height:40px;
+  border-top:none;
+  align-items:end;
+}
+a.v2-sims-row,
+.v2-sims-row--link{
+  cursor:pointer;
+}
+.v2-sims-row--link:hover,
+a.v2-sims-row:hover{
+  background:var(--console-750);
+}
+.v2-sims-row--link:active{
+  transform:translateY(1px);
+}
+/* id — machine designator, mono */
+.v2-sims-c-id{
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:0.8125rem;
+}
+/* hypothesis cell — prose (hi) over capability (mut) */
+.v2-sims-c-name{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.v2-sims-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--text-hi);
+  font-weight:450;
+}
+.v2-sims-name a{
+  color:inherit;
+}
+.v2-sims-name a:hover{
+  color:var(--text-hi);
+}
+.v2-sims-name-empty{
+  color:var(--text-mut);
+  font-style:italic;
+}
+.v2-sims-cap{
+  font-size:0.75rem;
+  color:var(--text-mut);
+}
+/* agreement — right-aligned recorded numeral (RAW · UNCALIBRATED) */
+.v2-sims-c-agree{
+  text-align:right;
+  color:var(--text);
+  white-space:nowrap;
+}
+.v2-sims-c-agree--muted{
+  color:var(--text-mut);
+}
+.v2-sims-agree-tag{
+  display:block;
+  font-size:0.625rem;
+  letter-spacing:0.08em;
+  color:var(--text-mut);
+}
+/* verdict · policy cell — state badge / honesty clause, left-aligned */
+.v2-sims-c-verdict{
+  display:flex;
+  align-items:center;
+  gap:var(--space-snug);
+  min-width:0;
+}
+.v2-sims-state{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-snug);
+}
+/* §8.1 honesty clause for complete rows — no verdict, mono, muted */
+.v2-sims-nopolicy{
+  font-size:0.6875rem;
+  letter-spacing:0.04em;
+  color:var(--text-mut);
+  white-space:nowrap;
+}
+/* live carrier — the single sanctioned pulse under a READING-IN-PROGRESS badge.
+   Signal is reserved for the live state (§1.9). The .v2-console reduced-motion
+   block above freezes it to a static full-opacity underline automatically. */
+.v2-sims-carrier{
+  position:relative;
+}
+.v2-sims-carrier::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-4px;
+  height:2px;
+  background:var(--signal);
+  animation:v2-sims-carrier 3.4s ease-in-out infinite;
+}
+@keyframes v2-sims-carrier{
+  0%,100%{opacity:0.45;}
+  50%{opacity:1;}
+}
+/* last run — recorded date / LIVE, right-aligned */
+.v2-sims-c-when{
+  text-align:right;
+  color:var(--text-mut);
+  font-size:0.8125rem;
+  white-space:nowrap;
+}
+.v2-sims-row--head .v2-sims-c-agree,
+.v2-sims-row--head .v2-sims-c-when{
+  text-align:right;
+}
+/* empty state row — spans the table */
+.v2-sims-empty{
+  padding:22px var(--space-snug);
+  color:var(--text-mut);
+  font-size:0.875rem;
+}
+.v2-sims-empty a{
+  color:var(--text-hi);
+  font-weight:500;
+}
+/* error + loading rows */
+.v2-sims-alert{
+  padding:var(--space-cozy);
+  border:1px solid var(--signal-dim);
+  border-radius:var(--r-well);
+  background:var(--console-750);
+  color:var(--text-hi);
+  font-size:0.875rem;
+}
+.v2-sims-loading{
+  margin:0;
+  color:var(--text-mut);
+  font-size:0.875rem;
+}
+/* ── responsive — fold the secondary columns under the name ──────────────── */
+@media(max-width:920px){
+  .v2-sims-row{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:
+      "name verdict"
+      "meta agree";
+    row-gap:var(--space-snug);
+    align-items:start;
+  }
+  .v2-sims-c-id{display:none;}
+  .v2-sims-c-name{grid-area:name;}
+  .v2-sims-c-verdict{grid-area:verdict;justify-self:end;}
+  .v2-sims-c-agree{grid-area:agree;justify-self:end;}
+  .v2-sims-c-when{display:none;}
+  .v2-sims-row--head{display:none;}
+}
+@media(max-width:560px){
+  .v2-sims-panel{padding:var(--space-snug) var(--space-cozy) var(--space-cozy);}
+  .v2-sims-row{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "name"
+      "verdict"
+      "agree";
+    row-gap:4px;
+  }
+  .v2-sims-c-verdict,
+  .v2-sims-c-agree{justify-self:start;}
 }
