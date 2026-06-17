@@ -336,6 +336,46 @@ tells us a production model swap will not buy directional accuracy on sub-delibe
 
 ---
 
+## 6. Benchmark 3 — Cookie Cats gate move (the first in-scope test, and a structural lesson)
+
+Hillstrom and Upworthy both probe the *perimeter* of what Sidira sells (a marketing nudge, a
+headline). Benchmark 3 is the first to test the **center**: a deliberative reaction to a real
+**product change**. Cookie Cats is a real mobile-game A/B test — the first forced progress gate
+was moved from level 30 to level 40 — measured on 90,189 players. Its ground truth is
+*counter-intuitive*: the **earlier** gate wins on 7-day retention (real lift = −0.0082), even
+though the naive product instinct ("a later wall = more free play = happier players") predicts the
+opposite. A simulator that merely echoes that instinct fails this test.
+
+**The headline result (the clean causal question).** On the whole-population gate_30-vs-gate_40
+comparison for the primary metric (7-day retention), the simulator predicted the **correct,
+counter-intuitive direction**: that moving the gate later *lowers* retention (direction accuracy
+1.0). This is the first time the simulator has called a counter-intuitive *real product-change*
+winner correctly against external ground truth — a genuine, encouraging signal pointing the right
+way, and qualitatively different from the perimeter results.
+
+**The honest caveat (and it is decisive).** That clean comparison is a single case (one population,
+one number), so the null-integrity certificate is **VOID** — a single label cannot be scrambled, so
+the permutation null has no power to rule out leakage. The result is therefore **suggestive, not
+certified**. The only endpoints that clear the 8-case certification floor are by-engagement-octile
+slices, and they sit at chance (rank-ρ −0.46 / +0.05; direction 0.125 / 0.25 on retention_7 /
+retention_1) — but those slices condition on `sum_gamerounds`, a **post-treatment** variable, so they
+are confounded *by construction* (pre-registered as descriptive, not causal) and are a poor scoring
+target.
+
+**The structural lesson (this shapes the whole program).** You cannot manufacture independent cases
+by re-slicing a single experiment. Splitting on a *pre-treatment* trait would preserve the clean
+comparison — but Cookie Cats records **no** pre-treatment trait (only an ID, the arm, and
+post-treatment behavior/outcomes), so no honest within-experiment split exists. Splitting *randomly*
+is valid but hollow: every random slice estimates the *same* tiny effect, so it replicates one bit
+of evidence N times rather than producing N independent bits — a split a sophisticated reviewer would
+rightly reject. **The honest unit of evidence is a whole experiment.** Cookie Cats is therefore
+**case #1 of a directional-accuracy portfolio — and it is a correct one.** Certifying a directional
+claim requires assembling ~8 *different* real product-change experiments, each contributing one clean
+whole-population bit. That portfolio — not any single dataset — is what a sellable in-scope accuracy
+claim will be built on.
+
+---
+
 ## Appendix — running changelog
 - 2026-06-16: Report started. Upworthy null finalized (§3). Hillstrom design,
   heterogeneity-prerequisite PASS, pre-registered prediction, and probe dry-run
@@ -376,4 +416,13 @@ tells us a production model swap will not buy directional accuracy on sub-delibe
   *behavioral* (forced-break psychology), so a wrong sign here would refine the deliberative-vs-
   behavioral boundary rather than simply refute in-scope capability. The run is the next step,
   pending a deliberate go/no-go (it spends API budget on the shared prod box).
+- 2026-06-17: **Cookie Cats Groq pilot — RAN (prereg `fd8cc62a…`, committed before result); §6 added.**
+  The first IN-SCOPE external product-change test. Clean causal whole-population endpoint:
+  **direction accuracy 1.0 on retention_7 — the sim correctly predicted the counter-intuitive winner
+  (later gate hurts retention)** — but VOID (n=1, uncertifiable). The certifiable 8-octile endpoints
+  are at chance, but they condition on a post-treatment mediator (confounded, pre-registered as
+  descriptive). Lesson: independent cases can't be manufactured from one experiment (no pre-treatment
+  covariate to split on; random splits are hollow). **Cookie Cats = case #1 of a directional-accuracy
+  portfolio, and it's correct.** Next: assemble ~8 different real product-change A/Bs to certify a
+  directional claim across whole-experiment cases.
 </content>

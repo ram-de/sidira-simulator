@@ -1,0 +1,52 @@
+COOKIE CATS — FIRST IN-SCOPE EXTERNAL PRODUCT-CHANGE BENCHMARK (Groq pilot, 2026-06-17)
+Prereg canonical SHA-256 (committed BEFORE result): fd8cc62a7a25ab055dd88f705a50ffceb98785a4217a1b6a8c2c77cd3121d8a3
+Model: Groq llama-3.3-70b (default). pop=50/arm, seed=42, n_perm=1000, chunk=2.
+Real data: 90,189 rows (live mirror ryanschaub/Mobile-Games-A-B-Testing-with-Cookie-Cats).
+Product change under test: move first progress gate level 30 (control) -> 40 (treatment).
+
+REAL GROUND TRUTH (confirmed in-container before the run):
+  retention_7: gate_30 = 0.1902, gate_40 = 0.1820  -> lift(40-30) = -0.0082  (gate_30 WINS; counter-intuitive)
+  retention_1: gate_30 ~ 0.4482, gate_40 ~ 0.4423  -> lift(40-30) ~ -0.0059  (near-null, not significant in the real RCT)
+
+== RESULTS (all 4 pre-registered combos) ==
+endpoint     metric        n  cert     dir_acc  rank_rho           VOID
+by-arm       retention_7   1  (n/a)    1.000    0.0                VOID  (uninformative null: single label)
+by-arm       retention_1   1  (n/a)    0.000    0.0                VOID  (uninformative null: single label)
+by-segment   retention_7   8  PASSED   0.125   -0.4637 (p=0.887)   False
+by-segment   retention_1   8  PASSED   0.250   +0.0504 (p=0.458)   False
+
+== HEADLINE (the clean causal directional bit) ==
+by-arm retention_7 direction_accuracy = 1.0 => the simulator predicted the SAME (negative) sign as
+the real RCT: it correctly predicted that moving the gate LATER (gate_40) LOWERS 7-day retention.
+This is the COUNTER-INTUITIVE winner (naive prior says "later gate = more free play = better"); the
+sim did NOT echo the naive prior. ** First time the sim picked a counter-intuitive REAL product-change
+winner correctly on external ground truth. **
+CAVEAT (pre-registered, decisive): n_cases=1 -> the null-integrity certificate is VOID (a single binary
+label cannot be scrambled, so the permutation null has no power to rule out leakage). So this is a
+SUGGESTIVE correct bit, NOT a certified result. It cannot, by itself, be trusted as leakage-free.
+
+== THE CERTIFIABLE ENDPOINTS SHOW NO SIGNAL ==
+The only endpoints that clear the 8-case null-cert floor are the by-segment (engagement-octile) runs,
+and BOTH are at chance: retention_7 rank_rho -0.46 (p=0.89), dir_acc 0.125; retention_1 rank_rho +0.05
+(p=0.46), dir_acc 0.25. CRITICAL: by-segment stratifies on sum_gamerounds, a POST-TREATMENT mediator
+(codex P1, pre-registered) -> the within-octile contrasts are confounded/DESCRIPTIVE, not causal, so
+their per-octile "real" signs are a distorted, poor scoring target. A null here does NOT cleanly mean
+the sim is wrong about the causal effect.
+
+== HONEST VERDICT ==
+Mixed, and structurally so. Cookie Cats is a SINGLE experiment with NO pre-treatment covariates, so:
+  - the only CLEAN causal question (whole-population sign) is n=1 -> uncertifiable (VOID), and there the
+    sim got the counter-intuitive PRIMARY-metric sign RIGHT (encouraging, suggestive);
+  - the only CERTIFIABLE endpoint (8 octiles) is confounded by a post-treatment stratifier -> shows no
+    signal, as a confounded target plausibly would.
+=> This is the FIRST in-scope external signal pointing the RIGHT way, but it is NOT a certified positive.
+   Cookie Cats cannot deliver a certified in-scope positive on its own (one experiment, no covariates).
+   A certified in-scope positive needs MULTIPLE independent real product-change experiments (or one with
+   genuine pre-treatment covariates to support clean CATEs). Secondary metric (retention_1) is a weak
+   target: the real ret1 effect is near-null/non-significant, and by-arm ret1 got the sign wrong but is
+   VOID anyway -> do not over-read.
+
+Engine note: 3 GMM engagement personas (Low/Mid/Heavy) materialized correctly; some Groq rate-limit
+backoff + a couple of sentiment-coercion warnings (benign, did not drop cases: n_dropped=0 everywhere).
+Pack `cookiecats-gate-ab-v1` derived from the representative fixture, not the full population (API image
+is ML-free -> no runtime GMM rebuild); a real-population pack rebuild is the obvious hardening if pursued.
