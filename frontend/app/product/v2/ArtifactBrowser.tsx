@@ -13,7 +13,6 @@ import {
   DistributionPoster,
   PosterFigure,
   CalGlyph,
-  ConsoleWell,
 } from "@/components/v2";
 
 type TabId = "rxn" | "prd" | "fig";
@@ -54,13 +53,15 @@ export function ArtifactBrowser() {
   };
 
   return (
-    // §6.4 — a dark instrument well sitting inside the light Sheet product page.
-    // The well re-asserts the complete Console token scope locally; the tabbed
-    // browser (an instrument view) lives inside it, dark, without inverting the
-    // route. Provenance inside stays Console-styled (route-mode law).
-    <ConsoleWell
-      role="group"
+    <aside
+      className="v2-elevated"
       aria-label="Captured capability snapshot"
+      style={{
+        background: "var(--console-850)",
+        border: "1px solid var(--console-line-60)",
+        borderRadius: "var(--r-frame)",
+        overflow: "hidden",
+      }}
     >
       {/* one Provenance Bar for the whole reading region (§7.3) */}
       <div
@@ -155,7 +156,7 @@ export function ArtifactBrowser() {
         {tab === "prd" ? <PrdPane /> : null}
         {tab === "fig" ? <FigPane /> : null}
       </div>
-    </ConsoleWell>
+    </aside>
   );
 }
 
