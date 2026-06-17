@@ -1,0 +1,39 @@
+{
+  "prereg_id": "hillstrom-rerun-affordance-fix-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-17",
+  "purpose": "Validation re-run of the ad-aversion fix (PR #346, stimulus-affordance rendering). Measures whether a PRINCIPLED, gated rendering-fidelity fix moves the certified direction_accuracy=0.0 off the floor — WITHOUT any Hillstrom-specific or promo-specific rule.",
+  "baseline": {
+    "prereg_sha256": "59dab05c43219cc0bdcaf4cf49ad16ab3b0d5f23c3534d43ea73f2459077dce3",
+    "conversion": {"dir_acc": 0.0, "rank_rho": -0.359, "cert": "PASSED"},
+    "visit": {"dir_acc": 0.0, "rank_rho": -0.293, "cert": "PASSED"}
+  },
+  "config": {
+    "panel_id": "hillstrom-email-rct-v1",
+    "panel_schema": "1.1",
+    "stratifier": "by-segment (PR-C persona-aligned, 8 cases)",
+    "metrics": ["conversion", "visit"],
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "model_id": "None (Groq llama-3.3-70b default)",
+    "ONLY_DIFFERENCE_FROM_BASELINE": "SIDIRA_STIMULUS_AFFORDANCE=1 (the gated affordance clause is ON; identical config otherwise)"
+  },
+  "prediction": {
+    "primary_success_criterion": "direction_accuracy moves OFF 0.0 on BOTH conversion and visit — i.e. the affordance clause lets the blinded agent connect the email component to the site it opens, so at least some per-segment predicted signs flip to POSITIVE (matching the RCT, which shows emails RAISE outcomes).",
+    "point_prediction": "direction_accuracy >= 0.5 on at least one outcome; both strictly > 0.0.",
+    "secondary": "rank_rho (heterogeneity) MAY improve but we do NOT tune toward it and make no directional commitment on it.",
+    "gate": "null-integrity certificate must PASS (8 cases, not underpowered) for the result to count.",
+    "honest_failure_modes": [
+      "(a) direction_accuracy stays at/near 0.0 -> the bias is deeper than rendering fidelity; the fix did NOT work -> report the null, keep the gate OFF, escalate to Option B (elicitation anchor) or model comparison.",
+      "(b) all signs flip positive but heterogeneity rank_rho stays at chance -> partial win (direction fixed, who-responds-more still unsupported) -> report honestly.",
+      "(c) over-correction / cert voids -> report VOID, not trusted."
+    ]
+  },
+  "decision_rule": {
+    "if_dir_acc_improves_both_cert_passes": "the fix is validated on external RCT ground truth -> propose flipping the gate default ON (own PR + its own pre-registered evidence) -> this is a real, measured accuracy improvement = progress toward sellable.",
+    "if_dir_acc_flat": "honest null -> the rendering hypothesis is wrong or insufficient -> next lever (Option B / stronger model).",
+    "report_either_way": "append the delta to BENCHMARK_REPORT.md whether it flatters or not (the discipline is the safeguard against motivated reasoning)."
+  }
+}
