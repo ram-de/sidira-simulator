@@ -1,0 +1,30 @@
+{
+  "title": "Loop iter 2: larger-n Sonnet pass to tighten the rank-ceiling CIs (#342)",
+  "timestamp_utc": "2026-06-17T22:20:42Z",
+  "design": "SAME light blinded clickability elicitation as iter1, on a FRESH DISJOINT slice of 150 representable cases (canonical baseline=variant0 pairing), to reach credible-n (SMR gate 100, MCC gate 150) and tighten CIs",
+  "case_set_hash": "1e54565003e5a00b8ff23b2adfa0ffc2c7c4202bc9181602ed468a3913e9e9d2",
+  "n_cases": 150,
+  "disjoint_from": "the original 60 confirming-run tests",
+  "models": {
+    "groq": "llama-3.3-70b-versatile",
+    "sonnet": "claude-sonnet-4-6"
+  },
+  "arms": [
+    "panel(k=8)",
+    "no_persona"
+  ],
+  "scoring": "directional_gate G0-G11, delta=0.0, budget=37 (top 25%), bootstrap=2000 over experiments, 90% CIs, seed=42",
+  "predicted_from_iter1": {
+    "sonnet_panel_balanced_SMR": 0.66,
+    "sonnet_panel_spearman": 0.19,
+    "sonnet_panel_MCC": 0.33,
+    "groq_panel_spearman": 0.01
+  },
+  "hypotheses": {
+    "H1": "sonnet_panel balanced SMR holds >= 0.62 with Wilson 90% LB > 0.55 at n=150 (above chance, tight)",
+    "H2": "sonnet_panel MCC 90% LB stays > 0 at n=150",
+    "H3": "does sonnet_panel now CLEAR any GO gate? predicted: G5(MCC) maybe; G4(SMR>=0.70) NO; overall verdict NO-GO (sub-decision-grade)"
+  },
+  "decision_rule": "If SMR holds >=0.62 (LB>0.55) and MCC LB>0 at n=150 -> firm 'above-chance but sub-decision-grade' result for the whitepaper; heavy $275 pass only justified if testing the heavy-architecture hypothesis specifically (needs user consent). If signal collapses to chance -> iter1 was n=60 noise; ceiling is model-robust.",
+  "elicitation_prompt_id": "clickability_AB_blinded_v1"
+}
