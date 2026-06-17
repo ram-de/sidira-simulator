@@ -1,0 +1,36 @@
+{
+  "prereg_id": "product-change-directional-portfolio-v2-narrative-normalized",
+  "supersedes_for_this_run": "PREREG_PORTFOLIO.json (v1, canonical SHA 17478e064031038854d3e2e87ceb1e11b0e150bacd8dbd912035903fdb05d2b4) governed the v1 run; that result is SEALED and preserved in portfolio_results.txt. This v2 governs ONLY the clean replication on normalized narratives.",
+  "committed_before_result": true,
+  "_committed_before_result_note": "FINALIZED + committed + pushed to chore/abc-loop-wip BEFORE the v2 re-run. Canonical-JSON SHA-256 of THIS file is in the sidecar .sha256. The pinned cases file is the normalized v2 PORTFOLIO_CASES.json whose own canonical SHA is recorded below; the result must not retrofit either.",
+  "datetime_local": "2026-06-17",
+  "why_v2": "A read-only adapter audit (post-v1) found: (1) the engine RENDERING path is arm-symmetric (no template valence leak), but (2) the authored control/treatment NARRATIVES carried arm-asymmetric VALENCE (treatment described with benefit words: 'more appealing', 'preserves the streak', 'simplest/simplified') and (3) one OUTCOME LEAK ('winner of 6 variants' in msn_realestate's treatment) the v1 blindness test missed ('winner' != 'won'). The adapter forwards these strings verbatim into the blinded stimulus, so the asymmetry reached the model. This is an INTEGRITY DEFECT in v1: the 'structurally blind' claim is compromised, and one of v1's two correct calls (msn_realestate) is leak-contaminated. v2 normalizes both arms to neutral, parallel, mechanic-only descriptions (evaluative adjectives + outcome hints stripped from BOTH arms symmetrically; NO valence flip toward control; factual mechanic preserved). real_winner/effect are unchanged ground truth (never rendered).",
+  "pinned_cases": {
+    "cases_file": "sessions/agent-behavior-spec/portfolio-benchmark/PORTFOLIO_CASES.json (normalized v2)",
+    "cases_canonical_sha256": "7adc72438e3b64b26099e797c0c697e882979eb6560b3ea726e00515b8f60147",
+    "scored_n": 8,
+    "balance": "5/8 control-won (unchanged; normalization does not touch which arm won)"
+  },
+  "config": {
+    "identical_to_v1_except_cases": true,
+    "engine_metric": "conversion (generic, same as v1)",
+    "population_size": 50,
+    "seed": 42,
+    "model_id": "None (Groq llama-3.3-70b default, same as v1)",
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "include_heldout": "false for the scored v2 re-run",
+    "primary_endpoint": "direction_accuracy (HEADLINE).",
+    "secondary_endpoint": "treatment_prediction_rate (how many of 8 the sim calls 'treatment wins') — the DIRECT measure of the pro-change tilt; v1 was 7/8.",
+    "blindness": "v2 strengthens it: arm narratives are now neutral/parallel and the outcome-leak phrase is removed."
+  },
+  "prediction": {
+    "note": "REGISTERED from the audit BEFORE the v2 run. Honest and decisive — this run separates copy-valence ARTIFACT from genuine model PRIOR.",
+    "primary": "direction_accuracy stays NEAR CHANCE (roughly 0.125-0.5; NOT a pass, NOT above the ~2.3/8 expert baseline). The cxl case (v1 treatment copy carried a NEGATIVE signal yet the sim still predicted treatment) already showed a structural pro-change prior independent of copy valence, so removing copy valence should not rescue the score.",
+    "secondary": "the treatment-prediction-rate DROPS from 7/8 toward ~5/8 (some of the v1 tilt was copy-valence, but a residual pro-change prior remains).",
+    "msn_realestate_specific": "with 'winner of 6 variants' removed, the sim may now MISS msn_realestate (its v1 'right' may have been leak-driven). If so, clean dir_acc could fall to ~1/8.",
+    "interpretation_rule": "If dir_acc stays near chance and treatment-rate stays high after normalization -> the pro-change bias is GENUINE (and, by analogy to the model-independent ad-aversion bias, likely intrinsic to introspective single-state elicitation) -> do NOT chase a #221 de-bias; pivot to the honest-null / diagnosed-limit framing. If dir_acc jumps toward/above the expert baseline -> v1 was substantially a copy-valence artifact -> re-open the in-scope-positive question with clean data."
+  },
+  "gate": "null-integrity certificate MUST PASS (n=8 floor) for the v2 result to count; VOID is reported as VOID.",
+  "decision_rule": "Same as v1 PREREG decision_rule, applied to the clean result. This run's main job is INTEGRITY: report the leak, the fix, and the clean number honestly in BENCHMARK_REPORT.md regardless of direction."
+}

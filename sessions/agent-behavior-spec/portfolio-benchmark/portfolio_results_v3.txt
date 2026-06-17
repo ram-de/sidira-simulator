@@ -1,0 +1,91 @@
+PRODUCT-CHANGE DIRECTIONAL PORTFOLIO — v3 EXPANSION (POWERED) RESULT
+====================================================================
+Run: 2026-06-17 08:50→09:03 UTC (EXIT 0), prod-box in-container.
+Prereg (sealed BEFORE result): PREREG_PORTFOLIO_V3.json, canonical SHA-256
+  3c0c80577e833cfcbbf9b9ea4b1a030dbce2a8feef082482642532a17b61ef42
+Cases: PORTFOLIO_CASES_V3.json, canonical SHA-256
+  b88af0a94f4a37129ca5bdbff8378d4c812656ff07f82e3df21b72c37b25e2ef
+Config: 15 scored cases (the v2.1 8 UNCHANGED + 7 audited tier-1 expansion),
+  Groq default, pop=50, seed=42, n_perm=1000, chunk=2, generic conversion elicitation.
+
+== HEADLINE ==
+direction_accuracy:  0.467  (7/15)        [v2.1 was 0.625 / 5-of-8]
+rank_rho:            0.207  (p = 0.254)   [v2.1 was 0.57]
+null-integrity cert: PASSED (VOID=False, underpowered=False, n=15, dropped=0)
+Baselines: always-treatment 9/15=0.600 ; always-control 6/15=0.400 ; chance 0.5.
+  -> The headline (0.467) is BELOW chance, BELOW always-treatment, and only beats
+     always-control. NOT a certified positive. The expansion did NOT confirm a powered positive.
+
+== PER-CASE (pred delta sign: + => sim predicts treatment wins) ==
+OLD 8 (v2.1 reproduction — IDENTICAL to v2.1, deterministic):
+  ✓ cookiecats_gate_move        control   pred -0.004
+  ✓ duolingo_weekend_amulet     treatment pred +0.006
+  ✓ msn_realestate_widget       treatment pred +0.004
+  ✓ msn_homepage_extra_offers   control   pred -0.030
+  ✓ tinkoff_defer_passport      treatment pred +0.020
+  ✗ office_online_redesign      control   pred +0.004 (->treatment)
+  ✗ cxl_form_fields_9_to_6      control   pred  0.000 (tie)
+  ✗ multistep_form_3_vs_6       control   pred +0.014 (->treatment)
+  OLD subtotal: 5/8 = 0.625  (reproduces v2.1 exactly)
+NEW 7 (expansion):
+  ✓ amazon_credit_card_offer_relocation  treatment pred +0.038
+  ✓ etsy_infinite_scroll_search          control   pred -0.002
+  ✗ linkedin_volunteer_section_value_copy treatment pred -0.006 (->control)
+  ✗ msn_hotmail_link_new_tab             treatment pred -0.002 (->control)
+  ✗ msn_support_personalized_answers     treatment pred  0.000 (tie)
+  ✗ pinterest_signup_color_scheme        treatment pred -0.002 (->control)
+  ✗ price_com_hk_price_ranges            treatment pred -0.002 (->control)
+  NEW subtotal: 2/7 = 0.286  (BELOW chance)
+
+== PER-CLASS (the registered diagnostic) ==
+control-class:   3/6 = 0.500
+treatment-class: 4/9 = 0.444
+=> ROUGHLY EQUAL. NO pro-change tilt this run. This REFUTES my pre-registered prediction
+   (which expected treatment-class HIGH ~0.85-1.0 and control-class LOW ~0.33). My prediction
+   was WRONG in the UN-flattering direction on BOTH the headline (predicted 0.67-0.73, got
+   0.467) and the per-class pattern. A registered prediction wrong against the operator's hope
+   is the credible kind.
+
+== THE HONEST FINDING: the v2.1 5/8 signal does NOT generalize ==
+The original 8 reproduced 5/8, but the 7 NEW real product-change A/Bs scored 2/7 (below chance),
+dragging the headline to ~chance (0.467). So the "strong in-scope signal" read off v2.1 was
+SUBSTANTIALLY the favorable composition of those 8 cases; on a broader, harder, more
+representative sample the sim is at chance. This is exactly why we expanded + pre-registered —
+to avoid overclaiming from a lucky n=8. CAMPAIGN STANDING ON THE IN-SCOPE POSITIVE IS NOW
+WEAKER, not stronger.
+
+== WHY THE NEW CASES FAILED (two non-exclusive honest explanations) ==
+1. COMPOSITION: several new cases are SUBTLE / MICRO / AESTHETIC changes (signup color scheme,
+   mail-link new-tab, price-range display format, OS-tailored answer list) — closer to
+   sub-deliberative NUDGES than to deliberative product changes, exactly the class the Hillstrom
+   result certified the sim is at/near chance on. The 2 it got RIGHT (amazon offer relocation,
+   etsy pagination-vs-infinite-scroll) are the most SUBSTANTIVE/behavioral of the 7. So the
+   sim's real directional skill is NARROWER than v2.1 implied: modest on substantive deliberative
+   changes, at chance on subtle/aesthetic micro-changes. The scope boundary is finer-grained
+   than previously stated.
+2. STIMULUS THINNESS (measurement caveat): 11/15 predicted deltas are near-zero (|Δ|<=0.006),
+   i.e. the sim found little signal. For the audit-NEUTRALIZED micro-cases (e.g. msn_hotmail bare
+   "current tab vs new tab", pinterest "white-on-black vs black-on-white"), the one-sentence
+   blinded stimulus may be too THIN to carry the cue a real user responds to — the very
+   neutralization that removes a leak can also remove the signal. We cannot fully disentangle
+   "genuinely at chance" (expl. 1) from "stimulus inert after neutralization" (expl. 2) here.
+   This is a real BENCHMARK-CONSTRUCTION limitation for subtle cases: the thin stimulus either
+   leaks (pre-audit) or goes inert (post-audit).
+
+== VERDICT (per the pre-registered decision_rule) ==
+"certified_positive_requires dir_acc beats always-treatment (0.600)" — NOT MET (0.467).
+=> NOT a certified positive. The in-scope deliberative positive is NOT established; the
+   expansion tempered (did not confirm) the v2.1 signal. No spin: on this broader set the sim
+   is at chance.
+
+== NEXT (honest options, no victory lap) ==
+(a) SEPARATE the deliberative subset from the micro/aesthetic subset and report per-subset — the
+    signal, if any, lives only in substantive deliberative changes; quantify it cleanly rather
+    than averaging it away. (b) The #221 lever (de-bias outcome elicitation) is NOT indicated
+    this run — there was no pro-change tilt to remove; the failure was near-zero/no-signal, not a
+    directional prior. (c) Stimulus richness: subtle cases may need a richer (still arm-symmetric)
+    rendering than one sentence, or should be excluded as out-of-format. (d) The most defensible
+    customer-facing claim remains the NARROW one: the engine reads SUBSTANTIVE deliberative
+    product-change direction better than chance/experts on the favorable cases, but this does NOT
+    generalize to subtle/aesthetic micro-changes or marketing nudges — a finer scope boundary.
+Artifacts: this file; BENCHMARK_REPORT §7; PREREG_PORTFOLIO_V3.json; v3_ckpt.jsonl (on box).

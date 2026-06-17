@@ -1,0 +1,65 @@
+HILLSTROM FIX-1 DE-CONFOUND RE-RUN — RESULT (2026-06-17, prod-box in-container)
+================================================================================
+Pre-registration SHA-256: f2947b39c04ff0698b87b79add0d1351745b54fa714a0e181fcba50ae0f4668c
+  (PREREG_FIX1.json committed to git BEFORE this result existed)
+Code: origin/main HEAD 974aa766, includes PR #361 (decision_point de-confound).
+Single variable vs the certified run (prereg 59dab05c): ONLY the elicitation
+decision_point changed from "the customer is reading the promotional e-mail in their
+inbox" (fed to BOTH arms incl. No-E-Mail control = the confound) to "the customer is
+looking at their inbox" (email-free; treatment email carried solely by the already-
+arm-correct per-arm structural spec). All else identical: Groq llama-3.3-70b default,
+by-segment, pop=50/arm, seed=42, n_perm=1000, chunk=2, 8 segment-cases, both outcomes.
+Run: conversion 08:17:53→08:25:21 UTC (EXIT 0), visit 08:25→08:33:13 UTC (EXIT 0).
+
+== HEADLINE (both outcomes) ==
+                     CONVERSION        VISIT
+direction_accuracy:  0.0               0.0
+rank_rho (PRIMARY):  -0.1566 (p=0.66)  +0.1928 (p=0.32)
+null-integrity cert: PASSED            PASSED
+VOID:                False             False
+underpowered:        False             False
+n_cases / dropped:   8 / 0             8 / 0
+
+Per-segment (n=2 each, all underpowered; rank_rho within a 2-pt segment is trivially ±1):
+  conversion: high_spender dir 0.0 / mens_buyer 0.0 / mid_tier 0.0 / womens_buyer 0.0
+  visit:      high_spender dir 0.0 / mens_buyer 0.0 / mid_tier 0.0 / womens_buyer 0.0
+
+== VERDICT (per the PRE-REGISTERED decision rule) ==
+RETRACTION threshold was dir_acc >= 0.5 on >= 1 outcome with a passing cert. NOT MET
+(0.0 on BOTH). Per decision_rule.if_dir_acc_stays_near_0_both_with_clean_control:
+  -> The "intrinsic ad-aversion" verdict (BENCHMARK_REPORT §4/§5.1) SURVIVES de-confounding
+     and is STRENGTHENED. The sim STILL predicts emails LOWER both outcomes (treatment-control
+     delta <= 0) across all 4 segments, even though the control agent is no longer told it is
+     reading the email. The decision_point confound was a REAL harness bug (now fixed + guarded
+     by test_hillstrom_decision_point_deconfound), but it was NOT load-bearing for the sign
+     inversion.
+
+== THE PRE-REGISTERED PREDICTION WAS WRONG — IN THE UN-FLATTERING DIRECTION ==
+PREREG_FIX1 predicted dir_acc would move OFF 0.0 (esp. visit). It did not. A registered
+prediction that fails in the direction AGAINST the operator's hope is the most credible
+evidence: it confirms §4/§5.1 is a genuine limit, not a stimulus-construction artifact.
+
+== CONTRAST WITH THE DIRECTIONAL PORTFOLIO (the discriminating result) ==
+Same audit lens, opposite outcome:
+  - Portfolio: de-LEAKING the authored narratives FLIPPED dir_acc 2/8 -> 5-6/8 -> the
+    "pro-change bias" was SUBSTANTIALLY a self-inflicted measurement artifact.
+  - Hillstrom: de-CONFOUNDING the control arm did NOT move dir_acc off 0.0 -> the
+    ad-aversion sign inversion is SUBSTANTIALLY REAL / intrinsic to introspective
+    elicitation of a sub-deliberative marketing nudge.
+The campaign discipline (audit -> fix -> pre-register -> clean re-run) correctly DISTINGUISHED
+an artifact (portfolio) from a real limit (Hillstrom), rather than assuming both were artifacts.
+
+== MODEL-INDEPENDENCE — NARROWED CLAIM ==
+The original "model-independent" claim rested on Groq==Sonnet==0.0 on the CONFOUNDED harness
+(= shared-stimulus agreement, not a true model-independence property — the audit was right to
+flag it). This de-confound re-run re-establishes the bias for GROQ on the CLEAN harness only.
+Whether Sonnet also stays 0.0 on the clean harness is NOT re-tested here. HONEST STANDING: the
+ad-aversion is now confirmed ROBUST TO DE-CONFOUNDING (not a decision_point artifact) for the
+production Groq model; a Sonnet clean re-run is an optional confirmation of model-independence,
+no longer the load-bearing evidence for "intrinsic".
+
+== SCOPE BOUNDARY (unchanged, now battle-tested) ==
+Deliberative product-change reactions = IN scope (portfolio 5/8, far above expert baseline).
+Sub-deliberative marketing nudges (an email that raises visits/conversion you can't introspect)
+= OUT of scope: the engine predicts harm where the RCT shows lift, and this survives a clean
+stimulus. Read blinded-retention/uplift on nudges alongside sentiment, never alone (cf. #222).

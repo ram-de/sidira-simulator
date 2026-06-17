@@ -1,0 +1,56 @@
+{
+  "prereg_id": "class-A-confirmatory-powered-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-17",
+  "run_location": "prod-box in-container (i-04b155fafcc90042b), user standing campaign approval",
+  "purpose": "Out-of-sample CONFIRMATORY test of the exploratory v3 subset finding (substantive-deliberative class scored 7/10=0.70 in-sample). All 14 scored cases are FRESH (none in the v2.1/v3 sets) and all substantive-deliberative. The set is deliberately CONTROL-HEAVY (8 control-won / 6 treatment-won) to power the primary endpoint.",
+  "cases_file": "PORTFOLIO_CASES_CONFIRM.json",
+  "cases_canonical_sha256": "1821242508caef941e5685326e3dfd7539877c0dce953ea0a7b5f8b2bf275308",
+  "audit": {
+    "independent_blind_audit": true,
+    "auditor_blind_guess_accuracy": "6/14 = 0.429 (below chance) -> wording does not leak winners",
+    "auditor_control_won_recall": "2/8 (auditor made the same pro-change error -> cases are hard the right way)",
+    "rewrites_applied_verbatim": 6,
+    "record": "CONFIRM_AUDIT_RESULT.md"
+  },
+  "config": {
+    "engine": "live SimulationRunner (blinded control-vs-treatment stimulus, generic conversion elicitation, direction-only scoring)",
+    "model_id": "None (Groq llama-3.3-70b default)",
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "scored_cases": 14,
+    "balance": "8 control-won / 6 treatment-won"
+  },
+  "baselines_to_beat": {
+    "chance": 0.5,
+    "always_control": "8/14 = 0.571 (the strongest constant baseline on this control-heavy set; headline must beat THIS, not just 0.5)",
+    "always_treatment": "6/14 = 0.429",
+    "human_expert_anchor": "Kohavi expert survey ~2.3/8 = 0.29 directional"
+  },
+  "PRIMARY_endpoint": {
+    "name": "control-class accuracy = (# of the 8 control-won cases the sim predicts control) / 8",
+    "rationale": "Balance-independent; directly measures whether the sim RESISTS its measured pro-change tilt on FRESH adverse-signal cases. Headline-significance is underpowered at any feasible n, so this is the decisive read.",
+    "decision_rule": {
+      "supports_narrow_positive": "control-class >= 0.5 (>=4/8) -> the sim shows balanced discrimination on fresh out-of-sample control-won cases -> escalate toward the narrow sellable claim (substantive deliberative product-change direction), expand for significance.",
+      "confirms_intrinsic_tilt": "control-class <= 3/8 -> pro-change tilt is intrinsic, not a v3 artifact -> the in-scope 'positive' was treatment-lean flattering -> honest bounded-null; the lever is #221 (de-bias the pro-change prior at outcome elicitation).",
+      "void": "if null-integrity cert VOIDs, report VOID."
+    }
+  },
+  "prediction_of_record": {
+    "PRIMARY_control_class": "I predict the tilt LARGELY PERSISTS: control-class ~2-3/8 (0.25-0.375), i.e. BELOW the 0.5 balanced-discrimination bar. These are adverse-signal / second-order cases (reference-price reset, choice overload, adverse quality signal, engagement-revenue divergence, ad mistiming) where a naive 'would users like this feature?' simulation predicts the feature helps -> treatment -> WRONG. The independent auditor's blind 2/8 on these same cases supports this.",
+    "treatment_class": "~5-6/6 (the sim stays good when the change genuinely wins) -> the asymmetry (high treatment-class, low control-class) IS the pro-change tilt made visible.",
+    "headline_dir_acc": "~0.50-0.57 (driven by high treatment-class + low control-class), roughly TIES the always-control baseline -> NOT a certified positive on the headline. The informative content is the per-class STRUCTURE, not the headline.",
+    "rank_rho": "weak / near zero at n=14.",
+    "what_would_surprise_me": "control-class >= 4/8 would be a genuine, un-predicted positive -> strong evidence the sim can resist its tilt and reason about adverse-signal cases -> the first credible fresh-data narrow positive."
+  },
+  "honesty_notes": [
+    "This prediction is deliberately un-flattering to the product (I expect it to fail the primary). A locked prediction that turns out wrong in the FLATTERING direction (control-class surprisingly high) would therefore be strong, credible positive evidence.",
+    "Control-heavy by design: real control-won product-change cases are scarce (publication bias); 8 is near the obtainable ceiling from primary sources. n=8 control-won is decisive for the tilt question (0-2/8 = tilt; >=4/8 = resistance) even though the headline is underpowered.",
+    "Memorization control: the famous jam study and a near-null Bing case are HELD OUT (not scored) so recitation cannot inflate control-class.",
+    "Treatment-won half includes 2 vendor-sourced directional cases (bionicgloves, blivakker) flagged lower-credibility; they only affect the secondary treatment-class, not the primary."
+  ],
+  "cases_scored_content_sha256": "4ef9494fe6dc5e4c59d1a8b42d2098d1c5333d58499d267ecdb82e5da6892cb2",
+  "integrity_note": "Pre-result metadata FORMAT fix (methodology/human_baseline_anchors/further_sources str->dict + balance_check to id-lists) to satisfy the portfolio parser; applied BEFORE any result was observed (the run errored at file-load, never scored). The scored_cases+held_out CONTENT fingerprint is INVARIANT across the fix (cases_scored_content_sha256 4ef9494f\u2026, identical before and after) \u2014 proving the experiment itself was not altered. Original pre-fix full-file SHA was 82d3086f\u2026; new full-file SHA 1821242508\u2026. The content SHA is the binding integrity anchor."
+}

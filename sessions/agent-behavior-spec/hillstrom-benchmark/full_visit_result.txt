@@ -1,0 +1,38 @@
+HILLSTROM POWERED FULL RUN — VISIT (2026-06-17, prod-box in-container, user-approved)
+Pre-registration SHA-256: 59dab05c43219cc0bdcaf4cf49ad16ab3b0d5f23c3534d43ea73f2459077dce3
+(same locked prereg as the conversion arm; committed BEFORE this result existed)
+
+== Run config ==
+metric:             visit
+stratifier:         segment (by-segment, PR-C persona-aligned strata)
+population_size:    50  (per arm)
+cases:              8
+chunk_size:         2
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.2928   (p = 0.7692)
+direction_accuracy: 0.0
+VOID:               False   <-- cleared the >=8-case floor
+
+== Null-integrity certificate (§4) ==
+passed:             True    <-- CERTIFIED
+observed_rank_rho:  -0.2928
+rank_rho_p_value:   0.7692
+underpowered:       False
+
+Stratified honesty table — by segment
+stratum                  n  dir_acc  rank_rho  flat   rand  flags
+segment=high_spender     2    0.000   +1.000   0.000  1.000  underpowered
+segment=mens_buyer       2    0.000   +1.000   0.000  1.000  underpowered
+segment=mid_tier         2    0.000   -1.000   0.000  1.000  underpowered
+segment=womens_buyer     2    0.000   +0.000   0.000  1.000  underpowered
+
+VERDICT (certified, powered): identical pattern to the conversion arm.
+- direction_accuracy 0.0 + PASSING cert => ad-aversion sign inversion CERTIFIED on the
+  VISIT outcome too (sim predicts emails LOWER visits; RCT shows they strongly RAISE them).
+- rank_rho -0.293 (p=0.77) => at chance => no above-chance heterogeneity ranking on visit.
+- Together with the conversion arm: the bias is general across BOTH outcomes, certified at
+  power on external RCT ground truth. Prediction-of-record (positive heterogeneity) REFUTED
+  on both outcomes.

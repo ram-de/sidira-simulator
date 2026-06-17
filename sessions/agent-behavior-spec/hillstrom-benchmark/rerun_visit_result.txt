@@ -1,0 +1,35 @@
+HILLSTROM VALIDATION RE-RUN — VISIT, GATE ON (2026-06-17, prod-box, user-approved)
+Re-run prereg SHA-256: 1e2e3150516d24f732e8655d152b4d61485b047b7d568e37a580aa9ad80f7598
+Affordance fix: SIDIRA_STIMULUS_AFFORDANCE=1 (PR #346). Only difference from baseline.
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.3810   (p = 0.8462)
+direction_accuracy: 0.0
+VOID:               False
+null-cert passed:   True   underpowered: False
+
+== Comparison to certified baseline (gate OFF) ==
+                 baseline(off)   rerun(on)    delta
+direction_acc    0.0             0.0          0.0   (NO improvement)
+rank_rho         -0.293          -0.381       -0.088 (both at chance; noise)
+
+== FINAL VERDICT — Option A (affordance rendering) is an HONEST NULL on BOTH outcomes ==
+                 conversion        visit
+baseline dir_acc 0.0               0.0
+rerun dir_acc    0.0               0.0      <- pre-registered PRIMARY criterion (off 0.0 on
+                                               BOTH) NOT met on either. Fix did not work.
+
+The affordance-rendering hypothesis is REFUTED: surfacing that the email opens the site did
+NOT flip the predicted signs. The ad-aversion bias is deeper than rendering fidelity. Most
+likely mechanism: deliberative/verbalized blinded elicitation cannot capture a marketing-nudge
+effect that operates below conscious deliberation — asked "how often do you visit," the agent
+reasons "an email doesn't make me visit; I visit when I want to," so treatment p <= control p
+regardless of the affordance text.
+
+DECISION: keep SIDIRA_STIMULUS_AFFORDANCE gate OFF (PR #346 stays merged as a defensible
+rendering-fidelity improvement, but it is NOT the bias cure). Next lever = MODEL COMPARISON
+(#342): re-run this exact prereg with a stronger model (claude-sonnet-4-6) to test whether the
+ad-aversion bias is model-dependent (weaker-model reasoning failure) or intrinsic to the
+blinded-elicitation method. Hillstrom is tiny (8 cases) so Sonnet cost is single-digit dollars.

@@ -1,7 +1,7 @@
 {
-  "prereg_id": "cookiecats-gate-move-v1-DRAFT",
-  "committed_before_result": false,
-  "_committed_before_result_note": "DRAFT. The operator must (1) freeze the final config, (2) compute the SHA-256 of this file, (3) commit it BEFORE any sim run, then flip committed_before_result to true. Hashing/commit-before-result is deliberately left to the operator; this draft must not be retrofit after a result.",
+  "prereg_id": "cookiecats-gate-move-v1-groq-pilot",
+  "committed_before_result": true,
+  "_committed_before_result_note": "FINALIZED + committed + pushed to chore/abc-loop-wip BEFORE any sim run, by the operator, after user approval of a Groq pilot (2026-06-16). The canonical SHA-256 below is the rigor anchor; the result must not retrofit this file.",
   "datetime_local": "2026-06-16",
   "purpose": "First IN-SCOPE directional benchmark: a deliberative reaction to a PRODUCT change (the class Sidira actually sells), as a counterweight to the Hillstrom e-mail RCT (an OUT-of-scope marketing nudge where the sim is certified directionally backwards, dir_acc 0.0, model-independent). The product change under test is moving Cookie Cats' first forced progress gate from level 30 (gate_30, control) to level 40 (gate_40, treatment).",
   "dataset": {
@@ -23,24 +23,24 @@
     "primary_causal_endpoint": "by-arm (--by-arm): the SINGLE whole-population gate_30 vs gate_40 A/B. This is the clean, unbiased, pre-registered causal comparison and the directional-accuracy anchor.",
     "secondary_descriptive_endpoint": "by-segment (--by-segment): 8 engagement octiles of pooled sum_gamerounds (eng_o1..eng_o8), each comparing gate_30 vs gate_40 WITHIN the band. Octiles map onto the 3 engagement-tier personas low->heavy (o1-o3 low, o4-o6 mid, o7-o8 heavy) so each stratum conditions on its matching cohort. Used to reach the 8-experiment null-cert floor AND to condition the simulated audience on a realistic engagement cohort.",
     "CRITICAL_post_treatment_caveat": "sum_gamerounds is a POST-TREATMENT variable (rounds played in the first 14 days AFTER randomization; moving the gate can itself change how many rounds a player accrues). Conditioning the by-segment endpoint on this mediator BREAKS the randomized comparison, so the per-octile within-stratum uplifts are DESCRIPTIVE/EXPLORATORY heterogeneity, NOT unbiased causal CATEs. They must be read and reported as descriptive. The by-arm population A/B is the only clean causal endpoint. (codex P1 finding, addressed honestly rather than hidden.)",
-    "expected_cases": "1 (by-arm, causal) or 8 (by-segment, descriptive)",
-    "case_floor": "the 8 engagement octiles == the null-integrity certificate's 8-experiment floor (clears it exactly) for the by-segment run; the by-arm causal endpoint is a single case (reported directionally, below the cert floor by design).",
+    "expected_cases": "1 (by-arm, causal) and 8 (by-segment, descriptive) — both endpoints run",
+    "case_floor": "the 8 engagement octiles == the null-integrity certificate's 8-experiment floor (clears it exactly) for the by-segment run; the by-arm causal endpoint is a single case (reported directionally, below the cert floor by design — no null-cert is claimed for it).",
     "metrics": ["retention_7 (primary)", "retention_1 (secondary)"],
     "engine_metric": "retention (both data outcomes route through the in-scope deliberative `retention` metric; the day window is carried in the decision_point)",
-    "population_size_per_arm": "TBD by operator (suggest 50 for a powered run; keep small for a first pilot)",
-    "seed": "TBD by operator (suggest 42)",
+    "population_size_per_arm": 50,
+    "seed": 42,
     "n_permutations": 1000,
-    "chunk_size": "TBD (suggest 2 for resumability across redeploy)",
-    "model_id": "TBD by operator (None = Groq llama-3.3-70b default; consider also a Sonnet comparison run)",
-    "primary_endpoint": "rank_rho (per-engagement-octile predicted vs real gate-move uplift)",
+    "chunk_size": 2,
+    "model_id": "None (Groq llama-3.3-70b default — the user-approved first pilot; a Sonnet comparison is a separate future prereg if warranted)",
+    "primary_endpoint": "rank_rho (per-engagement-octile predicted vs real gate-move uplift) on the by-segment run; direction_accuracy on the by-arm run is the headline single-bit result",
     "secondary_endpoint": "direction_accuracy (sign agreement: does the sim predict gate_40 LOWERS retention?)"
   },
   "prediction": {
-    "note": "HONEST and UNCERTAIN by design. This block does NOT assume a positive outcome. It is the directional prediction-of-record once the operator freezes + hashes it.",
+    "note": "HONEST and UNCERTAIN by design. This block does NOT assume a positive outcome. It is the directional prediction-of-record now that the operator has frozen + hashed it.",
     "primary_lean": "UNCERTAIN, ~50/50. The sim COULD get the sign right if its agents reason 'a later first wall means I burn through the easy early levels faster, hit a harder slog with less novelty left, and churn' or 'the forced break at level 30 actually paces me and brings me back'. It could equally get it WRONG by echoing the naive 'more free play = better' prior (predicting gate_40 raises retention).",
     "endpoint_sign_prediction": "NO STRONG COMMITMENT. If forced to a point lean: a small risk the sim predicts the WRONG (positive) sign on retention_7, matching naive intuition rather than the RCT. Stated explicitly so a wrong-sign result is a registered outcome, not a surprise.",
     "heterogeneity_prediction": "WEAK/UNCERTAIN. The real gate effect's heterogeneity across engagement bands is itself noisy; we do not predict a clean monotone pattern. Score vs whatever the RCT octiles actually show.",
-    "gate": "The null-integrity certificate MUST PASS for the result to count. A VOID result is reported as VOID, not trusted."
+    "gate": "The null-integrity certificate MUST PASS for the by-segment result to count. A VOID result is reported as VOID, not trusted. The by-arm single-bit result is reported directionally without a cert claim."
   },
   "CRITICAL_behavioral_confound_caveat": {
     "headline": "This is a HARD test, NOT a guaranteed positive — register the confound honestly.",

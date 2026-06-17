@@ -1,0 +1,20 @@
+{
+  "classifications": [
+    {"id": "cookiecats_gate_move", "class": "A", "one_line_reason": "Timing/gating of a forced progress gate (level 30 vs 40) is a substantive flow-structure change a player experiences and weighs."},
+    {"id": "duolingo_weekend_amulet", "class": "A", "one_line_reason": "Adds/removes a feature (streak-saving item) that changes the rules of the habit loop; users consciously notice and value it."},
+    {"id": "msn_realestate_widget", "class": "A", "one_line_reason": "Major layout/paradigm shift to a search-box-style widget changes how the user engages the core function."},
+    {"id": "msn_homepage_extra_offers", "class": "A", "one_line_reason": "Adds a whole content block of 3 extra paid offers; a present/absent section change."},
+    {"id": "tinkoff_defer_passport", "class": "A", "one_line_reason": "Changes flow gating/timing by deferring a required field via a noticeable opt-out; users consciously decide to skip."},
+    {"id": "office_online_redesign", "class": "A", "one_line_reason": "Reorganized layout that removes a content element (price); substantive what-is-shown change."},
+    {"id": "cxl_form_fields_9_to_6", "class": "A", "one_line_reason": "Changes the number of fields in a form; a deliberate effort/commitment factor users weigh."},
+    {"id": "multistep_form_3_vs_6", "class": "A", "one_line_reason": "Changes the number of steps in a flow (6 vs 3); a structural flow change."},
+    {"id": "amazon_credit_card_offer_relocation", "class": "A", "one_line_reason": "Relocates an offer to a contextual moment with a cart-computed dollar amount; a deliberate offer/placement change."},
+    {"id": "etsy_infinite_scroll_search", "class": "A", "one_line_reason": "Pagination vs infinite scroll is the canonical major navigation paradigm shift."},
+    {"id": "linkedin_volunteer_section_value_copy", "class": "B", "one_line_reason": "Adds a single line of persuasive value copy to an existing prompt; minor wording tweak, not a structural change."},
+    {"id": "msn_hotmail_link_new_tab", "class": "B", "one_line_reason": "Same-tab vs new-tab link target; below deliberate attention, the listed B exemplar."},
+    {"id": "msn_support_personalized_answers", "class": "B", "one_line_reason": "Same box, but list content varies by browser/OS; cosmetic content reordering/swap users don't consciously attribute."},
+    {"id": "pinterest_signup_color_scheme", "class": "B", "one_line_reason": "Color scheme inversion (black-on-white vs white-on-black); pure visual styling."},
+    {"id": "price_com_hk_price_ranges", "class": "B", "one_line_reason": "Single price vs a low-to-high range is a price-display formatting tweak, not a different offer."}
+  ],
+  "counts": {"A": 10, "B": 5}
+}

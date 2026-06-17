@@ -1,0 +1,34 @@
+{
+  "prereg_id": "hillstrom-model-comparison-sonnet-v1",
+  "committed_before_result": true,
+  "datetime_local": "2026-06-17",
+  "purpose": "Model comparison: re-run the EXACT certified Hillstrom config with claude-sonnet-4-6 instead of Groq llama-3.3-70b, gate OFF (baseline rendering). Isolates the MODEL variable. Tests whether the certified ad-aversion bias (dir_acc 0.0) is a weaker-model reasoning failure (fixable by model choice) or intrinsic to introspective elicitation.",
+  "baseline": {
+    "model": "Groq llama-3.3-70b",
+    "prereg_sha256": "59dab05c43219cc0bdcaf4cf49ad16ab3b0d5f23c3534d43ea73f2459077dce3",
+    "conversion": {"dir_acc": 0.0, "rank_rho": -0.359, "cert": "PASSED"},
+    "visit": {"dir_acc": 0.0, "rank_rho": -0.293, "cert": "PASSED"}
+  },
+  "config": {
+    "panel_id": "hillstrom-email-rct-v1",
+    "stratifier": "by-segment (8 cases)",
+    "metrics": ["conversion", "visit"],
+    "population_size_per_arm": 50,
+    "seed": 42,
+    "n_permutations": 1000,
+    "chunk_size": 2,
+    "model_id": "claude-sonnet-4-6",
+    "stimulus_affordance_gate": "OFF (baseline rendering — isolates the model variable, no confound with the affordance fix)",
+    "ONLY_DIFFERENCE_FROM_BASELINE": "model_id Groq llama-3.3-70b -> claude-sonnet-4-6"
+  },
+  "cost_estimate": "~$10-25 Anthropic for both outcomes (8 cases x 50/arm x ~2 calls/agent, Hillstrom prompts are compact). Modest; user delegated judgment.",
+  "prediction": {
+    "primary": "UNCERTAIN by design. If the bias is model-dependent, a stronger model partially recovers direction (dir_acc > 0.0 on at least one outcome, some predicted signs flip positive toward the RCT). If the bias is intrinsic to introspective elicitation, dir_acc stays ~0.0 even on Sonnet.",
+    "point_lean": "I lean ~50/50; a capable model MAY reason 'marketing emails do drive some traffic even absent conscious intent' -> some positive signs. No strong commitment.",
+    "gate": "null-integrity certificate must PASS for the result to count.",
+    "honest_outcomes": [
+      "dir_acc improves on Sonnet -> bias is model-dependent -> a stronger production model is a real, measured accuracy lever; consider Sonnet for nudge-class inputs.",
+      "dir_acc stays 0.0 on Sonnet -> bias is intrinsic to introspective elicitation -> confirms the §5.1 honest-scope boundary (deliberative reactions IN, sub-deliberative nudges OUT); strong, publishable, moat-preserving result."
+    ]
+  }
+}

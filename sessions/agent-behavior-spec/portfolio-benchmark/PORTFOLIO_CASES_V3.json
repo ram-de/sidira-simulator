@@ -1,0 +1,303 @@
+{
+  "portfolio_id": "product-change-directional-portfolio-v1",
+  "purpose": "Certify a DIRECTIONAL-accuracy claim for the simulator on the IN-SCOPE deliberative-product-change class, across a curated set of WHOLE-EXPERIMENT cases (each = one real A/B with a known published winner). The unit of evidence is a whole experiment (see BENCHMARK_REPORT.md sec 6); Cookie Cats is case #1 (correct). This portfolio supplies the other independent cases needed to clear the 8-case null-cert floor with GENUINELY independent bits (not re-slices of one experiment).",
+  "methodology": {
+    "structural_reality": "No public source has NAMED treatments + raw per-user data + in-scope product change together (NeurIPS 2021 Liu et al. survey confirms). Cookie Cats is the rare raw-data anchor; all other cases are published narratives with point-estimate outcomes. So the harness scores the sim against the REPORTED winner/direction, not by re-analyzing rows.",
+    "must_run_the_engine": "The sim's claim is that simulating an AUDIENCE yields the right aggregate. So each case MUST be run through the real agent-simulation engine on a rendered control-vs-treatment stimulus, BLINDED to the outcome. Simply asking an LLM 'which wins?' is INVALID \u2014 it measures memorization, not the product.",
+    "scoring": "direction_accuracy (sign agreement: did the sim pick the real winner?) is the headline. Magnitude is OUT of scope for narrative/vendor cases (point estimates are inflated by publication bias). rank_rho across cases where effect sizes are credible (peer-reviewed/first-party only). Null-integrity certificate required (>=8 cases, label variation).",
+    "publication_bias_mitigations": [
+      "BALANCE: keep ~40% control-won cases so a sim that always predicts 'the change wins' cannot score well by default. Current scored set: 8 cases, control-won = Office Online, MSN offers, CXL form-fields, Cookie Cats (gate_30=control wins) = 4/8 = 50%.",
+      "DIRECTION-ONLY scoring for vendor/CRO showcases (effect sizes inflated).",
+      "Report as 'directional accuracy on a HARD, curated set', NOT a population estimate.",
+      "HUMAN BASELINE anchor: Kohavi's expert survey ~2.3/8 correct; MSN Real-Estate widget 3/21 experts predicted the winner. Position the sim against these.",
+      "ALWAYS pull the PRIMARY source's number before scoring (secondary retellings miscite, e.g. Etsy -22%/-50%, Highrise 47% vs 37.5%)."
+    ],
+    "contamination_control": "Famous results an LLM may have memorized are HELD OUT of the scored set into a separate memorization probe. If the sim aces the famous ones but flunks the obscure ones, it is reciting, not reasoning.",
+    "narrative_normalization_v2": "2026-06-17, AFTER the v1 scored run (dir_acc 0.25, pro-change tilt 7/8). A read-only adapter audit found the engine RENDERING path is arm-symmetric, BUT the authored control/treatment NARRATIVES carried arm-asymmetric VALENCE (treatment described with benefit/positive words: 'more appealing', 'preserves the streak', 'simplest/simplified') and one OUTCOME LEAK ('winner of 6 variants' in msn_realestate's treatment \u2014 a direct answer leak the blindness test missed because 'winner' != 'won'). Since the adapter passes these strings VERBATIM into the blinded stimulus, the asymmetry reached the model. v2 NORMALIZES both arms to neutral, parallel, mechanic-only descriptions (strip evaluative adjectives + outcome hints from BOTH arms symmetrically; do NOT flip valence toward control = no over-correction; preserve the factual mechanic of each change). real_winner/effect/etc are unchanged ground-truth (never rendered). This is an INTEGRITY FIX; the v1 result is preserved (portfolio_results.txt) and the v2 re-run is reported as a clean replication that separates copy-valence artifact from genuine model prior. Registered prediction (from the audit): dir_acc stays near chance; the 7/8 treatment-rate drops toward ~5/8.",
+    "expansion_v3": {
+      "date": "2026-06-17",
+      "added": [
+        "price_com_hk_price_ranges",
+        "amazon_credit_card_offer_relocation",
+        "msn_hotmail_link_new_tab",
+        "msn_support_personalized_answers",
+        "pinterest_signup_color_scheme",
+        "linkedin_volunteer_section_value_copy",
+        "etsy_infinite_scroll_search"
+      ],
+      "process": "authored by an LLM agent (neutral mechanic-only blinded strings, winners verified from PRIMARY sources) -> INDEPENDENT adversarial valence audit (separate agent) -> 3 cases BLOCKED for directional steers aligning with the real winner (msn_hotmail benefit framing, msn_support personalization halo, etsy scroll-position retention/loss framing) -> the auditor's OWN proposed neutral rewrites applied VERBATIM (fix authored by the independent party, not the operator) -> amazon light rewrite (borderline) -> linkedin kept as-is (auditor: inherent-mechanic asymmetry, not a leak; rewriting would destroy the real treatment) -> pinterest+price_com clean as authored.",
+      "excluded": "wikipedia_donor_count_framing \u2014 sub-deliberative social-proof NUDGE, out of the in-scope deliberative-product-change class per the Hillstrom-certified boundary; held for a future nudge probe.",
+      "purpose": "increase n (8->15) for statistical POWER toward a CERTIFIED in-scope positive; v2.1 5-6/8 was suggestive but tied the always-control baseline at n=8."
+    }
+  },
+  "scored_cases": [
+    {
+      "id": "cookiecats_gate_move",
+      "domain": "mobile game",
+      "control": "The first forced progress gate is at level 30.",
+      "treatment": "The first forced progress gate is at level 40.",
+      "metric": "7-day retention",
+      "real_winner": "control",
+      "effect": "gate_30 > gate_40, lift(40-30) = -0.0082 (~95% conf)",
+      "counter_intuitive": "high",
+      "contamination": "low-med",
+      "credibility": "high (raw per-user data, 90189 players)",
+      "source": "Cookie Cats A/B; raw mirror ryanschaub/Mobile-Games-A-B-Testing-with-Cookie-Cats",
+      "status": "ALREADY RUN (2026-06-17): clean by-arm dir_acc 1.0 (sign RIGHT) but VOID at n=1; this portfolio gives it company.",
+      "raw_data": true
+    },
+    {
+      "id": "duolingo_weekend_amulet",
+      "domain": "edtech",
+      "control": "Missing a day of practice ends the user's streak.",
+      "treatment": "An equippable 'Weekend Amulet' item keeps the streak active through one skipped weekend day.",
+      "metric": "week-later return rate",
+      "real_winner": "treatment",
+      "effect": "+4% week-later return, -5% streak-loss",
+      "counter_intuitive": "high (a skip-day safety valve 'should' weaken the habit loop; it raised return)",
+      "contamination": "low-med",
+      "credibility": "high (official Duolingo blog)",
+      "source": "Duolingo engineering/blog",
+      "raw_data": false
+    },
+    {
+      "id": "msn_realestate_widget",
+      "domain": "media/lead-gen",
+      "control": "The incumbent 'Find a home' widget.",
+      "treatment": "A redesigned 'Find a home' widget with a search-box-style layout.",
+      "metric": "referral revenue",
+      "real_winner": "treatment",
+      "effect": "+~10% referral revenue",
+      "counter_intuitive": "high (only 3/21 experts predicted the winner; richer designs were the prior)",
+      "contamination": "med",
+      "credibility": "high (Kohavi DMCS 2009, peer-recognized); carries a HUMAN BASELINE 3/21",
+      "source": "Kohavi et al., Online Experimentation at Microsoft (DMCS 2009)",
+      "raw_data": false
+    },
+    {
+      "id": "office_online_redesign",
+      "domain": "software e-commerce",
+      "control": "The existing Buy page layout.",
+      "treatment": "A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.",
+      "metric": "Buy-button clickers",
+      "real_winner": "control",
+      "effect": "control won; treatment -64% buy-button clickers",
+      "counter_intuitive": "high (prettier, better-liked design lost decisively)",
+      "contamination": "med",
+      "credibility": "high (Kohavi DMCS 2009)",
+      "caveat": "Kohavi flags as FLAWED-OEC: treatment HID price so 'clicks' is the wrong metric. Score sim on the STATED metric (clicks -> control) and DISCLOSE the confound.",
+      "source": "Kohavi et al., DMCS 2009",
+      "raw_data": false
+    },
+    {
+      "id": "msn_homepage_extra_offers",
+      "domain": "media/portal",
+      "control": "The MSN homepage as-is.",
+      "treatment": "The MSN homepage with 3 additional paid offers placed below the shopping module.",
+      "metric": "clicks and page-views per user-day",
+      "real_winner": "control",
+      "effect": "control won; -0.35% (multi-$M loss)",
+      "counter_intuitive": "med-high (marketing projected big gains; clutter cost net money)",
+      "contamination": "low-med",
+      "credibility": "high (Kohavi DMCS 2009)",
+      "source": "Kohavi et al., DMCS 2009",
+      "raw_data": false
+    },
+    {
+      "id": "tinkoff_defer_passport",
+      "domain": "fintech onboarding",
+      "control": "The card application requires passport details at step 2.",
+      "treatment": "The card application adds a 'Don't remember? Add later' checkbox that defers the passport field to a later step.",
+      "metric": "form conversion",
+      "real_winner": "treatment",
+      "effect": "+35.8% (~100% conf, n=265k)",
+      "counter_intuitive": "med (letting a required field be skipped feels risky)",
+      "contamination": "med-high",
+      "credibility": "med (VWO showcase; large n + significance) -- DIRECTION-only scoring",
+      "source": "VWO case-study showcase",
+      "raw_data": false
+    },
+    {
+      "id": "cxl_form_fields_9_to_6",
+      "domain": "lead/signup form",
+      "control": "A 9-field form.",
+      "treatment": "A 6-field form (three of the nine fields removed).",
+      "metric": "conversions",
+      "real_winner": "control",
+      "effect": "control won; treatment -14% conversions",
+      "counter_intuitive": "high ('fewer fields always win' is near-universal)",
+      "contamination": "med",
+      "credibility": "med (CXL/Aagaard; client anonymized but plain-words describable) -- DIRECTION-only",
+      "source": "CXL / Michael Aagaard",
+      "raw_data": false
+    },
+    {
+      "id": "multistep_form_3_vs_6",
+      "domain": "lead-gen",
+      "control": "A 6-step form.",
+      "treatment": "A 3-step form (the 6 steps condensed into 3).",
+      "metric": "lead conversion",
+      "real_winner": "control",
+      "effect": "more steps (6) won; re-adding a step recovered conversion",
+      "counter_intuitive": "high (fewer steps is the textbook answer; it lost)",
+      "contamination": "low-med (essentially un-memorizable; client anonymized)",
+      "credibility": "med-low (named practitioner, no % disclosed) -- DIRECTION-only",
+      "source": "named CRO practitioner case",
+      "raw_data": false,
+      "note": "real_winner=control means the FEWER-steps treatment LOST; control(6-step) won. Double-check primary source phrasing at build time."
+    },
+    {
+      "id": "price_com_hk_price_ranges",
+      "domain": "comparison shopping / e-commerce listing",
+      "control": "On a category listing page, each product shows one price: the most recently offered price for that product.",
+      "treatment": "On a category listing page, each product shows a price stated as a low-to-high range across the prices currently offered for that product.",
+      "metric": "product click-throughs per listing-page view",
+      "real_winner": "treatment",
+      "effect": "treatment > control; +3.6% click-throughs (+0.011/listing, p<0.001, n=2.48M views)",
+      "counter_intuitive": "low",
+      "contamination": "low",
+      "credibility": "high (field experiment, 2.5M visits, CI-backed)",
+      "source": "Ng/Plant/Sheng, arXiv:1610.05562",
+      "status": "NEW v3 expansion 2026-06-17; audit CLEAN",
+      "raw_data": false
+    },
+    {
+      "id": "amazon_credit_card_offer_relocation",
+      "domain": "e-commerce / cross-sell placement",
+      "control": "The credit-card offer is placed in the top slot of the home page.",
+      "treatment": "The credit-card offer is placed on the shopping-cart page after an item is added, and states a dollar amount computed from the current cart contents.",
+      "metric": "expected profit per user",
+      "real_winner": "treatment",
+      "effect": "treatment > control on profit despite LOWER CTR; 'tens of millions' annual (magnitude qualitative)",
+      "counter_intuitive": "high",
+      "contamination": "low",
+      "credibility": "med-high (Kohavi KDD 2014); direction-only",
+      "source": "Kohavi et al., Seven Rules of Thumb, KDD 2014",
+      "status": "NEW v3 expansion 2026-06-17; audit BORDERLINE->light rewrite applied (auditor's 'computed from')",
+      "raw_data": false
+    },
+    {
+      "id": "msn_hotmail_link_new_tab",
+      "domain": "media/portal",
+      "control": "Clicking the mail link loads the mail destination in the current tab.",
+      "treatment": "Clicking the mail link loads the mail destination in a new tab.",
+      "metric": "clicks per user on the home page",
+      "real_winner": "treatment",
+      "effect": "treatment > control; +8.9% clicks/user (triggered), replicated on 2.7M users",
+      "counter_intuitive": "low",
+      "contamination": "low",
+      "credibility": "high (Kohavi KDD 2014; replicated)",
+      "source": "Kohavi et al., Seven Rules of Thumb, KDD 2014",
+      "status": "NEW v3 expansion 2026-06-17; audit BLOCKED->auditor rewrite applied verbatim (stripped benefit framing)",
+      "raw_data": false
+    },
+    {
+      "id": "msn_support_personalized_answers",
+      "domain": "support site",
+      "control": "The 'most common issues' box shows a single fixed list of answers.",
+      "treatment": "The 'most common issues' box shows a list of answers that varies by the visitor's browser and operating system.",
+      "metric": "click-through rate on the answers section",
+      "real_winner": "treatment",
+      "effect": "treatment > control; CTR over 50% higher (proof of concept, magnitude qualitative)",
+      "counter_intuitive": "low",
+      "contamination": "low",
+      "credibility": "high source (Kohavi DMCS 2009); direction-only",
+      "source": "Kohavi et al., Online Experimentation at Microsoft, DMCS 2009",
+      "status": "NEW v3 expansion 2026-06-17; audit BLOCKED->auditor rewrite applied verbatim (removed personalization halo)",
+      "raw_data": false
+    },
+    {
+      "id": "pinterest_signup_color_scheme",
+      "domain": "consumer web signup",
+      "control": "The signup page uses black text on a white background.",
+      "treatment": "The signup page uses white text on a black background.",
+      "metric": "daily signups",
+      "real_winner": "treatment",
+      "effect": "treatment > control; +10% daily signups (magnitude not stat-qualified)",
+      "counter_intuitive": "med",
+      "contamination": "low",
+      "credibility": "med (first-party Pinterest Eng); direction-only",
+      "source": "Pinterest Engineering (Jean Yang), Medium",
+      "status": "NEW v3 expansion 2026-06-17; audit CLEAN (model-symmetric)",
+      "raw_data": false
+    },
+    {
+      "id": "linkedin_volunteer_section_value_copy",
+      "domain": "professional network / profile",
+      "control": "A profile-completion module prompts the member to add a volunteer-experience section.",
+      "treatment": "A profile-completion module prompts the member to add a volunteer-experience section and includes the line 'Add more color to your professional identity by showing what you care about.'",
+      "metric": "edits of the volunteer-experience section",
+      "real_winner": "treatment",
+      "effect": "treatment > control; +14% section edits (magnitude not stat-qualified)",
+      "counter_intuitive": "low",
+      "contamination": "med (INHERENT-mechanic asymmetry: the real change IS added persuasive copy; auditor confirmed NOT an authoring leak)",
+      "credibility": "med (first-party LinkedIn Eng); direction-only",
+      "source": "LinkedIn Engineering, XLNT platform",
+      "status": "NEW v3 expansion 2026-06-17; audit BORDERLINE-inherent, kept as-is per auditor (rewrite would destroy the real treatment)",
+      "raw_data": false
+    },
+    {
+      "id": "etsy_infinite_scroll_search",
+      "domain": "e-commerce / search results",
+      "control": "Search results are shown in numbered pages; the user clicks a page link to load more results.",
+      "treatment": "Search results load automatically as the user scrolls, with more results appended below and no page links.",
+      "metric": "search engagement (clicks, favorites, purchases-from-search)",
+      "real_winner": "control",
+      "effect": "control > treatment; infinite scroll reduced clicks/favorites/purchases-from-search (direction-only)",
+      "counter_intuitive": "high",
+      "contamination": "low",
+      "credibility": "med (Dan McKinley/Etsy talk+slides); direction-only",
+      "source": "Dan McKinley (Etsy), Design for Continuous Experimentation",
+      "status": "NEW v3 expansion 2026-06-17; audit BLOCKED->auditor rewrite applied verbatim (removed scroll-position retention/loss framing)",
+      "raw_data": false
+    }
+  ],
+  "held_out_memorization_probe": [
+    {
+      "id": "netflix_browse_before_signup",
+      "change": "registration wall -> let prospects browse catalog first (5 variants)",
+      "real_winner": "control (won all 5); 46% SAID they wanted browsing",
+      "why_held_out": "high contamination (textbook stated-vs-revealed-preference inversion, widely retold)"
+    },
+    {
+      "id": "highrise_simple_person_page",
+      "change": "long info-dense page -> short page w/ big real-customer photo + simple signup",
+      "real_winner": "treatment (+47% paid signups; adding content back = -22%)",
+      "why_held_out": "high contamination (famous 37signals first-party case)"
+    }
+  ],
+  "balance_check": {
+    "scored_n": 15,
+    "control_won": [
+      "cookiecats_gate_move",
+      "office_online_redesign",
+      "msn_homepage_extra_offers",
+      "cxl_form_fields_9_to_6",
+      "multistep_form_3_vs_6",
+      "etsy_infinite_scroll_search"
+    ],
+    "treatment_won": [
+      "duolingo_weekend_amulet",
+      "msn_realestate_widget",
+      "tinkoff_defer_passport",
+      "price_com_hk_price_ranges",
+      "amazon_credit_card_offer_relocation",
+      "msn_hotmail_link_new_tab",
+      "msn_support_personalized_answers",
+      "pinterest_signup_color_scheme",
+      "linkedin_volunteer_section_value_copy"
+    ],
+    "control_won_fraction": "6/15 = 0.400",
+    "treatment_won_fraction": "9/15 = 0.600",
+    "strongest_constant_baseline": "always-treatment = 9/15 = 0.600 (the headline dir_acc must beat THIS, not just chance 0.5)",
+    "note": "v3 expansion (2026-06-17) added 7 tier-1 cases (6 treatment-won, 1 control-won). The set flipped from control-heavy (v2.1 5C/3T, always-control=0.625) to treatment-leaning (now 6C/9T, always-treatment=0.600). NOT perfectly balanced \u2014 control-won real product-change cases are scarce (publication bias). Cases were selected for VALIDITY (verified primary source, in-scope deliberative product change, audit-clean), NOT to engineer balance (winner-based selection would bias). Report per-class accuracy + rank_rho as discrimination evidence alongside the headline."
+  },
+  "human_baseline_anchors": {
+    "kohavi_expert_survey": "~2.3 / 8 correct",
+    "msn_realestate_widget": "3 / 21 experts predicted the winner"
+  },
+  "further_sources": {
+    "more_named_cases": "Kohavi/Tang/Xu corpus: DMCS 2009 (Online Experimentation at Microsoft), Trustworthy Online Controlled Experiments (2020), Five Puzzling Outcomes Explained (KDD 2012), Online Controlled Experiments at Large Scale (KDD 2013). Filter OUT SERP/ranking cases (out of scope). High contamination, no raw data.",
+    "dataset_map": "Liu et al., Datasets for Online Controlled Experiments, NeurIPS 2021 (arXiv:2111.10198) -- enumerates all 13 public OCE datasets; confirms named+raw+in-scope does not co-exist publicly. ASOS = anonymized (useless). Upworthy = headline copy, group-level (already a null for us)."
+  }
+}

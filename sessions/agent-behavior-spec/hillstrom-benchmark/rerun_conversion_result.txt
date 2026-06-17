@@ -1,0 +1,23 @@
+HILLSTROM VALIDATION RE-RUN — CONVERSION, GATE ON (2026-06-17, prod-box, user-approved)
+Re-run prereg SHA-256: 1e2e3150516d24f732e8655d152b4d61485b047b7d568e37a580aa9ad80f7598
+Affordance fix: SIDIRA_STIMULUS_AFFORDANCE=1 (PR #346). Only difference from baseline.
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.2156   (p = 0.7053)
+direction_accuracy: 0.0
+VOID:               False
+null-cert passed:   True   underpowered: False
+
+== Comparison to certified baseline (gate OFF, prereg 59dab05c…) ==
+                 baseline(off)   rerun(on)    delta
+direction_acc    0.0             0.0          0.0   (NO improvement)
+rank_rho         -0.359          -0.216       +0.143 (both at chance; p 0.82 -> 0.71; noise)
+
+Per-segment dir_acc all still 0.000 (every predicted sign still opposite the RCT).
+
+VERDICT (conversion): the affordance-rendering fix did NOT move direction_accuracy off 0.0
+on conversion. Pre-registered failure mode (a): the ad-aversion bias on conversion is deeper
+than the rendering-fidelity hypothesis. rank_rho shift is within chance noise, not signal.
+HONEST NULL for the fix on conversion. (Visit arm pending to complete the picture.)

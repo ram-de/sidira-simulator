@@ -1,0 +1,476 @@
+{
+  "rank_rho": -0.1102721142273844,
+  "direction_accuracy": 0.45,
+  "direction_delta_vs_flat": 0.45,
+  "direction_delta_ci": [
+    0.3333333333333333,
+    0.5666666666666667
+  ],
+  "baselines": [
+    {
+      "name": "always_flat",
+      "direction_accuracy": 0.0,
+      "rank_rho": 0.0
+    },
+    {
+      "name": "random_rank",
+      "direction_accuracy": 0.5022222222222222,
+      "rank_rho": 0.0
+    }
+  ],
+  "certificate": {
+    "n_experiments": 60,
+    "observed_direction_accuracy": 0.45,
+    "observed_rank_rho": -0.1102721142273844,
+    "null_direction_accuracy_mean": 0.4225833333333322,
+    "null_direction_accuracy_ci": [
+      0.3,
+      0.5333333333333333
+    ],
+    "null_rank_rho_mean": 0.001390337812488064,
+    "null_rank_rho_ci": [
+      -0.2451699939739343,
+      0.24583932395407015
+    ],
+    "marginal_chance_accuracy": 0.4222222222222223,
+    "certifying": true,
+    "passed": true,
+    "void_reason": null,
+    "direction_accuracy_p_value": 0.36363636363636365,
+    "rank_rho_p_value": 0.8101898101898102,
+    "underpowered": false,
+    "caveat": null,
+    "n_permutations": 1000,
+    "seed": 42,
+    "integrity_hash": "195d0cef81d67085ea37d4f64fe714f1e38ff01c305aff1deb67d9daafdf0b33"
+  },
+  "void": false,
+  "void_reason": null,
+  "n_cases": 60,
+  "n_dropped": 0,
+  "dropped_case_ids": [],
+  "case_results": [
+    {
+      "case_id": "5494c119376162001e060000:0v2",
+      "source": "upworthy",
+      "observed_lift": 0.008531470952052776,
+      "prediction": -0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "5498d2aa66623000242c0000:0v4",
+      "source": "upworthy",
+      "observed_lift": -0.009338784463698142,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "5499b7b46662300012d80000:0v1",
+      "source": "upworthy",
+      "observed_lift": -0.006859501491574853,
+      "prediction": -0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "549ae7786335660018720000:1v2",
+      "source": "upworthy",
+      "observed_lift": -0.010300271082309891,
+      "prediction": 0.006999999999999999,
+      "dropped": false
+    },
+    {
+      "case_id": "54a0ead13537340012040000:0v1",
+      "source": "upworthy",
+      "observed_lift": -0.004335252559833183,
+      "prediction": -0.006999999999999999,
+      "dropped": false
+    },
+    {
+      "case_id": "54afab5a36633300212a0000:0v5",
+      "source": "upworthy",
+      "observed_lift": -0.00453504488183854,
+      "prediction": -0.003,
+      "dropped": false
+    },
+    {
+      "case_id": "54a17a926262620b5d080000:1v3",
+      "source": "upworthy",
+      "observed_lift": -0.013341101224160726,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54aafa4d62336500240e0000:0v3",
+      "source": "upworthy",
+      "observed_lift": 0.01068095989187599,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54ad4e92653430001b210000:1v2",
+      "source": "upworthy",
+      "observed_lift": -0.007151383813879034,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54aea94f6331630012750000:0v2",
+      "source": "upworthy",
+      "observed_lift": 0.006612909504992895,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54aec502633163001b7b0000:2v4",
+      "source": "upworthy",
+      "observed_lift": -0.009605145536499857,
+      "prediction": -0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54af5366333236001e1f0000:3v4",
+      "source": "upworthy",
+      "observed_lift": 0.005251637042170514,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54b0188033323600246a0000:1v2",
+      "source": "upworthy",
+      "observed_lift": 0.006009917859109239,
+      "prediction": -0.016,
+      "dropped": false
+    },
+    {
+      "case_id": "54b2a7fc32653500151a0000:0v2",
+      "source": "upworthy",
+      "observed_lift": -0.0065319070316321014,
+      "prediction": -0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54b34de66566660015160000:3v5",
+      "source": "upworthy",
+      "observed_lift": 0.005795212763083533,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54b5654c6262660021440000:1v2",
+      "source": "upworthy",
+      "observed_lift": -0.008128773022192257,
+      "prediction": 0.03,
+      "dropped": false
+    },
+    {
+      "case_id": "54b6d78a6338620013420000:0v2",
+      "source": "upworthy",
+      "observed_lift": -0.01120303289183845,
+      "prediction": 0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54b811543865370013040000:2v3",
+      "source": "upworthy",
+      "observed_lift": 0.005386750079947178,
+      "prediction": -0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54b89e763536310021680000:0v2",
+      "source": "upworthy",
+      "observed_lift": -0.005867732414455381,
+      "prediction": -0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54ba656330323500220e0000:0v3",
+      "source": "upworthy",
+      "observed_lift": 0.007848921911421912,
+      "prediction": -0.008,
+      "dropped": false
+    },
+    {
+      "case_id": "54bed57039623600250f0000:3v4",
+      "source": "upworthy",
+      "observed_lift": 0.0064624189295818014,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54c13b913933640019050000:1v3",
+      "source": "upworthy",
+      "observed_lift": -0.003570535536376388,
+      "prediction": -0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54c189aa3933640019220000:0v4",
+      "source": "upworthy",
+      "observed_lift": 0.0027795607017261272,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54c254bb316533001f010000:2v3",
+      "source": "upworthy",
+      "observed_lift": -0.005074155304366498,
+      "prediction": -0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54c970b331663800131d0000:0v4",
+      "source": "upworthy",
+      "observed_lift": 0.01597273851699815,
+      "prediction": 0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54cabf923838370016560000:0v3",
+      "source": "upworthy",
+      "observed_lift": -0.008950419958906984,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54cd84db633031000c040000:1v2",
+      "source": "upworthy",
+      "observed_lift": 0.004739070256633943,
+      "prediction": 0.006,
+      "dropped": false
+    },
+    {
+      "case_id": "54cfc153626231000c690000:2v3",
+      "source": "upworthy",
+      "observed_lift": -0.004443555237370506,
+      "prediction": -0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54d4febc6633650019700000:0v4",
+      "source": "upworthy",
+      "observed_lift": 0.005229885057471265,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54d8cc99376665001a0a0000:1v2",
+      "source": "upworthy",
+      "observed_lift": -0.012658013283294054,
+      "prediction": 0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54d53e8d353765000c4d0000:4v5",
+      "source": "upworthy",
+      "observed_lift": -0.005724362259423756,
+      "prediction": 0.006,
+      "dropped": false
+    },
+    {
+      "case_id": "54da8a00343334000cb00000:2v3",
+      "source": "upworthy",
+      "observed_lift": 0.00491062987028185,
+      "prediction": -0.012,
+      "dropped": false
+    },
+    {
+      "case_id": "54edeebf306531000ce80000:0v5",
+      "source": "upworthy",
+      "observed_lift": -0.003235293534108472,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54dcbcab316134001a000000:1v3",
+      "source": "upworthy",
+      "observed_lift": 0.010032779513927921,
+      "prediction": -0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "5500ed236238300024290000:0v2",
+      "source": "upworthy",
+      "observed_lift": -0.004540088282033535,
+      "prediction": -0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54e5ef5b623362001a550000:1v5",
+      "source": "upworthy",
+      "observed_lift": 0.011649665859342694,
+      "prediction": -0.012,
+      "dropped": false
+    },
+    {
+      "case_id": "54e5f554343139001a8b0000:1v5",
+      "source": "upworthy",
+      "observed_lift": 0.007297247539657941,
+      "prediction": 0.006,
+      "dropped": false
+    },
+    {
+      "case_id": "54e64dc9623534001a530000:0v4",
+      "source": "upworthy",
+      "observed_lift": -0.007856174402062474,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54e6e4d7396534001c330000:1v3",
+      "source": "upworthy",
+      "observed_lift": -0.004811291079207559,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54e736363635310028570000:2v4",
+      "source": "upworthy",
+      "observed_lift": 0.006843171296296295,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54ee088b3065310026520100:0v4",
+      "source": "upworthy",
+      "observed_lift": 0.0036538234464948845,
+      "prediction": 0.018000000000000002,
+      "dropped": false
+    },
+    {
+      "case_id": "54ec8d73326439000c000000:3v4",
+      "source": "upworthy",
+      "observed_lift": 0.007192043339066355,
+      "prediction": -0.006,
+      "dropped": false
+    },
+    {
+      "case_id": "54ebf506656261000c640300:2v5",
+      "source": "upworthy",
+      "observed_lift": -0.011400913395623831,
+      "prediction": 0.012,
+      "dropped": false
+    },
+    {
+      "case_id": "54ee08fe3065310026570100:0v1",
+      "source": "upworthy",
+      "observed_lift": -0.001876571306884172,
+      "prediction": 0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54ee92116533380019220000:0v3",
+      "source": "upworthy",
+      "observed_lift": -0.011732456816995036,
+      "prediction": 0.008,
+      "dropped": false
+    },
+    {
+      "case_id": "54f3a11c6366640026550000:0v4",
+      "source": "upworthy",
+      "observed_lift": -0.0062923805375373325,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54f499563539620026ad0000:2v4",
+      "source": "upworthy",
+      "observed_lift": -0.010150391030058138,
+      "prediction": -0.026000000000000002,
+      "dropped": false
+    },
+    {
+      "case_id": "54f35e3863666400193c0000:0v1",
+      "source": "upworthy",
+      "observed_lift": 0.006560072852266239,
+      "prediction": 0.008,
+      "dropped": false
+    },
+    {
+      "case_id": "54f5c93f663432000c920000:0v2",
+      "source": "upworthy",
+      "observed_lift": 0.004139738611198723,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54f6392e32356100268c0100:0v4",
+      "source": "upworthy",
+      "observed_lift": -0.006974396539864211,
+      "prediction": 0.008,
+      "dropped": false
+    },
+    {
+      "case_id": "54f8d86338313600242b0100:1v3",
+      "source": "upworthy",
+      "observed_lift": 0.006082204711634544,
+      "prediction": 0.004,
+      "dropped": false
+    },
+    {
+      "case_id": "54f75c833135360019290100:3v4",
+      "source": "upworthy",
+      "observed_lift": 0.00525101518432738,
+      "prediction": -0.006,
+      "dropped": false
+    },
+    {
+      "case_id": "54f9c432613164000c6c0000:0v5",
+      "source": "upworthy",
+      "observed_lift": -0.010622379289550815,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "54fc74e23532330019180000:0v1",
+      "source": "upworthy",
+      "observed_lift": 0.006046235173345479,
+      "prediction": 0.0,
+      "dropped": false
+    },
+    {
+      "case_id": "54fe1a9c323333000ce00000:0v1",
+      "source": "upworthy",
+      "observed_lift": 0.0068228103309725,
+      "prediction": -0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "54fdc3df3233330019040000:0v2",
+      "source": "upworthy",
+      "observed_lift": -0.005276284409232387,
+      "prediction": 0.012,
+      "dropped": false
+    },
+    {
+      "case_id": "55084a5b353831001c160000:3v5",
+      "source": "upworthy",
+      "observed_lift": 0.0032266897832501887,
+      "prediction": 0.01,
+      "dropped": false
+    },
+    {
+      "case_id": "550873d465386600180e0000:0v1",
+      "source": "upworthy",
+      "observed_lift": 0.00791350049583752,
+      "prediction": 0.002,
+      "dropped": false
+    },
+    {
+      "case_id": "551f001a326661000c3f0000:2v5",
+      "source": "upworthy",
+      "observed_lift": -0.004664061078228315,
+      "prediction": -0.012,
+      "dropped": false
+    },
+    {
+      "case_id": "55100217663134000c0f0000:0v1",
+      "source": "upworthy",
+      "observed_lift": -0.011197701885978753,
+      "prediction": -0.016,
+      "dropped": false
+    }
+  ],
+  "seed": 42,
+  "_execution_note": "batched chunk=10 pop=100 seed=42 on prod box; predictions checkpointed to /app/local-artifacts/upw_bench/predictions.jsonl; combined stats via blind replay through run_blind_eval (no LLM re-run). prereg sha bbe0c16049923127b4190b338886f49b61f7236909ae6fad764dfdca58008661."
+}

@@ -1,0 +1,34 @@
+HILLSTROM MODEL COMPARISON — VISIT, claude-sonnet-4-6, GATE OFF (2026-06-17, user spend-approved)
+Model-comparison prereg SHA-256: 147236f1ed77d2c394b2e6e45831c198959cd32d1b4dbdc183caf1296997e40d
+Only difference from certified Groq baseline: model_id Groq llama-3.3-70b -> claude-sonnet-4-6.
+
+== Blind-eval result ==
+n_cases:            8
+n_dropped:          0
+rank_rho (PRIMARY): -0.3333   (p = 0.8042)
+direction_accuracy: 0.0
+VOID:               False
+null-cert passed:   True   underpowered: False
+
+per-stratum (each 2 cases, underpowered individually but aggregate clears the 8-case floor):
+  high_spender    dir_acc 0.000   rank_rho +1.000
+  mens_buyer      dir_acc 0.000   rank_rho -1.000
+  mid_tier        dir_acc 0.000   rank_rho +1.000
+  womens_buyer    dir_acc 0.000   rank_rho -1.000
+
+== Comparison (VISIT) ==
+                 Groq baseline   Sonnet       verdict
+direction_acc    0.0             0.0          IDENTICAL — no model effect
+rank_rho         -0.293          -0.333       both at chance (p 0.79 / 0.80)
+
+== MODEL-COMPARISON FINAL VERDICT (both outcomes complete) ==
+                 conversion          visit
+Groq dir_acc     0.0                 0.0
+Sonnet dir_acc   0.0                 0.0
+=> Across BOTH outcomes and BOTH models, direction_accuracy is 0.0 — every predicted sign
+   is opposite the RCT. A frontier model (Sonnet) is EXACTLY as backwards as the smaller Groq
+   model. The ad-aversion bias is MODEL-INDEPENDENT => INTRINSIC to introspective elicitation,
+   not a weak-model reasoning failure. No production model swap fixes it.
+   This closes the pre-registered both-outcome design and removes any "you only showed
+   conversion / you only tried a weak model" objection. Confirms the §5.1 honest-scope
+   boundary: deliberative product-change reactions IN, sub-deliberative marketing nudges OUT.
