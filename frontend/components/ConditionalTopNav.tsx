@@ -22,8 +22,22 @@ export function suppressesGlobalNav(pathname: string | null): boolean {
   );
 }
 
-export default function ConditionalTopNav() {
+// The LIVE /simulations route ships its own v2 shell (AppShellV2) when the v2
+// flag is on, so the global TopNav must be suppressed there to avoid a double
+// nav — but ONLY when the flag is on (#372). The flag value is evaluated on the
+// SERVER (root layout reads the cookie/env via v2Enabled) and passed in as
+// `v2On`, so this stays deterministic across SSR + hydration (no flash, no
+// hydration mismatch). With the flag off, /simulations keeps the normal nav.
+function suppressesForV2Sims(pathname: string | null, v2On: boolean): boolean {
+  if (!v2On || !pathname) return false;
+  // Only the LIST route renders the v2 shell in this pilot. /simulations/[id]
+  // and /simulations/new still render legacy and keep the global TopNav.
+  return pathname === "/simulations";
+}
+
+export default function ConditionalTopNav({ v2On = false }: { v2On?: boolean }) {
   const pathname = usePathname();
   if (suppressesGlobalNav(pathname)) return null;
+  if (suppressesForV2Sims(pathname, v2On)) return null;
   return <TopNav />;
 }

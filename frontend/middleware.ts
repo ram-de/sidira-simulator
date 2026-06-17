@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 import {
@@ -9,6 +9,7 @@ import {
   shouldRedirectProductPathToApp,
 } from "@/lib/site-hosts";
 import { clerkEnabled, SIGN_IN_URL } from "@/lib/clerk";
+import { V2_COOKIE, V2_COOKIE_ON } from "@/lib/v2flag";
 
 const TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim();
 
@@ -131,7 +132,41 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
   return NextResponse.next();
 });
 
-export default clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware;
+// The real auth middleware, chosen by Clerk configuration. Its auth and
+// host-redirect behavior is unchanged from above.
+const authMiddleware = clerkEnabled() ? clerkAuthMiddleware : basicAuthMiddleware;
+
+// Additive v2 preview toggle (#372). We run the real auth middleware first and
+// stamp the sidira_v2 cookie onto WHATEVER Response it returns (next(), a host
+// redirect, a sign-in redirect, or a 401) when the request carries ?v2=1 (set)
+// or ?v2=0 (clear). When neither param is present the response is returned
+// untouched, so all existing auth / host behavior is byte-identical. The cookie
+// is NON-httpOnly on purpose — it is a client-readable preview switch
+// (lib/v2flag.ts), not a credential.
+export default async function middleware(
+  request: NextRequest,
+  event: NextFetchEvent,
+): Promise<Response> {
+  // clerkMiddleware's handler takes (request, event); basicAuthMiddleware
+  // ignores the second arg. Pass both so either implementation works.
+  const response = (await (
+    authMiddleware as (req: NextRequest, ev: NextFetchEvent) => Promise<Response> | Response
+  )(request, event)) as Response;
+
+  const param = request.nextUrl.searchParams.get("v2");
+  if (param === V2_COOKIE_ON) {
+    response.headers.append(
+      "set-cookie",
+      `${V2_COOKIE}=${V2_COOKIE_ON}; Path=/; SameSite=Lax`,
+    );
+  } else if (param === "0") {
+    response.headers.append(
+      "set-cookie",
+      `${V2_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`,
+    );
+  }
+  return response;
+}
 
 export const config = {
   matcher: [
