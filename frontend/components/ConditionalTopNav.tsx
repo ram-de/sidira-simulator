@@ -9,7 +9,11 @@ import TopNav from "@/components/TopNav";
 // mock has exactly one nav. Every other route keeps the global nav unchanged.
 // This client wrapper is the least invasive way to condition the root-layout
 // nav on the pathname without touching middleware or auth paths.
-const SUPPRESS_NAV_PREFIXES = ["/product/v2", "/about/v2"];
+//
+// "/v2" suppresses the whole clean top-level /v2/<slug> preview namespace (e.g.
+// /v2/auth): each page there ships its own self-contained ConsoleShell/Sheet top
+// bar, so the global product TopNav must never render on top of it.
+const SUPPRESS_NAV_PREFIXES = ["/product/v2", "/about/v2", "/v2"];
 
 export function suppressesGlobalNav(pathname: string | null): boolean {
   if (!pathname) return false;
