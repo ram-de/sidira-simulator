@@ -1,0 +1,77 @@
+CLASS-A CONFIRMATORY RUN — RESULT (2026-06-17)  ❌ NARROW POSITIVE REFUTED ON FRESH DATA
+=========================================================================================
+Run: 2026-06-17 ~14:56→15:08 UTC (EXIT 0), prod-box in-container, Groq default.
+Prereg (SEALED before result): PREREG_CLASS_A_CONFIRM.json, prereg canonical SHA
+  f9aa80e6b8fc4724c6f1546d27a9efdf58039ab6da88c3b7bbb956474c235110
+Cases (SEALED): PORTFOLIO_CASES_CONFIRM.json full SHA 1821242508…; scored-CONTENT SHA
+  4ef9494fe6dc5e4c59d1a8b42d2098d1c5333d58499d267ecdb82e5da6892cb2 (the binding anchor).
+Config: 14 scored fresh substantive-deliberative cases (8 control-won / 6 treatment-won),
+  pop=50, seed=42, n_perm=1000, chunk=2, generic conversion elicitation. Held-out NOT scored.
+
+== HEADLINE ==
+direction_accuracy: 0.286 (4/14)     [v3 substantive-subset was 7/10=0.70 in-sample]
+rank_rho:          -0.179 (p=0.758)  null-integrity cert PASSED (VOID=False, 0 dropped)
+Baselines: chance 0.5 ; always-control 8/14=0.571 ; always-treatment 6/14=0.429 ;
+  Kohavi experts ~0.29.
+  -> 0.286 is BELOW chance, BELOW BOTH constant baselines, ~ tied with the human-expert floor.
+     NOT a certified positive — the opposite. A clean, rigorous NEGATIVE.
+
+== PRIMARY ENDPOINT (pre-registered): control-class accuracy ==
+control-class = 2/8 = 0.25.
+  Correct (predicted control): anderson_simester_sale_sign_saturation, office_help_widget.
+  Wrong (predicted treatment): ascarza, kanuri, algesheimer, lambrecht,
+    anderson_simester_installment_billing, dholakia.
+=> My REGISTERED prediction was control-class ~2-3/8 (0.25-0.375). ACTUAL 2/8 = 0.25.
+   PREDICTION CORRECT (locked before the run). Per the decision_rule, control-class <= 3/8
+   => the in-scope "positive" was treatment-lean flattering; the v3 substantive signal does
+   NOT survive on fresh, balanced, audited, out-of-sample data.
+
+== SECONDARY: treatment-class (the SURPRISE that sharpens the finding) ==
+treatment-class = 2/6 = 0.333.
+  Correct (predicted treatment): growthrock_add_star_rating, blivakker_remove_three_reg_fields.
+  Wrong (predicted control): alibaba_recommender_set_size, low_default_charity_pledge,
+    bing_antimalware_ad_removal, bionicgloves_remove_coupon_fields.
+=> I predicted treatment-class HIGH (~5-6/6) as the pro-change-tilt signature. WRONG —
+   treatment-class ALSO collapsed. This REFUTES the simple "pro-change tilt" model: the sim
+   is NOT just betting "the change wins." It fails on BOTH classes.
+
+== THE SHARPER DIAGNOSTIC: a MORE-IS-BETTER bias (not pro-change) ==
+Mapping each prediction to which arm offers MORE (more content/options/features/steps/higher
+value) vs LESS, using the raw signed deltas:
+  Predicted the "MORE/richer/higher" arm in 12/14 cases.
+  The only 2 exceptions (predicted the leaner arm): sale_sign (some<most signs),
+    blivakker (fewer fields).
+Because these counter-intuitive cases mostly have the LEANER / status-quo arm winning, betting
+"more" was wrong ~10/14 times -> 4/14. KEY REFRAME: in v3 the treatments were mostly ADDITIONS,
+so "pro-change" and "more-is-better" coincided; here, by deliberately including REDUCTION
+treatments (fewer products, remove ads, fewer fields, lower default), the bias separated out —
+on those, the sim backed CONTROL (the richer arm), i.e. it did NOT favor the change. So the
+product-framing prior is MORE-IS-BETTER, not pro-change. (Magnitudes are tiny, |Δ|<=0.022,
+mostly <=0.01 — a FAINT richer-arm lean over a near-flat signal, not confident wrongness.)
+NOTE: n=14, hypothesis-grade (12/14 is striking but not a certified law); the deltas are the
+raw evidence (confirm_ckpt.jsonl).
+
+== VERDICT ==
+The v3 exploratory substantive-class signal (7/10=0.70) FAILED TO REPLICATE on a fresh,
+balanced (8C/6T), independently blind-audited (auditor blind-guess 6/14, BELOW chance ->
+no leak), pre-registered set: dir_acc 0.286, below chance and both baselines, both per-class
+accuracies at/below chance. CONCLUSION: there is NO certified in-scope directional positive;
+the v3 0.70 was in-sample favorable composition (+ some high-memorization cases), not a real
+narrow skill. This is the campaign's most rigorous in-scope test and it is decisively NEGATIVE.
+My pre-registered PRIMARY prediction (control-class 2-3/8) was CORRECT in the un-flattering
+direction — the credible kind.
+
+== IMPLICATIONS ==
+- The "narrow substantive-deliberative positive" hope is refuted. The honest-null framing for
+  the whitepaper ([[project-accuracy-whitepaper]]) is now strongly supported across Upworthy
+  (null), Hillstrom (real ad limit), and the portfolio (chance/below on fresh data).
+- #221 ("de-bias the pro-change prior") is the WRONG lever: there is no clean pro-change tilt
+  to remove (treatment-class also failed). If anything, the testable lever is a MORE-IS-BETTER
+  prior — but the signal is so faint (near-zero deltas) that the deeper issue is the engine
+  finds little directional signal on counter-intuitive substantive changes at all.
+- NEXT (honest): (a) record the more-is-better hypothesis for a future targeted probe (pairs
+  that hold "change" fixed but vary "more vs less"); (b) pivot the deliverable to the honest-null
+  measurement report; (c) the only remaining in-scope avenue is first-party Streamly known-good/
+  known-bad validation with REAL per-user data (not published narratives).
+Artifacts: this file; PREREG_CLASS_A_CONFIRM.json(+.sha256); PORTFOLIO_CASES_CONFIRM.json;
+  CONFIRM_AUDIT_RESULT.md; confirm_ckpt.jsonl (on box); BENCHMARK_REPORT §7.

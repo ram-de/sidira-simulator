@@ -591,6 +591,30 @@ the headline must beat 0.5 rather than an inflated constant baseline and n clear
 > ≥0.70 with control-class ≥~0.5 → first genuinely balanced, significant, **narrow** in-scope
 > positive. Artifacts: `portfolio_v3_subset_analysis.txt`, `v3_blind_classification.json(+.sha256)`,
 > `subset_score.py`.
+>
+> **❌ CONFIRMATORY RESULT (2026-06-17) — the narrow positive is REFUTED on fresh data.** We ran
+> the confirmatory test the subset analysis demanded: **14 FRESH substantive-deliberative cases**
+> (none in v2.1/v3), deliberately **control-heavy (8 control-won / 6 treatment-won)** and enriched
+> with control-won "the change backfired" field experiments (Ascarza proactive-churn, Kanuri-
+> Andrews recovery-incentive, Algesheimer eBay-community, Lambrecht-Tucker retargeting, etc.).
+> Integrity: an **independent blind auditor guessed winners 6/14 = 0.43 (below chance) → no leak**,
+> and itself made the same error on these cases (independently confirming they're genuinely hard);
+> pre-registration `f9aa80e6` + cases content-SHA `4ef9494f` **sealed before the run**; primary
+> endpoint pre-declared as **control-class accuracy**. **Result: dir_acc 0.286 (4/14) — BELOW
+> chance, BELOW both constant baselines (always-control 0.571, always-treatment 0.429), ~tied
+> with the Kohavi expert floor; rank-ρ −0.18 (p=0.76); cert passed, 0 dropped.** Per-class:
+> **control-class 2/8 = 0.25** (my pre-registered prediction was 2-3/8 — **correct, un-flattering**)
+> and **treatment-class 2/6 = 0.33** (I predicted ~5-6/6 — **wrong; both classes failed**).
+> **The v3 substantive-class 0.70 did NOT replicate** → it was in-sample favorable composition,
+> not a real narrow skill. **Sharper diagnostic:** the sim predicted the **"more/richer/higher"
+> arm in 12/14 cases** regardless of control/treatment label — so the product-framing bias is
+> **more-is-better, NOT pro-change** (when the treatment was a *reduction*, the sim backed the
+> richer control). Magnitudes are tiny (|Δ|≤0.022) — a faint richer-arm lean over a near-flat
+> signal. **This refutes the #221 "de-bias the pro-change prior" lever** (no clean tilt to remove)
+> and means the honest standing on the in-scope positive is now: **there is none** — on fresh,
+> balanced, audited, pre-registered cases the engine is at/below chance. Artifacts:
+> `portfolio_confirm_result.txt`, `PREREG_CLASS_A_CONFIRM.json(+.sha256)`,
+> `PORTFOLIO_CASES_CONFIRM.json`, `CONFIRM_AUDIT_RESULT.md`, `confirm_ckpt.jsonl`.
 
 **What it means for the program.** The benchmark did its job: it converted "is the sim
 accurate on in-scope product changes?" into a *certified, reproducible* engineering target
