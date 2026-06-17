@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 from sidira_simulator.adapters.llm import get_chat_client, model_is_available
 from sidira_simulator.services.upworthy_archive import load_upworthy_archive
+from sidira_simulator.services.benchmark_adapter import upworthy_test_to_cases
 from sidira_simulator.services.directional_gate import (
     ExperimentRecord, GateConfig, certify,
 )
@@ -86,6 +87,33 @@ def load_cases() -> list[dict]:
         })
     cases.sort(key=lambda c: c["case_id"])  # deterministic order for the prereg hash
     return cases
+
+
+def load_fresh_cases(n: int, exclude_test_ids: set[str]) -> list[dict]:
+    """A fresh, disjoint slice of `n` representable cases, enumerated with the
+    SAME canonical pairing (`upworthy_test_to_cases`, baseline=variant 0) as the
+    original confirming run, excluding the tests used there."""
+    tests, _ = load_upworthy_archive(str(ARCHIVE))
+    cases: list[dict] = []
+    for t in sorted(tests, key=lambda t: t.test_id):
+        if t.test_id in exclude_test_ids:
+            continue
+        for c in upworthy_test_to_cases(t).cases:
+            _, pair = c.case_id.split(":")
+            ci, ti = (int(x) for x in pair.split("v"))
+            ctl, trt = t.variants[ci], t.variants[ti]
+            cases.append({"case_id": c.case_id, "control_hl": ctl.headline,
+                          "treatment_hl": trt.headline,
+                          "observed_lift": trt.ctr - ctl.ctr})
+        if len(cases) >= n:
+            break
+    cases.sort(key=lambda c: c["case_id"])
+    return cases[:n]
+
+
+def original_test_ids() -> set[str]:
+    conf = json.loads((HERE / "confirm_result.json").read_text())
+    return {c["case_id"].split(":")[0] for c in conf["case_results"]}
 
 
 def elicit(client, persona: str | None, hl_control: str, hl_treatment: str,
@@ -161,11 +189,17 @@ def main() -> int:
     ap.add_argument("--models", default="groq,sonnet")
     ap.add_argument("--k", type=int, default=8)
     ap.add_argument("--cases", type=int, default=0, help="limit N cases (0=all)")
+    ap.add_argument("--fresh", type=int, default=0,
+                    help="use a fresh disjoint slice of N cases (0=use confirm-60)")
+    ap.add_argument("--tag", default="", help="suffix for checkpoint/output filenames")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    cases = load_cases()
+    if args.fresh:
+        cases = load_fresh_cases(args.fresh, original_test_ids())
+    else:
+        cases = load_cases()
     if args.cases:
         cases = cases[: args.cases]
     case_set_hash = _sha([c["case_id"] for c in cases])
@@ -176,7 +210,8 @@ def main() -> int:
            "models": {}}
     for mk in args.models.split(","):
         mk = mk.strip()
-        ckpt = HERE / f"mcmp_ckpt_{mk}{'_smoke' if args.smoke else ''}.json"
+        sfx = ('_smoke' if args.smoke else '') + (f'_{args.tag}' if args.tag else '')
+        ckpt = HERE / f"mcmp_ckpt_{mk}{sfx}.json"
         print(f"\n### running {mk} (ckpt {ckpt.name}) ###")
         state = run_model(mk, cases, args.k, ckpt)
         out["models"][mk] = {
@@ -184,7 +219,7 @@ def main() -> int:
             "no_persona": score(cases, state["no_persona"], f"{mk} / NO-PERSONA baseline", args.seed),
         }
     out_path = HERE / (f"model_comparison_smoke.json" if args.smoke
-                       else "model_comparison_result.json")
+                       else f"model_comparison_result{'_'+args.tag if args.tag else ''}.json")
     out_path.write_text(json.dumps(out, indent=2))
     print(f"\nwrote {out_path}")
     return 0
