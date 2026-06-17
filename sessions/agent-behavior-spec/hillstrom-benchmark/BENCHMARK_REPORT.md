@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom powered run certified). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified + fix attempt #1 null). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -256,6 +256,42 @@ then re-run this exact pre-registered benchmark to measure the improvement. The 
 done its job: it converted a vague worry ("is the simulator accurate?") into a specific,
 reproducible, certified engineering target.
 
+### Fix attempt #1 — affordance rendering (an honest null, and a sharper diagnosis)
+
+The first hypothesis for *why* the simulator reads a promotional email as harmful: the blinded
+view it gives each simulated respondent showed the email as a static object, while omitting the
+one fact that makes a marketing email matter — that it is a *clickable prompt that leads back
+into the product*. So we built a fix (gated, off by default) that renders any interactive
+element together with where it leads ("opens: Site"), derived purely from the product's own
+navigation structure — a general fidelity improvement, not a promo-specific rule.
+
+We pre-registered a fresh prediction (hash `1e2e3150…7598`) — that this would move direction
+accuracy off 0.0 — and re-ran the **exact** certified benchmark with only that one setting
+changed:
+
+| outcome | direction accuracy (before → after) | heterogeneity rank-ρ (before → after) |
+|---|---|---|
+| conversion | 0.0 → **0.0** | −0.36 → −0.22 (both at chance) |
+| visit | 0.0 → **0.0** | −0.29 → −0.38 (both at chance) |
+
+**The fix did not work, and we say so.** Direction accuracy stayed pinned at 0.0 on both
+outcomes; the small rank-ρ wobble is statistical noise (both ends sit at chance). Our
+pre-registered prediction was disconfirmed. The fix remains in the codebase as a defensible
+rendering improvement but is **left switched off** — it is not the cure.
+
+**What the null taught us (this is the value).** The bias is *not* an information gap in the
+rendering — the agent had the navigation fact and still predicted harm. The more likely
+mechanism is deeper: a simulated respondent asked to introspect "how often would you visit?"
+reasons deliberately ("an email doesn't *make* me visit; I visit when I want to") and so cannot
+capture a marketing **nudge** — an effect that, in the real world, operates *below* conscious
+deliberation. That is a genuine boundary of verbalized, introspective simulation, and it
+reframes the next experiment: the question is no longer "does the agent have the right facts?"
+but "can this *class* of model reason about sub-deliberative effects at all, or is a more
+capable model required?" The immediate next test is therefore a **model comparison** — re-run
+this identical pre-registered benchmark with a stronger model — which cleanly separates "a
+weaker model's reasoning failure" (fixable by model choice) from "an intrinsic limit of
+introspective elicitation" (which would redefine the product's honest scope).
+
 ---
 
 ## 5. What this report will and won't ever claim
@@ -284,4 +320,9 @@ reproducible, certified engineering target.
   pre-registered positive-heterogeneity prediction is refuted. §4 updated; "pending"
   status retired. Next: fix the bias at elicitation/calibration, then re-run this exact
   pre-registered benchmark to measure the delta.
+- 2026-06-17: **Fix attempt #1 (affordance rendering) — pre-registered (`1e2e3150…`) and
+  re-run; HONEST NULL.** Direction accuracy stayed 0.0 on both conversion and visit; prediction
+  disconfirmed. Fix left in codebase but gated OFF. Sharper diagnosis: the bias is not a
+  rendering information-gap but a deeper limit of introspective elicitation (can't capture a
+  sub-deliberative marketing nudge). Next lever: model comparison (re-run with a stronger model).
 </content>
