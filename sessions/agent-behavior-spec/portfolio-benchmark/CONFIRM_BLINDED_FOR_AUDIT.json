@@ -3,29 +3,29 @@
     {
       "id": "ascarza_proactive_plan_recommendation",
       "domain": "telecom retention",
-      "control": "The firm does not contact the customer; the customer remains on the current plan.",
-      "treatment": "The firm contacts the customer and recommends a different plan with a lower monthly cost for the customer's usage.",
+      "control": "The firm does not contact the customer about their plan.",
+      "treatment": "The firm contacts the customer to discuss their plan, including an alternative plan at a different monthly price point.",
       "metric": "churn over the next 3 months"
     },
     {
       "id": "kanuri_andrews_service_recovery_incentive",
       "domain": "subscription / service recovery",
-      "control": "After a delivery failure, the customer is offered no price-based incentive.",
-      "treatment": "After a delivery failure, the customer is offered a discount or account credit.",
+      "control": "After a delivery failure, the customer receives the firm's standard follow-up with no monetary adjustment.",
+      "treatment": "After a delivery failure, the customer receives the firm's follow-up that includes a monetary adjustment (discount or account credit).",
       "metric": "contract renewal"
     },
     {
       "id": "algesheimer_ebay_community",
       "domain": "marketplace",
-      "control": "The customer is not invited to the marketplace community.",
-      "treatment": "The customer is emailed an invitation to join and participate in the marketplace community.",
+      "control": "The customer is not sent an invitation to the marketplace community.",
+      "treatment": "The customer is sent an email inviting them to the marketplace community.",
       "metric": "amount spent and listings created over the year"
     },
     {
       "id": "lambrecht_tucker_dynamic_retargeting",
       "domain": "display advertising",
-      "control": "The user is shown a generic brand or category banner.",
-      "treatment": "The user is shown a dynamic banner displaying the specific products the user previously browsed.",
+      "control": "The user is shown a brand or product-category banner.",
+      "treatment": "The user is shown a banner displaying particular products the user previously browsed.",
       "metric": "purchase probability"
     },
     {
@@ -38,8 +38,8 @@
     {
       "id": "dholakia_simonson_reference_points",
       "domain": "online auctions",
-      "control": "The listing includes no instruction to compare the price against other items.",
-      "treatment": "The listing includes an added advisory to compare the price against similar items before bidding.",
+      "control": "The listing contains no note about comparing the price with other items.",
+      "treatment": "The listing contains a note suggesting the bidder compare the price with similar items before bidding.",
       "metric": "bidding intensity and seller outcome"
     },
     {
@@ -73,8 +73,8 @@
     {
       "id": "bing_antimalware_ad_removal",
       "domain": "search results page",
-      "control": "The results page includes third-party content injected into the page by software on the user's device.",
-      "treatment": "The results page blocks third-party injection so only first-party content is shown.",
+      "control": "The results page displays both first-party content and additional third-party content originating from software on the user's device.",
+      "treatment": "The results page displays only first-party content; third-party content from software on the user's device is not present.",
       "metric": "time-to-success and revenue"
     },
     {
