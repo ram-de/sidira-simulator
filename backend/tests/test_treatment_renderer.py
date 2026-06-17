@@ -23,6 +23,11 @@ from sidira_simulator.services.treatment_renderer import (
     summarize_reverse_figma,
 )
 
+# #221/#222: stimulus-type keywords the affordance gating MUST NOT consult and
+# MUST NOT emit into the clause. The whole honesty contract is that the rule is
+# structural (a transition out of a screen), not stimulus-type matching.
+_FORBIDDEN_AFFORDANCE_KEYWORDS = ("promo", "ad", "advert", "email", "marketing")
+
 # ── fixtures ────────────────────────────────────────────────────────────────
 
 
@@ -645,3 +650,245 @@ def test_transition_reroute_endpoints_not_listed_as_unchanged() -> None:
     assert "screen `cart`" not in rc.not_changing
     assert "screen `pay`" not in rc.not_changing
     assert "screen `review`" not in rc.not_changing
+
+
+# ── #221/#222 stimulus-affordance rendering (gated, structural, neutral) ──────
+#
+# The certified "advertising-as-harm" bug: the blinded outcome view renders an
+# interactive stimulus (an email, a button, a re-engagement push, a sale banner)
+# as a STATIC structural component while listing the transition that pulls the
+# user into the product SEPARATELY, so the model reads the stimulus as clutter →
+# lower propensity. The fix (Option A) appends a neutral, transition-graph-derived
+# affordance clause naming the destination screen, behind a default-OFF gate.
+#
+# The honesty contract these tests pin down:
+#   1. neutral/factual MECHANIC ("opens: X"), not intent or valence;
+#   2. derived from the structural transition graph, never stimulus-type keywords;
+#   3. symmetric across arms (same rule on the current and proposed figmas);
+#   4. gated default-OFF and byte-identical when OFF (and when ON but nothing has
+#      an outbound cross-screen transition).
+
+
+def _email_stimulus_figma() -> ReverseFigma:
+    """A stimulus surface modelled exactly like the Hillstrom certified bug: an
+    interactive component on a `promo_email` screen whose ONLY structural signal
+    that it pulls the user into the product is an outbound cross-screen transition
+    (`click_email: promo_email → inbox`). The renderer must surface the destination
+    without consulting the screen id / component text / trigger label."""
+    return ReverseFigma(
+        screens=[
+            Screen(id="inbox", name="Inbox", components=[]),
+            Screen(
+                id="promo_email",
+                name="Promotional e-mail",
+                components=[Component(id="email_body", role="body", text="Big sale inside")],
+            ),
+        ],
+        transitions=[
+            Transition(trigger="click_email", from_screen="promo_email", to_screen="inbox")
+        ],
+    )
+
+
+def _button_stimulus_figma() -> ReverseFigma:
+    """The SAME structural shape with a plain button and no stimulus vocabulary —
+    proves the rule fires on structure (an outbound cross-screen transition), not
+    on 'promo'/'email' keywords."""
+    return ReverseFigma(
+        screens=[
+            Screen(id="site", name="Site", components=[]),
+            Screen(
+                id="home",
+                name="Home",
+                components=[Component(id="cta", role="button", text="Continue")],
+            ),
+        ],
+        transitions=[Transition(trigger="tap_cta", from_screen="home", to_screen="site")],
+    )
+
+
+def test_affordance_gate_off_is_byte_identical(monkeypatch) -> None:
+    """Gate OFF (the default) → the render is byte-for-byte the historical output
+    for a stimulus figma: NO affordance clause is emitted."""
+    monkeypatch.delenv("SIDIRA_STIMULUS_AFFORDANCE", raising=False)
+    monkeypatch.delenv("PYTHIA_STIMULUS_AFFORDANCE", raising=False)
+    figma = _email_stimulus_figma()
+    rendered = summarize_reverse_figma(figma)
+    assert "leads to" not in rendered
+    assert "↳" not in rendered
+    # Reconstruct the exact pre-fix output to lock byte-identity.
+    expected = "\n".join(
+        [
+            "- **Screen `inbox`** — Inbox",
+            "- **Screen `promo_email`** — Promotional e-mail",
+            "    - body `email_body` — `Big sale inside`",
+            "",
+            "Transitions:",
+            "- click_email: `promo_email` → `inbox`",
+        ]
+    )
+    assert rendered == expected
+
+
+def test_affordance_gate_on_appends_neutral_destination_clause(monkeypatch) -> None:
+    """Gate ON → a screen with an outbound cross-screen transition gets ONE neutral
+    clause naming the destination screen, derived from the transition graph."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    rendered = summarize_reverse_figma(_email_stimulus_figma())
+    # The clause names the DESTINATION screen (target screen `name`), stating only
+    # the navigation mechanic.
+    assert "    - ↳ opens: Inbox" in rendered
+    # It is attached to the source screen `promo_email`, not the leaf `inbox`.
+    promo_block = rendered.split("- **Screen `promo_email`**")[1].split("Transitions:")[0]
+    assert "↳ opens: Inbox" in promo_block
+    inbox_block = rendered.split("- **Screen `inbox`**")[1].split("- **Screen `promo_email`**")[0]
+    assert "leads to" not in inbox_block
+
+
+def test_affordance_clause_is_keyword_free_and_carries_destination(monkeypatch) -> None:
+    """Honesty constraint 1+2: the clause contains the destination screen name and
+    NONE of the stimulus-type keywords as hardcoded content — for BOTH a 'promo
+    email' figma and a plain 'button' figma the only difference is the destination
+    name, never the rule."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+
+    email_rendered = summarize_reverse_figma(_email_stimulus_figma())
+    clause = next(line for line in email_rendered.splitlines() if "↳ opens:" in line)
+    assert "Inbox" in clause  # destination screen name present
+    low = clause.lower()
+    for kw in _FORBIDDEN_AFFORDANCE_KEYWORDS:
+        assert kw not in low, f"stimulus keyword {kw!r} leaked into affordance clause: {clause!r}"
+    # No valence words either — mechanic, not intent.
+    for valence in ("good", "better", "positive", "engaging", "want", "back"):
+        assert valence not in low, f"valence word {valence!r} in affordance clause: {clause!r}"
+
+    # The plain-button figma fires the SAME rule with a different destination name.
+    button_rendered = summarize_reverse_figma(_button_stimulus_figma())
+    button_clause = next(line for line in button_rendered.splitlines() if "↳ opens:" in line)
+    assert "Site" in button_clause
+
+
+def test_affordance_gating_logic_has_no_stimulus_keywords() -> None:
+    """Honesty constraint 2 (structural source-of-truth): the gating helpers that
+    decide WHEN to emit the clause must not match on stimulus-type keywords. Assert
+    directly against the source of the two helpers."""
+    import inspect
+
+    from sidira_simulator.services import treatment_renderer as tr
+
+    source = (
+        inspect.getsource(tr._screen_affordance_destinations)
+        + inspect.getsource(tr._affordance_clause)
+        + inspect.getsource(tr.summarize_reverse_figma)
+    )
+    low = source.lower()
+    # The helpers reference destinations/transitions structurally; a stimulus
+    # keyword appearing as a string literal here would be keyword-gating.
+    for kw in _FORBIDDEN_AFFORDANCE_KEYWORDS:
+        assert (
+            f'"{kw}' not in low and f"'{kw}" not in low
+        ), f"keyword literal {kw!r} in gating logic"
+
+
+def test_affordance_clause_is_symmetric_across_arms(monkeypatch) -> None:
+    """Honesty constraint 3 (paired symmetry): the IDENTICAL affordance clause
+    appears in both the current- and the proposed-figma renderings — so it cancels
+    in the paired treatment−control delta and never biases the lift."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    # Current and proposed both carry the stimulus surface; the proposed only
+    # changes the component copy (the real intervention), not the affordance.
+    current = _email_stimulus_figma()
+    proposed = ReverseFigma(
+        screens=[
+            Screen(id="inbox", name="Inbox", components=[]),
+            Screen(
+                id="promo_email",
+                name="Promotional e-mail",
+                components=[Component(id="email_body", role="body", text="Even bigger sale")],
+            ),
+        ],
+        transitions=list(current.transitions),
+    )
+    current_clause = [line for line in summarize_reverse_figma(current).splitlines() if "↳" in line]
+    proposed_clause = [
+        line for line in summarize_reverse_figma(proposed).splitlines() if "↳" in line
+    ]
+    assert current_clause == proposed_clause == ["    - ↳ opens: Inbox"]
+
+
+def test_affordance_gate_on_byte_identical_when_no_cross_screen_transition(monkeypatch) -> None:
+    """Gate ON but the figma has NO component on a screen with an outbound
+    cross-screen transition → byte-identical to OFF (no clause). A self-loop
+    (`apply_promo: cart → cart`) is NOT an affordance out of the screen."""
+    figma = ReverseFigma(
+        screens=[_cart_screen(), _account_screen()],
+        transitions=[
+            # self-loop only; not a cross-screen affordance
+            Transition(trigger="apply_promo", from_screen="cart", to_screen="cart"),
+        ],
+    )
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    on = summarize_reverse_figma(figma)
+    monkeypatch.delenv("SIDIRA_STIMULUS_AFFORDANCE", raising=False)
+    monkeypatch.delenv("PYTHIA_STIMULUS_AFFORDANCE", raising=False)
+    off = summarize_reverse_figma(figma)
+    assert on == off
+    assert "leads to" not in on
+
+
+def test_affordance_dedups_and_orders_multiple_destinations(monkeypatch) -> None:
+    """A source screen with several distinct outbound destinations lists them once
+    each, in first-seen transition order — deterministic and graph-derived."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    figma = ReverseFigma(
+        screens=[
+            Screen(id="home", name="Home", components=[Component(id="b", role="button")]),
+            Screen(id="feed", name="Feed", components=[]),
+            Screen(id="search", name="Search", components=[]),
+        ],
+        transitions=[
+            Transition(trigger="open_feed", from_screen="home", to_screen="feed"),
+            Transition(trigger="open_search", from_screen="home", to_screen="search"),
+            # duplicate destination via a second trigger → listed once
+            Transition(trigger="refresh_feed", from_screen="home", to_screen="feed"),
+        ],
+    )
+    rendered = summarize_reverse_figma(figma)
+    assert "    - ↳ opens: Feed, Search" in rendered
+
+
+def test_affordance_clause_carries_role_gating(monkeypatch) -> None:
+    """codex P2: a role-gated outbound transition must NOT read as generally
+    available. The clause carries the SAME `[role-gated: …]` suffix the transition
+    line uses, so the affordance is not overstated for personas outside the role —
+    a structural fact already in the transition, never an inferred signal."""
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    figma = ReverseFigma(
+        screens=[
+            Screen(id="home", name="Home", components=[Component(id="b", role="button")]),
+            Screen(id="vault", name="Vault", components=[]),
+        ],
+        transitions=[
+            Transition(
+                trigger="open_vault",
+                from_screen="home",
+                to_screen="vault",
+                role_gated=["member"],
+            ),
+        ],
+    )
+    rendered = summarize_reverse_figma(figma)
+    assert "    - ↳ opens: Vault [role-gated: member]" in rendered
+
+
+def test_summarize_matches_prompt_composer_shape_with_gate_on(monkeypatch) -> None:
+    """Honesty constraint 4 / format-consistency: with the gate ON, the unblinded
+    reaction view (`prompt_composer._summarize_figma`) and the blinded/standalone
+    renderer stay byte-identical — they share the one renderer, so the affordance
+    clause appears in both or neither."""
+    from sidira_simulator.services.prompt_composer import _summarize_figma
+
+    monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", "1")
+    cap = _capability(_email_stimulus_figma())
+    assert summarize_reverse_figma(cap.reverse_figma) == _summarize_figma(cap)
+    assert "↳ opens: Inbox" in _summarize_figma(cap)

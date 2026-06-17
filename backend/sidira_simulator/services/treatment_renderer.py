@@ -46,6 +46,7 @@ from sidira_simulator.schemas.feature_pack import (
     Transition,
 )
 from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.services.runtime_config import resolve_stimulus_affordance_rendering
 
 ChangeKind = Literal["ADDED", "REMOVED", "CHANGED", "MOVED"]
 TargetType = Literal["screen", "component", "transition"]
@@ -627,13 +628,70 @@ def _not_changing(
 # ──────────────────────────────────────────────────────────────────────────
 
 
+def _screen_affordance_destinations(rf: ReverseFigma) -> dict[str, list[str]]:
+    """Map each screen id → the ordered, de-duplicated display names of the
+    screens reachable from it via an outbound cross-screen transition.
+
+    PURELY STRUCTURAL (#221/#222): a screen is an interactive source surface iff
+    the transition graph carries a transition whose `from_screen` is this screen
+    and whose `to_screen` is a *different* screen. No component role, copy, id, or
+    stimulus-type label is consulted — the rule fires identically for any
+    interactive component with an outbound transition regardless of what kind of
+    surface it is. Self-loops (`from == to`, e.g. a stay-on-screen action) are not
+    affordances *out* of the screen and are excluded. The destination label is the
+    target screen's `name` (falling back to its id when unnamed), so the clause
+    states only the navigation MECHANIC, never intent or valence.
+
+    Role-gating is carried verbatim (same `[role-gated: …]` suffix the transition
+    line uses): a gated outbound transition must NOT read as generally available,
+    or the clause would overstate the affordance for personas outside the allowed
+    roles (codex P2). The gate is a structural fact already in the transition, not
+    an inferred or stimulus-typed signal.
+    """
+    name_by_id = {s.id: (s.name or s.id) for s in rf.screens}
+    out: dict[str, list[str]] = {}
+    for t in rf.transitions:
+        if t.to_screen == t.from_screen:
+            continue
+        dest = name_by_id.get(t.to_screen, t.to_screen)
+        gate = f" [role-gated: {', '.join(t.role_gated)}]" if t.role_gated else ""
+        label = f"{dest}{gate}"
+        seen = out.setdefault(t.from_screen, [])
+        if label not in seen:
+            seen.append(label)
+    return out
+
+
+def _affordance_clause(destinations: list[str]) -> str:
+    """The neutral, factual affordance clause for a source surface.
+
+    Mechanic, not intent: it states only where interacting with this surface goes,
+    derived from the transition graph's target screen name(s). The fixed lead-in
+    ("opens:") carries NO valence word and NO stimulus-type keyword — the only
+    variable part is `destinations` (the target screen names from the graph).
+    """
+    return f"    - ↳ opens: {', '.join(destinations)}"
+
+
 def summarize_reverse_figma(rf: ReverseFigma) -> str:
     """Compact structural rendering of a ReverseFigma for prompt embedding.
 
     Byte-compatible with `prompt_composer._summarize_figma`'s output shape so the
     "product today" and the standalone proposed state read identically — the
     symmetry that makes the #90 paired comparison attributable to the change.
+
+    When the `SIDIRA_STIMULUS_AFFORDANCE` gate is ON (default OFF), each screen
+    that is the source of an outbound cross-screen transition gets one neutral,
+    graph-derived affordance line under its components naming the destination
+    screen(s) — so the model connects an interactive component to where it leads
+    rather than reading it as static clutter (#221/#222). The gate is read here so
+    both call sites (the blinded metric pass and the standalone view) and the
+    `prompt_composer` reaction view stay format-identical, and the clause is added
+    symmetrically to both arms so it cancels in the paired delta.
     """
+    affordance_on = resolve_stimulus_affordance_rendering()
+    destinations = _screen_affordance_destinations(rf) if affordance_on else {}
+
     lines: list[str] = []
     for screen in rf.screens:
         role_tag = f" (role: {screen.role})" if screen.role else ""
@@ -646,6 +704,9 @@ def summarize_reverse_figma(rf: ReverseFigma) -> str:
             )
             text = f" — `{comp.text}`" if comp.text else ""
             lines.append(f"    - {comp.role} `{comp.id}`{text}{visible}")
+        screen_dests = destinations.get(screen.id)
+        if screen_dests:
+            lines.append(_affordance_clause(screen_dests))
     if rf.transitions:
         lines.append("\nTransitions:")
         for t in rf.transitions:

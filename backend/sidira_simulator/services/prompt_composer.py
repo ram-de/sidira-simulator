@@ -505,22 +505,12 @@ def _about_you_section(seed: IdentitySeed | None) -> str:
 
 
 def _summarize_figma(capability: Capability) -> str:
-    """Compact rendering of the reverse-Figma for prompt embedding."""
-    lines = []
-    for screen in capability.reverse_figma.screens:
-        role_tag = f" (role: {screen.role})" if screen.role else ""
-        lines.append(f"- **Screen `{screen.id}`** — {screen.name}{role_tag}")
-        for comp in screen.components:
-            visible = (
-                f" [visible to: {', '.join(comp.visible_to_roles)}]"
-                if comp.visible_to_roles
-                else ""
-            )
-            text = f" — `{comp.text}`" if comp.text else ""
-            lines.append(f"    - {comp.role} `{comp.id}`{text}{visible}")
-    if capability.reverse_figma.transitions:
-        lines.append("\nTransitions:")
-        for t in capability.reverse_figma.transitions:
-            gate = f" [role-gated: {', '.join(t.role_gated)}]" if t.role_gated else ""
-            lines.append(f"- {t.trigger}: `{t.from_screen}` → `{t.to_screen}`{gate}")
-    return "\n".join(lines)
+    """Compact rendering of the reverse-Figma for prompt embedding.
+
+    Delegates to the shared `treatment_renderer.summarize_reverse_figma` so the
+    unblinded reaction view and the blinded metric/standalone views stay byte-for-
+    byte format-identical — including the gated, transition-graph-derived affordance
+    clause (#221/#222). Sharing the one renderer is what keeps the #90 paired
+    comparison clean and the affordance rule symmetric across arms.
+    """
+    return summarize_reverse_figma(capability.reverse_figma)

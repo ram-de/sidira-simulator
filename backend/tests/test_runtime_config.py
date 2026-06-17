@@ -19,6 +19,7 @@ from sidira_simulator.services.runtime_config import (
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
     resolve_sidira_env,
+    resolve_stimulus_affordance_rendering,
 )
 
 
@@ -182,3 +183,32 @@ def test_elicitation_temperature_malformed_fails_open_to_default(monkeypatch) ->
     _clear_product_env(monkeypatch, "ELICITATION_TEMPERATURE")
     monkeypatch.setenv("SIDIRA_ELICITATION_TEMPERATURE", "warm")
     assert resolve_elicitation_temperature() == 0.0
+
+
+# ── #221/#222 stimulus-affordance rendering gate ─────────────────────────────
+
+
+def test_stimulus_affordance_defaults_off(monkeypatch) -> None:
+    # Default OFF — the historical structural render is byte-identical.
+    _clear_product_env(monkeypatch, "STIMULUS_AFFORDANCE")
+    assert resolve_stimulus_affordance_rendering() is False
+
+
+def test_stimulus_affordance_truthy_values_enable(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "STIMULUS_AFFORDANCE")
+    for truthy in ("1", "true", "TRUE", "Yes", "on"):
+        monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", truthy)
+        assert resolve_stimulus_affordance_rendering() is True, truthy
+
+
+def test_stimulus_affordance_non_truthy_and_malformed_stay_off(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "STIMULUS_AFFORDANCE")
+    for falsy in ("0", "false", "no", "off", "maybe", ""):
+        monkeypatch.setenv("SIDIRA_STIMULUS_AFFORDANCE", falsy)
+        assert resolve_stimulus_affordance_rendering() is False, falsy
+
+
+def test_stimulus_affordance_reads_legacy_pythia_namespace(monkeypatch) -> None:
+    _clear_product_env(monkeypatch, "STIMULUS_AFFORDANCE")
+    monkeypatch.setenv("PYTHIA_STIMULUS_AFFORDANCE", "1")
+    assert resolve_stimulus_affordance_rendering() is True
