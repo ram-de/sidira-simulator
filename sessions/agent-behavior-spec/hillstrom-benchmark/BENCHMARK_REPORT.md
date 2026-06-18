@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified + fix attempt #1 null). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; heterogeneity ranking improved but not yet certified). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -313,6 +313,33 @@ capable model required?" The immediate next test is therefore a **model comparis
 this identical pre-registered benchmark with a stronger model — which cleanly separates "a
 weaker model's reasoning failure" (fixable by model choice) from "an intrinsic limit of
 introspective elicitation" (which would redefine the product's honest scope).
+
+### Fix attempt #2 — elicitation reframing (the sign inversion is FIXED, at power)
+
+The diagnosis above pointed at the elicitation *mode*, not the facts: an agent asked to
+introspect "how often would I visit?" reasons deliberately and misses a sub-deliberative
+nudge. So fix attempt #2 changed a single variable — **the outcome is elicited as an
+expert forecast of how the campaign moves the metric, not as a roleplayed reader's
+introspection** — and was pre-registered (`PREREG_FORECASTER.json`, SHA `91137220…`,
+committed before the result) on a finer real-data stratification (gender × recency × email,
+18 cases, ground truth recomputed from the Hillstrom RCT).
+
+| predictor (VISIT) | direction accuracy | heterogeneity rank ρ (perm p) |
+|---|---|---|
+| introspective reader-roleplay (certified §4) | **0.0** | −0.29 (at chance) |
+| **expert-forecast elicitation** | **1.000 (18/18)** | +0.37 (p = 0.13) |
+
+**The advertising-as-harm sign inversion is fixed.** Direction accuracy moves from a
+*certified* 0.0 to **1.0 at power** — the bias was an artifact of introspective elicitation,
+not an intrinsic limit of the simulator. This resolves the §4 finding's central question in
+the un-flattering-prediction-survives direction: it was the elicitation mode. **One honest
+narrowing:** the *who-responds-more* heterogeneity ranking improved from −0.29 to +0.37 but
+does **not** clear significance at n=18 (permutation p = 0.13) — and the small probe that
+first hinted at it (+0.65, n=6) regressed under power, the same small-sample-mirage the
+program keeps catching. So the sign claim is certified-fixed; the heterogeneity claim is
+"positive-leaning, not yet certified — needs more cases." The fix is also model-dependent
+(it is clean on the stronger model; a weaker one still mis-signs a third of cases), which
+answers the §4-Fix-#1 question as *both*: a capable model **and** the right elicitation mode.
 
 ---
 
