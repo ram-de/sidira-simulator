@@ -1,0 +1,192 @@
+{
+  "model": "claude-sonnet-4-6",
+  "k": 4,
+  "n_cases": 10,
+  "less_won": [
+    "apparel_hide_discount_surfacing",
+    "gift_certificate_expiry_window",
+    "time_scarcity_promo_framing",
+    "product_image_hover_zoom"
+  ],
+  "more_won": [
+    "homepage_carousel_item_count",
+    "donation_banner_only_word",
+    "upload_dropzone_border_button_weight",
+    "vendor_listing_popularity_count"
+  ],
+  "results": {
+    "comparative_baseline": {
+      "preds": {
+        "apparel_hide_discount_surfacing": "treatment",
+        "gift_certificate_expiry_window": "control",
+        "referral_reward_sender_certainty": "control",
+        "referral_reward_recipient_certainty": "control",
+        "time_scarcity_promo_framing": "control",
+        "product_image_hover_zoom": "control",
+        "homepage_carousel_item_count": "control",
+        "donation_banner_only_word": "treatment",
+        "upload_dropzone_border_button_weight": "treatment",
+        "vendor_listing_popularity_count": "control"
+      },
+      "score": {
+        "overall": [
+          5,
+          10,
+          0
+        ],
+        "less_won": [
+          2,
+          4,
+          0
+        ],
+        "more_won": [
+          2,
+          4,
+          0
+        ],
+        "ambiguous": [
+          1,
+          2,
+          0
+        ],
+        "more_is_better_pick_rate": [
+          5,
+          8
+        ]
+      }
+    },
+    "comparative_ledger": {
+      "preds": {
+        "apparel_hide_discount_surfacing": "control",
+        "gift_certificate_expiry_window": "control",
+        "referral_reward_sender_certainty": "control",
+        "referral_reward_recipient_certainty": "control",
+        "time_scarcity_promo_framing": "control",
+        "product_image_hover_zoom": "control",
+        "homepage_carousel_item_count": "control",
+        "donation_banner_only_word": "treatment",
+        "upload_dropzone_border_button_weight": "treatment",
+        "vendor_listing_popularity_count": "control"
+      },
+      "score": {
+        "overall": [
+          4,
+          10,
+          0
+        ],
+        "less_won": [
+          1,
+          4,
+          0
+        ],
+        "more_won": [
+          2,
+          4,
+          0
+        ],
+        "ambiguous": [
+          1,
+          2,
+          0
+        ],
+        "more_is_better_pick_rate": [
+          6,
+          8
+        ]
+      }
+    },
+    "placebo_leaner": {
+      "preds": {
+        "apparel_hide_discount_surfacing": "treatment",
+        "gift_certificate_expiry_window": "treatment",
+        "referral_reward_sender_certainty": "control",
+        "referral_reward_recipient_certainty": "control",
+        "time_scarcity_promo_framing": "control",
+        "product_image_hover_zoom": "treatment",
+        "homepage_carousel_item_count": "control",
+        "donation_banner_only_word": "treatment",
+        "upload_dropzone_border_button_weight": "treatment",
+        "vendor_listing_popularity_count": "control"
+      },
+      "score": {
+        "overall": [
+          5,
+          10,
+          0
+        ],
+        "less_won": [
+          2,
+          4,
+          0
+        ],
+        "more_won": [
+          2,
+          4,
+          0
+        ],
+        "ambiguous": [
+          1,
+          2,
+          0
+        ],
+        "more_is_better_pick_rate": [
+          3,
+          8
+        ]
+      }
+    },
+    "per_arm_behavioral": {
+      "preds": {
+        "apparel_hide_discount_surfacing": "control",
+        "gift_certificate_expiry_window": "treatment",
+        "referral_reward_sender_certainty": "control",
+        "referral_reward_recipient_certainty": "control",
+        "time_scarcity_promo_framing": "control",
+        "product_image_hover_zoom": "control",
+        "homepage_carousel_item_count": "control",
+        "donation_banner_only_word": "control",
+        "upload_dropzone_border_button_weight": "treatment",
+        "vendor_listing_popularity_count": "treatment"
+      },
+      "diffs": {
+        "apparel_hide_discount_surfacing": -20.0,
+        "gift_certificate_expiry_window": 5.75,
+        "referral_reward_sender_certainty": -10.0,
+        "referral_reward_recipient_certainty": -21.0,
+        "time_scarcity_promo_framing": -27.0,
+        "product_image_hover_zoom": -20.0,
+        "homepage_carousel_item_count": -3.0,
+        "donation_banner_only_word": -20.0,
+        "upload_dropzone_border_button_weight": 20.0,
+        "vendor_listing_popularity_count": 7.0
+      },
+      "tie_rate": 0.0,
+      "score": {
+        "overall": [
+          3,
+          10,
+          0
+        ],
+        "less_won": [
+          0,
+          4,
+          0
+        ],
+        "more_won": [
+          2,
+          4,
+          0
+        ],
+        "ambiguous": [
+          1,
+          2,
+          0
+        ],
+        "more_is_better_pick_rate": [
+          5,
+          8
+        ]
+      }
+    }
+  }
+}

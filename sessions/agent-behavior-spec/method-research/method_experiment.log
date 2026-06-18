@@ -1,0 +1,10 @@
+[comparative_baseline] {'overall': (5, 10, 0), 'less_won': (2, 4, 0), 'more_won': (2, 4, 0), 'ambiguous': (1, 2, 0), 'more_is_better_pick_rate': (5, 8)}
+[comparative_ledger] {'overall': (4, 10, 0), 'less_won': (1, 4, 0), 'more_won': (2, 4, 0), 'ambiguous': (1, 2, 0), 'more_is_better_pick_rate': (6, 8)}
+[placebo_leaner] {'overall': (5, 10, 0), 'less_won': (2, 4, 0), 'more_won': (2, 4, 0), 'ambiguous': (1, 2, 0), 'more_is_better_pick_rate': (3, 8)}
+[per_arm_behavioral] tie_rate=0.00 {'overall': (3, 10, 0), 'less_won': (0, 4, 0), 'more_won': (2, 4, 0), 'ambiguous': (1, 2, 0), 'more_is_better_pick_rate': (5, 8)}
+
+=== SUMMARY (correct/scored, unscored) ===
+  comparative_baseline     less-won 2/4  more-won 2/4  overall 5/10
+  comparative_ledger       less-won 1/4  more-won 2/4  overall 4/10
+  placebo_leaner           less-won 2/4  more-won 2/4  overall 5/10
+  per_arm_behavioral       less-won 0/4  more-won 2/4  overall 3/10  tie_rate=0.00
