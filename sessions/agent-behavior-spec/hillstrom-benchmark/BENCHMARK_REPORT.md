@@ -902,3 +902,19 @@ Highrise) to confirm priors-echoing rather than reciting.
   artifact) — the audit→fix→prereg→clean-rerun discipline distinguished the two. Artifact:
   fix1_deconfound_result.txt.
 </content>
+- 2026-06-18: **Portfolio V4 expansion — pre-registered (`PREREG_PORTFOLIO_V4_EXPANSION`, cases
+  canonical SHA-256 `b110dce3…a886595`, sealed before result); REJECTS broad directional accuracy
+  on counter-intuitive product changes.** 10 NEW real product/UI/copy A/B cases (from a fresh
+  public-dataset sweep), deduplicated against V3/CONFIRM, winners verified from primary sources
+  (2 fabrication-risk cases dropped at authoring), descriptions independently leak-audited twice
+  (negation-asymmetry flaw found and fixed; residuals WEAK + inherent only). Comparative-forecaster,
+  Sonnet, k=4, blind. **Result: overall direction accuracy 0.500 (5/10) — at chance and BELOW the
+  always-treatment baseline (0.80).** Registered diagnostic = the 4 "less-won" cases (where the
+  simpler option won): **1/4 (0.25)**; "more-won" cases 3/4. This hit the sealed REJECT branch
+  (less_won ≤0.25 AND more_won ≥0.75) almost exactly — the bias-persists prediction confirmed in the
+  un-flattering direction. **Replicates the §7 confirmatory negative (0.286) on a fresh, audited,
+  pre-registered set.** Honest nuance: not a pure more-is-better robot (called the minimal storefront
+  right, the smaller carousel wrong) → "no reliable directional signal on counter-intuitive changes"
+  is the truer statement. The only certified directional positive remains Hillstrom's who-responds-more
+  ranking. Artifacts: PORTFOLIO_CASES_EXPANSION_V4.json, PORTFOLIO_V4_EXPANSION_RESULT.md,
+  portfolio_comparative_V4_result.json.
