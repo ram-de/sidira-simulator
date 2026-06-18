@@ -1,0 +1,46 @@
+2026-06-18 13:27:09 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=alex_binge_marathoner
+2026-06-18 13:27:09 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=ken_price_sensitive_lapser
+2026-06-18 13:27:09 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=marco_background_player
+2026-06-18 13:27:19 [warning  ] agent.metric.unblinded_fallback agent_id=0ed1b46e-8344-44fa-9a51-4f2db02b8fe4 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:20 [warning  ] agent.metric.unblinded_fallback agent_id=c04c8203-8760-416e-9db9-7a236c5dfc5f metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:22 [warning  ] agent.metric.unblinded_fallback agent_id=afcc1756-8257-426f-831b-216f53723fb1 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:23 [info     ] agent.materialized             agent_id=0ed1b46e-8344-44fa-9a51-4f2db02b8fe4 persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:23 [warning  ] agent.metric.unblinded_fallback agent_id=54e1b408-f29a-42d6-a065-82a5afaeed80 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:24 [info     ] agent.materialized             agent_id=c04c8203-8760-416e-9db9-7a236c5dfc5f persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:24 [warning  ] agent.metric.unblinded_fallback agent_id=61929a58-ed4c-4e21-aecc-76887edcf0b0 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:28 [info     ] agent.materialized             agent_id=54e1b408-f29a-42d6-a065-82a5afaeed80 persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:28 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=noor_niche_genre_loyalist
+2026-06-18 13:27:28 [info     ] agent.materialized             agent_id=61929a58-ed4c-4e21-aecc-76887edcf0b0 persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:28 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=rivka_weekend_movie_night
+2026-06-18 13:27:30 [info     ] agent.materialized             agent_id=afcc1756-8257-426f-831b-216f53723fb1 persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:36 [warning  ] agent.metric.unblinded_fallback agent_id=05954539-104b-4ac9-a131-89d66d562fd1 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:37 [warning  ] agent.metric.unblinded_fallback agent_id=d08bb705-19ea-45be-bcb8-723deadd376a metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:40 [info     ] agent.materialized             agent_id=05954539-104b-4ac9-a131-89d66d562fd1 persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:41 [info     ] agent.materialized             agent_id=d08bb705-19ea-45be-bcb8-723deadd376a persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:41 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=tess_new_trialer
+2026-06-18 13:27:42 [warning  ] agent.metric.unblinded_fallback agent_id=82d25c59-78ff-455b-8443-46a3b9cdf003 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Niche genre loyalist (subtitled drama)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:44 [warning  ] agent.metric.unblinded_fallback agent_id=7eaf8ef0-2366-4446-9c5f-b353fba17652 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:44 [warning  ] agent.metric.unblinded_fallback agent_id=58adc0b9-d7e4-43fb-af26-53cb52be8653 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:46 [info     ] agent.materialized             agent_id=82d25c59-78ff-455b-8443-46a3b9cdf003 persona='Niche genre loyalist (subtitled drama)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:47 [info     ] agent.materialized             agent_id=7eaf8ef0-2366-4446-9c5f-b353fba17652 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:48 [info     ] agent.materialized             agent_id=58adc0b9-d7e4-43fb-af26-53cb52be8653 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:54 [warning  ] agent.metric.unblinded_fallback agent_id=11c1485a-cb70-435f-a278-eba7103d93c4 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='New trialer (first 14 days)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:55 [warning  ] agent.metric.unblinded_fallback agent_id=22cb496e-eb54-4a03-9e6c-bed354cf6880 metric=conversion note='no faithful standalone view; metric ran UNBLINDED — lift is low-confidence' persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:58 [info     ] agent.materialized             agent_id=11c1485a-cb70-435f-a278-eba7103d93c4 persona='New trialer (first 14 days)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:27:58 [info     ] agent.materialized             agent_id=22cb496e-eb54-4a03-9e6c-bed354cf6880 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:03 [info     ] agent.materialized             agent_id=18037805-db72-433a-8a1d-392c16de85d6 persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:04 [info     ] agent.materialized             agent_id=8d93fa4b-8afe-43af-a384-80ca5cca2d02 persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:05 [info     ] agent.materialized             agent_id=38f29640-ac71-4027-a19f-3996d5aa9017 persona='Daily binge marathoner' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:13 [info     ] agent.materialized             agent_id=02b4356d-b7a7-4cef-8727-a718330a71d8 persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:13 [info     ] agent.materialized             agent_id=dd039ac5-4e1a-4f13-9e1b-6ccc9263a80c persona='Price-sensitive lapser' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:17 [info     ] agent.materialized             agent_id=3af9b53b-863e-4c61-bc04-5c723a67e204 persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:20 [info     ] agent.materialized             agent_id=94d97dea-54a9-4a0c-83e0-9bc6f67549b4 persona='Background / second-screen player' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:21 [info     ] agent.materialized             agent_id=c2ed3da7-738c-4f4f-963d-40a2428b0714 persona='Niche genre loyalist (subtitled drama)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:30 [info     ] agent.materialized             agent_id=7aa06268-db20-4846-80de-0422ad341f84 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:32 [info     ] agent.materialized             agent_id=5f651d3e-dee7-480b-a1f7-b22cd3b77011 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:36 [info     ] agent.materialized             agent_id=fbff6144-a151-427e-ac2d-3fb3ad272004 persona='Weekend family movie night' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+2026-06-18 13:28:40 [info     ] agent.materialized             agent_id=a9afdaa6-2eff-40c0-80c0-b8a66dbdd6c0 persona='New trialer (first 14 days)' sim_id=774c8749-aa56-4556-8dea-03146d67c6a8
+=== ENGINE RAN OK ===
+lift: 1.3 | metric: conversion
+agents materialized: 24  (arms: ['control', 'treatment'])
+wrote streamly_plumbing_result.json
