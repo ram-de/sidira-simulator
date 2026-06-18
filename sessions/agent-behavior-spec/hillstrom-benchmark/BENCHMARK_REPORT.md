@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; **fix attempt #4 / engine integration: the standalone wins do NOT yet transfer through the production engine pass (powered through-engine run: roleplay dir-acc 0.00, forecaster only 0.12) — the lever is shipped as the default but the lift is not yet realized in-product**). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off pending a powered + heterogeneity run before any default flip**). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -383,6 +383,34 @@ but the accuracy lift is NOT yet realized through the engine** — we make no in
 until this through-engine benchmark turns green. Work in progress: make the treatment legible to the
 forecaster without re-introducing demand-effect bias, finer-grained elicitation, richer audience
 conditioning — re-gated by this same through-engine run.
+
+### Fix attempt #5 — comparative-delta elicitation RESOLVES the engine-integration gap
+
+Fix #4 localized the cause: the engine forecast the two arms in **independent passes
+and subtracted**, so each anchored on the same base rate and the real ±7pp effect
+collapsed to ~0. Fix #5 changes that to a **single comparative pass** — the
+forecaster sees both versions and gives the directional difference directly.
+
+| through the engine (visit direction accuracy) | result |
+|---|---|
+| per-arm roleplay | 0.00 |
+| per-arm forecaster | 0.12 |
+| **comparative-delta forecaster** | **1.00** |
+
+It is validated **end-to-end through the production runner** (real
+`SimulationRunner.run`, A/B, flag on): every treatment agent produced a comparative
+delta and the production aggregation returned **+10pp, 90% CI (8.5, 11.5)** —
+positive, CI clear of zero, matching the RCT (the email raises visits). The
+through-engine direction milestone is now met.
+
+**Status & honest limits.** Shipped flag-gated (`SIDIRA_METRIC_COMPARATIVE`,
+**default OFF**) — proven to work when on, but the production default is unchanged.
+The end-to-end run is n=8 / one case / one model (green on **direction**, not
+powered), and **heterogeneity through the comparative engine is not yet validated**
+(the deltas are clustered — the richer-audience lever is open). The next step is a
+**powered + heterogeneity run through the comparative engine**; only after that
+(and a deliberate decision) would the default flip. No in-product accuracy claim
+beyond direction until then.
 
 ---
 

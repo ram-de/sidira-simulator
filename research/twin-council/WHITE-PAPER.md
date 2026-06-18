@@ -280,5 +280,38 @@ The full ledger is `MERGED-LEDGER.md`; the gate is implemented and tested in
 
 ---
 
+## 10. Empirical validation (post-council, 2026-06)
+
+The gate (§7) was then run against real randomized experiments. Headline findings,
+which both confirm and sharpen the council's thesis (full detail in
+`sessions/agent-behavior-spec/*` and issue #342):
+
+1. **The gate works as designed.** On the Upworthy headline-CTR archive the
+   simulator returns an honest **NULL** (rank-ρ −0.11, pre-registered, replicated)
+   — the gate correctly says "uncalibrated, abstain." A tempting small-sample
+   positive was caught by pre-registration and did **not** replicate, exactly the
+   failure mode §5/M13 anticipates.
+2. **Elicitation framing is the dominant accuracy lever — bigger than model or
+   persona realism.** The council framed the LLM as a "biased feature extractor"
+   (M5); empirically, *how* you elicit dominates. First-person reader-roleplay
+   produced a **certified wrong-direction** prediction on the Hillstrom email RCT
+   (it read promotions as off-putting). Reframing elicitation to a third-person
+   **forecast** removed the inversion (visit direction accuracy 0.0 → 1.0 at power)
+   and **certified the who-responds-more heterogeneity** (rank-ρ +0.42, p=0.01;
+   gender-match +0.75, p=0.0004) — the first decision-grade directional result.
+3. **Two-pass subtraction destroys small real effects; comparative elicitation
+   recovers them.** Forecasting treatment and control independently and subtracting
+   (the natural implementation of M2's "sign of the ATE") collapses a real ±7pp
+   effect to ~0. Eliciting the **delta directly in one comparative pass** fixes it
+   (0.12 → 1.0 through the engine; +10pp end-to-end through the production runner,
+   CI clear of zero). A practical refinement to M2/M6 the council did not foresee.
+4. **The honest scope holds.** Magnitudes stay uncalibrated; conversion
+   heterogeneity and the powered through-engine heterogeneity run are not yet
+   certified; nothing is claimed beyond what a pre-registered run shows.
+
+---
+
 *Artifacts: `BRIEF.md`, `rounds/r1–r3` (both councils), `ROUND1-ARBITRATION.md`,
-`MERGED-LEDGER.md`, `rounds/r3-*` ratifications, and `harness/` (runnable gate).*
+`MERGED-LEDGER.md`, `rounds/r3-*` ratifications, `harness/` (runnable gate), and the
+empirical program under `sessions/agent-behavior-spec/` (Upworthy, Hillstrom,
+comparative-delta) + the living `BENCHMARK_REPORT.md`.*
