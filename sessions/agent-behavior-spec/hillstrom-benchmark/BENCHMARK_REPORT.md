@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off; **fix attempt #6 — the powered run CERTIFIES who-responds-more heterogeneity through the comparative engine pass GIVEN segment-rich personas (Spearman ρ +0.385, p=0.015), confirming the lever is the comparative pass AND audience richness together — the generic production persona pack is the remaining gap; **fix attempt #7 closes that gap — a persona enricher that turns the segment stats the personas already carry into readable descriptions lets the comparative pass recover heterogeneity even better than hand-written text (ρ +0.457, p=0.004), validated from real feature stats. The two production levers (comparative pass + persona enrichment) are now both proven; wiring the enricher into the live pack + a deliberate flag flip remain**). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off; **fix attempt #6 — the powered run CERTIFIES who-responds-more heterogeneity through the comparative engine pass GIVEN segment-rich personas (Spearman ρ +0.385, p=0.015), confirming the lever is the comparative pass AND audience richness together — the generic production persona pack is the remaining gap; **fix attempt #7 closes that gap — a persona enricher that turns the segment stats the personas already carry into readable descriptions lets the comparative pass recover heterogeneity even better than hand-written text (ρ +0.457, p=0.004), validated from real feature stats. The two production levers (comparative pass + persona enrichment) are now both proven AND shipped: the enricher service is in the engine (the benchmark persona pack is enriched), and the comparative metric pass is flipped **default-ON** (no customers, post-validation); the upstream persona-build naming integration (sidira-personas) for real-customer packs + the customer backtest pilot remain**). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -449,8 +449,15 @@ hand-written text**:
 So the two production levers — **comparative pass** + **persona enrichment** — are
 both proven; together they recover the certified who-responds-more ranking through
 the engine. The gap was never the method, only that the persona descriptions were
-stats, not language. Remaining: wire the enricher into the live persona-build/
-conditioning, then a deliberate flag flip. Visit-only / one model / flag-gated.
+stats, not language.
+
+**Now shipped (2026-06-18):** the enricher is a backend service
+(`services/persona_enricher.py`), the benchmark Hillstrom pack's descriptions are
+enriched (jargon → language), and `SIDIRA_METRIC_COMPARATIVE` is flipped
+**default-ON** (no customers in production, so zero impact; opt out with `=0` to
+reproduce the per-arm baseline). Remaining: run the enricher in the upstream
+persona-build naming step (sidira-personas) for real-customer packs, broaden beyond
+visit/one-model, and the customer backtest pilot. Still: magnitudes uncalibrated.
 
 ---
 

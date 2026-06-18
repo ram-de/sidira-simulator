@@ -164,19 +164,21 @@ def resolve_elicitation_mode() -> str:
 def resolve_metric_comparative() -> bool:
     """Whether forecaster mode uses the COMPARATIVE-delta metric pass (#342).
 
-    Default OFF reproduces the per-arm metric flow byte-for-byte (forecast the
-    treatment and control states independently, then subtract). When ON *and*
-    elicitation mode is "forecaster" *and* the metric has a delta elicitor (visit),
-    the lift is elicited as a single comparative delta (both versions shown at
-    once) — which recovers the directional signal the two-pass subtraction loses
-    (the powered through-engine result: per-arm 0.12 → comparative 1.00 direction
-    accuracy). Opt-in via env so production behavior is unchanged until validated
-    through the full runner; truthiness mirrors the project convention.
+    **Default ON** (flipped 2026-06, no customers in production): when elicitation
+    mode is "forecaster" and the metric has a delta elicitor (visit), the lift is
+    elicited as a single comparative delta (both versions shown at once) instead of
+    the two-pass treatment/control subtraction — which recovers the directional
+    signal the subtraction loses (validated: per-arm 0.12 → comparative 1.00
+    direction accuracy through the engine; +10pp end-to-end through the runner; and
+    who-responds-more heterogeneity ρ +0.457 with enriched personas). Set
+    `SIDIRA_METRIC_COMPARATIVE=0` (or false/no/off) to OPT OUT — e.g. to reproduce
+    the per-arm certified baseline. Non-visit metrics and roleplay mode are
+    unaffected either way (the comparative branch is visit+forecaster-gated).
     """
     raw = resolve_sidira_env("METRIC_COMPARATIVE")
     if raw is None:
-        return False
-    return raw.strip().lower() in ("1", "true", "yes", "on")
+        return True
+    return raw.strip().lower() not in ("0", "false", "no", "off")
 
 
 def resolve_elicitation_temperature() -> float:
