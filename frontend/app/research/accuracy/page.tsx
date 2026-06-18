@@ -71,7 +71,7 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
     benchmark: "Hillstrom email RCT",
     tested: "The direction of a real email campaign's effect, and which audience responds more",
     result:
-      "Initially predicted the wrong direction; a fix corrected it (direction accuracy to 1.0 at power) and certified the per-segment who-responds-more ranking (rank-ρ +0.42, p=0.01) — pre-registered, and validated end-to-end through the engine.",
+      "At power across 18 pre-registered audience segments, the engine calls the direction correctly: direction accuracy 1.0 (18/18) at its best and 0.67 (12/18) on the faster default model, up from 0.0 under the old reader-roleplay framing. One caveat we keep visible: email lifts visits in almost every segment here, so an 'always-positive' guess also scores high — the result that clears that naive baseline is the per-segment who-responds-more ranking (rank-ρ +0.42, p=0.01), which we certify, pre-registered and validated end-to-end through the engine.",
   },
   {
     benchmark: "Product-change portfolio",
@@ -244,8 +244,12 @@ export default function AccuracyReportPage() {
             benchmarks show weak-to-at-chance signal &mdash; real movement off the earlier nulls,
             but not yet decision-grade (and with two of our own false positives caught before they
             became claims). On the Hillstrom email RCT, after finding and fixing a directional bias,
-            the first <Term>certified</Term> directional result &mdash; the per-segment &ldquo;who
-            responds more&rdquo; ranking, pre-registered and permutation-tested (rank-&rho;{" "}
+            the engine now calls the effect&rsquo;s direction correctly at power &mdash; direction
+            accuracy <span style={MONO_FIGURE}>1.0</span> at its best and{" "}
+            <span style={MONO_FIGURE}>0.67</span> on the faster default model, up from{" "}
+            <span style={MONO_FIGURE}>0.0</span> &mdash; and, the harder bar on this dataset, delivers
+            the first <Term>certified</Term> directional result: the per-segment &ldquo;who responds
+            more&rdquo; ranking, pre-registered and permutation-tested (rank-&rho;{" "}
             <span style={MONO_FIGURE}>+0.42</span>, p=<span style={MONO_FIGURE}>0.01</span>).
             Magnitudes remain uncalibrated and out of scope.
           </p>
