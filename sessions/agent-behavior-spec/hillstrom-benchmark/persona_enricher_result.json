@@ -1,0 +1,15 @@
+{
+  "n": 38,
+  "dropped": 0,
+  "spearman": 0.4573129989962573,
+  "kendall": 0.335528131238049,
+  "perm_p": 0.003999200159968006,
+  "direction_accuracy": 0.6052631578947368,
+  "k": 4,
+  "sample_enriched_descriptions": {
+    "both_buyer/recent/Multichannel": "Mostly new suburban shoppers who buy both men's and women's products, with recent purchases within the last two months and a solid average spend of $687. Despite being largely first-time customers, they're already showing broad buying behavior across categories.",
+    "both_buyer/recent/Phone": "Mostly new suburban shoppers who buy across both men's and women's categories, with recent purchases within the last two months and a solid average spend of $579. They're an engaged, cross-category audience that's still early in their relationship with the brand.",
+    "both_buyer/recent/Web": "Mostly new suburban shoppers who buy both men's and women's clothing, with recent purchases within the last two months and a moderate average spend of around $577.",
+    "mens_buyer/dormant/Multichannel": "Men's-only shoppers split almost evenly between new and returning customers, based primarily in suburban areas, who last purchased around 9 months ago and have spent an average of $420 in the past."
+  }
+}
