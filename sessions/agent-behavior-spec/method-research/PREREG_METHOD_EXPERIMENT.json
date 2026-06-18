@@ -1,0 +1,30 @@
+{
+  "prereg_id": "METHOD_EXPERIMENT_V1",
+  "issue": "#342 — change the elicitation TARGET to beat the more-is-better prior-echo",
+  "sealed_before_result": true,
+  "cases_file": "PORTFOLIO_CASES_EXPANSION_V4.json",
+  "cases_canonical_sha256": "b110dce32573b4e5a0bc8591b9ea2daaeb034c979975d4b9b14df1046a886595",
+  "model": "claude-sonnet-4-6", "k_votes": 4,
+  "arms": {
+    "comparative_baseline": "current method (show both, which wins)",
+    "comparative_ledger": "show both + forced signed mechanism ledger (positive AND negative/backfire pathways) before verdict — the CONSERVATIVE fix (keeps the comparison that preserves signal)",
+    "per_arm_behavioral": "score each version in ISOLATION as audience responsiveness; winner=higher mean; tracks a TIE rate = signal-collapse (the founder's concern: isolation re-breaks what comparative fixed)",
+    "placebo_leaner": "crude pro-simpler thumb — ARTIFACT CONTROL"
+  },
+  "discriminator": "less-won subset accuracy (4 cases where the simpler option won)",
+  "guardrail": "more-won subset accuracy must NOT regress vs baseline (catches over-correction / re-collapse)",
+  "power_note": "n=10 (4 less-won, 4 more-won, 2 ambiguous) detects only LARGE effects; this is a FILTER not a confirmation. Confirmation needs ~40-60 fresh less-won cases + cross-model replication.",
+  "registered_predictions": {
+    "comparative_baseline": "replicates ~5/10 overall, less-won ~1/4 (the known bias)",
+    "comparative_ledger": "HYPOTHESIS: less-won improves to >=3/4 WITHOUT more-won dropping below 3/4",
+    "per_arm_behavioral": "UNCERTAIN — risk of signal collapse (high tie_rate) and/or no gain; if tie_rate is high it CONFIRMS the founder's concern that isolation re-collapses the signal",
+    "placebo_leaner": "scores HIGH on less-won but LOW on more-won (sacrifices them) — the thumb profile"
+  },
+  "decision_rule": {
+    "REAL_FIX": "an arm passes only if less_won>=3/4 AND more_won>=3/4 AND it does NOT match the placebo's profile (placebo trades more-won for less-won). A real fix lifts less-won while KEEPING more-won.",
+    "THUMB": "less-won up but more-won down (like placebo) -> rejected as a pro-simpler thumb, not reasoning",
+    "COLLAPSE": "per_arm tie_rate high / no gain -> isolation re-breaks the signal (founder's concern validated); keep comparison, prefer the ledger arm",
+    "NULL": "no arm clears the bar -> report honestly; method change does not fix it at the forecaster level; consider the full persona-panel behavioral sim next"
+  },
+  "next_if_pass": "lock the winning arm, replicate on a 2nd model (Groq), then confirm on a fresh held-out counter-intuitive set"
+}
