@@ -1,0 +1,74 @@
+{
+  "model": "claude-opus-4-7",
+  "overall": "5/10",
+  "less_won": "2/4",
+  "more_won": "3/4",
+  "ambiguous": "0/2",
+  "sonnet_baseline": {
+    "overall": "5/10",
+    "less_won": "1/4",
+    "more_won": "3/4"
+  },
+  "cases": [
+    {
+      "id": "apparel_hide_discount_surfacing",
+      "real": "treatment",
+      "pred": "treatment",
+      "hit": true
+    },
+    {
+      "id": "gift_certificate_expiry_window",
+      "real": "control",
+      "pred": "control",
+      "hit": true
+    },
+    {
+      "id": "referral_reward_sender_certainty",
+      "real": "treatment",
+      "pred": "control",
+      "hit": false
+    },
+    {
+      "id": "referral_reward_recipient_certainty",
+      "real": "control",
+      "pred": "treatment",
+      "hit": false
+    },
+    {
+      "id": "time_scarcity_promo_framing",
+      "real": "treatment",
+      "pred": "control",
+      "hit": false
+    },
+    {
+      "id": "product_image_hover_zoom",
+      "real": "treatment",
+      "pred": "control",
+      "hit": false
+    },
+    {
+      "id": "homepage_carousel_item_count",
+      "real": "treatment",
+      "pred": "control",
+      "hit": false
+    },
+    {
+      "id": "donation_banner_only_word",
+      "real": "treatment",
+      "pred": "treatment",
+      "hit": true
+    },
+    {
+      "id": "upload_dropzone_border_button_weight",
+      "real": "treatment",
+      "pred": "treatment",
+      "hit": true
+    },
+    {
+      "id": "vendor_listing_popularity_count",
+      "real": "treatment",
+      "pred": "treatment",
+      "hit": true
+    }
+  ]
+}

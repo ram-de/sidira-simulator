@@ -61,11 +61,13 @@ def main() -> int:
                     help="JSON with a 'scored_cases' list; default = the V3 confirmatory set.")
     ap.add_argument("--out", default=str(HERE / "portfolio_comparative_result.json"),
                     help="where to write the result JSON.")
+    ap.add_argument("--model", default="claude-sonnet-4-6",
+                    help="chat model id (e.g. claude-opus-4-8 for the capability probe).")
     args = ap.parse_args()
     cases = json.loads(Path(args.cases_path).read_text())["scored_cases"]
     if args.smoke:
         cases = cases[:1]
-    client = get_chat_client("claude-sonnet-4-6")
+    client = get_chat_client(args.model)
     correct = scored = dropped = 0
     rows = []
     for c in cases:
@@ -85,7 +87,7 @@ def main() -> int:
         Path(args.out).write_text(json.dumps(
             {"direction_accuracy": acc, "correct": correct, "scored": scored,
              "dropped": dropped, "k": args.k, "prior_accuracy": 0.286,
-             "cases_path": args.cases_path, "cases": rows}, indent=2))
+             "model": args.model, "cases_path": args.cases_path, "cases": rows}, indent=2))
     return 0
 
 

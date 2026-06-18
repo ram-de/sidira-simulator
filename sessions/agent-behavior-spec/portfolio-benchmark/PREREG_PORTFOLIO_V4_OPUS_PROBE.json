@@ -1,0 +1,19 @@
+{
+  "prereg_id": "PORTFOLIO_V4_OPUS_CAPABILITY_PROBE",
+  "issue": "#342 \u2014 does a stronger model fix product-change direction?",
+  "sealed_before_result": true,
+  "cases_file": "PORTFOLIO_CASES_EXPANSION_V4.json",
+  "cases_canonical_sha256": "b110dce32573b4e5a0bc8591b9ea2daaeb034c979975d4b9b14df1046a886595",
+  "change_vs_v4_run": "ONLY the model: claude-sonnet-4-6 -> claude-opus-4-7. Same cases, same comparative-forecaster method, k=4, same blinding.",
+  "baseline_sonnet_result": {
+    "overall": "5/10 (0.50)",
+    "less_won_trick_pile": "1/4",
+    "more_won": "3/4"
+  },
+  "registered_prediction": "NO meaningful improvement on the trick pile. Rationale: the prior model-comparison on the Hillstrom ad-aversion bias found Sonnet == Groq (both 0.0) -> a systematic bias is model-INDEPENDENT, not a capability gap; and the V4 failure was already on Sonnet (frontier-class). Predict less_won stays <=0.25 (<=1/4); overall stays at/around chance and below the 0.80 always-treatment baseline.",
+  "decision_rule": {
+    "PREDICTION_HOLDS__bias_is_intrinsic": "less_won_acc <= 0.25 -> model capability does NOT fix product-change direction; the more-is-better limit is method-intrinsic, not a weak-model artifact.",
+    "PREDICTION_REFUTED__capability_helps": "less_won_acc >= 0.75 -> a stronger model DOES recover counter-intuitive direction; major roadmap update (upgrade the production model)."
+  },
+  "model": "claude-opus-4-7 (strongest model in the adapter registry; Opus-class)"
+}
