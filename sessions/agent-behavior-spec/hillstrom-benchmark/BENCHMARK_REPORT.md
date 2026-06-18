@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; **fix attempt #4 / engine integration: the standalone wins do NOT yet transfer through the production engine pass (powered through-engine run: roleplay dir-acc 0.00, forecaster only 0.12) — the lever is shipped as the default but the lift is not yet realized in-product**). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -365,6 +365,24 @@ visit-only; (b) the sharp gender-match differential is clean only on the stronge
 is the first time, anywhere in this program, that the headline directional-heterogeneity claim
 the product is built on has been *certified* against a real randomized experiment — pre-
 registered, permutation-tested, with the parts that didn't clear shown alongside.
+
+### Fix attempt #4 — engine integration (honest caveat: the lift does NOT yet transfer in-product)
+
+Fixes #2/#3 were measured on a **standalone** forecaster elicitation (a direct, change-explicit,
+percentage-point forecast over rich segment descriptions). That validated framing was then shipped
+into the production engine behind a flag and made the default (`SIDIRA_ELICITATION_MODE=forecaster`).
+A **powered through-engine re-benchmark** — driving the *production* metric seam
+(`compose_metric_prompt` + `elicit_visit_decision`) over the real panel — shows the standalone win
+does **not** carry through: roleplay visit direction-accuracy **0.00**, forecaster only **0.12** (the
+standalone run hit 1.0). Diagnosis: the engine metric pass is **blinded** (the treatment is not
+legible to the forecaster as a specific change), uses a **coarse /10 allocation** (small real uplifts
+round to ties), and conditions on **generic GMM personas**. The standalone win needed
+change-legibility + magnitude elicitation + audience richness together, not the framing voice alone.
+**Status: the lever is the deployed default (never worse than roleplay, which is provably backwards),
+but the accuracy lift is NOT yet realized through the engine** — we make no in-product accuracy claim
+until this through-engine benchmark turns green. Work in progress: make the treatment legible to the
+forecaster without re-introducing demand-effect bias, finer-grained elicitation, richer audience
+conditioning — re-gated by this same through-engine run.
 
 ---
 
