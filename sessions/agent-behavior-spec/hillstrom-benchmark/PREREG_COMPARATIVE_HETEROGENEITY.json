@@ -1,0 +1,16 @@
+{
+  "title": "Powered heterogeneity through the COMPARATIVE ENGINE pass (#342)",
+  "timestamp_utc": "2026-06-18T08:02:28Z",
+  "question": "Does the production comparative pass (compose_comparative_metric_prompt + elicit_visit_delta) recover the certified who-responds-more heterogeneity when given segment-rich personas? The e2e proved DIRECTION but GMM personas gave clustered deltas (no heterogeneity).",
+  "design": "gender x recency x channel x email strata (the certified 38-cell set), each a descriptive Persona; real per-cell visit uplift from the RCT; k=4 comparative-delta elicitations/cell, averaged. Spearman(predicted delta, real uplift) + permutation p (PRIMARY).",
+  "predicted": {
+    "spearman_rho": "~0.30 (uncertain: rich personas may recover what GMM personas could not; could also stay clustered)",
+    "perm_p": "<0.05 hoped"
+  },
+  "PASS_FAIL_BAR": "CERTIFIED iff Spearman rho > 0.30 AND permutation p < 0.05",
+  "baselines": {
+    "standalone_forecaster_certified": 0.42,
+    "GMM_persona_e2e": "clustered, no heterogeneity"
+  },
+  "decision_rule": "CERTIFIED -> the comparative engine pass recovers heterogeneity given segment-rich audiences; strong case to enrich the production persona pack + flip the flag after a deliberate decision. NOT certified -> direction is the engine's reach today; heterogeneity needs richer audience modeling (a larger lever). Honest either way."
+}
