@@ -1,0 +1,59 @@
+{
+  "prereg_id": "PORTFOLIO_V4_EXPANSION",
+  "issue": "#342 directional-accuracy program \u2014 expansion test",
+  "sealed_before_result": true,
+  "cases_file": "PORTFOLIO_CASES_EXPANSION_V4.json",
+  "cases_canonical_sha256": "b110dce32573b4e5a0bc8591b9ea2daaeb034c979975d4b9b14df1046a886595",
+  "n_cases": 10,
+  "method": "comparative-forecaster (both versions shown in one pass; predict winner); script portfolio_comparative.py",
+  "config": {
+    "model": "claude-sonnet-4-6",
+    "k_votes": 4,
+    "temperature": "0.4 first attempt then 0.0",
+    "seeds": "6000+i",
+    "blinded": "real_winner never shown; descriptions independently leak-audited (2 rounds), negation-asymmetry fixed, residuals WEAK+inherent only"
+  },
+  "label_balance": {
+    "treatment_won": 8,
+    "control_won": 2,
+    "always_treatment_baseline": 0.8,
+    "always_control_baseline": 0.2,
+    "note": "control/treatment LABELS skew treatment 8/2; overall accuracy must be read against always-treatment=0.80; the more-vs-less SUBSET split is the skew-free diagnostic."
+  },
+  "diagnostic_subsets": {
+    "less_won__more_is_better_predicts_WRONG": [
+      "apparel_hide_discount_surfacing",
+      "gift_certificate_expiry_window",
+      "time_scarcity_promo_framing",
+      "product_image_hover_zoom"
+    ],
+    "more_won__more_is_better_predicts_RIGHT": [
+      "homepage_carousel_item_count",
+      "donation_banner_only_word",
+      "upload_dropzone_border_button_weight",
+      "vendor_listing_popularity_count"
+    ],
+    "ambiguous_uncertainty_axis": [
+      "referral_reward_sender_certainty",
+      "referral_reward_recipient_certainty"
+    ]
+  },
+  "registered_predictions": {
+    "primary_diagnostic": "accuracy on the less_won subset (4 cases where the simpler/smaller option won)",
+    "prediction_if_more_is_better_bias_persists": {
+      "less_won_acc": "<=0.25",
+      "more_won_acc": ">=0.75",
+      "overall_acc": "~0.5-0.6 driven by label skew + more-won hits, NOT skill"
+    },
+    "prediction_if_real_directional_skill": {
+      "less_won_acc": ">=0.75",
+      "more_won_acc": ">=0.75"
+    }
+  },
+  "decision_rule": {
+    "SUPPORT_directional_skill": "less_won_acc>=0.75 AND more_won_acc>=0.75 \u2192 beats its own more-is-better prior on counter-intuitive cases; genuine in-scope directional positive",
+    "REJECT_broad_claim__bias_confirmed": "less_won_acc<=0.25 AND more_won_acc>=0.75 \u2192 more-is-better bias confirmed; no directional skill on counter-intuitive product changes",
+    "PARTIAL": "intermediate \u2192 weak/narrow signal, report per-subset honestly"
+  },
+  "publish": "BENCHMARK_REPORT.md \u00a77 + memory; reported per decision_rule regardless of direction"
+}

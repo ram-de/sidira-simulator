@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "id": "apparel_hide_discount_surfacing",
+      "domain": "apparel e-commerce storefront",
+      "control": "The storefront places an outlet section in the main navigation, lets shoppers sort the catalog by size of discount, and marks reduced items with a '% off' badge.",
+      "treatment": "The storefront organizes the main navigation by product category, sorts the catalog with full-price items first, and labels each item with its current list price.",
+      "metric": "average selling price, gross margin, and conversion"
+    },
+    {
+      "id": "gift_certificate_expiry_window",
+      "domain": "consumer promotion / gift certificate",
+      "control": "The gift certificate is valid for three weeks from issue.",
+      "treatment": "The same gift certificate is valid for two months from issue.",
+      "metric": "redemption rate"
+    },
+    {
+      "id": "referral_reward_sender_certainty",
+      "domain": "referral marketing (referrer's reward)",
+      "control": "The referrer earns a fixed reward of a stated point value for a successful referral.",
+      "treatment": "The referrer earns a variable reward of the same expected value for a successful referral, awarded as a stated chance at a larger point value.",
+      "metric": "number of referrals"
+    },
+    {
+      "id": "referral_reward_recipient_certainty",
+      "domain": "referral marketing (referred friend's reward)",
+      "control": "The referred friend earns a fixed reward of a stated point value when they accept a referral.",
+      "treatment": "The referred friend earns a variable reward of the same expected value when they accept a referral, awarded as a stated chance at a larger point value.",
+      "metric": "number of referrals"
+    },
+    {
+      "id": "time_scarcity_promo_framing",
+      "domain": "online retail promotion banner",
+      "control": "The promotion is shown with a countdown timer and a time-limited framing, alongside the price and offer terms.",
+      "treatment": "The promotion is shown as a standing offer with an open-ended availability framing, alongside the identical price and offer terms.",
+      "metric": "willingness-to-pay / purchase intent"
+    },
+    {
+      "id": "product_image_hover_zoom",
+      "domain": "e-commerce product page",
+      "control": "Hovering over a product image magnifies the region under the cursor.",
+      "treatment": "Product images are presented at a single fixed display size.",
+      "metric": "purchase likelihood"
+    },
+    {
+      "id": "homepage_carousel_item_count",
+      "domain": "media/portal homepage",
+      "control": "The homepage carousel rotates through 12 items.",
+      "treatment": "The homepage carousel rotates through 16 items.",
+      "metric": "engagement with the carousel"
+    },
+    {
+      "id": "donation_banner_only_word",
+      "domain": "nonprofit fundraising / banner copy",
+      "control": "The donation banner reads '4 days left to donate.'",
+      "treatment": "The donation banner reads 'Only 4 days left to donate.'",
+      "metric": "dollars per banner impression"
+    },
+    {
+      "id": "upload_dropzone_border_button_weight",
+      "domain": "file-upload UI",
+      "control": "The file-upload dropzone uses a thin border and a small upload button.",
+      "treatment": "The file-upload dropzone uses a thick border and a large upload button.",
+      "metric": "upload completion rate"
+    },
+    {
+      "id": "vendor_listing_popularity_count",
+      "domain": "vendor directory listing",
+      "control": "Each vendor listing shows the vendor's name and services.",
+      "treatment": "Each vendor listing shows the vendor's name and services, plus a count of how many times the vendor has been viewed.",
+      "metric": "clicks/contacts on vendor listings"
+    }
+  ]
+}
