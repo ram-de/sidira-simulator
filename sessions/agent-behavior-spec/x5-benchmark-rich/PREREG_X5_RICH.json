@@ -1,0 +1,48 @@
+{
+  "title": "X5 RetailHero RICH-covariate heterogeneity follow-up (mirrors x5-benchmark/forecaster_x5.py and hillstrom-benchmark/forecaster_powered.py)",
+  "date_registered": "2026-06-18",
+  "registered_before_any_model_call": true,
+  "objective": "Follow-up to the X5-thin generalization MISS (rho +0.163, perm p 0.52, FAIL). Hypothesis: the who-responds-more ranking failed on X5 because the segments used thin DEMOGRAPHIC covariates (age/gender/tenure). Test whether RICH PRE-TREATMENT BEHAVIORAL covariates (purchase-history RFM) recover the ranking on the SAME dataset and SAME RCT ground truth, with richer features.",
+  "dataset": "X5 RetailHero uplift (scikit-uplift S3 mirror), including purchases.csv.gz",
+  "treatment": "retailer SMS promotion (treatment_flg=1) vs no-SMS holdout (=0)",
+  "target": "binary purchase/redeem outcome (target)",
+  "pre_treatment_cutoff": "2019-02-19 (purchases STRICTLY before; purchase history spans 2018-11-25..2019-03-18, documented SMS window begins 2019-02-19). This cutoff is an assumption (no explicit treatment-date column); recorded as a limitation.",
+  "feature_engineering": "Single streaming pass over purchases.csv.gz. Per-client pre-cutoff RFM-style features: recency_days (days from last pre-cutoff txn to cutoff), frequency_txns, active_days, monetary_total, monetary_avg, basket_avg_lines, category_breadth (distinct product_id), redeem_txn_share, earn_total. 380,083 clients have pre-cutoff features.",
+  "segment_definition": "Independent tertiles (low/mid/high) of Recency x Frequency x Monetary over the eligible population (clients in uplift_train with pre-cutoff features). Tertile cutpoints computed from FEATURES ONLY (never from uplift). 3x3x3 = up to 27 cells; cells with < 200 per arm dropped. Cutpoints: recency [2.0,7.0] days, frequency [7.0,17.0] txns, monetary [2929.0,6764.0].",
+  "n_eligible_clients_matched": 190099,
+  "n_segments": 26,
+  "n_segments_dropped": 1,
+  "dropped_segments": ["R-high/F-high/M-low (nT=117, nC=102, below floor 200/arm)"],
+  "segments": [
+    "R-high/F-high/M-high", "R-high/F-high/M-mid", "R-high/F-low/M-high", "R-high/F-low/M-low",
+    "R-high/F-low/M-mid", "R-high/F-mid/M-high", "R-high/F-mid/M-low", "R-high/F-mid/M-mid",
+    "R-low/F-high/M-high", "R-low/F-high/M-low", "R-low/F-high/M-mid", "R-low/F-low/M-high",
+    "R-low/F-low/M-low", "R-low/F-low/M-mid", "R-low/F-mid/M-high", "R-low/F-mid/M-low",
+    "R-low/F-mid/M-mid", "R-mid/F-high/M-high", "R-mid/F-high/M-low", "R-mid/F-high/M-mid",
+    "R-mid/F-low/M-high", "R-mid/F-low/M-low", "R-mid/F-low/M-mid", "R-mid/F-mid/M-high",
+    "R-mid/F-mid/M-low", "R-mid/F-mid/M-mid"
+  ],
+  "ground_truth_sha256": "3f5b2d553aa9fe3461009aa832425b9606a103992c1da53b5887fbd912010102",
+  "ground_truth_uplift_range": [-0.0056795926361143945, 0.07373551373913623],
+  "method": {
+    "probe": "per-segment blinded expert-forecaster, mirroring forecaster_x5.py / forecaster_powered.py",
+    "model": "claude-sonnet-4-6 (Sonnet)",
+    "framing": "expert in retail SMS-promotion causal effects; predicts treatment-vs-holdout uplift for each audience described from PRE-TREATMENT behavioral features ONLY (recency/frequency/monetary tiers + basket size, category breadth, redeem share). Real uplift NEVER shown.",
+    "output": "numeric predicted responsiveness (predicted uplift in percentage points) per segment",
+    "temperature": 0.0,
+    "blinding": "audience descriptions built from behavioral features only; no uplift, no target rates, no ranking leaked",
+    "seeds": "4000 + segment_index (distinct from thin run's 3000+ to avoid any cache collision)"
+  },
+  "scoring": {
+    "primary": "Spearman rank-rho between predicted scores and REAL per-segment uplift (repo spearman_rho, same as Hillstrom/thin)",
+    "secondary": ["Kendall tau-b", "sign/direction accuracy"],
+    "significance": "label-permutation p-value on |rho|, 5000 shuffles, seed=42 (mirrors perm_p)"
+  },
+  "pre_registered_bar": {
+    "description": "SAME bar as Hillstrom and the X5-thin run",
+    "criterion": "Spearman rho > 0.30 AND permutation p < 0.05"
+  },
+  "references": {"hillstrom_rho": 0.42, "x5_thin_rho": 0.163, "x5_thin_perm_p": 0.520, "x5_thin_verdict": "FAIL (did not generalize)"},
+  "registered_prediction": "We EXPECT rich behavioral covariates to RECOVER the ranking better than the thin demographic run, and we register a directional bet that the bar is cleared (rho > 0.30, p < 0.05) — moderate confidence. Rationale: the real per-segment uplift carries a clear engagement/ceiling structure (low-monetary, low-frequency customers have the most room to be moved by an SMS and show the largest uplift; high-spend/high-frequency customers are near their ceiling and show near-zero or negative uplift). An expert retail-marketing forecaster should plausibly anticipate this 'reach the under-engaged' pattern from RFM tiers, which the purely demographic descriptions could not express. Counter-risk we acknowledge: a single Sonnet forecaster may instead apply a naive 'engaged customers respond more' prior (the OPPOSITE of the truth here), which would drive rho negative; and 26 segments with a 3-way interaction is a harder rank task than Hillstrom's. So recovery is plausible but not assured.",
+  "stopping_rule": "Run all 26 segments once at temperature 0.0; no peeking, no segment re-selection after seeing predictions, no re-tuning of descriptions after seeing rho. Result is whatever this single pre-registered run produces."
+}

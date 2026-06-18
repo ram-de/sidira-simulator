@@ -944,3 +944,14 @@ Highrise) to confirm priors-echoing rather than reciting.
   positive now rests on a single dataset and failed its first generalization test — no robustly-
   generalizing validated capability yet.** Honest non-replication; nothing fabricated. Artifacts under
   sessions/agent-behavior-spec/x5-benchmark/.
+- 2026-06-18: **X5 RICH-covariate follow-up — falsifies the "needs richer data" explanation.**
+  Pre-registered (ground-truth SHA `3f5b2d55…`). Rebuilt X5 segments on real purchase-history RFM
+  features (full 670MB purchases, 380k clients, 26 behavioral segments) instead of demographics —
+  same RCT, same bar. **Spearman ρ = −0.161, perm p 0.43 — FAIL (mildly inverted).** Three-point
+  picture: Hillstrom +0.42 (rich, but a single certification, not an independent replication) →
+  X5-thin +0.16 (fail) → X5-rich −0.16 (fail); the two X5 runs bracket zero. **Behavioral richness
+  did NOT rescue the ranking — the covariate-poverty explanation for the thin-run miss is falsified.**
+  The model leaned on a "lapsed high-value customers respond more" prior that this RCT contradicts.
+  Standing hardens: the who-responds-more capability is at chance on X5 across BOTH feature regimes;
+  Hillstrom +0.42 looks dataset-specific, not a general capability. Customer page corrected (removed
+  the "needs rich data, testing next" line). Raw data excluded. Artifacts: x5-benchmark-rich/.
