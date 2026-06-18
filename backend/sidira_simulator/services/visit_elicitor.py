@@ -33,6 +33,8 @@ is safe to call concurrently across agents.
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -200,6 +202,59 @@ def elicit_visit_decision(
         seed=seed,
         max_tokens=max_tokens,
     )
+
+
+_DELTA_OBJ = re.compile(r"\{[^{}]*\}")
+
+
+def elicit_visit_delta(
+    chat_client: ChatClient,
+    *,
+    system_prompt: str,
+    capability_name: str,
+    decision_point: str,
+    temperature: float = 0.0,
+    seed: int | None = None,
+    max_tokens: int = 512,
+) -> float:
+    """#342 comparative-delta forecaster pass: ONE call on a comparative system
+    prompt (both versions shown) asking for the directional visit-rate difference
+    directly, instead of two independent absolute passes subtracted. Returns the
+    signed lift as a fraction (delta_per_100 / 100), e.g. +0.07 = 7 more visits per
+    100. Raises ValueError if no parseable delta after retries (caller drops it).
+    """
+    user_turn = (
+        f"For this audience, consider 100 people who {decision_point}. Forecast how "
+        f"many MORE (positive) or FEWER (negative) of them would {VISIT_LABEL} under "
+        "Version B (the proposed change) than under Version A (current) — base it on "
+        "how real audiences respond to this kind of change, not on your own reaction. "
+        'Respond with ONLY one JSON object: {"delta_per_100": <signed integer between '
+        '-100 and 100>, "reason": "<one sentence>"}'
+    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_turn},
+    ]
+    for attempt in range(3):
+        raw = chat_client.chat(
+            messages, max_tokens=max_tokens,
+            temperature=0.0 if attempt else temperature, seed=seed,
+        )
+        for cand in reversed(_DELTA_OBJ.findall(raw)):
+            try:
+                obj = json.loads(cand)
+            except Exception:
+                continue
+            if isinstance(obj, dict) and "delta_per_100" in obj:
+                try:
+                    d = float(obj["delta_per_100"])
+                except (TypeError, ValueError):
+                    continue
+                return max(-100.0, min(100.0, d)) / 100.0
+        m = re.search(r'delta_per_100"?\s*[:=]\s*(-?\d+(?:\.\d+)?)', raw)
+        if m:
+            return max(-100.0, min(100.0, float(m.group(1)))) / 100.0
+    raise ValueError("comparative visit-delta elicitation produced no parseable delta")
 
 
 @dataclass(frozen=True)

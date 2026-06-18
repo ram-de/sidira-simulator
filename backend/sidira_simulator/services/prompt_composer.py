@@ -542,6 +542,89 @@ def compose_metric_prompt(
     return identity_block + product_block, blinded
 
 
+# ─── #342 comparative-delta forecaster pass ──────────────────────────────────────
+# The per-arm metric pass (above) forecasts treatment and control in TWO
+# independent passes and subtracts — each anchors on the same base rate, so the
+# real effect collapses to ~0 (the powered through-engine null). This pass instead
+# shows the forecaster BOTH versions at once and asks for the directional DIFFERENCE
+# in one call — the comparative judgment that worked standalone (visit dir-acc 1.0).
+# Forecaster-only by construction (a roleplayed user cannot be shown both arms
+# without a demand effect; a third-person forecaster comparing two product versions
+# has none). It does NOT replace the per-arm pass; the caller selects it for
+# forecaster mode. blinding is not a concept here — comparison is the point.
+_COMPARATIVE_PRODUCT_TEMPLATE = """## Two versions of the product to compare
+
+You are comparing the CURRENT version (A) against a PROPOSED version (B) of the
+**{capability_name}** capability, for the audience above.
+
+### Version A — current (what a holdout audience keeps seeing)
+
+{current_spec}
+
+### Version B — proposed (the change under evaluation)
+
+{proposed_spec}
+
+### What changed from A to B
+
+{change_lines}
+"""
+
+
+def compose_comparative_metric_prompt(
+    customer_id: str,
+    persona: Persona,
+    capability: Capability,
+    hypothesis: Hypothesis,
+    identity_seed: IdentitySeed | None = None,
+    use_persona: bool = True,
+    sample_index: int | None = None,
+) -> str:
+    """Build the forecaster COMPARATIVE system prompt: the audience identity plus
+    BOTH product versions (A current / B proposed) and the neutral changelog, for a
+    single-pass directional-delta elicitation (#342). Always forecaster-framed.
+    """
+    if use_persona:
+        jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
+        snapshot = persona.behavioral_snapshot
+        snapshot_lines = (
+            "\n".join(f"- **{k}:** {v}" for k, v in snapshot.items())
+            if snapshot
+            else "_(no behavioral snapshot available)_"
+        )
+        identity_block = _METRIC_IDENTITY_BLOCK_FORECASTER.format(
+            customer_id=customer_id,
+            persona_name=persona.name,
+            persona_description=persona.description,
+            jtbd_section=jtbd_section,
+            about_you_section=_about_you_section(identity_seed),
+            behavioral_snapshot=snapshot_lines,
+            behavioral_profile_section=_behavioral_profile_section(persona, sample_index),
+        )
+    else:
+        identity_block = _METRIC_IDENTITY_BLOCK_NO_PERSONA_FORECASTER.format(customer_id=customer_id)
+
+    rendered = render_state_diff(capability, hypothesis)
+    current_spec = summarize_reverse_figma(capability.reverse_figma)
+    proposed_spec = (
+        summarize_reverse_figma(rendered.proposed_figma)
+        if rendered.proposed_figma is not None
+        else rendered.state_plus_diff_view()
+    )
+    change_lines = (
+        "\n".join(f"- {c.detail}" for c in rendered.changes)
+        if rendered.changes
+        else "_(no structural change detected)_"
+    )
+    product_block = _COMPARATIVE_PRODUCT_TEMPLATE.format(
+        capability_name=capability.name,
+        current_spec=current_spec,
+        proposed_spec=proposed_spec,
+        change_lines=change_lines,
+    )
+    return identity_block + product_block
+
+
 def _behavioral_profile_section(persona: Persona, sample_index: int | None = None) -> str:
     """agent-behavior-spec §2: this agent's behavioral-comparison block, rendered
     as salient natural-language deltas (services.behavioral_profile).

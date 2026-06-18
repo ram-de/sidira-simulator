@@ -1049,3 +1049,51 @@ def test_forecaster_treatment_is_change_legible() -> None:
         "acme", p, c, h, arm="control", elicitation_mode="forecaster"
     )
     assert "## What is changing" not in fore_ctrl
+
+
+# ─── #342 comparative-delta forecaster pass ──────────────────────────────────────
+class _CannedChat:
+    """Fake ChatClient whose .chat() returns a canned raw string."""
+    def __init__(self, raw: str) -> None:
+        self.raw = raw
+        self.calls: list = []
+    def chat(self, messages, max_tokens=4096, temperature=0.0, seed=None) -> str:
+        self.calls.append(messages)
+        return self.raw
+    def chat_json(self, *a, **k):  # pragma: no cover
+        raise NotImplementedError
+
+
+def test_compose_comparative_prompt_shows_both_versions() -> None:
+    from sidira_simulator.services.prompt_composer import compose_comparative_metric_prompt
+    prompt = compose_comparative_metric_prompt(
+        "acme", _persona(), _capability_with_figma(), _hypothesis_with_proposed_figma(),
+    )
+    assert "expert at forecasting" in prompt          # forecaster identity
+    assert "Version A — current" in prompt
+    assert "Version B — proposed" in prompt
+    assert "What changed from A to B" in prompt
+    # both copies present (the comparison is the point — not blinded)
+    assert "Tip: choose amount" in prompt and "Tip: 20% pre-filled" in prompt
+
+
+def test_elicit_visit_delta_parses_signed_delta() -> None:
+    from sidira_simulator.services.visit_elicitor import elicit_visit_delta
+    pos = elicit_visit_delta(_CannedChat('{"delta_per_100": 7, "reason": "ok"}'),
+                             system_prompt="s", capability_name="c", decision_point="d")
+    assert abs(pos - 0.07) < 1e-9
+    neg = elicit_visit_delta(_CannedChat('reasoning... {"delta_per_100": -12}'),
+                             system_prompt="s", capability_name="c", decision_point="d")
+    assert abs(neg + 0.12) < 1e-9
+    # clamps out-of-range
+    clamped = elicit_visit_delta(_CannedChat('{"delta_per_100": 250}'),
+                                 system_prompt="s", capability_name="c", decision_point="d")
+    assert abs(clamped - 1.0) < 1e-9
+
+
+def test_elicit_visit_delta_raises_on_unparseable() -> None:
+    import pytest
+    from sidira_simulator.services.visit_elicitor import elicit_visit_delta
+    with pytest.raises(ValueError):
+        elicit_visit_delta(_CannedChat("no json here at all"),
+                           system_prompt="s", capability_name="c", decision_point="d")

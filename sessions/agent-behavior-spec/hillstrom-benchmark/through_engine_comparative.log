@@ -1,0 +1,13 @@
+COMPARATIVE forecaster pass | 4 personas x 2 emails, k=6; RCT truth: every email RAISES visits (lift>0)
+
+  Persona01 x Mens E-Mail  : predicted visit lift +0.093
+  Persona01 x Womens E-Mail: predicted visit lift +0.087
+  Persona02 x Mens E-Mail  : predicted visit lift +0.087
+  Persona02 x Womens E-Mail: predicted visit lift +0.087
+  Persona03 x Mens E-Mail  : predicted visit lift +0.077
+  Persona03 x Womens E-Mail: predicted visit lift +0.087
+  Persona04 x Mens E-Mail  : predicted visit lift +0.095
+  Persona04 x Womens E-Mail: predicted visit lift +0.030
+
+  COMPARATIVE forecaster: direction accuracy 1.00 (8/8 positive) | mean lift +0.080
+  (baselines: per-arm roleplay 0.00, per-arm forecaster 0.12)
