@@ -1,0 +1,226 @@
+{
+  "dataset": "X5 RetailHero uplift (scikit-uplift S3 mirror)",
+  "source_files": [
+    "clients.csv.gz",
+    "uplift_train.csv.gz"
+  ],
+  "treatment": "retailer SMS promotion (treatment_flg=1) vs no-SMS holdout (=0)",
+  "target": "binary purchase/redeem outcome (target)",
+  "covariates_used": [
+    "gender (F/M)",
+    "age bucket",
+    "tenure bucket (first_issue year)"
+  ],
+  "floor_per_arm": 200,
+  "n_matched_clients": 200039,
+  "n_dropped_unknown_gender": 92832,
+  "n_dropped_bad_age": 280,
+  "n_dropped_bad_tenure": 0,
+  "n_segments": 18,
+  "n_segments_dropped": 0,
+  "uplift_min": -0.0004526678603105072,
+  "uplift_max": 0.09992500000000004,
+  "canonical_uplift_vector_order": "by segment id, lexicographic sort",
+  "ground_truth_sha256": "2bee90d0cb6a033dec2e0b15bbd6a5fed16c5fe2cb0a3aa604216eecbf3ab462",
+  "segments": [
+    {
+      "segment": "F/35to54/longtenure",
+      "gender": "F",
+      "age_bucket": "35to54",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 9063,
+      "n_control": 8984,
+      "target_rate_treatment": 0.6722939424031777,
+      "target_rate_control": 0.6329029385574354,
+      "uplift": 0.039391003845742345
+    },
+    {
+      "segment": "F/35to54/midtenure",
+      "gender": "F",
+      "age_bucket": "35to54",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 3542,
+      "n_control": 3522,
+      "target_rate_treatment": 0.611518915866742,
+      "target_rate_control": 0.5644520159000568,
+      "uplift": 0.04706689996668523
+    },
+    {
+      "segment": "F/35to54/newtenure",
+      "gender": "F",
+      "age_bucket": "35to54",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 538,
+      "n_control": 568,
+      "target_rate_treatment": 0.604089219330855,
+      "target_rate_control": 0.5915492957746479,
+      "uplift": 0.012539923556207144
+    },
+    {
+      "segment": "F/55plus/longtenure",
+      "gender": "F",
+      "age_bucket": "55plus",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 9312,
+      "n_control": 9232,
+      "target_rate_treatment": 0.7112328178694158,
+      "target_rate_control": 0.6615034662045061,
+      "uplift": 0.04972935166490977
+    },
+    {
+      "segment": "F/55plus/midtenure",
+      "gender": "F",
+      "age_bucket": "55plus",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 4410,
+      "n_control": 4409,
+      "target_rate_treatment": 0.68140589569161,
+      "target_rate_control": 0.616466318893173,
+      "uplift": 0.06493957679843698
+    },
+    {
+      "segment": "F/55plus/newtenure",
+      "gender": "F",
+      "age_bucket": "55plus",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 704,
+      "n_control": 625,
+      "target_rate_treatment": 0.703125,
+      "target_rate_control": 0.6032,
+      "uplift": 0.09992500000000004
+    },
+    {
+      "segment": "F/under35/longtenure",
+      "gender": "F",
+      "age_bucket": "under35",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 5427,
+      "n_control": 5499,
+      "target_rate_treatment": 0.6182052699465634,
+      "target_rate_control": 0.618657937806874,
+      "uplift": -0.0004526678603105072
+    },
+    {
+      "segment": "F/under35/midtenure",
+      "gender": "F",
+      "age_bucket": "under35",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 3287,
+      "n_control": 3280,
+      "target_rate_treatment": 0.5914207484027989,
+      "target_rate_control": 0.5603658536585366,
+      "uplift": 0.031054894744262262
+    },
+    {
+      "segment": "F/under35/newtenure",
+      "gender": "F",
+      "age_bucket": "under35",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 601,
+      "n_control": 646,
+      "target_rate_treatment": 0.6056572379367721,
+      "target_rate_control": 0.5588235294117647,
+      "uplift": 0.046833708525007345
+    },
+    {
+      "segment": "M/35to54/longtenure",
+      "gender": "M",
+      "age_bucket": "35to54",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 3570,
+      "n_control": 3527,
+      "target_rate_treatment": 0.650140056022409,
+      "target_rate_control": 0.6195066628863056,
+      "uplift": 0.03063339313610336
+    },
+    {
+      "segment": "M/35to54/midtenure",
+      "gender": "M",
+      "age_bucket": "35to54",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 2237,
+      "n_control": 2255,
+      "target_rate_treatment": 0.6084041126508717,
+      "target_rate_control": 0.5844789356984479,
+      "uplift": 0.0239251769524238
+    },
+    {
+      "segment": "M/35to54/newtenure",
+      "gender": "M",
+      "age_bucket": "35to54",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 450,
+      "n_control": 464,
+      "target_rate_treatment": 0.6533333333333333,
+      "target_rate_control": 0.5991379310344828,
+      "uplift": 0.05419540229885056
+    },
+    {
+      "segment": "M/55plus/longtenure",
+      "gender": "M",
+      "age_bucket": "55plus",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 2323,
+      "n_control": 2307,
+      "target_rate_treatment": 0.6814464055101163,
+      "target_rate_control": 0.6679670567837018,
+      "uplift": 0.01347934872641443
+    },
+    {
+      "segment": "M/55plus/midtenure",
+      "gender": "M",
+      "age_bucket": "55plus",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 1484,
+      "n_control": 1474,
+      "target_rate_treatment": 0.6792452830188679,
+      "target_rate_control": 0.6092265943012212,
+      "uplift": 0.07001868871764672
+    },
+    {
+      "segment": "M/55plus/newtenure",
+      "gender": "M",
+      "age_bucket": "55plus",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 292,
+      "n_control": 311,
+      "target_rate_treatment": 0.702054794520548,
+      "target_rate_control": 0.6077170418006431,
+      "uplift": 0.09433775271990485
+    },
+    {
+      "segment": "M/under35/longtenure",
+      "gender": "M",
+      "age_bucket": "under35",
+      "tenure_bucket": "longtenure",
+      "n_treatment": 3018,
+      "n_control": 2994,
+      "target_rate_treatment": 0.6149768058316766,
+      "target_rate_control": 0.591182364729459,
+      "uplift": 0.023794441102217623
+    },
+    {
+      "segment": "M/under35/midtenure",
+      "gender": "M",
+      "age_bucket": "under35",
+      "tenure_bucket": "midtenure",
+      "n_treatment": 2599,
+      "n_control": 2681,
+      "target_rate_treatment": 0.5998460946517892,
+      "target_rate_control": 0.5781424841477061,
+      "uplift": 0.021703610504083093
+    },
+    {
+      "segment": "M/under35/newtenure",
+      "gender": "M",
+      "age_bucket": "under35",
+      "tenure_bucket": "newtenure",
+      "n_treatment": 624,
+      "n_control": 668,
+      "target_rate_treatment": 0.6185897435897436,
+      "target_rate_control": 0.5988023952095808,
+      "uplift": 0.019787348380162828
+    }
+  ],
+  "dropped_segments": []
+}

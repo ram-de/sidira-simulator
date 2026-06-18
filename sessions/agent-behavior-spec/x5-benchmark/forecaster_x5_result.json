@@ -1,0 +1,125 @@
+{
+  "model": "claude-sonnet-4-6",
+  "n_segments_scored": 18,
+  "n_dropped": 0,
+  "dropped_segments": [],
+  "ground_truth_sha256": "2bee90d0cb6a033dec2e0b15bbd6a5fed16c5fe2cb0a3aa604216eecbf3ab462",
+  "spearman_rho": 0.16327522579609868,
+  "kendall_tau_b": 0.120100626429612,
+  "permutation_p": 0.5198960207958409,
+  "permutation_trials": 5000,
+  "direction_accuracy_vs_zero": 0.9444444444444444,
+  "pre_registered_bar": "rho > 0.30 AND perm_p < 0.05",
+  "bar_passed": false,
+  "hillstrom_reference_rho": 0.42,
+  "predictions": [
+    {
+      "segment": "F/35to54/longtenure",
+      "description": "Women aged 35 to 54 who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.039391003845742345
+    },
+    {
+      "segment": "F/35to54/midtenure",
+      "description": "Women aged 35 to 54 who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.04706689996668523
+    },
+    {
+      "segment": "F/35to54/newtenure",
+      "description": "Women aged 35 to 54 who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.012539923556207144
+    },
+    {
+      "segment": "F/55plus/longtenure",
+      "description": "Women aged 55 or older who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.04972935166490977
+    },
+    {
+      "segment": "F/55plus/midtenure",
+      "description": "Women aged 55 or older who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 2.8,
+      "real_uplift": 0.06493957679843698
+    },
+    {
+      "segment": "F/55plus/newtenure",
+      "description": "Women aged 55 or older who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.09992500000000004
+    },
+    {
+      "segment": "F/under35/longtenure",
+      "description": "Women under 35 years old who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": -0.0004526678603105072
+    },
+    {
+      "segment": "F/under35/midtenure",
+      "description": "Women under 35 years old who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.031054894744262262
+    },
+    {
+      "segment": "F/under35/newtenure",
+      "description": "Women under 35 years old who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 3.2,
+      "real_uplift": 0.046833708525007345
+    },
+    {
+      "segment": "M/35to54/longtenure",
+      "description": "Men aged 35 to 54 who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 1.8,
+      "real_uplift": 0.03063339313610336
+    },
+    {
+      "segment": "M/35to54/midtenure",
+      "description": "Men aged 35 to 54 who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 2.1,
+      "real_uplift": 0.0239251769524238
+    },
+    {
+      "segment": "M/35to54/newtenure",
+      "description": "Men aged 35 to 54 who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 2.3,
+      "real_uplift": 0.05419540229885056
+    },
+    {
+      "segment": "M/55plus/longtenure",
+      "description": "Men aged 55 or older who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 1.2,
+      "real_uplift": 0.01347934872641443
+    },
+    {
+      "segment": "M/55plus/midtenure",
+      "description": "Men aged 55 or older who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 1.8,
+      "real_uplift": 0.07001868871764672
+    },
+    {
+      "segment": "M/55plus/newtenure",
+      "description": "Men aged 55 or older who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 2.1,
+      "real_uplift": 0.09433775271990485
+    },
+    {
+      "segment": "M/under35/longtenure",
+      "description": "Men under 35 years old who joined the supermarket loyalty program back in 2017 (long-standing members)",
+      "predicted_uplift_pp": 1.8,
+      "real_uplift": 0.023794441102217623
+    },
+    {
+      "segment": "M/under35/midtenure",
+      "description": "Men under 35 years old who joined the loyalty program in 2018",
+      "predicted_uplift_pp": 1.8,
+      "real_uplift": 0.021703610504083093
+    },
+    {
+      "segment": "M/under35/newtenure",
+      "description": "Men under 35 years old who joined the loyalty program in 2019 (relatively new members)",
+      "predicted_uplift_pp": 2.1,
+      "real_uplift": 0.019787348380162828
+    }
+  ]
+}

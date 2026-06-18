@@ -1,0 +1,74 @@
+[
+  {
+    "segment": "F/35to54/longtenure",
+    "description": "Women aged 35 to 54 who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "F/35to54/midtenure",
+    "description": "Women aged 35 to 54 who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "F/35to54/newtenure",
+    "description": "Women aged 35 to 54 who joined the loyalty program in 2019 (relatively new members)"
+  },
+  {
+    "segment": "F/55plus/longtenure",
+    "description": "Women aged 55 or older who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "F/55plus/midtenure",
+    "description": "Women aged 55 or older who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "F/55plus/newtenure",
+    "description": "Women aged 55 or older who joined the loyalty program in 2019 (relatively new members)"
+  },
+  {
+    "segment": "F/under35/longtenure",
+    "description": "Women under 35 years old who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "F/under35/midtenure",
+    "description": "Women under 35 years old who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "F/under35/newtenure",
+    "description": "Women under 35 years old who joined the loyalty program in 2019 (relatively new members)"
+  },
+  {
+    "segment": "M/35to54/longtenure",
+    "description": "Men aged 35 to 54 who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "M/35to54/midtenure",
+    "description": "Men aged 35 to 54 who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "M/35to54/newtenure",
+    "description": "Men aged 35 to 54 who joined the loyalty program in 2019 (relatively new members)"
+  },
+  {
+    "segment": "M/55plus/longtenure",
+    "description": "Men aged 55 or older who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "M/55plus/midtenure",
+    "description": "Men aged 55 or older who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "M/55plus/newtenure",
+    "description": "Men aged 55 or older who joined the loyalty program in 2019 (relatively new members)"
+  },
+  {
+    "segment": "M/under35/longtenure",
+    "description": "Men under 35 years old who joined the supermarket loyalty program back in 2017 (long-standing members)"
+  },
+  {
+    "segment": "M/under35/midtenure",
+    "description": "Men under 35 years old who joined the loyalty program in 2018"
+  },
+  {
+    "segment": "M/under35/newtenure",
+    "description": "Men under 35 years old who joined the loyalty program in 2019 (relatively new members)"
+  }
+]

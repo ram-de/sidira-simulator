@@ -1,0 +1,59 @@
+{
+  "title": "X5 RetailHero heterogeneity generalization test (mirrors Hillstrom forecaster_powered.py)",
+  "date_registered": "2026-06-18",
+  "registered_before_any_model_call": true,
+  "objective": "Test whether the simulator's certified Hillstrom 'who-responds-more' heterogeneity-ranking capability (blinded Sonnet expert-forecaster, Spearman rho +0.42) GENERALIZES to a second independent real RCT: the X5 RetailHero uplift dataset.",
+  "dataset": "X5 RetailHero uplift (scikit-uplift S3 mirror)",
+  "treatment": "retailer SMS promotion (treatment_flg=1) vs no-SMS holdout (=0)",
+  "n_segments": 18,
+  "n_segments_dropped": 0,
+  "segment_definition": "gender(F/M) x age-bucket(under35 / 35to54 / 55plus) x tenure-bucket(first_issue year: 2017=long, 2018=mid, 2019=new). Gender 'U' (unknown) dropped (no interpretable audience description). Ages <14 or >90 dropped. Floor n>=200 per arm.",
+  "segments": [
+    "F/35to54/longtenure",
+    "F/35to54/midtenure",
+    "F/35to54/newtenure",
+    "F/55plus/longtenure",
+    "F/55plus/midtenure",
+    "F/55plus/newtenure",
+    "F/under35/longtenure",
+    "F/under35/midtenure",
+    "F/under35/newtenure",
+    "M/35to54/longtenure",
+    "M/35to54/midtenure",
+    "M/35to54/newtenure",
+    "M/55plus/longtenure",
+    "M/55plus/midtenure",
+    "M/55plus/newtenure",
+    "M/under35/longtenure",
+    "M/under35/midtenure",
+    "M/under35/newtenure"
+  ],
+  "ground_truth_sha256": "2bee90d0cb6a033dec2e0b15bbd6a5fed16c5fe2cb0a3aa604216eecbf3ab462",
+  "ground_truth_uplift_range": [
+    -0.0004526678603105072,
+    0.09992500000000004
+  ],
+  "method": {
+    "probe": "per-segment blinded expert-forecaster, mirroring sessions/agent-behavior-spec/hillstrom-benchmark/forecaster_powered.py",
+    "model": "claude-sonnet-4-6 (Sonnet)",
+    "framing": "expert in retail SMS-promotion causal effects; predicts the treatment-vs-holdout change for each audience described from covariates ONLY (real uplift NEVER shown)",
+    "output": "numeric predicted responsiveness (predicted uplift in percentage points) per segment",
+    "temperature": 0.0,
+    "blinding": "audience descriptions built from gender/age/tenure covariates only; no uplift, no target rates, no ranking leaked"
+  },
+  "scoring": {
+    "primary": "Spearman rank-rho between predicted scores and REAL per-segment uplift (using repo spearman_rho, same as Hillstrom)",
+    "secondary": [
+      "Kendall tau-b",
+      "sign/direction accuracy"
+    ],
+    "significance": "label-permutation p-value on |rho|, 5000 shuffles, seed=42 (mirrors forecaster_powered.py perm_p)"
+  },
+  "pre_registered_bar": {
+    "description": "Mirror Hillstrom heterogeneity certification bar",
+    "criterion": "Spearman rho > 0.30 AND permutation p < 0.05",
+    "hillstrom_reference_rho": 0.42
+  },
+  "registered_prediction": "We EXPECT generalization (rho > 0.30, p < 0.05). The X5 SMS promotion belongs to the same marketing-nudge family as the Hillstrom email campaign, and the covariates (age/gender/tenure) carry real, forecastable demand signal. We register moderate confidence: a single-model, 18-segment test on a different retailer/market (Russian grocery loyalty) may attenuate rho below the Hillstrom +0.42 even if the capability transfers.",
+  "stopping_rule": "Run all 18 segments once at temperature 0.0; no peeking, no segment re-selection after seeing predictions. Result is whatever the single pre-registered run produces."
+}
