@@ -1,0 +1,20 @@
+{
+  "title": "Powered HETEROGENEITY certification of the expert-forecaster lever (#342, Codex path B)",
+  "timestamp_utc": "2026-06-18T00:21:38Z",
+  "rationale": "Codex 2nd-opinion: the sign-fix (email>no-email) is partly common knowledge; the non-trivial product claim is WHO-RESPONDS-MORE. Certify heterogeneity at power before any engine change. Guards the 'LLM knows base rates vs simulates audience' blind spot.",
+  "design": "gender(3) x recency(3) x channel(3) x email(2) strata from real Hillstrom RCT; 38 cases with n>=250/arm. Expert-forecaster elicitation (Sonnet primary, Groq stability). BOTH outcomes. Ground truth = real RCT uplifts.",
+  "PRIMARY_endpoint": "VISIT heterogeneity Spearman rho across cases (label-permutation p, 5000)",
+  "secondary": [
+    "conversion heterogeneity",
+    "gender-match differential (mens-email minus womens-email uplift, per gender/recency/channel triple)",
+    "direction accuracy (noted as partly base-rate-trivial)"
+  ],
+  "predicted": {
+    "visit_spearman": "~0.35",
+    "visit_perm_p": "<0.05 hoped, uncertain",
+    "gender_match_spearman": "~0.3"
+  },
+  "PASS_FAIL_BAR": "heterogeneity CERTIFIED iff VISIT Spearman rho > 0.30 AND permutation p < 0.05. Otherwise NULL (honest).",
+  "decision_rule": "CERTIFIED -> real reason to consider an engine change (path A), personas demoted to interview/explanation surface. NOT CERTIFIED -> the lever fixes sign (base-rate-ish) but does NOT yet support the who-responds-more product claim; do NOT productize; report honest null.",
+  "model_stability_note": "Sonnet-only is research-grade; productization needs cross-model evidence (Codex sequencing pt 3)."
+}

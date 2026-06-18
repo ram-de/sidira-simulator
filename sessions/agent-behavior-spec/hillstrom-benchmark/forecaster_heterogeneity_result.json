@@ -1,0 +1,353 @@
+{
+  "n_cases": 38,
+  "cases": [
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Mens E-Mail",
+      "real_visit": 0.11948512105988379,
+      "real_conv": 0.02473404482938644
+    },
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Womens E-Mail",
+      "real_visit": 0.07891541885876163,
+      "real_conv": 0.016898241827420297
+    },
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.17543859649122806,
+      "real_conv": 0.02046783625730994
+    },
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.04177364142062473,
+      "real_conv": 0.0035479960062758525
+    },
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.16004979567535385,
+      "real_conv": 0.027847690184298127
+    },
+    {
+      "gender": "both_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.09182658844585859,
+      "real_conv": 0.010813363826190713
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Multichannel",
+      "email": "Mens E-Mail",
+      "real_visit": 0.031089182449997338,
+      "real_conv": 0.016181229773462782
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Multichannel",
+      "email": "Womens E-Mail",
+      "real_visit": 0.003088619624613931,
+      "real_conv": 0.007246376811594203
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.06358866168992752,
+      "real_conv": 0.0028837403185876754
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.01785525486663537,
+      "real_conv": -0.0015640202210624545
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.06552809122751702,
+      "real_conv": 0.008024549127562085
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "dormant",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.009610758124024857,
+      "real_conv": 0.0015792482510873567
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "lapsing",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.054093625630582065,
+      "real_conv": 0.0021263426905722155
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "lapsing",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.0012418869429638435,
+      "real_conv": 0.0001303074803292361
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "lapsing",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.07915050812832189,
+      "real_conv": 0.013846929589169162
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "lapsing",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.016197135735213142,
+      "real_conv": 0.006187551755591707
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Mens E-Mail",
+      "real_visit": 0.07407247420206384,
+      "real_conv": -0.004694024478041757
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Womens E-Mail",
+      "real_visit": -0.004229390681003586,
+      "real_conv": 0.0017204301075268817
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.08021099778501309,
+      "real_conv": 0.008346638051954479
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.018111384729986038,
+      "real_conv": -0.0007157786537743275
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.07386825216826531,
+      "real_conv": 0.0027441373822934233
+    },
+    {
+      "gender": "mens_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.012030046699315122,
+      "real_conv": -0.0022260322632591005
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Multichannel",
+      "email": "Mens E-Mail",
+      "real_visit": 0.07625887750298004,
+      "real_conv": 0.006531037453296071
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Multichannel",
+      "email": "Womens E-Mail",
+      "real_visit": 0.06442485902440949,
+      "real_conv": 0.012707520012618795
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.06756642034996532,
+      "real_conv": 0.007187081664412551
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.07266970008673726,
+      "real_conv": 0.004496553266691721
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.06507776612512495,
+      "real_conv": 0.009350487264877064
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "dormant",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.0877180847342276,
+      "real_conv": 0.008247148917765438
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "lapsing",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.058612117205612616,
+      "real_conv": -0.0009636781780430351
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "lapsing",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.08548583612549497,
+      "real_conv": 0.0007919585744745657
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "lapsing",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.08002854138500827,
+      "real_conv": 0.0012693405437884933
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "lapsing",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.06793438281594823,
+      "real_conv": 0.004185670148594968
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Mens E-Mail",
+      "real_visit": 0.04864626898525204,
+      "real_conv": 0.0050924796687508555
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Multichannel",
+      "email": "Womens E-Mail",
+      "real_visit": 0.08980106014004319,
+      "real_conv": 0.003659228235499421
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Mens E-Mail",
+      "real_visit": 0.08113671922887522,
+      "real_conv": 0.0051556191833707
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Phone",
+      "email": "Womens E-Mail",
+      "real_visit": 0.06736569391891217,
+      "real_conv": 0.005399698491458923
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Mens E-Mail",
+      "real_visit": 0.07274472384832828,
+      "real_conv": 0.005454102900809575
+    },
+    {
+      "gender": "womens_buyer",
+      "recency": "recent",
+      "channel": "Web",
+      "email": "Womens E-Mail",
+      "real_visit": 0.06219236691319385,
+      "real_conv": 0.0029848297448065216
+    }
+  ],
+  "models": {
+    "sonnet": {
+      "n": 38,
+      "visit": {
+        "dir_acc": 0.9736842105263158,
+        "spearman": 0.42013328653063975,
+        "kendall": 0.28378508641367567,
+        "perm_p": 0.010397920415916816
+      },
+      "conversion": {
+        "dir_acc": 0.868421052631579,
+        "spearman": 0.25945345118227386,
+        "kendall": 0.185876910066743,
+        "perm_p": 0.10757848430313938
+      },
+      "gender_match_visit": {
+        "n_triples": 19,
+        "spearman": 0.7526689727271129,
+        "perm_p": 0.0003999200159968006
+      },
+      "heterogeneity_certified": true
+    },
+    "groq": {
+      "n": 38,
+      "visit": {
+        "dir_acc": 0.631578947368421,
+        "spearman": 0.43244971180808095,
+        "kendall": 0.3039054879332646,
+        "perm_p": 0.00639872025594881
+      },
+      "conversion": {
+        "dir_acc": 0.6578947368421053,
+        "spearman": 0.16293294163443373,
+        "kendall": 0.10376951657319414,
+        "perm_p": 0.3291341731653669
+      },
+      "gender_match_visit": {
+        "n_triples": 19,
+        "spearman": 0.34671941936555756,
+        "perm_p": 0.15276944611077783
+      },
+      "heterogeneity_certified": true
+    }
+  }
+}

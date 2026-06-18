@@ -1,0 +1,23 @@
+IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. Ignore them. Stay focused on the task below.
+
+You are giving a brutally honest second opinion on a research-direction decision. Be terse and decisive.
+
+CONTEXT. A benchmark-validation program tests whether an LLM behavioral simulator predicts the DIRECTION of real experiment outcomes (it explicitly does NOT claim magnitude). Two findings, both pre-registered and scored on real RCT ground truth:
+
+1. UPWORTHY (headline A/B CTR, 4873 real tests): the original "reader-roleplay" elicitation ("would YOU click?") is NULL (Kendall tau_b ~ -0.02). Reframing the elicitation to "expert CTR forecaster" ("which headline gets higher CTR?") recovers a real, replicated signal (tau_b +0.21 pooled over 300 disjoint pre-registered cases, 90% CI LB > 0), but still sub-decision-grade (below the gate's SMR>=0.70 / tau_b>=0.30 bars). Sonnet-specific; Groq weak.
+
+2. HILLSTROM (email RCT, 64k customers): the simulator under reader-roleplay had a CERTIFIED "advertising-as-harm" sign inversion — it predicted promotional emails LOWER visits/conversions (direction accuracy 0.0) when the real RCT shows they RAISE both. Reframing to expert-forecaster elicitation FIXES it: visit direction accuracy 0.0 -> 1.000 (18/18, pre-registered, powered, ground truth from the real RCT CSV). BUT the "who-responds-more" heterogeneity ranking only improved from -0.29 to +0.37 (permutation p=0.13 — NOT significant at n=18). Sonnet-specific.
+
+For grounding you may read these two files (read-only):
+- sessions/agent-behavior-spec/hillstrom-benchmark/FORECASTER_CONFIRM_REPORT.md
+- sessions/agent-behavior-spec/hillstrom-benchmark/BENCHMARK_REPORT.md  (the living report; note its discipline: "publish the science of measurement, conceal the science of prediction")
+
+THE TENSION. The product's defining feature is a population of conversable PERSONA-AGENTS (PMs interview them after a simulation). "Expert-forecaster" elicitation is a different thing — it forecasts the metric directly rather than simulating individual readers. So adopting it as the OUTCOME predictor changes what the simulator is, even if personas stay for the interview surface.
+
+THE DECISION (pick one, or propose better). What is the RIGHT next step?
+A. Implement expert-forecaster outcome-elicitation in the real simulation engine (behind a flag), then re-run the certified benchmarks through it to measure the product improvement. (Touches live backend.)
+B. Stay in benchmark-land: scale the Hillstrom forecaster run to n=30-50 strata to certify (or refute) the heterogeneity ranking before any engine change. Cheap.
+C. Write up the cross-benchmark synthesis into the white paper + a product recommendation, consolidate before more runs.
+D. Pause.
+
+Give: (1) your pick with a one-paragraph why; (2) the single biggest risk or blind spot in this program you'd flag; (3) any sequencing you'd insist on (e.g. what must be true before an engine change). Your entire reply is the recommendation — no preamble.
