@@ -39,8 +39,12 @@ Dropped (no consumer field): ``Persona.size``, ``Persona.stability``,
 ``group``/``centroid_value``/``population_mean``/``population_std`` members of
 each ``FeatureDelta`` (only ``z_delta`` survives, as the step-1 centroid tier).
 
-Defaulted (the producer emits neither): ``behavioral_snapshot`` (``{}``) and
-``behavioral_seeds`` (``None``).
+Mapped when present (producer #342): ``behavioral_seeds`` → ``BehavioralSeedSchema``
+(the five identity-draw pools the simulator's ``identity_seed`` service reads).
+Absent / null on the producer side (no-LLM builds, v1.0 packs) → ``None``, and the
+simulator falls back to its generic default pool exactly as before.
+
+Defaulted (the producer never emits it): ``behavioral_snapshot`` (``{}``).
 
 v1.0 packs translate cleanly: the v1.1 quad is absent, so each Persona keeps its
 schema defaults (empty ``centroid_full``/``feature_scale``/``sample_rows``,
@@ -53,6 +57,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from sidira_simulator.schemas.persona import (
+    BehavioralSeedSchema,
     Persona,
     PersonaPack,
     WeightSchemes,
@@ -133,6 +138,28 @@ def _translate_persona(p: Mapping[str, Any]) -> Persona:
         feature_scale=p.get("feature_scale", {}),
         sample_rows=p.get("sample_rows", []),
         posterior_mean=p.get("posterior_mean"),
+        behavioral_seeds=_translate_behavioral_seeds(p.get("behavioral_seeds")),
+    )
+
+
+def _translate_behavioral_seeds(raw: Any) -> BehavioralSeedSchema | None:
+    """Map the producer's ``behavioral_seeds`` object into ``BehavioralSeedSchema``.
+
+    The producer (#342) emits the five identity-draw pools field-for-field, or
+    ``null`` when LLM naming was off/unavailable. ``None`` (and any non-dict)
+    passes through as ``None`` so the simulator's ``identity_seed`` service falls
+    back to its generic default pool — the v1.0 / no-LLM behavior. Missing list
+    keys default to empty (pydantic ``default_factory=list``), matching the
+    consumer schema's optionality field-for-field.
+    """
+    if not isinstance(raw, Mapping):
+        return None
+    return BehavioralSeedSchema(
+        age_bands=list(raw.get("age_bands", [])),
+        locale_bands=list(raw.get("locale_bands", [])),
+        tenure_bands=list(raw.get("tenure_bands", [])),
+        current_state_pool=list(raw.get("current_state_pool", [])),
+        recent_gripe_pool=list(raw.get("recent_gripe_pool", [])),
     )
 
 
