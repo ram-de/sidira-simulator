@@ -1,0 +1,158 @@
+[
+  {
+    "segment": "R-high/F-high/M-high",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are heavy, very frequent shoppers (many transactions in the prior months), with high total prior spend. On average this group made about 26 transactions totalling roughly 12652 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 105 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.1,
+    "real_uplift": 0.00426922850332867
+  },
+  {
+    "segment": "R-high/F-high/M-mid",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are heavy, very frequent shoppers (many transactions in the prior months), with moderate total prior spend. On average this group made about 22 transactions totalling roughly 4974 (local currency) before the campaign, with a typical basket of about 4 items, buying across roughly 57 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.8,
+    "real_uplift": 0.023664691847531727
+  },
+  {
+    "segment": "R-high/F-low/M-high",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are light, infrequent shoppers (few transactions in the prior months), with high total prior spend. On average this group made about 6 transactions totalling roughly 9557 (local currency) before the campaign, with a typical basket of about 16 items, buying across roughly 73 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.8,
+    "real_uplift": -0.0056795926361143945
+  },
+  {
+    "segment": "R-high/F-low/M-low",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are light, infrequent shoppers (few transactions in the prior months), with low total prior spend. On average this group made about 3 transactions totalling roughly 1278 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 16 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.1,
+    "real_uplift": 0.04707733323009916
+  },
+  {
+    "segment": "R-high/F-low/M-mid",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are light, infrequent shoppers (few transactions in the prior months), with moderate total prior spend. On average this group made about 5 transactions totalling roughly 4182 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 41 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.8,
+    "real_uplift": 0.01852201867491693
+  },
+  {
+    "segment": "R-high/F-mid/M-high",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are moderately frequent shoppers, with high total prior spend. On average this group made about 12 transactions totalling roughly 11176 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 90 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.8,
+    "real_uplift": 0.034655690681368645
+  },
+  {
+    "segment": "R-high/F-mid/M-low",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are moderately frequent shoppers, with low total prior spend. On average this group made about 10 transactions totalling roughly 2079 (local currency) before the campaign, with a typical basket of about 3 items, buying across roughly 28 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.1,
+    "real_uplift": 0.06867488040511993
+  },
+  {
+    "segment": "R-high/F-mid/M-mid",
+    "description": "Loyalty-program grocery customers who had not shopped in a relatively long time before the campaign, are moderately frequent shoppers, with moderate total prior spend. On average this group made about 11 transactions totalling roughly 4570 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 50 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.8,
+    "real_uplift": 0.019046154359431355
+  },
+  {
+    "segment": "R-low/F-high/M-high",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are heavy, very frequent shoppers (many transactions in the prior months), with high total prior spend. On average this group made about 35 transactions totalling roughly 14539 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 119 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.004081219017862958
+  },
+  {
+    "segment": "R-low/F-high/M-low",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are heavy, very frequent shoppers (many transactions in the prior months), with low total prior spend. On average this group made about 24 transactions totalling roughly 2348 (local currency) before the campaign, with a typical basket of about 2 items, buying across roughly 33 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.026517290351282363
+  },
+  {
+    "segment": "R-low/F-high/M-mid",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are heavy, very frequent shoppers (many transactions in the prior months), with moderate total prior spend. On average this group made about 27 transactions totalling roughly 5102 (local currency) before the campaign, with a typical basket of about 4 items, buying across roughly 58 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.03849957071379928
+  },
+  {
+    "segment": "R-low/F-low/M-high",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are light, infrequent shoppers (few transactions in the prior months), with high total prior spend. On average this group made about 6 transactions totalling roughly 9790 (local currency) before the campaign, with a typical basket of about 16 items, buying across roughly 78 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.2,
+    "real_uplift": 0.014727954971857415
+  },
+  {
+    "segment": "R-low/F-low/M-low",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are light, infrequent shoppers (few transactions in the prior months), with low total prior spend. On average this group made about 4 transactions totalling roughly 1467 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 19 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.040650958767240675
+  },
+  {
+    "segment": "R-low/F-low/M-mid",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are light, infrequent shoppers (few transactions in the prior months), with moderate total prior spend. On average this group made about 6 transactions totalling roughly 4175 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 43 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.02684025869312029
+  },
+  {
+    "segment": "R-low/F-mid/M-high",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are moderately frequent shoppers, with high total prior spend. On average this group made about 13 transactions totalling roughly 11536 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 94 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.2,
+    "real_uplift": 0.025505194714115387
+  },
+  {
+    "segment": "R-low/F-mid/M-low",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are moderately frequent shoppers, with low total prior spend. On average this group made about 11 transactions totalling roughly 2105 (local currency) before the campaign, with a typical basket of about 3 items, buying across roughly 29 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.049996091205211646
+  },
+  {
+    "segment": "R-low/F-mid/M-mid",
+    "description": "Loyalty-program grocery customers who shopped very recently (their last purchase was just days before the campaign), are moderately frequent shoppers, with moderate total prior spend. On average this group made about 12 transactions totalling roughly 4640 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 52 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.027038367055076895
+  },
+  {
+    "segment": "R-mid/F-high/M-high",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are heavy, very frequent shoppers (many transactions in the prior months), with high total prior spend. On average this group made about 28 transactions totalling roughly 13419 (local currency) before the campaign, with a typical basket of about 7 items, buying across roughly 112 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.019078380094990077
+  },
+  {
+    "segment": "R-mid/F-high/M-low",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are heavy, very frequent shoppers (many transactions in the prior months), with low total prior spend. On average this group made about 23 transactions totalling roughly 2365 (local currency) before the campaign, with a typical basket of about 2 items, buying across roughly 33 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.043043599000277655
+  },
+  {
+    "segment": "R-mid/F-high/M-mid",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are heavy, very frequent shoppers (many transactions in the prior months), with moderate total prior spend. On average this group made about 24 transactions totalling roughly 5072 (local currency) before the campaign, with a typical basket of about 4 items, buying across roughly 58 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 0.8,
+    "real_uplift": 0.03501544465316109
+  },
+  {
+    "segment": "R-mid/F-low/M-high",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are light, infrequent shoppers (few transactions in the prior months), with high total prior spend. On average this group made about 6 transactions totalling roughly 9569 (local currency) before the campaign, with a typical basket of about 16 items, buying across roughly 76 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 2.1,
+    "real_uplift": -0.0015335801163405272
+  },
+  {
+    "segment": "R-mid/F-low/M-low",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are light, infrequent shoppers (few transactions in the prior months), with low total prior spend. On average this group made about 4 transactions totalling roughly 1468 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 19 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.034893192900341596
+  },
+  {
+    "segment": "R-mid/F-low/M-mid",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are light, infrequent shoppers (few transactions in the prior months), with moderate total prior spend. On average this group made about 6 transactions totalling roughly 4193 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 44 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.029363244198477856
+  },
+  {
+    "segment": "R-mid/F-mid/M-high",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are moderately frequent shoppers, with high total prior spend. On average this group made about 13 transactions totalling roughly 11620 (local currency) before the campaign, with a typical basket of about 10 items, buying across roughly 94 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.2,
+    "real_uplift": 0.02490080597820732
+  },
+  {
+    "segment": "R-mid/F-mid/M-low",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are moderately frequent shoppers, with low total prior spend. On average this group made about 11 transactions totalling roughly 2104 (local currency) before the campaign, with a typical basket of about 3 items, buying across roughly 29 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.07373551373913623
+  },
+  {
+    "segment": "R-mid/F-mid/M-mid",
+    "description": "Loyalty-program grocery customers who shopped a few weeks before the campaign, are moderately frequent shoppers, with moderate total prior spend. On average this group made about 12 transactions totalling roughly 4629 (local currency) before the campaign, with a typical basket of about 6 items, buying across roughly 51 distinct products, and redeemed loyalty points in about 0% of their visits.",
+    "predicted_uplift_pp": 1.8,
+    "real_uplift": 0.04044769386277747
+  }
+]
