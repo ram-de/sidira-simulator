@@ -1,0 +1,8 @@
+  ...10/38
+  ...20/38
+  ...30/38
+
+=== ENRICHER-GENERATED descriptions through the comparative engine (n=38, dropped=0) ===
+  Spearman rho = +0.457  (perm p = 0.0040)   Kendall tau_b = +0.336   dir_acc = 0.605
+  bar (rho>0.30 AND p<0.05): CERTIFIED
+  baselines: hand-written rich personas ρ +0.385 | raw-jargon GMM personas: clustered/no heterogeneity

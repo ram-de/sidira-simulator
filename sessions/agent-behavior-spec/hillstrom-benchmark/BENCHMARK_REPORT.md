@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off; **fix attempt #6 — the powered run CERTIFIES who-responds-more heterogeneity through the comparative engine pass GIVEN segment-rich personas (Spearman ρ +0.385, p=0.015), confirming the lever is the comparative pass AND audience richness together — the generic production persona pack is the remaining gap before a default flip**). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off; **fix attempt #6 — the powered run CERTIFIES who-responds-more heterogeneity through the comparative engine pass GIVEN segment-rich personas (Spearman ρ +0.385, p=0.015), confirming the lever is the comparative pass AND audience richness together — the generic production persona pack is the remaining gap; **fix attempt #7 closes that gap — a persona enricher that turns the segment stats the personas already carry into readable descriptions lets the comparative pass recover heterogeneity even better than hand-written text (ρ +0.457, p=0.004), validated from real feature stats. The two production levers (comparative pass + persona enrichment) are now both proven; wiring the enricher into the live pack + a deliberate flag flip remain**). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -430,6 +430,27 @@ comparative pass **and** persona richness together: the same pass with the thin
 production GMM pack gives clustered deltas (direction only), so **enriching the
 persona conditioning is the remaining product gap** before this lands in the
 default. One dataset / metric (visit) / model; still flag-gated, default OFF.
+
+### Fix attempt #7 — persona enrichment closes the gap (the missing cluster-naming step)
+
+The live personas carry segment signal only as raw stats
+(`value_sensitivity.history (-0.60σ)`) — the cluster-naming step never ran. An
+**enricher** that turns those real feature stats into readable descriptions
+(*"Men's-only shoppers split almost evenly between new and returning customers…"*)
+recovers heterogeneity through the production comparative pass **even better than
+hand-written text**:
+
+| audience conditioning | Spearman ρ (perm p) |
+|---|---|
+| raw-jargon GMM personas (live gap) | ~0 (clustered) |
+| hand-written rich personas | +0.385 (0.015) |
+| **enricher-generated (real stats → NL)** | **+0.457 (0.004)** ✅ |
+
+So the two production levers — **comparative pass** + **persona enrichment** — are
+both proven; together they recover the certified who-responds-more ranking through
+the engine. The gap was never the method, only that the persona descriptions were
+stats, not language. Remaining: wire the enricher into the live persona-build/
+conditioning, then a deliberate flag flip. Visit-only / one model / flag-gated.
 
 ---
 
