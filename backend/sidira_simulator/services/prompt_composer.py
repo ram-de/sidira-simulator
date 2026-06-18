@@ -520,6 +520,25 @@ def compose_metric_prompt(
                 + rendered.state_plus_diff_view()
             )
 
+        # #342 forecaster legibility: a third-person FORECASTER (unlike a
+        # roleplayed user) has no demand-effect to inflate, so naming the change
+        # it is forecasting is legitimate AND necessary — the blinded standalone
+        # state alone left the treatment illegible to the forecaster (treat ≈
+        # control in the powered through-engine run). Append a neutral, factual
+        # change descriptor (the typed changelog detail; no valence) ONLY in
+        # forecaster mode. `blinded` stays True: this is intentional, symmetric
+        # change-legibility for an expert forecaster, NOT the demand-inducing
+        # unblinded fallback above (which a roleplayed user could inflate). roleplay
+        # mode is untouched, so the certified roleplay baseline is unaffected.
+        if forecaster and rendered.changes:
+            change_lines = "\n".join(f"- {c.detail}" for c in rendered.changes)
+            product_block += (
+                "\n## What is changing\n\n"
+                "You are forecasting the effect of the following change to this "
+                "product, versus the current version a holdout audience sees:\n\n"
+                f"{change_lines}\n"
+            )
+
     return identity_block + product_block, blinded
 
 

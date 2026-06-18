@@ -717,6 +717,7 @@ def test_metric_prompt_treatment_is_blinded_and_shows_proposed_state_only() -> N
         hypothesis=_hypothesis_with_proposed_figma(),
         identity_seed=_seed(),
         arm="treatment",
+        elicitation_mode="roleplay",  # blinding assertions are roleplay-mode behavior
     )
     assert blinded is True
     # Proposed state present, current state absent → no inferable diff.
@@ -940,6 +941,7 @@ def test_metric_prompt_stays_blinded_with_affordance_clause(monkeypatch) -> None
         capability=_stimulus_capability(),
         hypothesis=_stimulus_hypothesis(),
         identity_seed=_seed(),
+        elicitation_mode="roleplay",  # blinding/affordance symmetry is roleplay-mode behavior
     )
     treatment, t_blinded = compose_metric_prompt(**args, arm="treatment")
     control, c_blinded = compose_metric_prompt(**args, arm="control")
@@ -1022,3 +1024,28 @@ def test_metric_prompt_forecaster_preserves_structural_spec() -> None:
     role_spec = role.split("### Structural spec", 1)[1]
     fore_spec = fore.split("### Structural spec", 1)[1]
     assert role_spec == fore_spec
+
+
+def test_forecaster_treatment_is_change_legible() -> None:
+    """#342 legibility: forecaster-mode TREATMENT names the change it is
+    forecasting (neutral changelog), while roleplay and the control arm do not.
+    blinded stays True (intentional forecaster legibility, not the demand fallback)."""
+    p = _persona()
+    c = _capability_with_figma()
+    h = _hypothesis_with_proposed_figma()
+    fore_treat, blinded = compose_metric_prompt(
+        "acme", p, c, h, arm="treatment", elicitation_mode="forecaster"
+    )
+    assert "## What is changing" in fore_treat
+    assert "forecasting the effect of the following change" in fore_treat
+    assert blinded is True  # not the unblinded fallback
+    # roleplay treatment must NOT carry the legibility block (baseline untouched)
+    role_treat, _ = compose_metric_prompt(
+        "acme", p, c, h, arm="treatment", elicitation_mode="roleplay"
+    )
+    assert "## What is changing" not in role_treat
+    # forecaster CONTROL has no change to forecast → no legibility block
+    fore_ctrl, _ = compose_metric_prompt(
+        "acme", p, c, h, arm="control", elicitation_mode="forecaster"
+    )
+    assert "## What is changing" not in fore_ctrl
