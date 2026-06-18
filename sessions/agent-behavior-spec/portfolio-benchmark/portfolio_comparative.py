@@ -57,8 +57,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--k", type=int, default=4)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--cases-path", default=str(CASES),
+                    help="JSON with a 'scored_cases' list; default = the V3 confirmatory set.")
+    ap.add_argument("--out", default=str(HERE / "portfolio_comparative_result.json"),
+                    help="where to write the result JSON.")
     args = ap.parse_args()
-    cases = json.loads(CASES.read_text())["scored_cases"]
+    cases = json.loads(Path(args.cases_path).read_text())["scored_cases"]
     if args.smoke:
         cases = cases[:1]
     client = get_chat_client("claude-sonnet-4-6")
@@ -78,9 +82,10 @@ def main() -> int:
     print(f"\n=== PORTFOLIO comparative-forecaster: direction accuracy {acc:.3f} ({correct}/{scored}, dropped {dropped}) ===")
     print(f"  prior (per-arm reader-roleplay): 0.286 (4/14) | chance ~0.5")
     if not args.smoke:
-        (HERE / "portfolio_comparative_result.json").write_text(json.dumps(
+        Path(args.out).write_text(json.dumps(
             {"direction_accuracy": acc, "correct": correct, "scored": scored,
-             "dropped": dropped, "k": args.k, "prior_accuracy": 0.286, "cases": rows}, indent=2))
+             "dropped": dropped, "k": args.k, "prior_accuracy": 0.286,
+             "cases_path": args.cases_path, "cases": rows}, indent=2))
     return 0
 
 

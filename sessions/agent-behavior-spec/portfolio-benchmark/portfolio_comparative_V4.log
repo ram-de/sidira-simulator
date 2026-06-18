@@ -1,0 +1,13 @@
+  apparel_hide_discount_surfacing        real=treatment pred=treatment OK
+  gift_certificate_expiry_window         real=control   pred=treatment X
+  referral_reward_sender_certainty       real=treatment pred=treatment OK
+  referral_reward_recipient_certainty    real=control   pred=treatment X
+  time_scarcity_promo_framing            real=treatment pred=control   X
+  product_image_hover_zoom               real=treatment pred=control   X
+  homepage_carousel_item_count           real=treatment pred=control   X
+  donation_banner_only_word              real=treatment pred=treatment OK
+  upload_dropzone_border_button_weight   real=treatment pred=treatment OK
+  vendor_listing_popularity_count        real=treatment pred=treatment OK
+
+=== PORTFOLIO comparative-forecaster: direction accuracy 0.500 (5/10, dropped 0) ===
+  prior (per-arm reader-roleplay): 0.286 (4/14) | chance ~0.5
