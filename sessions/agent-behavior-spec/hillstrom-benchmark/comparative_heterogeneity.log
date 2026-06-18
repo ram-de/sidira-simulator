@@ -1,0 +1,10 @@
+COMPARATIVE-ENGINE heterogeneity | 38 cells (gender x recency x channel x email), k=4 | descriptive segment personas
+  ...10/38
+  ...20/38
+  ...30/38
+
+=== COMPARATIVE-ENGINE HETEROGENEITY (n=38, dropped=0) ===
+  Spearman rho = +0.385  (perm p = 0.0152)   Kendall tau_b = +0.279
+  direction accuracy = 0.605
+  pre-registered bar (rho>0.30 AND p<0.05): CERTIFIED
+  baselines: standalone forecaster ρ +0.42 (certified) | GMM-persona e2e: clustered/no heterogeneity

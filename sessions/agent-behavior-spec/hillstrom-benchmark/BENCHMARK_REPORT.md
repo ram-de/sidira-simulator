@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off pending a powered + heterogeneity run before any default flip**). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified; fix attempt #4 / engine integration: the standalone wins did NOT initially transfer through the production engine pass (roleplay dir-acc 0.00, forecaster 0.12); **fix attempt #5 RESOLVES it — a comparative-delta elicitation recovers the lift through the engine (0.12 → 1.0 direction accuracy) and is validated END-TO-END through the production runner (+10pp, 90% CI clear of zero, matching the RCT), flag-gated/default-off; **fix attempt #6 — the powered run CERTIFIES who-responds-more heterogeneity through the comparative engine pass GIVEN segment-rich personas (Spearman ρ +0.385, p=0.015), confirming the lever is the comparative pass AND audience richness together — the generic production persona pack is the remaining gap before a default flip**). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -411,6 +411,25 @@ powered), and **heterogeneity through the comparative engine is not yet validate
 **powered + heterogeneity run through the comparative engine**; only after that
 (and a deliberate decision) would the default flip. No in-product accuracy claim
 beyond direction until then.
+
+### Fix attempt #6 — heterogeneity recovers through the comparative engine (given rich personas)
+
+The powered run (pre-registered, bar fixed first: ρ>0.30 AND p<0.05) drove 38
+gender×recency×channel strata — each a **descriptive** segment persona — through the
+production comparative pass.
+
+| approach | Spearman ρ (perm p) |
+|---|---|
+| standalone forecaster (Fix #3) | +0.42 (0.01) |
+| comparative engine, generic GMM personas (e2e) | ~0 (clustered) |
+| **comparative engine, segment-rich personas** | **+0.385 (0.015)** ✅ |
+
+**CERTIFIED.** The who-responds-more ranking recovers through the production
+comparative pass — *when the audience carries segment signal*. So the lever is the
+comparative pass **and** persona richness together: the same pass with the thin
+production GMM pack gives clustered deltas (direction only), so **enriching the
+persona conditioning is the remaining product gap** before this lands in the
+default. One dataset / metric (visit) / model; still flag-gated, default OFF.
 
 ---
 
