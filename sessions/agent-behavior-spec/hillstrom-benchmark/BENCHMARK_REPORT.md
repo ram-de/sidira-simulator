@@ -930,3 +930,17 @@ Highrise) to confirm priors-echoing rather than reciting.
   opus_probe.py, opus_probe_result.json. (Latent infra note: `claude-opus-4-7` is registered + in
   ALLOWED_MODELS but `AnthropicChat.chat` forces a `temperature` arg the reasoning model rejects →
   unusable via the chat path; probe called Anthropic directly. Worth a proper adapter fix later.)
+- 2026-06-18: **X5 generalization test — the certified Hillstrom ranking does NOT generalize.**
+  Pre-registered (`PREREG_X5_HETEROGENEITY`, ground-truth SHA `2bee90d0…`, bar = Hillstrom's:
+  Spearman ρ>0.30 AND perm p<0.05, sealed before the model run). Real RCT (X5 RetailHero SMS promo,
+  200,039 clients, balanced arms; small files only). 18 pre-treatment segments (gender×age×join-year,
+  0 dropped), real per-segment uplift −0.0005..+0.0999 (SHA-pinned ground truth). Blinded Sonnet
+  forecaster ranking. **Result: Spearman ρ = +0.163, perm p = 0.52** — clears NEITHER half of the bar.
+  Sign/direction accuracy 0.944 (easy: ~everyone responds positively to the SMS). **The +0.42 Hillstrom
+  who-responds-more ranking did NOT replicate** — predictions saturated within gender (a coarse gender
+  prior), missing the age×tenure gradient that drives the real heterogeneity. Contributing factor:
+  X5's purely demographic covariates carry weaker uplift signal than Hillstrom's purchase-history
+  segments (a harder target, not a like-for-like). **Standing: the program's ONLY certified directional
+  positive now rests on a single dataset and failed its first generalization test — no robustly-
+  generalizing validated capability yet.** Honest non-replication; nothing fabricated. Artifacts under
+  sessions/agent-behavior-spec/x5-benchmark/.
