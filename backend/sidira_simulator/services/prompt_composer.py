@@ -374,9 +374,10 @@ its own terms.
 # an expert forecasting how the described AUDIENCE actually behaves (3rd-person,
 # population-grounded) removed the inversion (visit direction accuracy 0.0 -> 1.0 at
 # power) and certified the who-responds-more heterogeneity claim (visit rank-ρ
-# +0.42, p=0.01; gender-match +0.75, p=0.0004). These blocks are byte-different from
-# the roleplay blocks ONLY when SIDIRA_ELICITATION_MODE=forecaster; default is
-# unchanged. The option set, blinding (structural-only state), and #90 paired
+# +0.42, p=0.01; gender-match +0.75, p=0.0004). Forecaster is the DEFAULT (#342);
+# set SIDIRA_ELICITATION_MODE=roleplay to fall back to the historical introspective
+# blocks (the certified baseline, retained for A/B). The option set, blinding
+# (structural-only state), and #90 paired
 # control/treatment invariant are all preserved — only the framing voice changes,
 # symmetrically across arms, so it cancels in the paired delta.
 _METRIC_IDENTITY_BLOCK_FORECASTER = """You are an expert at forecasting how real \

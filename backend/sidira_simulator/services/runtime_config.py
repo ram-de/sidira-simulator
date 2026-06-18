@@ -22,15 +22,20 @@ DEFAULT_CONVERSION_PARAPHRASES = 1
 # The flag is symmetric across arms and the clause cancels in the paired delta, so
 # blinding (compose_metric_prompt) is preserved.
 DEFAULT_STIMULUS_AFFORDANCE = False
-# Outcome-elicitation framing (benchmark-validated, #342). Default "roleplay"
-# reproduces the historical first-person introspective metric pass byte-for-byte
-# ("You are roleplaying a real user... judging it on its own terms"). "forecaster"
-# reframes the metric pass as an expert forecasting how the described AUDIENCE
-# actually behaves (3rd-person, population-grounded), which the Hillstrom/Upworthy
-# benchmarks showed removes the introspective "advertising-as-harm" sign inversion
-# and recovers directional/heterogeneity signal. Opt-in via env; the reaction/chat
-# pass (compose_identity_prompt) is unchanged either way.
-DEFAULT_ELICITATION_MODE = "roleplay"
+# Outcome-elicitation framing (benchmark-validated, #342). Default "forecaster"
+# frames the metric pass as an expert forecasting how the described AUDIENCE
+# actually behaves (3rd-person, population-grounded) — the validated framing: on
+# real RCT ground truth it removed the introspective "advertising-as-harm" sign
+# inversion (Hillstrom visit direction accuracy 0.0->1.0 at power) and certified
+# the who-responds-more heterogeneity claim (rank-rho +0.42 p=0.01, gender-match
+# +0.75 p=0.0004), and recovered directional signal on Upworthy where roleplay was
+# null. "roleplay" reproduces the historical first-person introspective pass
+# byte-for-byte ("You are roleplaying a real user... judging it on its own terms")
+# and is RETAINED behind the flag so the certified roleplay baseline stays
+# reproducible and future elicitation changes can be A/B'd. The default flipped to
+# forecaster (#342, pre-customer) because roleplay is provably the worse framing;
+# the reaction/chat pass (compose_identity_prompt) is unchanged either way.
+DEFAULT_ELICITATION_MODE = "forecaster"
 ELICITATION_MODES = ("roleplay", "forecaster")
 PRIMARY_ENV_PREFIX = "SIDIRA_"
 LEGACY_ENV_PREFIX = "PYTHIA_"
@@ -141,16 +146,18 @@ def resolve_stimulus_affordance_rendering() -> bool:
 def resolve_elicitation_mode() -> str:
     """Outcome-elicitation framing for the metric pass (#342).
 
-    Returns "forecaster" only when `SIDIRA_ELICITATION_MODE` (or legacy
-    `PYTHIA_*`) is exactly "forecaster" (case-insensitive, trimmed); everything
-    else — including unset, blank, or any unrecognized value — returns the default
-    "roleplay", so a bad deployment env can never silently change the framing.
-    Default reproduces the historical first-person introspective metric pass
-    byte-for-byte.
+    Honors an explicit `SIDIRA_ELICITATION_MODE` (or legacy `PYTHIA_*`) of
+    "roleplay" or "forecaster" (case-insensitive, trimmed). Anything else —
+    unset, blank, or unrecognized — returns the default "forecaster", so a bad
+    deployment env can never silently fall back to the worse framing. Set
+    `SIDIRA_ELICITATION_MODE=roleplay` to reproduce the historical introspective
+    pass (the certified baseline) for A/B comparison.
     """
     raw = resolve_sidira_env("ELICITATION_MODE")
-    if raw is not None and raw.strip().lower() == "forecaster":
-        return "forecaster"
+    if raw is not None:
+        value = raw.strip().lower()
+        if value in ELICITATION_MODES:
+            return value
     return DEFAULT_ELICITATION_MODE
 
 

@@ -794,6 +794,7 @@ def test_metric_prompt_carries_persona_identity() -> None:
         hypothesis=_hypothesis_with_proposed_figma(),
         identity_seed=_seed(),
         arm="treatment",
+        elicitation_mode="roleplay",  # this test asserts roleplay-specific framing
     )
     assert "## Who you are" in prompt
     assert _persona().name in prompt
@@ -847,6 +848,7 @@ def test_metric_prompt_no_persona_strips_identity() -> None:
         identity_seed=_seed(),
         arm="treatment",
         use_persona=False,
+        elicitation_mode="roleplay",  # this test asserts roleplay-specific framing
     )
     assert blinded is True
     assert "## Who you are" not in prompt
@@ -956,20 +958,31 @@ def test_metric_prompt_stays_blinded_with_affordance_clause(monkeypatch) -> None
 
 
 # ─── #342 elicitation_mode (expert-forecaster framing) ───────────────────────────
-def test_metric_prompt_roleplay_is_default_and_byte_identical() -> None:
-    """Default (None) and explicit "roleplay" produce the historical first-person
-    pass, byte-for-byte. This is the safety guarantee: the flag is opt-in."""
+def test_metric_prompt_forecaster_is_default() -> None:
+    """#342: forecaster is the DEFAULT framing (None resolves to forecaster). The
+    certified-worse roleplay framing is retained behind the flag, not the default."""
     p, c, h = _persona(), _capability(), _hypothesis()
     default_prompt, default_blinded = compose_metric_prompt(
         "acme", p, c, h, arm="control", elicitation_mode=None
     )
+    forecaster_prompt, _ = compose_metric_prompt(
+        "acme", p, c, h, arm="control", elicitation_mode="forecaster"
+    )
+    assert default_prompt == forecaster_prompt
+    assert "expert at forecasting" in default_prompt
+    assert "You are roleplaying a real user" not in default_prompt
+    assert default_blinded is True
+
+
+def test_metric_prompt_roleplay_still_available_and_historical() -> None:
+    """roleplay mode remains selectable behind the flag (the certified baseline),
+    producing the historical first-person introspective block byte-for-byte."""
+    p, c, h = _persona(), _capability(), _hypothesis()
     roleplay_prompt, _ = compose_metric_prompt(
         "acme", p, c, h, arm="control", elicitation_mode="roleplay"
     )
-    assert default_prompt == roleplay_prompt
-    assert "You are roleplaying a real user" in default_prompt
-    assert "judging it on" in default_prompt
-    assert default_blinded is True
+    assert "You are roleplaying a real user" in roleplay_prompt
+    assert "judging it on" in roleplay_prompt
 
 
 def test_metric_prompt_forecaster_reframes_to_audience_forecast() -> None:
