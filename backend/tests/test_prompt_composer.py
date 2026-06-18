@@ -953,3 +953,59 @@ def test_metric_prompt_stays_blinded_with_affordance_clause(monkeypatch) -> None
     # Blinding intact: treatment shows ONLY proposed copy, control ONLY current.
     assert "Catch up now" in treatment and "See what's new" not in treatment
     assert "See what's new" in control and "Catch up now" not in control
+
+
+# ─── #342 elicitation_mode (expert-forecaster framing) ───────────────────────────
+def test_metric_prompt_roleplay_is_default_and_byte_identical() -> None:
+    """Default (None) and explicit "roleplay" produce the historical first-person
+    pass, byte-for-byte. This is the safety guarantee: the flag is opt-in."""
+    p, c, h = _persona(), _capability(), _hypothesis()
+    default_prompt, default_blinded = compose_metric_prompt(
+        "acme", p, c, h, arm="control", elicitation_mode=None
+    )
+    roleplay_prompt, _ = compose_metric_prompt(
+        "acme", p, c, h, arm="control", elicitation_mode="roleplay"
+    )
+    assert default_prompt == roleplay_prompt
+    assert "You are roleplaying a real user" in default_prompt
+    assert "judging it on" in default_prompt
+    assert default_blinded is True
+
+
+def test_metric_prompt_forecaster_reframes_to_audience_forecast() -> None:
+    p, c, h = _persona(), _capability(), _hypothesis()
+    prompt, blinded = compose_metric_prompt(
+        "acme", p, c, h, arm="control", elicitation_mode="forecaster"
+    )
+    # voice flipped to expert forecaster over a 3rd-person audience
+    assert "expert at forecasting" in prompt
+    assert "audience you are forecasting" in prompt
+    assert "out of 10 representative members of this audience" in prompt
+    assert "You are roleplaying a real user" not in prompt
+    # product framed for the audience, not first-person
+    assert "the product this audience uses" in prompt
+    # blinding + the persona identity content are preserved
+    assert blinded is True
+    assert p.name in prompt
+
+
+def test_metric_prompt_forecaster_no_persona_variant() -> None:
+    p, c, h = _persona(), _capability(), _hypothesis()
+    prompt, _ = compose_metric_prompt(
+        "acme", p, c, h, arm="control", use_persona=False, elicitation_mode="forecaster"
+    )
+    assert "expert at forecasting how real audiences" in prompt
+    assert "out of 10 typical users" in prompt
+    assert p.name not in prompt  # no-persona drops identity
+
+
+def test_metric_prompt_forecaster_preserves_structural_spec() -> None:
+    """Forecaster mode changes only the framing voice; the blinded structural
+    state (the option-bearing content) is unchanged from roleplay."""
+    p, c, h = _persona(), _capability(), _hypothesis()
+    role, _ = compose_metric_prompt("acme", p, c, h, arm="control", elicitation_mode="roleplay")
+    fore, _ = compose_metric_prompt("acme", p, c, h, arm="control", elicitation_mode="forecaster")
+    # the "### Structural spec" body is identical across modes
+    role_spec = role.split("### Structural spec", 1)[1]
+    fore_spec = fore.split("### Structural spec", 1)[1]
+    assert role_spec == fore_spec
