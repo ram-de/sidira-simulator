@@ -1,6 +1,6 @@
 # Sidira Accuracy Benchmark — Living Report
 
-> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; heterogeneity ranking improved but not yet certified). This is the working draft that
+> **Status: IN PROGRESS** (last updated 2026-06-17 — Hillstrom certified; fix attempt #1 null; **fix attempt #2 FIXES the sign inversion at power (visit direction accuracy 0.0 → 1.0)** via elicitation reframing; **fix attempt #3 CERTIFIES who-responds-more heterogeneity for visits (ρ +0.42, p=0.010, both models; gender-match differential +0.75, p=0.0004) — the Kohavi-proof claim now holds**; conversion heterogeneity still not certified). This is the working draft that
 > grows as each benchmark result lands. It is the source for the eventual public
 > technical report on sidira.ai/research. Design principle: **publish the science of
 > measurement, conceal the science of prediction** — this document explains *what we
@@ -340,6 +340,31 @@ program keeps catching. So the sign claim is certified-fixed; the heterogeneity 
 "positive-leaning, not yet certified — needs more cases." The fix is also model-dependent
 (it is clean on the stronger model; a weaker one still mis-signs a third of cases), which
 answers the §4-Fix-#1 question as *both*: a capable model **and** the right elicitation mode.
+
+### Fix attempt #3 — the who-responds-more claim, now certified at power
+
+Fix #2 fixed the *sign*. But a skeptic is right to note that "email beats no-email" is
+partly common-world knowledge — the claim the product actually sells is *heterogeneity*:
+**which audience responds most.** So we pre-registered a pass/fail bar (`PREREG_HETEROGENEITY.json`,
+SHA `7e38d59e…`, committed before the result) — heterogeneity is certified only if the visit
+rank correlation exceeds 0.30 with permutation p < 0.05 — and tested it at power on a finer
+real-data stratification (gender × recency × channel × email, 38 cases).
+
+| | visit heterogeneity ρ (perm p) | gender-match differential ρ (perm p) |
+|---|---|---|
+| original reader-roleplay (§4) | −0.29 (at chance) | — |
+| **expert-forecast elicitation** | **+0.42 (p = 0.010)** ✅ | **+0.75 (p = 0.0004)** ✅ |
+
+**The who-responds-more claim clears its pre-registered bar** — and the sharpest, least-
+guessable form of it (the *gender-match differential*: does the model know that, within one
+audience, the men's email out-pulls the women's email by the right amount?) is the strongest
+result in this report at p = 0.0004. The visit ranking also replicates on a second model, so
+it is not model-idiosyncratic. **Two honest narrowings:** (a) *conversion* heterogeneity is
+positive but does **not** clear significance (ρ +0.26, p = 0.11) — the certified claim is
+visit-only; (b) the sharp gender-match differential is clean only on the stronger model. This
+is the first time, anywhere in this program, that the headline directional-heterogeneity claim
+the product is built on has been *certified* against a real randomized experiment — pre-
+registered, permutation-tested, with the parts that didn't clear shown alongside.
 
 ---
 
