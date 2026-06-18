@@ -77,7 +77,7 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
     benchmark: "Product-change portfolio",
     tested: "Which version of a real product change wins",
     result:
-      "Re-run with the comparative-forecaster: 0.500 (7/14), up from 0.286 but still at chance. It gets cases where the added feature won, but a 'more-is-better' bias persists on counter-intuitive changes where doing less won. No certified signal yet.",
+      "Re-run with the comparative-forecaster: 0.500 (7/14), up from 0.286 but still at chance. It gets cases where the added feature won, but a 'more-is-better' bias persists on counter-intuitive changes where doing less won. Independently replicated on 10 fresh, pre-registered, leak-audited cases (0.500; on the 'doing-less-won' subset, 1-2 of 4 — at or below chance), and a stronger frontier model did not improve it — evidence the limit is intrinsic to the method, not a weak-model artifact. No certified signal yet.",
   },
   {
     benchmark: "Metric calibration",

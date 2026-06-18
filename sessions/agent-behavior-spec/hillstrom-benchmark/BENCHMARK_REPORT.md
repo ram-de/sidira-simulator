@@ -918,3 +918,15 @@ Highrise) to confirm priors-echoing rather than reciting.
   is the truer statement. The only certified directional positive remains Hillstrom's who-responds-more
   ranking. Artifacts: PORTFOLIO_CASES_EXPANSION_V4.json, PORTFOLIO_V4_EXPANSION_RESULT.md,
   portfolio_comparative_V4_result.json.
+- 2026-06-18: **Opus capability probe — does a stronger model fix product-change direction? NO.**
+  Pre-registered (`PREREG_PORTFOLIO_V4_OPUS_PROBE`); re-ran the EXACT V4 cases changing ONLY the
+  model (Sonnet 4.6 → Opus 4.7, the strongest registered). **Overall 5/10 (0.500) — identical to
+  Sonnet; still at chance and below the always-treatment baseline (0.80).** Trick pile (less-won)
+  moved 1/4 → 2/4 (one case at n=4 = noise, cancelled by ambiguous 1/2 → 0/2). The registered
+  ≤0.25 trick-pile prediction was slightly exceeded (2/4), but the "capability helps" branch
+  (≥0.75) was clearly not met → **a frontier-class model upgrade does NOT recover counter-intuitive
+  product-change direction.** Consistent with the Hillstrom ad-aversion model comparison (Sonnet ==
+  Groq, both 0.0): a systematic bias is model-INDEPENDENT, not a weak-model artifact. Artifacts:
+  opus_probe.py, opus_probe_result.json. (Latent infra note: `claude-opus-4-7` is registered + in
+  ALLOWED_MODELS but `AnthropicChat.chat` forces a `temperature` arg the reasoning model rejects →
+  unusable via the chat path; probe called Anthropic directly. Worth a proper adapter fix later.)
