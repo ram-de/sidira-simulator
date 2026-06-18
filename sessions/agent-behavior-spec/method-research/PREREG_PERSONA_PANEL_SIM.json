@@ -1,0 +1,17 @@
+{
+  "prereg_id": "PERSONA_PANEL_SIM_V1",
+  "issue": "#342 — final untested lever: trait-diverse persona panel ENACTING decisions",
+  "sealed_before_result": true,
+  "cases_file": "PORTFOLIO_CASES_EXPANSION_V4.json",
+  "cases_canonical_sha256": "b110dce32573b4e5a0bc8591b9ea2daaeb034c979975d4b9b14df1046a886595",
+  "model": "claude-sonnet-4-6",
+  "method": "12 trait-diverse personas; each ENACTS a decision on each version in ISOLATION (between-subjects, not told a variant exists); action convert/defer/abandon; arm score = fraction who convert; winner = higher rate (sign from arithmetic). Personas carry only WHO THEY ARE — no mechanism direction hand-fed.",
+  "discriminator": "less-won subset accuracy", "guardrail": "more-won must not regress vs baseline (5/10 overall, 2/4 less, 2/4 more)",
+  "power_note": "n=10 (less-won n=4) detects only LARGE effects; FILTER not confirmation.",
+  "registered_prediction": "UNCERTAIN, lean skeptical given every prior lever failed (prompt method changes NULL, ledger backfired, per-arm 0/4). The genuinely-different bet is heterogeneity+enactment surfacing tail mechanisms (procrastinators defer under long deadline; skeptics bounce off countdown; overwhelmed abandon under load). Predict at best a modest less-won lift; most likely NULL.",
+  "decision_rule": {
+    "REAL_FIX": "less_won>=3/4 AND more_won>=3/4 (no regression) -> the persona-panel behavioral sim is the method that works; biggest result of the campaign.",
+    "PARTIAL": "less_won improves to 2-3/4 without more-won regression -> promising, power up on fresh cases.",
+    "NULL": "no improvement over baseline (less_won<=2/4) -> the final technical lever fails; the limit is fundamental at this scope; pivot to repositioning / customer-data validation."
+  }
+}
