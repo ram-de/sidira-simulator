@@ -1,0 +1,994 @@
+{
+  "pack_version": "v_1",
+  "pack_schema_version": "1.0",
+  "population": 24,
+  "treatment_fraction": 0.5,
+  "seed": 42,
+  "model": "claude-sonnet-4-6",
+  "lift": 1.7,
+  "lift_ci": [
+    -7.1,
+    10.7
+  ],
+  "confidence_score": 22.3,
+  "confidence_score_ci": [
+    12.5,
+    33.5
+  ],
+  "treatment_score": 22.3,
+  "control_score": 58.8,
+  "metric_name": "conversion",
+  "metric_lift": null,
+  "metric_lift_ci": null,
+  "weaknesses": [
+    {
+      "category": "hidden_guardrail_risk",
+      "summary": "18/24 agents flagged this \u2014 hidden guardrail risk.",
+      "supporting_agent_ids": [
+        "8a628f23-2710-4e4f-bef5-eeb53054d795",
+        "096fb976-b986-4c2e-a845-d85f79273ba8",
+        "e6ee0407-a899-4342-ba7b-1fe1e894ea82",
+        "13d421d9-e2f8-4f70-866e-f1b8e3354c09",
+        "87684438-ab09-4dc7-ae09-3e4463226a30"
+      ],
+      "frequency": 0.75,
+      "ci_low": 0.5510017468789357,
+      "ci_high": 0.8800079652065766
+    },
+    {
+      "category": "wrong_cohort",
+      "summary": "15/24 agents flagged this \u2014 wrong cohort.",
+      "supporting_agent_ids": [
+        "57168048-61ce-448d-9b86-1c08568ab69e",
+        "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+        "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+        "8be40902-4871-4f97-86f0-ff08847e117d",
+        "d911ef6d-d9d8-4363-92a2-c617a79e79a0"
+      ],
+      "frequency": 0.625,
+      "ci_low": 0.42709619037907065,
+      "ci_high": 0.7884086656636855
+    },
+    {
+      "category": "broken_mechanism",
+      "summary": "12/24 agents flagged this \u2014 broken mechanism.",
+      "supporting_agent_ids": [
+        "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+        "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+        "8be40902-4871-4f97-86f0-ff08847e117d",
+        "33765b86-51d3-4752-8dc7-1c0030ba4c9b",
+        "94a73a9c-497b-48e1-8a7b-456345704bca"
+      ],
+      "frequency": 0.5,
+      "ci_low": 0.31427131627763083,
+      "ci_high": 0.6857286837223692
+    }
+  ],
+  "agent_records": {
+    "8a628f23-2710-4e4f-bef5-eeb53054d795": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "treatment"
+    },
+    "096fb976-b986-4c2e-a845-d85f79273ba8": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "treatment"
+    },
+    "e6ee0407-a899-4342-ba7b-1fe1e894ea82": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "treatment"
+    },
+    "13d421d9-e2f8-4f70-866e-f1b8e3354c09": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "treatment"
+    },
+    "87684438-ab09-4dc7-ae09-3e4463226a30": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "treatment"
+    },
+    "57168048-61ce-448d-9b86-1c08568ab69e": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "treatment"
+    },
+    "7206acd1-4626-4cb0-b0e6-2e05e127b980": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "treatment"
+    },
+    "ac538ff2-16ba-4359-b6d4-2a15476cb06d": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "treatment"
+    },
+    "8be40902-4871-4f97-86f0-ff08847e117d": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "treatment"
+    },
+    "5a9346c3-5e19-4b12-9926-bd107a958df4": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "treatment"
+    },
+    "2a529066-4573-4fa6-ac94-21fc59397cc3": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "treatment"
+    },
+    "33765b86-51d3-4752-8dc7-1c0030ba4c9b": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "treatment"
+    },
+    "d911ef6d-d9d8-4363-92a2-c617a79e79a0": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "treatment"
+    },
+    "422a8d44-e50c-4386-a091-e2d3f8277540": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "treatment"
+    },
+    "94a73a9c-497b-48e1-8a7b-456345704bca": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "treatment"
+    },
+    "ef26891c-1b4d-493c-9aef-fc5d3c10d9d6": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "treatment"
+    },
+    "e2393ca1-1e93-4d85-95a4-045290baaf82": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "treatment"
+    },
+    "3e817b92-cbe7-4b8e-94d4-a679da1c941c": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "treatment"
+    },
+    "08b64694-f6c2-404c-8521-d73e24b2f285": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "treatment"
+    },
+    "17b0809e-06ba-448b-b28b-ea63847e2c1d": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "treatment"
+    },
+    "b1b53d41-4b86-4c2a-abef-636d4f1f9a42": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "treatment"
+    },
+    "4f8d87cd-5ad1-4c9e-9faa-a5d1b7b7efc2": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "treatment"
+    },
+    "696563fe-ecf1-4e3a-936d-98c8493adcca": {
+      "persona_id": "tess_new_trialer",
+      "persona_name": "New trialer (first 14 days)",
+      "arm": "treatment"
+    },
+    "831b6ce5-d363-4ada-90e3-0813654a2634": {
+      "persona_id": "tess_new_trialer",
+      "persona_name": "New trialer (first 14 days)",
+      "arm": "treatment"
+    },
+    "e0f62377-f514-4cd1-b9d6-e652ca476b38": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "control"
+    },
+    "69877252-4b44-457e-9018-6ad58eaab145": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "control"
+    },
+    "0fd85dd5-9a71-4048-98a7-19f0657ac258": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "control"
+    },
+    "f1729b7e-2ce1-4194-88bb-ba05b8696429": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "control"
+    },
+    "7c28f9d9-e941-4e91-a113-18f280bfb27b": {
+      "persona_id": "alex_binge_marathoner",
+      "persona_name": "Daily binge marathoner",
+      "arm": "control"
+    },
+    "e9d73ab1-427d-4d92-9595-6c340efc1e86": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "control"
+    },
+    "187f17c3-b0de-41ea-a462-0079334cb2a8": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "control"
+    },
+    "06a6b3f3-3e69-4db1-ae34-de03db740fff": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "control"
+    },
+    "8126e2a7-7066-47b9-8a6e-5ffc0eba2e70": {
+      "persona_id": "ken_price_sensitive_lapser",
+      "persona_name": "Price-sensitive lapser",
+      "arm": "control"
+    },
+    "6e961742-72b7-4be2-b41e-51d189d1b372": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "control"
+    },
+    "ce095413-93c0-4dd9-814b-f582748dd484": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "control"
+    },
+    "3527ae6d-69b5-401d-b148-d7bf0d47c2d6": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "control"
+    },
+    "7bc46f49-cdf0-4d04-8206-34117526a5fe": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "control"
+    },
+    "92b8350c-1cd1-4bcd-9321-ae38320fa7d5": {
+      "persona_id": "marco_background_player",
+      "persona_name": "Background / second-screen player",
+      "arm": "control"
+    },
+    "8c24efc6-b224-4173-966e-79b0bd564fac": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "control"
+    },
+    "bdd54ac9-5ece-421b-81e5-291acb1308d0": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "control"
+    },
+    "48201dd3-8eff-4a4f-b560-a9a18976c6c8": {
+      "persona_id": "noor_niche_genre_loyalist",
+      "persona_name": "Niche genre loyalist (subtitled drama)",
+      "arm": "control"
+    },
+    "4c10dd5f-5382-41c8-a0a0-9119f04b311f": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "control"
+    },
+    "a0b946b1-eb08-4397-8e7e-3680d246cf61": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "control"
+    },
+    "44ab8184-cb32-446a-93d0-52484917d8cc": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "control"
+    },
+    "bfd70e67-2409-4104-adc9-4524f0c69f68": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "control"
+    },
+    "9d00a801-bb69-498a-843b-f0191a321fb1": {
+      "persona_id": "rivka_weekend_movie_night",
+      "persona_name": "Weekend family movie night",
+      "arm": "control"
+    },
+    "7c20da12-c49e-4650-a558-1116bc7f5737": {
+      "persona_id": "tess_new_trialer",
+      "persona_name": "New trialer (first 14 days)",
+      "arm": "control"
+    },
+    "75c5ab30-9ee7-4d32-80b9-235ca0588872": {
+      "persona_id": "tess_new_trialer",
+      "persona_name": "New trialer (first 14 days)",
+      "arm": "control"
+    }
+  },
+  "per_agent_analyses": [
+    {
+      "agent_id": "8a628f23-2710-4e4f-bef5-eeb53054d795",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.82,
+      "top_quote": "That big Resume button is exactly what I want when I open the app on a Saturday with nowhere to be."
+    },
+    {
+      "agent_id": "096fb976-b986-4c2e-a845-d85f79273ba8",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.82,
+      "top_quote": "My friends are literally sitting here waiting for the next episode of the show we're mid-season on, and the one thing\u2026"
+    },
+    {
+      "agent_id": "e6ee0407-a899-4342-ba7b-1fe1e894ea82",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.75,
+      "top_quote": "Late night, I've just finished an episode and I'm waiting for the next one to load \u2014 this is exactly when I need the\u2026"
+    },
+    {
+      "agent_id": "13d421d9-e2f8-4f70-866e-f1b8e3354c09",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.52,
+      "top_quote": "I get home, I'm done, I just want to hit play \u2014 and right now the Continue Watching rail is right there, first thing\u2026"
+    },
+    {
+      "agent_id": "87684438-ab09-4dc7-ae09-3e4463226a30",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.85,
+      "top_quote": "I'm on my lunch break right now, maybe 20 minutes before I have to get back, and I just want to hit play on the next\u2026"
+    },
+    {
+      "agent_id": "57168048-61ce-448d-9b86-1c08568ab69e",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "I'm on my lunch break trying to figure out if I'm canceling this thing in the next 11 days, and this change doesn't\u2026"
+    },
+    {
+      "agent_id": "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "I opened the app maybe three weeks ago and barely got through half an episode before I closed it \u2014 and now I'm sitting\u2026"
+    },
+    {
+      "agent_id": "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "I'm on my lunch break right now, and I just got another email about my subscription price going up \u2014 which I didn't\u2026"
+    },
+    {
+      "agent_id": "8be40902-4871-4f97-86f0-ff08847e117d",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "I'm on lunch break and I've got maybe 15 minutes before I need to get back, so I'll be quick."
+    },
+    {
+      "agent_id": "5a9346c3-5e19-4b12-9926-bd107a958df4",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "My lunch break is 30 minutes and I'm already annoyed that my favorite restaurant disappeared from the app last week,\u2026"
+    },
+    {
+      "agent_id": "2a529066-4573-4fa6-ac94-21fc59397cc3",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.85,
+      "top_quote": "The big Resume button is exactly what I've wanted for three years."
+    },
+    {
+      "agent_id": "33765b86-51d3-4752-8dc7-1c0030ba4c9b",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Late night, The Office is playing in the background while I'm folding laundry, and the last thing I want to do is pick\u2026"
+    },
+    {
+      "agent_id": "d911ef6d-d9d8-4363-92a2-c617a79e79a0",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.72,
+      "top_quote": "My friends are over and The Office is playing in the background \u2014 I literally just had to get up and dismiss \"Are you\u2026"
+    },
+    {
+      "agent_id": "422a8d44-e50c-4386-a091-e2d3f8277540",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.65,
+      "top_quote": "That big Resume button is exactly what I've been wanting every time the \"are you still watching?"
+    },
+    {
+      "agent_id": "94a73a9c-497b-48e1-8a7b-456345704bca",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "It's a Saturday evening, I've got time, and I'm trying to figure out what to watch next \u2014 and the one thing I actually\u2026"
+    },
+    {
+      "agent_id": "ef26891c-1b4d-493c-9aef-fc5d3c10d9d6",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "It's a Saturday evening, I've got time, and I'm trying to figure out what to watch next \u2014 and the one thing I actually\u2026"
+    },
+    {
+      "agent_id": "e2393ca1-1e93-4d85-95a4-045290baaf82",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "I get home, I'm already tired, and the one thing I actually use on this app is that Continue Watching rail \u2014 it's the\u2026"
+    },
+    {
+      "agent_id": "3e817b92-cbe7-4b8e-94d4-a679da1c941c",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.78,
+      "top_quote": "Friday night, we're all on the couch, the kids are already arguing about whether to watch something with animals or\u2026"
+    },
+    {
+      "agent_id": "08b64694-f6c2-404c-8521-d73e24b2f285",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "We've got friends over tonight and I'm trying to get everyone settled on a movie in the next ten minutes before\u2026"
+    },
+    {
+      "agent_id": "17b0809e-06ba-448b-b28b-ea63847e2c1d",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "Okay so I'm on my lunch break and I just want to figure out tonight's movie situation before I have to get back \u2014 and\u2026"
+    },
+    {
+      "agent_id": "b1b53d41-4b86-4c2a-abef-636d4f1f9a42",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "Friday night, kids are already arguing about what to watch, and I'm staring at the home screen trying to make a\u2026"
+    },
+    {
+      "agent_id": "4f8d87cd-5ad1-4c9e-9faa-a5d1b7b7efc2",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "Friday night, kids are already arguing about what to watch, and the last thing I need is to open the app and have to\u2026"
+    },
+    {
+      "agent_id": "696563fe-ecf1-4e3a-936d-98c8493adcca",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "My food delivery just showed up 20 minutes late and I'm sitting here exhausted, opening the app to finally just *watch\u2026"
+    },
+    {
+      "agent_id": "831b6ce5-d363-4ada-90e3-0813654a2634",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.52,
+      "top_quote": "My lunch break is already half gone and I'm trying to figure out if this service is worth keeping before my trial runs\u2026"
+    },
+    {
+      "agent_id": "e0f62377-f514-4cd1-b9d6-e652ca476b38",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.72,
+      "top_quote": "My promo code not working at checkout was annoying enough, but honestly the Continue Watching rail is the one thing\u2026"
+    },
+    {
+      "agent_id": "69877252-4b44-457e-9018-6ad58eaab145",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "My friends are literally sitting on my couch right now waiting for me to put the next episode on, and the one thing I\u2026"
+    },
+    {
+      "agent_id": "0fd85dd5-9a71-4048-98a7-19f0657ac258",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Late night, I've just finished episode 6 and I want episode 7 to start."
+    },
+    {
+      "agent_id": "f1729b7e-2ce1-4194-88bb-ba05b8696429",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Just got home, dinner was disappointing (cold again, third time this week), and all I want to do is sink into the\u2026"
+    },
+    {
+      "agent_id": "7c28f9d9-e941-4e91-a113-18f280bfb27b",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "Sitting here on my lunch break with maybe 20 minutes before I have to get back, and the one thing I need this app to\u2026"
+    },
+    {
+      "agent_id": "e9d73ab1-427d-4d92-9595-6c340efc1e86",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "I'm on my lunch break right now, literally looking at the renewal notice that says my price is going up next month,\u2026"
+    },
+    {
+      "agent_id": "187f17c3-b0de-41ea-a462-0079334cb2a8",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "I opened the app maybe three weeks ago, watched like 20 minutes of something, and then just."
+    },
+    {
+      "agent_id": "06a6b3f3-3e69-4db1-ae34-de03db740fff",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "I'm on my lunch break right now, looking at this renewal notice that says I'm getting charged more next month, and I\u2026"
+    },
+    {
+      "agent_id": "8126e2a7-7066-47b9-8a6e-5ffc0eba2e70",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "I'm on my lunch break and I just pulled up the app to check something, and honestly the \"Continue Watching\" rail\u2026"
+    },
+    {
+      "agent_id": "6e961742-72b7-4be2-b41e-51d189d1b372",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "Lunch break, fifteen minutes, I just want The Office to keep playing while I eat at my desk."
+    },
+    {
+      "agent_id": "ce095413-93c0-4dd9-814b-f582748dd484",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "Got home from work, dinner was cold again because the delivery was late, and all I wanted was to put on The Office and\u2026"
+    },
+    {
+      "agent_id": "3527ae6d-69b5-401d-b148-d7bf0d47c2d6",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.72,
+      "top_quote": "It's late, I've got The Office queued up, and I just want it to keep going while I fold laundry."
+    },
+    {
+      "agent_id": "7bc46f49-cdf0-4d04-8206-34117526a5fe",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "My friends are over and I've got The Office running in the background while we figure out what to order \u2014 and the \"are\u2026"
+    },
+    {
+      "agent_id": "92b8350c-1cd1-4bcd-9321-ae38320fa7d5",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "It's the weekend, I've got laundry going and my laptop open, and I just want The Office playing in the background."
+    },
+    {
+      "agent_id": "8c24efc6-b224-4173-966e-79b0bd564fac",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.72,
+      "top_quote": "It's a weekend, I've got time, and I'm trying to figure out what to watch tonight \u2014 and the Continue Watching rail is\u2026"
+    },
+    {
+      "agent_id": "bdd54ac9-5ece-421b-81e5-291acb1308d0",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.72,
+      "top_quote": "It's a Saturday afternoon and I've got time to settle in, so I open up the app looking for something new to watch \u2014\u2026"
+    },
+    {
+      "agent_id": "48201dd3-8eff-4a4f-b560-a9a18976c6c8",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "Got home forty minutes ago, still annoyed my dinner arrived cold, and now I'm sitting in front of the TV trying to\u2026"
+    },
+    {
+      "agent_id": "4c10dd5f-5382-41c8-a0a0-9119f04b311f",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.78,
+      "top_quote": "Friday night, we're all on the couch, and I pull up the home screen to find something for tonight."
+    },
+    {
+      "agent_id": "a0b946b1-eb08-4397-8e7e-3680d246cf61",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.78,
+      "top_quote": "We've got eight people in the living room right now and I'm the one holding the remote, which means I'm the one\u2026"
+    },
+    {
+      "agent_id": "44ab8184-cb32-446a-93d0-52484917d8cc",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.72,
+      "top_quote": "Sitting here on my lunch break, quick window before I have to get back \u2014 I pulled up the app to try to figure out what\u2026"
+    },
+    {
+      "agent_id": "bfd70e67-2409-4104-adc9-4524f0c69f68",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Friday night, we're all on the couch, and I'm opening the app on the TV."
+    },
+    {
+      "agent_id": "9d00a801-bb69-498a-843b-f0191a321fb1",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "Friday night, we're all on the couch, and I open the app on the TV \u2014 the Continue Watching rail is right there, first\u2026"
+    },
+    {
+      "agent_id": "7c20da12-c49e-4650-a558-1116bc7f5737",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "My food delivery just showed up late and cold, and now I'm sitting here trying to decompress with this app and the\u2026"
+    },
+    {
+      "agent_id": "75c5ab30-9ee7-4d32-80b9-235ca0588872",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Lunch break, nine days in, five minutes to decide if I'm actually going to pay for this thing."
+    }
+  ],
+  "result_full": {
+    "confidence_score": 22.3,
+    "confidence_score_ci": [
+      12.5,
+      33.5
+    ],
+    "weaknesses": [
+      {
+        "category": "hidden_guardrail_risk",
+        "summary": "18/24 agents flagged this \u2014 hidden guardrail risk.",
+        "supporting_agent_ids": [
+          "8a628f23-2710-4e4f-bef5-eeb53054d795",
+          "096fb976-b986-4c2e-a845-d85f79273ba8",
+          "e6ee0407-a899-4342-ba7b-1fe1e894ea82",
+          "13d421d9-e2f8-4f70-866e-f1b8e3354c09",
+          "87684438-ab09-4dc7-ae09-3e4463226a30"
+        ],
+        "frequency": 0.75,
+        "ci_low": 0.5510017468789357,
+        "ci_high": 0.8800079652065766
+      },
+      {
+        "category": "wrong_cohort",
+        "summary": "15/24 agents flagged this \u2014 wrong cohort.",
+        "supporting_agent_ids": [
+          "57168048-61ce-448d-9b86-1c08568ab69e",
+          "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+          "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+          "8be40902-4871-4f97-86f0-ff08847e117d",
+          "d911ef6d-d9d8-4363-92a2-c617a79e79a0"
+        ],
+        "frequency": 0.625,
+        "ci_low": 0.42709619037907065,
+        "ci_high": 0.7884086656636855
+      },
+      {
+        "category": "broken_mechanism",
+        "summary": "12/24 agents flagged this \u2014 broken mechanism.",
+        "supporting_agent_ids": [
+          "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+          "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+          "8be40902-4871-4f97-86f0-ff08847e117d",
+          "33765b86-51d3-4752-8dc7-1c0030ba4c9b",
+          "94a73a9c-497b-48e1-8a7b-456345704bca"
+        ],
+        "frequency": 0.5,
+        "ci_low": 0.31427131627763083,
+        "ci_high": 0.6857286837223692
+      }
+    ],
+    "refinement_suggestions": [
+      "Narrow the target cohort to users who have watched \u22653 episodes of the same series within the last 7 days AND whose last session ended mid-episode or at a series cliffhanger (detected via completion rate <95% or post-credits cut). Exclude users with >3 distinct in-progress titles, since the algorithm cannot confidently surface a single 'most likely' title for multi-show jugglers \u2014 show them the legacy rail instead. This directly addresses the wrong_cohort weakness by restricting the Smart Resume hero to users where a single-title prediction is high-confidence.",
+      "Replace the irreversible 'remove the Continue Watching rail' mechanism with a progressive disclosure pattern: the Smart Resume hero occupies the top slot, but the full Continue Watching rail is immediately visible one scroll-down below (not hidden behind 'More options'). The 'More options' expander is removed entirely. This eliminates the hidden_guardrail_risk flagged by agents \u2014 users who disagree with the algorithm's pick are never more than one swipe away from their full watch history, preventing the catastrophic 'I can't find my show' failure mode.",
+      "Redefine the primary success metric from engagement rate on the Smart Resume hero to 'time-to-first-play from app open' with a guardrail on Continue Watching rail engagement drop. Specifically: the hypothesis passes only if median time-to-first-play decreases by \u226515% for the target cohort AND the 7-day retention rate does not decline by more than 2pp versus control. This addresses the broken_mechanism weakness \u2014 the current hypothesis has no falsifiable metric that distinguishes 'faster resume' from 'users gave up finding their show.'"
+    ],
+    "per_agent_analyses": [
+      {
+        "agent_id": "8a628f23-2710-4e4f-bef5-eeb53054d795",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.82,
+        "top_quote": "That big Resume button is exactly what I want when I open the app on a Saturday with nowhere to be."
+      },
+      {
+        "agent_id": "096fb976-b986-4c2e-a845-d85f79273ba8",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.82,
+        "top_quote": "My friends are literally sitting here waiting for the next episode of the show we're mid-season on, and the one thing\u2026"
+      },
+      {
+        "agent_id": "e6ee0407-a899-4342-ba7b-1fe1e894ea82",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.75,
+        "top_quote": "Late night, I've just finished an episode and I'm waiting for the next one to load \u2014 this is exactly when I need the\u2026"
+      },
+      {
+        "agent_id": "13d421d9-e2f8-4f70-866e-f1b8e3354c09",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.52,
+        "top_quote": "I get home, I'm done, I just want to hit play \u2014 and right now the Continue Watching rail is right there, first thing\u2026"
+      },
+      {
+        "agent_id": "87684438-ab09-4dc7-ae09-3e4463226a30",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.85,
+        "top_quote": "I'm on my lunch break right now, maybe 20 minutes before I have to get back, and I just want to hit play on the next\u2026"
+      },
+      {
+        "agent_id": "57168048-61ce-448d-9b86-1c08568ab69e",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "I'm on my lunch break trying to figure out if I'm canceling this thing in the next 11 days, and this change doesn't\u2026"
+      },
+      {
+        "agent_id": "7206acd1-4626-4cb0-b0e6-2e05e127b980",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "I opened the app maybe three weeks ago and barely got through half an episode before I closed it \u2014 and now I'm sitting\u2026"
+      },
+      {
+        "agent_id": "ac538ff2-16ba-4359-b6d4-2a15476cb06d",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "I'm on my lunch break right now, and I just got another email about my subscription price going up \u2014 which I didn't\u2026"
+      },
+      {
+        "agent_id": "8be40902-4871-4f97-86f0-ff08847e117d",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "I'm on lunch break and I've got maybe 15 minutes before I need to get back, so I'll be quick."
+      },
+      {
+        "agent_id": "5a9346c3-5e19-4b12-9926-bd107a958df4",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My lunch break is 30 minutes and I'm already annoyed that my favorite restaurant disappeared from the app last week,\u2026"
+      },
+      {
+        "agent_id": "2a529066-4573-4fa6-ac94-21fc59397cc3",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.85,
+        "top_quote": "The big Resume button is exactly what I've wanted for three years."
+      },
+      {
+        "agent_id": "33765b86-51d3-4752-8dc7-1c0030ba4c9b",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Late night, The Office is playing in the background while I'm folding laundry, and the last thing I want to do is pick\u2026"
+      },
+      {
+        "agent_id": "d911ef6d-d9d8-4363-92a2-c617a79e79a0",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.72,
+        "top_quote": "My friends are over and The Office is playing in the background \u2014 I literally just had to get up and dismiss \"Are you\u2026"
+      },
+      {
+        "agent_id": "422a8d44-e50c-4386-a091-e2d3f8277540",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.65,
+        "top_quote": "That big Resume button is exactly what I've been wanting every time the \"are you still watching?"
+      },
+      {
+        "agent_id": "94a73a9c-497b-48e1-8a7b-456345704bca",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "It's a Saturday evening, I've got time, and I'm trying to figure out what to watch next \u2014 and the one thing I actually\u2026"
+      },
+      {
+        "agent_id": "ef26891c-1b4d-493c-9aef-fc5d3c10d9d6",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "It's a Saturday evening, I've got time, and I'm trying to figure out what to watch next \u2014 and the one thing I actually\u2026"
+      },
+      {
+        "agent_id": "e2393ca1-1e93-4d85-95a4-045290baaf82",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "I get home, I'm already tired, and the one thing I actually use on this app is that Continue Watching rail \u2014 it's the\u2026"
+      },
+      {
+        "agent_id": "3e817b92-cbe7-4b8e-94d4-a679da1c941c",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "Friday night, we're all on the couch, the kids are already arguing about whether to watch something with animals or\u2026"
+      },
+      {
+        "agent_id": "08b64694-f6c2-404c-8521-d73e24b2f285",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "We've got friends over tonight and I'm trying to get everyone settled on a movie in the next ten minutes before\u2026"
+      },
+      {
+        "agent_id": "17b0809e-06ba-448b-b28b-ea63847e2c1d",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "Okay so I'm on my lunch break and I just want to figure out tonight's movie situation before I have to get back \u2014 and\u2026"
+      },
+      {
+        "agent_id": "b1b53d41-4b86-4c2a-abef-636d4f1f9a42",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "Friday night, kids are already arguing about what to watch, and I'm staring at the home screen trying to make a\u2026"
+      },
+      {
+        "agent_id": "4f8d87cd-5ad1-4c9e-9faa-a5d1b7b7efc2",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "Friday night, kids are already arguing about what to watch, and the last thing I need is to open the app and have to\u2026"
+      },
+      {
+        "agent_id": "696563fe-ecf1-4e3a-936d-98c8493adcca",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "My food delivery just showed up 20 minutes late and I'm sitting here exhausted, opening the app to finally just *watch\u2026"
+      },
+      {
+        "agent_id": "831b6ce5-d363-4ada-90e3-0813654a2634",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.52,
+        "top_quote": "My lunch break is already half gone and I'm trying to figure out if this service is worth keeping before my trial runs\u2026"
+      },
+      {
+        "agent_id": "e0f62377-f514-4cd1-b9d6-e652ca476b38",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.72,
+        "top_quote": "My promo code not working at checkout was annoying enough, but honestly the Continue Watching rail is the one thing\u2026"
+      },
+      {
+        "agent_id": "69877252-4b44-457e-9018-6ad58eaab145",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My friends are literally sitting on my couch right now waiting for me to put the next episode on, and the one thing I\u2026"
+      },
+      {
+        "agent_id": "0fd85dd5-9a71-4048-98a7-19f0657ac258",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Late night, I've just finished episode 6 and I want episode 7 to start."
+      },
+      {
+        "agent_id": "f1729b7e-2ce1-4194-88bb-ba05b8696429",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Just got home, dinner was disappointing (cold again, third time this week), and all I want to do is sink into the\u2026"
+      },
+      {
+        "agent_id": "7c28f9d9-e941-4e91-a113-18f280bfb27b",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Sitting here on my lunch break with maybe 20 minutes before I have to get back, and the one thing I need this app to\u2026"
+      },
+      {
+        "agent_id": "e9d73ab1-427d-4d92-9595-6c340efc1e86",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "I'm on my lunch break right now, literally looking at the renewal notice that says my price is going up next month,\u2026"
+      },
+      {
+        "agent_id": "187f17c3-b0de-41ea-a462-0079334cb2a8",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "I opened the app maybe three weeks ago, watched like 20 minutes of something, and then just."
+      },
+      {
+        "agent_id": "06a6b3f3-3e69-4db1-ae34-de03db740fff",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "I'm on my lunch break right now, looking at this renewal notice that says I'm getting charged more next month, and I\u2026"
+      },
+      {
+        "agent_id": "8126e2a7-7066-47b9-8a6e-5ffc0eba2e70",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "I'm on my lunch break and I just pulled up the app to check something, and honestly the \"Continue Watching\" rail\u2026"
+      },
+      {
+        "agent_id": "6e961742-72b7-4be2-b41e-51d189d1b372",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Lunch break, fifteen minutes, I just want The Office to keep playing while I eat at my desk."
+      },
+      {
+        "agent_id": "ce095413-93c0-4dd9-814b-f582748dd484",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Got home from work, dinner was cold again because the delivery was late, and all I wanted was to put on The Office and\u2026"
+      },
+      {
+        "agent_id": "3527ae6d-69b5-401d-b148-d7bf0d47c2d6",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "It's late, I've got The Office queued up, and I just want it to keep going while I fold laundry."
+      },
+      {
+        "agent_id": "7bc46f49-cdf0-4d04-8206-34117526a5fe",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "My friends are over and I've got The Office running in the background while we figure out what to order \u2014 and the \"are\u2026"
+      },
+      {
+        "agent_id": "92b8350c-1cd1-4bcd-9321-ae38320fa7d5",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "It's the weekend, I've got laundry going and my laptop open, and I just want The Office playing in the background."
+      },
+      {
+        "agent_id": "8c24efc6-b224-4173-966e-79b0bd564fac",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.72,
+        "top_quote": "It's a weekend, I've got time, and I'm trying to figure out what to watch tonight \u2014 and the Continue Watching rail is\u2026"
+      },
+      {
+        "agent_id": "bdd54ac9-5ece-421b-81e5-291acb1308d0",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "It's a Saturday afternoon and I've got time to settle in, so I open up the app looking for something new to watch \u2014\u2026"
+      },
+      {
+        "agent_id": "48201dd3-8eff-4a4f-b560-a9a18976c6c8",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "Got home forty minutes ago, still annoyed my dinner arrived cold, and now I'm sitting in front of the TV trying to\u2026"
+      },
+      {
+        "agent_id": "4c10dd5f-5382-41c8-a0a0-9119f04b311f",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "Friday night, we're all on the couch, and I pull up the home screen to find something for tonight."
+      },
+      {
+        "agent_id": "a0b946b1-eb08-4397-8e7e-3680d246cf61",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "We've got eight people in the living room right now and I'm the one holding the remote, which means I'm the one\u2026"
+      },
+      {
+        "agent_id": "44ab8184-cb32-446a-93d0-52484917d8cc",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "Sitting here on my lunch break, quick window before I have to get back \u2014 I pulled up the app to try to figure out what\u2026"
+      },
+      {
+        "agent_id": "bfd70e67-2409-4104-adc9-4524f0c69f68",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Friday night, we're all on the couch, and I'm opening the app on the TV."
+      },
+      {
+        "agent_id": "9d00a801-bb69-498a-843b-f0191a321fb1",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Friday night, we're all on the couch, and I open the app on the TV \u2014 the Continue Watching rail is right there, first\u2026"
+      },
+      {
+        "agent_id": "7c20da12-c49e-4650-a558-1116bc7f5737",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "My food delivery just showed up late and cold, and now I'm sitting here trying to decompress with this app and the\u2026"
+      },
+      {
+        "agent_id": "75c5ab30-9ee7-4d32-80b9-235ca0588872",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Lunch break, nine days in, five minutes to decide if I'm actually going to pay for this thing."
+      }
+    ],
+    "instrument_scope": "in_scope",
+    "out_of_scope_reasons": [],
+    "out_of_scope_reason_codes": [],
+    "input_flags": null,
+    "treatment_score": 22.3,
+    "control_score": 58.8,
+    "lift": 1.7,
+    "lift_ci": [
+      -7.1,
+      10.7
+    ],
+    "lift_paired_n": 24,
+    "lift_unpaired_treatment": 0,
+    "lift_unpaired_control": 0,
+    "lift_sentiment_failure_drops": 0,
+    "no_persona_score": null,
+    "persona_lift": null,
+    "persona_lift_ci": null,
+    "persona_lift_paired_n": null,
+    "persona_lift_unpaired_persona": 0,
+    "persona_lift_unpaired_no_persona": 0,
+    "persona_lift_sentiment_failure_drops": 0,
+    "current_state_score": null,
+    "current_state_delta": null,
+    "current_state_delta_ci": null,
+    "current_state_delta_paired_n": null,
+    "current_state_delta_unpaired_persona": 0,
+    "current_state_delta_unpaired_current_state": 0,
+    "current_state_delta_sentiment_failure_drops": 0,
+    "metric_name": "conversion",
+    "metric_lift_pp": 0.8,
+    "metric_lift_ci_pp": [
+      -1.2,
+      2.9
+    ],
+    "metric_lift_paired_n": 24,
+    "metric_lift_unpaired_treatment": 0,
+    "metric_lift_unpaired_control": 0,
+    "metric_lift_elicitation_failure_drops": 0,
+    "metric_regime": "weak_behavioral",
+    "metric_lift_relative": "Treatment converts directionally higher than control on 24 paired identities; the paired-bootstrap interval straddles zero (not separable). Synthetic conversion is a weak behavioral signal \u2014 read as rank/direction, not as a calibrated effect size. NOTE: one or more personas in this run lack per-persona behavioral seeds (a v1.0-class pack), so cross-persona variance is degraded \u2014 a flat or non-separable metric here may reflect collapsed agent variance rather than a true null effect. Rebuild the pack to v1.1 to de-attenuate. NOTE: only 24 paired identities \u2014 below the ~30 needed for the paired bootstrap to separate a moderate effect, so this non-separable result is INCONCLUSIVE (the panel cannot detect an effect of plausible size), NOT evidence of no effect. Increase agents per arm to power the comparison.",
+    "metric_lift_unblinded_fallback": false,
+    "metric_lift_paraphrase_unstable": false,
+    "metric_lift_calibrated": false,
+    "metric_lift_variance_collapsed": true,
+    "metric_lift_variance_collapsed_persona_count": 6,
+    "metric_lift_underpowered": true,
+    "metric_sentiment_disagreement": false,
+    "metric_sentiment_disagreement_caveat": null
+  }
+}

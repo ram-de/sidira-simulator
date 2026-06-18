@@ -1,0 +1,874 @@
+{
+  "pack_version": "v_2",
+  "pack_schema_version": "1.1",
+  "population": 20,
+  "treatment_fraction": 0.5,
+  "seed": 42,
+  "model": "claude-sonnet-4-6",
+  "lift": -13.3,
+  "lift_ci": [
+    -21.5,
+    -4.6
+  ],
+  "confidence_score": 11.7,
+  "confidence_score_ci": [
+    4.5,
+    20.9
+  ],
+  "treatment_score": 11.7,
+  "control_score": 66.9,
+  "metric_name": "conversion",
+  "metric_lift": null,
+  "metric_lift_ci": null,
+  "weaknesses": [
+    {
+      "category": "hidden_guardrail_risk",
+      "summary": "17/20 agents flagged this \u2014 hidden guardrail risk.",
+      "supporting_agent_ids": [
+        "8d7d26b2-df6a-4223-a5fa-242a8431d4df",
+        "ab034cb9-9008-4393-b9e5-765ca98e1163",
+        "17b893e5-369e-4252-b5ca-855be9bcfec5",
+        "f7023832-cdee-493b-b7d5-44c1b926c6af",
+        "f9d3d38c-c6fe-4823-9016-ee3174214110"
+      ],
+      "frequency": 0.85,
+      "ci_low": 0.6395767041130426,
+      "ci_high": 0.9476322080405041
+    },
+    {
+      "category": "wrong_cohort",
+      "summary": "17/20 agents flagged this \u2014 wrong cohort.",
+      "supporting_agent_ids": [
+        "f7023832-cdee-493b-b7d5-44c1b926c6af",
+        "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+        "f9d3d38c-c6fe-4823-9016-ee3174214110",
+        "89ab6123-245f-4e06-b270-dcd08e9ef333",
+        "15e7a990-c114-4b23-957d-d11311a7539c"
+      ],
+      "frequency": 0.85,
+      "ci_low": 0.6395767041130426,
+      "ci_high": 0.9476322080405041
+    },
+    {
+      "category": "broken_mechanism",
+      "summary": "10/20 agents flagged this \u2014 broken mechanism.",
+      "supporting_agent_ids": [
+        "f7023832-cdee-493b-b7d5-44c1b926c6af",
+        "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+        "f9d3d38c-c6fe-4823-9016-ee3174214110",
+        "89ab6123-245f-4e06-b270-dcd08e9ef333",
+        "15e7a990-c114-4b23-957d-d11311a7539c"
+      ],
+      "frequency": 0.5,
+      "ci_low": 0.2992949144298199,
+      "ci_high": 0.7007050855701801
+    },
+    {
+      "category": "hidden_guardrail_risk",
+      "summary": "The conversion metric is positive and separable (+7.5pp), but sentiment is negative and separable (-13.3) across the paired arms \u2014 the metric would greenlight a change users dislike. Pre-calibration (#222), trust sentiment for harm: do not ship on the metric alone.",
+      "supporting_agent_ids": [],
+      "frequency": null,
+      "ci_low": null,
+      "ci_high": null
+    }
+  ],
+  "agent_records": {
+    "8d7d26b2-df6a-4223-a5fa-242a8431d4df": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "treatment"
+    },
+    "ab034cb9-9008-4393-b9e5-765ca98e1163": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "treatment"
+    },
+    "17b893e5-369e-4252-b5ca-855be9bcfec5": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "treatment"
+    },
+    "f7023832-cdee-493b-b7d5-44c1b926c6af": {
+      "persona_id": "P02",
+      "persona_name": "Binge-Hooked Solo Streamer",
+      "arm": "treatment"
+    },
+    "4d77f15d-b55e-4744-b518-9fa85cbc2cda": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "treatment"
+    },
+    "f9d3d38c-c6fe-4823-9016-ee3174214110": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "treatment"
+    },
+    "89ab6123-245f-4e06-b270-dcd08e9ef333": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "treatment"
+    },
+    "15e7a990-c114-4b23-957d-d11311a7539c": {
+      "persona_id": "P04",
+      "persona_name": "Mobile Casual Reality Browsers",
+      "arm": "treatment"
+    },
+    "fa8c0c64-22b6-4b46-a32f-f571247ba1cc": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "treatment"
+    },
+    "b914b393-5924-4c77-98d7-d88961dc910c": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "treatment"
+    },
+    "3bf238d0-f95e-462f-ac2e-e43358a22829": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "treatment"
+    },
+    "d4fc5ea4-743c-4b4d-920b-e50cb709a3d2": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "30d541ae-f4b9-4db2-b951-ab9852500b0e": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "37c545ec-bcfb-4e14-893e-246ad3d52bf0": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "64cbc1a2-2807-46c0-8b75-dd717a277868": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "623e44b4-b324-4af1-8178-ed747f90179e": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "ebbf1481-9274-4963-a279-32ad89b61c9b": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "f9f624c4-ca17-422a-8f56-a7ad3a8142cb": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "1c92dec0-8374-4441-aeb3-7b1e033fe349": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "treatment"
+    },
+    "95dd0011-de7f-42f6-b2ca-e6d6a19633b4": {
+      "persona_id": "P07",
+      "persona_name": "Family Couch Comedy Night",
+      "arm": "treatment"
+    },
+    "15d7cd70-fd7d-4403-a2da-5b5dfeff3413": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "control"
+    },
+    "fda5dd0c-e0f4-47f1-afcf-2fac98e94aa4": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "control"
+    },
+    "0f2a8dbc-bb65-4288-8780-322676e4c82d": {
+      "persona_id": "P01",
+      "persona_name": "Solo Binge-Laugher On-the-Go",
+      "arm": "control"
+    },
+    "0dd41480-c6cf-4859-ab1d-68305b3d4058": {
+      "persona_id": "P02",
+      "persona_name": "Binge-Hooked Solo Streamer",
+      "arm": "control"
+    },
+    "8b6ddd8d-31dd-46f8-8c6e-e615536b80c2": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "control"
+    },
+    "bc742ae9-6169-40c1-8cf9-5e7f1347fdef": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "control"
+    },
+    "8efab122-c130-458f-bb1d-f0dac8de6c62": {
+      "persona_id": "P03",
+      "persona_name": "Lapsed Casual News Grazers",
+      "arm": "control"
+    },
+    "a33edc59-778c-4015-8449-dbeae53959f5": {
+      "persona_id": "P04",
+      "persona_name": "Mobile Casual Reality Browsers",
+      "arm": "control"
+    },
+    "9fb633f2-1b21-4ad9-92d5-9aaed253b71f": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "control"
+    },
+    "fee63961-ca5b-4e0e-b2ed-fd0d18cbe234": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "control"
+    },
+    "b83911f9-cbdf-4227-9f59-98908469cf0c": {
+      "persona_id": "P05",
+      "persona_name": "Family Movie Night Planners",
+      "arm": "control"
+    },
+    "bb0ff834-c3e7-4aad-a045-4961133bd63b": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "dbf01dae-4e42-478a-b2ce-5452b9a8dc41": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "7511ea40-9293-41e5-875d-4af3062b1d58": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "48ec04e1-75fe-4ee5-b6bb-70e137705b5b": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "7949c0cb-e5f0-463f-a47e-52d71f3d1fb2": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "cfc611db-2e8d-4763-a72f-cf84d71bb723": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "a329f4f8-05c4-4c2c-b0cf-051ff8bd091c": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "060cfc59-04cf-486f-928f-5fe2abc986cf": {
+      "persona_id": "P06",
+      "persona_name": "Binge-Focused Serial Devotees",
+      "arm": "control"
+    },
+    "54cd0f99-8630-4bd7-9b83-4a483744429a": {
+      "persona_id": "P07",
+      "persona_name": "Family Couch Comedy Night",
+      "arm": "control"
+    }
+  },
+  "per_agent_analyses": [
+    {
+      "agent_id": "8d7d26b2-df6a-4223-a5fa-242a8431d4df",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.85,
+      "top_quote": "Just got home, still annoyed that the promo code didn't go through at checkout \u2014 and now I'm opening the app wanting\u2026"
+    },
+    {
+      "agent_id": "ab034cb9-9008-4393-b9e5-765ca98e1163",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "My lunch break is already 20 minutes shorter than it should be because my delivery was late, so I'm sitting here with\u2026"
+    },
+    {
+      "agent_id": "17b893e5-369e-4252-b5ca-855be9bcfec5",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.82,
+      "top_quote": "I just got home, I'm exhausted, and the one thing I actually want from this app is to tap that Continue Watching tile\u2026"
+    },
+    {
+      "agent_id": "f7023832-cdee-493b-b7d5-44c1b926c6af",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.93,
+      "top_quote": "Got home late, opened the app on my laptop, and the first thing I want is to just *get back* to where I was \u2014 I'm\u2026"
+    },
+    {
+      "agent_id": "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "Just got home, delivery showed up late, I'm tired, and I open the app wanting to catch a quick news segment or sports\u2026"
+    },
+    {
+      "agent_id": "f9d3d38c-c6fe-4823-9016-ee3174214110",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "My lunch break just started and I've got maybe 20 minutes before I need to get back, so the last thing I want is to\u2026"
+    },
+    {
+      "agent_id": "89ab6123-245f-4e06-b270-dcd08e9ef333",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "Just got home, still annoyed the courier left my bag at the wrong door, and I open the app on my phone wanting to\u2026"
+    },
+    {
+      "agent_id": "15e7a990-c114-4b23-957d-d11311a7539c",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "My lunch break just started and I've got maybe 20 minutes before I need to be back, so the last thing I want is to\u2026"
+    },
+    {
+      "agent_id": "fa8c0c64-22b6-4b46-a32f-f571247ba1cc",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "After a long day I just want to hit the couch, flip on the TV, and get back to whatever we were watching last night \u2014\u2026"
+    },
+    {
+      "agent_id": "b914b393-5924-4c77-98d7-d88961dc910c",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.85,
+      "top_quote": "After a long day I just want to hit the home screen and get something going fast \u2014 and right now the Continue Watching\u2026"
+    },
+    {
+      "agent_id": "3bf238d0-f95e-462f-ac2e-e43358a22829",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.75,
+      "top_quote": "The delivery being late already put me in a bad mood tonight, and now I'm trying to get the kids settled quickly \u2014 the\u2026"
+    },
+    {
+      "agent_id": "d4fc5ea4-743c-4b4d-920b-e50cb709a3d2",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.72,
+      "top_quote": "Late night, just got home, opened the app to get back into the anime I was mid-episode on \u2014 and the first thing I'm\u2026"
+    },
+    {
+      "agent_id": "30d541ae-f4b9-4db2-b951-ab9852500b0e",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.88,
+      "top_quote": "My promo code still didn't apply at checkout and I'm already a bit annoyed coming into the app tonight \u2014 so the last\u2026"
+    },
+    {
+      "agent_id": "37c545ec-bcfb-4e14-893e-246ad3d52bf0",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.87,
+      "top_quote": "My friends just left and I finally sat down to put something on \u2014 tapped the app and the first thing I wanted was that\u2026"
+    },
+    {
+      "agent_id": "64cbc1a2-2807-46c0-8b75-dd717a277868",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "Late night, just opened the app to get back into my sci-fi binge, and the first thing I'm thinking about is how the\u2026"
+    },
+    {
+      "agent_id": "623e44b4-b324-4af1-8178-ed747f90179e",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.72,
+      "top_quote": "Just got home, I'm beat, and the last thing I need is to hunt around for what I was watching last night."
+    },
+    {
+      "agent_id": "ebbf1481-9274-4963-a279-32ad89b61c9b",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "Right now I've got friends over and we're trying to figure out what to put on \u2014 and the one thing I keep coming back\u2026"
+    },
+    {
+      "agent_id": "f9f624c4-ca17-422a-8f56-a7ad3a8142cb",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.6,
+      "top_quote": "My friends are literally ordering food right now and I just opened the app to throw on something in the background \u2014\u2026"
+    },
+    {
+      "agent_id": "1c92dec0-8374-4441-aeb3-7b1e033fe349",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.92,
+      "top_quote": "My promo code still didn't apply at checkout and now I'm opening the app on a busy weeknight just wanting to get back\u2026"
+    },
+    {
+      "agent_id": "95dd0011-de7f-42f6-b2ca-e6d6a19633b4",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.55,
+      "top_quote": "My kids are already arguing about what to watch and I just want to hit the couch and press play \u2014 the last thing I\u2026"
+    },
+    {
+      "agent_id": "15d7cd70-fd7d-4403-a2da-5b5dfeff3413",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.72,
+      "top_quote": "Just got home, kicked off my shoes, and the promo code thing at checkout is still annoying me \u2014 but fine, I'm in, I'm\u2026"
+    },
+    {
+      "agent_id": "fda5dd0c-e0f4-47f1-afcf-2fac98e94aa4",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "My lunch break just started and I've got maybe 25 minutes before I need to be back at my desk, so I pulled up the app\u2026"
+    },
+    {
+      "agent_id": "0f2a8dbc-bb65-4288-8780-322676e4c82d",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Just got home, still in my work clothes, and I'm already on the couch with my phone out."
+    },
+    {
+      "agent_id": "0dd41480-c6cf-4859-ab1d-68305b3d4058",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Got home late, poured a glass of wine, opened the laptop \u2014 and the Continue Watching rail was right there, first thing\u2026"
+    },
+    {
+      "agent_id": "8b6ddd8d-31dd-46f8-8c6e-e615536b80c2",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "My delivery just showed up 20 minutes late and I'm already annoyed, so I open the app just wanting to catch something\u2026"
+    },
+    {
+      "agent_id": "bc742ae9-6169-40c1-8cf9-5e7f1347fdef",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "Lunch break, fifteen minutes, and I'm trying to catch up on something before I have to get back to my desk."
+    },
+    {
+      "agent_id": "8efab122-c130-458f-bb1d-f0dac8de6c62",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.75,
+      "top_quote": "Got home, delivery guy left my stuff at the wrong door again, so I'm already annoyed before I even open the app."
+    },
+    {
+      "agent_id": "a33edc59-778c-4015-8449-dbeae53959f5",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Lunch break, phone in hand, and I've got maybe 15 minutes before I need to get back \u2014 this is exactly when I want the\u2026"
+    },
+    {
+      "agent_id": "9fb633f2-1b21-4ad9-92d5-9aaed253b71f",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.82,
+      "top_quote": "Just got home, everyone's already on the couch asking what we're watching tonight, and I'm too tired to think straight\u2026"
+    },
+    {
+      "agent_id": "fee63961-ca5b-4e0e-b2ed-fd0d18cbe234",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Just got home, kids are fed, and I finally get to sit down \u2014 and honestly the Continue Watching thing on my phone is\u2026"
+    },
+    {
+      "agent_id": "b83911f9-cbdf-4227-9f59-98908469cf0c",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "The delivery being late tonight already put us behind schedule \u2014 kids are tired, everyone's a bit cranky, and I just\u2026"
+    },
+    {
+      "agent_id": "bb0ff834-c3e7-4aad-a045-4961133bd63b",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Late night, just got home, want to pick up where I left off on the anime I've been rewatching \u2014 and the Continue\u2026"
+    },
+    {
+      "agent_id": "dbf01dae-4e42-478a-b2ce-5452b9a8dc41",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "Got home late, kids are finally in bed, I've got maybe 45 minutes before I need to crash \u2014 and the first thing I do is\u2026"
+    },
+    {
+      "agent_id": "7511ea40-9293-41e5-875d-4af3062b1d58",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.78,
+      "top_quote": "My friends are over right now and we're trying to figure out what to watch together on the TV, and the Continue\u2026"
+    },
+    {
+      "agent_id": "48ec04e1-75fe-4ee5-b6bb-70e137705b5b",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.82,
+      "top_quote": "It's midnight and I just got home, I'm in full comfort-mode, and the first thing I do is open the app to get back into\u2026"
+    },
+    {
+      "agent_id": "7949c0cb-e5f0-463f-a47e-52d71f3d1fb2",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.65,
+      "top_quote": "Got home from work, dead tired, and the courier left my package at the wrong door again \u2014 so I'm already annoyed\u2026"
+    },
+    {
+      "agent_id": "cfc611db-2e8d-4763-a72f-cf84d71bb723",
+      "sentiment": "neutral",
+      "sentiment_confidence": 0.62,
+      "top_quote": "My favorite restaurant just vanished from the food app I was using to order for everyone tonight \u2014 so I'm already a\u2026"
+    },
+    {
+      "agent_id": "a329f4f8-05c4-4c2c-b0cf-051ff8bd091c",
+      "sentiment": "positive",
+      "sentiment_confidence": 0.72,
+      "top_quote": "My friends just arrived and I'm trying to get the food order sorted, so I've got maybe thirty seconds of attention for\u2026"
+    },
+    {
+      "agent_id": "060cfc59-04cf-486f-928f-5fe2abc986cf",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "Got home late, opened the app on my phone, and the Continue Watching rail was right there \u2014 that part's fine."
+    },
+    {
+      "agent_id": "54cd0f99-8630-4bd7-9b83-4a483744429a",
+      "sentiment": "negative",
+      "sentiment_confidence": 0.82,
+      "top_quote": "We finally got the kids settled and I sat down to pick up where we left off on that show we've been watching all week\u2026"
+    }
+  ],
+  "result_full": {
+    "confidence_score": 11.7,
+    "confidence_score_ci": [
+      4.5,
+      20.9
+    ],
+    "weaknesses": [
+      {
+        "category": "hidden_guardrail_risk",
+        "summary": "17/20 agents flagged this \u2014 hidden guardrail risk.",
+        "supporting_agent_ids": [
+          "8d7d26b2-df6a-4223-a5fa-242a8431d4df",
+          "ab034cb9-9008-4393-b9e5-765ca98e1163",
+          "17b893e5-369e-4252-b5ca-855be9bcfec5",
+          "f7023832-cdee-493b-b7d5-44c1b926c6af",
+          "f9d3d38c-c6fe-4823-9016-ee3174214110"
+        ],
+        "frequency": 0.85,
+        "ci_low": 0.6395767041130426,
+        "ci_high": 0.9476322080405041
+      },
+      {
+        "category": "wrong_cohort",
+        "summary": "17/20 agents flagged this \u2014 wrong cohort.",
+        "supporting_agent_ids": [
+          "f7023832-cdee-493b-b7d5-44c1b926c6af",
+          "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+          "f9d3d38c-c6fe-4823-9016-ee3174214110",
+          "89ab6123-245f-4e06-b270-dcd08e9ef333",
+          "15e7a990-c114-4b23-957d-d11311a7539c"
+        ],
+        "frequency": 0.85,
+        "ci_low": 0.6395767041130426,
+        "ci_high": 0.9476322080405041
+      },
+      {
+        "category": "broken_mechanism",
+        "summary": "10/20 agents flagged this \u2014 broken mechanism.",
+        "supporting_agent_ids": [
+          "f7023832-cdee-493b-b7d5-44c1b926c6af",
+          "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+          "f9d3d38c-c6fe-4823-9016-ee3174214110",
+          "89ab6123-245f-4e06-b270-dcd08e9ef333",
+          "15e7a990-c114-4b23-957d-d11311a7539c"
+        ],
+        "frequency": 0.5,
+        "ci_low": 0.2992949144298199,
+        "ci_high": 0.7007050855701801
+      },
+      {
+        "category": "hidden_guardrail_risk",
+        "summary": "The conversion metric is positive and separable (+7.5pp), but sentiment is negative and separable (-13.3) across the paired arms \u2014 the metric would greenlight a change users dislike. Pre-calibration (#222), trust sentiment for harm: do not ship on the metric alone.",
+        "supporting_agent_ids": [],
+        "frequency": null,
+        "ci_low": null,
+        "ci_high": null
+      }
+    ],
+    "refinement_suggestions": [
+      "Narrow the test cohort to single-active-series viewers (users with exactly one in-progress series and no in-progress movies in the past 14 days), where the algorithm's 'most likely title' prediction is near-deterministic and the hidden-guardrail risk of surfacing the wrong title is minimized. Exclude multi-show jugglers entirely from this experiment phase.",
+      "Add a persistent, visible 'Switch title' affordance directly on the Smart Resume hero card (not buried in a 'More options' expander) so users who disagree with the algorithmic pick can correct it in one tap without losing the fast-resume benefit. Measure both resume-button CTR and 'Switch title' usage rate as co-primary metrics to detect cases where the mechanism is failing to predict correctly.",
+      "Gate the ship decision on a composite success criterion that requires BOTH a statistically significant lift in resume-session starts (the conversion metric) AND a neutral-or-positive net sentiment score from in-app post-session micro-surveys ('Did the app make it easy to get back to your show?'), explicitly preventing the positive conversion metric from greenlighting the feature while sentiment remains negative."
+    ],
+    "per_agent_analyses": [
+      {
+        "agent_id": "8d7d26b2-df6a-4223-a5fa-242a8431d4df",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.85,
+        "top_quote": "Just got home, still annoyed that the promo code didn't go through at checkout \u2014 and now I'm opening the app wanting\u2026"
+      },
+      {
+        "agent_id": "ab034cb9-9008-4393-b9e5-765ca98e1163",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My lunch break is already 20 minutes shorter than it should be because my delivery was late, so I'm sitting here with\u2026"
+      },
+      {
+        "agent_id": "17b893e5-369e-4252-b5ca-855be9bcfec5",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.82,
+        "top_quote": "I just got home, I'm exhausted, and the one thing I actually want from this app is to tap that Continue Watching tile\u2026"
+      },
+      {
+        "agent_id": "f7023832-cdee-493b-b7d5-44c1b926c6af",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.93,
+        "top_quote": "Got home late, opened the app on my laptop, and the first thing I want is to just *get back* to where I was \u2014 I'm\u2026"
+      },
+      {
+        "agent_id": "4d77f15d-b55e-4744-b518-9fa85cbc2cda",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "Just got home, delivery showed up late, I'm tired, and I open the app wanting to catch a quick news segment or sports\u2026"
+      },
+      {
+        "agent_id": "f9d3d38c-c6fe-4823-9016-ee3174214110",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "My lunch break just started and I've got maybe 20 minutes before I need to get back, so the last thing I want is to\u2026"
+      },
+      {
+        "agent_id": "89ab6123-245f-4e06-b270-dcd08e9ef333",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "Just got home, still annoyed the courier left my bag at the wrong door, and I open the app on my phone wanting to\u2026"
+      },
+      {
+        "agent_id": "15e7a990-c114-4b23-957d-d11311a7539c",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "My lunch break just started and I've got maybe 20 minutes before I need to be back, so the last thing I want is to\u2026"
+      },
+      {
+        "agent_id": "fa8c0c64-22b6-4b46-a32f-f571247ba1cc",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "After a long day I just want to hit the couch, flip on the TV, and get back to whatever we were watching last night \u2014\u2026"
+      },
+      {
+        "agent_id": "b914b393-5924-4c77-98d7-d88961dc910c",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "After a long day I just want to hit the home screen and get something going fast \u2014 and right now the Continue Watching\u2026"
+      },
+      {
+        "agent_id": "3bf238d0-f95e-462f-ac2e-e43358a22829",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.75,
+        "top_quote": "The delivery being late already put me in a bad mood tonight, and now I'm trying to get the kids settled quickly \u2014 the\u2026"
+      },
+      {
+        "agent_id": "d4fc5ea4-743c-4b4d-920b-e50cb709a3d2",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "Late night, just got home, opened the app to get back into the anime I was mid-episode on \u2014 and the first thing I'm\u2026"
+      },
+      {
+        "agent_id": "30d541ae-f4b9-4db2-b951-ab9852500b0e",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.88,
+        "top_quote": "My promo code still didn't apply at checkout and I'm already a bit annoyed coming into the app tonight \u2014 so the last\u2026"
+      },
+      {
+        "agent_id": "37c545ec-bcfb-4e14-893e-246ad3d52bf0",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.87,
+        "top_quote": "My friends just left and I finally sat down to put something on \u2014 tapped the app and the first thing I wanted was that\u2026"
+      },
+      {
+        "agent_id": "64cbc1a2-2807-46c0-8b75-dd717a277868",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "Late night, just opened the app to get back into my sci-fi binge, and the first thing I'm thinking about is how the\u2026"
+      },
+      {
+        "agent_id": "623e44b4-b324-4af1-8178-ed747f90179e",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "Just got home, I'm beat, and the last thing I need is to hunt around for what I was watching last night."
+      },
+      {
+        "agent_id": "ebbf1481-9274-4963-a279-32ad89b61c9b",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "Right now I've got friends over and we're trying to figure out what to put on \u2014 and the one thing I keep coming back\u2026"
+      },
+      {
+        "agent_id": "f9f624c4-ca17-422a-8f56-a7ad3a8142cb",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.6,
+        "top_quote": "My friends are literally ordering food right now and I just opened the app to throw on something in the background \u2014\u2026"
+      },
+      {
+        "agent_id": "1c92dec0-8374-4441-aeb3-7b1e033fe349",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.92,
+        "top_quote": "My promo code still didn't apply at checkout and now I'm opening the app on a busy weeknight just wanting to get back\u2026"
+      },
+      {
+        "agent_id": "95dd0011-de7f-42f6-b2ca-e6d6a19633b4",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My kids are already arguing about what to watch and I just want to hit the couch and press play \u2014 the last thing I\u2026"
+      },
+      {
+        "agent_id": "15d7cd70-fd7d-4403-a2da-5b5dfeff3413",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.72,
+        "top_quote": "Just got home, kicked off my shoes, and the promo code thing at checkout is still annoying me \u2014 but fine, I'm in, I'm\u2026"
+      },
+      {
+        "agent_id": "fda5dd0c-e0f4-47f1-afcf-2fac98e94aa4",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "My lunch break just started and I've got maybe 25 minutes before I need to be back at my desk, so I pulled up the app\u2026"
+      },
+      {
+        "agent_id": "0f2a8dbc-bb65-4288-8780-322676e4c82d",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Just got home, still in my work clothes, and I'm already on the couch with my phone out."
+      },
+      {
+        "agent_id": "0dd41480-c6cf-4859-ab1d-68305b3d4058",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Got home late, poured a glass of wine, opened the laptop \u2014 and the Continue Watching rail was right there, first thing\u2026"
+      },
+      {
+        "agent_id": "8b6ddd8d-31dd-46f8-8c6e-e615536b80c2",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "My delivery just showed up 20 minutes late and I'm already annoyed, so I open the app just wanting to catch something\u2026"
+      },
+      {
+        "agent_id": "bc742ae9-6169-40c1-8cf9-5e7f1347fdef",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "Lunch break, fifteen minutes, and I'm trying to catch up on something before I have to get back to my desk."
+      },
+      {
+        "agent_id": "8efab122-c130-458f-bb1d-f0dac8de6c62",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.75,
+        "top_quote": "Got home, delivery guy left my stuff at the wrong door again, so I'm already annoyed before I even open the app."
+      },
+      {
+        "agent_id": "a33edc59-778c-4015-8449-dbeae53959f5",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Lunch break, phone in hand, and I've got maybe 15 minutes before I need to get back \u2014 this is exactly when I want the\u2026"
+      },
+      {
+        "agent_id": "9fb633f2-1b21-4ad9-92d5-9aaed253b71f",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.82,
+        "top_quote": "Just got home, everyone's already on the couch asking what we're watching tonight, and I'm too tired to think straight\u2026"
+      },
+      {
+        "agent_id": "fee63961-ca5b-4e0e-b2ed-fd0d18cbe234",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Just got home, kids are fed, and I finally get to sit down \u2014 and honestly the Continue Watching thing on my phone is\u2026"
+      },
+      {
+        "agent_id": "b83911f9-cbdf-4227-9f59-98908469cf0c",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "The delivery being late tonight already put us behind schedule \u2014 kids are tired, everyone's a bit cranky, and I just\u2026"
+      },
+      {
+        "agent_id": "bb0ff834-c3e7-4aad-a045-4961133bd63b",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Late night, just got home, want to pick up where I left off on the anime I've been rewatching \u2014 and the Continue\u2026"
+      },
+      {
+        "agent_id": "dbf01dae-4e42-478a-b2ce-5452b9a8dc41",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Got home late, kids are finally in bed, I've got maybe 45 minutes before I need to crash \u2014 and the first thing I do is\u2026"
+      },
+      {
+        "agent_id": "7511ea40-9293-41e5-875d-4af3062b1d58",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "My friends are over right now and we're trying to figure out what to watch together on the TV, and the Continue\u2026"
+      },
+      {
+        "agent_id": "48ec04e1-75fe-4ee5-b6bb-70e137705b5b",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.82,
+        "top_quote": "It's midnight and I just got home, I'm in full comfort-mode, and the first thing I do is open the app to get back into\u2026"
+      },
+      {
+        "agent_id": "7949c0cb-e5f0-463f-a47e-52d71f3d1fb2",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.65,
+        "top_quote": "Got home from work, dead tired, and the courier left my package at the wrong door again \u2014 so I'm already annoyed\u2026"
+      },
+      {
+        "agent_id": "cfc611db-2e8d-4763-a72f-cf84d71bb723",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "My favorite restaurant just vanished from the food app I was using to order for everyone tonight \u2014 so I'm already a\u2026"
+      },
+      {
+        "agent_id": "a329f4f8-05c4-4c2c-b0cf-051ff8bd091c",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.72,
+        "top_quote": "My friends just arrived and I'm trying to get the food order sorted, so I've got maybe thirty seconds of attention for\u2026"
+      },
+      {
+        "agent_id": "060cfc59-04cf-486f-928f-5fe2abc986cf",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "Got home late, opened the app on my phone, and the Continue Watching rail was right there \u2014 that part's fine."
+      },
+      {
+        "agent_id": "54cd0f99-8630-4bd7-9b83-4a483744429a",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "We finally got the kids settled and I sat down to pick up where we left off on that show we've been watching all week\u2026"
+      }
+    ],
+    "instrument_scope": "in_scope",
+    "out_of_scope_reasons": [],
+    "out_of_scope_reason_codes": [],
+    "input_flags": null,
+    "treatment_score": 11.7,
+    "control_score": 66.9,
+    "lift": -13.3,
+    "lift_ci": [
+      -21.5,
+      -4.6
+    ],
+    "lift_paired_n": 20,
+    "lift_unpaired_treatment": 0,
+    "lift_unpaired_control": 0,
+    "lift_sentiment_failure_drops": 0,
+    "no_persona_score": null,
+    "persona_lift": null,
+    "persona_lift_ci": null,
+    "persona_lift_paired_n": null,
+    "persona_lift_unpaired_persona": 0,
+    "persona_lift_unpaired_no_persona": 0,
+    "persona_lift_sentiment_failure_drops": 0,
+    "current_state_score": null,
+    "current_state_delta": null,
+    "current_state_delta_ci": null,
+    "current_state_delta_paired_n": null,
+    "current_state_delta_unpaired_persona": 0,
+    "current_state_delta_unpaired_current_state": 0,
+    "current_state_delta_sentiment_failure_drops": 0,
+    "metric_name": "conversion",
+    "metric_lift_pp": 7.5,
+    "metric_lift_ci_pp": [
+      4.0,
+      11.0
+    ],
+    "metric_lift_paired_n": 20,
+    "metric_lift_unpaired_treatment": 0,
+    "metric_lift_unpaired_control": 0,
+    "metric_lift_elicitation_failure_drops": 0,
+    "metric_regime": "weak_behavioral",
+    "metric_lift_relative": "Treatment converts directionally higher than control on 20 paired identities; the paired-bootstrap interval excludes zero. Synthetic conversion is a weak behavioral signal \u2014 read as rank/direction, not as a calibrated effect size. NOTE: one or more personas in this run lack per-persona behavioral seeds (a v1.0-class pack), so cross-persona variance is degraded \u2014 a flat or non-separable metric here may reflect collapsed agent variance rather than a true null effect. Rebuild the pack to v1.1 to de-attenuate.",
+    "metric_lift_unblinded_fallback": false,
+    "metric_lift_paraphrase_unstable": false,
+    "metric_lift_calibrated": false,
+    "metric_lift_variance_collapsed": true,
+    "metric_lift_variance_collapsed_persona_count": 7,
+    "metric_lift_underpowered": false,
+    "metric_sentiment_disagreement": true,
+    "metric_sentiment_disagreement_caveat": "Metric\u2194sentiment DISAGREEMENT (harm-misread): the conversion metric reads +7.5pp (CI [+4.0, +11.0]pp), positive and separable \u2014 it would greenlight this change \u2014 while sentiment is -13.3 (CI [-21.5, -4.6]), negative and separable. This can indicate real user harm the uncalibrated metric misses. Trust sentiment for harm until the metric is calibrated (#222)."
+  }
+}

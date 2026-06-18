@@ -1,0 +1,101 @@
+{
+  "pack": "v_1",
+  "lift": 1.7,
+  "lift_ci": [
+    -7.1,
+    10.7
+  ],
+  "confidence": 22.3,
+  "per_persona": {
+    "alex_binge_marathoner": {
+      "positive": 4,
+      "neutral": 1,
+      "negative": 0,
+      "n": 5
+    },
+    "ken_price_sensitive_lapser": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 4,
+      "n": 4
+    },
+    "marco_background_player": {
+      "positive": 4,
+      "neutral": 1,
+      "negative": 0,
+      "n": 5
+    },
+    "noor_niche_genre_loyalist": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 3,
+      "n": 3
+    },
+    "rivka_weekend_movie_night": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 5,
+      "n": 5
+    },
+    "tess_new_trialer": {
+      "positive": 0,
+      "neutral": 1,
+      "negative": 1,
+      "n": 2
+    }
+  },
+  "directions": {
+    "alex_binge_marathoner": "positive",
+    "marco_background_player": "positive",
+    "tess_new_trialer": "negative",
+    "rivka_weekend_movie_night": "negative",
+    "noor_niche_genre_loyalist": "negative",
+    "ken_price_sensitive_lapser": "negative"
+  },
+  "comparison": [
+    {
+      "persona": "alex_binge_marathoner",
+      "pm_label": "STRONG POSITIVE",
+      "pm_band": "positive",
+      "sim_direction": "positive",
+      "agree": true
+    },
+    {
+      "persona": "marco_background_player",
+      "pm_label": "POSITIVE",
+      "pm_band": "positive",
+      "sim_direction": "positive",
+      "agree": true
+    },
+    {
+      "persona": "tess_new_trialer",
+      "pm_label": "SLIGHTLY NEGATIVE",
+      "pm_band": "negative",
+      "sim_direction": "negative",
+      "agree": true
+    },
+    {
+      "persona": "rivka_weekend_movie_night",
+      "pm_label": "NEGATIVE",
+      "pm_band": "negative",
+      "sim_direction": "negative",
+      "agree": true
+    },
+    {
+      "persona": "noor_niche_genre_loyalist",
+      "pm_label": "NEUTRAL",
+      "pm_band": "neutral",
+      "sim_direction": "negative",
+      "agree": false
+    },
+    {
+      "persona": "ken_price_sensitive_lapser",
+      "pm_label": "NEUTRAL",
+      "pm_band": "neutral",
+      "sim_direction": "negative",
+      "agree": false
+    }
+  ],
+  "matches": 4,
+  "total": 6
+}
