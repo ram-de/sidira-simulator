@@ -1,0 +1,11 @@
+flag SIDIRA_METRIC_COMPARATIVE=1, elicitation=forecaster | metric=visit | A/B pop=8
+
+agents: 8 treatment / 8 control
+(a) treatment records with comparative_delta SET: 8/8
+    deltas: [0.08, 0.08, 0.12, 0.08, 0.08, 0.12, 0.12, 0.12]
+
+(b) PRODUCTION aggregate_metric_lift  ->  lift_pp=10.0  ci=(8.5, 11.5)  paired_n=8
+    delegated to comparative aggregator: True
+
+RCT truth: Mens E-Mail RAISES visits (positive lift). End-to-end comparative wiring fired: True
+sim id: a9b9a986-f42b-42fc-ba30-6848841e6224
