@@ -69,9 +69,9 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
   },
   {
     benchmark: "Hillstrom email RCT",
-    tested: "The direction of a real email campaign's effect",
+    tested: "The direction of a real email campaign's effect, and which audience responds more",
     result:
-      "Predicted the wrong direction; a stronger model (Claude Sonnet 4.6) produced the same result.",
+      "Initially predicted the wrong direction; a fix corrected it (direction accuracy to 1.0 at power) and certified the per-segment who-responds-more ranking (rank-ρ +0.42, p=0.01) — pre-registered, and validated end-to-end through the engine.",
   },
   {
     benchmark: "Product-change portfolio",
@@ -240,8 +240,12 @@ export default function AccuracyReportPage() {
         <section style={SECTION}>
           <h2 style={H2}>4. What the benchmarks show today</h2>
           <p style={BODY}>
-            The honest standing is a consistent null: no certified directional advantage across
-            the benchmarks below.
+            The honest standing is mixed. On copy and product-change benchmarks, a consistent null
+            (with two of our own false positives caught before they became claims). On the Hillstrom
+            email RCT, after finding and fixing a directional bias, the first <Term>certified</Term>{" "}
+            directional result &mdash; the per-segment &ldquo;who responds more&rdquo; ranking,
+            pre-registered and permutation-tested (rank-&rho; <span style={MONO_FIGURE}>+0.42</span>,
+            p=<span style={MONO_FIGURE}>0.01</span>). Magnitudes remain uncalibrated and out of scope.
           </p>
           <div
             style={{
