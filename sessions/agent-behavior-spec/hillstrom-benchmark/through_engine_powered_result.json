@@ -1,11 +1,11 @@
 {
   "roleplay": {
-    "mean_lift": -0.03749999999999999,
+    "mean_lift": -0.04166666666666666,
     "direction_accuracy": 0.0,
     "n_cells": 8
   },
   "forecaster": {
-    "mean_lift": -0.02916666666666666,
+    "mean_lift": -0.031249999999999997,
     "direction_accuracy": 0.125,
     "n_cells": 8
   }
