@@ -1,0 +1,14 @@
+  apparel_hide_discount_surfacing    ctrl=0.5833333333333334 treat=0.4166666666666667 pred=control real=treatment
+  gift_certificate_expiry_window     ctrl=0.08333333333333333 treat=0.0 pred=control real=control
+  referral_reward_sender_certainty   ctrl=0.3333333333333333 treat=0.16666666666666666 pred=control real=treatment
+  referral_reward_recipient_certaint ctrl=0.3333333333333333 treat=0.08333333333333333 pred=control real=control
+  time_scarcity_promo_framing        ctrl=0.25 treat=0.08333333333333333 pred=control real=treatment
+  product_image_hover_zoom           ctrl=0.5 treat=0.16666666666666666 pred=control real=treatment
+  homepage_carousel_item_count       ctrl=0.08333333333333333 treat=0.08333333333333333 pred=tie real=treatment
+  donation_banner_only_word          ctrl=0.08333333333333333 treat=0.08333333333333333 pred=tie real=treatment
+  upload_dropzone_border_button_weig ctrl=0.5833333333333334 treat=0.9166666666666666 pred=treatment real=treatment
+  vendor_listing_popularity_count    ctrl=0.25 treat=0.25 pred=tie real=treatment
+
+=== PERSONA-PANEL SIM (12 personas) ===
+  less-won 1/4  more-won 1/1  overall 3/7  MIB 5/5
+  baseline (comparative forecaster): less 2/4, more 2/4, overall 5/10
