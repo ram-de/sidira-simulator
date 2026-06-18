@@ -78,6 +78,7 @@ class AgentReaction:
         "metric_p",
         "metric_unblinded",
         "metric_paraphrase_unstable",
+        "metric_comparative_delta",
         "behavioral_seeds_fallback",
     )
 
@@ -94,6 +95,7 @@ class AgentReaction:
         metric_p: float | None = None,
         metric_unblinded: bool = False,
         metric_paraphrase_unstable: bool = False,
+        metric_comparative_delta: float | None = None,
         behavioral_seeds_fallback: bool = False,
     ) -> None:
         self.agent_id = agent_id
@@ -118,6 +120,12 @@ class AgentReaction:
         # EITHER arm; any such contributor in a usable pair makes the run's metric
         # lift low-confidence (the pair's delta is wording-driven).
         self.metric_paraphrase_unstable = metric_paraphrase_unstable
+        # #342 comparative-delta: the directly-elicited treatment−control metric
+        # delta (one comparative pass), set ONLY on treatment reactions in
+        # comparative forecaster mode. When present, aggregate_metric_lift uses the
+        # mean of these deltas instead of the two-pass paired subtraction. None
+        # everywhere else (default) → the historical subtraction path is unchanged.
+        self.metric_comparative_delta = metric_comparative_delta
         # Variance-collapse honesty flag: True when this agent's persona lacked
         # per-persona v1.1 behavioral_seeds, so `draw_identity_seed` fell back to
         # the shared default seed (cross-agent variance degraded). Set on EITHER
@@ -1446,6 +1454,17 @@ def aggregate_metric_lift(
     `elicitation_failure_drops` and never imputed to zero. The raw result is routed
     through the metric's calibrator (#221 shrinkage seam; identity no-op default).
     """
+    # #342: when treatment reactions carry directly-elicited comparative deltas
+    # (comparative forecaster mode), use the mean delta instead of the two-pass
+    # paired subtraction below. Default-off — no reaction sets the field unless
+    # SIDIRA_METRIC_COMPARATIVE is enabled — so this path is dormant in production
+    # today and the existing subtraction is byte-unchanged.
+    if any(getattr(r, "metric_comparative_delta", None) is not None for r in treatment_reactions):
+        return aggregate_comparative_metric_lift(
+            treatment_reactions, config=config, run_seed=run_seed,
+            metric_name=metric_name, calibrator=calibrator,
+        )
+
     cfg = config or ScoringConfig()
     cal = calibrator or resolve_metric_calibrator(metric_name)
 
@@ -1557,6 +1576,81 @@ def aggregate_metric_lift(
 
     # #221 shrinkage seam: route the raw lift through the calibrator. Identity
     # default → byte-identical magnitude, `calibrated` stays False.
+    return cal.calibrate(result)
+
+
+def aggregate_comparative_metric_lift(
+    treatment_reactions: Sequence[AgentReaction],
+    config: ScoringConfig | None = None,
+    *,
+    run_seed: int | None = None,
+    metric_name: str = "conversion",
+    calibrator: MetricCalibrator | None = None,
+) -> MetricLiftResult:
+    """#342 comparative-delta lift: the statistic is the mean of the directly
+    elicited per-treatment-agent `metric_comparative_delta` (one comparative pass
+    that compares both versions), instead of the two-pass `p_metric(treatment) −
+    p_metric(control)` subtraction. Same `MetricLiftResult` schema and unit
+    (percentage points, ×100), same bootstrap CI / underpowered / calibrator path —
+    so every downstream consumer is unchanged. A None delta is an elicitation
+    failure (counted, never imputed to zero). Selected by `aggregate_metric_lift`
+    when any treatment reaction carries a delta (comparative forecaster mode).
+    """
+    cfg = config or ScoringConfig()
+    cal = calibrator or resolve_metric_calibrator(metric_name)
+
+    deltas: list[float] = [
+        r.metric_comparative_delta
+        for r in treatment_reactions
+        if r.metric_comparative_delta is not None
+    ]
+    failure_drops = sum(
+        1 for r in treatment_reactions if r.metric_comparative_delta is None
+    )
+    collapsed_persona_ids = {
+        r.persona_id for r in treatment_reactions if r.behavioral_seeds_fallback
+    }
+
+    result = MetricLiftResult(
+        unpaired_treatment=0,
+        unpaired_control=0,
+        # The comparative pass shows BOTH versions to a third-person forecaster by
+        # design — that is the method, not the demand-inducing unblinded fallback,
+        # so the low-confidence "unblinded" flag does not apply here.
+        unblinded_fallback=False,
+        variance_collapsed=bool(collapsed_persona_ids),
+        variance_collapsed_persona_count=len(collapsed_persona_ids),
+    )
+    result.paraphrase_unstable = False  # single comparative call, no K-paraphrase ensemble
+    result.elicitation_failure_drops = failure_drops
+    result.paired_n = len(deltas)
+
+    def _mean_pp(sample: Sequence[float]) -> float:
+        return (sum(sample) / len(sample)) * 100.0
+
+    if deltas:
+        result.lift_pp = round(_mean_pp(deltas), cfg.confidence_rounding)
+        if cfg.bootstrap_resamples > 0:
+            effective_seed = (
+                run_seed if run_seed is not None else secrets.randbits(53)
+            ) ^ _BOOTSTRAP_SEED_MIX
+            rng = random.Random(effective_seed)
+            ci_low, ci_high = bootstrap_percentile_ci(
+                deltas, _mean_pp, n_resamples=cfg.bootstrap_resamples, rng=rng
+            )
+            ci_low_r = round(ci_low, cfg.confidence_rounding)
+            ci_high_r = round(ci_high, cfg.confidence_rounding)
+            result.lift_ci_pp = (
+                min(ci_low_r, result.lift_pp),
+                max(ci_high_r, result.lift_pp),
+            )
+
+    ci = result.lift_ci_pp
+    result.underpowered = (
+        result.lift_pp is not None
+        and result.paired_n < _MIN_PAIRED_N_FOR_METRIC
+        and (ci is None or (ci[0] <= 0 <= ci[1]))
+    )
     return cal.calibrate(result)
 
 
