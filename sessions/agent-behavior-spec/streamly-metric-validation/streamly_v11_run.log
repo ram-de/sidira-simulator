@@ -1,0 +1,54 @@
+2026-06-18 14:32:49 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P01
+2026-06-18 14:32:49 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P02
+2026-06-18 14:32:49 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P03
+2026-06-18 14:33:06 [info     ] agent.materialized             agent_id=ab034cb9-9008-4393-b9e5-765ca98e1163 persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:07 [info     ] agent.materialized             agent_id=4d77f15d-b55e-4744-b518-9fa85cbc2cda persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:07 [info     ] agent.materialized             agent_id=17b893e5-369e-4252-b5ca-855be9bcfec5 persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:07 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P04
+2026-06-18 14:33:11 [info     ] agent.materialized             agent_id=8d7d26b2-df6a-4223-a5fa-242a8431d4df persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:11 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P05
+2026-06-18 14:33:11 [info     ] agent.materialized             agent_id=f7023832-cdee-493b-b7d5-44c1b926c6af persona='Binge-Hooked Solo Streamer' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:24 [info     ] agent.materialized             agent_id=f9d3d38c-c6fe-4823-9016-ee3174214110 persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:25 [info     ] agent.materialized             agent_id=15e7a990-c114-4b23-957d-d11311a7539c persona='Mobile Casual Reality Browsers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:25 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P06
+2026-06-18 14:33:26 [info     ] agent.materialized             agent_id=89ab6123-245f-4e06-b270-dcd08e9ef333 persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:27 [info     ] agent.materialized             agent_id=b914b393-5924-4c77-98d7-d88961dc910c persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:29 [info     ] agent.materialized             agent_id=fa8c0c64-22b6-4b46-a32f-f571247ba1cc persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:42 [info     ] agent.materialized             agent_id=3bf238d0-f95e-462f-ac2e-e43358a22829 persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:43 [info     ] agent.materialized             agent_id=37c545ec-bcfb-4e14-893e-246ad3d52bf0 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:44 [info     ] agent.materialized             agent_id=30d541ae-f4b9-4db2-b951-ab9852500b0e persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:45 [info     ] agent.materialized             agent_id=d4fc5ea4-743c-4b4d-920b-e50cb709a3d2 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:50 [info     ] agent.materialized             agent_id=64cbc1a2-2807-46c0-8b75-dd717a277868 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:33:50 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=P07
+2026-06-18 14:34:00 [info     ] agent.materialized             agent_id=623e44b4-b324-4af1-8178-ed747f90179e persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:00 [info     ] agent.materialized             agent_id=f9f624c4-ca17-422a-8f56-a7ad3a8142cb persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:01 [info     ] agent.materialized             agent_id=ebbf1481-9274-4963-a279-32ad89b61c9b persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:06 [info     ] agent.materialized             agent_id=1c92dec0-8374-4441-aeb3-7b1e033fe349 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:09 [info     ] agent.materialized             agent_id=95dd0011-de7f-42f6-b2ca-e6d6a19633b4 persona='Family Couch Comedy Night' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:17 [info     ] agent.materialized             agent_id=fda5dd0c-e0f4-47f1-afcf-2fac98e94aa4 persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:18 [info     ] agent.materialized             agent_id=0f2a8dbc-bb65-4288-8780-322676e4c82d persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:20 [info     ] agent.materialized             agent_id=15d7cd70-fd7d-4403-a2da-5b5dfeff3413 persona='Solo Binge-Laugher On-the-Go' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:22 [info     ] agent.materialized             agent_id=0dd41480-c6cf-4859-ab1d-68305b3d4058 persona='Binge-Hooked Solo Streamer' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:25 [info     ] agent.materialized             agent_id=8b6ddd8d-31dd-46f8-8c6e-e615536b80c2 persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:33 [info     ] agent.materialized             agent_id=a33edc59-778c-4015-8449-dbeae53959f5 persona='Mobile Casual Reality Browsers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:34 [info     ] agent.materialized             agent_id=8efab122-c130-458f-bb1d-f0dac8de6c62 persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:34 [info     ] agent.materialized             agent_id=bc742ae9-6169-40c1-8cf9-5e7f1347fdef persona='Lapsed Casual News Grazers' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:38 [info     ] agent.materialized             agent_id=9fb633f2-1b21-4ad9-92d5-9aaed253b71f persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:41 [info     ] agent.materialized             agent_id=fee63961-ca5b-4e0e-b2ed-fd0d18cbe234 persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:49 [info     ] agent.materialized             agent_id=b83911f9-cbdf-4227-9f59-98908469cf0c persona='Family Movie Night Planners' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:50 [info     ] agent.materialized             agent_id=dbf01dae-4e42-478a-b2ce-5452b9a8dc41 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:52 [info     ] agent.materialized             agent_id=7511ea40-9293-41e5-875d-4af3062b1d58 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:34:52 [info     ] agent.materialized             agent_id=bb0ff834-c3e7-4aad-a045-4961133bd63b persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:00 [info     ] agent.materialized             agent_id=48ec04e1-75fe-4ee5-b6bb-70e137705b5b persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:06 [info     ] agent.materialized             agent_id=7949c0cb-e5f0-463f-a47e-52d71f3d1fb2 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:06 [info     ] agent.materialized             agent_id=060cfc59-04cf-486f-928f-5fe2abc986cf persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:07 [info     ] agent.materialized             agent_id=cfc611db-2e8d-4763-a72f-cf84d71bb723 persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:08 [info     ] agent.materialized             agent_id=a329f4f8-05c4-4c2c-b0cf-051ff8bd091c persona='Binge-Focused Serial Devotees' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+2026-06-18 14:35:18 [info     ] agent.materialized             agent_id=54cd0f99-8630-4bd7-9b83-4a483744429a persona='Family Couch Comedy Night' sim_id=33f30a77-4f4f-4a87-a162-46360d86a326
+=== ENGINE RAN OK (v1.1 + rendered treatment) ===
+pack version: v_2 schema: 1.1 personas: 7
+lift: -13.3 | lift_ci: (-21.5, -4.6)
+confidence_score: 11.7
+treatment_score: 11.7 | control_score: 66.9
+agents materialized: 40  arms: ['control', 'treatment']
+wrote streamly_v11_result.json

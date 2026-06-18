@@ -1,0 +1,61 @@
+2026-06-18 14:37:10 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=alex_binge_marathoner
+2026-06-18 14:37:27 [info     ] agent.materialized             agent_id=13d421d9-e2f8-4f70-866e-f1b8e3354c09 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:27 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=ken_price_sensitive_lapser
+2026-06-18 14:37:27 [info     ] agent.materialized             agent_id=87684438-ab09-4dc7-ae09-3e4463226a30 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:27 [info     ] agent.materialized             agent_id=e6ee0407-a899-4342-ba7b-1fe1e894ea82 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:28 [info     ] agent.materialized             agent_id=096fb976-b986-4c2e-a845-d85f79273ba8 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:28 [info     ] agent.materialized             agent_id=8a628f23-2710-4e4f-bef5-eeb53054d795 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:28 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=marco_background_player
+2026-06-18 14:37:40 [info     ] agent.materialized             agent_id=8be40902-4871-4f97-86f0-ff08847e117d persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:43 [info     ] agent.materialized             agent_id=7206acd1-4626-4cb0-b0e6-2e05e127b980 persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:43 [info     ] agent.materialized             agent_id=57168048-61ce-448d-9b86-1c08568ab69e persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:43 [info     ] agent.materialized             agent_id=ac538ff2-16ba-4359-b6d4-2a15476cb06d persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:47 [info     ] agent.materialized             agent_id=5a9346c3-5e19-4b12-9926-bd107a958df4 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:47 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=noor_niche_genre_loyalist
+2026-06-18 14:37:58 [info     ] agent.materialized             agent_id=2a529066-4573-4fa6-ac94-21fc59397cc3 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:59 [info     ] agent.materialized             agent_id=422a8d44-e50c-4386-a091-e2d3f8277540 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:59 [info     ] agent.materialized             agent_id=d911ef6d-d9d8-4363-92a2-c617a79e79a0 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:37:59 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=rivka_weekend_movie_night
+2026-06-18 14:38:00 [info     ] agent.materialized             agent_id=33765b86-51d3-4752-8dc7-1c0030ba4c9b persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:08 [info     ] agent.materialized             agent_id=94a73a9c-497b-48e1-8a7b-456345704bca persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:16 [info     ] agent.materialized             agent_id=ef26891c-1b4d-493c-9aef-fc5d3c10d9d6 persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:17 [info     ] agent.materialized             agent_id=08b64694-f6c2-404c-8521-d73e24b2f285 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:18 [info     ] agent.materialized             agent_id=e2393ca1-1e93-4d85-95a4-045290baaf82 persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:18 [warning  ] identity_seed fallback active - cross-persona variance degraded, upgrade pack to v1.1 persona_id=tess_new_trialer
+2026-06-18 14:38:20 [info     ] agent.materialized             agent_id=3e817b92-cbe7-4b8e-94d4-a679da1c941c persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:27 [info     ] agent.materialized             agent_id=17b0809e-06ba-448b-b28b-ea63847e2c1d persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:34 [info     ] agent.materialized             agent_id=4f8d87cd-5ad1-4c9e-9faa-a5d1b7b7efc2 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:35 [info     ] agent.materialized             agent_id=696563fe-ecf1-4e3a-936d-98c8493adcca persona='New trialer (first 14 days)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:36 [info     ] agent.materialized             agent_id=b1b53d41-4b86-4c2a-abef-636d4f1f9a42 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:39 [info     ] agent.materialized             agent_id=831b6ce5-d363-4ada-90e3-0813654a2634 persona='New trialer (first 14 days)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:45 [info     ] agent.materialized             agent_id=e0f62377-f514-4cd1-b9d6-e652ca476b38 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:50 [info     ] agent.materialized             agent_id=69877252-4b44-457e-9018-6ad58eaab145 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:53 [info     ] agent.materialized             agent_id=f1729b7e-2ce1-4194-88bb-ba05b8696429 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:56 [info     ] agent.materialized             agent_id=0fd85dd5-9a71-4048-98a7-19f0657ac258 persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:38:59 [info     ] agent.materialized             agent_id=7c28f9d9-e941-4e91-a113-18f280bfb27b persona='Daily binge marathoner' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:01 [info     ] agent.materialized             agent_id=e9d73ab1-427d-4d92-9595-6c340efc1e86 persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:04 [info     ] agent.materialized             agent_id=187f17c3-b0de-41ea-a462-0079334cb2a8 persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:06 [info     ] agent.materialized             agent_id=06a6b3f3-3e69-4db1-ae34-de03db740fff persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:09 [info     ] agent.materialized             agent_id=8126e2a7-7066-47b9-8a6e-5ffc0eba2e70 persona='Price-sensitive lapser' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:13 [info     ] agent.materialized             agent_id=6e961742-72b7-4be2-b41e-51d189d1b372 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:15 [info     ] agent.materialized             agent_id=ce095413-93c0-4dd9-814b-f582748dd484 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:19 [info     ] agent.materialized             agent_id=3527ae6d-69b5-401d-b148-d7bf0d47c2d6 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:21 [info     ] agent.materialized             agent_id=7bc46f49-cdf0-4d04-8206-34117526a5fe persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:26 [info     ] agent.materialized             agent_id=92b8350c-1cd1-4bcd-9321-ae38320fa7d5 persona='Background / second-screen player' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:30 [info     ] agent.materialized             agent_id=8c24efc6-b224-4173-966e-79b0bd564fac persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:31 [info     ] agent.materialized             agent_id=bdd54ac9-5ece-421b-81e5-291acb1308d0 persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:35 [info     ] agent.materialized             agent_id=48201dd3-8eff-4a4f-b560-a9a18976c6c8 persona='Niche genre loyalist (subtitled drama)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:37 [info     ] agent.materialized             agent_id=4c10dd5f-5382-41c8-a0a0-9119f04b311f persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:44 [info     ] agent.materialized             agent_id=a0b946b1-eb08-4397-8e7e-3680d246cf61 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:48 [info     ] agent.materialized             agent_id=44ab8184-cb32-446a-93d0-52484917d8cc persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:50 [info     ] agent.materialized             agent_id=bfd70e67-2409-4104-adc9-4524f0c69f68 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:52 [info     ] agent.materialized             agent_id=9d00a801-bb69-498a-843b-f0191a321fb1 persona='Weekend family movie night' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:39:54 [info     ] agent.materialized             agent_id=7c20da12-c49e-4650-a558-1116bc7f5737 persona='New trialer (first 14 days)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+2026-06-18 14:40:03 [info     ] agent.materialized             agent_id=75c5ab30-9ee7-4d32-80b9-235ca0588872 persona='New trialer (first 14 days)' sim_id=745415b6-20b6-4321-8157-7e4329ada019
+=== ENGINE RAN OK (v1.1 + rendered treatment) ===
+pack version: v_1 schema: 1.0 personas: 6
+lift: 1.7 | lift_ci: (-7.1, 10.7)
+confidence_score: 22.3
+treatment_score: 22.3 | control_score: 58.8
+agents materialized: 48  arms: ['control', 'treatment']
+wrote streamly_v11_result_v1pack.json

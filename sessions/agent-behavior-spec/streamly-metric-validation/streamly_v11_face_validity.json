@@ -1,0 +1,118 @@
+{
+  "cluster_directions": {
+    "Binge-Focused Serial Devotees": "negative",
+    "Binge-Hooked Solo Streamer": "negative",
+    "Family Couch Comedy Night": "neutral",
+    "Family Movie Night Planners": "negative",
+    "Lapsed Casual News Grazers": "negative",
+    "Mobile Casual Reality Browsers": "negative",
+    "Solo Binge-Laugher On-the-Go": "positive"
+  },
+  "cluster_tallies": {
+    "Solo Binge-Laugher On-the-Go": {
+      "positive": 2,
+      "neutral": 1,
+      "negative": 0,
+      "n": 3
+    },
+    "Binge-Hooked Solo Streamer": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 1,
+      "n": 1
+    },
+    "Lapsed Casual News Grazers": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 3,
+      "n": 3
+    },
+    "Mobile Casual Reality Browsers": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 1,
+      "n": 1
+    },
+    "Family Movie Night Planners": {
+      "positive": 0,
+      "neutral": 0,
+      "negative": 3,
+      "n": 3
+    },
+    "Binge-Focused Serial Devotees": {
+      "positive": 1,
+      "neutral": 0,
+      "negative": 7,
+      "n": 8
+    },
+    "Family Couch Comedy Night": {
+      "positive": 0,
+      "neutral": 1,
+      "negative": 0,
+      "n": 1
+    }
+  },
+  "mapping": {
+    "Solo Binge-Laugher On-the-Go": "alex_binge_marathoner",
+    "Binge-Focused Serial Devotees": "marco_background_player",
+    "Mobile Casual Reality Browsers": "tess_new_trialer",
+    "Family Movie Night Planners": "rivka_weekend_movie_night",
+    "Family Couch Comedy Night": "noor_niche_genre_loyalist",
+    "Lapsed Casual News Grazers": "ken_price_sensitive_lapser"
+  },
+  "comparison": [
+    {
+      "archetype": "alex_binge_marathoner",
+      "pm_label": "STRONG POSITIVE",
+      "pm_band": "positive",
+      "cluster": "Solo Binge-Laugher On-the-Go",
+      "sim_direction": "positive",
+      "agree": true
+    },
+    {
+      "archetype": "marco_background_player",
+      "pm_label": "POSITIVE",
+      "pm_band": "positive",
+      "cluster": "Binge-Focused Serial Devotees",
+      "sim_direction": "negative",
+      "agree": false
+    },
+    {
+      "archetype": "tess_new_trialer",
+      "pm_label": "SLIGHTLY NEGATIVE",
+      "pm_band": "negative",
+      "cluster": "Mobile Casual Reality Browsers",
+      "sim_direction": "negative",
+      "agree": true
+    },
+    {
+      "archetype": "rivka_weekend_movie_night",
+      "pm_label": "NEGATIVE",
+      "pm_band": "negative",
+      "cluster": "Family Movie Night Planners",
+      "sim_direction": "negative",
+      "agree": true
+    },
+    {
+      "archetype": "noor_niche_genre_loyalist",
+      "pm_label": "NEUTRAL",
+      "pm_band": "neutral",
+      "cluster": "Family Couch Comedy Night",
+      "sim_direction": "neutral",
+      "agree": true
+    },
+    {
+      "archetype": "ken_price_sensitive_lapser",
+      "pm_label": "NEUTRAL",
+      "pm_band": "neutral",
+      "cluster": "Lapsed Casual News Grazers",
+      "sim_direction": "negative",
+      "agree": false
+    }
+  ],
+  "matches": 4,
+  "total": 6,
+  "unmapped_clusters": {
+    "Binge-Hooked Solo Streamer": "negative"
+  }
+}

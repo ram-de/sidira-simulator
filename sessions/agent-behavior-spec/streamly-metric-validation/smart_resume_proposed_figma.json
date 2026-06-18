@@ -1,0 +1,118 @@
+{
+  "_comment": "STEP A2 — mock ReverseFigma for the H-001 Smart Resume hero treatment (FICTIONAL). Mirrors the schema of local-artifacts/customers/streamly_sample/featurepacks/2026-W21/capabilities/continue_watching/reverse-figma.json. Faithful to h_001_smart_resume.md: home top collapses the editorial hero + Continue Watching rail into one large Smart Resume card with a big Resume button and a small 'More options' expander that reveals the legacy multi-tile row inline; the horizontal Continue Watching rail is REMOVED from the top of home when a Smart Resume target exists; cold-start (no in-progress titles) falls back to the existing editorial hero verbatim.",
+  "screens": [
+    {
+      "id": "home",
+      "name": "Home",
+      "role": null,
+      "components": [
+        {
+          "id": "home.smart_resume_hero",
+          "role": "hero_card",
+          "text": "One large full-bleed resume card: the single most likely title to resume. Big primary Resume button.",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Resume"},
+            {"name": "next_episode_queued", "text": "Resume — Next: S{season} E{episode} — {title}"},
+            {"name": "in_progress_movie", "text": "Resume — {title} · {time_remaining} left"},
+            {"name": "unavailable", "text": "No longer available — Find something new"},
+            {"name": "loading", "text": "Loading…"}
+          ]
+        },
+        {
+          "id": "home.smart_resume_more_options",
+          "role": "expander",
+          "text": "More options ↓",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "collapsed", "text": "More options ↓"},
+            {"name": "expanded", "text": "Continue Watching — full multi-tile row revealed inline (legacy rail)"}
+          ]
+        },
+        {
+          "id": "home.continue_watching_tile",
+          "role": "card",
+          "text": "Title art, progress bar, episode/movie label, time remaining — shown ONLY inside the expanded 'More options' row, not at the top of home.",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "next_episode_queued", "text": "Next: S{season} E{episode} — {title}"},
+            {"name": "unavailable", "text": "No longer available"},
+            {"name": "loading", "text": "Loading…"}
+          ]
+        },
+        {
+          "id": "home.continue_watching_actions_sheet",
+          "role": "sheet",
+          "text": "Tile actions (reached from a tile inside the expander)",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Remove from row / Mark as watched / Start from beginning"}
+          ]
+        },
+        {
+          "id": "home.editorial_hero",
+          "role": "hero_card",
+          "text": "Existing editorial / personalized hero — shown verbatim for cold-start users with NO in-progress titles (no regression for new users). Smart Resume hero does not replace this when there is no resume target.",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "Editorial hero"}
+          ]
+        },
+        {
+          "id": "home.my_stuff_tab",
+          "role": "tab",
+          "text": "My Stuff — secondary path to the full Continue Watching list when the top rail is gone.",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default", "text": "My Stuff"}
+          ]
+        },
+        {
+          "id": "home.trial_upsell_chip",
+          "role": "chip",
+          "text": "Upgrade to keep watching after your trial",
+          "visible_to_roles": ["trial"],
+          "states": [
+            {"name": "default"},
+            {"name": "dismissed"}
+          ]
+        },
+        {
+          "id": "home.signin_placeholder",
+          "role": "card",
+          "text": "Sign in to pick up where you left off.",
+          "visible_to_roles": ["guest"],
+          "states": [
+            {"name": "default"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "player",
+      "name": "Player",
+      "role": null,
+      "components": [
+        {
+          "id": "player.resume_toast",
+          "role": "toast",
+          "text": "Resuming at {resume_timestamp}",
+          "visible_to_roles": ["trial", "standard", "premium"],
+          "states": [
+            {"name": "default"},
+            {"name": "fallback_to_start", "text": "Starting from the beginning."}
+          ]
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {"trigger": "tap home.smart_resume_hero", "from_screen": "home", "to_screen": "player", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.smart_resume_more_options", "from_screen": "home", "to_screen": "home", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.continue_watching_tile", "from_screen": "home", "to_screen": "player", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.my_stuff_tab", "from_screen": "home", "to_screen": "home", "role_gated": ["trial", "standard", "premium"]},
+    {"trigger": "tap home.signin_placeholder", "from_screen": "home", "to_screen": "auth_login", "role_gated": ["guest"]},
+    {"trigger": "long_press_or_overflow home.continue_watching_tile", "from_screen": "home", "to_screen": "home", "role_gated": ["trial", "standard", "premium"]}
+  ]
+}
