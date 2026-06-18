@@ -71,7 +71,7 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
     benchmark: "Hillstrom email RCT",
     tested: "The direction of a real email campaign's effect, and which audience responds more",
     result:
-      "At power across 18 pre-registered audience segments, the engine calls the direction correctly: direction accuracy 1.0 (18/18) at its best and 0.67 (12/18) on the faster default model, up from 0.0 under the old reader-roleplay framing. One caveat we keep visible: email lifts visits in almost every segment here, so an 'always-positive' guess also scores high — the result that clears that naive baseline is the per-segment who-responds-more ranking (rank-ρ +0.42, p=0.01), which we certify, pre-registered and validated end-to-end through the engine.",
+      "At power across 18 pre-registered audience segments, the engine calls the direction correctly: direction accuracy 1.0 (18/18) at its best and 0.67 (12/18) on the faster default model, up from 0.0 under the old reader-roleplay framing. One caveat we keep visible: email lifts visits in almost every segment here, so an 'always-positive' guess also scores high — the result that clears that naive baseline is the per-segment who-responds-more ranking (rank-ρ +0.42, p=0.01), which we certify, pre-registered and validated end-to-end through the engine. Important limit: on a second independent RCT (a different audience, with demographic-only features) this ranking did not replicate (rank-ρ +0.16, not significant) — so it is certified on this dataset but not yet shown to generalize. The likely driver is that it needs behaviorally-rich audience data, which we are testing next.",
   },
   {
     benchmark: "Product-change portfolio",
@@ -250,8 +250,11 @@ export default function AccuracyReportPage() {
             <span style={MONO_FIGURE}>0.0</span> &mdash; and, the harder bar on this dataset, delivers
             the first <Term>certified</Term> directional result: the per-segment &ldquo;who responds
             more&rdquo; ranking, pre-registered and permutation-tested (rank-&rho;{" "}
-            <span style={MONO_FIGURE}>+0.42</span>, p=<span style={MONO_FIGURE}>0.01</span>).
-            Magnitudes remain uncalibrated and out of scope.
+            <span style={MONO_FIGURE}>+0.42</span>, p=<span style={MONO_FIGURE}>0.01</span>). On a
+            second independent RCT this ranking did <Term>not</Term> replicate (rank-&rho;{" "}
+            <span style={MONO_FIGURE}>+0.16</span>, n.s.) &mdash; so it is certified on this dataset
+            but not yet shown to generalize, and we treat it as a promising lead under test, not a
+            settled capability. Magnitudes remain uncalibrated and out of scope.
           </p>
           <div
             style={{
