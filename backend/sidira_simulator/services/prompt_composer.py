@@ -41,6 +41,7 @@ from typing import Literal
 from sidira_simulator.schemas.feature_pack import Capability
 from sidira_simulator.schemas.identity import IdentitySeed
 from sidira_simulator.schemas.persona import Persona
+from sidira_simulator.services.runtime_config import resolve_elicitation_mode
 from sidira_simulator.schemas.simulation import Hypothesis
 from sidira_simulator.services.behavioral_profile import (
     render_behavioral_profile,
@@ -364,6 +365,62 @@ its own terms.
 """
 
 
+# ─── #342 expert-forecaster framing (benchmark-validated, opt-in) ────────────────
+# The metric pass above is first-person introspective roleplay ("you are a user;
+# how would YOU react"). On real randomized ground truth (Hillstrom email RCT,
+# Upworthy headline CTR) that framing produced a certified sign inversion — it read
+# promotional content as self-reportedly off-putting and predicted emails LOWER
+# visits/conversions when the RCT shows they RAISE them. Reframing the SAME pass as
+# an expert forecasting how the described AUDIENCE actually behaves (3rd-person,
+# population-grounded) removed the inversion (visit direction accuracy 0.0 -> 1.0 at
+# power) and certified the who-responds-more heterogeneity claim (visit rank-ρ
+# +0.42, p=0.01; gender-match +0.75, p=0.0004). These blocks are byte-different from
+# the roleplay blocks ONLY when SIDIRA_ELICITATION_MODE=forecaster; default is
+# unchanged. The option set, blinding (structural-only state), and #90 paired
+# control/treatment invariant are all preserved — only the framing voice changes,
+# symmetrically across arms, so it cancels in the paired delta.
+_METRIC_IDENTITY_BLOCK_FORECASTER = """You are an expert at forecasting how real \
+audiences behave. Predict how the audience described below actually responds — \
+grounded in how real populations behave, NOT in how you personally would react. \
+When a question asks how many of 10 "you" would take an action, answer it as a \
+forecast: out of 10 representative members of this audience, how many would take \
+that action.
+
+## The audience you are forecasting
+
+**{persona_name}**
+
+{persona_description}
+
+{jtbd_section}
+
+{about_you_section}## Behavioral snapshot of this audience
+
+{behavioral_snapshot}
+
+{behavioral_profile_section}"""
+
+
+_METRIC_IDENTITY_BLOCK_NO_PERSONA_FORECASTER = """You are an expert at forecasting \
+how real audiences of {customer_id}'s product behave. Predict how a typical user \
+actually responds, grounded in how real populations behave, NOT in how you \
+personally would react. When a question asks how many of 10 "you" would take an \
+action, answer it as a forecast: out of 10 typical users, how many would.
+
+"""
+
+
+_METRIC_PRODUCT_TEMPLATE_FORECASTER = """## The product
+
+Below is how the **{capability_name}** capability works on the product this \
+audience uses.
+
+### Structural spec
+
+{structural_spec}
+"""
+
+
 def compose_metric_prompt(
     customer_id: str,
     persona: Persona,
@@ -373,6 +430,7 @@ def compose_metric_prompt(
     arm: Arm = "treatment",
     use_persona: bool = True,
     sample_index: int | None = None,
+    elicitation_mode: str | None = None,
 ) -> tuple[str, bool]:
     """Build the BLINDED system prompt for the §3a metric-elicitation pass (#221).
 
@@ -397,6 +455,17 @@ def compose_metric_prompt(
     §3b Q2). This prompt is EPHEMERAL — never persisted — so the identity-continuity
     guarantee does not apply.
     """
+    # #342: select the framing voice. Default (None) resolves the runtime flag;
+    # "roleplay" is byte-identical to the historical pass, "forecaster" reframes the
+    # SAME blinded/option-set pass as an expert audience forecast.
+    mode = elicitation_mode or resolve_elicitation_mode()
+    forecaster = mode == "forecaster"
+    identity_template = _METRIC_IDENTITY_BLOCK_FORECASTER if forecaster else _METRIC_IDENTITY_BLOCK
+    no_persona_template = (
+        _METRIC_IDENTITY_BLOCK_NO_PERSONA_FORECASTER if forecaster else _METRIC_IDENTITY_BLOCK_NO_PERSONA
+    )
+    product_template = _METRIC_PRODUCT_TEMPLATE_FORECASTER if forecaster else _METRIC_PRODUCT_TEMPLATE
+
     if use_persona:
         jtbd_section = f"**What you're trying to do:** {persona.jtbd}" if persona.jtbd else ""
         snapshot = persona.behavioral_snapshot
@@ -405,7 +474,7 @@ def compose_metric_prompt(
             if snapshot
             else "_(no behavioral snapshot available)_"
         )
-        identity_block = _METRIC_IDENTITY_BLOCK.format(
+        identity_block = identity_template.format(
             customer_id=customer_id,
             persona_name=persona.name,
             persona_description=persona.description,
@@ -415,13 +484,13 @@ def compose_metric_prompt(
             behavioral_profile_section=_behavioral_profile_section(persona, sample_index),
         )
     else:
-        identity_block = _METRIC_IDENTITY_BLOCK_NO_PERSONA.format(customer_id=customer_id)
+        identity_block = no_persona_template.format(customer_id=customer_id)
 
     blinded = True
     if arm == "control":
         # The current product, rendered as a standalone — the agent's real
         # status-quo experience, no change framing.
-        product_block = _METRIC_PRODUCT_TEMPLATE.format(
+        product_block = product_template.format(
             capability_name=capability.name,
             structural_spec=summarize_reverse_figma(capability.reverse_figma),
         )
@@ -432,7 +501,7 @@ def compose_metric_prompt(
             # only; the change-authored proposed PRD is deliberately omitted to
             # keep the pass blinded). Same renderer/shape as the control arm, so
             # the only cross-arm difference is the structural state itself.
-            product_block = _METRIC_PRODUCT_TEMPLATE.format(
+            product_block = product_template.format(
                 capability_name=capability.name,
                 structural_spec=summarize_reverse_figma(rendered.proposed_figma),
             )
@@ -442,7 +511,7 @@ def compose_metric_prompt(
             # Show the current product + the explicit unblinded diff and flag it.
             blinded = False
             product_block = (
-                _METRIC_PRODUCT_TEMPLATE.format(
+                product_template.format(
                     capability_name=capability.name,
                     structural_spec=summarize_reverse_figma(capability.reverse_figma),
                 )
