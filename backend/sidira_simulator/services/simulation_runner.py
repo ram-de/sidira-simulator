@@ -52,10 +52,12 @@ from sidira_simulator.services.metric_registry import get_metric
 from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.population_sampler import allocate
 from sidira_simulator.services.prompt_composer import (
+    compose_comparative_metric_prompt,
     compose_identity_prompt,
     compose_metric_prompt,
 )
 from sidira_simulator.services.reaction_elicitor import elicit_reaction_distribution
+from sidira_simulator.services.visit_elicitor import elicit_visit_delta
 from sidira_simulator.services.run_state import (
     RunPhase,
     RunStateStore,
@@ -63,8 +65,10 @@ from sidira_simulator.services.run_state import (
 )
 from sidira_simulator.services.runtime_config import (
     resolve_conversion_paraphrases,
+    resolve_elicitation_mode,
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
+    resolve_metric_comparative,
 )
 from sidira_simulator.services.treatment_renderer import (
     extract_choice_set,
@@ -122,6 +126,12 @@ class AgentRecord:
     # low-confidence and is flagged downstream. Always False at the default K=1
     # and on a failed/None elicitation. Set on EITHER arm.
     metric_paraphrase_unstable: bool = False
+    # #342 comparative-delta: the directly-elicited treatment−control metric delta
+    # from a single comparative pass, set ONLY on treatment agents in comparative
+    # forecaster mode (SIDIRA_METRIC_COMPARATIVE on). None everywhere else → the
+    # historical two-pass subtraction path is used. Threaded onto the AgentReaction
+    # so `aggregate_metric_lift` delegates to the comparative aggregator.
+    metric_comparative_delta: float | None = None
     # Variance-collapse honesty flag: True when this agent's persona lacked
     # per-persona v1.1 `behavioral_seeds`, so `draw_identity_seed` fell back to the
     # shared default identity seed (cross-agent variance degraded). Captured at the
@@ -604,6 +614,7 @@ class SimulationRunner:
             metric_p: float | None = None
             metric_unblinded = False
             metric_paraphrase_unstable = False
+            comparative_delta: float | None = None  # #342, set below in comparative mode
             # Dispatch is FAIL-LOUD (codex P2): metric_name=None is the legacy
             # sentiment-only path (skip elicitation); ANY non-None metric_name
             # MUST resolve to a registered descriptor via get_metric — which
@@ -732,6 +743,48 @@ class SimulationRunner:
                         error=str(exc)[:500],
                     )
 
+                # #342 comparative-delta forecaster pass (opt-in, default OFF). When
+                # enabled, elicit the treatment−control delta directly in ONE
+                # comparative pass (both versions shown to the forecaster) for the
+                # treatment agent — recovering the directional signal the two-pass
+                # subtraction loses. Visit-only for now (the metric with a delta
+                # elicitor). Non-fatal on failure: comparative_delta stays None and
+                # the pair drops honestly at aggregation. The per-arm pass above
+                # still ran (its flags stand); only the LIFT statistic changes when
+                # deltas are present (aggregate_metric_lift delegates).
+                if (
+                    resolve_metric_comparative()
+                    and arm == "treatment"
+                    and resolve_elicitation_mode() == "forecaster"
+                    and hypothesis.metric_name == "visit"
+                ):
+                    try:
+                        comparative_system_prompt = compose_comparative_metric_prompt(
+                            customer_id=customer_id,
+                            persona=persona,
+                            capability=capability,
+                            hypothesis=hypothesis,
+                            identity_seed=identity_seed,
+                            use_persona=use_persona,
+                            sample_index=sample_index,
+                        )
+                        comparative_delta = elicit_visit_delta(
+                            chat_client,
+                            system_prompt=comparative_system_prompt,
+                            capability_name=capability.name,
+                            decision_point=hypothesis.decision_point or "",
+                            temperature=elicitation_temperature,
+                            seed=run_seed,
+                        )
+                    except Exception as exc:
+                        log.warning(
+                            "agent.metric.comparative_failed",
+                            sim_id=sim_id,
+                            agent_id=agent_id,
+                            persona=persona.name,
+                            error=str(exc)[:500],
+                        )
+
             now = datetime.now(timezone.utc)
 
             # #221 persona-lift / delta-mode: both shadow arms (no_persona and
@@ -790,6 +843,7 @@ class SimulationRunner:
                 metric_p=metric_p,
                 metric_unblinded=metric_unblinded,
                 metric_paraphrase_unstable=metric_paraphrase_unstable,
+                metric_comparative_delta=comparative_delta,
                 behavioral_seeds_fallback=behavioral_seeds_fallback,
             )
 
@@ -853,6 +907,7 @@ class SimulationRunner:
                 metric_p=r.metric_p,
                 metric_unblinded=r.metric_unblinded,
                 metric_paraphrase_unstable=r.metric_paraphrase_unstable,
+                metric_comparative_delta=r.metric_comparative_delta,
                 behavioral_seeds_fallback=r.behavioral_seeds_fallback,
             )
             for r in agent_records

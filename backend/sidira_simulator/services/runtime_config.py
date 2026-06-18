@@ -161,6 +161,24 @@ def resolve_elicitation_mode() -> str:
     return DEFAULT_ELICITATION_MODE
 
 
+def resolve_metric_comparative() -> bool:
+    """Whether forecaster mode uses the COMPARATIVE-delta metric pass (#342).
+
+    Default OFF reproduces the per-arm metric flow byte-for-byte (forecast the
+    treatment and control states independently, then subtract). When ON *and*
+    elicitation mode is "forecaster" *and* the metric has a delta elicitor (visit),
+    the lift is elicited as a single comparative delta (both versions shown at
+    once) — which recovers the directional signal the two-pass subtraction loses
+    (the powered through-engine result: per-arm 0.12 → comparative 1.00 direction
+    accuracy). Opt-in via env so production behavior is unchanged until validated
+    through the full runner; truthiness mirrors the project convention.
+    """
+    raw = resolve_sidira_env("METRIC_COMPARATIVE")
+    if raw is None:
+        return False
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 def resolve_elicitation_temperature() -> float:
     """Sampling temperature for distribution elicitation (#221).
 
