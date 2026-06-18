@@ -1,0 +1,108 @@
+{
+  "direction_accuracy": 0.5,
+  "correct": 7,
+  "scored": 14,
+  "dropped": 0,
+  "k": 4,
+  "prior_accuracy": 0.286,
+  "cases": [
+    {
+      "id": "ascarza_proactive_plan_recommendation",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "kanuri_andrews_service_recovery_incentive",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "algesheimer_ebay_community",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "lambrecht_tucker_dynamic_retargeting",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "anderson_simester_installment_billing",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "dholakia_simonson_reference_points",
+      "real": "control",
+      "pred": "control",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "anderson_simester_sale_sign_saturation",
+      "real": "control",
+      "pred": "control",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "office_help_widget",
+      "real": "control",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "alibaba_recommender_set_size",
+      "real": "treatment",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "low_default_charity_pledge",
+      "real": "treatment",
+      "pred": "control",
+      "counter_intuitive": "high",
+      "hit": false
+    },
+    {
+      "id": "bing_antimalware_ad_removal",
+      "real": "treatment",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "growthrock_add_star_rating",
+      "real": "treatment",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "bionicgloves_remove_coupon_fields",
+      "real": "treatment",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": true
+    },
+    {
+      "id": "blivakker_remove_three_reg_fields",
+      "real": "treatment",
+      "pred": "treatment",
+      "counter_intuitive": "high",
+      "hit": true
+    }
+  ]
+}

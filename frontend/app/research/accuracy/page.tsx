@@ -65,7 +65,7 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
     benchmark: "Upworthy headline CTR",
     tested: "Which of two headlines earns more clicks",
     result:
-      "No signal (rank-ρ −0.11, p=0.81). A tempting early signal failed to replicate on fresh cases.",
+      "Reader-roleplay was a flat null (rank-ρ −0.11). The expert-forecaster comparison recovers a weak but real signal (Spearman +0.28, sign accuracy ~0.63 over 300 pre-registered cases) — above chance, still below decision-grade. Headline text alone is a sub-decision-grade ceiling.",
   },
   {
     benchmark: "Hillstrom email RCT",
@@ -77,7 +77,7 @@ const RESULTS: { benchmark: string; tested: string; result: string }[] = [
     benchmark: "Product-change portfolio",
     tested: "Which version of a real product change wins",
     result:
-      "At/below chance on fresh cases (0.286). An earlier 0.70 on a narrow subset did not replicate.",
+      "Re-run with the comparative-forecaster: 0.500 (7/14), up from 0.286 but still at chance. It gets cases where the added feature won, but a 'more-is-better' bias persists on counter-intuitive changes where doing less won. No certified signal yet.",
   },
   {
     benchmark: "Metric calibration",
@@ -240,12 +240,14 @@ export default function AccuracyReportPage() {
         <section style={SECTION}>
           <h2 style={H2}>4. What the benchmarks show today</h2>
           <p style={BODY}>
-            The honest standing is mixed. On copy and product-change benchmarks, a consistent null
-            (with two of our own false positives caught before they became claims). On the Hillstrom
-            email RCT, after finding and fixing a directional bias, the first <Term>certified</Term>{" "}
-            directional result &mdash; the per-segment &ldquo;who responds more&rdquo; ranking,
-            pre-registered and permutation-tested (rank-&rho; <span style={MONO_FIGURE}>+0.42</span>,
-            p=<span style={MONO_FIGURE}>0.01</span>). Magnitudes remain uncalibrated and out of scope.
+            The honest standing is mixed. Under our best elicitation, copy and product-change
+            benchmarks show weak-to-at-chance signal &mdash; real movement off the earlier nulls,
+            but not yet decision-grade (and with two of our own false positives caught before they
+            became claims). On the Hillstrom email RCT, after finding and fixing a directional bias,
+            the first <Term>certified</Term> directional result &mdash; the per-segment &ldquo;who
+            responds more&rdquo; ranking, pre-registered and permutation-tested (rank-&rho;{" "}
+            <span style={MONO_FIGURE}>+0.42</span>, p=<span style={MONO_FIGURE}>0.01</span>).
+            Magnitudes remain uncalibrated and out of scope.
           </p>
           <div
             style={{

@@ -1,0 +1,17 @@
+  ascarza_proactive_plan_recommendation  real=control   pred=treatment X
+  kanuri_andrews_service_recovery_incent real=control   pred=treatment X
+  algesheimer_ebay_community             real=control   pred=treatment X
+  lambrecht_tucker_dynamic_retargeting   real=control   pred=treatment X
+  anderson_simester_installment_billing  real=control   pred=treatment X
+  dholakia_simonson_reference_points     real=control   pred=control   OK
+  anderson_simester_sale_sign_saturation real=control   pred=control   OK
+  office_help_widget                     real=control   pred=treatment X
+  alibaba_recommender_set_size           real=treatment pred=treatment OK
+  low_default_charity_pledge             real=treatment pred=control   X
+  bing_antimalware_ad_removal            real=treatment pred=treatment OK
+  growthrock_add_star_rating             real=treatment pred=treatment OK
+  bionicgloves_remove_coupon_fields      real=treatment pred=treatment OK
+  blivakker_remove_three_reg_fields      real=treatment pred=treatment OK
+
+=== PORTFOLIO comparative-forecaster: direction accuracy 0.500 (7/14, dropped 0) ===
+  prior (per-arm reader-roleplay): 0.286 (4/14) | chance ~0.5

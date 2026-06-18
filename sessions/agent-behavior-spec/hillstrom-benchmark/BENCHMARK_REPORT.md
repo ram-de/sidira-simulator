@@ -459,6 +459,24 @@ reproduce the per-arm baseline). Remaining: run the enricher in the upstream
 persona-build naming step (sidira-personas) for real-customer packs, broaden beyond
 visit/one-model, and the customer backtest pilot. Still: magnitudes uncalibrated.
 
+### Re-run update — the other two benchmarks through the comparative method (2026-06-18)
+
+Both pre-improvement benchmarks were re-run through the comparative-forecaster path:
+
+- **Upworthy headline CTR:** reader-roleplay was a flat null (rank-ρ −0.11); the
+  expert-forecaster comparison recovers a **weak but real** signal (Spearman +0.28,
+  balanced sign accuracy ~0.63 over 300 pre-registered cases) — above chance, still
+  **below decision-grade**. Headline text alone remains a sub-decision-grade ceiling.
+- **Product-change portfolio:** direction accuracy **0.286 → 0.500 (7/14)** — improved
+  but still **at chance**. It gets cases where the added feature won, but the
+  **more-is-better bias persists** on counter-intuitive changes where doing *less*
+  won (e.g. don't-contact-the-customer, remove-form-fields). No certified signal.
+
+So the comparative method lifts both off their old numbers but neither reaches
+decision-grade; the **Hillstrom heterogeneity (§Fix #6/#7) remains the only certified
+directional result.** Counter-intuitive product changes and headline-only copy are
+honest open ceilings.
+
 ---
 
 ## 5. What this report will and won't ever claim
