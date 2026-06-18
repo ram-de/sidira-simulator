@@ -1,0 +1,255 @@
+{
+  "lift": 1.3,
+  "metric_name": "conversion",
+  "result": {
+    "confidence_score": 22.4,
+    "confidence_score_ci": [
+      10.0,
+      35.5
+    ],
+    "weaknesses": [
+      {
+        "category": "hidden_guardrail_risk",
+        "summary": "12/12 agents flagged this \u2014 hidden guardrail risk.",
+        "supporting_agent_ids": [
+          "54e1b408-f29a-42d6-a065-82a5afaeed80",
+          "afcc1756-8257-426f-831b-216f53723fb1",
+          "c04c8203-8760-416e-9db9-7a236c5dfc5f",
+          "0ed1b46e-8344-44fa-9a51-4f2db02b8fe4",
+          "61929a58-ed4c-4e21-aecc-76887edcf0b0"
+        ],
+        "frequency": 1.0,
+        "ci_low": 0.7574992425007574,
+        "ci_high": 1.0
+      },
+      {
+        "category": "wrong_cohort",
+        "summary": "6/12 agents flagged this \u2014 wrong cohort.",
+        "supporting_agent_ids": [
+          "c04c8203-8760-416e-9db9-7a236c5dfc5f",
+          "0ed1b46e-8344-44fa-9a51-4f2db02b8fe4",
+          "7eaf8ef0-2366-4446-9c5f-b353fba17652",
+          "58adc0b9-d7e4-43fb-af26-53cb52be8653",
+          "22cb496e-eb54-4a03-9e6c-bed354cf6880"
+        ],
+        "frequency": 0.5,
+        "ci_low": 0.2537781703934222,
+        "ci_high": 0.7462218296065778
+      },
+      {
+        "category": "broken_mechanism",
+        "summary": "5/12 agents flagged this \u2014 broken mechanism.",
+        "supporting_agent_ids": [
+          "c04c8203-8760-416e-9db9-7a236c5dfc5f",
+          "05954539-104b-4ac9-a131-89d66d562fd1",
+          "82d25c59-78ff-455b-8443-46a3b9cdf003",
+          "58adc0b9-d7e4-43fb-af26-53cb52be8653",
+          "11c1485a-cb70-435f-a278-eba7103d93c4"
+        ],
+        "frequency": 0.4166666666666667,
+        "ci_low": 0.19325746190524656,
+        "ci_high": 0.6804926643446272
+      }
+    ],
+    "refinement_suggestions": [
+      "Narrow the Smart Resume hero to activate only for users who have opened the app and resumed the same title at least 3 times in the past 7 days (high-frequency active viewers), explicitly excluding users with no activity in the past 14 days \u2014 this directly addresses the wrong-cohort problem where infrequent or churning users see a degraded discovery surface they don't benefit from.",
+      "Add a persistent, always-visible 'Switch title' affordance (e.g., a left/right chevron or a thumbnail strip of 2-3 other in-progress titles) directly on the Smart Resume hero card rather than hiding alternatives behind a 'More options' expander \u2014 this fixes the broken mechanism where users with multiple active titles or shared household accounts lose access to their second choice without an extra tap that most will never discover.",
+      "Gate the Smart Resume hero behind an A/B test that measures not just resume-tap rate but also downstream session depth (minutes watched per session) and 7-day retention, with a pre-registered guardrail that rolls back if editorial hero impressions for cold-start users drop more than 5% due to misclassification \u2014 this surfaces the hidden guardrail risk that the cold-start fallback logic may misfire for lapsed or multi-profile users."
+    ],
+    "per_agent_analyses": [
+      {
+        "agent_id": "54e1b408-f29a-42d6-a065-82a5afaeed80",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.92,
+        "top_quote": "Still annoyed that my promo code didn't go through at checkout, so I'm just browsing around the app right now trying\u2026"
+      },
+      {
+        "agent_id": "afcc1756-8257-426f-831b-216f53723fb1",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.85,
+        "top_quote": "My friends are literally sitting here waiting for the next episode to start and I'm staring at the home screen because\u2026"
+      },
+      {
+        "agent_id": "c04c8203-8760-416e-9db9-7a236c5dfc5f",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.62,
+        "top_quote": "I'm on my lunch break right now trying to figure out if I'm canceling this thing in 11 days, and this change is\u2026"
+      },
+      {
+        "agent_id": "0ed1b46e-8344-44fa-9a51-4f2db02b8fe4",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "My renewal is in 11 days and I'm sitting here on a Saturday trying to figure out if this subscription is worth keeping\u2026"
+      },
+      {
+        "agent_id": "61929a58-ed4c-4e21-aecc-76887edcf0b0",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.62,
+        "top_quote": "My lunch break is already half gone and I'm trying to figure out if this change is going to make my life easier or\u2026"
+      },
+      {
+        "agent_id": "05954539-104b-4ac9-a131-89d66d562fd1",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Just got home, food's cold again, I'm done making decisions for the day \u2014 and now I'm reading that the app wants to\u2026"
+      },
+      {
+        "agent_id": "d08bb705-19ea-45be-bcb8-723deadd376a",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "It's late, I've got The Office running in the background while I fold laundry, and the last thing I want to do is\u2026"
+      },
+      {
+        "agent_id": "82d25c59-78ff-455b-8443-46a3b9cdf003",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.72,
+        "top_quote": "It's Saturday evening, I've got time, and I'm trying to figure out what to watch next \u2014 and the thing I care about is\u2026"
+      },
+      {
+        "agent_id": "7eaf8ef0-2366-4446-9c5f-b353fba17652",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "We're sitting down Friday night, kids are already arguing about what to watch, and the last thing I need is the app\u2026"
+      },
+      {
+        "agent_id": "58adc0b9-d7e4-43fb-af26-53cb52be8653",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.95,
+        "top_quote": "We've got friends over tonight and I'm trying to get everyone settled on a movie \u2014 the last thing I need is the home\u2026"
+      },
+      {
+        "agent_id": "22cb496e-eb54-4a03-9e6c-bed354cf6880",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.93,
+        "top_quote": "Eating lunch at my desk right now and just pulled up the app to think through what we're watching tonight \u2014 and the\u2026"
+      },
+      {
+        "agent_id": "11c1485a-cb70-435f-a278-eba7103d93c4",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "My food delivery just showed up 20 minutes late and I'm already annoyed, so I open the app wanting zero friction \u2014\u2026"
+      },
+      {
+        "agent_id": "8d93fa4b-8afe-43af-a384-80ca5cca2d02",
+        "sentiment": "positive",
+        "sentiment_confidence": 0.78,
+        "top_quote": "Still annoyed about that promo code thing at checkout, but whatever \u2014 I'm on the app now and I just want to get back\u2026"
+      },
+      {
+        "agent_id": "38f29640-ac71-4027-a19f-3996d5aa9017",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My friends are all over here and we're trying to pick up where I left off on this show \u2014 I tap the tile in Continue\u2026"
+      },
+      {
+        "agent_id": "18037805-db72-433a-8a1d-392c16de85d6",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.82,
+        "top_quote": "I'm on my lunch break right now, literally looking at the renewal notice that says my price is going up next month,\u2026"
+      },
+      {
+        "agent_id": "dd039ac5-4e1a-4f13-9e1b-6ccc9263a80c",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.85,
+        "top_quote": "I opened the app maybe three weeks ago, watched like 20 minutes of something, and then just."
+      },
+      {
+        "agent_id": "02b4356d-b7a7-4cef-8727-a718330a71d8",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "Lunch break, fifteen minutes, I just want The Office to keep playing while I eat."
+      },
+      {
+        "agent_id": "3af9b53b-863e-4c61-bc04-5c723a67e204",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Got home an hour ago, dinner was cold because the delivery sat on the porch, and all I want is to put The Office on\u2026"
+      },
+      {
+        "agent_id": "94d97dea-54a9-4a0c-83e0-9bc6f67549b4",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "It's late, I've got The Office queued up, and I just want it to keep going while I fold laundry."
+      },
+      {
+        "agent_id": "c2ed3da7-738c-4f4f-963d-40a2428b0714",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "It's a Saturday evening and I've got time to actually sit down and watch something, which almost never happens during\u2026"
+      },
+      {
+        "agent_id": "5f651d3e-dee7-480b-a1f7-b22cd3b77011",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.72,
+        "top_quote": "Friday night, we're all on the couch, and I pull up the home screen to find something new \u2014 and the first thing I see\u2026"
+      },
+      {
+        "agent_id": "7aa06268-db20-4846-80de-0422ad341f84",
+        "sentiment": "negative",
+        "sentiment_confidence": 0.78,
+        "top_quote": "We've got friends over tonight and I'm trying to get everyone settled on a movie \u2014 four adults standing around the TV\u2026"
+      },
+      {
+        "agent_id": "fbff6144-a151-427e-ac2d-3fb3ad272004",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.62,
+        "top_quote": "Okay so I'm on my lunch break and I've got maybe 10 minutes before I need to get back, and I'm trying to do the\u2026"
+      },
+      {
+        "agent_id": "a9afdaa6-2eff-40c0-80c0-b8a66dbdd6c0",
+        "sentiment": "neutral",
+        "sentiment_confidence": 0.55,
+        "top_quote": "My delivery was already late and I just wanted to collapse and watch something, so I opened the app and the Continue\u2026"
+      }
+    ],
+    "instrument_scope": "in_scope",
+    "out_of_scope_reasons": [],
+    "out_of_scope_reason_codes": [],
+    "input_flags": null,
+    "treatment_score": 22.4,
+    "control_score": 59.8,
+    "lift": 1.3,
+    "lift_ci": [
+      -8.2,
+      9.5
+    ],
+    "lift_paired_n": 12,
+    "lift_unpaired_treatment": 0,
+    "lift_unpaired_control": 0,
+    "lift_sentiment_failure_drops": 0,
+    "no_persona_score": null,
+    "persona_lift": null,
+    "persona_lift_ci": null,
+    "persona_lift_paired_n": null,
+    "persona_lift_unpaired_persona": 0,
+    "persona_lift_unpaired_no_persona": 0,
+    "persona_lift_sentiment_failure_drops": 0,
+    "current_state_score": null,
+    "current_state_delta": null,
+    "current_state_delta_ci": null,
+    "current_state_delta_paired_n": null,
+    "current_state_delta_unpaired_persona": 0,
+    "current_state_delta_unpaired_current_state": 0,
+    "current_state_delta_sentiment_failure_drops": 0,
+    "metric_name": "conversion",
+    "metric_lift_pp": -1.7,
+    "metric_lift_ci_pp": [
+      -4.2,
+      0.0
+    ],
+    "metric_lift_paired_n": 12,
+    "metric_lift_unpaired_treatment": 0,
+    "metric_lift_unpaired_control": 0,
+    "metric_lift_elicitation_failure_drops": 0,
+    "metric_regime": "weak_behavioral",
+    "metric_lift_relative": "Treatment converts directionally lower than control on 12 paired identities; the paired-bootstrap interval straddles zero (not separable). Synthetic conversion is a weak behavioral signal \u2014 read as rank/direction, not as a calibrated effect size. NOTE: the treatment metric ran UNBLINDED (the change had no faithful standalone view), so this direction is low-confidence and may overstate the treatment arm. NOTE: one or more personas in this run lack per-persona behavioral seeds (a v1.0-class pack), so cross-persona variance is degraded \u2014 a flat or non-separable metric here may reflect collapsed agent variance rather than a true null effect. Rebuild the pack to v1.1 to de-attenuate. NOTE: only 12 paired identities \u2014 below the ~30 needed for the paired bootstrap to separate a moderate effect, so this non-separable result is INCONCLUSIVE (the panel cannot detect an effect of plausible size), NOT evidence of no effect. Increase agents per arm to power the comparison.",
+    "metric_lift_unblinded_fallback": true,
+    "metric_lift_paraphrase_unstable": false,
+    "metric_lift_calibrated": false,
+    "metric_lift_variance_collapsed": true,
+    "metric_lift_variance_collapsed_persona_count": 6,
+    "metric_lift_underpowered": true,
+    "metric_sentiment_disagreement": false,
+    "metric_sentiment_disagreement_caveat": null
+  }
+}

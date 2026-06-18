@@ -18,6 +18,8 @@ protects against rationalizing a weak result into a "promising" one.
 | Primary metric type(s) | `[conversion / retention / CTR / revenue / signup ...]` |
 | Change-classes present | `[copy, pricing, UI layout, flow/steps, promo/urgency, imagery, ...]` |
 | Pre-treatment audience data available? | `[yes/no — which features]` |
+| **v1.1 persona pack** (rich per-user feature rows, not just centroids)? | `[yes/no — REQUIRED for high-confidence; else engine self-flags "identity_seed fallback, variance degraded"]` |
+| **Rendered treatment design** (figma/screens), not just a prose change? | `[yes/no — REQUIRED; a prose-only change runs UNBLINDED → engine self-flags low-confidence (proven on the Streamly dry-run)]` |
 | Renderable? (can each change be described control-vs-treatment without leaking the winner) | `[yes / partial — list exclusions]` |
 | **Counter-intuitive subset** (the simpler/smaller/less-obvious option won) | `[k cases — LIST ids]` |
 | Effect-size balance | `[# large effects vs # near-null]` |
