@@ -1,0 +1,30 @@
+panel=4 personas x 2 emails, k=6 agents/arm; RCT truth: every email RAISES visits (lift>0)
+
+### mode=roleplay ###
+  Persona01 x Mens E-Mail  : treat 0.200 - ctrl 0.200 = lift +0.000
+  Persona01 x Womens E-Mail: treat 0.200 - ctrl 0.200 = lift +0.000
+  Persona02 x Mens E-Mail  : treat 0.183 - ctrl 0.200 = lift -0.017
+  Persona02 x Womens E-Mail: treat 0.150 - ctrl 0.200 = lift -0.050
+  Persona03 x Mens E-Mail  : treat 0.200 - ctrl 0.267 = lift -0.067
+  Persona03 x Womens E-Mail: treat 0.250 - ctrl 0.283 = lift -0.033
+  Persona04 x Mens E-Mail  : treat 0.283 - ctrl 0.300 = lift -0.017
+  Persona04 x Womens E-Mail: treat 0.183 - ctrl 0.300 = lift -0.117
+  => roleplay: mean visit lift -0.037 | direction accuracy 0.00 (0/8 cells positive)
+
+### mode=forecaster ###
+  Persona01 x Mens E-Mail  : treat 0.183 - ctrl 0.183 = lift +0.000
+  Persona01 x Womens E-Mail: treat 0.183 - ctrl 0.183 = lift +0.000
+  Persona02 x Mens E-Mail  : treat 0.167 - ctrl 0.150 = lift +0.017
+  Persona02 x Womens E-Mail: treat 0.150 - ctrl 0.150 = lift +0.000
+  Persona03 x Mens E-Mail  : treat 0.200 - ctrl 0.250 = lift -0.050
+  Persona03 x Womens E-Mail: treat 0.183 - ctrl 0.250 = lift -0.067
+  Persona04 x Mens E-Mail  : treat 0.283 - ctrl 0.300 = lift -0.017
+  Persona04 x Womens E-Mail: treat 0.183 - ctrl 0.300 = lift -0.117
+  => forecaster: mean visit lift -0.029 | direction accuracy 0.12 (1/8 cells positive)
+
+================================================================
+THROUGH-ENGINE RESULT (panel scale, production elicitor):
+  roleplay  : direction_accuracy 0.00  mean_lift -0.037
+  forecaster: direction_accuracy 0.12  mean_lift -0.029
+
+  Sign fix carried through the engine: YES (forecaster 0.12 vs roleplay 0.00); RCT direction is positive.
