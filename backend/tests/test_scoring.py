@@ -991,3 +991,26 @@ def test_activity_weight_does_not_touch_weakness_signal() -> None:
     ra = ScoringService.aggregate(a, _ACTIVITY_ON)
     rb = ScoringService.aggregate(b, _ACTIVITY_ON)
     assert [w.category for w in ra.weaknesses] == [w.category for w in rb.weaknesses]
+
+
+@pytest.mark.asyncio
+async def test_activity_weight_propagates_through_distribution_path() -> None:
+    """#5 (codex P2): the multi-sample distribution path rebuilds a fresh
+    per-sample AgentReaction for each elicited take; every one must inherit the
+    parent's activity_weight, else weighting silently vanishes on the
+    hierarchical scoring path even though the runner computed it."""
+    stub = _DistributionStub()
+    svc = ScoringService(chat_client=stub)
+    reaction = AgentReaction(
+        agent_id="a0",
+        persona_id="p0",
+        persona_name="P0",
+        reaction_text="happy take",
+        reaction_distribution=[("happy take", 0.7), ("angry take", 0.3)],
+        activity_weight=2.5,
+    )
+    group = await svc._analyze_group(
+        Hypothesis(capability_name="reorder", prose="test"), reaction
+    )
+    assert group.modal.activity_weight == 2.5
+    assert [a.activity_weight for a, _w in group.distribution] == [2.5, 2.5]

@@ -41,12 +41,14 @@ def _a(
     confidence: float = 1.0,
     categories: list[str] | None = None,
     sentiment_failed: bool = False,
+    activity_weight: float = 1.0,
 ) -> AgentAnalysis:
     return AgentAnalysis(
         agent_id=agent_id,
         persona_id=persona_id,
         persona_name=persona_id,
         sample_index=sample_index,
+        activity_weight=activity_weight,
         weakness=WeaknessClassification(categories=categories or []),
         sentiment=SentimentClassification(
             sentiment=sentiment, confidence=confidence, one_line_summary=""
@@ -1044,3 +1046,35 @@ async def test_no_metric_name_keeps_disagreement_defaults() -> None:
     assert result.metric_sentiment_disagreement is False
     assert result.metric_sentiment_disagreement_caveat is None
     assert [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"] == []
+
+
+# ── #5 Activity weighting — paired lift sits on the same weighted basis ──
+
+
+def test_paired_lift_weights_pairs_by_activity_when_enabled() -> None:
+    """#5 (codex P2): when use_activity_weight is on, the paired lift weights
+    each matched pair by its cohort-activity weight — the SAME basis the per-arm
+    scores use. Two equal-and-opposite pairs cancel to ~0 unweighted; up-
+    weighting the positive pair pulls the lift positive. Flag off ⇒ unweighted."""
+    # pair A pulls lift + (T positive, C negative); pair B pulls − by the same
+    # magnitude. A carries the heavier cohort weight, B the lighter.
+    treatment = [
+        _a(agent_id="tA", persona_id="pA", sample_index=0,
+           sentiment=Sentiment.POSITIVE, activity_weight=2.0),
+        _a(agent_id="tB", persona_id="pB", sample_index=0,
+           sentiment=Sentiment.NEGATIVE, activity_weight=0.5),
+    ]
+    control = [
+        _a(agent_id="cA", persona_id="pA", sample_index=0,
+           sentiment=Sentiment.NEGATIVE, activity_weight=2.0),
+        _a(agent_id="cB", persona_id="pB", sample_index=0,
+           sentiment=Sentiment.POSITIVE, activity_weight=0.5),
+    ]
+    cfg_on = ScoringConfig(min_sample_size=1, bootstrap_resamples=0, use_activity_weight=True)
+
+    _t, _c, lift_off = aggregate_ab(treatment, control, _NO_CI_CFG, run_seed=42)
+    _t2, _c2, lift_on = aggregate_ab(treatment, control, cfg_on, run_seed=42)
+
+    # Symmetric pairs ⇒ unweighted lift ≈ 0; weighting the + pair more pulls it +.
+    assert lift_off.lift == pytest.approx(0.0, abs=1e-6)
+    assert lift_on.lift is not None and lift_on.lift > 0.0

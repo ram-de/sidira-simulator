@@ -679,6 +679,7 @@ class ScoringService:
                 reaction_text=text,
                 sample_index=reaction.sample_index,
                 arm=reaction.arm,
+                activity_weight=reaction.activity_weight,
             )
             for text, _weight in dist
         ]
@@ -1114,7 +1115,21 @@ def _mean_paired_delta(
     if not pairs:
         return 0.0
     deltas = [_agent_delta(t, c) for t, c in pairs]
-    mean_delta = sum(deltas) / len(deltas)
+    if cfg.use_activity_weight:
+        # #5: weight each matched pair by its cohort-activity weight so the lift
+        # sits on the SAME basis as the per-arm weighted scores (otherwise we'd
+        # report activity-weighted arm scores beside an unweighted lift). Both
+        # sides of a pair share the persona's weight; average them defensively.
+        # Flag off ⇒ this branch is skipped ⇒ byte-identical unweighted mean.
+        weights = [0.5 * (t.activity_weight + c.activity_weight) for t, c in pairs]
+        total_w = sum(weights)
+        mean_delta = (
+            sum(w * d for w, d in zip(weights, deltas)) / total_w
+            if total_w > 0.0
+            else sum(deltas) / len(deltas)
+        )
+    else:
+        mean_delta = sum(deltas) / len(deltas)
     return mean_delta * cfg.sentiment_weight * 100.0
 
 
