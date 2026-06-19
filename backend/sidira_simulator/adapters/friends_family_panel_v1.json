@@ -1,4 +1,7 @@
 {
+  "_SEAL_GUARD": "This pack is built from SYNTHETIC player_features (ticket #443), NOT real F&F players. The validation harness (sessions/ff-validation-game/harness/predict.py) REFUSES to seal a real PREREG_FF.json against this pack unless --allow-synthetic (machinery-test mode) is passed. Rebuild from the real Table A export before sealing a real run; the additive 'data_source'/'synthetic' fields below are ignored by the PersonaPack loader (extra='ignore').",
+  "data_source": "synthetic",
+  "synthetic": true,
   "version": "friends-family-validation-v1",
   "customer_id": "friends_family",
   "generated_at": "2026-06-19T01:27:54.139262",

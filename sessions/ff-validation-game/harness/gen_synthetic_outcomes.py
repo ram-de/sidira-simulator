@@ -24,8 +24,9 @@ import random
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
-OBVIOUS_PRIORS_PATH = REPO / "sessions/ff-validation-game/app/src/microabs/obvious_priors.json"
+# Local harness copy of the AUDITED priors (the harness is self-contained and
+# depends on nothing under the extracted game app).
+OBVIOUS_PRIORS_PATH = HERE / "obvious_priors.json"
 
 # Per-item: the arm we synthesize as the REAL winner + its rate vs the loser's rate.
 # Winner = author_bet_arm from obvious_priors.json. Default stickiness's winner is the

@@ -104,6 +104,24 @@ are grouped; each has the **choice**, the **why**, and **alternatives rejected**
   hosted link scales worldwide via Meta geo-ads. See `INDIA_CHENNAI_RECRUITMENT.md` /
   `POC_VENDOR_SHORTLIST.md`.
 
+## J. Repo layout
+- **J1. The game app was extracted into its own repo `ram-de/sidira-ff-game`
+  (2026-06-18).** Why: the app is a standalone, separately-deployed
+  data-collection tool (H3); giving it its own repo puts `package.json` /
+  `server/` / `deploy/` at the repo ROOT, which makes the systemd
+  `WorkingDirectory` clean (no `sessions/ff-validation-game/app/` subdir or
+  symlink). What stays in sidira-simulator: these design/research docs, the
+  offline validation `harness/` (now self-contained — it carries its own audited
+  `obvious_priors.json`), and the persona pack + loader under `backend/`. Rejected:
+  keep the app nested here — kept the deploy `WorkingDirectory` awkward and coupled
+  the app's build to the monorepo.
+- **J2. Synthetic-pack seal-guard.** The committed pack
+  (`friends_family_panel_v1.json`) is labeled `synthetic` (it is built from
+  synthetic `player_features`), and `harness/predict.py` refuses to seal a real
+  `PREREG_FF.json` against it unless `--allow-synthetic` is passed. Why:
+  machine-enforce "no real validation run on synthetic data" — a real seal only
+  happens once the pack is rebuilt from the real Table A export.
+
 ## I. Open items / known limits
 - Proof-of-LIFE only — a GO gates the paid PoC, not deployment accuracy.
 - Panel-task behavior ≠ real-stakes behavior (demand characteristics) — a win is "predicts game

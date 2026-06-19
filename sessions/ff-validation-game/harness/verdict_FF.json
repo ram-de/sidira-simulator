@@ -30,21 +30,21 @@
       "task_id": "choice_overload",
       "arm_a": "opts:24",
       "arm_b": "opts:3",
-      "n_a": 150,
-      "n_b": 150,
-      "succ_a": 61,
-      "succ_b": 104,
+      "n_a": 120,
+      "n_b": 120,
+      "succ_a": 51,
+      "succ_b": 86,
       "real_winner": "opts:3",
       "is_tie": false,
       "stat": {
-        "rate_a": 0.4067,
-        "rate_b": 0.6933,
-        "diff": -0.2867,
+        "rate_a": 0.425,
+        "rate_b": 0.7167,
+        "diff": -0.2917,
         "ci": [
-          -0.3945,
-          -0.1788
+          -0.4113,
+          -0.172
         ],
-        "z": -4.9902,
+        "z": -4.5645,
         "p": 0.0,
         "tie": false,
         "reason": null
@@ -60,21 +60,21 @@
       "task_id": "countdown_urgency",
       "arm_a": "framing:scarce",
       "arm_b": "framing:calm",
-      "n_a": 150,
-      "n_b": 150,
-      "succ_a": 49,
-      "succ_b": 112,
+      "n_a": 120,
+      "n_b": 120,
+      "succ_a": 40,
+      "succ_b": 80,
       "real_winner": "framing:calm",
       "is_tie": false,
       "stat": {
-        "rate_a": 0.3267,
-        "rate_b": 0.7467,
-        "diff": -0.42,
+        "rate_a": 0.3333,
+        "rate_b": 0.6667,
+        "diff": -0.3333,
         "ci": [
-          -0.5224,
-          -0.3176
+          -0.4526,
+          -0.2141
         ],
-        "z": -7.2943,
+        "z": -5.164,
         "p": 0.0,
         "tie": false,
         "reason": null
@@ -90,21 +90,21 @@
       "task_id": "default_stickiness",
       "arm_a": "stickiness:default",
       "arm_b": "stickiness:framing",
-      "n_a": 150,
-      "n_b": 150,
-      "succ_a": 107,
-      "succ_b": 65,
+      "n_a": 120,
+      "n_b": 120,
+      "succ_a": 88,
+      "succ_b": 53,
       "real_winner": "stickiness:default",
       "is_tie": false,
       "stat": {
-        "rate_a": 0.7133,
-        "rate_b": 0.4333,
-        "diff": 0.28,
+        "rate_a": 0.7333,
+        "rate_b": 0.4417,
+        "diff": 0.2917,
         "ci": [
-          0.1726,
-          0.3874
+          0.1727,
+          0.4106
         ],
-        "z": 4.9028,
+        "z": 4.5893,
         "p": 0.0,
         "tie": false,
         "reason": null
@@ -120,22 +120,22 @@
       "task_id": "prosocial_backfire",
       "arm_a": "prosocial:polished",
       "arm_b": "prosocial:sparse",
-      "n_a": 150,
-      "n_b": 150,
-      "succ_a": 58,
-      "succ_b": 111,
+      "n_a": 120,
+      "n_b": 120,
+      "succ_a": 50,
+      "succ_b": 81,
       "real_winner": "prosocial:sparse",
       "is_tie": false,
       "stat": {
-        "rate_a": 0.3867,
-        "rate_b": 0.74,
-        "diff": -0.3533,
+        "rate_a": 0.4167,
+        "rate_b": 0.675,
+        "diff": -0.2583,
         "ci": [
-          -0.4582,
-          -0.2484
+          -0.38,
+          -0.1367
         ],
-        "z": -6.1696,
-        "p": 0.0,
+        "z": -4.019,
+        "p": 0.0001,
         "tie": false,
         "reason": null
       },
@@ -150,21 +150,21 @@
       "task_id": "effort_justification",
       "arm_a": "effort:one_tap",
       "arm_b": "effort:effort",
-      "n_a": 150,
-      "n_b": 150,
-      "succ_a": 58,
-      "succ_b": 100,
+      "n_a": 120,
+      "n_b": 120,
+      "succ_a": 42,
+      "succ_b": 89,
       "real_winner": "effort:effort",
       "is_tie": false,
       "stat": {
-        "rate_a": 0.3867,
-        "rate_b": 0.6667,
-        "diff": -0.28,
+        "rate_a": 0.35,
+        "rate_b": 0.7417,
+        "diff": -0.3917,
         "ci": [
-          -0.3885,
-          -0.1715
+          -0.5075,
+          -0.2758
         ],
-        "z": -4.8567,
+        "z": -6.0933,
         "p": 0.0,
         "tie": false,
         "reason": null
@@ -179,20 +179,20 @@
   ],
   "player_level": {
     "feasible": true,
-    "agreement_rate": 0.606,
-    "n_player_item": 1500,
+    "agreement_rate": 0.5983,
+    "n_player_item": 1200,
     "by_persona": {
       "P03": {
-        "agree": 288,
-        "n": 499
+        "agree": 233,
+        "n": 403
       },
       "P01": {
-        "agree": 323,
-        "n": 509
+        "agree": 261,
+        "n": 408
       },
       "P02": {
-        "agree": 298,
-        "n": 492
+        "agree": 224,
+        "n": 389
       }
     },
     "note": "companion metric; the sealed GO gate is the population per-item hit-rate"
