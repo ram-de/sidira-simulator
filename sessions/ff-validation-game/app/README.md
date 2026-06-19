@@ -10,9 +10,10 @@ behavior?*
 Authoritative design spec:
 [`../../agent-behavior-spec/ff-app-design/FF_GAME_DESIGN.md`](../../agent-behavior-spec/ff-app-design/FF_GAME_DESIGN.md).
 
-> **Scaffold status.** Structure + core plumbing are complete and runnable.
-> Two profiling rooms and two micro-A/Bs are fully implemented as the pattern;
-> the rest are stubbed with `TODO`s (see *What's done vs stubbed* below).
+> **Status.** Structure + core plumbing are complete and runnable. All five
+> profiling rooms and all five micro-A/Bs (K=5) are now implemented (#440 +
+> #441); the stub components remain only as the documented pattern. The
+> remaining work is the offline pipeline (see *What's done vs stubbed* below).
 
 ## Run it
 
@@ -21,9 +22,9 @@ npm install
 npm run dev        # http://localhost:5180  (single Express port; Vite in middleware mode)
 ```
 
-A player can complete the happy path end-to-end: intro → 2 real profiling rooms
-(+ 3 stub rooms) → micro-A/B battery (2 real + 3 stub, counterbalanced) → 3-tap
-Seller Card → persona reveal. Rows land in **both** tables.
+A player can complete the happy path end-to-end: intro → 5 profiling rooms →
+micro-A/B battery (5 items, counterbalanced) → 3-tap Seller Card → persona
+reveal. Rows land in **both** tables.
 
 ```bash
 npm run export:features   # writes exports/player_features.csv + exports/player_outcomes.csv
@@ -92,23 +93,31 @@ The named failure mode to guard against: *wanting it to pass.*
 
 ## What's done vs stubbed
 
-**Done (the pattern):**
+**Done:**
 - Full backend plumbing: two-table firewall, server-side block randomization,
   sticky assignment, forwarding detection, per-beat telemetry, feature
   derivation, all four endpoints.
 - Frontend screen state machine: intro → profiling → battery → seller card →
   reveal-after-outcomes, 7-dot progress, autosave/resume per beat, tap-only.
-- **2 profiling rooms:** Risk Box (`src/rooms/RiskBox.tsx`) and Info-Cost
-  (`src/rooms/InfoCost.tsx`) — each maps its mechanic to decision-style features.
-- **2 micro-A/Bs:** Choice Overload (`src/microabs/ChoiceOverload.tsx`, 3-vs-24)
-  and Countdown Urgency (`src/microabs/CountdownUrgency.tsx`, the between-subject
-  headline) — each logs a binary outcome to Table B.
+- **5 profiling rooms (PRE-treatment, identical across arms):** Risk Box
+  (`src/rooms/RiskBox.tsx`), Info-Cost (`src/rooms/InfoCost.tsx`), Deal Room
+  (`src/rooms/DealRoom.tsx` → present_bias / patience / deal_sensitivity), Trust
+  Game (`src/rooms/TrustGame.tsx` → trust / reciprocity / reactance), and the
+  Mystery Box (`src/rooms/AmbiguityRoom.tsx` → ambiguity_aversion / reactance).
+  New pre-treatment columns `patience`, `trust`, `reciprocity`,
+  `ambiguity_aversion` are added to `player_features` + the `recordFeature`
+  allow-list + the export.
+- **5 micro-A/Bs (K=5, ≥half counter-intuitive):** Choice Overload (3-vs-24),
+  Countdown Urgency (the between-subject headline), Default Stickiness,
+  Prosocial Backfire (measures ≥50% allocated away from self), and Effort
+  Justification — each logs one binary outcome to Table B. The PROPOSED
+  obvious-prior labels (pending #442 confirmation) live in
+  `src/microabs/obvious_priors.json`.
 - Export script + this README.
 
-**Stubbed (clear `TODO`s):**
-- Profiling rooms: Deal room, Trust game, Ambiguity (`src/rooms/StubRoom.tsx`).
-- Micro-A/Bs: default-stickiness, prosocial-backfire, effort-justification
-  (`src/microabs/StubMicroAb.tsx`). **Reach K≥5 implemented before sealing.**
+**Stubbed / next session:**
+- `src/rooms/StubRoom.tsx` and `src/microabs/StubMicroAb.tsx` remain only as the
+  documented pattern (no longer wired into the battery).
 - The persona reveal card is a cosmetic client-side heuristic for the forwarding
   loop; the REAL pack is built offline from Table A by `run_pipeline`.
 - Probabilistic 20× payout is framing-only (no payout backend).

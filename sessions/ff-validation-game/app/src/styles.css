@@ -66,6 +66,10 @@ body {
 .choice:active { transform: scale(.98); }
 .choice.selected { border-color: var(--accent); }
 
+/* Pre-checked default row (default_stickiness micro-A/B). */
+.checkrow { display: inline-flex; align-items: center; gap: 10px; }
+.checkrow input { width: 18px; height: 18px; accent-color: var(--accent); }
+
 .btn {
   appearance: none; border: none; border-radius: var(--radius);
   background: var(--accent); color: #1a1205; font-weight: 700;

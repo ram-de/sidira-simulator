@@ -72,6 +72,13 @@ db.exec(`
     effort_tolerance        REAL,    -- score
     reactance               REAL,    -- score
 
+    -- additional decision-style scores from the Deal / Trust / Ambiguity rooms
+    -- (#440). Pre-treatment ONLY, identical across arms, never outcome-shaped.
+    patience                REAL,    -- score (Deal room: wait/counter vs take-now)
+    trust                   REAL,    -- score (Trust game: tripled coins sent)
+    reciprocity             REAL,    -- score (Trust game: returned a fair share back)
+    ambiguity_aversion      REAL,    -- score (Ambiguity room: known odds vs mystery)
+
     -- gameplay-revealed passive behavioral features (can't be gamed)
     warmup_decision_ms      INTEGER, -- count (latency)
     warmup_options_inspected INTEGER,-- count
@@ -120,6 +127,29 @@ db.exec(`
   );
 `);
 
+// ----------------------------------------------------------------------------
+// Additive migration: the schema above uses CREATE TABLE IF NOT EXISTS, so a DB
+// created before #440 won't have the new pre-treatment score columns. Add any
+// missing player_features columns idempotently. (#440 — Deal / Trust / Ambiguity.)
+// Pre-treatment scores only; NO arm/outcome columns are ever added here.
+// ----------------------------------------------------------------------------
+{
+  const existing = new Set(
+    db.prepare(`PRAGMA table_info(player_features)`).all().map((c) => c.name),
+  );
+  const ADDED_FEATURE_COLUMNS = [
+    ['patience', 'REAL'],
+    ['trust', 'REAL'],
+    ['reciprocity', 'REAL'],
+    ['ambiguity_aversion', 'REAL'],
+  ];
+  for (const [name, type] of ADDED_FEATURE_COLUMNS) {
+    if (!existing.has(name)) {
+      db.exec(`ALTER TABLE player_features ADD COLUMN ${name} ${type}`);
+    }
+  }
+}
+
 const isoNow = () => new Date().toISOString();
 
 // ----------------------------------------------------------------------------
@@ -165,6 +195,8 @@ export function markCompleted(playerId) {
 const FEATURE_COLUMNS = new Set([
   'age_band', 'locale', 'device', 'tenure_days',
   'decision_speed', 'deal_sensitivity', 'present_bias', 'effort_tolerance', 'reactance',
+  // #440 — Deal / Trust / Ambiguity room scores (pre-treatment, never outcome-shaped)
+  'patience', 'trust', 'reciprocity', 'ambiguity_aversion',
   'warmup_decision_ms', 'warmup_options_inspected', 'warmup_skip_rate', 'warmup_reread_rate',
 ]);
 // Match arm/outcome-shaped keys, but anchored so legitimate feature names
