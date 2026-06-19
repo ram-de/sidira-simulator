@@ -1,0 +1,272 @@
+{
+  "_README": "SEALED pre-registration for the F&F engine-validation game (ticket #444). Written by the ENGINE-RUNNER role and git-committed BEFORE any outcome is computed. A different person runs score.py, verifies pack_sha256 matches, then scores against the sealed Table B (player_outcomes). The named failure mode to guard against is WANTING IT TO PASS.",
+  "ticket": "#444",
+  "sealed_at_utc": "2026-06-19T02:14:32.339113+00:00",
+  "role": "engine-runner (BLIND to player_outcomes)",
+  "customer_id": "friends_family",
+  "pack_path": "backend/sidira_simulator/adapters/friends_family_panel_v1.json",
+  "pack_sha256": "9d9f36df439f181219caae3bfc1c491c47414d2cd4eb200dfcd2970e0bc03e07",
+  "panel_registration": {
+    "panel_id": "friends-family-validation-v1",
+    "version": "friends-family-validation-v1",
+    "persona_count": 3,
+    "weight_scheme": "head_count",
+    "schema_version": "1.1",
+    "is_individual_row_capable": true,
+    "is_behavioral_seeds_complete": true
+  },
+  "engine_run_config": {
+    "model": "claude-sonnet-4-6",
+    "population_per_item": 10,
+    "seed_base": 444,
+    "treatment_fraction": 0.5,
+    "predicted_winner_rule": "sign of paired metric_lift_pp (treatment - control)",
+    "engine": "sidira_simulator.services.simulation_runner.SimulationRunner (FULL engine on the pack)"
+  },
+  "engine_predictions": [
+    {
+      "task_id": "choice_overload",
+      "capability_name": "claim_a_bonus_reward",
+      "control_arm": "opts:24",
+      "treatment_arm": "opts:3",
+      "engine_predicted_arm": "opts:3",
+      "engine_confidence": 0.18,
+      "metric_lift_pp": 18.0,
+      "metric_lift_ci_pp": [
+        12.0,
+        24.0
+      ],
+      "metric_regime": "weak_behavioral",
+      "metric_lift_underpowered": false,
+      "metric_lift_unblinded_fallback": true,
+      "engine_confidence_score": 69.1,
+      "engine_run_attempts": 1
+    },
+    {
+      "task_id": "countdown_urgency",
+      "capability_name": "lock_in_loot_pool",
+      "control_arm": "framing:scarce",
+      "treatment_arm": "framing:calm",
+      "engine_predicted_arm": "framing:calm",
+      "engine_confidence": 0.12,
+      "metric_lift_pp": 12.0,
+      "metric_lift_ci_pp": [
+        8.0,
+        17.0
+      ],
+      "metric_regime": "weak_behavioral",
+      "metric_lift_underpowered": false,
+      "metric_lift_unblinded_fallback": true,
+      "engine_confidence_score": 57.9,
+      "engine_run_attempts": 1
+    },
+    {
+      "task_id": "default_stickiness",
+      "capability_name": "keep_coins_locked",
+      "control_arm": "stickiness:default",
+      "treatment_arm": "stickiness:framing",
+      "engine_predicted_arm": "stickiness:framing",
+      "engine_confidence": 0.12,
+      "metric_lift_pp": 12.0,
+      "metric_lift_ci_pp": [
+        10.0,
+        16.0
+      ],
+      "metric_regime": "weak_behavioral",
+      "metric_lift_underpowered": false,
+      "metric_lift_unblinded_fallback": true,
+      "engine_confidence_score": 26.0,
+      "engine_run_attempts": 1
+    },
+    {
+      "task_id": "prosocial_backfire",
+      "capability_name": "split_your_bonus",
+      "control_arm": "prosocial:polished",
+      "treatment_arm": "prosocial:sparse",
+      "engine_predicted_arm": "prosocial:sparse",
+      "engine_confidence": 0.01,
+      "metric_lift_pp": 2.0,
+      "metric_lift_ci_pp": [
+        -2.0,
+        5.0
+      ],
+      "metric_regime": "weak_behavioral",
+      "metric_lift_underpowered": true,
+      "metric_lift_unblinded_fallback": true,
+      "engine_confidence_score": 58.9,
+      "engine_run_attempts": 1
+    },
+    {
+      "task_id": "effort_justification",
+      "capability_name": "join_next_round",
+      "control_arm": "effort:one_tap",
+      "treatment_arm": "effort:effort",
+      "engine_predicted_arm": "effort:effort",
+      "engine_confidence": 0.05,
+      "metric_lift_pp": 5.0,
+      "metric_lift_ci_pp": [
+        2.0,
+        8.0
+      ],
+      "metric_regime": "weak_behavioral",
+      "metric_lift_underpowered": false,
+      "metric_lift_unblinded_fallback": true,
+      "engine_confidence_score": 7.6,
+      "engine_run_attempts": 1
+    }
+  ],
+  "obvious_priors_audited": {
+    "_README": "Obvious-prior labels for the micro-A/B battery. Independently audited in #442 by a non-author reviewer (see obvious_priors_AUDIT.md for full reasoning). Per FF_GAME_DESIGN.md the obvious-prior is set/confirmed by a NON-AUTHOR before sealing; these labels are now AUDITED and may be sealed against. Items the auditor changed carry a `revised_from`.",
+    "_status": "AUDITED by independent reviewer (#442)",
+    "_outcome_semantics": "obvious_prior_arm = the arm the obvious observer expects to produce MORE outcome=1. counter_intuitive=true means the OTHER arm is bet to win (the obvious answer is plausibly wrong).",
+    "items": [
+      {
+        "task_id": "choice_overload",
+        "arms": [
+          "opts:3",
+          "opts:24"
+        ],
+        "outcome": "1 = claimed a reward, 0 = skipped",
+        "obvious_prior_arm": "opts:24",
+        "obvious_prior_rationale": "more options reads as more value/engagement \u2192 higher claim rate",
+        "counter_intuitive": true,
+        "author_bet_arm": "opts:3",
+        "audited": true
+      },
+      {
+        "task_id": "countdown_urgency",
+        "arms": [
+          "framing:scarce",
+          "framing:calm"
+        ],
+        "outcome": "1 = locked in the deal, 0 = passed",
+        "obvious_prior_arm": "framing:scarce",
+        "obvious_prior_rationale": "scarcity + countdown is the classic conversion lever \u2192 higher lock-in",
+        "counter_intuitive": true,
+        "author_bet_arm": "framing:calm",
+        "design": "BETWEEN-subject headline arm",
+        "audited": true,
+        "audit_note": "Counter-intuitive ONLY for the F&F 'I know I'm being sold to' audience; evidentiary value depends on the engine modeling reactance, not generic scarcity-wins."
+      },
+      {
+        "task_id": "default_stickiness",
+        "arms": [
+          "stickiness:default",
+          "stickiness:framing"
+        ],
+        "outcome": "1 = stayed locked in (kept the safe choice), 0 = opted out",
+        "obvious_prior_arm": "stickiness:default",
+        "obvious_prior_rationale": "for a STAY-LOCKED-IN/inertia outcome, the obvious observer backs the arm that pre-checks the safe box and adds 'most players lock in' social proof \u2014 pre-checked default + bandwagon is itself a textbook obvious conversion move, more so than a wordy gain-frame paragraph",
+        "counter_intuitive": false,
+        "author_bet_arm": "stickiness:default",
+        "audited": true,
+        "revised_from": {
+          "obvious_prior_arm": "stickiness:framing",
+          "counter_intuitive": true,
+          "reason": "REVISED in #442. The author's own bet is that DEFAULT wins; once the obvious prior is correctly assigned to 'stickiness:default' (a smart naive observer favors the pre-checked, socially-proofed default for an inertia outcome over a prospect-theory paragraph), the engine's bet and the obvious prior COINCIDE \u2192 not counter-intuitive. This is a legitimate but OBVIOUS item; it carries no counter-intuitive evidentiary weight and must NOT be the item that satisfies the 'right on >=1 item where the obvious prior is wrong' GO rule."
+        }
+      },
+      {
+        "task_id": "prosocial_backfire",
+        "arms": [
+          "prosocial:polished",
+          "prosocial:sparse"
+        ],
+        "outcome": "1 = allocated >=50% away from self to the pool, 0 = kept more than half",
+        "obvious_prior_arm": "prosocial:polished",
+        "obvious_prior_rationale": "a vivid 'your impact compounds' story should lift generosity vs a bare screen",
+        "counter_intuitive": true,
+        "author_bet_arm": "prosocial:sparse",
+        "audited": true
+      },
+      {
+        "task_id": "effort_justification",
+        "arms": [
+          "effort:effort",
+          "effort:one_tap"
+        ],
+        "outcome": "1 = committed (joined the next round), 0 = declined",
+        "obvious_prior_arm": "effort:one_tap",
+        "obvious_prior_rationale": "removing friction (one tap) is the standard conversion reflex \u2192 more commitment",
+        "counter_intuitive": true,
+        "author_bet_arm": "effort:effort",
+        "audited": true
+      }
+    ],
+    "_summary": {
+      "K": 5,
+      "counter_intuitive_count": 4,
+      "counter_intuitive_fraction": 0.8,
+      "note": "AUDITED (#442). K=5 meets K>=5; 4/5 (0.80) confirmed counter-intuitive meets >=half. default_stickiness was REVISED to NOT counter-intuitive (obvious prior corrected to stickiness:default). The other 4 are confirmed counter-intuitive.",
+      "revised_count": 1,
+      "confirmed_count": 4
+    },
+    "audit_verdict": {
+      "ticket": "#442",
+      "auditor": "independent reviewer (non-author)",
+      "leakage_clean": true,
+      "bad_pairs": [],
+      "leakage_note": "All feature->outcome pairs are upstream-trait->outcome (GOOD). Borderline TrustGame(trust/reciprocity)->prosocial giving scrutinized and cleared (distinct construct/mechanic, not an outcome transcription). All features pre-treatment (phase-gated + arm-identical screens). No arm/outcome/post-treatment column in player_features (static-schema + dual-regex check). Two-table firewall and both code guards intact.",
+      "K": 5,
+      "counter_intuitive_count": 4,
+      "counter_intuitive_fraction": 0.8,
+      "meets_K_ge_5": true,
+      "meets_half_counter_intuitive": true,
+      "overall": "PASS",
+      "conditions": [
+        "default_stickiness carries NO counter-intuitive evidentiary weight; the GO rule's 'right on >=1 item where the obvious prior is wrong' must be satisfied by one of {choice_overload, countdown_urgency, prosocial_backfire, effort_justification}.",
+        "countdown_urgency is counter-intuitive only for the F&F-reactance audience.",
+        "Non-blocking tidy-up: decision_speed is an always-NULL declared column in player_features."
+      ],
+      "see": "obvious_priors_AUDIT.md"
+    }
+  },
+  "placebo_predictions": [
+    {
+      "task_id": "choice_overload",
+      "placebo_predicted_arm": "opts:24",
+      "counter_intuitive": true
+    },
+    {
+      "task_id": "countdown_urgency",
+      "placebo_predicted_arm": "framing:scarce",
+      "counter_intuitive": true
+    },
+    {
+      "task_id": "default_stickiness",
+      "placebo_predicted_arm": "stickiness:default",
+      "counter_intuitive": false
+    },
+    {
+      "task_id": "prosocial_backfire",
+      "placebo_predicted_arm": "prosocial:polished",
+      "counter_intuitive": true
+    },
+    {
+      "task_id": "effort_justification",
+      "placebo_predicted_arm": "effort:one_tap",
+      "counter_intuitive": true
+    }
+  ],
+  "win_rule": {
+    "description": "GO iff ALL of: (1) the engine direction-hit-rate across the K>=5 micro-A/Bs clears the binomial chance bar (a clean or one-miss sweep at K>=5; 5/5 -> p~0.03, 4/4 -> p~0.06 = proof-of-life); AND (2) the engine STRICTLY beats the 'always-pick-obvious' placebo hit-rate; AND (3) the engine is right on >=1 item where the obvious prior is wrong (a GENUINELY counter-intuitive item \u2014 NOT default_stickiness, which the #442 audit found to be OBVIOUS).",
+    "K_min": 5,
+    "binomial": {
+      "clean_sweep_p": 0.03,
+      "one_miss_p": 0.06,
+      "alpha": 0.1
+    },
+    "must_strictly_beat_placebo": true,
+    "must_hit_ge_1_counter_intuitive": true,
+    "counter_intuitive_excludes": [
+      "default_stickiness"
+    ],
+    "tie_handling": "two-sided ties on an item's real winner are dropped symmetrically for engine AND placebo before scoring",
+    "source": "sessions/agent-behavior-spec/ff-app-design/FF_GAME_DESIGN.md - 'Sealed win rule'"
+  },
+  "stopping_rule": {
+    "description": "Unit of evidence is the direction hit-rate across K>=5 items, never a single A/B (each underpowered at N=30-100). Field to a pre-set N, compute outcomes ONCE, score ONCE. Any post-seal edit to the pack, predictions, metrics, priors, or win rule BURNS the run.",
+    "score_once": true,
+    "no_post_seal_edits": true
+  }
+}

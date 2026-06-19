@@ -1,0 +1,200 @@
+{
+  "_README": "ROLE-SEPARATED scoring verdict (ticket #444). The scorer is a DIFFERENT person than the engine-runner; the pack SHA was verified against the seal before scoring. THIS IS A MACHINERY TEST ON SYNTHETIC OUTCOMES \u2014 NOT A REAL VALIDATION RESULT. Failure mode guarded against: WANTING IT TO PASS.",
+  "is_synthetic_machinery_test": true,
+  "pack_sha256_verified": true,
+  "K_fielded": 5,
+  "K_scored": 5,
+  "dropped_ties": 0,
+  "engine_hits": 4,
+  "engine_hit_rate": 0.8,
+  "placebo_hits": 1,
+  "placebo_hit_rate": 0.2,
+  "binomial_p_one_sided": 0.1875,
+  "binomial_alpha": 0.1,
+  "engine_counter_intuitive_hits": [
+    "choice_overload",
+    "countdown_urgency",
+    "prosocial_backfire",
+    "effort_justification"
+  ],
+  "gates": {
+    "K_ge_min": true,
+    "binomial_beats_chance": false,
+    "engine_strictly_beats_placebo": true,
+    "engine_right_on_ge1_genuine_counter_intuitive": true
+  },
+  "verdict": "NO-GO",
+  "verdict_basis": "GO iff ALL of: (1) the engine direction-hit-rate across the K>=5 micro-A/Bs clears the binomial chance bar (a clean or one-miss sweep at K>=5; 5/5 -> p~0.03, 4/4 -> p~0.06 = proof-of-life); AND (2) the engine STRICTLY beats the 'always-pick-obvious' placebo hit-rate; AND (3) the engine is right on >=1 item where the obvious prior is wrong (a GENUINELY counter-intuitive item \u2014 NOT default_stickiness, which the #442 audit found to be OBVIOUS).",
+  "per_item": [
+    {
+      "task_id": "choice_overload",
+      "arm_a": "opts:24",
+      "arm_b": "opts:3",
+      "n_a": 150,
+      "n_b": 150,
+      "succ_a": 61,
+      "succ_b": 104,
+      "real_winner": "opts:3",
+      "is_tie": false,
+      "stat": {
+        "rate_a": 0.4067,
+        "rate_b": 0.6933,
+        "diff": -0.2867,
+        "ci": [
+          -0.3945,
+          -0.1788
+        ],
+        "z": -4.9902,
+        "p": 0.0,
+        "tie": false,
+        "reason": null
+      },
+      "engine_predicted_arm": "opts:3",
+      "placebo_predicted_arm": "opts:24",
+      "engine_hit": true,
+      "placebo_hit": false,
+      "scored": true,
+      "genuinely_counter_intuitive": true
+    },
+    {
+      "task_id": "countdown_urgency",
+      "arm_a": "framing:scarce",
+      "arm_b": "framing:calm",
+      "n_a": 150,
+      "n_b": 150,
+      "succ_a": 49,
+      "succ_b": 112,
+      "real_winner": "framing:calm",
+      "is_tie": false,
+      "stat": {
+        "rate_a": 0.3267,
+        "rate_b": 0.7467,
+        "diff": -0.42,
+        "ci": [
+          -0.5224,
+          -0.3176
+        ],
+        "z": -7.2943,
+        "p": 0.0,
+        "tie": false,
+        "reason": null
+      },
+      "engine_predicted_arm": "framing:calm",
+      "placebo_predicted_arm": "framing:scarce",
+      "engine_hit": true,
+      "placebo_hit": false,
+      "scored": true,
+      "genuinely_counter_intuitive": true
+    },
+    {
+      "task_id": "default_stickiness",
+      "arm_a": "stickiness:default",
+      "arm_b": "stickiness:framing",
+      "n_a": 150,
+      "n_b": 150,
+      "succ_a": 107,
+      "succ_b": 65,
+      "real_winner": "stickiness:default",
+      "is_tie": false,
+      "stat": {
+        "rate_a": 0.7133,
+        "rate_b": 0.4333,
+        "diff": 0.28,
+        "ci": [
+          0.1726,
+          0.3874
+        ],
+        "z": 4.9028,
+        "p": 0.0,
+        "tie": false,
+        "reason": null
+      },
+      "engine_predicted_arm": "stickiness:framing",
+      "placebo_predicted_arm": "stickiness:default",
+      "engine_hit": false,
+      "placebo_hit": true,
+      "scored": true,
+      "genuinely_counter_intuitive": false
+    },
+    {
+      "task_id": "prosocial_backfire",
+      "arm_a": "prosocial:polished",
+      "arm_b": "prosocial:sparse",
+      "n_a": 150,
+      "n_b": 150,
+      "succ_a": 58,
+      "succ_b": 111,
+      "real_winner": "prosocial:sparse",
+      "is_tie": false,
+      "stat": {
+        "rate_a": 0.3867,
+        "rate_b": 0.74,
+        "diff": -0.3533,
+        "ci": [
+          -0.4582,
+          -0.2484
+        ],
+        "z": -6.1696,
+        "p": 0.0,
+        "tie": false,
+        "reason": null
+      },
+      "engine_predicted_arm": "prosocial:sparse",
+      "placebo_predicted_arm": "prosocial:polished",
+      "engine_hit": true,
+      "placebo_hit": false,
+      "scored": true,
+      "genuinely_counter_intuitive": true
+    },
+    {
+      "task_id": "effort_justification",
+      "arm_a": "effort:one_tap",
+      "arm_b": "effort:effort",
+      "n_a": 150,
+      "n_b": 150,
+      "succ_a": 58,
+      "succ_b": 100,
+      "real_winner": "effort:effort",
+      "is_tie": false,
+      "stat": {
+        "rate_a": 0.3867,
+        "rate_b": 0.6667,
+        "diff": -0.28,
+        "ci": [
+          -0.3885,
+          -0.1715
+        ],
+        "z": -4.8567,
+        "p": 0.0,
+        "tie": false,
+        "reason": null
+      },
+      "engine_predicted_arm": "effort:effort",
+      "placebo_predicted_arm": "effort:one_tap",
+      "engine_hit": true,
+      "placebo_hit": false,
+      "scored": true,
+      "genuinely_counter_intuitive": true
+    }
+  ],
+  "player_level": {
+    "feasible": true,
+    "agreement_rate": 0.606,
+    "n_player_item": 1500,
+    "by_persona": {
+      "P03": {
+        "agree": 288,
+        "n": 499
+      },
+      "P01": {
+        "agree": 323,
+        "n": 509
+      },
+      "P02": {
+        "agree": 298,
+        "n": 492
+      }
+    },
+    "note": "companion metric; the sealed GO gate is the population per-item hit-rate"
+  }
+}
