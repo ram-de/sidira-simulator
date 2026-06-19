@@ -16,13 +16,38 @@ from pathlib import Path
 
 import pytest
 
-from sidira_simulator.schemas.persona import PersonaPack
+from sidira_simulator.schemas.persona import BehavioralSeedSchema, PersonaPack
+from sidira_simulator.services import identity_seed as identity_seed_module
 from sidira_simulator.services.behavioral_profile import (
     _MAX_INDIVIDUAL_ROW_DELTAS,
     render_individual_row,
 )
+from sidira_simulator.services.identity_seed import draw_identity_seed
 from sidira_simulator.services.persona_pack_translator import translate_producer_pack
 from sidira_simulator.services.population_sampler import allocate
+
+
+def _producer_behavioral_seeds() -> dict:
+    """The producer's #342 ``behavioral_seeds`` object — the five identity-draw
+    pools, most-common-first."""
+    return {
+        "age_bands": ["25-34", "35-44"],
+        "locale_bands": ["urban_us", "suburban_us"],
+        "tenure_bands": ["established (1-3y)", "veteran (3y+)"],
+        "current_state_pool": [
+            "weekday evening, in a hurry",
+            "weekend, browsing options",
+            "post-work, decision-fatigued",
+            "late night, comfort mood",
+            "lunch break, time-boxed",
+        ],
+        "recent_gripe_pool": [
+            "fees added up at checkout",
+            "delivery later than estimated",
+            "promo code didn't apply",
+            "order arrived cold",
+        ],
+    }
 
 # A trimmed slice of a REAL producer pack: `sidira-personas run --no-llm` on a
 # SYNTHETIC parquet (privacy-clean by construction). Keeps 2 personas (a GMM
@@ -356,6 +381,83 @@ def test_real_fixed_persona_has_null_posterior_but_still_grounds():
     profile = render_individual_row(fixed, sample_index=0)
     assert profile.source_tier == "individual_row_synthetic"
     assert profile.render()
+
+
+# --- behavioral_seeds: producer #342 → consumer identity_seed (the gap) ------
+
+
+def test_behavioral_seeds_mapped_from_producer():
+    """A producer pack carrying #342 behavioral_seeds → the translated Persona
+    carries a BehavioralSeedSchema, field-for-field, instead of defaulting None."""
+    producer = _producer_pack_v11()
+    seeds = _producer_behavioral_seeds()
+    producer["personas"][0]["behavioral_seeds"] = seeds
+
+    pack = translate_producer_pack(producer)
+    p = pack.personas[0]
+    assert isinstance(p.behavioral_seeds, BehavioralSeedSchema)
+    assert p.behavioral_seeds.age_bands == seeds["age_bands"]
+    assert p.behavioral_seeds.locale_bands == seeds["locale_bands"]
+    assert p.behavioral_seeds.tenure_bands == seeds["tenure_bands"]
+    assert p.behavioral_seeds.current_state_pool == seeds["current_state_pool"]
+    assert p.behavioral_seeds.recent_gripe_pool == seeds["recent_gripe_pool"]
+    # a persona WITHOUT the field still translates to None (no-LLM / v1.0 path)
+    assert pack.personas[1].behavioral_seeds is None
+
+
+def test_behavioral_seeds_absent_or_null_translates_to_none():
+    """No behavioral_seeds key, or an explicit null, → None (simulator falls back
+    to its generic default pool, exactly as today)."""
+    producer = _producer_pack_v11()
+    assert translate_producer_pack(producer).personas[0].behavioral_seeds is None
+
+    producer["personas"][0]["behavioral_seeds"] = None
+    assert translate_producer_pack(producer).personas[0].behavioral_seeds is None
+
+
+def test_translated_behavioral_seeds_drive_identity_seed_without_fallback_warn(capsys):
+    """The point of #342 task C: a translated pack WITH behavioral_seeds makes
+    `draw_identity_seed` draw from the per-persona pools and NOT emit the
+    'identity_seed fallback active' warning."""
+    identity_seed_module._fallback_warned.clear()
+    try:
+        producer = _producer_pack_v11()
+        seeds = _producer_behavioral_seeds()
+        producer["personas"][0]["behavioral_seeds"] = seeds
+
+        pack = translate_producer_pack(producer)
+        persona = pack.personas[0]
+
+        drawn = [draw_identity_seed(persona, sample_index=i, run_seed=7) for i in range(20)]
+        # every field comes from THIS persona's pool, never the generic default
+        for s in drawn:
+            assert s.age_band in seeds["age_bands"]
+            assert s.tenure_band in seeds["tenure_bands"]
+            assert s.current_state in seeds["current_state_pool"]
+            assert s.recent_gripe in seeds["recent_gripe_pool"]
+
+        out = capsys.readouterr().out
+        assert "identity_seed fallback active" not in out
+        assert "cross-persona variance degraded" not in out
+        assert persona.id not in identity_seed_module._fallback_warned
+    finally:
+        identity_seed_module._fallback_warned.clear()
+
+
+def test_persona_without_seeds_still_warns_fallback(capsys):
+    """Control: a persona translated WITHOUT behavioral_seeds (no-LLM/v1.0 pack)
+    still trips the fallback warning — proving the warning fires on the gap and
+    the WITH-seeds test above genuinely closes it."""
+    identity_seed_module._fallback_warned.clear()
+    try:
+        pack = translate_producer_pack(_producer_pack_v11())
+        persona = pack.personas[0]
+        assert persona.behavioral_seeds is None
+        draw_identity_seed(persona, sample_index=0, run_seed=7)
+        out = capsys.readouterr().out
+        assert "cross-persona variance degraded" in out
+    finally:
+        identity_seed_module._fallback_warned.clear()
 
 
 # --- against the reproducible synthetic harness (sidira-simulator#247) -------
