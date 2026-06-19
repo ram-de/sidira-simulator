@@ -1198,6 +1198,13 @@ export interface components {
                 [key: string]: number;
             };
             behavioral_seeds?: components["schemas"]["BehavioralSeedSchema"] | null;
+            /** Activity Signal */
+            activity_signal?: number | null;
+            /**
+             * Activity Signal Source
+             * @description Provenance of activity_signal (e.g. the raw column name the producer used). Audit/debug only; never read by the scorer.
+             */
+            activity_signal_source?: string | null;
             /**
              * Centroid Full
              * @description Cluster mean over ALL adapted features (raw units). The subtrahend for the per-agent within-cluster z-score — distinct from centroid_features (population z-scores). Empty on v1.0 packs.

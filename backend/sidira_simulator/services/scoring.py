@@ -80,6 +80,7 @@ class AgentReaction:
         "metric_paraphrase_unstable",
         "metric_comparative_delta",
         "behavioral_seeds_fallback",
+        "activity_weight",
     )
 
     def __init__(
@@ -97,6 +98,7 @@ class AgentReaction:
         metric_paraphrase_unstable: bool = False,
         metric_comparative_delta: float | None = None,
         behavioral_seeds_fallback: bool = False,
+        activity_weight: float = 1.0,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -132,6 +134,11 @@ class AgentReaction:
         # arm; any such contributor makes the run's blinded metric a
         # variance-collapse candidate (`aggregate_metric_lift` → `variance_collapsed`).
         self.behavioral_seeds_fallback = behavioral_seeds_fallback
+        # #5 (MiroFish-borrow): the agent's normalized cohort-activity weight,
+        # set by the runner from Persona.activity_signal (default 1.0 = uniform).
+        # `analyze()` copies it onto the AgentAnalysis; `_compute_score` applies
+        # it only when ScoringConfig.use_activity_weight is on.
+        self.activity_weight = activity_weight
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -383,6 +390,7 @@ class ScoringService:
             persona_id=reaction.persona_id,
             persona_name=reaction.persona_name,
             sample_index=reaction.sample_index,
+            activity_weight=reaction.activity_weight,
             weakness=weakness,
             sentiment=sentiment,
             weakness_failed=weakness_failed,
@@ -671,6 +679,7 @@ class ScoringService:
                 reaction_text=text,
                 sample_index=reaction.sample_index,
                 arm=reaction.arm,
+                activity_weight=reaction.activity_weight,
             )
             for text, _weight in dist
         ]
@@ -767,15 +776,23 @@ class ScoringService:
             return 0.0, 0.5, 1.0
 
         # ── Sentiment: confidence-weighted mean with shrinkage toward 0.5 ──
+        # #5 (MiroFish-borrow): when use_activity_weight is set, each agent's
+        # contribution is additionally scaled by its data-derived cohort-activity
+        # weight. With the flag off, `aw` is 1.0 for every agent, so both branches
+        # below reduce EXACTLY to the historical formula (sum(1.0*x)==sum(x);
+        # sum(1.0 over n)==float(n)) — the parity snapshot is preserved.
+        def aw(a: AgentAnalysis) -> float:
+            return a.activity_weight if cfg.use_activity_weight else 1.0
+
         if cfg.use_sentiment_confidence:
             num = sum(
-                a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
+                aw(a) * a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
                 for a in analyses
             )
-            denom = sum(a.sentiment.confidence for a in analyses)
+            denom = sum(aw(a) * a.sentiment.confidence for a in analyses)
         else:
-            num = sum(cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses)
-            denom = float(n)
+            num = sum(aw(a) * cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses)
+            denom = sum(aw(a) for a in analyses)
         # Bayesian shrinkage: add prior_k pseudo-observations of neutral (0.5).
         num += cfg.sentiment_prior_k * 0.5
         denom += cfg.sentiment_prior_k
@@ -1098,7 +1115,21 @@ def _mean_paired_delta(
     if not pairs:
         return 0.0
     deltas = [_agent_delta(t, c) for t, c in pairs]
-    mean_delta = sum(deltas) / len(deltas)
+    if cfg.use_activity_weight:
+        # #5: weight each matched pair by its cohort-activity weight so the lift
+        # sits on the SAME basis as the per-arm weighted scores (otherwise we'd
+        # report activity-weighted arm scores beside an unweighted lift). Both
+        # sides of a pair share the persona's weight; average them defensively.
+        # Flag off ⇒ this branch is skipped ⇒ byte-identical unweighted mean.
+        weights = [0.5 * (t.activity_weight + c.activity_weight) for t, c in pairs]
+        total_w = sum(weights)
+        mean_delta = (
+            sum(w * d for w, d in zip(weights, deltas)) / total_w
+            if total_w > 0.0
+            else sum(deltas) / len(deltas)
+        )
+    else:
+        mean_delta = sum(deltas) / len(deltas)
     return mean_delta * cfg.sentiment_weight * 100.0
 
 

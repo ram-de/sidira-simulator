@@ -43,6 +43,24 @@ class Persona(BaseModel):
     centroid_features: dict[str, float] = Field(default_factory=dict)
     behavioral_seeds: BehavioralSeedSchema | None = None
 
+    # --- #5 Activity weighting (MiroFish-borrow) — PRODUCER CONTRACT ---------
+    # A RAW, measured activity magnitude for this cohort (e.g. mean sessions/week,
+    # orders/week, active days), in the cohort's own non-negative units. The
+    # PRODUCER (sidira-personas) is the single source of truth: it may derive this
+    # ONLY from true frequency/count/rate columns it understands — never from an
+    # LLM-selected feature, an engagement z-axis (different units), or an
+    # experimenter dial (DO-NOT-COPY). The simulator does NOT infer it from
+    # behavioral_snapshot keys; it only transforms+normalizes this number into the
+    # per-agent scorer weight (services.activity_weight), and only when
+    # ScoringConfig.use_activity_weight is on. None ⇒ no measured signal ⇒ the
+    # agent contributes with weight 1.0 (uniform). Codex-advised 2026-06-19.
+    activity_signal: float | None = Field(default=None, ge=0.0)
+    activity_signal_source: str | None = Field(
+        default=None,
+        description="Provenance of activity_signal (e.g. the raw column name the "
+        "producer used). Audit/debug only; never read by the scorer.",
+    )
+
     # --- Persona Pack v1.1 (sidira-personas#7) — the per-agent individual-row
     # inputs (agent-behavior-spec §2 layer 4). All additive + defaulted, so v1.0
     # packs (which omit them) still validate and the simulator degrades to the
