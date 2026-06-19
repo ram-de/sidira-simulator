@@ -8,15 +8,27 @@
 // reverse it into the arm name.
 // ============================================================================
 
+import crypto from 'node:crypto';
+
 // The fixed, identical-for-everyone profiling rooms (PRE-treatment, no A/B).
-// Two are fully implemented as the pattern; the rest are stubbed (see client).
+// All five are now implemented (#440). Identical across arms.
 const PROFILING_ROOMS = [
   { id: 'risk_box', status: 'done' },     // DONE — risk appetite / EV-sensitivity / latency
   { id: 'info_cost', status: 'done' },    // DONE — attention/effort / info valuation / overconfidence
-  { id: 'deal_room', status: 'stub' },    // TODO — present-bias / patience / deal sensitivity
-  { id: 'trust_game', status: 'stub' },   // TODO — trust / reciprocity / social skepticism
-  { id: 'ambiguity', status: 'stub' },    // TODO — ambiguity aversion / opaque-system skepticism
+  { id: 'deal_room', status: 'done' },    // DONE — present-bias / patience / deal sensitivity
+  { id: 'trust_game', status: 'done' },   // DONE — trust / reciprocity / social skepticism
+  { id: 'ambiguity', status: 'done' },    // DONE — ambiguity aversion / opaque-system skepticism
 ];
+
+// Deterministic within-subject variant pick for the micro-A/Bs added in #441.
+// Seeded by player_id + task_id so it is STICKY per person (stable on resume)
+// without touching the between-subject headline arm or the block randomization
+// in randomize.js. Returns one of the two presentation variants. The variant is
+// a presentation label only — the client never receives the headline-arm name.
+function pickVariant(playerId, taskId, variants) {
+  const h = crypto.createHash('sha256').update(`${taskId}-${playerId}`).digest();
+  return variants[h[0] % variants.length];
+}
 
 export function buildScreenConfig(participant) {
   const counterbalance = JSON.parse(participant.counterbalance);
@@ -58,9 +70,36 @@ export function buildScreenConfig(participant) {
           },
         };
       }
-      // TODO: stubbed micro-A/Bs — render a placeholder beat that still logs a
-      // (neutral) outcome so the state machine completes; replace with the real
-      // counter-intuitive mechanic before sealing.
+      // Within-subject micro-A/Bs added in #441. Each player sees ONE variant,
+      // assigned deterministically (sticky) per player_id+task_id. The variant
+      // is a presentation label only; the headline arm name is never leaked.
+      case 'default_stickiness':
+        return {
+          taskId,
+          status: 'done',
+          present: {
+            kind: 'default_stickiness',
+            variant: pickVariant(participant.player_id, taskId, ['default', 'framing']),
+          },
+        };
+      case 'prosocial_backfire':
+        return {
+          taskId,
+          status: 'done',
+          present: {
+            kind: 'prosocial_backfire',
+            variant: pickVariant(participant.player_id, taskId, ['polished', 'sparse']),
+          },
+        };
+      case 'effort_justification':
+        return {
+          taskId,
+          status: 'done',
+          present: {
+            kind: 'effort_justification',
+            variant: pickVariant(participant.player_id, taskId, ['effort', 'one_tap']),
+          },
+        };
       default:
         return { taskId, status: 'stub', present: { kind: 'stub', taskId } };
     }

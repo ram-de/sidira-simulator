@@ -6,9 +6,15 @@ import { SellerCard } from './screens/SellerCard';
 import { PersonaReveal } from './screens/PersonaReveal';
 import { RiskBox } from './rooms/RiskBox';
 import { InfoCost } from './rooms/InfoCost';
+import { DealRoom } from './rooms/DealRoom';
+import { TrustGame } from './rooms/TrustGame';
+import { AmbiguityRoom } from './rooms/AmbiguityRoom';
 import { StubRoom } from './rooms/StubRoom';
 import { ChoiceOverload } from './microabs/ChoiceOverload';
 import { CountdownUrgency } from './microabs/CountdownUrgency';
+import { DefaultStickiness } from './microabs/DefaultStickiness';
+import { ProsocialBackfire } from './microabs/ProsocialBackfire';
+import { EffortJustification } from './microabs/EffortJustification';
 import { StubMicroAb } from './microabs/StubMicroAb';
 
 // THE SCREEN STATE MACHINE
@@ -85,6 +91,9 @@ export function App() {
         const onDone = () => { mark(`room:${room.id}`); advanceRoom(); };
         if (room.id === 'risk_box') return <RiskBox playerId={config.playerId} onDone={onDone} />;
         if (room.id === 'info_cost') return <InfoCost playerId={config.playerId} onDone={onDone} />;
+        if (room.id === 'deal_room') return <DealRoom playerId={config.playerId} onDone={onDone} />;
+        if (room.id === 'trust_game') return <TrustGame playerId={config.playerId} onDone={onDone} />;
+        if (room.id === 'ambiguity') return <AmbiguityRoom playerId={config.playerId} onDone={onDone} />;
         return <StubRoom roomId={room.id} playerId={config.playerId} onDone={onDone} />;
       })()}
 
@@ -92,8 +101,11 @@ export function App() {
         const ab = config.microabs[abIdx];
         const isLast = abIdx === config.microabs.length - 1;
         const onDone = () => { mark(`ab:${ab.taskId}`); advanceAb(); };
-        if (ab.taskId === 'choice_overload') return <ChoiceOverload playerId={config.playerId} config={ab} onDone={onDone} />;
+        if (ab.taskId === 'choice_overload') return <ChoiceOverload playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
         if (ab.taskId === 'countdown_urgency') return <CountdownUrgency playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
+        if (ab.taskId === 'default_stickiness') return <DefaultStickiness playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
+        if (ab.taskId === 'prosocial_backfire') return <ProsocialBackfire playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
+        if (ab.taskId === 'effort_justification') return <EffortJustification playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
         return <StubMicroAb playerId={config.playerId} config={ab} onDone={onDone} isLast={isLast} />;
       })()}
 

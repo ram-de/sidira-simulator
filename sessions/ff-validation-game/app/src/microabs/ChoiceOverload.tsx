@@ -15,8 +15,8 @@ import type { MicroAbConfig } from '../lib/types';
 // server's internal headline-arm name.
 
 export function ChoiceOverload({
-  playerId, config, onDone,
-}: { playerId: string; config: MicroAbConfig; onDone: () => void }) {
+  playerId, config, onDone, isLast,
+}: { playerId: string; config: MicroAbConfig; onDone: () => void; isLast: boolean }) {
   const beat = useBeat();
   const optionCount = (config.present.optionCount as number) ?? 3;
   const startedAt = useState(() => new Date().toISOString())[0];
@@ -34,6 +34,7 @@ export function ChoiceOverload({
       outcome,
       startedAt,
       decidedAt: new Date().toISOString(),
+      done: isLast, // mark complete if this is the last beat in the battery
     }).finally(onDone);
   }
 
