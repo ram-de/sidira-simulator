@@ -362,6 +362,10 @@ const RCONSOLE_CSS = `
 .rconsole h1.htitle{font-family:var(--font-sans); font-weight:600; font-size:32px;
   line-height:1.08; letter-spacing:-.025em; color:var(--text-hi); margin:0 0 12px;
   text-wrap:balance; max-width:36ch;}
+/* Unparseable prose that's long: render as a readable statement, not a poster
+   wall (a 32px headline of 60+ words is unreadable). Wider measure, smaller. */
+.rconsole h1.htitle.htitle-long{font-size:20px; line-height:1.4;
+  letter-spacing:-.01em; max-width:70ch;}
 /* Parsed hypothesis claim — a sans headline + labeled Treatment/Control/Predict
    rows (the raw prose is one long run-on; the console base font is mono, which
    turned it into an unreadable wall). Sans for the prose, mono only for labels. */
@@ -781,11 +785,17 @@ function buildFieldModel(sim: Simulation, result: SimulationResult): FieldModel 
   return { agents, mean, ciHalf: ch != null ? ch / 100 : null, armKnown };
 }
 
-// Parse the composed hypothesis prose into labeled blocks. The wizard composes
-// "If {change}, then {outcome}." (composeClaimProse), and {change} sometimes
-// carries user-written "Treatment: … Control: …" framing. We split on those
-// stable markers; anything that doesn't match returns null so the caller renders
-// the raw prose verbatim (never lose or mangle the author's words).
+// Parse the composed hypothesis prose into labeled blocks. Authored prose comes
+// in several shapes — there is no single rigid template, so each marker is
+// handled independently rather than as one fixed regex:
+//   • an optional leading "If "
+//   • an optional "Treatment: … Control: …" framing (with or without a "|")
+//   • an optional trailing ", then <outcome>"
+// We extract whatever markers are present. If NONE are found we return null so
+// the caller renders the prose verbatim (never lose or mangle the author's
+// words). Both of these parse correctly:
+//   "If The change "X". | Treatment: … Control: …, then engagement increases."
+//   "The change "X". Treatment: … Control: … partially finished."
 type ClaimParts = {
   lead: string;
   treatment: string | null;
@@ -793,27 +803,34 @@ type ClaimParts = {
   outcome: string | null;
 };
 function parseClaim(proseRaw: string): ClaimParts | null {
-  const prose = (proseRaw ?? "").trim();
-  // "If <change>, then <outcome>." — case-insensitive, optional trailing period;
-  // greedy change so the LAST ", then" splits off the predicted outcome.
-  const m = prose.match(/^if\s+([\s\S]+),\s*then\s+([\s\S]+?)\.?\s*$/i);
-  if (!m) return null;
-  let change = m[1].trim();
-  const outcome = m[2].trim();
+  let s = (proseRaw ?? "").trim();
+  if (!s) return null;
+  // Strip an optional leading "If " wrapper.
+  s = s.replace(/^if\s+/i, "");
+  // Pull a trailing ", then <outcome>" if present (optional — many runs omit it).
+  // Greedy prefix so we split on the LAST ", then" — a change can legitimately
+  // contain "…, then…" mid-sentence; only the final clause is the outcome.
+  let outcome: string | null = null;
+  const thenM = s.match(/^([\s\S]*),\s*then\s+([\s\S]+?)\.?\s*$/i);
+  if (thenM) {
+    s = thenM[1].trim();
+    outcome = thenM[2].trim().replace(/\.+$/, "");
+  }
+  // Split "Treatment: … Control: …" framing, leading "|" optional, wrapper or no.
   let treatment: string | null = null;
   let control: string | null = null;
-  // Optional "Treatment: … Control: …" framing the author put in the change.
-  const tc = change.match(
+  let change = s;
+  const tc = s.match(
     /^([\s\S]*?)\|?\s*treatment:\s*([\s\S]+?)\s*control:\s*([\s\S]+)$/i,
   );
   if (tc) {
-    // The lead is whatever preceded the Treatment marker — it may be empty when
-    // the author wrote straight into "Treatment: … Control: …". In that case
-    // the caller omits the headline (no redundant duplicate of the rows).
     change = tc[1].replace(/[.\s|]+$/, "").trim();
     treatment = tc[2].replace(/[.\s]+$/, "").trim();
     control = tc[3].replace(/[.\s]+$/, "").trim();
   }
+  // No structured markers at all → let the caller render the raw prose verbatim
+  // rather than dumping a half-parsed string into the headline.
+  if (treatment == null && control == null && outcome == null) return null;
   return { lead: cleanLead(change), treatment, control, outcome };
 }
 
@@ -1672,7 +1689,13 @@ export default function SimulationDetailV2() {
                   ) : null}
                 </div>
               ) : (
-                <h1 className="htitle">{hypothesis.prose}</h1>
+                <h1
+                  className={
+                    hypothesis.prose.length > 120 ? "htitle htitle-long" : "htitle"
+                  }
+                >
+                  {hypothesis.prose}
+                </h1>
               )}
 
               {/* verdict chip — never renders without its policy designator
