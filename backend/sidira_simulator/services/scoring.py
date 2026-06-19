@@ -80,6 +80,7 @@ class AgentReaction:
         "metric_paraphrase_unstable",
         "metric_comparative_delta",
         "behavioral_seeds_fallback",
+        "activity_weight",
     )
 
     def __init__(
@@ -97,6 +98,7 @@ class AgentReaction:
         metric_paraphrase_unstable: bool = False,
         metric_comparative_delta: float | None = None,
         behavioral_seeds_fallback: bool = False,
+        activity_weight: float = 1.0,
     ) -> None:
         self.agent_id = agent_id
         self.persona_id = persona_id
@@ -132,6 +134,11 @@ class AgentReaction:
         # arm; any such contributor makes the run's blinded metric a
         # variance-collapse candidate (`aggregate_metric_lift` → `variance_collapsed`).
         self.behavioral_seeds_fallback = behavioral_seeds_fallback
+        # #5 (MiroFish-borrow): the agent's normalized cohort-activity weight,
+        # set by the runner from Persona.activity_signal (default 1.0 = uniform).
+        # `analyze()` copies it onto the AgentAnalysis; `_compute_score` applies
+        # it only when ScoringConfig.use_activity_weight is on.
+        self.activity_weight = activity_weight
 
 
 # ─── Per-agent classified reaction distribution (#221) ──────────────────
@@ -383,6 +390,7 @@ class ScoringService:
             persona_id=reaction.persona_id,
             persona_name=reaction.persona_name,
             sample_index=reaction.sample_index,
+            activity_weight=reaction.activity_weight,
             weakness=weakness,
             sentiment=sentiment,
             weakness_failed=weakness_failed,

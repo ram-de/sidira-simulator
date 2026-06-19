@@ -269,6 +269,85 @@ async def test_score_passes_run_seed_to_scoring_service(monkeypatch) -> None:
     assert captured["run_seed"] == 424242
 
 
+@pytest.mark.asyncio
+async def test_activity_weight_off_by_default_passes_no_config(monkeypatch) -> None:
+    """#5: with SIDIRA_ACTIVITY_WEIGHT unset, the runner passes config=None and
+    every reaction keeps weight 1.0 — byte-identical to the pre-#5 score path,
+    even when personas DO carry an activity_signal."""
+    monkeypatch.delenv("SIDIRA_ACTIVITY_WEIGHT", raising=False)
+    from sidira_simulator.services import scoring as scoring_mod
+
+    captured: dict[str, object] = {}
+    original_score = scoring_mod.ScoringService.score
+
+    async def spy(self, hypothesis, reactions, *, run_seed=None, config=None):
+        captured["config"] = config
+        captured["weights"] = [r.activity_weight for r in reactions]
+        return await original_score(self, hypothesis, reactions, run_seed=run_seed, config=config)
+
+    monkeypatch.setattr(scoring_mod.ScoringService, "score", spy)
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    for i, p in enumerate(persona_pack.personas):
+        p.activity_signal = float((i + 1) * 10)  # present, but must be IGNORED when off
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=4,
+        run_seed=424242,
+    )
+    assert captured["config"] is None
+    assert captured["weights"] == [1.0] * len(captured["weights"])
+
+
+@pytest.mark.asyncio
+async def test_activity_weight_on_threads_config_and_normalizes(monkeypatch) -> None:
+    """#5: with SIDIRA_ACTIVITY_WEIGHT=1 and personas carrying distinct
+    activity_signals, the runner normalizes them across the run and threads a
+    config with use_activity_weight=True into the scorer."""
+    monkeypatch.setenv("SIDIRA_ACTIVITY_WEIGHT", "1")
+    from sidira_simulator.services import scoring as scoring_mod
+
+    captured: dict[str, object] = {}
+    original_score = scoring_mod.ScoringService.score
+
+    async def spy(self, hypothesis, reactions, *, run_seed=None, config=None):
+        captured["config"] = config
+        captured["weights"] = [r.activity_weight for r in reactions]
+        captured["persona_ids"] = [r.persona_id for r in reactions]
+        return await original_score(self, hypothesis, reactions, run_seed=run_seed, config=config)
+
+    monkeypatch.setattr(scoring_mod.ScoringService, "score", spy)
+
+    store, persona_pack, capability, feature_pack_version = _load_pack_and_capability()
+    for i, p in enumerate(persona_pack.personas):
+        p.activity_signal = float((i + 1) * 10)  # 10, 20, 30, … distinct per cohort
+    runner = SimulationRunner(store=store, chat_client=_StubChat())
+    await runner.run(
+        customer_id="demo",
+        persona_pack=persona_pack,
+        capability=capability,
+        feature_pack_version=feature_pack_version,
+        hypothesis=_hypothesis(),
+        population_size=6,
+        run_seed=424242,
+    )
+    cfg = captured["config"]
+    assert cfg is not None and cfg.use_activity_weight is True
+    weights = captured["weights"]
+    assert weights, "expected at least one scored reaction"
+    # Normalized & bounded by the conservative recipe (CLAMP_LO/HI = 0.5/2.0).
+    assert all(0.5 <= w <= 2.0 for w in weights)
+    # When the run actually spanned ≥2 distinct cohorts, the weights must differ
+    # (uniform only if every agent landed on one persona — same signal).
+    if len(set(captured["persona_ids"])) > 1:
+        assert len({round(w, 6) for w in weights}) > 1
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Phase 4.6 #89 — dual-arm runner
 # ─────────────────────────────────────────────────────────────────────

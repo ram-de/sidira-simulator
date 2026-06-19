@@ -181,6 +181,22 @@ def resolve_metric_comparative() -> bool:
     return raw.strip().lower() not in ("0", "false", "no", "off")
 
 
+def resolve_activity_weight() -> bool:
+    """Whether the scorer applies data-derived cohort activity weights (#5).
+
+    **Default OFF** — opt-in until the weighting is calibrated against outcome
+    data (the validated-directional-accuracy thesis: don't perturb the scorer on
+    an uncalibrated signal). Set `SIDIRA_ACTIVITY_WEIGHT=1` (or true/yes/on) to
+    enable: each agent's sentiment contribution is then scaled by its cohort's
+    normalized `Persona.activity_signal` (services.activity_weight). With no
+    signal present every weight is 1.0, so the score is unchanged even when on.
+    """
+    raw = resolve_sidira_env("ACTIVITY_WEIGHT")
+    if raw is None:
+        return False
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 def resolve_elicitation_temperature() -> float:
     """Sampling temperature for distribution elicitation (#221).
 

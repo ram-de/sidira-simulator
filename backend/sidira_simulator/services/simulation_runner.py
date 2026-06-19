@@ -65,6 +65,7 @@ from sidira_simulator.services.run_state import (
 )
 from sidira_simulator.services.runtime_config import (
     resolve_conversion_paraphrases,
+    resolve_activity_weight,
     resolve_elicitation_mode,
     resolve_elicitation_samples,
     resolve_elicitation_temperature,
@@ -444,6 +445,7 @@ class SimulationRunner:
             sim_id,
             hypothesis,
             agent_records,
+            persona_pack,
             resolved_run_seed,
             chat_client,
             include_no_persona_control=include_no_persona_control,
@@ -853,6 +855,7 @@ class SimulationRunner:
         sim_id: str,
         hypothesis: Hypothesis,
         agent_records: list[AgentRecord],
+        persona_pack: PersonaPack,
         run_seed: int,
         chat_client: ChatClient,
         include_no_persona_control: bool = False,
@@ -888,7 +891,8 @@ class SimulationRunner:
             )
 
         # Lazy import to avoid pulling LLM modules at module load.
-        from sidira_simulator.schemas.scoring import RefinementInput
+        from sidira_simulator.schemas.scoring import RefinementInput, ScoringConfig
+        from sidira_simulator.services.activity_weight import normalize_activity_weights
         from sidira_simulator.services.refinement import RefinementService
         from sidira_simulator.services.scoring import AgentReaction, ScoringService
 
@@ -912,6 +916,22 @@ class SimulationRunner:
             )
             for r in agent_records
         ]
+
+        # #5 (MiroFish-borrow): when activity weighting is enabled, derive each
+        # agent's cohort-activity weight from Persona.activity_signal, normalized
+        # ONCE across the whole run (both arms + baselines share one constant, so
+        # the lift comparison stays on a single weighting basis). Default OFF →
+        # reactions keep weight 1.0 and the scoring config stays None, so the
+        # score path is byte-identical to before.
+        scoring_cfg: "ScoringConfig | None" = None
+        if resolve_activity_weight():
+            signal_by_persona = {p.id: p.activity_signal for p in persona_pack.personas}
+            weights = normalize_activity_weights(
+                [signal_by_persona.get(r.persona_id) for r in reactions]
+            )
+            for rx, w in zip(reactions, weights):
+                rx.activity_weight = w
+            scoring_cfg = ScoringConfig(use_activity_weight=True)
 
         # #221 §4.1 persona-lift / §3.3.1 delta-mode: split off the ephemeral
         # shadows BEFORE the A/B-mode detection below. The persona arms
@@ -943,10 +963,13 @@ class SimulationRunner:
                 hypothesis,
                 treatment_reactions,
                 control_reactions,
+                config=scoring_cfg,
                 run_seed=run_seed,
             )
         else:
-            result, analyses = await scoring.score(hypothesis, persona_reactions, run_seed=run_seed)
+            result, analyses = await scoring.score(
+                hypothesis, persona_reactions, config=scoring_cfg, run_seed=run_seed
+            )
         # #51: persist per-agent sentiment + top-quote on the result so the
         # detail page can render the table without N extra R2 reads. Pair
         # analyses with their reaction text by agent_id (same len + same order
