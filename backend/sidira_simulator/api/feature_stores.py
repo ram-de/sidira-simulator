@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,8 +20,13 @@ from sidira_simulator.adapters.feature_stores import (
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
 from sidira_simulator.adapters.repositories import FeatureStoreConnectionRepo
 from sidira_simulator.api.deps import current_customer_id, get_feature_store_connection_repo
-from sidira_simulator.services import column_mapper
+from sidira_simulator.services import column_mapper, document_extractor
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
+from sidira_simulator.services.document_extractor import (
+    DocumentExtractionError,
+    EntityDocument,
+    ExtractionSchema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -344,3 +350,101 @@ async def suggest_mapping(
         return column_mapper.suggest_mapping(payload.columns)
     except ColumnMappingError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+#: Guard rails on a single extract-documents request: extraction fans out into
+#: one blocking LLM call per non-empty document, so an unbounded upload would tie
+#: up the threadpool and run up provider cost. Reject oversized requests up front.
+_MAX_DOCUMENTS = 500
+_MAX_TOTAL_TEXT_CHARS = 2_000_000
+#: One document = one prompt = one chat call, so a single oversized document
+#: would blow the provider context window and turn into a slow 502. Cap each
+#: document to a conservative model-safe size (~50k tokens). Chunking large
+#: corpora per entity is a follow-up; for now an over-long doc is rejected.
+_MAX_DOCUMENT_CHARS = 200_000
+#: The schema is repeated in every per-document prompt and scaffolds every row,
+#: so an oversized schema inflates prompt size and cost even under the text caps.
+#: Bound the field count and the total schema text (names + descriptions).
+_MAX_SCHEMA_FIELDS = 100
+_MAX_SCHEMA_TEXT_CHARS = 20_000
+
+
+class ExtractDocumentsRequest(BaseModel):
+    documents: list[EntityDocument]
+    extraction_schema: ExtractionSchema
+
+
+class ExtractDocumentsResponse(BaseModel):
+    row_count: int
+    columns: list[ColumnProfile]
+    rows: list[dict[str, Any]]
+
+
+@router.post("/extract-documents", response_model=ExtractDocumentsResponse)
+async def extract_documents(
+    payload: ExtractDocumentsRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> ExtractDocumentsResponse:
+    """#3 doc feeder: extract a bounded, fixed-schema feature row per entity from
+    its documents, then profile the columns into the same shape the Snowflake
+    preview emits — so doc-fed columns flow straight into the wizard's Map step.
+
+    Connection-agnostic (like suggest-mapping); the documents ARE the source.
+    The extraction is closed to ``extraction_schema`` (no model-invented columns)
+    and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
+    502 if the upstream extraction LLM fails; 413 if the request exceeds the
+    document-count / total-text guard rails."""
+    fields = payload.extraction_schema.fields
+    if len(fields) > _MAX_SCHEMA_FIELDS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"extraction schema has too many fields ({len(fields)}); max {_MAX_SCHEMA_FIELDS}",
+        )
+    schema_chars = sum(len(f.name) + len(f.description) for f in fields)
+    if schema_chars > _MAX_SCHEMA_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"extraction schema text too large ({schema_chars} chars); "
+                f"max {_MAX_SCHEMA_TEXT_CHARS} — it is repeated in every per-document prompt"
+            ),
+        )
+    if len(payload.documents) > _MAX_DOCUMENTS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"too many documents ({len(payload.documents)}); max {_MAX_DOCUMENTS}",
+        )
+    for doc in payload.documents:
+        if len(doc.text) > _MAX_DOCUMENT_CHARS:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"document {doc.entity_id!r} too large ({len(doc.text)} chars); "
+                    f"max {_MAX_DOCUMENT_CHARS} per document — a single document is sent "
+                    f"in one extraction call and would exceed the provider context window"
+                ),
+            )
+    total_chars = sum(len(d.text) for d in payload.documents)
+    if total_chars > _MAX_TOTAL_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"document text too large ({total_chars} chars); max {_MAX_TOTAL_TEXT_CHARS}",
+        )
+    try:
+        # Extraction is a synchronous loop of blocking chat_json calls (one per
+        # entity) — run it off the event loop so a slow/multi-doc request can't
+        # stall the worker (matches the asyncio.to_thread idiom used for the other
+        # sync chat-client calls in this codebase).
+        rows = await asyncio.to_thread(
+            document_extractor.extract_feature_rows,
+            payload.documents,
+            payload.extraction_schema,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DocumentExtractionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    row_count, columns = document_extractor.profile_feature_rows(
+        rows, payload.extraction_schema
+    )
+    return ExtractDocumentsResponse(row_count=row_count, columns=columns, rows=rows)
