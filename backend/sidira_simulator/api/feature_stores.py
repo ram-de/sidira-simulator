@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,8 +19,13 @@ from sidira_simulator.adapters.feature_stores import (
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
 from sidira_simulator.adapters.repositories import FeatureStoreConnectionRepo
 from sidira_simulator.api.deps import current_customer_id, get_feature_store_connection_repo
-from sidira_simulator.services import column_mapper
+from sidira_simulator.services import column_mapper, document_extractor
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
+from sidira_simulator.services.document_extractor import (
+    DocumentExtractionError,
+    EntityDocument,
+    ExtractionSchema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -344,3 +349,41 @@ async def suggest_mapping(
         return column_mapper.suggest_mapping(payload.columns)
     except ColumnMappingError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+class ExtractDocumentsRequest(BaseModel):
+    documents: list[EntityDocument]
+    extraction_schema: ExtractionSchema
+
+
+class ExtractDocumentsResponse(BaseModel):
+    row_count: int
+    columns: list[ColumnProfile]
+    rows: list[dict[str, Any]]
+
+
+@router.post("/extract-documents", response_model=ExtractDocumentsResponse)
+async def extract_documents(
+    payload: ExtractDocumentsRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> ExtractDocumentsResponse:
+    """#3 doc feeder: extract a bounded, fixed-schema feature row per entity from
+    its documents, then profile the columns into the same shape the Snowflake
+    preview emits — so doc-fed columns flow straight into the wizard's Map step.
+
+    Connection-agnostic (like suggest-mapping); the documents ARE the source.
+    The extraction is closed to ``extraction_schema`` (no model-invented columns)
+    and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
+    502 if the upstream extraction LLM fails."""
+    try:
+        rows = document_extractor.extract_feature_rows(
+            payload.documents, payload.extraction_schema
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DocumentExtractionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    row_count, columns = document_extractor.profile_feature_rows(
+        rows, payload.extraction_schema
+    )
+    return ExtractDocumentsResponse(row_count=row_count, columns=columns, rows=rows)

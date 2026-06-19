@@ -36,6 +36,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sidira_simulator.adapters.feature_stores import ColumnProfile
 from sidira_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
 
 #: The closed set of metric types `sidira_personas.adapter.adapt_group` accepts
@@ -267,6 +268,54 @@ def extract_feature_rows(
         rows.append(row)
 
     return rows
+
+
+def _hashable(value: Any) -> Any:
+    """A hashable stand-in for distinct/sample bookkeeping (dicts → JSON str)."""
+    try:
+        hash(value)
+        return value
+    except TypeError:
+        try:
+            return json.dumps(value, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            return str(value)
+
+
+def profile_feature_rows(
+    rows: list[dict[str, Any]],
+    schema: ExtractionSchema,
+) -> tuple[int, list[ColumnProfile]]:
+    """Profile extracted rows into the SAME `(row_count, [ColumnProfile])` shape
+    the Snowflake preview path emits, so doc-fed columns flow straight into the
+    wizard's Map step (suggest_mapping) unchanged.
+
+    Columns are the schema's fields in declared order (NOT the entity key, which
+    is an identifier, not a feature) — so the profile is stable even when every
+    row is null. ``dtype`` reports the declared metric type; null fraction and
+    distinct/sample are computed over the rows.
+    """
+    n = len(rows)
+    profiles: list[ColumnProfile] = []
+    for f in schema.fields:
+        values = [r.get(f.name) for r in rows]
+        non_null = [v for v in values if v is not None]
+        non_null_count = len(non_null)
+        null_fraction = round(1 - (non_null_count / n), 4) if n else 0.0
+        hashed = [_hashable(v) for v in non_null]
+        distinct_count = len(set(hashed)) if hashed else 0
+        sample_values = list(dict.fromkeys(hashed))[:5] if hashed else None
+        profiles.append(
+            ColumnProfile(
+                name=f.name,
+                dtype=f.type,
+                non_null_count=non_null_count,
+                null_fraction=null_fraction,
+                distinct_count=distinct_count,
+                sample_values=sample_values,
+            )
+        )
+    return n, profiles
 
 
 def _build_user_prompt(entity: EntityDocument, schema: ExtractionSchema) -> str:

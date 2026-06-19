@@ -18,6 +18,7 @@ from sidira_simulator.services.document_extractor import (
     ExtractionField,
     ExtractionSchema,
     extract_feature_rows,
+    profile_feature_rows,
 )
 
 
@@ -226,3 +227,38 @@ def test_llm_failure_raises_extraction_error() -> None:
     llm = _StubLLM(fail=RuntimeError("provider down"))
     with pytest.raises(DocumentExtractionError, match="extraction LLM call failed"):
         extract_feature_rows([EntityDocument(entity_id="u1", text="x")], schema, llm)
+
+
+# ── profiling into the Snowflake-preview shape ───────────────────────────
+
+
+def test_profile_feature_rows_matches_preview_shape() -> None:
+    schema = _schema()
+    rows = [
+        {"entity_id": "u1", "orders_count": 12.0, "nps": 8.0, "promo_ratio": None,
+         "is_churned": 0.0, "primary_device": "ios", "basket_mix": {"a": 1.0}},
+        {"entity_id": "u2", "orders_count": 3.0, "nps": None, "promo_ratio": 0.5,
+         "is_churned": 1.0, "primary_device": "ios", "basket_mix": {"b": 1.0}},
+    ]
+    n, cols = profile_feature_rows(rows, schema)
+    assert n == 2
+    # One profile per SCHEMA field (entity_id excluded — it's an id, not a feature).
+    assert [c.name for c in cols] == [
+        "orders_count", "nps", "promo_ratio", "is_churned", "primary_device", "basket_mix"
+    ]
+    by_name = {c.name: c for c in cols}
+    assert by_name["nps"].non_null_count == 1
+    assert by_name["nps"].null_fraction == 0.5
+    assert by_name["primary_device"].distinct_count == 1   # both "ios"
+    assert by_name["orders_count"].dtype == "count"        # declared metric type
+    # dict-valued (json) column is profiled without raising on unhashable values.
+    assert by_name["basket_mix"].distinct_count == 2
+
+
+def test_profile_all_null_column_is_stable() -> None:
+    schema = ExtractionSchema(fields=[ExtractionField(name="x", type="count")])
+    n, cols = profile_feature_rows([{"entity_id": "u1", "x": None}], schema)
+    assert n == 1
+    assert cols[0].non_null_count == 0
+    assert cols[0].null_fraction == 1.0
+    assert cols[0].sample_values is None
