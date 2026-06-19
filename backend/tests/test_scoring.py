@@ -32,6 +32,7 @@ def _analysis(
     persona_name: str = "P",
     weakness_failed: bool = False,
     sentiment_failed: bool = False,
+    activity_weight: float = 1.0,
 ) -> AgentAnalysis:
     return AgentAnalysis(
         agent_id=agent_id,
@@ -43,6 +44,7 @@ def _analysis(
         ),
         weakness_failed=weakness_failed,
         sentiment_failed=sentiment_failed,
+        activity_weight=activity_weight,
     )
 
 
@@ -910,3 +912,82 @@ async def test_score_single_sample_distribution_takes_flat_path() -> None:
     assert stub.sentiment_reactions == ["happy take"]
     assert len(analyses) == 1
     assert result.confidence_score_ci is None
+
+
+# ── #5 Activity weighting (MiroFish-borrow) ───────────────────────────
+# The scorer mechanism only: a data-derived per-cohort weight that scales
+# each agent's sentiment contribution, gated behind use_activity_weight and
+# defaulting to 1.0 so the locked formula stays byte-identical by default.
+
+_ACTIVITY_ON = ScoringConfig(
+    min_sample_size=1, bootstrap_resamples=0, use_activity_weight=True
+)
+
+
+def test_activity_weight_ignored_when_flag_off() -> None:
+    """Default config (flag off) must ignore activity_weight entirely — even
+    wildly non-uniform weights produce the same score as all-1.0."""
+    weighted = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.9, activity_weight=5.0),
+        _analysis("a2", Sentiment.NEGATIVE, confidence=0.9, activity_weight=0.1),
+    ]
+    uniform = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.9),
+        _analysis("a2", Sentiment.NEGATIVE, confidence=0.9),
+    ]
+    assert (
+        ScoringService.aggregate(weighted, _FORMULA_CFG).confidence_score
+        == ScoringService.aggregate(uniform, _FORMULA_CFG).confidence_score
+    )
+
+
+def test_activity_weight_uniform_is_identical_to_unweighted() -> None:
+    """Flag ON but every weight 1.0 ⇒ byte-identical to the flag-off score
+    (the parity guarantee at the uniform point)."""
+    analyses = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.9),
+        _analysis("a2", Sentiment.NEGATIVE, confidence=0.7),
+        _analysis("a3", Sentiment.NEUTRAL, confidence=0.5),
+    ]
+    assert (
+        ScoringService.aggregate(analyses, _ACTIVITY_ON).confidence_score
+        == ScoringService.aggregate(analyses, _FORMULA_CFG).confidence_score
+    )
+
+
+def test_activity_weight_nonuniform_shifts_mean_in_expected_direction() -> None:
+    """Flag ON: up-weighting the positive cohort raises the score; up-weighting
+    the negative cohort lowers it, relative to the uniform-weight baseline."""
+    uniform = [
+        _analysis("p", Sentiment.POSITIVE, confidence=0.9),
+        _analysis("n", Sentiment.NEGATIVE, confidence=0.9),
+    ]
+    upweight_pos = [
+        _analysis("p", Sentiment.POSITIVE, confidence=0.9, activity_weight=3.0),
+        _analysis("n", Sentiment.NEGATIVE, confidence=0.9, activity_weight=1.0),
+    ]
+    upweight_neg = [
+        _analysis("p", Sentiment.POSITIVE, confidence=0.9, activity_weight=1.0),
+        _analysis("n", Sentiment.NEGATIVE, confidence=0.9, activity_weight=3.0),
+    ]
+    base = ScoringService.aggregate(uniform, _ACTIVITY_ON).confidence_score
+    higher = ScoringService.aggregate(upweight_pos, _ACTIVITY_ON).confidence_score
+    lower = ScoringService.aggregate(upweight_neg, _ACTIVITY_ON).confidence_score
+    assert higher > base > lower
+
+
+def test_activity_weight_does_not_touch_weakness_signal() -> None:
+    """The weight scopes to the sentiment (confidence) term only — the weakness
+    any-flag share stays a headcount, so two runs that differ ONLY in
+    activity_weight share the same weakness surface."""
+    a = [
+        _analysis("a1", Sentiment.POSITIVE, ["wrong_cohort"], activity_weight=9.0),
+        _analysis("a2", Sentiment.POSITIVE, activity_weight=0.2),
+    ]
+    b = [
+        _analysis("a1", Sentiment.POSITIVE, ["wrong_cohort"]),
+        _analysis("a2", Sentiment.POSITIVE),
+    ]
+    ra = ScoringService.aggregate(a, _ACTIVITY_ON)
+    rb = ScoringService.aggregate(b, _ACTIVITY_ON)
+    assert [w.category for w in ra.weaknesses] == [w.category for w in rb.weaknesses]

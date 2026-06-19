@@ -767,15 +767,23 @@ class ScoringService:
             return 0.0, 0.5, 1.0
 
         # ── Sentiment: confidence-weighted mean with shrinkage toward 0.5 ──
+        # #5 (MiroFish-borrow): when use_activity_weight is set, each agent's
+        # contribution is additionally scaled by its data-derived cohort-activity
+        # weight. With the flag off, `aw` is 1.0 for every agent, so both branches
+        # below reduce EXACTLY to the historical formula (sum(1.0*x)==sum(x);
+        # sum(1.0 over n)==float(n)) — the parity snapshot is preserved.
+        def aw(a: AgentAnalysis) -> float:
+            return a.activity_weight if cfg.use_activity_weight else 1.0
+
         if cfg.use_sentiment_confidence:
             num = sum(
-                a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
+                aw(a) * a.sentiment.confidence * cls._SENTIMENT_VALUE[a.sentiment.sentiment]
                 for a in analyses
             )
-            denom = sum(a.sentiment.confidence for a in analyses)
+            denom = sum(aw(a) * a.sentiment.confidence for a in analyses)
         else:
-            num = sum(cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses)
-            denom = float(n)
+            num = sum(aw(a) * cls._SENTIMENT_VALUE[a.sentiment.sentiment] for a in analyses)
+            denom = sum(aw(a) for a in analyses)
         # Bayesian shrinkage: add prior_k pseudo-observations of neutral (0.5).
         num += cfg.sentiment_prior_k * 0.5
         denom += cfg.sentiment_prior_k

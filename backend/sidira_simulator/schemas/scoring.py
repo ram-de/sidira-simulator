@@ -77,6 +77,13 @@ class AgentAnalysis(BaseModel):
     """Per-persona draw index. Phase 4.6 #90 pairs treatment/control by
     (persona_id, sample_index); default 0 keeps single-arm callers
     backwards-compatible."""
+    activity_weight: float = Field(default=1.0, ge=0.0)
+    """#5 (MiroFish-borrow): how active/engaged this agent's cohort is, a
+    MEASURED population property derived from real persona data (never an
+    experimenter/LLM dial). Scales the agent's contribution to the sentiment
+    score in `_compute_score` ONLY when `ScoringConfig.use_activity_weight` is
+    set. Default 1.0 ⇒ uniform ⇒ byte-identical to the unweighted formula, so
+    runs without a derived weight (or with the flag off) are unaffected."""
 
 
 # ── Scoring configuration ─────────────────────────────────────────────
@@ -107,6 +114,16 @@ class ScoringConfig(BaseModel):
     use_sentiment_confidence: bool = Field(
         default=True,
         description="Weight each agent's sentiment by its classification confidence.",
+    )
+    use_activity_weight: bool = Field(
+        default=False,
+        description=(
+            "#5 (MiroFish-borrow): also scale each agent's sentiment contribution "
+            "by AgentAnalysis.activity_weight (a data-derived cohort-activity "
+            "weight). OFF by default — opt-in until calibrated against outcome "
+            "data. When off (or when every weight is 1.0) the score is "
+            "byte-identical to the unweighted formula."
+        ),
     )
     min_sample_size: int = Field(
         default=3,
