@@ -1,12 +1,12 @@
 ---
 type: session
-domain: ff-validation-game/mirofish-comparison
+domain: mirofish-comparison
 status: active
 started: 2026-06-19
 owner: ram-de
 ---
 
-# Session: ff-validation-game/mirofish-comparison — Sidira vs MiroFish two-council borrow analysis
+# Session: mirofish-comparison — Sidira vs MiroFish two-council borrow analysis
 
 ## Goal
 Run two independent councils (Council A = 4 Claude subagents across distinct expert lenses; Council B = Codex gpt-5.5 panel) comparing Sidira against MiroFish (github.com/666ghj/MiroFish), identify what Sidira can borrow (priority: frontend graph viz), assess each item's fit against existing Sidira code, and produce a written report. REPORT ONLY — no Sidira code changes this run.
@@ -29,8 +29,8 @@ Codex ranked "build the graph viewer" as #1 borrow (M). Claude frontend lens REJ
 2. (optional) /pythia-session close when founder has read it
 
 ## Key Files
-- Deliverable: sessions/ff-validation-game/mirofish-comparison/COMPARISON_REPORT.md
-- Raw codex panel: sessions/ff-validation-game/mirofish-comparison/codex_council.md
+- Deliverable: sessions/mirofish-comparison/COMPARISON_REPORT.md
+- Raw codex panel: sessions/mirofish-comparison/codex_council.md
 - MiroFish clone: /tmp/MiroFish (frontend/src/components/GraphPanel.vue, backend/app/services/*)
 - Sidira grounding: backend/sidira_simulator/services/{simulation_runner,agent_chat}.py, memory/agent_memory.py, schemas/agent.py, frontend/app/simulations/, DESIGN.md
 
