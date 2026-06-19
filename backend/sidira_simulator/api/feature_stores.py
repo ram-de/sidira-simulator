@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -376,8 +377,14 @@ async def extract_documents(
     and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
     502 if the upstream extraction LLM fails."""
     try:
-        rows = document_extractor.extract_feature_rows(
-            payload.documents, payload.extraction_schema
+        # Extraction is a synchronous loop of blocking chat_json calls (one per
+        # entity) — run it off the event loop so a slow/multi-doc request can't
+        # stall the worker (matches the asyncio.to_thread idiom used for the other
+        # sync chat-client calls in this codebase).
+        rows = await asyncio.to_thread(
+            document_extractor.extract_feature_rows,
+            payload.documents,
+            payload.extraction_schema,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
