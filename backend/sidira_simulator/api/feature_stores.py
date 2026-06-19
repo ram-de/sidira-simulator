@@ -362,6 +362,11 @@ _MAX_TOTAL_TEXT_CHARS = 2_000_000
 #: document to a conservative model-safe size (~50k tokens). Chunking large
 #: corpora per entity is a follow-up; for now an over-long doc is rejected.
 _MAX_DOCUMENT_CHARS = 200_000
+#: The schema is repeated in every per-document prompt and scaffolds every row,
+#: so an oversized schema inflates prompt size and cost even under the text caps.
+#: Bound the field count and the total schema text (names + descriptions).
+_MAX_SCHEMA_FIELDS = 100
+_MAX_SCHEMA_TEXT_CHARS = 20_000
 
 
 class ExtractDocumentsRequest(BaseModel):
@@ -389,6 +394,21 @@ async def extract_documents(
     and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
     502 if the upstream extraction LLM fails; 413 if the request exceeds the
     document-count / total-text guard rails."""
+    fields = payload.extraction_schema.fields
+    if len(fields) > _MAX_SCHEMA_FIELDS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"extraction schema has too many fields ({len(fields)}); max {_MAX_SCHEMA_FIELDS}",
+        )
+    schema_chars = sum(len(f.name) + len(f.description) for f in fields)
+    if schema_chars > _MAX_SCHEMA_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"extraction schema text too large ({schema_chars} chars); "
+                f"max {_MAX_SCHEMA_TEXT_CHARS} — it is repeated in every per-document prompt"
+            ),
+        )
     if len(payload.documents) > _MAX_DOCUMENTS:
         raise HTTPException(
             status_code=413,

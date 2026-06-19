@@ -105,6 +105,32 @@ def test_extract_documents_rejects_oversized_single_document(client):
     assert "per document" in detail and "'u1'" in detail
 
 
+def test_extract_documents_rejects_too_many_schema_fields(client):
+    """Guard rail: an oversized schema inflates every per-document prompt → 413."""
+    bad = {
+        **_PAYLOAD,
+        "extraction_schema": {
+            "fields": [{"name": f"f{i}", "type": "count"} for i in range(101)],
+        },
+    }
+    resp = client.post("/feature-stores/extract-documents", json=bad)
+    assert resp.status_code == 413
+    assert "too many fields" in resp.json()["detail"]
+
+
+def test_extract_documents_rejects_oversized_schema_text(client):
+    """Guard rail: long field descriptions sum over the schema-text cap → 413."""
+    bad = {
+        **_PAYLOAD,
+        "extraction_schema": {
+            "fields": [{"name": "f", "type": "count", "description": "x" * 20_001}],
+        },
+    }
+    resp = client.post("/feature-stores/extract-documents", json=bad)
+    assert resp.status_code == 413
+    assert "schema text too large" in resp.json()["detail"]
+
+
 def test_extract_documents_rejects_oversized_total_text(client):
     """Guard rail: many in-spec documents that SUM over the total cap → 413."""
     big = {
