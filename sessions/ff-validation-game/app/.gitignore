@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+
+# The SQLite DB and any exported CSVs are run artifacts — never commit them.
+# (player_outcomes.csv is the SEALED answer key; it must never live in git.)
+data/*.db
+data/*.db-*
+exports/
