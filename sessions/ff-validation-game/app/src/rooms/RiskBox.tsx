@@ -41,13 +41,28 @@ export function RiskBox({ playerId, onDone }: { playerId: string; onDone: () => 
     // variance) → higher EV-sensitivity & risk appetite. These are PRE-treatment.
     const evChase = chosen ? chosen.ev / 12.6 : 0; // normalized vs the boldest EV
     const riskAppetite = choiceId === 'bold' ? 1 : choiceId === 'mid' ? 0.6 : choiceId === 'safe' ? 0.15 : 0.3;
+    const snap = beat.snapshot();
+    // decision_speed: derived purely from the FIRST-TAP latency on this room —
+    // the player's spontaneous deliberation tempo before any treatment. Fast
+    // first tap → high decision_speed; a timeout (no tap) is the slowest signal.
+    // This is the RiskBox (no A/B, identical for everyone), so the score is
+    // pre-treatment and firewall-clean: it is shaped by NOTHING arm/outcome.
+    // Normalize against a 6s deliberation ceiling (well inside the 12s lock):
+    // ≤0s → 1.0, ≥6s (or no tap) → 0.0, linear in between.
+    const DECISION_SPEED_CEILING_MS = 6000;
+    const decisionSpeed =
+      snap.latencyMs == null
+        ? 0
+        : Math.max(0, Math.min(1, 1 - snap.latencyMs / DECISION_SPEED_CEILING_MS));
     void logEvent({
       playerId,
       beatId: 'risk_box',
       phase: 'profiling',
       choice: { choiceId, skipped },
-      ...beat.snapshot(),
+      ...snap,
       features: {
+        // decision_speed proxies spontaneous deliberation tempo (fast = decisive).
+        decision_speed: round(decisionSpeed),
         // deal_sensitivity here proxies EV-chasing; present_bias proxies the
         // "grab the sure thing now" reflex (low = patient/risk-tolerant).
         deal_sensitivity: round(evChase),
