@@ -34,7 +34,7 @@ import json
 import math
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from sidira_simulator.adapters.feature_stores import ColumnProfile
 from sidira_simulator.adapters.llm import ChatClient, JSONRepairError, get_chat_client
@@ -115,16 +115,36 @@ class EntityDocument(BaseModel):
     text: str = ""
 
 
-# ── internal LLM-response schema (flat, one entry per field) ─────────────────
+# ── internal LLM-response schema ─────────────────────────────────────────────
+#
+# chat_json does NOT enforce the schema provider-side — it free-generates text
+# then validates. So we must accept the shape a model NATURALLY produces: a flat
+# JSON object mapping each field name to its value, ``{"orders_count": 12, ...}``.
+# A RootModel over a free dict captures that without silently discarding keys (a
+# fixed BaseModel would drop everything into ignored extras and return all-null).
 
 
-class _RawValue(BaseModel):
-    name: str
-    value: Any = None
+class _RawExtraction(RootModel[dict[str, Any]]):
+    root: dict[str, Any] = Field(default_factory=dict)
 
 
-class _RawExtraction(BaseModel):
-    values: list[_RawValue] = Field(default_factory=list)
+def _iter_extracted(raw: dict[str, Any], allowed: dict[str, str]) -> dict[str, Any]:
+    """Pull {field: value} from the model's object, tolerant of two shapes.
+
+    Primary (what the prompt asks for): a flat object ``{field_name: value}``.
+    Fallback: the older ``{"values": [{"name", "value"}, ...]}`` list shape, in
+    case a model wraps the output. Either way, only fields in ``allowed`` survive.
+    """
+    vals = raw.get("values")
+    if (
+        isinstance(vals, list)
+        and vals
+        and all(isinstance(x, dict) and "name" in x for x in vals)
+    ):
+        return {
+            x["name"]: x.get("value") for x in vals if x.get("name") in allowed
+        }
+    return {k: v for k, v in raw.items() if k in allowed}
 
 
 _SYSTEM = """You extract structured features from a user's documents into a FIXED
@@ -132,8 +152,10 @@ schema. You are given a numbered list of fields; for EACH field return its value
 strictly from evidence in the documents.
 
 Hard rules:
-- Only return the listed fields. Do not invent fields.
-- If a field is not supported by the documents, return null for it. NEVER guess,
+- Return a SINGLE JSON object that maps each field name to its value, e.g.
+  {"orders_count": 12, "nps": 8, "is_churned": false}.
+- Only return the listed field names as keys. Do not invent fields.
+- If a field is not supported by the documents, set it to null. NEVER guess,
   infer beyond the text, or fill a plausible default — absence must be null.
 - count: a non-negative integer/number of occurrences.
 - score: a numeric rating/level evidenced in the text.
@@ -143,7 +165,7 @@ Hard rules:
 - json_ratios / json_counts: a flat JSON object of {label: number}.
 - tenure_days: a number of days.
 
-Return strict JSON matching the schema — no prose, no markdown fences."""
+Return ONLY the JSON object — no prose, no markdown fences."""
 
 
 def _coerce(value: Any, mtype: str) -> Any:
@@ -268,13 +290,10 @@ def extract_feature_rows(
                     f"extraction LLM call failed for entity {entity.entity_id!r}: {exc}"
                 ) from exc
 
-            # Iterate the MODEL's output but write only into allowed fields, so an
-            # invented field is dropped and the row stays closed to the schema.
-            for item in raw.values:
-                mtype = allowed.get(item.name)
-                if mtype is None:
-                    continue
-                row[item.name] = _coerce(item.value, mtype)
+            # Read only allowed fields from the model's output, so an invented
+            # field is dropped and the row stays closed to the schema.
+            for name, value in _iter_extracted(raw.root, allowed).items():
+                row[name] = _coerce(value, allowed[name])
 
         rows.append(row)
 

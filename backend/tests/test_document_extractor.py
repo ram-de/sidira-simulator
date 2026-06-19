@@ -17,6 +17,7 @@ from sidira_simulator.services.document_extractor import (
     EntityDocument,
     ExtractionField,
     ExtractionSchema,
+    _RawExtraction,
     extract_feature_rows,
     profile_feature_rows,
 )
@@ -44,7 +45,9 @@ class _StubLLM:
         m = re.search(r"Documents for entity (\S+):", content)
         eid = m.group(1) if m else ""
         vals = self.responses.get(eid, [])
-        return schema(values=[{"name": n, "value": v} for n, v in vals])
+        # Natural field-keyed object shape — what a real model produces and what
+        # the prompt asks for: {"orders_count": 12, ...}.
+        return schema({n: v for n, v in vals})
 
 
 def _schema() -> ExtractionSchema:
@@ -104,6 +107,50 @@ def test_all_rows_share_identical_key_set() -> None:
         llm,
     )
     assert set(rows[0]) == set(rows[1])  # run_query shape: uniform columns
+
+
+# ── model output shape robustness (P1: silent all-null) ──────────────────
+
+
+def test_field_keyed_model_output_is_parsed_not_dropped() -> None:
+    """Regression: chat_json does no provider-side schema enforcement, so the
+    model returns the NATURAL object shape {field: value}. That must populate the
+    row — earlier a fixed `values`-list schema validated it to values=[] and
+    silently returned every field null with a 200."""
+
+    class _RawObjectLLM:
+        """Returns the raw field-keyed object exactly as a real model would."""
+
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            return schema({"orders_count": 12, "nps": 8, "invented": "drop me"})
+
+    row = extract_feature_rows(
+        [EntityDocument(entity_id="u1", text="x")], _schema(), _RawObjectLLM()
+    )[0]
+    assert row["orders_count"] == 12.0
+    assert row["nps"] == 8.0
+    assert "invented" not in row  # still closed to the schema
+
+
+def test_values_list_shape_still_tolerated() -> None:
+    """A model that wraps output in the older {"values":[{name,value}]} shape is
+    still parsed (back-compat fallback)."""
+
+    class _ListShapeLLM:
+        def chat_json(self, messages, schema, max_tokens=4096, temperature=0.0, seed=None):
+            return schema({"values": [{"name": "orders_count", "value": 5}]})
+
+    row = extract_feature_rows(
+        [EntityDocument(entity_id="u1", text="x")], _schema(), _ListShapeLLM()
+    )[0]
+    assert row["orders_count"] == 5.0
+
+
+def test_raw_extraction_accepts_arbitrary_object() -> None:
+    """The internal LLM schema keeps every returned key (RootModel), rather than
+    discarding unknown keys into ignored extras."""
+    parsed = _RawExtraction.model_validate({"a": 1, "b": "x"})
+    assert parsed.root == {"a": 1, "b": "x"}
 
 
 # ── absence never fabricated ─────────────────────────────────────────────
