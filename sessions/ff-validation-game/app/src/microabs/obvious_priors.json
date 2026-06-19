@@ -1,7 +1,7 @@
 {
-  "_README": "PROPOSED obvious-prior labels for the micro-A/B battery, pending independent confirmation in #442. Each entry records which arm a naive 'more-is-better / obvious' observer would predict WINS on the item's binary outcome. These are the author's PROPOSED labels ONLY and MUST NOT be treated as final: per FF_GAME_DESIGN.md the obvious-prior is set by a NON-AUTHOR before sealing, and a different person audits these in #442. Do not seal a run against this file as-is.",
-  "_status": "PROPOSED — pending independent confirmation in #442 (non-author audit before sealing)",
-  "_outcome_semantics": "obvious_prior_arm = the arm the obvious observer expects to produce MORE outcome=1. counter_intuitive=true means we (the authors) bet the OTHER arm wins.",
+  "_README": "Obvious-prior labels for the micro-A/B battery. Independently audited in #442 by a non-author reviewer (see obvious_priors_AUDIT.md for full reasoning). Per FF_GAME_DESIGN.md the obvious-prior is set/confirmed by a NON-AUTHOR before sealing; these labels are now AUDITED and may be sealed against. Items the auditor changed carry a `revised_from`.",
+  "_status": "AUDITED by independent reviewer (#442)",
+  "_outcome_semantics": "obvious_prior_arm = the arm the obvious observer expects to produce MORE outcome=1. counter_intuitive=true means the OTHER arm is bet to win (the obvious answer is plausibly wrong).",
   "items": [
     {
       "task_id": "choice_overload",
@@ -10,7 +10,8 @@
       "obvious_prior_arm": "opts:24",
       "obvious_prior_rationale": "more options reads as more value/engagement → higher claim rate",
       "counter_intuitive": true,
-      "author_bet_arm": "opts:3"
+      "author_bet_arm": "opts:3",
+      "audited": true
     },
     {
       "task_id": "countdown_urgency",
@@ -20,16 +21,24 @@
       "obvious_prior_rationale": "scarcity + countdown is the classic conversion lever → higher lock-in",
       "counter_intuitive": true,
       "author_bet_arm": "framing:calm",
-      "design": "BETWEEN-subject headline arm"
+      "design": "BETWEEN-subject headline arm",
+      "audited": true,
+      "audit_note": "Counter-intuitive ONLY for the F&F 'I know I'm being sold to' audience; evidentiary value depends on the engine modeling reactance, not generic scarcity-wins."
     },
     {
       "task_id": "default_stickiness",
       "arms": ["stickiness:default", "stickiness:framing"],
       "outcome": "1 = stayed locked in (kept the safe choice), 0 = opted out",
-      "obvious_prior_arm": "stickiness:framing",
-      "obvious_prior_rationale": "a persuasive, gain-framed prospect-theory pitch reads as more motivating than a quiet pre-checked box",
-      "counter_intuitive": true,
-      "author_bet_arm": "stickiness:default"
+      "obvious_prior_arm": "stickiness:default",
+      "obvious_prior_rationale": "for a STAY-LOCKED-IN/inertia outcome, the obvious observer backs the arm that pre-checks the safe box and adds 'most players lock in' social proof — pre-checked default + bandwagon is itself a textbook obvious conversion move, more so than a wordy gain-frame paragraph",
+      "counter_intuitive": false,
+      "author_bet_arm": "stickiness:default",
+      "audited": true,
+      "revised_from": {
+        "obvious_prior_arm": "stickiness:framing",
+        "counter_intuitive": true,
+        "reason": "REVISED in #442. The author's own bet is that DEFAULT wins; once the obvious prior is correctly assigned to 'stickiness:default' (a smart naive observer favors the pre-checked, socially-proofed default for an inertia outcome over a prospect-theory paragraph), the engine's bet and the obvious prior COINCIDE → not counter-intuitive. This is a legitimate but OBVIOUS item; it carries no counter-intuitive evidentiary weight and must NOT be the item that satisfies the 'right on >=1 item where the obvious prior is wrong' GO rule."
+      }
     },
     {
       "task_id": "prosocial_backfire",
@@ -38,7 +47,8 @@
       "obvious_prior_arm": "prosocial:polished",
       "obvious_prior_rationale": "a vivid 'your impact compounds' story should lift generosity vs a bare screen",
       "counter_intuitive": true,
-      "author_bet_arm": "prosocial:sparse"
+      "author_bet_arm": "prosocial:sparse",
+      "audited": true
     },
     {
       "task_id": "effort_justification",
@@ -47,13 +57,35 @@
       "obvious_prior_arm": "effort:one_tap",
       "obvious_prior_rationale": "removing friction (one tap) is the standard conversion reflex → more commitment",
       "counter_intuitive": true,
-      "author_bet_arm": "effort:effort"
+      "author_bet_arm": "effort:effort",
+      "audited": true
     }
   ],
   "_summary": {
     "K": 5,
-    "counter_intuitive_count": 5,
-    "counter_intuitive_fraction": 1.0,
-    "note": "K=5 meets the sealed-win bar (5/5 -> p=0.03). All 5 are PROPOSED as counter-intuitive (>= half required); #442 must independently confirm each obvious_prior_arm and counter_intuitive flag before sealing."
+    "counter_intuitive_count": 4,
+    "counter_intuitive_fraction": 0.8,
+    "note": "AUDITED (#442). K=5 meets K>=5; 4/5 (0.80) confirmed counter-intuitive meets >=half. default_stickiness was REVISED to NOT counter-intuitive (obvious prior corrected to stickiness:default). The other 4 are confirmed counter-intuitive.",
+    "revised_count": 1,
+    "confirmed_count": 4
+  },
+  "audit_verdict": {
+    "ticket": "#442",
+    "auditor": "independent reviewer (non-author)",
+    "leakage_clean": true,
+    "bad_pairs": [],
+    "leakage_note": "All feature->outcome pairs are upstream-trait->outcome (GOOD). Borderline TrustGame(trust/reciprocity)->prosocial giving scrutinized and cleared (distinct construct/mechanic, not an outcome transcription). All features pre-treatment (phase-gated + arm-identical screens). No arm/outcome/post-treatment column in player_features (static-schema + dual-regex check). Two-table firewall and both code guards intact.",
+    "K": 5,
+    "counter_intuitive_count": 4,
+    "counter_intuitive_fraction": 0.8,
+    "meets_K_ge_5": true,
+    "meets_half_counter_intuitive": true,
+    "overall": "PASS",
+    "conditions": [
+      "default_stickiness carries NO counter-intuitive evidentiary weight; the GO rule's 'right on >=1 item where the obvious prior is wrong' must be satisfied by one of {choice_overload, countdown_urgency, prosocial_backfire, effort_justification}.",
+      "countdown_urgency is counter-intuitive only for the F&F-reactance audience.",
+      "Non-blocking tidy-up: decision_speed is an always-NULL declared column in player_features."
+    ],
+    "see": "obvious_priors_AUDIT.md"
   }
 }
