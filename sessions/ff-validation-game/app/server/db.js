@@ -25,13 +25,25 @@ import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.resolve(__dirname, '..', 'data');
-const DB_PATH = process.env.FF_DB_PATH || path.join(DATA_DIR, 'ff.db');
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
+// SQLite path is configurable via FF_DB_PATH so prod can point at a durable
+// mount (e.g. an EBS volume at /data/ff.db) while local dev keeps using the
+// repo-local data/ff.db. We create the *parent directory* of the resolved path
+// so an absolute prod path like /data/ff.db works without extra setup.
+const DEFAULT_DB_PATH = path.resolve(__dirname, '..', 'data', 'ff.db');
+const DB_PATH = process.env.FF_DB_PATH
+  ? path.resolve(process.env.FF_DB_PATH)
+  : DEFAULT_DB_PATH;
+
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
+// WAL: concurrent reads (e.g. the read-only export) don't block the single
+// writer, and writes are durable across a process restart. NORMAL synchronous
+// is the recommended pairing with WAL — safe across app crashes; the periodic
+// + shutdown checkpoint below folds the WAL back into the main DB file.
 db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
 db.pragma('foreign_keys = ON');
 
 db.exec(`
@@ -110,6 +122,26 @@ db.exec(`
   -- micro-A/B beats are the provenance for Table B. Kept raw + append-only
   -- so the feature derivation is auditable and re-runnable.
   -- ----------------------------------------------------------------------
+  -- ----------------------------------------------------------------------
+  -- TABLE C — payout_contacts (PII ISOLATION TABLE — currently a STUB).
+  -- If a payout contact (email / UPI / phone) is EVER collected for a F&F
+  -- reward, it MUST land HERE and ONLY here — physically separate from
+  -- player_features (Table A) and player_outcomes (Table B).
+  --
+  --   * It MUST NEVER be joined into a feature export. scripts/export_features.js
+  --     reads Table A and Table B only — it does NOT and MUST NOT read this table.
+  --   * It is keyed by player_id but holds zero behavioral / outcome signal.
+  --   * We do NOT collect any of this yet; the table exists so the separation
+  --     is structural the day a payout flow is added, not bolted on later.
+  -- ----------------------------------------------------------------------
+  CREATE TABLE IF NOT EXISTS payout_contacts (
+    player_id   TEXT PRIMARY KEY,
+    contact     TEXT,    -- email / UPI handle / phone — PII. NEVER exported.
+    method      TEXT,    -- 'email' | 'upi' | 'phone'
+    created_at  TEXT
+    -- INTENTIONALLY ABSENT: any feature, score, arm, or outcome field.
+  );
+
   CREATE TABLE IF NOT EXISTS events (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     player_id        TEXT NOT NULL,
@@ -303,4 +335,21 @@ export function derivePassiveFeatures(playerId) {
   });
 }
 
+// ----------------------------------------------------------------------------
+// Durability helpers for graceful shutdown.
+// checkpointAndClose() folds the WAL back into the main DB file (TRUNCATE
+// checkpoint) and closes the handle, so a restart loses no committed writes and
+// leaves no dangling -wal/-shm. Called from the SIGTERM/SIGINT handler.
+// ----------------------------------------------------------------------------
+export function checkpointAndClose() {
+  if (!db.open) return;
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+  } catch (err) {
+    console.error('wal_checkpoint failed during shutdown:', err);
+  }
+  db.close();
+}
+
+export { DB_PATH };
 export default db;
