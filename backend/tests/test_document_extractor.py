@@ -229,6 +229,33 @@ def test_llm_failure_raises_extraction_error() -> None:
         extract_feature_rows([EntityDocument(entity_id="u1", text="x")], schema, llm)
 
 
+def test_client_construction_failure_is_wrapped(monkeypatch) -> None:
+    """No provider key ⇒ get_chat_client() raises; surface it as the documented
+    DocumentExtractionError (→ 502), not an uncaught error (→ 500)."""
+    import sidira_simulator.services.document_extractor as de
+
+    def _boom():
+        raise RuntimeError("no LLM provider configured")
+
+    monkeypatch.setattr(de, "get_chat_client", _boom)
+    with pytest.raises(DocumentExtractionError, match="could not construct extraction LLM client"):
+        extract_feature_rows([EntityDocument(entity_id="u1", text="x")], _schema(), llm=None)
+
+
+def test_all_empty_docs_never_construct_client(monkeypatch) -> None:
+    """Lazy construction: when no document has text, no client is built — so a
+    no-key environment still returns clean all-null rows instead of failing."""
+    import sidira_simulator.services.document_extractor as de
+
+    def _boom():
+        raise AssertionError("client must not be constructed when there is no text")
+
+    monkeypatch.setattr(de, "get_chat_client", _boom)
+    rows = extract_feature_rows([EntityDocument(entity_id="u1", text="  ")], _schema(), llm=None)
+    assert rows[0]["entity_id"] == "u1"
+    assert all(rows[0][f] is None for f in rows[0] if f != "entity_id")
+
+
 # ── profiling into the Snowflake-preview shape ───────────────────────────
 
 

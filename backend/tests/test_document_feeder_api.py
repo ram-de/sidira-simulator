@@ -78,3 +78,26 @@ def test_extract_documents_rejects_bad_schema(client):
     resp = client.post("/feature-stores/extract-documents", json=bad)
     assert resp.status_code == 400
     assert "unknown type" in resp.json()["detail"]
+
+
+def test_extract_documents_rejects_too_many_documents(client):
+    """Guard rail: an unbounded document count fans out into unbounded LLM calls
+    → 413 before the extractor is ever invoked."""
+    huge = {
+        **_PAYLOAD,
+        "documents": [{"entity_id": f"u{i}", "text": "x"} for i in range(501)],
+    }
+    resp = client.post("/feature-stores/extract-documents", json=huge)
+    assert resp.status_code == 413
+    assert "too many documents" in resp.json()["detail"]
+
+
+def test_extract_documents_rejects_oversized_text(client):
+    """Guard rail: total text over the cap → 413."""
+    big = {
+        **_PAYLOAD,
+        "documents": [{"entity_id": "u1", "text": "x" * 2_000_001}],
+    }
+    resp = client.post("/feature-stores/extract-documents", json=big)
+    assert resp.status_code == 413
+    assert "too large" in resp.json()["detail"]

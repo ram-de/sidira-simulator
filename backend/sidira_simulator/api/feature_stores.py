@@ -352,6 +352,13 @@ async def suggest_mapping(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+#: Guard rails on a single extract-documents request: extraction fans out into
+#: one blocking LLM call per non-empty document, so an unbounded upload would tie
+#: up the threadpool and run up provider cost. Reject oversized requests up front.
+_MAX_DOCUMENTS = 500
+_MAX_TOTAL_TEXT_CHARS = 2_000_000
+
+
 class ExtractDocumentsRequest(BaseModel):
     documents: list[EntityDocument]
     extraction_schema: ExtractionSchema
@@ -375,7 +382,19 @@ async def extract_documents(
     Connection-agnostic (like suggest-mapping); the documents ARE the source.
     The extraction is closed to ``extraction_schema`` (no model-invented columns)
     and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
-    502 if the upstream extraction LLM fails."""
+    502 if the upstream extraction LLM fails; 413 if the request exceeds the
+    document-count / total-text guard rails."""
+    if len(payload.documents) > _MAX_DOCUMENTS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"too many documents ({len(payload.documents)}); max {_MAX_DOCUMENTS}",
+        )
+    total_chars = sum(len(d.text) for d in payload.documents)
+    if total_chars > _MAX_TOTAL_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"document text too large ({total_chars} chars); max {_MAX_TOTAL_TEXT_CHARS}",
+        )
     try:
         # Extraction is a synchronous loop of blocking chat_json calls (one per
         # entity) — run it off the event loop so a slow/multi-doc request can't

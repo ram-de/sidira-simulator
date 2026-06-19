@@ -226,7 +226,11 @@ def extract_feature_rows(
     if not entities:
         return []
 
-    client = llm or get_chat_client()
+    # Construct the client lazily on first real use: a run where every document
+    # is empty makes no calls and must not fail just because no provider key is
+    # set, and a construction/provider-selection failure surfaces as the
+    # documented DocumentExtractionError (502) rather than an uncaught 500.
+    client = llm
     allowed = {f.name: f.type for f in schema.fields}
     rows: list[dict[str, Any]] = []
 
@@ -237,6 +241,13 @@ def extract_feature_rows(
             row[f.name] = None
 
         if entity.text.strip():
+            if client is None:
+                try:
+                    client = get_chat_client()
+                except Exception as exc:  # missing key / provider-selection failure
+                    raise DocumentExtractionError(
+                        f"could not construct extraction LLM client: {exc}"
+                    ) from exc
             user_prompt = _build_user_prompt(entity, schema)
             try:
                 raw = client.chat_json(
