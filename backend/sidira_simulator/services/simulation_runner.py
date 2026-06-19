@@ -1047,7 +1047,7 @@ class SimulationRunner:
                 return_exceptions=False,
             )
             no_persona_result, lift = aggregate_persona_lift(
-                analyses, np_analyses, run_seed=run_seed
+                analyses, np_analyses, config=scoring_cfg, run_seed=run_seed
             )
             result = result.model_copy(
                 update={
@@ -1122,7 +1122,7 @@ class SimulationRunner:
                 return_exceptions=False,
             )
             current_state_result, delta = aggregate_current_state_delta(
-                analyses, cs_analyses, run_seed=run_seed
+                analyses, cs_analyses, config=scoring_cfg, run_seed=run_seed
             )
             result = result.model_copy(
                 update={
