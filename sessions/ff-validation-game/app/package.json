@@ -1,0 +1,27 @@
+{
+  "name": "ff-validation-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Friends-&-Family validation game — a blinded, server-randomized A/B harness disguised as a social economic-decision game. Profiles players (pre-treatment) and runs counter-intuitive micro-A/Bs with real behavioral outcomes, behind a two-table leakage firewall.",
+  "scripts": {
+    "dev": "node server/index.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production node server/index.js",
+    "export:features": "node scripts/export_features.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.3.5"
+  }
+}
