@@ -325,6 +325,59 @@ class AgentAnalysisSummary(BaseModel):
     )
 
 
+class EvidenceNode(BaseModel):
+    """One node in the evidence/provenance graph (#1 MiroFish-borrow).
+
+    Grounded in REAL run data only — the personas that reacted, the weaknesses
+    that were diagnosed, and the verdict itself. There are NO manufactured
+    similarity nodes/edges (DESIGN.md §10: every mark bound to backend data).
+    """
+
+    id: str
+    label: str
+    kind: Literal["verdict", "persona", "weakness"]
+    detail: str | None = None
+
+
+class EvidenceEdge(BaseModel):
+    """A typed, provenance-carrying link from a node to the verdict.
+
+    `relation` makes prior-echo inspectable: a positive verdict resting only on
+    `supports_change` edges with no `contradicts_change` is visibly thin — the
+    UI surfaces counter-evidence next to the headline. `confidence` is 0..1
+    (mean classifier confidence for personas; weakness frequency for weaknesses).
+    `provenance` lists the agent_ids backing the edge for click-through.
+    """
+
+    source: str
+    target: str
+    relation: Literal[
+        "supports_change",
+        "contradicts_change",
+        "guardrail_risk",
+        "weak_or_inferred",
+    ]
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    provenance: list[str] = Field(default_factory=list)
+    detail: str | None = None
+
+
+class EvidenceGraph(BaseModel):
+    """Provenance graph attached to a SimulationResult (#1 MiroFish-borrow).
+
+    Purely DESCRIPTIVE — built from the same per-agent analyses + weaknesses the
+    scorer already computed; it NEVER discounts confidence_score (panel hard
+    constraint, mirrors `instrument_scope` / `input_flags`). Optional +
+    default-empty so older `result_json` rows load byte-identical (rides the JSON
+    blob, NOT a DB column — migration-free). Its job is to make the evidence
+    behind a verdict — especially the counter-evidence — inspectable, which is
+    Sidira's defense against the 'more-is-better' prior-echo bias.
+    """
+
+    nodes: list[EvidenceNode] = Field(default_factory=list)
+    edges: list[EvidenceEdge] = Field(default_factory=list)
+
+
 class SimulationResult(BaseModel):
     confidence_score: float = Field(ge=0, le=100)
     confidence_score_ci: tuple[float, float] | None = None
@@ -378,6 +431,14 @@ class SimulationResult(BaseModel):
     lift_unpaired_treatment: int = 0
     lift_unpaired_control: int = 0
     lift_sentiment_failure_drops: int = 0
+
+    # ── Evidence/provenance graph (#1 MiroFish-borrow) ──
+    # Descriptive carrier built from the same analyses + weaknesses the scorer
+    # already computed; it NEVER touches confidence_score (panel hard constraint,
+    # mirrors instrument_scope / input_flags). None when unbuilt and on every
+    # older result_json row, so loads stay byte-identical and this is
+    # migration-free (rides the result JSON blob, NOT a DB column).
+    evidence_graph: EvidenceGraph | None = None
 
     # ── Persona-lift baseline fields (#221 §4.1) ──
     # Populated only when the run requested `include_no_persona_control`.
