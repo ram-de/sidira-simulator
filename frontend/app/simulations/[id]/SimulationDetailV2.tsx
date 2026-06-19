@@ -242,13 +242,29 @@ const RCONSOLE_CSS = `
 .rconsole .glyph-hollow{color:var(--spread-dim);}
 .rconsole .unc{color:var(--text-mut);}
 
-/* full-bleed wrapper: pull out of the .v2-appmain section padding so the field
-   spans the console main edge-to-edge; the centered body column re-pads. */
-.rconsole .fullbleed{
-  margin-left:calc(-1 * var(--space-section,48px));
-  margin-right:calc(-1 * var(--space-section,48px));
-  margin-top:calc(-1 * var(--space-section,48px));
-}
+/* Contained field hero (matches the mock's centered 1320px column). It used to
+   be full-bleed (edge-to-edge negative margins), which bled the agreement
+   readout past the viewport edges — clipping "82.2" and the reaction split — and
+   spread the reaction clusters into unreadable edge-sticks. Now the canvas, the
+   axis caption, and the verdict band live in one framed panel; nothing clips. */
+.rconsole .fieldhero{max-width:1320px; margin:0 auto;
+  border:1px solid var(--console-line); border-radius:var(--r-frame);
+  overflow:hidden; box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+/* x-axis caption under the field: names the poles + explains the green mean line.
+   Mono, muted; the pole words pick up the arm colors. No own border — it sits
+   between the canvas's border-bottom and the verdict band's border-top. */
+.rconsole .field-axis{display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:9px 24px; font-family:var(--font-mono); font-size:10.5px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut);
+  background:rgba(11,18,32,.4);}
+.rconsole .field-axis .rej{color:var(--arm-control);}
+.rconsole .field-axis .adt{color:var(--arm-treat);}
+.rconsole .field-axis .mid{letter-spacing:.03em;}
+.rconsole .field-axis .mid .gl{color:var(--signal);}
+/* the green mean line's floating caption, positioned at the mean x over the field */
+.rconsole .mean-label{position:absolute; top:13%; transform:translateX(-50%);
+  pointer-events:none; z-index:2; font-family:var(--font-mono); font-size:9.5px;
+  font-weight:500; letter-spacing:.14em; color:var(--signal); white-space:nowrap;}
 .rconsole .bodywrap{max-width:1320px; margin:0 auto; padding:48px 0 96px;}
 
 /* population field */
@@ -343,9 +359,23 @@ const RCONSOLE_CSS = `
 .rconsole .lineage .rule{width:30px; height:1px; background:var(--console-line);}
 .rconsole .lineage .on{color:var(--text);}
 .rconsole .lineage .off{color:var(--text-mut);}
-.rconsole h1.htitle{font-weight:600; font-size:32px; line-height:1.08;
-  letter-spacing:-.025em; color:var(--text-hi); margin:0 0 12px;
+.rconsole h1.htitle{font-family:var(--font-sans); font-weight:600; font-size:32px;
+  line-height:1.08; letter-spacing:-.025em; color:var(--text-hi); margin:0 0 12px;
   text-wrap:balance; max-width:36ch;}
+/* Parsed hypothesis claim — a sans headline + labeled Treatment/Control/Predict
+   rows (the raw prose is one long run-on; the console base font is mono, which
+   turned it into an unreadable wall). Sans for the prose, mono only for labels. */
+.rconsole .hclaim{margin:0 0 14px;}
+.rconsole .hclaim-lead{font-family:var(--font-sans); font-weight:600; font-size:27px;
+  line-height:1.16; letter-spacing:-.02em; color:var(--text-hi);
+  text-wrap:balance; max-width:42ch; margin-bottom:16px;}
+.rconsole .hclaim-row{display:grid; grid-template-columns:104px 1fr; gap:16px;
+  padding:11px 0; border-top:1px solid var(--console-line); align-items:baseline;}
+.rconsole .hclaim-row .hk{font-family:var(--font-mono); font-size:10px; font-weight:500;
+  letter-spacing:.12em; color:var(--text-mut); padding-top:3px;}
+.rconsole .hclaim-row .hv{font-family:var(--font-sans); font-size:15px;
+  line-height:1.55; color:var(--text); max-width:72ch;}
+.rconsole .hclaim-predict .hv{color:var(--text-hi); font-weight:500;}
 .rconsole .verdicttag-row{display:flex; align-items:center; gap:10px;
   flex-wrap:wrap; margin-bottom:12px;}
 .rconsole .vchip{font-size:11px; letter-spacing:.05em; text-transform:uppercase;
@@ -650,20 +680,6 @@ const RCONSOLE_CSS = `
   .rconsole .field-verdict{position:static; padding:24px;}
   .rconsole #rc-field{height:320px;}
 }
-@media (max-width:640px){
-  .rconsole .fullbleed{
-    margin-left:calc(-1 * var(--space-room,24px));
-    margin-right:calc(-1 * var(--space-room,24px));
-    margin-top:calc(-1 * var(--space-room,24px));
-  }
-}
-@media (max-width:1024px){
-  .rconsole .fullbleed{
-    margin-left:calc(-1 * var(--space-room,24px));
-    margin-right:calc(-1 * var(--space-room,24px));
-    margin-top:calc(-1 * var(--space-room,24px));
-  }
-}
 @media (prefers-reduced-motion:reduce){
   .rconsole *{animation:none!important;}
 }
@@ -759,6 +775,42 @@ function buildFieldModel(sim: Simulation, result: SimulationResult): FieldModel 
 
   const ch = ciHalf(result.confidence_score_ci);
   return { agents, mean, ciHalf: ch != null ? ch / 100 : null, armKnown };
+}
+
+// Parse the composed hypothesis prose into labeled blocks. The wizard composes
+// "If {change}, then {outcome}." (composeClaimProse), and {change} sometimes
+// carries user-written "Treatment: … Control: …" framing. We split on those
+// stable markers; anything that doesn't match returns null so the caller renders
+// the raw prose verbatim (never lose or mangle the author's words).
+type ClaimParts = {
+  lead: string;
+  treatment: string | null;
+  control: string | null;
+  outcome: string | null;
+};
+function parseClaim(proseRaw: string): ClaimParts | null {
+  const prose = (proseRaw ?? "").trim();
+  // "If <change>, then <outcome>." — case-insensitive, optional trailing period;
+  // greedy change so the LAST ", then" splits off the predicted outcome.
+  const m = prose.match(/^if\s+([\s\S]+),\s*then\s+([\s\S]+?)\.?\s*$/i);
+  if (!m) return null;
+  let change = m[1].trim();
+  const outcome = m[2].trim();
+  let treatment: string | null = null;
+  let control: string | null = null;
+  // Optional "Treatment: … Control: …" framing the author put in the change.
+  const tc = change.match(
+    /^([\s\S]*?)\|?\s*treatment:\s*([\s\S]+?)\s*control:\s*([\s\S]+)$/i,
+  );
+  if (tc) {
+    // The lead is whatever preceded the Treatment marker — it may be empty when
+    // the author wrote straight into "Treatment: … Control: …". In that case
+    // the caller omits the headline (no redundant duplicate of the rows).
+    change = tc[1].replace(/[.\s|]+$/, "").trim();
+    treatment = tc[2].replace(/[.\s]+$/, "").trim();
+    control = tc[3].replace(/[.\s]+$/, "").trim();
+  }
+  return { lead: change, treatment, control, outcome };
 }
 
 function PopulationField({
@@ -980,6 +1032,15 @@ function PopulationField({
     <section className="fieldwrap" aria-label="Population reaction field">
       <canvas id="rc-field" ref={canvasRef} width={2640} height={880} />
       <div className="field-vignette" />
+      {/* Floating caption naming the green vertical line (the population mean
+          reaction). Positioned at the same x the canvas draws the line:
+          padX (7% of width) + mean × plotW (86% of width). */}
+      <div
+        className="mean-label"
+        style={{ left: `${((0.07 + model.mean * 0.86) * 100).toFixed(1)}%` }}
+      >
+        MEAN
+      </div>
       <div className="field-legend">
         <span className="hi">CH1</span>
         <span className="sep">·</span>
@@ -1285,6 +1346,9 @@ export default function SimulationDetailV2() {
   const model = modelDisplay(sim.model_id ?? null);
 
   const hypothesis: Hypothesis = sim.hypothesis;
+  // Parse the composed prose into labeled blocks for legible display (null when
+  // it doesn't match the canonical shape → caller falls back to raw prose).
+  const claim = parseClaim(hypothesis.prose);
   const treatFrac = sim.arm_split?.treatment_fraction ?? null;
   const isAB = treatFrac != null;
 
@@ -1357,8 +1421,8 @@ export default function SimulationDetailV2() {
           </div>
         )}
 
-        {/* ════ FULL-BLEED POPULATION FIELD HERO + VERDICT OVERLAY ════ */}
-        <div className="fullbleed">
+        {/* ════ CONTAINED POPULATION FIELD HERO + VERDICT READOUT ════ */}
+        <div className="fieldhero">
           {completeResult != null && fieldModel != null ? (
             <>
               <PopulationField
@@ -1371,9 +1435,21 @@ export default function SimulationDetailV2() {
                       : "A/B · ARM POOLED"
                 }
               />
+              {/* x-axis caption: what left/right mean + what the green line is */}
+              <div className="field-axis">
+                <span className="rej">◀ rejects</span>
+                <span className="mid">
+                  position = sentiment · <span className="gl">green</span> ={" "}
+                  population mean
+                </span>
+                <span className="adt">adopts ▶</span>
+              </div>
               <div
                 className="fieldwrap"
-                style={{ borderTop: "none", paddingBottom: 0 }}
+                style={{
+                  borderTop: "1px solid var(--console-line)",
+                  paddingBottom: 0,
+                }}
               >
                 <div
                   className="field-verdict"
@@ -1549,7 +1625,33 @@ export default function SimulationDetailV2() {
                 <span className="off">· NO LIVE OUTCOMES IN THIS LINEAGE</span>
               </div>
 
-              <h1 className="htitle">{hypothesis.prose}</h1>
+              {claim ? (
+                <div className="hclaim">
+                  {claim.lead ? (
+                    <h1 className="hclaim-lead">{claim.lead}</h1>
+                  ) : null}
+                  {claim.treatment ? (
+                    <div className="hclaim-row">
+                      <span className="hk">TREATMENT</span>
+                      <span className="hv">{claim.treatment}</span>
+                    </div>
+                  ) : null}
+                  {claim.control ? (
+                    <div className="hclaim-row">
+                      <span className="hk">CONTROL</span>
+                      <span className="hv">{claim.control}</span>
+                    </div>
+                  ) : null}
+                  {claim.outcome ? (
+                    <div className="hclaim-row hclaim-predict">
+                      <span className="hk">PREDICT</span>
+                      <span className="hv">→ {claim.outcome}</span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <h1 className="htitle">{hypothesis.prose}</h1>
+              )}
 
               {/* verdict chip — never renders without its policy designator
                   (§8.1). Hollow glyph + label; policy tag alongside. */}
