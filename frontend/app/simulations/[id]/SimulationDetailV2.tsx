@@ -1299,7 +1299,7 @@ export default function SimulationDetailV2() {
     return (
       <AppShellV2 activeNav="simulations" title="Reading" surface="console">
         <div className="rconsole">
-          <style>{RCONSOLE_CSS}</style>
+          <style dangerouslySetInnerHTML={{ __html: RCONSOLE_CSS }} />
           <div className="quiet-state">
             <div className="quiet-card">
               <div className="quiet-head pending">
@@ -1316,7 +1316,7 @@ export default function SimulationDetailV2() {
     return (
       <AppShellV2 activeNav="simulations" title="Reading" surface="console">
         <div className="rconsole">
-          <style>{RCONSOLE_CSS}</style>
+          <style dangerouslySetInnerHTML={{ __html: RCONSOLE_CSS }} />
           <div className="quiet-state">
             <div className="quiet-card">
               <div className="quiet-head pending">SIMULATION NOT FOUND</div>
@@ -1343,7 +1343,7 @@ export default function SimulationDetailV2() {
     return (
       <AppShellV2 activeNav="simulations" title="Reading" surface="console">
         <div className="rconsole">
-          <style>{RCONSOLE_CSS}</style>
+          <style dangerouslySetInnerHTML={{ __html: RCONSOLE_CSS }} />
           <div className="quiet-state">
             <div className="quiet-card failed">
               <div className="quiet-head failed">UNABLE TO LOAD SIMULATION</div>
@@ -1448,7 +1448,7 @@ export default function SimulationDetailV2() {
   return (
     <AppShellV2 activeNav="simulations" title="Reading" surface="console">
       <div className="rconsole">
-        <style>{RCONSOLE_CSS}</style>
+        <style dangerouslySetInnerHTML={{ __html: RCONSOLE_CSS }} />
 
         {error && (
           <div role="alert" className="errbanner">
