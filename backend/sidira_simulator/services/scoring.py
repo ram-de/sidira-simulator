@@ -639,7 +639,7 @@ class ScoringService:
                 # contradiction in the weaknesses list, not just the caveat string.
                 # Hidden-improvement is not a risk, so it gets no weakness.
                 if harm_misread:
-                    update["weaknesses"] = composed.weaknesses + [
+                    updated_weaknesses = composed.weaknesses + [
                         Weakness(
                             category="hidden_guardrail_risk",
                             summary=(
@@ -652,6 +652,16 @@ class ScoringService:
                             ),
                         )
                     ]
+                    update["weaknesses"] = updated_weaknesses
+                    # #1 (codex P2): the evidence graph rode in on treatment_result
+                    # built from the ORIGINAL treatment weaknesses — it predates this
+                    # appended guardrail. Rebuild it from the same treatment analyses
+                    # + the augmented weaknesses so the provenance register shows the
+                    # guardrail_risk edge for the exact metric↔sentiment disagreement
+                    # it exists to surface. Descriptive only; does NOT touch the score.
+                    update["evidence_graph"] = _build_evidence_graph(
+                        list(treatment_analyses), updated_weaknesses
+                    )
                 composed = composed.model_copy(update=update)
         return composed, list(analyses)
 
