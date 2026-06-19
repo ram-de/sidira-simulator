@@ -368,14 +368,18 @@ const RCONSOLE_CSS = `
 .rconsole .hclaim{margin:0 0 14px;}
 .rconsole .hclaim-lead{font-family:var(--font-sans); font-weight:600; font-size:27px;
   line-height:1.16; letter-spacing:-.02em; color:var(--text-hi);
-  text-wrap:balance; max-width:42ch; margin-bottom:16px;}
+  text-wrap:balance; max-width:46ch; margin-bottom:16px;}
+/* predicted outcome folded into the headline — muted arrow, the outcome itself
+   in normal weight so it reads as the *consequence* of the change, not part of
+   the change's name. Not colored: the direction is a hypothesis, not a result. */
+.rconsole .hclaim-lead .hclaim-arrow{color:var(--text-mut); font-weight:400;}
+.rconsole .hclaim-lead .hclaim-out{font-weight:400; color:var(--text);}
 .rconsole .hclaim-row{display:grid; grid-template-columns:104px 1fr; gap:16px;
   padding:11px 0; border-top:1px solid var(--console-line); align-items:baseline;}
 .rconsole .hclaim-row .hk{font-family:var(--font-mono); font-size:10px; font-weight:500;
   letter-spacing:.12em; color:var(--text-mut); padding-top:3px;}
 .rconsole .hclaim-row .hv{font-family:var(--font-sans); font-size:15px;
   line-height:1.55; color:var(--text); max-width:72ch;}
-.rconsole .hclaim-predict .hv{color:var(--text-hi); font-weight:500;}
 .rconsole .verdicttag-row{display:flex; align-items:center; gap:10px;
   flex-wrap:wrap; margin-bottom:12px;}
 .rconsole .vchip{font-size:11px; letter-spacing:.05em; text-transform:uppercase;
@@ -810,7 +814,20 @@ function parseClaim(proseRaw: string): ClaimParts | null {
     treatment = tc[2].replace(/[.\s]+$/, "").trim();
     control = tc[3].replace(/[.\s]+$/, "").trim();
   }
-  return { lead: change, treatment, control, outcome };
+  return { lead: cleanLead(change), treatment, control, outcome };
+}
+
+// Tidy the headline so it reads as a claim, not a cut-off label. Two safe,
+// targeted strips: a leading "The change <quoted name>" / "Change: " label-in
+// (only when it's clearly a label — followed by a quote, or punctuated with a
+// colon — so legitimate prose like "The change in pricing" is left intact), and
+// any trailing period(s) that made the fragment look like a severed sentence.
+function cleanLead(s: string): string {
+  return s
+    .replace(/^the\s+change\s+(?=["'“‘])/i, "")
+    .replace(/^(?:the\s+change|change)\s*:\s*/i, "")
+    .replace(/\s*\.+\s*$/, "")
+    .trim();
 }
 
 function PopulationField({
@@ -1627,8 +1644,19 @@ export default function SimulationDetailV2() {
 
               {claim ? (
                 <div className="hclaim">
-                  {claim.lead ? (
-                    <h1 className="hclaim-lead">{claim.lead}</h1>
+                  {/* Headline reads as a complete claim: the change, then the
+                      predicted outcome folded in ("→ engagement increases").
+                      The separate PREDICT row is gone — it lived here now. */}
+                  {claim.lead || claim.outcome ? (
+                    <h1 className="hclaim-lead">
+                      {claim.lead}
+                      {claim.lead && claim.outcome ? (
+                        <span className="hclaim-arrow"> → </span>
+                      ) : null}
+                      {claim.outcome ? (
+                        <span className="hclaim-out">{claim.outcome}</span>
+                      ) : null}
+                    </h1>
                   ) : null}
                   {claim.treatment ? (
                     <div className="hclaim-row">
@@ -1640,12 +1668,6 @@ export default function SimulationDetailV2() {
                     <div className="hclaim-row">
                       <span className="hk">CONTROL</span>
                       <span className="hv">{claim.control}</span>
-                    </div>
-                  ) : null}
-                  {claim.outcome ? (
-                    <div className="hclaim-row hclaim-predict">
-                      <span className="hk">PREDICT</span>
-                      <span className="hv">→ {claim.outcome}</span>
                     </div>
                   ) : null}
                 </div>
