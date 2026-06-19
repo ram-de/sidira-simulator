@@ -9,7 +9,9 @@ git-commits it BEFORE any outcome is computed.
 KEY DISCIPLINE — this script NEVER reads ``player_outcomes`` (Table B, the SEALED
 answer key). It reads ONLY:
   * the committed persona pack (``friends_family_panel_v1.json``) via the loader, and
-  * the AUDITED ``obvious_priors.json`` (#442) for the placebo + counter-intuitive flags.
+  * the AUDITED ``obvious_priors.json`` (#442) for the placebo + counter-intuitive
+    flags — a LOCAL copy lives in this harness dir, so the harness is self-contained
+    and references nothing under the (now-extracted) game app.
 A static guard (``_assert_no_outcome_access``) re-asserts at runtime that no Table-B
 path is opened. The whole point of the role split is that the person who runs the
 engine cannot see (and is structurally prevented from reading) the outcomes.
@@ -53,9 +55,9 @@ REPO = HERE.parents[2]
 PACK_PATH = (
     REPO / "backend/sidira_simulator/adapters/friends_family_panel_v1.json"
 )
-OBVIOUS_PRIORS_PATH = (
-    REPO / "sessions/ff-validation-game/app/src/microabs/obvious_priors.json"
-)
+# The AUDITED obvious priors live in a LOCAL copy alongside this harness (so the
+# harness is self-contained and depends on nothing under the extracted game app).
+OBVIOUS_PRIORS_PATH = HERE / "obvious_priors.json"
 PREREG_PATH = HERE / "PREREG_FF.json"
 CUSTOMER_ID = "friends_family"
 
@@ -338,6 +340,25 @@ def _load_obvious_priors() -> dict:
     return json.loads(OBVIOUS_PRIORS_PATH.read_text())
 
 
+def _pack_is_synthetic(pack_path: Path) -> bool:
+    """True iff the committed pack is labeled SYNTHETIC at its top level.
+
+    Read off the RAW pack JSON (not the parsed PersonaPack, which drops the
+    additive marker fields under Pydantic ``extra='ignore'``). Honors either the
+    boolean ``synthetic`` flag or ``data_source == 'synthetic'``. A real Table-A
+    rebuild carries neither, so the seal-guard lets it through.
+    """
+    try:
+        raw = json.loads(pack_path.read_text())
+    except (OSError, ValueError):
+        return False
+    if not isinstance(raw, dict):
+        return False
+    if raw.get("synthetic") is True:
+        return True
+    return str(raw.get("data_source", "")).strip().lower() == "synthetic"
+
+
 def _placebo_predictions(priors: dict) -> list[dict]:
     """The 'always-pick-obvious' PLACEBO: predict the obvious_prior_arm for each item.
 
@@ -392,12 +413,38 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=444)
     ap.add_argument("--seal", action="store_true", help="write PREREG_FF.json (the sealed pre-reg)")
     ap.add_argument(
+        "--allow-synthetic",
+        action="store_true",
+        help=(
+            "test-mode: permit sealing against a SYNTHETIC-labeled pack (machinery "
+            "test only). Without this, sealing on a synthetic pack is REFUSED."
+        ),
+    )
+    ap.add_argument(
         "--out", default=str(PREREG_PATH), help="path for the sealed pre-reg JSON"
     )
     args = ap.parse_args()
 
     opened: list[str] = [str(PACK_PATH), str(OBVIOUS_PRIORS_PATH)]
     _assert_no_outcome_access(opened)  # belt-and-suspenders: this role is BLIND to Table B.
+
+    # ── SYNTHETIC-PACK SEAL-GUARD ───────────────────────────────────────────────
+    # Machine-enforce "no real validation run against synthetic data". If the
+    # committed pack is labeled synthetic, refuse to SEAL a real PREREG_FF.json
+    # unless the caller explicitly opts into machinery-test mode. We check this
+    # BEFORE spending any engine/LLM time so a misconfigured real run fails fast.
+    if args.seal and _pack_is_synthetic(PACK_PATH) and not args.allow_synthetic:
+        print(
+            "\nREFUSING TO SEAL: the committed pack is labeled SYNTHETIC "
+            f"({PACK_PATH.relative_to(REPO)}).\n"
+            "  Refusing to seal a real validation against a SYNTHETIC pack. "
+            "Rebuild the pack\n"
+            "  from the real Table A (player_features) export, or pass "
+            "--allow-synthetic for a\n"
+            "  machinery test (the verdict is then NOT a real validation result).",
+            file=sys.stderr,
+        )
+        return 2
 
     reg = friends_family_panel_registration()
     priors = _load_obvious_priors()

@@ -1,11 +1,11 @@
 {
   "_README": "SEALED pre-registration for the F&F engine-validation game (ticket #444). Written by the ENGINE-RUNNER role and git-committed BEFORE any outcome is computed. A different person runs score.py, verifies pack_sha256 matches, then scores against the sealed Table B (player_outcomes). The named failure mode to guard against is WANTING IT TO PASS.",
   "ticket": "#444",
-  "sealed_at_utc": "2026-06-19T02:14:32.339113+00:00",
+  "sealed_at_utc": "2026-06-19T02:38:37.934867+00:00",
   "role": "engine-runner (BLIND to player_outcomes)",
   "customer_id": "friends_family",
   "pack_path": "backend/sidira_simulator/adapters/friends_family_panel_v1.json",
-  "pack_sha256": "9d9f36df439f181219caae3bfc1c491c47414d2cd4eb200dfcd2970e0bc03e07",
+  "pack_sha256": "158c014d975d4c4973f11d1d6408fd01b39e94ea0c34d7d6051d2993dd65897f",
   "panel_registration": {
     "panel_id": "friends-family-validation-v1",
     "version": "friends-family-validation-v1",
@@ -30,16 +30,16 @@
       "control_arm": "opts:24",
       "treatment_arm": "opts:3",
       "engine_predicted_arm": "opts:3",
-      "engine_confidence": 0.18,
-      "metric_lift_pp": 18.0,
+      "engine_confidence": 0.17,
+      "metric_lift_pp": 17.0,
       "metric_lift_ci_pp": [
-        12.0,
+        10.0,
         24.0
       ],
       "metric_regime": "weak_behavioral",
       "metric_lift_underpowered": false,
       "metric_lift_unblinded_fallback": true,
-      "engine_confidence_score": 69.1,
+      "engine_confidence_score": 89.2,
       "engine_run_attempts": 1
     },
     {
@@ -48,16 +48,16 @@
       "control_arm": "framing:scarce",
       "treatment_arm": "framing:calm",
       "engine_predicted_arm": "framing:calm",
-      "engine_confidence": 0.12,
-      "metric_lift_pp": 12.0,
+      "engine_confidence": 0.11,
+      "metric_lift_pp": 11.0,
       "metric_lift_ci_pp": [
-        8.0,
-        17.0
+        7.0,
+        16.0
       ],
       "metric_regime": "weak_behavioral",
       "metric_lift_underpowered": false,
       "metric_lift_unblinded_fallback": true,
-      "engine_confidence_score": 57.9,
+      "engine_confidence_score": 66.3,
       "engine_run_attempts": 1
     },
     {
@@ -66,16 +66,16 @@
       "control_arm": "stickiness:default",
       "treatment_arm": "stickiness:framing",
       "engine_predicted_arm": "stickiness:framing",
-      "engine_confidence": 0.12,
-      "metric_lift_pp": 12.0,
+      "engine_confidence": 0.14,
+      "metric_lift_pp": 14.0,
       "metric_lift_ci_pp": [
         10.0,
-        16.0
+        18.0
       ],
       "metric_regime": "weak_behavioral",
       "metric_lift_underpowered": false,
       "metric_lift_unblinded_fallback": true,
-      "engine_confidence_score": 26.0,
+      "engine_confidence_score": 27.1,
       "engine_run_attempts": 1
     },
     {
@@ -93,7 +93,7 @@
       "metric_regime": "weak_behavioral",
       "metric_lift_underpowered": true,
       "metric_lift_unblinded_fallback": true,
-      "engine_confidence_score": 58.9,
+      "engine_confidence_score": 50.7,
       "engine_run_attempts": 1
     },
     {
@@ -102,16 +102,16 @@
       "control_arm": "effort:one_tap",
       "treatment_arm": "effort:effort",
       "engine_predicted_arm": "effort:effort",
-      "engine_confidence": 0.05,
-      "metric_lift_pp": 5.0,
+      "engine_confidence": 0.015,
+      "metric_lift_pp": 3.0,
       "metric_lift_ci_pp": [
-        2.0,
-        8.0
+        -5.0,
+        9.0
       ],
       "metric_regime": "weak_behavioral",
-      "metric_lift_underpowered": false,
+      "metric_lift_underpowered": true,
       "metric_lift_unblinded_fallback": true,
-      "engine_confidence_score": 7.6,
+      "engine_confidence_score": 7.5,
       "engine_run_attempts": 1
     }
   ],

@@ -26,8 +26,24 @@ person who wants a GO to manufacture one.
 | **Scorer** | `score.py` | Table B, the sealed `PREREG_FF.json` | (verifies the seal hash before scoring) |
 
 The engine-runner is **blind to outcomes by construction**: `predict.py` reads
-only the pack + `obvious_priors.json`, and a runtime guard
-(`_assert_no_outcome_access`) trips loudly if any outcomes artifact is ever opened.
+only the pack + a **local** `obvious_priors.json` (this directory carries its own
+audited copy — the harness is self-contained and references nothing under the
+game app, which now lives in its own repo
+[`ram-de/sidira-ff-game`](https://github.com/ram-de/sidira-ff-game)), and a
+runtime guard (`_assert_no_outcome_access`) trips loudly if any outcomes artifact
+is ever opened.
+
+### Synthetic-pack seal-guard
+
+The committed pack is currently built from **synthetic** `player_features` and is
+labeled `synthetic` at its top level. `predict.py` **refuses to seal a real
+`PREREG_FF.json` against a synthetic-labeled pack** — it exits non-zero with
+*"refusing to seal a real validation against a SYNTHETIC pack; rebuild from real
+Table A or pass `--allow-synthetic` for a machinery test."* The synthetic
+machinery test (`run_synthetic.py`) passes `--allow-synthetic` so the seal+score
+machinery can still be exercised end-to-end. This machine-enforces *no real run on
+synthetic data*: a real validation only seals once the pack is rebuilt from the
+real Table A export (which carries no synthetic marker).
 
 ## The sealed workflow
 
@@ -114,7 +130,9 @@ supplies such a sidecar to exercise that path.
 
 | File | Role | What it does |
 |------|------|--------------|
-| `predict.py` | engine-runner | BLINDED full-engine prediction per micro-A/B + placebo + **seal** → `PREREG_FF.json` |
+| `obvious_priors.json` | engine-runner input | local AUDITED (#442) obvious-prior + counter-intuitive labels (the placebo); self-contained copy |
+| `obvious_priors_AUDIT.md` | provenance | the non-author audit reasoning behind `obvious_priors.json` |
+| `predict.py` | engine-runner | BLINDED full-engine prediction per micro-A/B + placebo + **seal** (with synthetic-pack seal-guard) → `PREREG_FF.json` |
 | `score.py` | scorer | hash-gates the seal, reads Table B, computes real winners + hit-rates + GO/NO-GO |
 | `gen_synthetic_outcomes.py` | test only | SYNTHETIC Table B + assignments sidecar (machinery test scaffolding) |
 | `run_synthetic.py` | test only | end-to-end driver: predict → seal → gen-outcomes → score, all stamped SYNTHETIC |

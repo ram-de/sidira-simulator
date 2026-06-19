@@ -1,7 +1,13 @@
 # Independent audit — obvious priors + feature↔outcome leakage (ticket #442)
 
+> Self-contained harness copy of the #442 audit (the harness carries its own
+> audited `obvious_priors.json`). The game app it audited now lives in
+> [`ram-de/sidira-ff-game`](https://github.com/ram-de/sidira-ff-game); the paths
+> below (`src/rooms/*.tsx`, `server/*.js`, …) are relative to that app repo.
+
 **Auditor:** independent reviewer (#442). Did NOT author the game.
-**Scope:** `sessions/ff-validation-game/app` (merged to main).
+**Scope:** the F&F game app (now `ram-de/sidira-ff-game`; was
+`sessions/ff-validation-game/app` when audited).
 **Inputs read:** `FF_GAME_DESIGN.md`; the 5 profiling rooms (`src/rooms/*.tsx`);
 the 5 micro-A/Bs (`src/microabs/*.tsx`) + `obvious_priors.json`; `server/db.js`
 (`player_features` schema + `recordFeature` allow-list + firewall regex);

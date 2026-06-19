@@ -59,7 +59,10 @@ def main() -> int:
     assignments = HERE / "synthetic_assignments.json"
 
     if not args.skip_predict:
-        _run([str(predict), "--seal", "--population", str(args.population), "--model", args.model])
+        # --allow-synthetic: this is the machinery test, so sealing against the
+        # SYNTHETIC pack is intentional (the seal-guard would otherwise refuse).
+        _run([str(predict), "--seal", "--allow-synthetic",
+              "--population", str(args.population), "--model", args.model])
     elif not prereg.exists():
         print("ERROR: --skip-predict given but no PREREG_FF.json exists.")
         return 1
