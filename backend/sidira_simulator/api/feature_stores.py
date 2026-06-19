@@ -357,6 +357,11 @@ async def suggest_mapping(
 #: up the threadpool and run up provider cost. Reject oversized requests up front.
 _MAX_DOCUMENTS = 500
 _MAX_TOTAL_TEXT_CHARS = 2_000_000
+#: One document = one prompt = one chat call, so a single oversized document
+#: would blow the provider context window and turn into a slow 502. Cap each
+#: document to a conservative model-safe size (~50k tokens). Chunking large
+#: corpora per entity is a follow-up; for now an over-long doc is rejected.
+_MAX_DOCUMENT_CHARS = 200_000
 
 
 class ExtractDocumentsRequest(BaseModel):
@@ -389,6 +394,16 @@ async def extract_documents(
             status_code=413,
             detail=f"too many documents ({len(payload.documents)}); max {_MAX_DOCUMENTS}",
         )
+    for doc in payload.documents:
+        if len(doc.text) > _MAX_DOCUMENT_CHARS:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"document {doc.entity_id!r} too large ({len(doc.text)} chars); "
+                    f"max {_MAX_DOCUMENT_CHARS} per document — a single document is sent "
+                    f"in one extraction call and would exceed the provider context window"
+                ),
+            )
     total_chars = sum(len(d.text) for d in payload.documents)
     if total_chars > _MAX_TOTAL_TEXT_CHARS:
         raise HTTPException(

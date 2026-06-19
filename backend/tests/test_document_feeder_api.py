@@ -92,12 +92,26 @@ def test_extract_documents_rejects_too_many_documents(client):
     assert "too many documents" in resp.json()["detail"]
 
 
-def test_extract_documents_rejects_oversized_text(client):
-    """Guard rail: total text over the cap → 413."""
+def test_extract_documents_rejects_oversized_single_document(client):
+    """Guard rail: ONE document over the per-doc cap → 413, because a single
+    document is sent in one call and would blow the provider context window."""
     big = {
         **_PAYLOAD,
-        "documents": [{"entity_id": "u1", "text": "x" * 2_000_001}],
+        "documents": [{"entity_id": "u1", "text": "x" * 200_001}],
     }
     resp = client.post("/feature-stores/extract-documents", json=big)
     assert resp.status_code == 413
-    assert "too large" in resp.json()["detail"]
+    detail = resp.json()["detail"]
+    assert "per document" in detail and "'u1'" in detail
+
+
+def test_extract_documents_rejects_oversized_total_text(client):
+    """Guard rail: many in-spec documents that SUM over the total cap → 413."""
+    big = {
+        **_PAYLOAD,
+        # each doc is under the 200k per-doc cap, but 11 × 199k > 2M total.
+        "documents": [{"entity_id": f"u{i}", "text": "x" * 199_000} for i in range(11)],
+    }
+    resp = client.post("/feature-stores/extract-documents", json=big)
+    assert resp.status_code == 413
+    assert "document text too large" in resp.json()["detail"]
