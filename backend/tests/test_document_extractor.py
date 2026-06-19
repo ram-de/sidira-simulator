@@ -227,6 +227,35 @@ def test_flag_false_and_bad_numeric_become_clean_values() -> None:
     assert r2["orders_count"] is None
 
 
+def test_numeric_metric_bounds_enforced() -> None:
+    """A finite-but-semantically-invalid number for a typed field becomes null,
+    so untrusted model output can't poison the persona build with values that
+    violate the declared metric (ratio∉[0,1], negative count/tenure)."""
+    schema = ExtractionSchema(
+        fields=[
+            ExtractionField(name="r", type="ratio"),
+            ExtractionField(name="c", type="count"),
+            ExtractionField(name="t", type="tenure_days"),
+            ExtractionField(name="s", type="score"),
+        ]
+    )
+    llm = _StubLLM(
+        {
+            "u1": [("r", 3.0), ("c", -5), ("t", -1), ("s", 100)],   # all out of band but s
+            "u2": [("r", 0.4), ("c", 0), ("t", 0), ("s", -3)],      # all valid (score unbounded)
+        }
+    )
+    r1, r2 = extract_feature_rows(
+        [EntityDocument(entity_id="u1", text="a"), EntityDocument(entity_id="u2", text="b")],
+        schema,
+        llm,
+    )
+    assert r1["r"] is None and r1["c"] is None and r1["t"] is None
+    assert r1["s"] == 100.0  # score has no declared range → passes through
+    assert r2["r"] == 0.4 and r2["c"] == 0.0 and r2["t"] == 0.0
+    assert r2["s"] == -3.0   # score may be negative
+
+
 # ── schema validation (caller error) ─────────────────────────────────────
 
 

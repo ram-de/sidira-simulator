@@ -194,14 +194,25 @@ def _coerce(value: Any, mtype: str) -> Any:
         if isinstance(value, bool):  # bool is an int subclass — reject it here
             return None
         if isinstance(value, (int, float)):
-            return float(value) if math.isfinite(float(value)) else None
-        if isinstance(value, str):
+            f = float(value)
+        elif isinstance(value, str):
             try:
                 f = float(value.strip())
             except ValueError:
                 return None
-            return f if math.isfinite(f) else None
-        return None
+        else:
+            return None
+        if not math.isfinite(f):
+            return None
+        # Enforce the declared metric's semantics on untrusted model output: a
+        # finite-but-invalid value (count: -5, ratio: 3.0) is treated as missing
+        # (null), never fabricated into a clamped value — mirroring the
+        # "absence is null" discipline — so it can't poison the persona build.
+        if mtype in ("count", "tenure_days") and f < 0.0:
+            return None
+        if mtype == "ratio" and not 0.0 <= f <= 1.0:
+            return None
+        return f
     if mtype == "categorical":
         if isinstance(value, str):
             return value.strip() or None
