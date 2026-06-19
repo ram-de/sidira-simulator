@@ -256,6 +256,28 @@ def test_numeric_metric_bounds_enforced() -> None:
     assert r2["s"] == -3.0   # score may be negative
 
 
+def test_json_metric_member_bounds_enforced() -> None:
+    """Per-member bounds on json_ratios/json_counts mirror the scalar path: an
+    out-of-band member is dropped before it reaches the persona build."""
+    schema = ExtractionSchema(
+        fields=[
+            ExtractionField(name="mix", type="json_ratios"),
+            ExtractionField(name="counts", type="json_counts"),
+        ]
+    )
+    llm = _StubLLM(
+        {
+            "u1": [
+                ("mix", {"a": 0.6, "b": 2.0, "c": -0.1}),   # only a is a valid ratio
+                ("counts", {"x": 4, "y": -3}),               # only x is a valid count
+            ]
+        }
+    )
+    row = extract_feature_rows([EntityDocument(entity_id="u1", text="x")], schema, llm)[0]
+    assert row["mix"] == {"a": 0.6}
+    assert row["counts"] == {"x": 4.0}
+
+
 # ── schema validation (caller error) ─────────────────────────────────────
 
 

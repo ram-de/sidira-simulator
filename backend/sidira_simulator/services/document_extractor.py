@@ -233,8 +233,15 @@ def _coerce(value: Any, mtype: str) -> Any:
             if isinstance(v, bool) or not isinstance(v, (int, float)):
                 continue
             fv = float(v)
-            if math.isfinite(fv):
-                clean[str(k)] = fv
+            if not math.isfinite(fv):
+                continue
+            # Same per-member metric bounds as the scalar ratio/count path: an
+            # out-of-band member is dropped before it reaches the persona build.
+            if mtype == "json_ratios" and not 0.0 <= fv <= 1.0:
+                continue
+            if mtype == "json_counts" and fv < 0.0:
+                continue
+            clean[str(k)] = fv
         return clean or None
     return None
 
