@@ -1,0 +1,6 @@
+# Regenerable synthetic machinery-test scaffolding (run_synthetic.py rebuilds these).
+# The bulky synthetic Table B + assignments are NOT committed; the small sealed
+# PREREG_FF.json + verdict_FF.json (the demonstration headline artifacts) ARE.
+synthetic_player_outcomes.json
+synthetic_assignments.json
+predict_scratch.json
