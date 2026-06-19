@@ -1895,6 +1895,11 @@ export default function SimulationDetailV2() {
               <WeaknessRegister result={completeResult} running={!terminal} />
             )}
 
+            {/* Evidence register (#1 MiroFish-borrow) — provenance + counter-evidence. */}
+            {(status === "complete" || status === "running") && (
+              <EvidenceRegister result={completeResult} running={!terminal} />
+            )}
+
             {/* Refinement queue. */}
             {completeResult?.refinement_suggestions != null &&
               completeResult.refinement_suggestions.length > 0 && (
@@ -2672,6 +2677,133 @@ function WeaknessRegister({
                     — NOT MEASURED
                   </div>
                 )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Evidence register (#1 MiroFish-borrow). Renders result.evidence_graph as an
+// instrument register, NOT a force graph (the data has no real edge topology —
+// a node-cloud would manufacture structure, DESIGN.md §10). Counter-evidence
+// (contradicts / guardrail) is ordered first and weighted in ink so a positive
+// verdict can't rest silently on supports_change alone — the prior-echo defense.
+// Reuses the weakness register's classes: no new color, no pills, no graph dep.
+// ───────────────────────────────────────────────────────────────────────────
+type EvidenceRelation =
+  | "supports_change"
+  | "contradicts_change"
+  | "guardrail_risk"
+  | "weak_or_inferred";
+interface EvidenceEdgeT {
+  source: string;
+  target: string;
+  relation: EvidenceRelation;
+  confidence?: number | null;
+  provenance?: string[];
+  detail?: string | null;
+}
+interface EvidenceNodeT {
+  id: string;
+  label: string;
+  kind: "verdict" | "persona" | "weakness";
+  detail?: string | null;
+}
+interface EvidenceGraphT {
+  nodes: EvidenceNodeT[];
+  edges: EvidenceEdgeT[];
+}
+
+const EVIDENCE_RELATION_LABEL: Record<EvidenceRelation, string> = {
+  contradicts_change: "CONTRADICTS",
+  guardrail_risk: "GUARDRAIL RISK",
+  supports_change: "SUPPORTS",
+  weak_or_inferred: "WEAK / INFERRED",
+};
+// Counter-evidence first — surfacing it beside the verdict is the whole point.
+const EVIDENCE_RELATION_ORDER: EvidenceRelation[] = [
+  "contradicts_change",
+  "guardrail_risk",
+  "supports_change",
+  "weak_or_inferred",
+];
+
+function EvidenceRegister({
+  result,
+  running,
+}: {
+  result: SimulationResult | null;
+  running: boolean;
+}) {
+  // evidence_graph is additive on the backend; until api-types.ts is regenerated
+  // from the running backend (npm run gen-types) it isn't on the generated
+  // SimulationResult type, so we read it through a narrow cast. Drop the cast
+  // after the next type regen.
+  const graph =
+    (result as { evidence_graph?: EvidenceGraphT | null } | null)
+      ?.evidence_graph ?? null;
+  const nodeById = new Map((graph?.nodes ?? []).map((n) => [n.id, n]));
+  const edges = [...(graph?.edges ?? [])].sort(
+    (a, b) =>
+      EVIDENCE_RELATION_ORDER.indexOf(a.relation) -
+      EVIDENCE_RELATION_ORDER.indexOf(b.relation),
+  );
+  return (
+    <section className="panel panel-pad">
+      <div className="wk-headrow">
+        <span>EVIDENCE REGISTER — WHAT THE READING RESTS ON</span>
+        <span>RELATION · CONFIDENCE</span>
+      </div>
+      {running ? (
+        <div className="wk-sum" style={{ paddingTop: 14, color: "var(--text-mut)" }}>
+          REGISTER PENDING — EVIDENCE PRINTS AS READINGS COMPLETE
+        </div>
+      ) : edges.length === 0 ? (
+        <div className="wk-sum" style={{ paddingTop: 14, color: "var(--text-mut)" }}>
+          NO EVIDENCE GRAPH — RUN PREDATES THIS INSTRUMENT
+        </div>
+      ) : (
+        edges.map((e, idx) => {
+          const node = nodeById.get(e.source);
+          const counter =
+            e.relation === "contradicts_change" ||
+            e.relation === "guardrail_risk";
+          const provN = e.provenance?.length ?? 0;
+          return (
+            <div className="wk-row" key={idx}>
+              <div style={{ minWidth: 0 }}>
+                <div className="wk-name">{node?.label ?? e.source}</div>
+                <div className="wk-sum">
+                  {e.detail ?? node?.detail ?? "—"}
+                  {provN > 0 ? (
+                    <span style={{ color: "var(--text-mut)" }}>
+                      {" "}
+                      · {provN} agent{provN === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <div
+                  className="freqlabel"
+                  style={{
+                    color: counter ? "var(--text-hi)" : "var(--text)",
+                    fontWeight: counter ? 600 : 400,
+                    letterSpacing: ".04em",
+                  }}
+                >
+                  {EVIDENCE_RELATION_LABEL[e.relation]}
+                  {e.confidence != null ? (
+                    <span className="ci" style={{ color: "var(--text-mut)" }}>
+                      {" "}
+                      · {(e.confidence * 100).toFixed(0)}%
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
           );
