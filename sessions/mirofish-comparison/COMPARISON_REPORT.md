@@ -87,6 +87,24 @@ Effort: **S** = days · **M** = 1–2 weeks · **L** = multi-week / new dependen
 
 ---
 
+## (b.1) Due-diligence addendum — EXISTS vs NET-NEW (verified 2026-06-19)
+
+After the initial report, a 3-investigator code audit checked each item against the actual Sidira codebase (and the sibling `sidira-personas` lib). Two items were overstated as "new." Corrected status:
+
+| # | Item | Status | What the audit found |
+|---|---|---|---|
+| 1 | Evidence/provenance graph | 🔴 **NET-NEW** | `SimulationResult` is flat scalars + `Weakness{summary, supporting_agent_ids}` (`schemas/simulation.py:229-371`) — no typed edges, no support/contradict labels, no per-edge confidence/provenance. **No graph library installed** (`frontend/package.json`). A "WHY" line + WeaknessRegister already render (partial reasoning surface), but nothing relational. |
+| 2 | Cross-highlight | 🟡 **PARTIAL** (cheaper) | Shared `selectedPersona` state already highlights *within* the InspectorRail (`page.tsx:254, 2052-2101`); the main-column cohort register (`PersonaGroupedAgents`, `:2576`) just isn't given the props. Net-new = wire 2 props + selection styling. |
+| 3 | Doc → feature feeder | 🔴 **NET-NEW** | Input is structured tables only — `FeatureStore` Protocol is `run_query(sql)`/`preview`, Snowflake-only (`adapters/feature_stores/__init__.py`); `adapt_group()` accepts 8 numeric metric types (`sidira-personas/adapter.py:93-122`); repo-wide grep for upload/PDF/docx = nothing. |
+| 4 | Fixed extraction schema | 🟢 **ALREADY EXISTS** | Pervasive pattern: frozen 7 `CANONICAL_GROUPS`, out-of-set groups forced to `unmapped` (`column_mapper.py:176-180`), pydantic-validated LLM JSON, closed metric-type vocabulary (`adapter.py:121`), fixed identity pools (`identity_seed.py`). **Reframed: don't build — reuse this discipline as the guardrail for #3.** |
+| 5 | Activity weighting | 🔴 **NET-NEW** | Every agent counts equally; only weighting is classifier *confidence* + Bayesian shrinkage (`scoring.py:638-668`). Allocation weights (`population_sampler.py:109-192`) set *headcount*, not contribution. `tenure_band`/`behavioral_snapshot` exist as latent data but the scorer never reads them (the natural seam). |
+| 6 | Ontology / AI mapping | 🟢 **ALREADY EXISTS → DROP** | AI-proposes-mapping-with-confidence + user-confirms-in-wizard already ships (`column_mapper.suggest_mapping` + wizard Step 2, `page.tsx:428-510`). The only net-new sliver — entity/edge-type ontology — doesn't fit the single-user-table architecture (`source_query` = "one row per user"). **Removed from the borrow list.** |
+| 7 | OASIS network substrate | 🔴 **NET-NEW** | Agents are independent one-shot reactors (single `asyncio.gather`, no peer inputs, `simulation_runner.py:379-400`); no social graph; no OASIS/CAMEL dependency (`pyproject.toml`) — the "oasis" strings are prior-art attribution comments only. |
+
+**Revised borrowable surface:** the genuine net-new work is **#1, #3, #5, #7**, plus one near-free polish (**#2**). **#4 and #6 are already built** — #4 becomes the guardrail you *reuse* for #3, and #6 drops off entirely (the mapping assistant the report imagined already exists). This tightens the original 7 down to 4 real builds + 1 polish, and removes the risk of the report claiming credit for capabilities Sidira already has.
+
+---
+
 ## (c) DO-NOT-COPY (explicit)
 
 | Item | MiroFish evidence | Why it's poison for Sidira |

@@ -21,6 +21,9 @@ Run two independent councils (Council A = 4 Claude subagents across distinct exp
 - [x] Verified headline claims directly: Sidira code credits MiroFish (simulation_runner.py:13, agent_chat.py:16); no graph/viz lib in frontend; null_integrity.py + conversion_elicitor.py exist
 - [x] Synthesized COMPARISON_REPORT.md (verdict + table; 7 ranked borrowables w/ fit+effort; DO-NOT-COPY table; prior-echo section; council agreement map)
 
+## Due-diligence pass (2026-06-19, 3-investigator code audit)
+Verified each of the 7 items against actual Sidira code. NET-NEW: #1 evidence graph (no edge/graph model, no graph lib), #3 doc feeder (structured-table/Snowflake-only; adapt_group 8 numeric types), #5 activity weighting (agents count equally; only classifier-confidence; allocation=headcount), #7 OASIS network (independent one-shot reactors, no OASIS dep). PARTIAL/cheap: #2 cross-highlight (shared state exists in InspectorRail; cohort register just needs props). ALREADY EXISTS: #4 fixed-schema discipline (frozen CANONICAL_GROUPS, pydantic, closed vocab) → reuse as guardrail for #3 not a build; #6 AI mapping assistant (column_mapper.suggest_mapping + wizard Step 2) → DROP, mostly redundant. Net real surface = 4 builds (#1,#3,#5,#7) + 1 polish (#2). Folded into COMPARISON_REPORT.md §(b.1).
+
 ## Key Finding (council disagreement, resolved)
 Codex ranked "build the graph viewer" as #1 borrow (M). Claude frontend lens REJECTED it — Sidira has no graph-shaped data; faking persona-similarity edges violates DESIGN.md §10/§4.1/§7. Resolution: graph is legitimate ONLY after building a backend EVIDENCE-GRAPH model (supports/contradicts/guardrail edges + provenance) — the cost is backend, not D3; render with visx. That model doubles as the best prior-echo defense (counter-evidence beside every positive verdict).
 
