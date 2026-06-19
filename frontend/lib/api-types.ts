@@ -45,6 +45,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/simulations/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preflight Simulation
+         * @description Authoring-time pre-flight check (epic #309, T4 / #313).
+         *
+         *     Deterministic, zero-LLM, synchronous. Runs the SAME `assess_answerability`
+         *     (T1) gate the POST path routes on, plus the SEPARABLE deterministic
+         *     leading-framing lint, and returns the verdict WITHOUT persisting or running
+         *     a simulation and WITHOUT calling the T3 LLM judge. The wizard calls this
+         *     live as the PM authors so `needs_input` / `out_of_scope` / leading framing
+         *     are caught at the keyboard, not at the POST 422.
+         *
+         *     It reuses `assess_answerability` and `_detect_leading_framing` VERBATIM — no
+         *     forked vocabulary — so the preview can never drift from the POST gate. It
+         *     ROUTES on a categorical verdict and never touches `confidence_score` (panel
+         *     hard constraint). Auth-gated like every route so it can't be probed
+         *     anonymously, but it reads nothing customer-specific (the verdict depends
+         *     only on the supplied hypothesis).
+         */
+        post: operations["preflight_simulation_simulations_preflight_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/simulations/{simulation_id}": {
         parameters: {
             query?: never;
@@ -74,9 +108,8 @@ export interface paths {
          * @description Persona-grouped table feed (Phase 2.5 #51).
          *
          *     Order matches the runner's materialization order (largest-remainder
-         *     allocator → largest persona first), since `list_for_simulation`
-         *     returns rows in insertion order in both the InMemory and Postgres
-         *     implementations.
+         *     allocator, largest persona first). InMemory preserves insertion order;
+         *     Postgres sorts by the persisted materialization index for stable reloads.
          */
         get: operations["list_simulation_agents_simulations__simulation_id__agents_get"];
         put?: never;
@@ -320,6 +353,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/capabilities/{capability_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Capability
+         * @description Return a single capability — reverse-PRD + reverse-Figma — from the latest pack.
+         *
+         *     Wrapped in a :class:`CapabilityRecord` so the snapshot version + capture
+         *     timestamp that the Library's record header shows come from the SAME read that
+         *     served the body (#207, DESIGN.md §7.6), not a second `latest` lookup.
+         *
+         *     Powers the Library's capability-detail page (#207 browsability). 404 when the
+         *     pack, the `latest` pointer, or the named capability is missing; 502 when the
+         *     stored reverse-Figma fails schema validation (corrupt/stale artifact).
+         *
+         *     Membership is gated on the latest manifest, not on the storage path alone: a
+         *     crawl that drops a capability rewrites the manifest but may leave the old
+         *     `capabilities/<name>/` directory behind, so loading by path would serve an
+         *     orphaned artifact that the manifest-driven Library list no longer shows. We
+         *     404 anything absent from `manifest.capabilities` so a direct or bookmarked
+         *     URL can't surface a dropped capability as if it were current.
+         *
+         *     Both reads are pinned to `manifest.snapshot_version` rather than resolving
+         *     `latest` twice: a crawl that flips the pointer between the manifest load and
+         *     the capability load could otherwise serve a capability from a different pack
+         *     than the one whose membership we checked (TOCTOU), reintroducing the orphan.
+         */
+        get: operations["get_capability_capabilities__capability_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/feature-pack/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Capabilities Summary
+         * @description Return the latest pack as lightweight `{name, roles}` rows + provenance.
+         *
+         *     Powers the Library browse page's group-by-role view (#207): the names-only
+         *     manifest can't carry `roles`, and shipping every full capability body just to
+         *     read them would be wasteful, so this projects each capability to name + roles.
+         *
+         *     Served at `/feature-pack/summary`, deliberately OUTSIDE the `/capabilities/`
+         *     prefix: a `/capabilities/summary` sibling would shadow the dynamic
+         *     `/capabilities/{capability_name}` detail route for a capability named `summary`,
+         *     and that name can reach us in a manifest the crawler (a separate repo) wrote
+         *     without passing our input validation. A separate prefix removes the collision
+         *     structurally, so no capability slug has to be reserved.
+         *
+         *     Same TOCTOU discipline as :func:`get_capability`: the manifest is loaded once
+         *     and every per-capability read is pinned to `manifest.snapshot_version`, so a
+         *     `latest`-pointer flip mid-request can't mix capabilities across snapshots.
+         *     404 when the pack or its `latest` pointer is missing.
+         *
+         *     Resilient per capability: a name in the manifest whose body is missing or has
+         *     corrupt reverse-Figma is returned with `roles: []` rather than 502-ing the
+         *     whole list — the name is manifest-guaranteed so the row still appears, and its
+         *     detail route surfaces the real error on open.
+         *
+         *     Cost: O(N) artifact reads per request (loads each capability fully to project
+         *     `roles`). `domain` is now free — it rides the manifest's `capability_domains`
+         *     map (sidira-crawler#18), no per-capability read. Fully collapsing this to a
+         *     single manifest read still needs `roles` persisted in the manifest too (a
+         *     `capability_roles` field, a small crawler follow-up); fine at today's pack
+         *     size (~tens of capabilities) until then.
+         */
+        get: operations["list_capabilities_summary_feature_pack_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/crawl-setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Crawl Setup */
+        get: operations["get_crawl_setup_crawl_setup_get"];
+        /** Save Crawl Setup */
+        put: operations["save_crawl_setup_crawl_setup_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/crawls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Crawls
+         * @description Last-known rows, newest first — no GitHub calls. The watch view uses
+         *     this to rediscover an in-flight crawl after tab close/reopen, then polls
+         *     the detail route for live status.
+         */
+        get: operations["list_crawls_crawls_get"];
+        put?: never;
+        /** Create Crawl */
+        post: operations["create_crawl_crawls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/crawls/{crawl_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Crawl */
+        get: operations["get_crawl_crawls__crawl_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/crawl-credentials/{customer}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Crawl Credentials
+         * @description Return decrypted role→{username,password} for one customer.
+         *
+         *     404 when the customer has no saved setup or no stored credentials. The
+         *     usernames come from the password-free CrawlSetup; the passwords are
+         *     decrypted from the at-rest blob and joined by role.
+         */
+        get: operations["get_crawl_credentials_internal_crawl_credentials__customer__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feature-stores": {
         parameters: {
             query?: never;
@@ -330,7 +533,10 @@ export interface paths {
         /** List Connections */
         get: operations["list_connections_feature_stores_get"];
         put?: never;
-        /** Create Connection */
+        /**
+         * Create Connection
+         * @description Encrypt the password at rest and persist a sanitized connection row.
+         */
         post: operations["create_connection_feature_stores_post"];
         delete?: never;
         options?: never;
@@ -372,7 +578,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Test Connection */
+        /**
+         * Test Connection
+         * @description Round-trip a trivial query. 204 on success; on failure a structured
+         *     body {"error_kind", "message"} with 400 for auth/permission, 502 for
+         *     network/unknown.
+         *
+         *     Either outcome is PERSISTED to the row (#328) so the saved-connections
+         *     register can show a last-known state without re-testing: on success
+         *     last_test_status='ok' with the error fields cleared; on failure 'failed'
+         *     with the classified error_kind/message. record_test_result is customer-
+         *     scoped — it only ever updates THIS customer's owned row. The persisted
+         *     state is best-effort metadata: the HTTP contract (204 / structured error)
+         *     is unchanged and never gated on the write succeeding.
+         */
         post: operations["test_connection_feature_stores__connection_id__test_post"];
         delete?: never;
         options?: never;
@@ -389,7 +608,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Preview */
+        /**
+         * Preview
+         * @description Profile a table (or SQL): total row count + per-column profile over a
+         *     capped sample (default 100 rows).
+         */
         post: operations["preview_feature_stores__connection_id__preview_post"];
         delete?: never;
         options?: never;
@@ -406,7 +629,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Suggest Mapping */
+        /**
+         * Suggest Mapping
+         * @description One deterministic LLM call suggests how the supplied columns map into the
+         *     7 canonical feature groups, with a per-column confidence (high/med/low) and
+         *     an ``unmapped`` bucket. Pure suggestion — stateless w.r.t. the connection,
+         *     so Snowflake is not hit; the user overrides any suggestion in the wizard.
+         *     Returns 502 if the upstream LLM call fails.
+         */
         post: operations["suggest_mapping_feature_stores__connection_id__suggest_mapping_post"];
         delete?: never;
         options?: never;
@@ -421,10 +651,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Builds */
+        /**
+         * List Builds
+         * @description Recent builds for the current customer, newest first.
+         */
         get: operations["list_builds_persona_builds_get"];
         put?: never;
-        /** Create Build */
+        /**
+         * Create Build
+         * @description Accept a build config. Returns 202 + build_id; the build runs after the
+         *     response is sent. customer_id comes from the auth scope, never the body.
+         */
         post: operations["create_build_persona_builds_post"];
         delete?: never;
         options?: never;
@@ -449,6 +686,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/persona-builds/{build_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Build Events
+         * @description Stream the build's JSONL event log (one event object per line), mirroring
+         *     the simulation events stream. 404 if there's no such build.
+         */
+        get: operations["get_build_events_persona_builds__build_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/persona-packs": {
         parameters: {
             query?: never;
@@ -459,6 +717,11 @@ export interface paths {
         /**
          * List Packs
          * @description List all pack versions for the customer, newest first.
+         *
+         *     Each COMPLETE persona build that produced a `pack_version` is one pack
+         *     version. The build repo already returns rows newest-first. The current
+         *     `latest` pointer flags the matching version PROMOTED; an empty tenant
+         *     returns `[]` (not a 404).
          */
         get: operations["list_packs_persona_packs_get"];
         put?: never;
@@ -478,9 +741,43 @@ export interface paths {
         };
         /**
          * Get Pack
-         * @description Full pack contents including persona descriptions, weights, stability.
+         * @description Full raw pack contents — persona descriptions, weights, stability.
+         *
+         *     The producer→consumer `PersonaPack` as-is, including the v1.1 model-input
+         *     arrays (`centroid_full` / `feature_scale` / `sample_rows`). For the
+         *     human-facing rendered view (the behavioral-comparison blocks, weight schemes,
+         *     honesty flags) the Library detail page uses `/{pack_id}/detail` instead.
          */
         get: operations["get_pack_persona_packs__pack_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/persona-packs/{pack_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pack Detail
+         * @description Read-only presentation view for the Library's persona-pack detail page (#25).
+         *
+         *     Renders each persona's centroid **"How you compare"** block and per-member
+         *     **individual-row** block through the single-sourced honesty/salience logic in
+         *     `behavioral_profile.py`, folds the three weight schemes into per-persona
+         *     shares (with a truthful reason when an optional scheme is unavailable), and
+         *     surfaces the stability/honesty flags — without echoing the bulky raw v1.1
+         *     arrays. On a v1.0 pack the individual-row block degrades to absent (honest
+         *     empty-state), never a fabricated row. Same `latest`/starter/404 rules as the
+         *     raw `GET /{pack_id}`.
+         */
+        get: operations["get_pack_detail_persona_packs__pack_id__detail_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -501,6 +798,13 @@ export interface paths {
         /**
          * Promote Pack
          * @description Atomically update the customer's `latest` pointer to this pack version.
+         *
+         *     `pack_id` is a concrete version string (e.g. "v_3"); the `LATEST` sentinel
+         *     is a read-only convenience for GET, not a promote target. The version must
+         *     exist for this customer — a COMPLETE build with that `pack_version`, or a
+         *     snapshot that `load_at_version` can read — otherwise 404. Promotion is a
+         *     single pointer write through the loader (one key, shared with the read
+         *     path), after which `load_latest` resolves to this version.
          */
         post: operations["promote_pack_persona_packs__pack_id__promote_post"];
         delete?: never;
@@ -523,10 +827,63 @@ export interface paths {
          *     Used by the wizard's #101 persona-filter UI. `weight` is from the
          *     `head_count` scheme (the same one allocate() uses by default), so the
          *     subtext displayed to PMs matches what the allocator would actually do.
+         *
+         *     A tenant with no Persona Pack yet gets the generic starter pack
+         *     (`is_starter=True`) instead of a 404 (#212), so the wizard renders and
+         *     simulations run immediately; the loader serves it in-memory.
+         *
+         *     A 404 is still returned for the *stale-pointer* case — a `latest`
+         *     pointer that references a missing/partial artifact. That's a corrupt
+         *     tenant state, not an empty one, so we surface the error rather than
+         *     masking it behind a starter pack.
          */
         get: operations["list_active_personas_personas_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sample-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Sample Workspace
+         * @description Clone the Streamly sample Persona Pack + Feature Pack into the caller's tenant.
+         */
+        post: operations["generate_sample_workspace_sample_workspace_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/clerk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clerk Webhook
+         * @description Verify a Svix-signed Clerk event and provision tenants from it.
+         *
+         *     Returns 503 when no signing secret is configured (we refuse to act on an
+         *     unverifiable delivery), 401 when the signature is invalid, and 200 otherwise
+         *     — including for event types we don't act on, so Clerk stops retrying.
+         */
+        post: operations["clerk_webhook_webhooks_clerk_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -547,7 +904,7 @@ export interface components {
              * Is Starter
              * @default false
              */
-            is_starter?: boolean;
+            is_starter: boolean;
         };
         /**
          * AgentAnalysisSummary
@@ -576,31 +933,6 @@ export interface components {
              * @description Short prefix of the agent's initial reaction.
              */
             top_quote: string;
-        };
-        // ── InputFlags (epic #309, T3 / #312) — HAND-ADDED ──
-        // The gen-types script needs a live backend; hand-mirrored from
-        // backend/sidira_simulator/schemas/simulation.py (InputFlags). The
-        // pre-flight ordinal input-lint disclosure stamped on an amber/red/
-        // abstain run. CATEGORICAL only — never a number; the lint ROUTES, it
-        // does not discount confidence_score.
-        /** InputFlags */
-        InputFlags: {
-            /**
-             * State
-             * @enum {string}
-             */
-            state: "amber" | "red" | "abstain";
-            /** Reasons */
-            reasons?: string[];
-            /** Reason Codes */
-            reason_codes?: string[];
-            /** Fixes */
-            fixes?: string[];
-            /**
-             * Paraphrase Unstable
-             * @default false
-             */
-            paraphrase_unstable: boolean;
         };
         /**
          * AgentChatRequest
@@ -858,6 +1190,81 @@ export interface components {
             /** Error */
             error?: string | null;
         };
+        /** Capability */
+        Capability: {
+            /** Name */
+            name: string;
+            /** Surfaces */
+            surfaces: string[];
+            /** Roles */
+            roles: string[];
+            /** Entry Points */
+            entry_points: string[];
+            /** Reverse Prd */
+            reverse_prd: string;
+            reverse_figma: components["schemas"]["ReverseFigma"];
+            /** Implicit Metric */
+            implicit_metric?: string | null;
+            /** Domain */
+            domain?: string | null;
+        };
+        /**
+         * CapabilityRecord
+         * @description A single capability plus the provenance of the pack it was read from.
+         *
+         *     Carries the snapshot version and capture timestamp alongside the capability
+         *     so the Library's record header (#207, DESIGN.md §7.6) is sourced from the
+         *     SAME read that served the body. The pack provenance and the capability are
+         *     both pinned to one `snapshot_version`, so a crawl that flips the `latest`
+         *     pointer mid-request can't label a record with a different snapshot's date.
+         */
+        CapabilityRecord: {
+            /** Snapshot Version */
+            snapshot_version: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            capability: components["schemas"]["Capability"];
+        };
+        /**
+         * CapabilitySummary
+         * @description A capability projected to just its name + roles — no reverse-PRD/Figma body.
+         *
+         *     The names-only :class:`FeaturePackManifest` can't drive a group-by-role view,
+         *     and shipping every full :class:`Capability` to the Library browse page just to
+         *     read `roles` would be wasteful. This is the lightweight projection in between.
+         *     `domain` (#244) rides along from the manifest's `capability_domains` map so the
+         *     browse page can also group by domain; ``None`` means the capability is ungrouped.
+         */
+        CapabilitySummary: {
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: string[];
+            /** Domain */
+            domain?: string | null;
+        };
+        /**
+         * ColumnAssignment
+         * @description A single column placed into a group, with the model's confidence.
+         */
+        ColumnAssignment: {
+            /** Column */
+            column: string;
+            /**
+             * Confidence
+             * @default low
+             * @enum {string}
+             */
+            confidence: "high" | "med" | "low";
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+        };
         /**
          * ColumnProfile
          * @description Lightweight column-level summary returned by `profile()`.
@@ -875,26 +1282,6 @@ export interface components {
             distinct_count?: number | null;
             /** Sample Values */
             sample_values?: unknown[] | null;
-        };
-        /** ColumnSuggestion */
-        ColumnSuggestion: {
-            /** Column */
-            column: string;
-            /**
-             * Group
-             * @description Suggested group, or None if the model is uncertain.
-             */
-            group?: ("demographic_identity" | "behavioral_patterns" | "motivations_jtbd" | "pain_points_friction" | "value_sensitivity" | "channel_tech_behavior" | "loyalty_lifecycle") | null;
-            /**
-             * Rationale
-             * @default
-             */
-            rationale: string;
-            /**
-             * Confidence
-             * @default 0
-             */
-            confidence: number;
         };
         /** Component */
         Component: {
@@ -952,14 +1339,198 @@ export interface components {
             database: string;
             /** Schema */
             schema?: string | null;
-            /** Last Tested At — #328 per-connection health */
+            /** Last Tested At */
             last_tested_at?: string | null;
-            /** Last Test Status — 'ok' | 'failed', null if never tested (#328) */
-            last_test_status?: "ok" | "failed" | null;
-            /** Last Error Kind — #328 */
+            /** Last Test Status */
+            last_test_status?: ("ok" | "failed") | null;
+            /** Last Error Kind */
             last_error_kind?: string | null;
-            /** Last Error Message — #328 */
+            /** Last Error Message */
             last_error_message?: string | null;
+        };
+        /**
+         * CrawlCapability
+         * @description One priority capability the walker documents (reverse-PRD + reverse-Figma).
+         */
+        CrawlCapability: {
+            /**
+             * Name
+             * @description Capability slug (letters, digits, '-', '_'), e.g. onboarding-checklist
+             */
+            name: string;
+            /**
+             * Entry Urls
+             * @description 1–3 URLs the walker authenticates into and walks up to walk_depth hops deep
+             */
+            entry_urls: string[];
+        };
+        /** CrawlCredentialsResponse */
+        CrawlCredentialsResponse: {
+            /** Customer Id */
+            customer_id: string;
+            /** Logins */
+            logins: components["schemas"]["CrawlRoleLogin"][];
+        };
+        /**
+         * CrawlRoleCredential
+         * @description One test login per role — role gating is captured in the reverse-Figma spec.
+         *
+         *     This is the password-FREE projection: it is what persists in config_json,
+         *     what ``GET /crawl-setup`` returns, and what the dispatch payload names. The
+         *     password lives only on the write-path :class:`CrawlRoleCredentialInput` and
+         *     is encrypted at rest (#206 Slice C), never echoed back.
+         */
+        CrawlRoleCredential: {
+            /** Role */
+            role: string;
+            /** Username */
+            username: string;
+        };
+        /**
+         * CrawlRoleCredentialInput
+         * @description PUT-only login that also carries the secret password (#206 Slice C).
+         *
+         *     The password is split out, encrypted at rest, and delivered to CI only via
+         *     the authenticated crawler pull — it is never persisted in cleartext, never
+         *     returned by ``GET /crawl-setup`` (that returns the bare
+         *     :class:`CrawlRoleCredential`), and never crosses the dispatch boundary.
+         *     ``repr=False`` keeps it out of tracebacks and log lines.
+         */
+        CrawlRoleCredentialInput: {
+            /** Role */
+            role: string;
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /**
+         * CrawlRoleLogin
+         * @description One decrypted role login delivered to CI. Maps onto the crawler's
+         *     RoleCredential env-var pattern (role → username/password).
+         */
+        CrawlRoleLogin: {
+            /** Role */
+            role: string;
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /**
+         * CrawlSetup
+         * @description Saved crawl configuration for one customer. The crawler contract caps
+         *     priority capabilities at 10; partial drafts below the recommended 5 save
+         *     fine — the 5–10 guidance lives in UI copy, not validation.
+         */
+        CrawlSetup: {
+            /** Capabilities */
+            capabilities: components["schemas"]["CrawlCapability"][];
+            /**
+             * Sandbox Url
+             * @description Staging/sandbox tenant — the walker never touches production
+             */
+            sandbox_url: string;
+            /** Test Users */
+            test_users: components["schemas"]["CrawlRoleCredential"][];
+            /**
+             * Ip Allowlist Note
+             * @description Where/how the walker's egress IPs were allowlisted
+             * @default
+             */
+            ip_allowlist_note: string;
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "weekly" | "on_demand";
+            /**
+             * Walk Depth
+             * @description Hops from a capability's entry URL the walker explores before it stops. Applied crawler-side as every capability's max_hops (#227). The default 6 matches the crawler's CapabilityConfig.max_hops and sits above the deepest real flow (checkout, refunds, subscription management run 5–6+ hops), so depth is a safety ceiling, not the binding constraint.
+             * @default 6
+             */
+            walk_depth: number;
+        };
+        /**
+         * CrawlSetupEnvelope
+         * @description GET/PUT response: the saved setup (None when never saved) + provenance.
+         */
+        CrawlSetupEnvelope: {
+            /** Customer Id */
+            customer_id: string;
+            setup?: components["schemas"]["CrawlSetup"] | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * CrawlSetupInput
+         * @description The ``PUT /crawl-setup`` request body: a CrawlSetup whose test logins
+         *     also carry passwords (#206 Slice C).
+         *
+         *     The route splits this into two destinations: :meth:`to_setup` (the
+         *     password-free CrawlSetup persisted in config_json and returned by GET) and
+         *     :meth:`credential_secrets` (the role→password map encrypted at rest). The
+         *     two never recombine except behind the authenticated crawler pull.
+         */
+        CrawlSetupInput: {
+            /** Capabilities */
+            capabilities: components["schemas"]["CrawlCapability"][];
+            /**
+             * Sandbox Url
+             * @description Staging/sandbox tenant — the walker never touches production
+             */
+            sandbox_url: string;
+            /** Test Users */
+            test_users: components["schemas"]["CrawlRoleCredentialInput"][];
+            /**
+             * Ip Allowlist Note
+             * @description Where/how the walker's egress IPs were allowlisted
+             * @default
+             */
+            ip_allowlist_note: string;
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "weekly" | "on_demand";
+            /**
+             * Walk Depth
+             * @description Hops from a capability's entry URL the walker explores before it stops. Applied crawler-side as every capability's max_hops (#227). The default 6 matches the crawler's CapabilityConfig.max_hops and sits above the deepest real flow (checkout, refunds, subscription management run 5–6+ hops), so depth is a safety ceiling, not the binding constraint.
+             * @default 6
+             */
+            walk_depth: number;
+        };
+        /**
+         * CrawlStatus
+         * @enum {string}
+         */
+        CrawlStatus: "pending" | "running" | "complete" | "failed";
+        /** CrawlSummary */
+        CrawlSummary: {
+            /** Id */
+            id: string;
+            /** Customer Id */
+            customer_id: string;
+            status: components["schemas"]["CrawlStatus"];
+            /** Phase */
+            phase?: string | null;
+            /** Snapshot Version */
+            snapshot_version?: string | null;
+            /** Capabilities Walked */
+            capabilities_walked?: string[] | null;
+            /** Run Url */
+            run_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** CreateSimulationResponse */
         CreateSimulationResponse: {
@@ -968,6 +1539,93 @@ export interface components {
             status: components["schemas"]["SimulationStatus"];
             /** Poll Url */
             poll_url: string;
+        };
+        /**
+         * DeltaView
+         * @description One salient behavioral difference, as a comparative (never a raw number).
+         */
+        DeltaView: {
+            /**
+             * Label
+             * @description Humanized feature name, e.g. 'order frequency'.
+             */
+            label: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "higher" | "lower";
+            /**
+             * Magnitude
+             * @enum {string}
+             */
+            magnitude: "somewhat" | "much" | "dramatically";
+        };
+        /**
+         * EvidenceEdge
+         * @description A typed, provenance-carrying link from a node to the verdict.
+         *
+         *     `relation` makes prior-echo inspectable: a positive verdict resting only on
+         *     `supports_change` edges with no `contradicts_change` is visibly thin — the
+         *     UI surfaces counter-evidence next to the headline. `confidence` is 0..1
+         *     (mean classifier confidence for personas; weakness frequency for weaknesses).
+         *     `provenance` lists the agent_ids backing the edge for click-through.
+         */
+        EvidenceEdge: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "supports_change" | "contradicts_change" | "guardrail_risk" | "weak_or_inferred";
+            /** Confidence */
+            confidence?: number | null;
+            /** Provenance */
+            provenance?: string[];
+            /** Detail */
+            detail?: string | null;
+        };
+        /**
+         * EvidenceGraph
+         * @description Provenance graph attached to a SimulationResult (#1 MiroFish-borrow).
+         *
+         *     Purely DESCRIPTIVE — built from the same per-agent analyses + weaknesses the
+         *     scorer already computed; it NEVER discounts confidence_score (panel hard
+         *     constraint, mirrors `instrument_scope` / `input_flags`). Optional +
+         *     default-empty so older `result_json` rows load byte-identical (rides the JSON
+         *     blob, NOT a DB column — migration-free). Its job is to make the evidence
+         *     behind a verdict — especially the counter-evidence — inspectable, which is
+         *     Sidira's defense against the 'more-is-better' prior-echo bias.
+         */
+        EvidenceGraph: {
+            /** Nodes */
+            nodes?: components["schemas"]["EvidenceNode"][];
+            /** Edges */
+            edges?: components["schemas"]["EvidenceEdge"][];
+        };
+        /**
+         * EvidenceNode
+         * @description One node in the evidence/provenance graph (#1 MiroFish-borrow).
+         *
+         *     Grounded in REAL run data only — the personas that reacted, the weaknesses
+         *     that were diagnosed, and the verdict itself. There are NO manufactured
+         *     similarity nodes/edges (DESIGN.md §10: every mark bound to backend data).
+         */
+        EvidenceNode: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "verdict" | "persona" | "weakness";
+            /** Detail */
+            detail?: string | null;
         };
         /** FeaturePackManifest */
         FeaturePackManifest: {
@@ -988,10 +1646,41 @@ export interface components {
             schema_version: "1.0";
             /** Capabilities */
             capabilities: string[];
+            /** Capability Domains */
+            capability_domains?: {
+                [key: string]: string;
+            };
             /** Crawl Metadata */
             crawl_metadata?: {
                 [key: string]: string;
             };
+        };
+        /**
+         * FeaturePackSummary
+         * @description The latest pack as `{name, roles}` rows plus its provenance.
+         *
+         *     Mirrors :class:`FeaturePackManifest` (same version + timestamp header) but
+         *     carries per-capability `roles`, so the Library browse page (#207) gets names,
+         *     roles, version and date from a single fetch and can group by role.
+         */
+        FeaturePackSummary: {
+            /** Customer Id */
+            customer_id: string;
+            /** Snapshot Version */
+            snapshot_version: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Schema Version
+             * @default 1.0
+             * @constant
+             */
+            schema_version: "1.0";
+            /** Capabilities */
+            capabilities: components["schemas"]["CapabilitySummary"][];
         };
         /**
          * FeedbackRequest
@@ -1052,13 +1741,8 @@ export interface components {
             /** Proposed Prd */
             proposed_prd?: string | null;
             proposed_figma?: components["schemas"]["ReverseFigma"] | null;
-            /**
-             * Metric Name
-             * @description OPTIONAL per-metric outcome elicitation target (#221/#275/#276).
-             *     None = sentiment-only (today's default). A registered metric adds a
-             *     turn-2 blinded decision elicitation + paired metric-lift delta.
-             */
-            metric_name?: "conversion" | "retention" | "ctr" | "visit" | null;
+            /** Metric Name */
+            metric_name?: ("conversion" | "retention" | "ctr" | "visit") | null;
             /** Conversion Action */
             conversion_action?: string | null;
             /** Conversion Action Label */
@@ -1086,6 +1770,43 @@ export interface components {
             /** Prose */
             prose?: string | null;
         };
+        /**
+         * InputFlags
+         * @description Pre-flight ordinal input-lint result, stamped on an amber/red/abstain run
+         *     (epic #309, T3 / #312).
+         *
+         *     CATEGORICAL only — an ordinal `state` + named `reasons` + stable
+         *     `reason_codes`, NEVER a number or score (panel hard constraint: the lint
+         *     ROUTES, it does not discount `confidence_score`). Populated by the runner
+         *     from the pre-flight `services.input_lint.assess_input_lint` verdict (LLM
+         *     judge + deterministic leading-framing lint + paraphrase-abstain). `state` is
+         *     `amber` | `red` | `abstain`; a `green` run carries NO `input_flags` (the
+         *     field stays None) so a clean run and every older `result_json` row load
+         *     byte-identical and this is migration-free (it rides the result JSON blob, NOT
+         *     a DB column). `reason_codes` are the existing weakness-taxonomy categories
+         *     (`scoring._VALID_CATEGORIES`) plus the deterministic `leading_framing` code;
+         *     `fixes` carries auto-neutralize hints for leading framing. The detail page
+         *     surfaces this as an amber disclosure note (DESIGN.md §7.7 cautionary-note
+         *     anatomy); the score is computed and persisted unchanged.
+         */
+        InputFlags: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "amber" | "red" | "abstain";
+            /** Reasons */
+            reasons?: string[];
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Fixes */
+            fixes?: string[];
+            /**
+             * Paraphrase Unstable
+             * @default false
+             */
+            paraphrase_unstable: boolean;
+        };
         /** ListModelsResponse */
         ListModelsResponse: {
             /** Models */
@@ -1093,10 +1814,31 @@ export interface components {
             /** Default Model Id */
             default_model_id: string;
         };
-        /** MappingSuggestion */
+        /**
+         * MappingSuggestion
+         * @description Wizard-facing grouped suggestion.
+         *
+         *     Keys are the canonical 7 feature groups; ``unmapped`` collects every column
+         *     the model omitted, was uncertain about, or tagged with an out-of-canon group.
+         *     Every input column appears in exactly one bucket.
+         */
         MappingSuggestion: {
-            /** Suggestions */
-            suggestions: components["schemas"]["ColumnSuggestion"][];
+            /** Demographic Identity */
+            demographic_identity?: components["schemas"]["ColumnAssignment"][];
+            /** Behavioral Patterns */
+            behavioral_patterns?: components["schemas"]["ColumnAssignment"][];
+            /** Motivations Jtbd */
+            motivations_jtbd?: components["schemas"]["ColumnAssignment"][];
+            /** Pain Points Friction */
+            pain_points_friction?: components["schemas"]["ColumnAssignment"][];
+            /** Value Sensitivity */
+            value_sensitivity?: components["schemas"]["ColumnAssignment"][];
+            /** Channel Tech Behavior */
+            channel_tech_behavior?: components["schemas"]["ColumnAssignment"][];
+            /** Loyalty Lifecycle */
+            loyalty_lifecycle?: components["schemas"]["ColumnAssignment"][];
+            /** Unmapped */
+            unmapped?: components["schemas"]["ColumnAssignment"][];
         };
         /** ModelInfo */
         ModelInfo: {
@@ -1346,6 +2088,70 @@ export interface components {
             weights: components["schemas"]["WeightSchemes"];
             /** Stability Score */
             stability_score: number;
+            /**
+             * Is Starter
+             * @description True for the generic, product-agnostic starter pack the loader serves when a tenant has no Persona Pack yet (#212). A starter is a placeholder so the product is clickable immediately; it is NOT built from customer data and never persisted. Real packs (built or sample-cloned) carry False.
+             * @default false
+             */
+            is_starter: boolean;
+        };
+        /**
+         * PersonaPackDetail
+         * @description The full read-only detail view the Library renders for one pack.
+         */
+        PersonaPackDetail: {
+            /** Version */
+            version: string;
+            /** Customer Id */
+            customer_id: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Is Starter */
+            is_starter: boolean;
+            /** Stability Score */
+            stability_score: number;
+            /** Persona Count */
+            persona_count: number;
+            /**
+             * Has Individual Rows
+             * @description True when the pack carries v1.1 row inputs (sample_rows) for at least one persona — i.e. the individual-row tier is available to render.
+             */
+            has_individual_rows: boolean;
+            /** Weight Schemes */
+            weight_schemes: components["schemas"]["WeightSchemeView"][];
+            /** Personas */
+            personas: components["schemas"]["PersonaProfileView"][];
+        };
+        /**
+         * PersonaProfileView
+         * @description One persona as a record: its prose plus the rendered v1.1 richness.
+         */
+        PersonaProfileView: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Jtbd */
+            jtbd?: string | null;
+            /** Behavioral Snapshot */
+            behavioral_snapshot?: {
+                [key: string]: number | string;
+            };
+            /** Shares */
+            shares?: {
+                [key: string]: number;
+            };
+            /** @description Persona-vs-population centroid block; None when no feature is salient. */
+            how_you_compare?: components["schemas"]["ProfileBlockView"] | null;
+            /** @description Per-member individual-row block; None on a v1.0 pack (no row inputs). */
+            distinctive?: components["schemas"]["ProfileBlockView"] | null;
         };
         /**
          * PersonaSummary
@@ -1364,6 +2170,66 @@ export interface components {
             name: string;
             /** Weight */
             weight: number;
+        };
+        /**
+         * PreflightRequest
+         * @description Lightweight authoring-time pre-flight check (epic #309, T4 / #313).
+         *
+         *     Carries just the `Hypothesis` the wizard is composing — no population,
+         *     personas, model, or arm config — because the pre-flight verdict depends
+         *     only on the hypothesis surface. `run_as_generic_reception` mirrors the
+         *     POST /simulations override so the wizard can preview "would this still
+         *     block if I run as generic-reception?" without resubmitting the real run.
+         */
+        PreflightRequest: {
+            hypothesis: components["schemas"]["Hypothesis"];
+            /**
+             * Run As Generic Reception
+             * @default false
+             */
+            run_as_generic_reception: boolean;
+        };
+        /**
+         * PreflightResponse
+         * @description The deterministic, zero-LLM pre-flight verdict (T4 / #313).
+         *
+         *     A read-only mirror of the SAME `assess_answerability` (T1) verdict the
+         *     POST path routes on, plus the SEPARABLE deterministic leading-framing
+         *     lint (`input_lint._detect_leading_framing`). It lets the wizard catch
+         *     `needs_input` / `out_of_scope` / leading-framing AT THE KEYBOARD, before
+         *     submit, so the PM never hits the POST 422 cold.
+         *
+         *     Crucially it does NOT run the simulation, does NOT spend an LLM token, and
+         *     does NOT call the T3 LLM judge (`assess_input_lint`) — only the two cheap
+         *     deterministic checks. It carries NO number and never touches
+         *     `confidence_score` (panel hard constraint): it ROUTES, exactly like T1.
+         *
+         *     `state` / `reasons` / `fixes` / `reason_codes` / `allow_override` are the
+         *     `AnswerabilityVerdict` verbatim; `override_field` matches the POST 422
+         *     payload so the wizard reuses one override affordance. `leading_framing_*`
+         *     carry the deterministic framing lint (advisory, NOT a block — the T3 LLM
+         *     judge that finalizes amber/red runs at submit time, never here).
+         */
+        PreflightResponse: {
+            /** State */
+            state: string;
+            /** Reasons */
+            reasons: string[];
+            /** Fixes */
+            fixes: string[];
+            /** Reason Codes */
+            reason_codes: string[];
+            /** Allow Override */
+            allow_override: boolean;
+            /**
+             * Override Field
+             * @default run_as_generic_reception
+             */
+            override_field: string;
+            /** Leading Framing Reasons */
+            leading_framing_reasons: string[];
+            /** Leading Framing Fixes */
+            leading_framing_fixes: string[];
         };
         /** PreviewRequest */
         PreviewRequest: {
@@ -1384,6 +2250,43 @@ export interface components {
             /** Columns */
             columns: components["schemas"]["ColumnProfile"][];
         };
+        /**
+         * ProfileBlockView
+         * @description A rendered behavioral-comparison block, with its honesty flags intact.
+         *
+         *     `grounded`/`source_tier`/`suppressed_count` are carried straight from the
+         *     renderer so the page can be as honest as the prompt: a thin or absent source
+         *     is shown as such, never dressed up as a rich profile.
+         */
+        ProfileBlockView: {
+            /** Heading */
+            heading: string;
+            /** Intro */
+            intro: string;
+            /** Deltas */
+            deltas?: components["schemas"]["DeltaView"][];
+            /**
+             * Tail Count
+             * @description Salient deltas beyond the shown handful (individual-row tier only) — counted, never silently dropped.
+             * @default 0
+             */
+            tail_count: number;
+            /**
+             * Suppressed Count
+             * @description Finite features below the salience threshold — counted, not dropped.
+             * @default 0
+             */
+            suppressed_count: number;
+            /** Grounded */
+            grounded: boolean;
+            /** Source Tier */
+            source_tier: string;
+            /**
+             * Note
+             * @description The honesty hedge shown beneath the deltas.
+             */
+            note: string;
+        };
         /** ReverseFigma */
         ReverseFigma: {
             /** Screens */
@@ -1397,7 +2300,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "run.started" | "packs.loaded" | "agent.materialized" | "agent.reaction.started" | "agent.reaction.completed" | "agent.reaction.failed" | "score.updated" | "run.complete" | "run.failed";
+            type: "run.started" | "packs.loaded" | "agent.materialized" | "agent.reaction.started" | "agent.reaction.completed" | "agent.reaction.failed" | "score.updated" | "persona_lift.computed" | "current_state_delta.computed" | "run.complete" | "run.failed";
             /**
              * At
              * Format: date-time
@@ -1413,6 +2316,22 @@ export interface components {
          * @enum {string}
          */
         RunPhase: "pending" | "loading_packs" | "materializing_agents" | "agents_reacting" | "scoring" | "complete" | "failed";
+        /**
+         * SampleWorkspaceResponse
+         * @description What got seeded — enough for the UI to confirm and refresh.
+         */
+        SampleWorkspaceResponse: {
+            /** Source */
+            source: string;
+            /** Persona Pack Version */
+            persona_pack_version: string;
+            /** Persona Count */
+            persona_count: number;
+            /** Feature Pack Version */
+            feature_pack_version: string;
+            /** Capabilities */
+            capabilities: string[];
+        };
         /** Screen */
         Screen: {
             /** Id */
@@ -1516,6 +2435,24 @@ export interface components {
              * @description Phase 5 #103: optional LLM model id powering this simulation. When omitted, the backend resolves its configured default.
              */
             model_id?: string | null;
+            /**
+             * Include No Persona Control
+             * @description #221 §4.1 persona-lift baseline. When True, a 1:1 shadow panel of no-persona agents (the base LLM with persona conditioning stripped) reacts to the SAME proposed change, and the result surfaces persona_lift = persona − no_persona sentiment delta. The shadows are ephemeral (never persisted) and don't affect the headline confidence_score. Default False → byte-identical to today. Only the single-arm path supports it; A/B mode ignores it for now.
+             * @default false
+             */
+            include_no_persona_control: boolean;
+            /**
+             * Include Current State Control
+             * @description #221 §3.3.1 delta-mode. When True, a 1:1 shadow panel of the SAME personas reacts to the CURRENT product state (the proposed change omitted — the existing A/B control framing applied as a paired shadow in single-arm mode), and the result surfaces current_state_delta = treatment − current_state sentiment delta in confidence_score units. A 100%-paired design: every persona is its own control. The shadows are ephemeral (never persisted) and don't affect the headline confidence_score in this slice — the delta is purely additive. Default False → byte-identical to today. Only the single-arm path supports it; A/B mode ignores it for now.
+             * @default false
+             */
+            include_current_state_control: boolean;
+            /**
+             * Run As Generic Reception
+             * @description Answerability gate override (#310 / T1). When the pre-flight gate blocks because no decision metric (OEC) was declared (metric_name is None), the PM may resubmit with this flag to proceed anyway — the run is then labeled generic-reception (sentiment only, NOT OEC-aligned) rather than dead-ended. It does NOT override the structurally-invisible-change block (there is no faithful way to simulate a wireframe described as prose). Default False → today's behavior. Does not touch confidence_score.
+             * @default false
+             */
+            run_as_generic_reception: boolean;
         };
         /** SimulationResult */
         SimulationResult: {
@@ -1535,31 +2472,16 @@ export interface components {
              * @description Per-agent sentiment + top quote for the result-table render. Populated by the runner when scoring completes. Empty for sims that ran before #51 landed (backwards-compatible).
              */
             per_agent_analyses?: components["schemas"]["AgentAnalysisSummary"][];
-            // ── Abstention / instrument-fit (epic #309, T2 / #311) — HAND-ADDED ──
-            // The gen-types script needs a live backend; hand-mirrored from
-            // backend/sidira_simulator/schemas/simulation.py (SimulationResult).
-            // CATEGORICAL only (state + reasons), never a number — the abstention
-            // WITHHOLDS the verdict, it does not discount confidence_score.
             /**
              * Instrument Scope
-             * @description "out_of_scope" → verdictFor() withholds the ship/no-ship verdict.
              * @default in_scope
+             * @enum {string}
              */
             instrument_scope: "in_scope" | "out_of_scope";
             /** Out Of Scope Reasons */
             out_of_scope_reasons?: string[];
             /** Out Of Scope Reason Codes */
             out_of_scope_reason_codes?: string[];
-            // ── Pre-flight ordinal input lint (epic #309, T3 / #312) — HAND-ADDED ──
-            // The gen-types script needs a live backend; hand-mirrored from
-            // backend/sidira_simulator/schemas/simulation.py (InputFlags +
-            // SimulationResult.input_flags). CATEGORICAL only (ordinal state +
-            // named reasons), never a number — the lint ROUTES, it does not
-            // discount confidence_score. None / absent on a green run (and on
-            // every older result_json row); migration-free (rides the JSON blob).
-            /**
-             * @description Pre-flight ordinal input-lint disclosure, present only on an amber/red/abstain run. null on a green run and on legacy rows.
-             */
             input_flags?: components["schemas"]["InputFlags"] | null;
             /** Treatment Score */
             treatment_score?: number | null;
@@ -1589,18 +2511,60 @@ export interface components {
              * @default 0
              */
             lift_sentiment_failure_drops: number;
-            // ── Metric-lift fields (#221/#275/#276) — HAND-ADDED ──
-            // The gen-types script needs a live backend; like #279 did for the
-            // Hypothesis input fields, these output fields are hand-mirrored
-            // from backend/sidira_simulator/schemas/simulation.py
-            // (SimulationResult, the #275 Decision A GENERIC metric_lift_*
-            // naming). Keep in sync with that Pydantic model. Persona-lift and
-            // current-state-delta result fields remain omitted (no frontend
-            // reader); add them here the same way if a consumer ever needs them.
+            evidence_graph?: components["schemas"]["EvidenceGraph"] | null;
+            /** No Persona Score */
+            no_persona_score?: number | null;
+            /** Persona Lift */
+            persona_lift?: number | null;
+            /** Persona Lift Ci */
+            persona_lift_ci?: [
+                number,
+                number
+            ] | null;
+            /** Persona Lift Paired N */
+            persona_lift_paired_n?: number | null;
             /**
-             * Metric Name
-             * @description Native-unit discriminator (conversion / retention / ctr); null for a sentiment-only run.
+             * Persona Lift Unpaired Persona
+             * @default 0
              */
+            persona_lift_unpaired_persona: number;
+            /**
+             * Persona Lift Unpaired No Persona
+             * @default 0
+             */
+            persona_lift_unpaired_no_persona: number;
+            /**
+             * Persona Lift Sentiment Failure Drops
+             * @default 0
+             */
+            persona_lift_sentiment_failure_drops: number;
+            /** Current State Score */
+            current_state_score?: number | null;
+            /** Current State Delta */
+            current_state_delta?: number | null;
+            /** Current State Delta Ci */
+            current_state_delta_ci?: [
+                number,
+                number
+            ] | null;
+            /** Current State Delta Paired N */
+            current_state_delta_paired_n?: number | null;
+            /**
+             * Current State Delta Unpaired Persona
+             * @default 0
+             */
+            current_state_delta_unpaired_persona: number;
+            /**
+             * Current State Delta Unpaired Current State
+             * @default 0
+             */
+            current_state_delta_unpaired_current_state: number;
+            /**
+             * Current State Delta Sentiment Failure Drops
+             * @default 0
+             */
+            current_state_delta_sentiment_failure_drops: number;
+            /** Metric Name */
             metric_name?: string | null;
             /** Metric Lift Pp */
             metric_lift_pp?: number | null;
@@ -1645,6 +2609,28 @@ export interface components {
              * @default false
              */
             metric_lift_calibrated: boolean;
+            /**
+             * Metric Lift Variance Collapsed
+             * @default false
+             */
+            metric_lift_variance_collapsed: boolean;
+            /**
+             * Metric Lift Variance Collapsed Persona Count
+             * @default 0
+             */
+            metric_lift_variance_collapsed_persona_count: number;
+            /**
+             * Metric Lift Underpowered
+             * @default false
+             */
+            metric_lift_underpowered: boolean;
+            /**
+             * Metric Sentiment Disagreement
+             * @default false
+             */
+            metric_sentiment_disagreement: boolean;
+            /** Metric Sentiment Disagreement Caveat */
+            metric_sentiment_disagreement_caveat?: string | null;
         };
         /**
          * SimulationRunState
@@ -1798,6 +2784,26 @@ export interface components {
             /** Ci High */
             ci_high?: number | null;
         };
+        /**
+         * WeightSchemeView
+         * @description Pack-level availability of one weighting basis, with a reason when absent.
+         */
+        WeightSchemeView: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "head_count" | "order_weighted" | "revenue_weighted";
+            /** Label */
+            label: string;
+            /** Available */
+            available: boolean;
+            /**
+             * Note
+             * @description Why this scheme is unavailable, when it is.
+             */
+            note?: string | null;
+        };
         /** WeightSchemes */
         WeightSchemes: {
             /** Head Count */
@@ -1895,6 +2901,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateSimulationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preflight_simulation_simulations_preflight_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreflightRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreflightResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2277,6 +3316,212 @@ export interface operations {
             };
         };
     };
+    get_capability_capabilities__capability_name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                capability_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_capabilities_summary_feature_pack_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeaturePackSummary"];
+                };
+            };
+        };
+    };
+    get_crawl_setup_crawl_setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupEnvelope"];
+                };
+            };
+        };
+    };
+    save_crawl_setup_crawl_setup_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrawlSetupInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_crawls_crawls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSummary"][];
+                };
+            };
+        };
+    };
+    create_crawl_crawls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSummary"];
+                };
+            };
+        };
+    };
+    get_crawl_crawls__crawl_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                crawl_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_crawl_credentials_internal_crawl_credentials__customer__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                customer: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlCredentialsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_connections_feature_stores_get: {
         parameters: {
             query?: never;
@@ -2460,7 +3705,9 @@ export interface operations {
     };
     list_builds_persona_builds_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2474,6 +3721,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuildSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2542,6 +3798,37 @@ export interface operations {
             };
         };
     };
+    get_build_events_persona_builds__build_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                build_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_packs_persona_packs_get: {
         parameters: {
             query?: never;
@@ -2580,6 +3867,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonaPack"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pack_detail_persona_packs__pack_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonaPackDetail"];
                 };
             };
             /** @description Validation Error */
@@ -2640,6 +3958,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivePersonasResponse"];
+                };
+            };
+        };
+    };
+    generate_sample_workspace_sample_workspace_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SampleWorkspaceResponse"];
+                };
+            };
+        };
+    };
+    clerk_webhook_webhooks_clerk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

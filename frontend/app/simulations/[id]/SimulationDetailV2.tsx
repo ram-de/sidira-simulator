@@ -41,6 +41,7 @@ import {
   type Hypothesis,
   type RunEvent,
   type Simulation,
+  type EvidenceEdge,
   type SimulationResult,
   type SimulationRunState,
   type SimulationStatus,
@@ -2694,29 +2695,7 @@ function WeaknessRegister({
 // verdict can't rest silently on supports_change alone — the prior-echo defense.
 // Reuses the weakness register's classes: no new color, no pills, no graph dep.
 // ───────────────────────────────────────────────────────────────────────────
-type EvidenceRelation =
-  | "supports_change"
-  | "contradicts_change"
-  | "guardrail_risk"
-  | "weak_or_inferred";
-interface EvidenceEdgeT {
-  source: string;
-  target: string;
-  relation: EvidenceRelation;
-  confidence?: number | null;
-  provenance?: string[];
-  detail?: string | null;
-}
-interface EvidenceNodeT {
-  id: string;
-  label: string;
-  kind: "verdict" | "persona" | "weakness";
-  detail?: string | null;
-}
-interface EvidenceGraphT {
-  nodes: EvidenceNodeT[];
-  edges: EvidenceEdgeT[];
-}
+type EvidenceRelation = NonNullable<EvidenceEdge["relation"]>;
 
 const EVIDENCE_RELATION_LABEL: Record<EvidenceRelation, string> = {
   contradicts_change: "CONTRADICTS",
@@ -2739,13 +2718,7 @@ function EvidenceRegister({
   result: SimulationResult | null;
   running: boolean;
 }) {
-  // evidence_graph is additive on the backend; until api-types.ts is regenerated
-  // from the running backend (npm run gen-types) it isn't on the generated
-  // SimulationResult type, so we read it through a narrow cast. Drop the cast
-  // after the next type regen.
-  const graph =
-    (result as { evidence_graph?: EvidenceGraphT | null } | null)
-      ?.evidence_graph ?? null;
+  const graph = result?.evidence_graph ?? null;
   const nodeById = new Map((graph?.nodes ?? []).map((n) => [n.id, n]));
   const edges = [...(graph?.edges ?? [])].sort(
     (a, b) =>
