@@ -660,7 +660,14 @@ class ScoringService:
                     # guardrail_risk edge for the exact metric↔sentiment disagreement
                     # it exists to surface. Descriptive only; does NOT touch the score.
                     update["evidence_graph"] = _build_evidence_graph(
-                        list(treatment_analyses), updated_weaknesses
+                        list(treatment_analyses),
+                        updated_weaknesses,
+                        use_activity_weight=(
+                            config.use_activity_weight if config else False
+                        ),
+                        use_sentiment_confidence=(
+                            config.use_sentiment_confidence if config else True
+                        ),
                     )
                 composed = composed.model_copy(update=update)
         return composed, list(analyses)
@@ -1029,7 +1036,12 @@ class ScoringService:
             refinement_suggestions=[],  # filled in by RefinementService caller
             # #1 MiroFish-borrow: descriptive provenance graph from the same
             # analyses + weaknesses. Does NOT touch confidence_score.
-            evidence_graph=_build_evidence_graph(analyses_list, weaknesses),
+            evidence_graph=_build_evidence_graph(
+                analyses_list,
+                weaknesses,
+                use_activity_weight=cfg.use_activity_weight,
+                use_sentiment_confidence=cfg.use_sentiment_confidence,
+            ),
         )
 
 
@@ -1057,6 +1069,9 @@ _EVIDENCE_NET_THRESHOLD = 0.15
 def _build_evidence_graph(
     analyses: Sequence[AgentAnalysis],
     weaknesses: Sequence[Weakness],
+    *,
+    use_activity_weight: bool = False,
+    use_sentiment_confidence: bool = True,
 ) -> EvidenceGraph:
     """Build a provenance graph from data the scorer already computed.
 
@@ -1085,10 +1100,22 @@ def _build_evidence_graph(
     for a in analyses:
         by_persona.setdefault(a.persona_id, []).append(a)
 
+    # Mirror _compute_score's weighting EXACTLY so the register explains the
+    # SAME reading the verdict rests on (codex P2). `aw` = activity weight (#5,
+    # off by default), `cw` = classifier-confidence weight (on by default). With
+    # both at their prod defaults this reduces to the original confidence-only
+    # net; with use_sentiment_confidence off, agents are weighted equally just
+    # as the score treats them.
+    def aw(a: AgentAnalysis) -> float:
+        return a.activity_weight if use_activity_weight else 1.0
+
+    def cw(a: AgentAnalysis) -> float:
+        return a.sentiment.confidence if use_sentiment_confidence else 1.0
+
     for pid, group in by_persona.items():
-        denom = sum(a.sentiment.confidence for a in group)
+        denom = sum(aw(a) * cw(a) for a in group)
         num = sum(
-            a.sentiment.confidence * _SENTIMENT_SIGN[a.sentiment.sentiment] for a in group
+            aw(a) * cw(a) * _SENTIMENT_SIGN[a.sentiment.sentiment] for a in group
         )
         net = num / denom if denom > 0 else 0.0
         mean_conf = sum(a.sentiment.confidence for a in group) / len(group)
