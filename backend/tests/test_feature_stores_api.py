@@ -490,3 +490,34 @@ def test_suggest_mapping_llm_failure_is_502(client, monkeypatch):
         f"/feature-stores/{cid}/suggest-mapping", json={"columns": _SUGGEST_COLUMNS}
     )
     assert resp.status_code == 502
+
+
+def test_connectionless_suggest_mapping_returns_grouped_shape(client, monkeypatch):
+    """The #3 doc-feeder maps columns with no saved connection — the agnostic
+    `/feature-stores/suggest-mapping` route returns the same grouped shape."""
+    from sidira_simulator.api import feature_stores as fs_mod
+    from sidira_simulator.services.column_mapper import ColumnAssignment, MappingSuggestion
+
+    canned = MappingSuggestion(
+        demographic_identity=[ColumnAssignment(column="age", confidence="high")],
+        unmapped=[ColumnAssignment(column="user_id", confidence="low")],
+    )
+    monkeypatch.setattr(fs_mod.column_mapper, "suggest_mapping", lambda columns: canned)
+
+    resp = client.post("/feature-stores/suggest-mapping", json={"columns": _SUGGEST_COLUMNS})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["demographic_identity"][0]["column"] == "age"
+    assert body["unmapped"][0]["column"] == "user_id"
+
+
+def test_connectionless_suggest_mapping_llm_failure_is_502(client, monkeypatch):
+    from sidira_simulator.api import feature_stores as fs_mod
+    from sidira_simulator.services.column_mapper import ColumnMappingError
+
+    def _boom(columns):
+        raise ColumnMappingError("provider down")
+
+    monkeypatch.setattr(fs_mod.column_mapper, "suggest_mapping", _boom)
+    resp = client.post("/feature-stores/suggest-mapping", json={"columns": _SUGGEST_COLUMNS})
+    assert resp.status_code == 502

@@ -546,6 +546,55 @@ export interface PreviewResponse {
   columns: ColumnProfile[];
 }
 
+// ── #3 document feeder ──────────────────────────────────────────────────────
+// The closed set of metric types the persona adapter accepts (mirrors the
+// backend METRIC_TYPES). An extraction field MUST declare one of these so the
+// column it produces is normalizable by the existing build pipeline.
+export const METRIC_TYPES = [
+  "count",
+  "score",
+  "ratio",
+  "flag",
+  "categorical",
+  "json_ratios",
+  "json_counts",
+  "tenure_days",
+] as const;
+export type MetricType = (typeof METRIC_TYPES)[number];
+
+// One bounded column to pull from each entity's documents. `description` is the
+// extraction instruction shown to the model; it never widens the field set.
+export interface ExtractionField {
+  name: string;
+  type: MetricType;
+  description?: string;
+}
+
+// The CLOSED schema extraction may emit — anything else is dropped.
+export interface ExtractionSchema {
+  fields: ExtractionField[];
+  entity_key?: string; // defaults to "entity_id" backend-side
+}
+
+// All document text for a single entity (one persona-pipeline row).
+export interface EntityDocument {
+  entity_id: string;
+  text: string;
+}
+
+export interface ExtractDocumentsRequest {
+  documents: EntityDocument[];
+  extraction_schema: ExtractionSchema;
+}
+
+// Same (row_count, columns) shape as PreviewResponse so doc-fed columns flow
+// straight into the existing Map step; `rows` rides back for the build step.
+export interface ExtractDocumentsResponse {
+  row_count: number;
+  columns: ColumnProfile[];
+  rows: Array<Record<string, unknown>>;
+}
+
 // The 7 canonical feature groups (column_mapper.FeatureGroup) — do NOT rename;
 // these exact ids are what the build's column_mapping is keyed on.
 export type FeatureGroup =
@@ -674,6 +723,22 @@ export const suggestMapping = (id: string, columns: ColumnProfile[]) =>
   apiPost<{ columns: ColumnProfile[] }, MappingSuggestion>(
     `/feature-stores/${encodeURIComponent(id)}/suggest-mapping`,
     { columns },
+  );
+
+// Connection-agnostic mapping — for columns that don't come from a saved
+// connection (the #3 document feeder). Same stateless suggestion.
+export const suggestMappingForColumns = (columns: ColumnProfile[]) =>
+  apiPost<{ columns: ColumnProfile[] }, MappingSuggestion>(
+    "/feature-stores/suggest-mapping",
+    { columns },
+  );
+
+// #3 doc feeder — extract bounded, fixed-schema feature rows from documents,
+// returned in the same (row_count, columns) shape as a feature-store preview.
+export const extractDocuments = (req: ExtractDocumentsRequest) =>
+  apiPost<ExtractDocumentsRequest, ExtractDocumentsResponse>(
+    "/feature-stores/extract-documents",
+    req,
   );
 
 // ── persona builds ──

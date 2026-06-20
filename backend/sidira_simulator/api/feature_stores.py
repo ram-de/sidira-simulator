@@ -352,6 +352,22 @@ async def suggest_mapping(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@router.post("/suggest-mapping", response_model=MappingSuggestion)
+async def suggest_mapping_for_columns(
+    payload: SuggestMappingRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> MappingSuggestion:
+    """Connection-agnostic column mapping — same stateless suggestion as the
+    ``/{connection_id}/suggest-mapping`` route, but for columns that don't come
+    from a saved connection (the #3 document feeder, where the documents ARE the
+    source). The suggestion never touched the connection anyway. Runs the blocking
+    LLM call off the event loop. Returns 502 if the upstream LLM call fails."""
+    try:
+        return await asyncio.to_thread(column_mapper.suggest_mapping, payload.columns)
+    except ColumnMappingError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 #: Guard rails on a single extract-documents request: extraction fans out into
 #: one blocking LLM call per non-empty document, so an unbounded upload would tie
 #: up the threadpool and run up provider cost. Reject oversized requests up front.

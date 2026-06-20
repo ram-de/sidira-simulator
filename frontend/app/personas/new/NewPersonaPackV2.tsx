@@ -32,11 +32,12 @@
 // disclosure copy is preserved verbatim from the legacy.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createFeatureStore,
   createPersonaBuild,
   deleteFeatureStore,
+  extractDocuments,
   getPersonaBuild,
   getPersonaBuildEvents,
   getPersonaPackDetail,
@@ -45,6 +46,7 @@ import {
   previewFeatureStore,
   promotePersonaPack,
   suggestMapping,
+  suggestMappingForColumns,
   testFeatureStore,
   type BuildConfig,
   type BuildEvent,
@@ -53,9 +55,12 @@ import {
   type ColumnAssignment,
   type ColumnProfile,
   type ConnectionSummary,
+  type EntityDocument,
+  type ExtractionField,
   type FeatureGroup,
   type LlmProvider,
   type MappingSuggestion,
+  type MetricType,
   type PackSummary,
   type PersonaPackDetail,
   type PersonaProfileView,
@@ -63,6 +68,7 @@ import {
   type SnowflakeConnectionRequest,
   type WeightScheme,
   FEATURE_GROUPS,
+  METRIC_TYPES,
 } from "@/lib/api";
 import AppShellV2 from "@/components/v2/AppShellV2";
 // Pure-logic helpers only — these carry NO presentation, so they stay shared.
@@ -360,6 +366,31 @@ const GROUP_LABELS: Record<FeatureGroup, string> = {
 
 type Assignment = FeatureGroup | "ignore";
 type SourceMode = "table" | "sql";
+// #3 doc feeder: where the population rows come from — a Snowflake feature store
+// (the existing flow) or unstructured documents extracted into feature rows.
+type SourceKind = "feature_store" | "documents";
+
+// A draft extraction field in the schema builder (type may be unselected while
+// editing, hence the "" option that the form rejects before continuing).
+interface DraftField {
+  name: string;
+  type: MetricType | "";
+  description: string;
+}
+
+const METRIC_TYPE_HINTS: Record<MetricType, string> = {
+  count: "a count of occurrences (≥ 0)",
+  score: "a numeric rating / level",
+  ratio: "a fraction between 0 and 1",
+  flag: "true / false",
+  categorical: "a single short label",
+  json_ratios: "{label: fraction} object",
+  json_counts: "{label: count} object",
+  tenure_days: "a number of days",
+};
+
+const emptyDraftField = (): DraftField => ({ name: "", type: "", description: "" });
+const emptyDocEntity = (): EntityDocument => ({ entity_id: "", text: "" });
 
 interface ConnForm {
   name: string;
@@ -472,6 +503,9 @@ const POLL_MS = 2500; // #28 watch cadence while pending/running.
 export default function NewPersonaPackV2() {
   const [step, setStep] = useState(1);
 
+  // ── Step 1 · source kind (#3 doc feeder) ────────────────────────────────
+  const [sourceKind, setSourceKind] = useState<SourceKind>("feature_store");
+
   // ── Step 1 · Connect (#26) ──────────────────────────────────────────────
   const [conn, setConn] = useState<ConnForm>(emptyConnForm());
   const [sourceMode, setSourceMode] = useState<SourceMode>("table");
@@ -489,6 +523,10 @@ export default function NewPersonaPackV2() {
   const [deleteError, setDeleteError] = useState<{ id: string; message: string } | null>(null);
   const [testingRowId, setTestingRowId] = useState<string | null>(null);
   const [rowTestError, setRowTestError] = useState<{ id: string; message: string } | null>(null);
+
+  // ── Step 1 · Documents (#3 doc feeder) ──────────────────────────────────
+  const [docEntities, setDocEntities] = useState<EntityDocument[]>([emptyDocEntity()]);
+  const [docFields, setDocFields] = useState<DraftField[]>([emptyDraftField()]);
 
   // ── Step 2 · Map (#27) ──────────────────────────────────────────────────
   const [columns, setColumns] = useState<ColumnProfile[] | null>(null);
@@ -528,6 +566,39 @@ export default function NewPersonaPackV2() {
 
   const sourceBody = (): { table_fqn?: string | null; sql?: string | null } =>
     sourceMode === "table" ? { table_fqn: tableFqn.trim() } : { sql: sql.trim() };
+
+  // ── documents-source derived state (#3) ──────────────────────────────────
+  const validDocEntities = docEntities.filter(
+    (d) => d.entity_id.trim() && d.text.trim(),
+  );
+  const validDocFields = docFields.filter(
+    (f): f is { name: string; type: MetricType; description: string } =>
+      f.name.trim() !== "" && f.type !== "",
+  );
+  const dupFieldName =
+    new Set(validDocFields.map((f) => f.name.trim())).size !== validDocFields.length;
+  // Ready to extract: at least one entity with text, at least one well-formed
+  // field, no duplicate field names, and no field colliding with the entity key.
+  const docsValid =
+    validDocEntities.length > 0 &&
+    validDocFields.length > 0 &&
+    !dupFieldName &&
+    !validDocFields.some((f) => f.name.trim() === "entity_id");
+
+  const buildExtractionRequest = () => ({
+    documents: validDocEntities.map((d) => ({
+      entity_id: d.entity_id.trim(),
+      text: d.text.trim(),
+    })),
+    extraction_schema: {
+      fields: validDocFields.map((f) => ({
+        name: f.name.trim(),
+        type: f.type,
+        description: f.description.trim() || undefined,
+      })) as ExtractionField[],
+      entity_key: "entity_id",
+    },
+  });
 
   const clearBuild = useCallback(() => {
     setBuild(null);
@@ -581,6 +652,33 @@ export default function NewPersonaPackV2() {
   };
 
   const invalidateConnection = () => {
+    invalidateMappingAndBuild();
+  };
+
+  // ── Step 1 · documents handlers (#3) ─────────────────────────────────────
+  // Any edit to the documents or the schema invalidates the downstream extract
+  // + mapping, exactly as editing a Snowflake source does.
+  const onDocEntity = (i: number, patch: Partial<EntityDocument>) => {
+    setDocEntities((prev) => prev.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+    invalidateMappingAndBuild();
+  };
+  const onAddDocEntity = () => setDocEntities((prev) => [...prev, emptyDocEntity()]);
+  const onRemoveDocEntity = (i: number) => {
+    setDocEntities((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)));
+    invalidateMappingAndBuild();
+  };
+  const onDocField = (i: number, patch: Partial<DraftField>) => {
+    setDocFields((prev) => prev.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+    invalidateMappingAndBuild();
+  };
+  const onAddDocField = () => setDocFields((prev) => [...prev, emptyDraftField()]);
+  const onRemoveDocField = (i: number) => {
+    setDocFields((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)));
+    invalidateMappingAndBuild();
+  };
+
+  const onSourceKind = (kind: SourceKind) => {
+    setSourceKind(kind);
     invalidateMappingAndBuild();
   };
 
@@ -725,20 +823,38 @@ export default function NewPersonaPackV2() {
     }
   };
 
-  // ── Step 2 · profile + suggest (#27) ─────────────────────────────────────
+  // ── Step 2 · profile + suggest (#27, +#3 documents) ──────────────────────
+  // Both sources converge on the SAME (columns, row_count) shape, so the only
+  // difference is how the columns are produced: a Snowflake preview vs. a
+  // document extraction. Mapping suggestion + assignment is identical after that.
   const loadMapping = useCallback(async () => {
-    if (!connection) return;
     setMapError(null);
     setMapPhase("profiling");
     try {
-      const preview = await previewFeatureStore(connection.id, sourceBody());
-      setColumns(preview.columns);
-      setRowCount(preview.row_count);
-      setMapPhase("suggesting");
-      const sugg = await suggestMapping(connection.id, preview.columns);
+      let cols: ColumnProfile[];
+      let count: number;
+      let sugg: MappingSuggestion;
+      if (sourceKind === "documents") {
+        const extracted = await extractDocuments(buildExtractionRequest());
+        cols = extracted.columns;
+        count = extracted.row_count;
+        setColumns(cols);
+        setRowCount(count);
+        setMapPhase("suggesting");
+        sugg = await suggestMappingForColumns(cols);
+      } else {
+        if (!connection) return;
+        const preview = await previewFeatureStore(connection.id, sourceBody());
+        cols = preview.columns;
+        count = preview.row_count;
+        setColumns(cols);
+        setRowCount(count);
+        setMapPhase("suggesting");
+        sugg = await suggestMapping(connection.id, cols);
+      }
       setSuggestion(sugg);
       const next: Record<string, Assignment | ""> = {};
-      for (const col of preview.columns) next[col.name] = "";
+      for (const col of cols) next[col.name] = "";
       for (const group of FEATURE_GROUPS) {
         for (const a of sugg[group]) next[a.column] = group;
       }
@@ -748,14 +864,18 @@ export default function NewPersonaPackV2() {
       setMapError(apiErrorMessage(e));
       setMapPhase("error");
     }
+    // docEntities/docFields are deps so the documents request is never built
+    // from a stale closure (the empty state captured when sourceKind flipped).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection]);
+  }, [connection, sourceKind, docEntities, docFields]);
 
   useEffect(() => {
-    if (step === 2 && connection && columns === null && mapPhase === "idle") {
+    const sourceReady = sourceKind === "documents" ? docsValid : connection !== null;
+    if (step === 2 && sourceReady && columns === null && mapPhase === "idle") {
       void loadMapping();
     }
-  }, [step, connection, columns, mapPhase, loadMapping]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, connection, sourceKind, docsValid, columns, mapPhase, loadMapping]);
 
   const confidenceFor = (colName: string): ColumnAssignment | null => {
     if (!suggestion) return null;
@@ -887,7 +1007,9 @@ export default function NewPersonaPackV2() {
   const canContinue = (): boolean => {
     switch (step) {
       case 1:
-        return testPassed; // a test must have succeeded for the current values
+        // Documents: ready once there's ≥1 entity with text + a valid schema.
+        // Feature store: a connection test must have succeeded for the values.
+        return sourceKind === "documents" ? docsValid : testPassed;
       case 2:
         return allResolved; // every column assigned or explicitly ignored
       case 3:
@@ -906,7 +1028,10 @@ export default function NewPersonaPackV2() {
     if (canContinue()) setStep((s) => Math.min(LAST_STEP, s + 1));
   };
 
-  const showNext = step !== LAST_STEP;
+  // Documents are preview-only: step 3 (extraction + mapping summary) is the
+  // terminal state. There's no build to complete, so don't offer a dead Next.
+  const documentsTerminal = sourceKind === "documents" && step === 3;
+  const showNext = step !== LAST_STEP && !documentsTerminal;
 
   const nextLabel =
     step === 3 ? "Continue → Evaluate" : step === 4 ? "These look right → Promote" : "Next →";
@@ -934,6 +1059,24 @@ export default function NewPersonaPackV2() {
           {/* Step body. Each step renders inside the form zone. */}
           <div className="bodywrap" style={{ maxWidth: 760 }}>
             {step === 1 && (
+              <>
+                <SourceKindToggle kind={sourceKind} onKind={onSourceKind} />
+                {sourceKind === "documents" ? (
+                  <StepDocuments
+                    entities={docEntities}
+                    fields={docFields}
+                    docsValid={docsValid}
+                    dupFieldName={dupFieldName}
+                    validEntityCount={validDocEntities.length}
+                    validFieldCount={validDocFields.length}
+                    onEntity={onDocEntity}
+                    onAddEntity={onAddDocEntity}
+                    onRemoveEntity={onRemoveDocEntity}
+                    onField={onDocField}
+                    onAddField={onAddDocField}
+                    onRemoveField={onRemoveDocField}
+                  />
+                ) : (
               <StepConnect
                 conn={conn}
                 sourceMode={sourceMode}
@@ -982,6 +1125,8 @@ export default function NewPersonaPackV2() {
                 }}
                 onTest={handleTest}
               />
+                )}
+              </>
             )}
 
             {step === 2 && (
@@ -1005,10 +1150,12 @@ export default function NewPersonaPackV2() {
             {step === 3 && (
               <StepBuild
                 connection={connection}
+                sourceKind={sourceKind}
                 sourceMode={sourceMode}
                 tableFqn={tableFqn}
                 sql={sql}
                 columns={columns}
+                rowCount={rowCount}
                 mapping={mapping}
                 k={k}
                 stabilityThreshold={stabilityThreshold}
@@ -1124,6 +1271,273 @@ function Stepper({ current }: { current: number }) {
 // ════════════════════════════════════════════════════════════════════════════
 // Step 1 · Connect (#26)
 // ════════════════════════════════════════════════════════════════════════════
+// ── #3 doc feeder · source-kind toggle ──────────────────────────────────────
+function SourceKindToggle({
+  kind,
+  onKind,
+}: {
+  kind: SourceKind;
+  onKind: (k: SourceKind) => void;
+}) {
+  const opts: { id: SourceKind; label: string; hint: string }[] = [
+    {
+      id: "feature_store",
+      label: "Feature store",
+      hint: "A Snowflake table or query — one row per user or account.",
+    },
+    {
+      id: "documents",
+      label: "Documents",
+      hint: "Interviews, tickets, notes — extracted into feature rows.",
+    },
+  ];
+  return (
+    <section style={{ maxWidth: 620, marginBottom: 4 }}>
+      <div style={sectionLabelStyle}>01 · Source kind</div>
+      <div style={{ ...fieldStyle, display: "flex", gap: 8 }}>
+        {opts.map((o) => {
+          const active = kind === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onKind(o.id)}
+              aria-pressed={active}
+              style={{
+                ...secondaryBtnStyle,
+                flex: 1,
+                textAlign: "left",
+                background: active ? C.panelRaised : "transparent",
+                color: active ? C.textHi : C.text,
+                borderColor: active ? C.textMut : C.line,
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{o.label}</div>
+              <div style={{ ...hintStyle, marginTop: 4 }}>{o.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+// ── #3 doc feeder · documents + extraction-schema entry ──────────────────────
+function StepDocuments({
+  entities,
+  fields,
+  docsValid,
+  dupFieldName,
+  validEntityCount,
+  validFieldCount,
+  onEntity,
+  onAddEntity,
+  onRemoveEntity,
+  onField,
+  onAddField,
+  onRemoveField,
+}: {
+  entities: EntityDocument[];
+  fields: DraftField[];
+  docsValid: boolean;
+  dupFieldName: boolean;
+  validEntityCount: number;
+  validFieldCount: number;
+  onEntity: (i: number, patch: Partial<EntityDocument>) => void;
+  onAddEntity: () => void;
+  onRemoveEntity: (i: number) => void;
+  onField: (i: number, patch: Partial<DraftField>) => void;
+  onAddField: () => void;
+  onRemoveField: (i: number) => void;
+}) {
+  const addBtn: React.CSSProperties = {
+    ...secondaryBtnStyle,
+    fontFamily: FONT_MONO,
+    fontSize: 11,
+    letterSpacing: "0.06em",
+    padding: "6px 12px",
+    marginTop: 12,
+  };
+  const removeBtn: React.CSSProperties = {
+    ...secondaryBtnStyle,
+    fontFamily: FONT_MONO,
+    fontSize: 11,
+    padding: "4px 9px",
+    color: C.textMut,
+  };
+
+  return (
+    <div style={{ maxWidth: 620 }}>
+      {/* ── 02 · Documents ───────────────────────────────────────────────── */}
+      <section style={sectionStyle}>
+        <div style={sectionLabelStyle}>02 · Documents</div>
+        <div style={hintStyle}>
+          One entry per population member. The entity id labels the resulting
+          feature row; the text is everything known about them (interview notes,
+          tickets, survey answers). Empty entries are ignored.
+        </div>
+        {entities.map((d, i) => (
+          <div key={i} style={fieldStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                aria-label={`Entity id ${i + 1}`}
+                value={d.entity_id}
+                onChange={(e) => onEntity(i, { entity_id: e.target.value })}
+                placeholder="entity id (e.g. user_8123)"
+                style={{ ...monoInputStyle, flex: 1 }}
+              />
+              {entities.length > 1 && (
+                <button type="button" style={removeBtn} onClick={() => onRemoveEntity(i)}>
+                  REMOVE
+                </button>
+              )}
+            </div>
+            <textarea
+              aria-label={`Documents for entity ${i + 1}`}
+              value={d.text}
+              onChange={(e) => onEntity(i, { text: e.target.value })}
+              placeholder="Paste this entity's documents — interview notes, support tickets, survey answers…"
+              style={{ ...textareaStyle, marginTop: 8, fontFamily: FONT_SANS, fontSize: 14 }}
+            />
+          </div>
+        ))}
+        <button type="button" style={addBtn} onClick={onAddEntity}>
+          + ADD ENTITY
+        </button>
+      </section>
+
+      {/* ── 03 · Extraction schema ───────────────────────────────────────── */}
+      <section style={sectionStyle}>
+        <div style={sectionLabelStyle}>03 · Extraction schema</div>
+        <div style={hintStyle}>
+          The closed set of features to pull from each entity&apos;s documents.
+          Extraction is extractive, never generative — a field not evidenced in
+          the text is left null, never guessed. Each field declares one metric
+          type so the column re-enters the existing build pipeline.
+        </div>
+        {fields.map((f, i) => (
+          <div key={i} style={{ ...fieldStyle, display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                aria-label={`Field name ${i + 1}`}
+                value={f.name}
+                onChange={(e) => onField(i, { name: e.target.value })}
+                placeholder="field name (e.g. orders_count)"
+                style={{ ...monoInputStyle, flex: 2 }}
+              />
+              <select
+                aria-label={`Field type ${i + 1}`}
+                value={f.type}
+                onChange={(e) => onField(i, { type: e.target.value as MetricType | "" })}
+                style={{ ...selectStyle, flex: 1 }}
+              >
+                <option value="">type…</option>
+                {METRIC_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              {fields.length > 1 && (
+                <button type="button" style={removeBtn} onClick={() => onRemoveField(i)}>
+                  ×
+                </button>
+              )}
+            </div>
+            <input
+              aria-label={`Field description ${i + 1}`}
+              value={f.description}
+              onChange={(e) => onField(i, { description: e.target.value })}
+              placeholder="what evidence to look for (optional)"
+              style={inputStyle}
+            />
+            {f.type && (
+              <div style={{ ...railCaptionStyle, color: C.textMut }}>
+                {f.type.toUpperCase()} — {METRIC_TYPE_HINTS[f.type]}
+              </div>
+            )}
+          </div>
+        ))}
+        <button type="button" style={addBtn} onClick={onAddField}>
+          + ADD FIELD
+        </button>
+        {dupFieldName && (
+          <div role="alert" style={{ ...railAlertStyle, marginTop: 12 }}>
+            Field names must be unique — two fields share a name.
+          </div>
+        )}
+      </section>
+
+      {/* ── readiness — honest status, no spinner (§8.6) ─────────────────── */}
+      <section style={sectionStyle}>
+        <div style={{ ...statusLineStyle, color: docsValid ? C.textHi : C.textMut }}>
+          {docsValid
+            ? `READY — ${validEntityCount} ENTIT${validEntityCount === 1 ? "Y" : "IES"} · ${validFieldCount} FIELD${validFieldCount === 1 ? "" : "S"} → CONTINUE TO MAP`
+            : "ADD AT LEAST ONE ENTITY WITH TEXT AND ONE TYPED FIELD TO CONTINUE"}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ── #3 doc feeder · build step notice (preview-only, build deferred) ─────────
+function DocumentsBuildNotice({
+  columns,
+  rowCount,
+  mapping,
+}: {
+  columns: ColumnProfile[] | null;
+  rowCount: number | null;
+  mapping: Record<string, Assignment | "">;
+}) {
+  const mapped = (columns ?? []).filter(
+    (c) => mapping[c.name] && mapping[c.name] !== "ignore",
+  );
+  const ignored = (columns ?? []).filter((c) => mapping[c.name] === "ignore");
+  return (
+    <div style={{ maxWidth: 680 }}>
+      <section>
+        <div style={sectionLabelStyle}>Extraction complete</div>
+        <dl
+          style={{
+            margin: 0,
+            marginTop: 12,
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: "4px 16px",
+          }}
+        >
+          {[
+            ["Source", "DOCUMENTS"],
+            ["Rows extracted", rowCount === null ? "—" : String(rowCount)],
+            ["Columns mapped", String(mapped.length)],
+            ["Columns ignored", String(ignored.length)],
+          ].map(([k2, v]) => (
+            <Fragment key={k2}>
+              <dt style={{ ...railCaptionStyle, color: C.textMut }}>{k2}</dt>
+              <dd style={{ margin: 0, ...statusLineStyle }}>{v}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      </section>
+
+      <section style={sectionStyle}>
+        <div style={okBannerStyle}>
+          Your documents were extracted into feature rows and mapped to the
+          canonical groups using the live extractor — the #3 path works
+          end-to-end up to here. Persisting a persona pack from a documents
+          source isn&apos;t enabled yet: it needs the persona-build store to
+          accept a non-connection source (a small migration) plus the
+          persona-pipeline binding. Those are tracked follow-ups. Until then this
+          flow validates extraction and mapping, not the final build — this is
+          the end of the documents preview. Use Back to adjust the documents or
+          schema and re-extract.
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function StepConnect({
   conn,
   sourceMode,
@@ -2239,10 +2653,12 @@ function eventLine(ev: BuildEvent): string {
 
 function StepBuild({
   connection,
+  sourceKind,
   sourceMode,
   tableFqn,
   sql,
   columns,
+  rowCount,
   mapping,
   k,
   stabilityThreshold,
@@ -2260,10 +2676,12 @@ function StepBuild({
   onReconfigure,
 }: {
   connection: ConnectionSummary | null;
+  sourceKind: SourceKind;
   sourceMode: SourceMode;
   tableFqn: string;
   sql: string;
   columns: ColumnProfile[] | null;
+  rowCount: number | null;
   mapping: Record<string, Assignment | "">;
   k: BuildK;
   stabilityThreshold: number;
@@ -2280,6 +2698,12 @@ function StepBuild({
   onRetry: () => void;
   onReconfigure: () => void;
 }) {
+  // #3 doc feeder: extraction + mapping run end-to-end, but persisting a pack
+  // from documents needs the persona-build store + pipeline binding (deferred),
+  // so the build is honestly preview-only here rather than faked.
+  if (sourceKind === "documents") {
+    return <DocumentsBuildNotice columns={columns} rowCount={rowCount} mapping={mapping} />;
+  }
   if (build) {
     return (
       <BuildWatch build={build} events={events} onRetry={onRetry} onReconfigure={onReconfigure} />
