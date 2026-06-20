@@ -1126,6 +1126,21 @@ def _build_evidence_graph(
         else:
             relation = "weak_or_inferred"
         node_id = f"persona:{pid}"
+        # detail: quote a representative agent whose reaction MATCHES the edge
+        # relation, prefixed "e.g." so it reads as one example of the cohort,
+        # not its whole position (codex P3 — group[0] could be an agent that
+        # argued the opposite of the net relation). Falls back to any agent with
+        # a summary for weak/mixed edges.
+        want_sign = {"supports_change": 1, "contradicts_change": -1}.get(relation)
+        example = next(
+            (
+                a.sentiment.one_line_summary
+                for a in group
+                if a.sentiment.one_line_summary
+                and (want_sign is None or _SENTIMENT_SIGN[a.sentiment.sentiment] == want_sign)
+            ),
+            None,
+        )
         nodes.append(
             EvidenceNode(
                 id=node_id,
@@ -1142,7 +1157,7 @@ def _build_evidence_graph(
                 confidence=round(mean_conf, 3),
                 provenance=[a.agent_id for a in group][:5],
                 agent_count=len(group),
-                detail=group[0].sentiment.one_line_summary or None,
+                detail=f"e.g. {example}" if example else None,
             )
         )
 
