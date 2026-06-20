@@ -1585,6 +1585,8 @@ export interface components {
             confidence?: number | null;
             /** Provenance */
             provenance?: string[];
+            /** Agent Count */
+            agent_count?: number | null;
             /** Detail */
             detail?: string | null;
         };

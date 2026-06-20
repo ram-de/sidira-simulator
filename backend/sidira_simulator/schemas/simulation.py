@@ -274,6 +274,10 @@ class Weakness(BaseModel):
     ]
     summary: str
     supporting_agent_ids: list[str] = Field(default_factory=list)
+    # Full count of agents that flagged this weakness. `supporting_agent_ids` is
+    # capped (first few, for display), so len() under-reports large cohorts —
+    # the evidence graph reads the true backing count from here (codex P2).
+    support_count: int | None = Field(default=None, ge=0)
     frequency: float | None = Field(default=None, ge=0.0, le=1.0)
     ci_low: float | None = Field(default=None, ge=0.0, le=1.0)
     ci_high: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -359,6 +363,10 @@ class EvidenceEdge(BaseModel):
     ]
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     provenance: list[str] = Field(default_factory=list)
+    # Full count of agents backing this edge. `provenance` is capped (first few
+    # ids, for click-through), so the UI must read the backing count from here —
+    # using len(provenance) under-reports large cohorts (codex P2).
+    agent_count: int | None = Field(default=None, ge=0)
     detail: str | None = None
 
 

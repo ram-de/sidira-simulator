@@ -981,6 +981,7 @@ class ScoringService:
                     category=cat,
                     summary=_summarize_category(cat, count, n),
                     supporting_agent_ids=category_agents[cat][:5],
+                    support_count=count,
                     frequency=count / n,
                     ci_low=ci_low,
                     ci_high=ci_high,
@@ -1113,6 +1114,7 @@ def _build_evidence_graph(
                 relation=relation,
                 confidence=round(mean_conf, 3),
                 provenance=[a.agent_id for a in group][:5],
+                agent_count=len(group),
                 detail=group[0].sentiment.one_line_summary or None,
             )
         )
@@ -1141,6 +1143,14 @@ def _build_evidence_graph(
                 relation=relation,
                 confidence=w.frequency,
                 provenance=list(w.supporting_agent_ids),
+                # support_count is the true backing count; supporting_agent_ids
+                # is capped, so its len() under-reports (codex P2). Fall back to
+                # the (uncapped-for-these) id list when support_count is absent.
+                agent_count=(
+                    w.support_count
+                    if w.support_count is not None
+                    else len(w.supporting_agent_ids)
+                ),
                 detail=w.summary,
             )
         )

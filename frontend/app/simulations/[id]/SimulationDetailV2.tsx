@@ -2745,7 +2745,10 @@ function EvidenceRegister({
           const counter =
             e.relation === "contradicts_change" ||
             e.relation === "guardrail_risk";
-          const provN = e.provenance?.length ?? 0;
+          // agent_count is the full backing count; provenance is capped to a
+          // few ids for click-through, so len(provenance) under-reports large
+          // cohorts (codex P2). Fall back to provenance only for pre-field rows.
+          const provN = e.agent_count ?? e.provenance?.length ?? 0;
           return (
             <div className="wk-row" key={idx}>
               <div style={{ minWidth: 0 }}>
