@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
@@ -494,6 +494,26 @@ export default function SimulationNewV2() {
   // (never a dead-end) and, when `allow_override`, offers a one-tap "run anyway
   // as generic reception" affordance that resubmits with the override flag.
   const [needsInput, setNeedsInput] = useState<NeedsInputDetail | null>(null);
+  // "Begin reading" lives at the bottom of the manifest rail, but the gate /
+  // validation banners render at the top of the form. Without this, a gated
+  // submit (e.g. oec_undeclared) silently paints a banner off-screen and the
+  // button looks dead. Scroll the alert region into view and focus it (the
+  // WCAG error-summary pattern) whenever a blocking message appears.
+  const alertRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (needsInput || validationError || submitError) {
+      // Honor prefers-reduced-motion — the theme disables other motion for it,
+      // so a smooth bottom-to-top jump would be an out-of-place vestibular risk.
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      alertRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      alertRef.current?.focus({ preventScroll: true });
+    }
+  }, [needsInput, validationError, submitError]);
   // #313 / T4 (deliverable 4 — inline lint): the deterministic, zero-LLM
   // POST /simulations/preflight verdict, refreshed (debounced) as the user
   // authors. It surfaces the SAME answerability reasons/fixes + the separable
@@ -1099,25 +1119,31 @@ export default function SimulationNewV2() {
             </div>
           )}
 
-          {(submitError || validationError) && (
-            <div role="alert" style={errorBannerStyle}>
-              {submitError ?? validationError}
-            </div>
-          )}
+          {/* Ref'd, focusable alert region: a gated/invalid "Begin reading"
+              scrolls this into view (see the alertRef effect) so the message is
+              never painted off-screen below the fold. tabIndex=-1 lets it take
+              focus without becoming a tab stop. */}
+          <div ref={alertRef} tabIndex={-1} style={{ outline: "none" }}>
+            {(submitError || validationError) && (
+              <div role="alert" style={errorBannerStyle}>
+                {submitError ?? validationError}
+              </div>
+            )}
 
-          {/* #313 / T4 (deliverable 3 — the deploy-unblocker): the epic #309
-              T1 needs_input 422 rendered as inline authoring guidance, NOT a
-              dead-end. §7.7 disclosure anatomy (rule border, paper-recessed,
-              message in ink). When allow_override, the "run anyway as generic
-              reception" affordance resubmits with the override flag. */}
-          {needsInput && (
-            <NeedsInputNote
-              detail={needsInput}
-              submitting={submitting}
-              onRunAnyway={handleRunAnyway}
-              onDismiss={() => setNeedsInput(null)}
-            />
-          )}
+            {/* #313 / T4 (deliverable 3 — the deploy-unblocker): the epic #309
+                T1 needs_input 422 rendered as inline authoring guidance, NOT a
+                dead-end. §7.7 disclosure anatomy (rule border, paper-recessed,
+                message in ink). When allow_override, the "run anyway as generic
+                reception" affordance resubmits with the override flag. */}
+            {needsInput && (
+              <NeedsInputNote
+                detail={needsInput}
+                submitting={submitting}
+                onRunAnyway={handleRunAnyway}
+                onDismiss={() => setNeedsInput(null)}
+              />
+            )}
+          </div>
 
           <div
             style={{
