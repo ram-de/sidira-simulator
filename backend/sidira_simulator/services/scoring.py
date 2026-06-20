@@ -29,7 +29,14 @@ from sidira_simulator.schemas.scoring import (
     SentimentClassification,
     WeaknessClassification,
 )
-from sidira_simulator.schemas.simulation import Hypothesis, SimulationResult, Weakness
+from sidira_simulator.schemas.simulation import (
+    EvidenceEdge,
+    EvidenceGraph,
+    EvidenceNode,
+    Hypothesis,
+    SimulationResult,
+    Weakness,
+)
 from sidira_simulator.services.conversion_calibrator import (
     MetricCalibrator,
     resolve_metric_calibrator,
@@ -632,7 +639,7 @@ class ScoringService:
                 # contradiction in the weaknesses list, not just the caveat string.
                 # Hidden-improvement is not a risk, so it gets no weakness.
                 if harm_misread:
-                    update["weaknesses"] = composed.weaknesses + [
+                    updated_weaknesses = composed.weaknesses + [
                         Weakness(
                             category="hidden_guardrail_risk",
                             summary=(
@@ -645,6 +652,23 @@ class ScoringService:
                             ),
                         )
                     ]
+                    update["weaknesses"] = updated_weaknesses
+                    # #1 (codex P2): the evidence graph rode in on treatment_result
+                    # built from the ORIGINAL treatment weaknesses — it predates this
+                    # appended guardrail. Rebuild it from the same treatment analyses
+                    # + the augmented weaknesses so the provenance register shows the
+                    # guardrail_risk edge for the exact metric↔sentiment disagreement
+                    # it exists to surface. Descriptive only; does NOT touch the score.
+                    update["evidence_graph"] = _build_evidence_graph(
+                        list(treatment_analyses),
+                        updated_weaknesses,
+                        use_activity_weight=(
+                            config.use_activity_weight if config else False
+                        ),
+                        use_sentiment_confidence=(
+                            config.use_sentiment_confidence if config else True
+                        ),
+                    )
                 composed = composed.model_copy(update=update)
         return composed, list(analyses)
 
@@ -964,6 +988,7 @@ class ScoringService:
                     category=cat,
                     summary=_summarize_category(cat, count, n),
                     supporting_agent_ids=category_agents[cat][:5],
+                    support_count=count,
                     frequency=count / n,
                     ci_low=ci_low,
                     ci_high=ci_high,
@@ -1009,11 +1034,170 @@ class ScoringService:
             confidence_score_ci=confidence_score_ci,
             weaknesses=weaknesses,
             refinement_suggestions=[],  # filled in by RefinementService caller
+            # #1 MiroFish-borrow: descriptive provenance graph from the same
+            # analyses + weaknesses. Does NOT touch confidence_score.
+            evidence_graph=_build_evidence_graph(
+                analyses_list,
+                weaknesses,
+                use_activity_weight=cfg.use_activity_weight,
+                use_sentiment_confidence=cfg.use_sentiment_confidence,
+            ),
         )
 
 
 def _summarize_category(category: str, count: int, total: int) -> str:
     return f"{count}/{total} agents flagged this — {category.replace('_', ' ')}."
+
+
+# ─── Evidence/provenance graph builder (#1 MiroFish-borrow) ─────────────
+
+# Net-sentiment sign for the per-persona edge direction. Distinct from
+# `_SENTIMENT_VALUE` (which is 0/0.5/1 for the score): here we want a signed
+# [-1, +1] axis so a persona's net reaction reads as support vs. contradiction.
+_SENTIMENT_SIGN: dict[Sentiment, float] = {
+    Sentiment.POSITIVE: 1.0,
+    Sentiment.NEUTRAL: 0.0,
+    Sentiment.NEGATIVE: -1.0,
+}
+
+# Below this absolute net sentiment a persona's edge is `weak_or_inferred`
+# rather than a confident support/contradict — keeps borderline cohorts from
+# masquerading as strong evidence either way.
+_EVIDENCE_NET_THRESHOLD = 0.15
+
+
+def _build_evidence_graph(
+    analyses: Sequence[AgentAnalysis],
+    weaknesses: Sequence[Weakness],
+    *,
+    use_activity_weight: bool = False,
+    use_sentiment_confidence: bool = True,
+) -> EvidenceGraph:
+    """Build a provenance graph from data the scorer already computed.
+
+    DESCRIPTIVE ONLY — never affects confidence_score. Every node/edge is bound
+    to real run data (DESIGN.md §10): personas that actually reacted and
+    weaknesses that were actually diagnosed. No manufactured similarity edges.
+
+    Two edge families, both pointing at the single `verdict` node:
+      • per-persona: net confidence-weighted sentiment → supports_change /
+        contradicts_change / weak_or_inferred, provenance = the cohort's agents.
+      • per-weakness: each diagnosed weakness → guardrail_risk (hidden guardrail),
+        weak_or_inferred (underpowered) or contradicts_change (everything else),
+        provenance = the weakness's supporting agents.
+
+    Surfacing the contradict/guardrail edges next to a positive verdict is the
+    prior-echo defense: a verdict resting only on supports_change edges is
+    visibly thin.
+    """
+    nodes: list[EvidenceNode] = [
+        EvidenceNode(id="verdict", label="Proposed change", kind="verdict")
+    ]
+    edges: list[EvidenceEdge] = []
+
+    # ── Per-persona sentiment edges ──
+    by_persona: dict[str, list[AgentAnalysis]] = {}
+    for a in analyses:
+        by_persona.setdefault(a.persona_id, []).append(a)
+
+    # Mirror _compute_score's weighting EXACTLY so the register explains the
+    # SAME reading the verdict rests on (codex P2). `aw` = activity weight (#5,
+    # off by default), `cw` = classifier-confidence weight (on by default). With
+    # both at their prod defaults this reduces to the original confidence-only
+    # net; with use_sentiment_confidence off, agents are weighted equally just
+    # as the score treats them.
+    def aw(a: AgentAnalysis) -> float:
+        return a.activity_weight if use_activity_weight else 1.0
+
+    def cw(a: AgentAnalysis) -> float:
+        return a.sentiment.confidence if use_sentiment_confidence else 1.0
+
+    for pid, group in by_persona.items():
+        denom = sum(aw(a) * cw(a) for a in group)
+        num = sum(
+            aw(a) * cw(a) * _SENTIMENT_SIGN[a.sentiment.sentiment] for a in group
+        )
+        net = num / denom if denom > 0 else 0.0
+        mean_conf = sum(a.sentiment.confidence for a in group) / len(group)
+        if net > _EVIDENCE_NET_THRESHOLD:
+            relation = "supports_change"
+        elif net < -_EVIDENCE_NET_THRESHOLD:
+            relation = "contradicts_change"
+        else:
+            relation = "weak_or_inferred"
+        node_id = f"persona:{pid}"
+        # detail: quote a representative agent whose reaction MATCHES the edge
+        # relation, prefixed "e.g." so it reads as one example of the cohort,
+        # not its whole position (codex P3 — group[0] could be an agent that
+        # argued the opposite of the net relation). Falls back to any agent with
+        # a summary for weak/mixed edges.
+        want_sign = {"supports_change": 1, "contradicts_change": -1}.get(relation)
+        example = next(
+            (
+                a.sentiment.one_line_summary
+                for a in group
+                if a.sentiment.one_line_summary
+                and (want_sign is None or _SENTIMENT_SIGN[a.sentiment.sentiment] == want_sign)
+            ),
+            None,
+        )
+        nodes.append(
+            EvidenceNode(
+                id=node_id,
+                label=group[0].persona_name,
+                kind="persona",
+                detail=f"{len(group)} agent(s) · net sentiment {net:+.2f}",
+            )
+        )
+        edges.append(
+            EvidenceEdge(
+                source=node_id,
+                target="verdict",
+                relation=relation,
+                confidence=round(mean_conf, 3),
+                provenance=[a.agent_id for a in group][:5],
+                agent_count=len(group),
+                detail=f"e.g. {example}" if example else None,
+            )
+        )
+
+    # ── Per-weakness edges ──
+    for w in weaknesses:
+        if w.category == "hidden_guardrail_risk":
+            relation = "guardrail_risk"
+        elif w.category == "underpowered_design":
+            relation = "weak_or_inferred"
+        else:
+            relation = "contradicts_change"
+        node_id = f"weakness:{w.category}"
+        nodes.append(
+            EvidenceNode(
+                id=node_id,
+                label=w.category.replace("_", " "),
+                kind="weakness",
+                detail=w.summary,
+            )
+        )
+        edges.append(
+            EvidenceEdge(
+                source=node_id,
+                target="verdict",
+                relation=relation,
+                confidence=w.frequency,
+                provenance=list(w.supporting_agent_ids),
+                # support_count is the true backing count; supporting_agent_ids
+                # is capped, so its len() under-reports (codex P2). Fall back to
+                # the (uncapped-for-these) id list when support_count is absent.
+                agent_count=(
+                    w.support_count
+                    if w.support_count is not None
+                    else len(w.supporting_agent_ids)
+                ),
+                detail=w.summary,
+            )
+        )
+
+    return EvidenceGraph(nodes=nodes, edges=edges)
 
 
 # ─── A/B paired-lift aggregator (Phase 4.6 #90) ────────────────────────

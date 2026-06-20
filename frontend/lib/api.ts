@@ -148,6 +148,9 @@ export type SimulationLimitsResponse =
   components["schemas"]["SimulationLimitsResponse"];
 export type ArmSplit = components["schemas"]["ArmSplit"];
 export type Weakness = components["schemas"]["Weakness"];
+export type EvidenceGraph = components["schemas"]["EvidenceGraph"];
+export type EvidenceEdge = components["schemas"]["EvidenceEdge"];
+export type EvidenceNode = components["schemas"]["EvidenceNode"];
 export type AgentInstance = components["schemas"]["AgentInstance"];
 export type AgentSummary = components["schemas"]["AgentSummary"];
 export type AgentChatRequest = components["schemas"]["AgentChatRequest"];

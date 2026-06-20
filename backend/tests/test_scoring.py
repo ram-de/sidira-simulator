@@ -248,6 +248,88 @@ def test_aggregate_parity_snapshot() -> None:
     ]
 
 
+# ── Evidence/provenance graph (#1 MiroFish-borrow) ────────────────────
+
+
+def test_evidence_graph_built_and_score_unchanged() -> None:
+    """The evidence graph is descriptive — it must NOT move confidence_score.
+
+    Reuses the parity-snapshot input; asserts the score is byte-identical to
+    the pinned snapshot AND that the graph carries the expected edges.
+    """
+    analyses = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.8, persona_id="fans", persona_name="Fans"),
+        _analysis("a2", Sentiment.POSITIVE, confidence=0.8, persona_id="fans", persona_name="Fans"),
+        _analysis("a3", Sentiment.POSITIVE, confidence=0.8, persona_id="fans", persona_name="Fans"),
+        _analysis("a4", Sentiment.NEUTRAL, confidence=0.5, persona_id="mid", persona_name="Mid"),
+        _analysis("a5", Sentiment.NEUTRAL, confidence=0.5, persona_id="mid", persona_name="Mid"),
+        _analysis(
+            "a6",
+            Sentiment.NEGATIVE,
+            categories=["wrong_metric"],
+            confidence=0.9,
+            persona_id="skeptics",
+            persona_name="Skeptics",
+        ),
+    ]
+    result = ScoringService.aggregate(analyses, _FORMULA_CFG)
+    # Score is untouched by the descriptive graph (pins parity).
+    assert result.confidence_score == 71.8
+    g = result.evidence_graph
+    assert g is not None
+    # Exactly one verdict node + one node per persona (3) + one per weakness (1).
+    kinds = sorted(n.kind for n in g.nodes)
+    assert kinds == ["persona", "persona", "persona", "verdict", "weakness"]
+    by_rel = {(e.source, e.relation) for e in g.edges}
+    # Fans (all positive) support; Skeptics (negative) contradict; Mid (neutral) weak.
+    assert ("persona:fans", "supports_change") in by_rel
+    assert ("persona:skeptics", "contradicts_change") in by_rel
+    assert ("persona:mid", "weak_or_inferred") in by_rel
+    # The weakness becomes a contradict edge carrying its supporting agent.
+    wk = next(e for e in g.edges if e.source == "weakness:wrong_metric")
+    assert wk.relation == "contradicts_change"
+    assert wk.target == "verdict"
+    assert wk.provenance == ["a6"]
+    # Every edge points at the verdict node.
+    assert all(e.target == "verdict" for e in g.edges)
+
+
+def test_evidence_graph_guardrail_and_counterevidence() -> None:
+    """A positive-leaning run still surfaces guardrail counter-evidence.
+
+    This is the prior-echo defense: even when most cohorts support the change,
+    a diagnosed hidden_guardrail_risk shows up as a guardrail_risk edge so the
+    verdict can't rest silently on supports_change alone.
+    """
+    analyses = [
+        _analysis("a1", Sentiment.POSITIVE, confidence=0.9, persona_id="p1", persona_name="P1"),
+        _analysis("a2", Sentiment.POSITIVE, confidence=0.9, persona_id="p1", persona_name="P1"),
+        _analysis(
+            "a3",
+            Sentiment.POSITIVE,
+            categories=["hidden_guardrail_risk"],
+            confidence=0.9,
+            persona_id="p2",
+            persona_name="P2",
+        ),
+    ]
+    result = ScoringService.aggregate(analyses, _FORMULA_CFG)
+    g = result.evidence_graph
+    assert g is not None
+    guardrail = [e for e in g.edges if e.relation == "guardrail_risk"]
+    assert len(guardrail) == 1
+    assert guardrail[0].source == "weakness:hidden_guardrail_risk"
+    assert guardrail[0].provenance == ["a3"]
+    # Supports exist too — but counter-evidence is present alongside them.
+    assert any(e.relation == "supports_change" for e in g.edges)
+
+
+def test_evidence_graph_absent_on_zero_agents() -> None:
+    """The empty-run short-circuit leaves evidence_graph None (migration-safe)."""
+    result = ScoringService.aggregate([])
+    assert result.evidence_graph is None
+
+
 # ── Wilson CIs on weakness rows (T3) ──────────────────────────────────
 
 

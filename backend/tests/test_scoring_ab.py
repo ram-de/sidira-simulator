@@ -948,6 +948,14 @@ async def test_disagreement_harm_misread_flags_and_adds_guardrail_weakness() -> 
     guardrails = [w for w in result.weaknesses if w.category == "hidden_guardrail_risk"]
     assert len(guardrails) == 1
     assert "sentiment" in guardrails[0].summary.lower()
+    # #1 (codex P2): the evidence graph was REBUILT after the append, so the
+    # appended guardrail surfaces as a guardrail_risk edge — not just in the
+    # weakness list. Without the rebuild the graph would predate the append.
+    assert result.evidence_graph is not None
+    guardrail_edges = [
+        e for e in result.evidence_graph.edges if e.relation == "guardrail_risk"
+    ]
+    assert any(e.source == "weakness:hidden_guardrail_risk" for e in guardrail_edges)
     # Purely additive: headline + lift values untouched.
     assert result.confidence_score == pytest.approx(result.treatment_score)
     assert result.metric_lift_pp is not None and result.metric_lift_pp > 0
