@@ -137,7 +137,7 @@ fi
 
 write_env SIDIRA_CUSTOMER_ID "$(default_value "$customer_id" "streamly_sample")"
 write_env SIDIRA_CORS_ORIGINS "$(default_value "$cors_origins" "https://sidira.ai,https://app.sidira.ai")"
-write_env SIDIRA_MAX_AGENTS "$(default_value "$max_agents" "50")"
+write_env SIDIRA_MAX_AGENTS "$(default_value "$max_agents" "100")"
 write_env SIDIRA_CRED_MODE "$(default_value "$cred_mode" "local")"
 write_env SIDIRA_LOCAL_CRED_KEY "$local_cred_key"
 write_env SIDIRA_LOCAL_ARTIFACTS "$(default_value "$local_artifacts" "/app/local-artifacts")"
@@ -228,14 +228,42 @@ chown -R "${CONTAINER_UID}:${CONTAINER_GID}" "$REPO_DIR/local-artifacts"
 chmod -R u+rwX,go+rX "$REPO_DIR/local-artifacts"
 
 if [[ "$compose_available" == "1" ]]; then
+  # #468: reclaim BEFORE building. The 8GB root often runs >90% full, and a
+  # stale build cache can starve even the API build on this small box. Guarded
+  # so a prune failure never fails the deploy. (A second reclaim runs after the
+  # restart, below, once the new running images are safe from pruning.)
+  docker builder prune -af || true
+  docker image prune -f || true
+
+  # #468: deploy the API + Caddy FIRST, on their own, as the critical path. This
+  # MUST NOT be coupled to the persona-worker image, whose ML stack
+  # (numpy/scipy/scikit-learn/hdbscan) can fail to build on this small box
+  # (disk/OOM). Previously a single `build` (all services) + `up -d` meant a
+  # worker-build failure aborted the whole deploy under `set -e` *before* the
+  # API was ever restarted, so every deploy needed a manual api-only restart.
   SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
-    docker compose -p sidira -f deploy/docker-compose.api.yml build
+    docker compose -p sidira -f deploy/docker-compose.api.yml build api
   SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
-    docker compose -p sidira -f deploy/docker-compose.api.yml up -d
+    docker compose -p sidira -f deploy/docker-compose.api.yml up -d --no-deps api caddy
+
+  # #268 Phase 2 worker — best-effort and NON-FATAL. If the ML image can't build
+  # here, the API stays up on the new build and the already-running worker keeps
+  # serving its previous image (it changes rarely; the durable fix is an off-box
+  # build, #293). Both the build (if-guard) AND the start (|| warn) are guarded so
+  # neither trips `set -e` and aborts the final reclaim/`docker ps`.
+  if SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
+       docker compose -p sidira -f deploy/docker-compose.api.yml build worker; then
+    SIDIRA_API_ENV_FILE="$COMPOSE_ENV_FILE" \
+      docker compose -p sidira -f deploy/docker-compose.api.yml up -d --no-deps worker \
+      || echo "WARNING: persona-worker image built but failed to start (see #468). API is up; worker left on its previous container." >&2
+  else
+    echo "WARNING: persona-worker image build failed (disk/OOM on this box; see #468/#293). API deployed; worker left on its previous image." >&2
+  fi
+
   # #268 Phase 2: the ML-heavy worker image balloons Docker's build cache, and
   # the 8GB EC2 root disk fills up → the NEXT deploy fails "No space left". Run
-  # the reclaim AFTER `up -d` so the running images aren't pruned. Guarded so a
-  # prune failure never fails the deploy.
+  # this reclaim AFTER the restarts so the running images aren't pruned. Guarded
+  # so a prune failure never fails the deploy.
   docker builder prune -af || true
   docker image prune -f || true
 else
