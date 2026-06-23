@@ -119,6 +119,18 @@ def test_create_returns_sanitized_summary_without_password(client):
     assert "super-secret-pw" not in resp.text
 
 
+def test_create_top_level_validation_error_never_echoes_password(client):
+    """A 422 on an unrelated top-level field (here, missing `account`) puts the
+    whole submitted body — Snowflake password included — in the Pydantic error
+    `input`. `POST /feature-stores` is a secret-body path, so every error's input
+    is redacted (#328; same class as the crawl-setup #206 guard)."""
+    payload = {**_CREATE_PAYLOAD, "password": "snowflake-body-secret"}
+    del payload["account"]  # triggers a top-level missing-field error
+    resp = client.post("/feature-stores", json=payload)
+    assert resp.status_code == 422
+    assert "snowflake-body-secret" not in resp.text
+
+
 def test_password_never_stored_in_cleartext(client):
     resp = client.post("/feature-stores", json=_CREATE_PAYLOAD)
     cid = resp.json()["id"]
