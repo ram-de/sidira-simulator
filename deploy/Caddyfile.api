@@ -2,19 +2,20 @@ api.sidira.ai {
 	encode gzip
 
 	# Web-proxy requests carrying a Clerk session token (#149). The token rides
-	# X-Sidira-Clerk-Authorization because the Authorization slot holds the hop
-	# Basic credential consumed by basic_auth below. After the hop auth passes,
-	# promote the token to Authorization for the backend Clerk gate
-	# (SIDIRA_CLERK_SECRET_KEY) and drop the carrier header. The hop Basic
-	# credential is overwritten by header_up, so it never reaches the backend.
+	# X-Sidira-Clerk-Authorization (a carrier header kept for frontend
+	# compatibility); promote it to Authorization for the backend Clerk gate
+	# (SIDIRA_CLERK_SECRET_KEY) and drop the carrier header.
+	#
+	# The pre-launch Basic Auth wall that used to gate this hop was REMOVED: it
+	# predated Clerk, and the backend now enforces its own internal-key gate (the
+	# anonymous 404-wall, set by X-Sidira-Internal-Key below) + the Clerk session
+	# gate, so the outer Basic layer was redundant once Clerk shipped. Removing it
+	# also stops the browser-native Basic Auth popup on app.sidira.ai.
 	@web_proxy_clerk {
 		path /_sidira_web_proxy/*
 		header X-Sidira-Clerk-Authorization *
 	}
 	handle @web_proxy_clerk {
-		basic_auth {
-			{$SIDIRA_WEB_PROXY_BASIC_AUTH_USER} {$SIDIRA_WEB_PROXY_BASIC_AUTH_HASH}
-		}
 		uri strip_prefix /_sidira_web_proxy
 		reverse_proxy api:8000 {
 			header_up Authorization {http.request.header.X-Sidira-Clerk-Authorization}
@@ -23,14 +24,11 @@ api.sidira.ai {
 		}
 	}
 
-	# Tokenless web-proxy requests (pre-Clerk fallback path): strip the hop
-	# Basic credential so the backend never sees it. With the backend Clerk
-	# gate enabled these requests 401 on protected routes — by design.
+	# Tokenless web-proxy requests (pre-Clerk fallback path): strip any
+	# Authorization so the backend never sees a stale credential. With the backend
+	# Clerk gate enabled these requests 401 on protected routes — by design.
 	@web_proxy path /_sidira_web_proxy/*
 	handle @web_proxy {
-		basic_auth {
-			{$SIDIRA_WEB_PROXY_BASIC_AUTH_USER} {$SIDIRA_WEB_PROXY_BASIC_AUTH_HASH}
-		}
 		uri strip_prefix /_sidira_web_proxy
 		reverse_proxy api:8000 {
 			header_up -Authorization
