@@ -289,6 +289,35 @@ def test_top_level_validation_error_never_echoes_passwords(client):
     assert "whole-body-secret" not in resp.text
 
 
+def test_plural_create_top_level_error_never_echoes_passwords(client):
+    """POST /crawl-setups carries a password-bearing body too. A 422 on an
+    unrelated top-level field (missing capabilities) puts the whole submitted
+    body — passwords included — in the Pydantic error `input`, so it must be
+    redacted exactly like the singular route. The plural write routes were NOT
+    in the secret-body path set until #215/#245 (this is that fix's guard)."""
+    payload = _setup_payload(
+        test_users=[{"role": "admin", "username": "a@x.dev", "password": "plural-create-secret"}]
+    )
+    payload["name"] = "Driver app"
+    del payload["capabilities"]
+    resp = client.post("/crawl-setups", json=payload)
+    assert resp.status_code == 422
+    assert "plural-create-secret" not in resp.text
+
+
+def test_plural_update_top_level_error_never_echoes_passwords(client):
+    """PUT /crawl-setups/{id} likewise — body validation (and thus redaction)
+    runs before the handler's 404 existence check, so an invalid body on ANY id
+    must not leak the submitted password."""
+    payload = _setup_payload(
+        test_users=[{"role": "admin", "username": "a@x.dev", "password": "plural-update-secret"}]
+    )
+    del payload["capabilities"]
+    resp = client.put("/crawl-setups/driver-app", json=payload)
+    assert resp.status_code == 422
+    assert "plural-update-secret" not in resp.text
+
+
 @pytest.mark.parametrize(
     "bad_key",
     [

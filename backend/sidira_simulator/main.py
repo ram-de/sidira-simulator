@@ -58,8 +58,21 @@ _SECRET_VALIDATION_LOC_TOKENS = frozenset({"password", "test_users"})
 # an *unrelated* top-level field (e.g. a missing `capabilities`) still puts the
 # whole submitted body — passwords and all — in the error `input`, and its loc
 # would not match the secret tokens above. So for these paths the handler
-# redacts `input` on every error, not just the secret-loc ones.
-_SECRET_BODY_PATHS = frozenset({"/crawl-setup"})
+# redacts `input` on every error, not just the secret-loc ones. Enumerate every
+# write route whose request body carries a write-only credential — add new ones
+# here when they appear:
+#   - `/crawl-setup` (singular) + `/crawl-setups` (create) + `/crawl-setups/{id}`
+#     (update): password-bearing CrawlSetup body (#206 Slice C, #215/#245).
+#   - `/feature-stores` (create): Snowflake `password` on SnowflakeConnectionRequest
+#     (#328). The `/feature-stores/{id}/...` sub-routes operate on a saved
+#     connection and carry no password, so they are intentionally NOT matched.
+def _is_secret_body_path(path: str) -> bool:
+    return (
+        path == "/crawl-setup"
+        or path == "/crawl-setups"
+        or path.startswith("/crawl-setups/")
+        or path == "/feature-stores"
+    )
 
 
 def _cors_origins() -> list[str]:
@@ -141,7 +154,7 @@ def create_app() -> FastAPI:
         # invalid crawl-setup password is never reflected back (#206 Slice C).
         # On a secret-bearing path, scrub every error's input (a top-level
         # failure can carry the whole password-bearing body as its input).
-        redact_all = request.url.path in _SECRET_BODY_PATHS
+        redact_all = _is_secret_body_path(request.url.path)
         cleaned = []
         for err in exc.errors():
             if redact_all or _SECRET_VALIDATION_LOC_TOKENS.intersection(
