@@ -48,6 +48,13 @@ class Simulation(Base):
     status: Mapped[str] = mapped_column(String(16), index=True)
     persona_pack_version: Mapped[str] = mapped_column(String(64))
     feature_pack_version: Mapped[str] = mapped_column(String(64))
+    # #215/#245 PR 3a: which crawl setup's Feature Pack this sim resolved its
+    # capability from. NOT NULL with a server default so migration 017 backfills
+    # every existing sim to the "default" setup (no data loss) and the loader
+    # resolves the EXACT legacy prefix for them — byte-identical to pre-#215. A
+    # sim built from a named setup persists that setup_id so re-runs / detail
+    # resolve the same pack the PM authored against.
+    setup_id: Mapped[str] = mapped_column(String(64), server_default="default")
     hypothesis_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     parent_simulation_id: Mapped[str | None] = mapped_column(

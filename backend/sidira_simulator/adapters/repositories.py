@@ -32,6 +32,15 @@ from sidira_simulator.adapters.db_models import (
     Simulation,
 )
 
+# Reserved setup id for the org's single/primary crawl target. Every existing
+# endpoint (GET/PUT /crawl-setup, dispatch, the credential pull) operates on
+# this setup; migration 015 backfilled the prior single crawl_configs row here,
+# and migration 017 backfills every existing simulation here. Callers that pass
+# only customer_id keep hitting it. Defined at module top so it is available as
+# a default-parameter value for the SimulationRepo Protocol + impls below
+# (#215/#245 PR 3a). Multi-setup CRUD landed in PR2 (#215).
+DEFAULT_SETUP_ID = "default"
+
 
 async def _commit(session: AsyncSession) -> None:
     try:
@@ -129,6 +138,7 @@ class SimulationRepo(Protocol):
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        setup_id: str = DEFAULT_SETUP_ID,
     ) -> None: ...
 
     async def update_status(
@@ -166,6 +176,7 @@ class PostgresSimulationRepo:
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        setup_id: str = DEFAULT_SETUP_ID,
     ) -> None:
         row = Simulation(
             id=sim_id,
@@ -181,6 +192,7 @@ class PostgresSimulationRepo:
             treatment_fraction=treatment_fraction,
             selected_personas=selected_personas,
             model_id=model_id,
+            setup_id=setup_id,
         )
         self._session.add(row)
         await _commit(self._session)
@@ -248,6 +260,7 @@ class InMemorySimulationRepo:
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        setup_id: str = DEFAULT_SETUP_ID,
     ) -> None:
         self._sims[sim_id] = {
             "id": sim_id,
@@ -267,6 +280,7 @@ class InMemorySimulationRepo:
             "treatment_fraction": treatment_fraction,
             "selected_personas": selected_personas,
             "model_id": model_id,
+            "setup_id": setup_id,
         }
 
     async def update_status(
@@ -461,11 +475,9 @@ class InMemoryAgentFeedbackRepo:
 # ──────────────────────────────────────────────────────────────────────
 
 
-# Reserved setup id for the org's single/primary crawl target. Every existing
-# endpoint (GET/PUT /crawl-setup, dispatch, the credential pull) operates on
-# this setup; migration 015 backfilled the prior single row here. Callers that
-# pass only customer_id keep hitting it. Multi-setup CRUD lands in PR2 (#215).
-DEFAULT_SETUP_ID = "default"
+# DEFAULT_SETUP_ID is defined at module top (it is a default-parameter value for
+# the SimulationRepo Protocol above). The CrawlConfig repo helpers below import
+# it from there.
 
 
 class CrawlConfigRepo(Protocol):
@@ -1359,6 +1371,7 @@ def _simulation_to_dict(row: Simulation) -> dict[str, Any]:
         "status": row.status,
         "persona_pack_version": row.persona_pack_version,
         "feature_pack_version": row.feature_pack_version,
+        "setup_id": row.setup_id,
         "hypothesis_json": row.hypothesis_json,
         "result_json": row.result_json,
         "parent_simulation_id": row.parent_simulation_id,
