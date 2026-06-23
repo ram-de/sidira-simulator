@@ -19,8 +19,8 @@ def test_config_limits_uses_default_cap(monkeypatch) -> None:
 
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
-        "max_agents_per_simulation": 50,
-        "max_agents_per_arm": 50,
+        "max_agents_per_simulation": 100,
+        "max_agents_per_arm": 100,
     }
 
 
@@ -79,6 +79,6 @@ def test_config_limits_malformed_env_falls_back_to_default(monkeypatch) -> None:
 
     assert resp.status_code == 200, resp.text
     assert resp.json() == {
-        "max_agents_per_simulation": 50,
-        "max_agents_per_arm": 50,
+        "max_agents_per_simulation": 100,
+        "max_agents_per_arm": 100,
     }

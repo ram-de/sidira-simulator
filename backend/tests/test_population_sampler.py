@@ -180,12 +180,12 @@ def test_max_agents_negative_arg_raises() -> None:
 
 
 def test_max_agents_env_zero_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Bad env value (0) → fall back to default 50, matching api/simulations.py."""
+    """Bad env value (0) → fall back to default 100, matching api/simulations.py."""
     monkeypatch.delenv("SIDIRA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "0")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)  # max_agents omitted → env path
-    assert sum(n for _, n in alloc) == 50
+    assert sum(n for _, n in alloc) == 100
 
 
 def test_max_agents_env_negative_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -193,7 +193,7 @@ def test_max_agents_env_negative_falls_back_to_default(monkeypatch: pytest.Monke
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "-7")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)
-    assert sum(n for _, n in alloc) == 50
+    assert sum(n for _, n in alloc) == 100
 
 
 def test_max_agents_env_garbage_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -201,7 +201,7 @@ def test_max_agents_env_garbage_falls_back_to_default(monkeypatch: pytest.Monkey
     monkeypatch.setenv("PYTHIA_MAX_AGENTS", "abc")
     pack = _pack(_DEMO_WEIGHTS)
     alloc = allocate(pack, population_size=200)
-    assert sum(n for _, n in alloc) == 50
+    assert sum(n for _, n in alloc) == 100
 
 
 def test_single_persona_below_cap_gets_full_population() -> None:

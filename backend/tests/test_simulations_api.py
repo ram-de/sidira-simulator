@@ -639,7 +639,7 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
 ) -> None:
     """Codex P2: when SIDIRA_MAX_AGENTS is misconfigured (e.g. '0'), the runner
     must produce exactly sampled_agent_count agents -- not silently fall back
-    to the population_sampler default of 50."""
+    to the population_sampler default of 100."""
     client, _, sim_repo, agent_repo = client_with_stub_llm
     monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
     monkeypatch.setenv("SIDIRA_MAX_AGENTS", "0")
@@ -663,6 +663,62 @@ def test_runner_agent_count_matches_persisted_cap_under_bad_env(
     # API clamps SIDIRA_MAX_AGENTS=0 to 1; the runner must honor the same cap.
     assert body["sampled_agent_count"] == 1
     assert len(body["agent_instance_ids"]) == 1
+
+
+def test_sampled_agent_count_lowers_realized_sample_below_cap(
+    client_with_stub_llm, monkeypatch
+) -> None:
+    """A per-request `sampled_agent_count` LOWERS the realized agent count below
+    the env cap — the second user knob alongside population_size."""
+    client, _, _sim_repo, _agent_repo = client_with_stub_llm
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.delenv("SIDIRA_MAX_AGENTS", raising=False)  # default cap = 100
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 1000,  # would yield 100 (default cap) without the knob
+            "sampled_agent_count": 5,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    body = client.get(f"/simulations/{resp.json()['id']}").json()
+    assert body["sampled_agent_count"] == 5
+    assert len(body["agent_instance_ids"]) == 5
+
+
+def test_sampled_agent_count_cannot_exceed_env_ceiling(
+    client_with_stub_llm, monkeypatch
+) -> None:
+    """The env cap stays a HARD ceiling: a per-request `sampled_agent_count`
+    above it is clamped down, never honored as-is."""
+    client, _, _sim_repo, _agent_repo = client_with_stub_llm
+    monkeypatch.delenv("PYTHIA_MAX_AGENTS", raising=False)
+    monkeypatch.setenv("SIDIRA_MAX_AGENTS", "8")  # ops ceiling below the request
+
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 1000,
+            "sampled_agent_count": 500,  # over the ceiling — must clamp to 8
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    body = client.get(f"/simulations/{resp.json()['id']}").json()
+    assert body["sampled_agent_count"] == 8
+    assert len(body["agent_instance_ids"]) == 8
 
 
 # ── Phase 5 #101: persona-filter end-to-end ─────────────────────────────────

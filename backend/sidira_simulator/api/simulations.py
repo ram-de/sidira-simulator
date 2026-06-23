@@ -242,7 +242,17 @@ async def create_simulation(
     # #100 shares this resolver with /config/limits so the wizard preview
     # cannot drift from the POST path.
     max_agents = resolve_max_agents_per_simulation()
-    derived_sample_size = max(1, min(payload.population_size, max_agents))
+    # The env cap stays the hard cost ceiling. An optional per-request
+    # `sampled_agent_count` lets the user LOWER the realized agent count below
+    # the cap (a second knob alongside population_size); it can never raise the
+    # run above the env ceiling. None reproduces the historical derive-from-
+    # population behavior. min() over all three keeps the realized sample bounded
+    # by the smallest of: modeled population, user request, env cap.
+    requested_agents = payload.sampled_agent_count
+    effective_cap = (
+        min(requested_agents, max_agents) if requested_agents is not None else max_agents
+    )
+    derived_sample_size = max(1, min(payload.population_size, effective_cap))
 
     # Phase 4.6 #88: A/B mode persistence. The arm_split is only RECORDED in
     # this PR (#88) — the dual-arm execution path lives in #89. Persisting
