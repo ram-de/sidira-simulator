@@ -27,13 +27,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from sidira_simulator.adapters import credentials
-from sidira_simulator.adapters.repositories import CrawlConfigRepo
+from sidira_simulator.adapters.repositories import DEFAULT_SETUP_ID, CrawlConfigRepo
 from sidira_simulator.api.crawls import (
     CRAWLER_CREDENTIALS_TOKEN_SUFFIX,
     CREDENTIALS_ENC_KEY,
 )
 from sidira_simulator.api.deps import get_crawl_config_repo
-from sidira_simulator.schemas.crawl import CrawlSetup
+from sidira_simulator.schemas.crawl import CrawlSetup, is_safe_setup_id
 from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 log = structlog.get_logger(__name__)
@@ -73,6 +73,7 @@ class CrawlRoleLogin(BaseModel):
 
 class CrawlCredentialsResponse(BaseModel):
     customer_id: str
+    setup_id: str
     logins: list[CrawlRoleLogin]
 
 
@@ -83,14 +84,24 @@ class CrawlCredentialsResponse(BaseModel):
 )
 async def get_crawl_credentials(
     customer: str,
+    setup_id: str = DEFAULT_SETUP_ID,
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
 ) -> CrawlCredentialsResponse:
-    """Return decrypted role→{username,password} for one customer.
+    """Return decrypted role→{username,password} for one customer's crawl setup.
 
-    404 when the customer has no saved setup or no stored credentials. The
-    usernames come from the password-free CrawlSetup; the passwords are
-    decrypted from the at-rest blob and joined by role."""
-    row = await repo.get(customer)
+    ``?setup_id=`` selects which of the customer's setups to pull (#215/#245),
+    defaulting to ``"default"`` so a setup_id-less pull is byte-identical to
+    pre-#215 prod (the legacy single setup). The crawl dispatch carries the
+    chosen setup_id so CI pulls the matching setup's credentials.
+
+    404 when the customer has no saved setup (for that setup_id) or no stored
+    credentials. The usernames come from the password-free CrawlSetup; the
+    passwords are decrypted from the at-rest blob and joined by role."""
+    if not is_safe_setup_id(setup_id):
+        # A malformed setup_id never names a real setup — 404 (the 404-wall
+        # convention), and never echo it back into logs as a valid segment.
+        raise HTTPException(status_code=404, detail="no crawl setup for customer")
+    row = await repo.get(customer, setup_id)
     if row is None:
         raise HTTPException(status_code=404, detail="no crawl setup for customer")
     enc = row["config_json"].get(CREDENTIALS_ENC_KEY)
@@ -122,5 +133,10 @@ async def get_crawl_credentials(
         for u in setup.test_users
     ]
     # Log the access for audit — role names only, never the secrets themselves.
-    log.info("crawl_credentials.pulled", customer=customer, roles=[lg.role for lg in logins])
-    return CrawlCredentialsResponse(customer_id=customer, logins=logins)
+    log.info(
+        "crawl_credentials.pulled",
+        customer=customer,
+        setup_id=setup_id,
+        roles=[lg.role for lg in logins],
+    )
+    return CrawlCredentialsResponse(customer_id=customer, setup_id=setup_id, logins=logins)

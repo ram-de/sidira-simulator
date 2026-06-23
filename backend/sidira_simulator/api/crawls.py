@@ -39,11 +39,21 @@ from sidira_simulator.adapters.github_actions import (
     WorkflowRunState,
 )
 from sidira_simulator.adapters.repositories import (
+    DEFAULT_SETUP_ID,
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
 )
-from sidira_simulator.schemas.crawl import CrawlSetup, CrawlSetupEnvelope, CrawlSetupInput
+from sidira_simulator.schemas.crawl import (
+    CrawlSetup,
+    CrawlSetupCreateInput,
+    CrawlSetupEnvelope,
+    CrawlSetupInput,
+    CrawlSetupListItem,
+    CrawlSetupSummary,
+    is_safe_setup_id,
+    make_setup_id,
+)
 from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 log = structlog.get_logger(__name__)
@@ -108,6 +118,14 @@ def _rehydrate_setup(row: dict) -> CrawlSetup:
 _MATERIALIZE_TIMEOUT = timedelta(minutes=15)
 
 
+class CrawlTriggerInput(BaseModel):
+    """Optional ``POST /crawls`` body. ``setup_id`` selects which saved crawl
+    setup the run uses (#215/#245); it defaults to ``"default"`` so an empty
+    body (or no body) is byte-identical to today's single-setup dispatch."""
+
+    setup_id: str = DEFAULT_SETUP_ID
+
+
 class CrawlSummary(BaseModel):
     id: str
     customer_id: str
@@ -137,20 +155,15 @@ async def get_crawl_setup(
     )
 
 
-@router.put("/crawl-setup", response_model=CrawlSetupEnvelope)
-async def save_crawl_setup(
-    payload: CrawlSetupInput,
-    customer_id: str = Depends(current_customer_id),
-    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
-    customer_repo: CustomerRepo = Depends(get_customer_repo),
-) -> CrawlSetupEnvelope:
-    # Same signup-then-act guard as the simulation path: the customer row may
-    # not exist yet when the first thing a tenant does is save a crawl setup.
-    await customer_repo.ensure_exists(customer_id)
-    # Split the payload: the password-free setup persists as cleartext JSON; the
-    # role→password map is encrypted at rest and stashed under CREDENTIALS_ENC_KEY
-    # (#206 Slice C). Passwords never touch config_json in cleartext, never come
-    # back out of GET, and reach CI only via the authenticated crawler pull.
+def _build_stored_config(payload: CrawlSetupInput, customer_id: str) -> dict:
+    """Split a write-path payload into the persisted config_json blob.
+
+    The password-free setup persists as cleartext JSON; the role→password map is
+    encrypted at rest and stashed under CREDENTIALS_ENC_KEY (#206 Slice C).
+    Passwords never touch config_json in cleartext, never come back out of GET,
+    and reach CI only via the authenticated crawler pull. The encryption is keyed
+    on ``customer_id`` (NOT setup_id) — every setup of one org shares the org's
+    key material, exactly as the single-setup path always did."""
     stored = payload.to_setup().model_dump()
     try:
         blob = credentials.encrypt(payload.credential_secrets(), customer_id=customer_id)
@@ -162,6 +175,20 @@ async def save_crawl_setup(
             detail="credential storage is not configured — set SIDIRA_LOCAL_CRED_KEY",
         ) from exc
     stored[CREDENTIALS_ENC_KEY] = credentials.serialize_blob(blob)
+    return stored
+
+
+@router.put("/crawl-setup", response_model=CrawlSetupEnvelope)
+async def save_crawl_setup(
+    payload: CrawlSetupInput,
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+    customer_repo: CustomerRepo = Depends(get_customer_repo),
+) -> CrawlSetupEnvelope:
+    # Same signup-then-act guard as the simulation path: the customer row may
+    # not exist yet when the first thing a tenant does is save a crawl setup.
+    await customer_repo.ensure_exists(customer_id)
+    stored = _build_stored_config(payload, customer_id)
     row = await repo.upsert(customer_id, stored)
     return CrawlSetupEnvelope(
         customer_id=customer_id,
@@ -170,8 +197,135 @@ async def save_crawl_setup(
     )
 
 
+# ── Multi-setup CRUD (#215/#245 PR 2) ──────────────────────────────────────
+# These sit ALONGSIDE the singular /crawl-setup endpoints above, which keep
+# operating on the "default" setup unchanged (the current frontend still calls
+# them; PR 3 migrates the UI). All routes are customer-scoped via the same
+# current_customer_id dependency; cross-tenant access 404s (the 404-wall
+# convention), never 403. No GET on this group EVER returns a credential.
+
+
+def _setup_list_item(row: dict) -> CrawlSetupListItem:
+    setup = _rehydrate_setup(row)
+    return CrawlSetupListItem(
+        setup_id=row["setup_id"],
+        name=row.get("name"),
+        sandbox_url=setup.sandbox_url,
+        capability_count=len(setup.capabilities),
+        cadence=setup.cadence,
+        updated_at=row.get("updated_at"),
+    )
+
+
+def _setup_summary(row: dict) -> CrawlSetupSummary:
+    return CrawlSetupSummary(
+        setup_id=row["setup_id"],
+        name=row.get("name"),
+        setup=_rehydrate_setup(row),
+        updated_at=row.get("updated_at"),
+    )
+
+
+@router.get("/crawl-setups", response_model=list[CrawlSetupListItem])
+async def list_crawl_setups(
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+) -> list[CrawlSetupListItem]:
+    """List every crawl setup for the caller's org, newest-anchor first.
+
+    Secret-free: each row carries identity + label + the non-secret config
+    fields only. Passwords never leave the encrypted blob; the authenticated CI
+    pull is the sole reader."""
+    return [_setup_list_item(row) for row in await repo.list(customer_id)]
+
+
+@router.post("/crawl-setups", response_model=CrawlSetupSummary, status_code=201)
+async def create_crawl_setup(
+    payload: CrawlSetupCreateInput,
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+    customer_repo: CustomerRepo = Depends(get_customer_repo),
+) -> CrawlSetupSummary:
+    """Create a NEW crawl setup under a server-minted, url-safe setup_id.
+
+    The client supplies a human ``name``; the server slugifies it and adds a
+    uniqueness suffix (the client never picks the raw id). Minting can never
+    collide with the reserved ``"default"`` anchor — :func:`make_setup_id`
+    treats it as taken. Credentials follow the #206 pull model: re-entered on
+    create, encrypted at rest, never returned. The response carries no secrets."""
+    await customer_repo.ensure_exists(customer_id)
+    existing = {row["setup_id"] for row in await repo.list(customer_id)}
+    setup_id = make_setup_id(payload.name, existing)
+    stored = _build_stored_config(payload, customer_id)
+    row = await repo.upsert(customer_id, stored, setup_id=setup_id, name=payload.name)
+    return _setup_summary(row)
+
+
+@router.get("/crawl-setups/{setup_id}", response_model=CrawlSetupSummary)
+async def get_crawl_setup_by_id(
+    setup_id: str,
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+) -> CrawlSetupSummary:
+    """One setup by id, secret-free. 404 when it does not exist for this org
+    (the same 404 a cross-tenant id gets — scope is enforced by customer_id)."""
+    row = await repo.get(customer_id, setup_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="crawl setup not found")
+    return _setup_summary(row)
+
+
+@router.put("/crawl-setups/{setup_id}", response_model=CrawlSetupSummary)
+async def update_crawl_setup_by_id(
+    setup_id: str,
+    payload: CrawlSetupInput,
+    name: str | None = None,
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+) -> CrawlSetupSummary:
+    """Update an existing setup's config (and optionally its ``?name=`` label).
+
+    404 if the setup_id does not already exist for this org — PUT here updates,
+    it does not create (creation is POST, which mints the id). Credentials follow
+    the #206 pull model: re-entered on each save, encrypted at rest, never
+    returned. The response carries no secrets."""
+    if await repo.get(customer_id, setup_id) is None:
+        raise HTTPException(status_code=404, detail="crawl setup not found")
+    stored = _build_stored_config(payload, customer_id)
+    row = await repo.upsert(customer_id, stored, setup_id=setup_id, name=name)
+    return _setup_summary(row)
+
+
+@router.delete("/crawl-setups/{setup_id}", status_code=204)
+async def delete_crawl_setup_by_id(
+    setup_id: str,
+    customer_id: str = Depends(current_customer_id),
+    repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+) -> None:
+    """Delete a setup's CONFIG row only. 204 on success.
+
+    CONFIG-ONLY by design — this NEVER touches R2: the setup's Feature-Pack
+    objects stay in place, so any historical simulation that froze a pack from
+    this setup still resolves (mirrors #214's integrity invariant; the
+    FeaturePackLoader reads R2 by path and never consults this row).
+
+    Refuses to delete the reserved ``"default"`` setup (409): it is the legacy
+    anchor and the target of the singular /crawl-setup endpoints + the legacy R2
+    prefix. 404 if the setup_id does not exist for this org."""
+    if setup_id == DEFAULT_SETUP_ID:
+        raise HTTPException(
+            status_code=409,
+            detail="the default crawl setup cannot be deleted",
+        )
+    if await repo.get(customer_id, setup_id) is None:
+        raise HTTPException(status_code=404, detail="crawl setup not found")
+    await repo.delete(customer_id, setup_id)
+    return None
+
+
 @router.post("/crawls", response_model=CrawlSummary, status_code=202)
 async def create_crawl(
+    payload: CrawlTriggerInput | None = None,
     customer_id: str = Depends(current_customer_id),
     runs: CrawlRunRepo = Depends(get_crawl_run_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
@@ -179,15 +333,22 @@ async def create_crawl(
     dispatcher: GitHubCrawlDispatcher | None = Depends(get_crawl_dispatcher),
 ) -> CrawlSummary:
     dispatcher = _require_dispatcher(dispatcher)
+    # No body (or {}) → the default setup, byte-identical to today's dispatch.
+    setup_id = payload.setup_id if payload is not None else DEFAULT_SETUP_ID
+    # setup_id rides to CI as product_id and becomes an R2 KEY SEGMENT there, so
+    # hold it to the same safe-segment rule the prefix helper enforces — a
+    # path-traversal value must never cross the dispatch boundary (codex P1).
+    if not is_safe_setup_id(setup_id):
+        raise HTTPException(status_code=400, detail="invalid setup_id")
     if not _CUSTOMER_RE.fullmatch(customer_id):
         raise HTTPException(
             status_code=400,
             detail="customer id is not crawlable: must match [A-Za-z0-9][A-Za-z0-9_-]*",
         )
-    # The saved setup drives the production walk (#206). Resolve it before
-    # inserting the run row so an unconfigured tenant 400s instead of leaving a
-    # pending row that could never produce a pack.
-    config_json = await _resolve_dispatch_config(customer_id, config_repo)
+    # The saved setup drives the production walk (#206). Resolve THAT setup's
+    # config before inserting the run row so an unconfigured tenant 400s instead
+    # of leaving a pending row that could never produce a pack.
+    config_json = await _resolve_dispatch_config(customer_id, config_repo, setup_id)
     await customer_repo.ensure_exists(customer_id)
     crawl_id = f"cr-{uuid4().hex[:12]}"
     # Resolved here, passed explicitly: CI dates are UTC and "today" on the
@@ -301,6 +462,16 @@ async def _refresh_from_github(
         if status is CrawlStatus.COMPLETE:
             # The pointer flip in CI already published; record what the
             # simulator now serves. Failure to read it is not a crawl failure.
+            #
+            # KNOWN LIMITATION (#215/#245, deferred to PR 3): this reads the
+            # DEFAULT setup's `latest` pointer. The crawl_runs row does not yet
+            # carry setup_id (adding it is a migration, out of this PR's scope),
+            # so a NAMED-setup crawl records the wrong/default snapshot_version
+            # here — a cosmetic provenance field on the run row only. It does NOT
+            # affect pack resolution (the named pack is correctly written under
+            # its own prefix by CI and resolves via ?setup_id=), nor the default
+            # path, which stays byte-identical. PR 3 adds crawl_runs.setup_id and
+            # passes it here. (codex P2)
             try:
                 fields["snapshot_version"] = loader.resolve_latest_version(row["customer_id"])
             except Exception:
@@ -309,13 +480,20 @@ async def _refresh_from_github(
     return row, phase
 
 
-async def _resolve_dispatch_config(customer_id: str, config_repo: CrawlConfigRepo) -> str | None:
-    """Load the saved crawl setup and project it to the non-secret JSON the
+async def _resolve_dispatch_config(
+    customer_id: str, config_repo: CrawlConfigRepo, setup_id: str = DEFAULT_SETUP_ID
+) -> str | None:
+    """Load the chosen crawl setup and project it to the non-secret JSON the
     dispatch carries. Returns None for the streamly-sandbox demo (no setup
-    needed — it runs the mock path); 400s for any other unconfigured tenant."""
-    row = await config_repo.get(customer_id)
+    needed — it runs the mock path); 400s for any other unconfigured tenant.
+
+    ``setup_id`` (default ``"default"``) rides the dispatch as ``product_id`` so
+    CI (a) pulls THAT setup's credentials from /internal/crawl-credentials and
+    (b) writes the produced pack under the matching per-setup R2 prefix. For the
+    default setup product_id is ``"default"`` — byte-identical to today."""
+    row = await config_repo.get(customer_id, setup_id)
     if row is None:
-        if customer_id == _SANDBOX_CUSTOMER:
+        if customer_id == _SANDBOX_CUSTOMER and setup_id == DEFAULT_SETUP_ID:
             return None
         raise HTTPException(
             status_code=400,
@@ -329,7 +507,7 @@ async def _resolve_dispatch_config(customer_id: str, config_repo: CrawlConfigRep
         # Real tenants pull logins from /internal/crawl-credentials at run start.
         # Verify that pull will succeed *before* spending a ~40-min CI walk.
         _require_dispatchable_credentials(setup, row["config_json"], customer_id)
-    return json.dumps(setup.dispatch_payload(), separators=(",", ":"))
+    return json.dumps(setup.dispatch_payload(product_id=setup_id), separators=(",", ":"))
 
 
 def _require_dispatchable_credentials(

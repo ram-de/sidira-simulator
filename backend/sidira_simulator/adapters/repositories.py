@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -482,6 +483,8 @@ class CrawlConfigRepo(Protocol):
 
     async def list(self, customer_id: str) -> list[dict[str, Any]]: ...
 
+    async def delete(self, customer_id: str, setup_id: str) -> bool: ...
+
 
 class PostgresCrawlConfigRepo:
     def __init__(self, session: AsyncSession) -> None:
@@ -541,6 +544,18 @@ class PostgresCrawlConfigRepo:
         await _release_read_transaction(self._session)
         return result
 
+    async def delete(self, customer_id: str, setup_id: str) -> bool:
+        # Config-row delete ONLY — never touches R2 feature-pack objects, so a
+        # historical sim that froze a pack from this setup still resolves
+        # (#214 / #215 integrity invariant). Route-level guard refuses "default".
+        stmt = sa_delete(CrawlConfig).where(
+            CrawlConfig.customer_id == customer_id,
+            CrawlConfig.setup_id == setup_id,
+        )
+        result = await self._session.execute(stmt)
+        await _commit(self._session)
+        return result.rowcount > 0
+
 
 class InMemoryCrawlConfigRepo:
     def __init__(self) -> None:
@@ -579,6 +594,10 @@ class InMemoryCrawlConfigRepo:
             for (cid, _sid), row in sorted(self._configs.items())
             if cid == customer_id
         ]
+
+    async def delete(self, customer_id: str, setup_id: str) -> bool:
+        # Config-only delete — no R2 side effects (integrity invariant).
+        return self._configs.pop((customer_id, setup_id), None) is not None
 
 
 # ──────────────────────────────────────────────────────────────────────
