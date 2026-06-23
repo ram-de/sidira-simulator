@@ -22,6 +22,7 @@ import structlog
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
 from sidira_simulator.adapters.repositories import (
+    DEFAULT_SETUP_ID,
     AgentInstanceRepo,
     CustomerRepo,
     SimulationRepo,
@@ -66,6 +67,7 @@ class SimulationOrchestrator:
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        setup_id: str = DEFAULT_SETUP_ID,
         sample_size: int = 10,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
@@ -81,7 +83,11 @@ class SimulationOrchestrator:
         await self._customers.ensure_exists(customer_id, name=customer_id)
 
         persona_pack = self._personas.load_latest(customer_id)
-        feature_pack_version = self._features.resolve_latest_version(customer_id)
+        # #215/#245 PR 3a: resolve the latest pack version for the CHOSEN crawl
+        # setup. setup_id defaults to "default" → the exact legacy R2 prefix, so
+        # an omitted setup_id is byte-identical to pre-#215 prod. A named setup
+        # resolves THAT setup's `latest` pointer.
+        feature_pack_version = self._features.resolve_latest_version(customer_id, setup_id)
 
         # Phase 5 #101: eager validation of selected_personas against the
         # active pack. Catches unknown persona_ids at submit time with a
@@ -128,6 +134,7 @@ class SimulationOrchestrator:
             treatment_fraction=treatment_fraction,
             selected_personas=selected_personas,
             model_id=model_id,
+            setup_id=setup_id,
         )
 
         async def run() -> None:
@@ -147,6 +154,7 @@ class SimulationOrchestrator:
                         treatment_fraction=treatment_fraction,
                         selected_personas=selected_personas,
                         model_id=model_id,
+                        setup_id=setup_id,
                         include_no_persona_control=include_no_persona_control,
                         include_current_state_control=include_current_state_control,
                         input_lint=input_lint,
@@ -166,6 +174,7 @@ class SimulationOrchestrator:
                 treatment_fraction=treatment_fraction,
                 selected_personas=selected_personas,
                 model_id=model_id,
+                setup_id=setup_id,
                 include_no_persona_control=include_no_persona_control,
                 include_current_state_control=include_current_state_control,
                 input_lint=input_lint,
@@ -197,6 +206,7 @@ class SimulationOrchestrator:
         treatment_fraction: float | None = None,
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
+        setup_id: str = DEFAULT_SETUP_ID,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
         input_lint: InputLintVerdict | None = None,
@@ -205,9 +215,14 @@ class SimulationOrchestrator:
             await self._simulations.update_status(sim_id, customer_id, "running")
 
             persona_pack = self._personas.load_latest(customer_id)
-            feature_pack_version = self._features.resolve_latest_version(customer_id)
+            # #215/#245 PR 3a: resolve + load the capability from the SAME crawl
+            # setup the request named (and the pending row recorded). Both calls
+            # take setup_id so a named-setup sim never silently falls back to the
+            # default pack; setup_id defaults to "default" → the legacy prefix,
+            # byte-identical to today for every existing internal caller.
+            feature_pack_version = self._features.resolve_latest_version(customer_id, setup_id)
             capability = self._features.load_capability(
-                customer_id, feature_pack_version, hypothesis.capability_name
+                customer_id, feature_pack_version, hypothesis.capability_name, setup_id
             )
 
             # SimulationRunner already mints its own sim_id; we override here so the DB

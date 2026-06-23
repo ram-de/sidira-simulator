@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from sidira_simulator.schemas.crawl import DEFAULT_SETUP_ID, is_safe_setup_id
 from sidira_simulator.schemas.feature_pack import ReverseFigma
 
 # agent-behavior-spec §3a / #221: the curated fallback choice set for the
@@ -236,6 +237,40 @@ class SimulationRequest(BaseModel):
             "False → today's behavior. Does not touch confidence_score."
         ),
     )
+    setup_id: str = Field(
+        default=DEFAULT_SETUP_ID,
+        description=(
+            "#215/#245 PR 3a: which crawl setup's Feature Pack this sim resolves "
+            "its capability from. A sim built from a NAMED setup's capabilities "
+            "must resolve THAT setup's pack, not the default — the orchestrator "
+            "threads this id into FeaturePackLoader.resolve_latest_version / "
+            "load_capability so the resolved pack matches the setup the PM "
+            "authored against. Omitted (the default) → 'default' → the EXACT "
+            "legacy pack prefix (customers/<id>/featurepacks), byte-identical to "
+            "pre-#215 prod. Validated here against is_safe_setup_id so a "
+            "path-traversal value (e.g. '../other_customer') is rejected at "
+            "request validation, before it can ever become an R2 key segment "
+            "(mirrors schemas.crawl._SETUP_ID_RE / the loader's R2-boundary guard)."
+        ),
+    )
+
+    @field_validator("setup_id")
+    @classmethod
+    def _validate_setup_id(cls, v: str) -> str:
+        # A setup_id becomes a literal R2 key segment downstream
+        # (FeaturePackLoader.feature_pack_prefix). Reject anything that is not a
+        # single safe segment HERE, at request validation, so a hostile value
+        # never reaches the loader. is_safe_setup_id always accepts the
+        # "default" anchor (the legacy, segment-free prefix). A reject raises
+        # ValueError → FastAPI 422, consistent with selected_personas validation
+        # above; the capabilities route 404s instead, but at the create boundary
+        # a 422 (malformed request body) is the correct surface.
+        if not is_safe_setup_id(v):
+            raise ValueError(
+                f"setup_id {v!r} is not a valid setup identifier "
+                "(lowercase slug, single segment, no separators)"
+            )
+        return v
 
     @field_validator("selected_personas")
     @classmethod
@@ -613,6 +648,11 @@ class Simulation(BaseModel):
     status: SimulationStatus
     persona_pack_version: str
     feature_pack_version: str
+    # #215/#245 PR 3a: which crawl setup's pack this sim resolved its capability
+    # from. Defaults to "default" so a GET on a legacy row (which backfilled to
+    # "default" via migration 017) and every pre-#215 sim render unchanged. The
+    # frontend (PR3b) reads this to label which setup a run used.
+    setup_id: str = DEFAULT_SETUP_ID
     hypothesis: Hypothesis
     population_size: int | None = None
     sampled_agent_count: int | None = None

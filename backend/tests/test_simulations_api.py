@@ -463,6 +463,52 @@ def test_post_simulation_persists_model_id(client_with_stub_llm, monkeypatch) ->
     assert final.json()["model_id"] == "llama-3.3-70b-versatile"
 
 
+def test_omitted_setup_id_round_trips_as_default(client_with_stub_llm) -> None:
+    """#215/#245 PR 3a: a sim submitted without setup_id resolves the demo
+    customer's default pack and the GET detail surfaces setup_id="default"."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    sim_id = resp.json()["id"]
+    final = client.get(f"/simulations/{sim_id}")
+    assert final.status_code == 200, final.text
+    # Omitted → "default"; the GET detail response carries it for the frontend.
+    assert final.json()["setup_id"] == "default"
+
+
+def test_post_simulation_rejects_unsafe_setup_id(client_with_stub_llm) -> None:
+    """#215/#245 PR 3a: a path-traversal setup_id is rejected at the create
+    route (422) BEFORE it can become an R2 key segment — the schema's
+    is_safe_setup_id field validator fires during request parsing."""
+    client, _chat, _sim_repo, _agent_repo = client_with_stub_llm
+    resp = client.post(
+        "/simulations",
+        json={
+            "hypothesis": {
+                "capability_name": "reorder",
+                "prose": "Add a one-tap reorder button to the home tab.",
+                "proposed_figma": {"screens": [], "transitions": []},
+            },
+            "population_size": 3,
+            "setup_id": "../other_customer",
+            "run_as_generic_reception": True,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+    assert "setup_id" in resp.text
+
+
 def test_e2e_simulation_completes_and_persists_agents(client_with_stub_llm) -> None:
     """Submit → wait briefly → fetch → result populated + 3 agents persisted."""
     client, chat, sim_repo, agent_repo = client_with_stub_llm

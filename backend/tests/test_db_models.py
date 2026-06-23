@@ -37,6 +37,9 @@ def test_simulations_has_required_columns() -> None:
         "status",
         "persona_pack_version",
         "feature_pack_version",
+        # #215/#245 PR 3a: which crawl setup's pack this sim resolved its
+        # capability from. NOT NULL, server_default 'default' (migration 017).
+        "setup_id",
         "hypothesis_json",
         "result_json",
         "parent_simulation_id",
@@ -44,6 +47,9 @@ def test_simulations_has_required_columns() -> None:
         "created_at",
         "completed_at",
     } <= cols
+    setup_col = {c.name: c for c in Simulation.__table__.columns}["setup_id"]
+    assert setup_col.nullable is False
+    assert setup_col.server_default.arg == "default"
 
 
 def test_agent_instances_has_persona_pack_version_for_identity_pinning() -> None:

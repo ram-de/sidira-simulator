@@ -270,6 +270,10 @@ async def create_simulation(
             treatment_fraction=treatment_fraction,
             selected_personas=payload.selected_personas,
             model_id=model_id,
+            # #215/#245 PR 3a: thread the chosen crawl setup so the orchestrator
+            # resolves THAT setup's pack (already validated by the request schema's
+            # is_safe_setup_id field validator). Omitted → "default" → legacy path.
+            setup_id=payload.setup_id,
             include_no_persona_control=payload.include_no_persona_control,
             include_current_state_control=payload.include_current_state_control,
             input_lint=input_lint,
@@ -315,6 +319,10 @@ async def get_simulation(
         status=SimulationStatus(row["status"]) if row["status"] else SimulationStatus.PENDING,
         persona_pack_version=row["persona_pack_version"],
         feature_pack_version=row["feature_pack_version"],
+        # #215/#245 PR 3a: surface which crawl setup this sim resolved its pack
+        # from. Legacy rows backfilled to "default" (migration 017); `.get` with a
+        # default keeps the in-memory repo + any pre-migration dict resilient.
+        setup_id=row.get("setup_id", "default"),
         hypothesis=row["hypothesis_json"],
         population_size=row.get("population_size"),
         sampled_agent_count=row.get("sampled_agent_count"),

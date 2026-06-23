@@ -343,7 +343,7 @@ class _PersonaLoader:
 
 
 class _FeatureLoader:
-    def resolve_latest_version(self, customer_id: str) -> str:
+    def resolve_latest_version(self, customer_id: str, setup_id: str = "default") -> str:
         return "2026-W21"
 
 
