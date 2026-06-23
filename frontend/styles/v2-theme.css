@@ -1320,6 +1320,63 @@ a.v2-sims-row:hover{
   padding-bottom:10px;
   border-bottom:1px solid var(--console-line-40);
 }
+/* #214 section header row — label on the left, "show archived" toggle right.
+   The toggle carries ink weight, never color (§4.3); it is a text control, not a
+   pill (refuse-list §10). */
+.v2-lib-section-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--console-line-40);
+}
+.v2-lib-section-head .v2-lib-section-label{
+  border-bottom:none;
+  padding-bottom:0;
+}
+.v2-lib-archived-toggle{
+  background:transparent;
+  border:none;
+  padding:0;
+  font:inherit;
+  font-size:0.625rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  cursor:pointer;
+  border-bottom:1px dotted var(--text-mut);
+  transition:color .14s var(--ease-out), border-color .14s var(--ease-out);
+}
+.v2-lib-archived-toggle:hover{
+  color:var(--text-hi);
+  border-bottom-color:var(--text-hi);
+}
+/* #214 archive action on a pack card — a quiet text button (§7.7 quiet), inline
+   with the card's record link. Distinct from --alert: archiving is a reversible
+   hide, not a destructive delete, so it reads in ink, never in the alert color. */
+.v2-lib-cardact{
+  display:inline-block;
+  margin-top:12px;
+  background:transparent;
+  border:none;
+  padding:0;
+  font:inherit;
+  font-size:0.78125rem;
+  font-weight:500;
+  color:var(--text-mut);
+  cursor:pointer;
+  border-bottom:1px dotted var(--text-mut);
+  transition:color .14s var(--ease-out), border-color .14s var(--ease-out);
+}
+.v2-lib-cardact:hover:not(:disabled){
+  color:var(--text-hi);
+  border-bottom-color:var(--text-hi);
+}
+.v2-lib-cardact:disabled{
+  opacity:0.5;
+  cursor:default;
+}
 .v2-lib-grid{
   display:grid;
   grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));

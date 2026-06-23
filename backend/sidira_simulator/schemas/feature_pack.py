@@ -76,6 +76,12 @@ class FeaturePackManifest(BaseModel):
     # in a single manifest read. Optional/back-compat: empty on older packs.
     capability_domains: dict[str, str] = Field(default_factory=dict)
     crawl_metadata: dict[str, str] = Field(default_factory=dict)
+    # #214 — API-SIDE archive state, NOT a crawler field. The crawler never writes
+    # it (manifests in R2 omit it, so it defaults False on load); the listing route
+    # sets it from the `archived_feature_packs` marker so the Library can label a
+    # version and offer the right (archive ⇄ unarchive) action from truth rather
+    # than guessing from the toggle. Never read by pack RESOLUTION for a running sim.
+    archived: bool = False
 
 
 class CapabilityRecord(BaseModel):
@@ -121,3 +127,17 @@ class FeaturePackSummary(BaseModel):
     generated_at: datetime
     schema_version: Literal["1.0"] = "1.0"
     capabilities: list[CapabilitySummary]
+
+
+class ArchiveState(BaseModel):
+    """The archive (hide-from-Library) state of one Feature Pack version (#214).
+
+    Returned by the archive/unarchive endpoints. ``archived`` is the soft-delete
+    flag: True hides the version from the Library while it STAYS resolvable for any
+    historical simulation that froze it. Archiving never edits or deletes pack
+    content — it is distinct from the forbidden hand-edit / hard-delete.
+    """
+
+    customer_id: str
+    pack_version: str
+    archived: bool

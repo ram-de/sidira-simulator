@@ -25,11 +25,13 @@ import { useEffect, useState, Fragment, type ReactNode } from "react";
 
 import {
   ApiError,
+  archiveFeaturePack,
   generateSampleWorkspace,
   getActivePersonas,
   getCapabilities,
   getSimulation,
   listSimulations,
+  unarchiveFeaturePack,
   type ActivePersonasResponse,
   type FeaturePackManifest,
   type SampleWorkspaceResponse,
@@ -86,6 +88,49 @@ export default function PersonasListV2() {
   });
   const [stimuli, setStimuli] = useState<Fetchable<DerivedStimulus[]>>({ state: "loading" });
 
+  // #214 — the Library hides archived pack versions by default. The toggle
+  // re-fetches with ?include_archived so a retired pack can be reviewed and
+  // restored; `archiving` carries the in-flight archive/unarchive action.
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  // True when a hidden (archived) latest pack exists but is filtered out of the
+  // default view — so the toggle stays reachable even when the default view is
+  // empty, letting the PM switch on "show archived" and unarchive it.
+  const [hasHiddenPack, setHasHiddenPack] = useState(false);
+
+  // Refetch the feature pack whenever the archived toggle flips. Persona packs +
+  // stimuli are unaffected, so they load once below. When the default view comes
+  // back empty, probe ?include_archived to tell "no pack yet" from "latest is
+  // hidden" — the latter must still expose the toggle (codex P2).
+  useEffect(() => {
+    let cancelled = false;
+    setPack({ state: "loading" });
+    getCapabilities(showArchived)
+      .then((data) => {
+        if (cancelled) return;
+        setPack({ state: "ready", data });
+        if (!showArchived) setHasHiddenPack(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof ApiError && e.status === 404) {
+          setPack({ state: "empty" });
+          // Only the default view can hide a pack; probe to surface the toggle.
+          if (!showArchived) {
+            getCapabilities(true)
+              .then(() => !cancelled && setHasHiddenPack(true))
+              .catch(() => !cancelled && setHasHiddenPack(false));
+          }
+        } else {
+          setPack({ state: "error", message: e?.message ?? "request failed" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showArchived]);
+
   useEffect(() => {
     let cancelled = false;
     const settle = <T,>(
@@ -104,7 +149,6 @@ export default function PersonasListV2() {
           else set({ state: "error", message: e?.message ?? "request failed" });
         });
 
-    settle(setPack, getCapabilities());
     settle(setPersonas, getActivePersonas());
     settle(setStimuli, deriveStimuli(), (rows) => rows.length === 0);
 
@@ -112,6 +156,37 @@ export default function PersonasListV2() {
       cancelled = true;
     };
   }, []);
+
+  // Archive / unarchive a pack VERSION. Soft-delete: this hides the version from
+  // the Library (or restores it); it never edits or deletes pack content, and a
+  // historical sim that froze the version still resolves it. On success we re-read
+  // the pack under the current toggle so the list reflects the new state.
+  async function handleArchive(version: string, archived: boolean) {
+    setArchiving(true);
+    setArchiveError(null);
+    try {
+      if (archived) await archiveFeaturePack(version);
+      else await unarchiveFeaturePack(version);
+      const data = await getCapabilities(showArchived).catch((e) => {
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      });
+      if (data) {
+        setPack({ state: "ready", data });
+      } else {
+        setPack({ state: "empty" });
+        // Just archived the latest pack while in the default view: it now exists
+        // but is hidden — keep the toggle reachable so it can be restored.
+        if (!showArchived && archived) setHasHiddenPack(true);
+      }
+    } catch (e) {
+      setArchiveError(
+        e instanceof Error ? e.message : "could not change the archive state",
+      );
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   return (
     <AppShellV2
@@ -129,7 +204,15 @@ export default function PersonasListV2() {
           </span>
         </div>
 
-        <FeaturePackSection pack={pack} />
+        <FeaturePackSection
+          pack={pack}
+          showArchived={showArchived}
+          hasHiddenPack={hasHiddenPack}
+          onToggleArchived={() => setShowArchived((v) => !v)}
+          onArchive={handleArchive}
+          archiving={archiving}
+          archiveError={archiveError}
+        />
         <PersonaPacksSection personas={personas} />
         <StimuliSection stimuli={stimuli} />
 
@@ -186,7 +269,29 @@ async function deriveStimuli(): Promise<DerivedStimulus[]> {
 
 // ── Console furniture (token-driven, .v2-lib-* classes) ─────────────────────
 
-function Section({ label, children }: { label: string; children: ReactNode }) {
+function Section({
+  label,
+  action,
+  children,
+}: {
+  label: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  // When the section carries a header action (#214 archived toggle), the label +
+  // action share a header row that owns the bottom rule; otherwise the label
+  // keeps its own rule (unchanged for every other section).
+  if (action) {
+    return (
+      <section className="v2-lib-section">
+        <div className="v2-lib-section-head">
+          <span className="v2-lib-section-label v2-desig">{label}</span>
+          {action}
+        </div>
+        {children}
+      </section>
+    );
+  }
   return (
     <section className="v2-lib-section">
       <span className="v2-lib-section-label v2-desig">{label}</span>
@@ -278,14 +383,61 @@ function ErrorNote({ children }: { children: ReactNode }) {
 
 // ── sections ────────────────────────────────────────────────────────────
 
-function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) {
+function FeaturePackSection({
+  pack,
+  showArchived,
+  hasHiddenPack,
+  onToggleArchived,
+  onArchive,
+  archiving,
+  archiveError,
+}: {
+  pack: Fetchable<FeaturePackManifest>;
+  showArchived: boolean;
+  hasHiddenPack: boolean;
+  onToggleArchived: () => void;
+  onArchive: (version: string, archived: boolean) => void;
+  archiving: boolean;
+  archiveError: string | null;
+}) {
+  // Whether THIS pack is archived is a backend FACT (manifest.archived), never
+  // inferred from the toggle: the toggle only means "include archived in results".
+  const isArchived = pack.state === "ready" ? pack.data.archived === true : false;
+  // Keep the toggle reachable whenever it can do something: a pack is shown, the
+  // user is already viewing archived (so they can flip back), or a hidden pack
+  // exists behind an empty default view (codex P2 — otherwise it's unrecoverable).
+  const showToggle = pack.state === "ready" || showArchived || hasHiddenPack;
+  const toggle = showToggle ? (
+    <button
+      type="button"
+      className="v2-lib-archived-toggle v2-mono"
+      onClick={onToggleArchived}
+      aria-pressed={showArchived}
+    >
+      {showArchived ? "HIDE ARCHIVED" : "SHOW ARCHIVED"}
+    </button>
+  ) : undefined;
   return (
-    <Section label="Feature pack — as-built product">
+    <Section label="Feature pack — as-built product" action={toggle}>
       {pack.state === "loading" && <PendingNote>Loading the feature pack…</PendingNote>}
       {pack.state === "error" && (
         <ErrorNote>The feature pack could not be loaded: {pack.message}</ErrorNote>
       )}
-      {pack.state === "empty" && (
+      {archiveError && <ErrorNote>{archiveError}</ErrorNote>}
+      {pack.state === "empty" && showArchived && (
+        <EmptyState>
+          No archived feature pack — nothing has been hidden from the Library. Turn
+          this off to see the live snapshot.
+        </EmptyState>
+      )}
+      {pack.state === "empty" && !showArchived && hasHiddenPack && (
+        <EmptyState>
+          The latest snapshot is archived, so it&apos;s hidden from the Library. Choose{" "}
+          <strong>Show archived</strong> to review it or restore it — archiving only
+          hides a version, it never deletes or edits the pack.
+        </EmptyState>
+      )}
+      {pack.state === "empty" && !showArchived && !hasHiddenPack && (
         <EmptyState>
           No feature pack yet — the pack is a generated snapshot of your as-built product,
           written by Sidira&apos;s crawler and never authored by hand. Point the walker at
@@ -300,13 +452,22 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
         {pack.state === "ready" && (
           <Card>
             <CardHead name="As-built product">
-              <LibChip strong>SNAPSHOT {pack.data.snapshot_version}</LibChip>
+              <LibChip strong>
+                {isArchived ? "ARCHIVED " : "SNAPSHOT "}
+                {pack.data.snapshot_version}
+              </LibChip>
             </CardHead>
             <Rows
               rows={[
                 ["Capabilities", String(pack.data.capabilities.length)],
                 ["Generated", isoDate(pack.data.generated_at)],
                 ["Schema", `v${pack.data.schema_version}`],
+                ...(isArchived
+                  ? ([["Visibility", "ARCHIVED — HIDDEN FROM LIBRARY"]] as [
+                      string,
+                      string,
+                    ][])
+                  : []),
                 ...Object.entries(pack.data.crawl_metadata ?? {})
                   .slice(0, 3)
                   .map(
@@ -315,8 +476,22 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
               ]}
             />
             <CardNote>
-              Each run freezes its own slice of this snapshot, so readings stay reproducible.
+              {isArchived
+                ? "Archived hides this version from the Library — it is NOT deleted or edited. Any run that froze this snapshot still resolves it, so historical readings replay unchanged."
+                : "Each run freezes its own slice of this snapshot, so readings stay reproducible. Archiving hides a version from the Library without editing or deleting it — distinct from a crawl, which re-generates a fresh pack."}
             </CardNote>
+            <button
+              type="button"
+              className="v2-lib-cardact v2-mono"
+              onClick={() => onArchive(pack.data.snapshot_version, !isArchived)}
+              disabled={archiving}
+            >
+              {archiving
+                ? "WORKING…"
+                : isArchived
+                  ? "UNARCHIVE — SHOW IN LIBRARY"
+                  : "ARCHIVE — HIDE FROM LIBRARY"}
+            </button>
           </Card>
         )}
         {pack.state === "ready" &&
@@ -377,8 +552,10 @@ function FeaturePackSection({ pack }: { pack: Fetchable<FeaturePackManifest> }) 
           />
           <CardNote>
             The as-built pack is the control arm — hand-editing it would corrupt every
-            reading. Configure what the walker crawls; the crawl itself waits on the
-            walker.
+            reading. To drop a capability, remove it from the crawl setup and re-crawl;
+            the next snapshot is a fresh pack without it. (Archiving a whole version
+            only hides it from the Library — it never edits pack contents.) The crawl
+            itself waits on the walker.
           </CardNote>
           <CardLink href="/personas/crawl-setup">CRAWL SETUP + RE-CRAWL →</CardLink>
         </Card>

@@ -433,6 +433,14 @@ export default function CrawlSetupV2() {
                         digits, “-” or “_” (e.g. onboarding-checklist). The walker
                         writes a reverse PRD and reverse-Figma spec for each.
                       </div>
+                      <div className="hint">
+                        <strong>To drop a capability, remove it here and re-crawl.</strong>{" "}
+                        Each crawl produces a fresh, immutable snapshot — a capability you
+                        leave out of this list simply isn&apos;t in the next pack. You never
+                        hand-edit a pack to remove something (that would corrupt the control
+                        arm); removing it from setup is how it disappears on the next
+                        snapshot. Runs that already froze the old pack keep it.
+                      </div>
                     </section>
 
                     {/* ── 02 · Entry points ──────────────────────── */}

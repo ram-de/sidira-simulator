@@ -11,7 +11,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 
 // ── Re-exported schema types for page imports ──────────────────────────
 
-export type FeaturePackManifest = components["schemas"]["FeaturePackManifest"];
+// #214 adds an API-side `archived` flag the checked-in api-types.ts predates (the
+// generated file is stale — same caveat as Capability/CrawlSummary below). The
+// crawler never writes it; the listing route sets it from the archive marker so the
+// Library labels a version and offers the right action from fact. Optional so a
+// stale/older response (no field) reads as not-archived. Collapse to the bare
+// generated type once api-types.ts is regenerated against the live backend.
+export type FeaturePackManifest = components["schemas"]["FeaturePackManifest"] & {
+  archived?: boolean;
+};
 export type ReverseFigma = components["schemas"]["ReverseFigma"];
 export type Screen = components["schemas"]["Screen"];
 export type FigmaComponent = components["schemas"]["Component"];
@@ -212,10 +220,44 @@ export const apiDelete = (path: string) => _req<void>(path, { method: "DELETE" }
 
 // ── Endpoint-specific typed wrappers ────────────────────────────────────
 
-export const getCapabilities = () => apiGet<FeaturePackManifest>("/capabilities");
+// #214: the Library hides any pack VERSION the customer archived (soft-delete).
+// By default GET /capabilities 404s when the latest pack is archived (reads as an
+// empty tenant); ?include_archived=true is the "Show archived" opt-in. Archiving
+// never deletes the pack — a historical sim that froze the version still resolves
+// it, because the loader never consults the archive marker.
+export const getCapabilities = (includeArchived = false) =>
+  apiGet<FeaturePackManifest>(
+    includeArchived ? "/capabilities?include_archived=true" : "/capabilities",
+  );
 
-export const getCapabilitySummary = () =>
-  apiGet<FeaturePackSummary>("/feature-pack/summary");
+export const getCapabilitySummary = (includeArchived = false) =>
+  apiGet<FeaturePackSummary>(
+    includeArchived
+      ? "/feature-pack/summary?include_archived=true"
+      : "/feature-pack/summary",
+  );
+
+// #214: archive (hide from Library) / unarchive a Feature Pack version. SOFT-DELETE
+// — the version stays resolvable for any historical simulation that froze it; this
+// is distinct from the forbidden hand-edit / hard-delete of pack contents. Inline
+// type, same codegen caveat as CrawlSummary (api-types.ts predates this route).
+export interface FeaturePackArchiveState {
+  customer_id: string;
+  pack_version: string;
+  archived: boolean;
+}
+
+export const archiveFeaturePack = (version: string) =>
+  apiPost<Record<string, never>, FeaturePackArchiveState>(
+    `/featurepacks/${encodeURIComponent(version)}/archive`,
+    {},
+  );
+
+export const unarchiveFeaturePack = (version: string) =>
+  apiPost<Record<string, never>, FeaturePackArchiveState>(
+    `/featurepacks/${encodeURIComponent(version)}/unarchive`,
+    {},
+  );
 
 export const getCapability = (name: string) =>
   apiGet<CapabilityRecord>(`/capabilities/${encodeURIComponent(name)}`);

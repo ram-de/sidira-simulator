@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
+    ArchivedFeaturePack,
     CrawlConfig,
     CrawlRun,
     Customer,
@@ -602,6 +603,99 @@ class InMemoryCrawlRunRepo:
         rows = [r for r in self._runs.values() if r["customer_id"] == customer_id]
         rows.sort(key=lambda r: r["created_at"], reverse=True)
         return [dict(r) for r in rows[:limit]]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# ArchivedFeaturePack (#214) — soft-delete / hide-from-Library marker
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ArchivedFeaturePackRepo(Protocol):
+    """Soft-delete markers for Feature Pack versions (#214).
+
+    A marker HIDES a pack version from the Library; it never deletes R2 artifacts
+    and is never consulted when resolving a pack to RUN a simulation, so a
+    historical sim that froze an archived version still replays.
+    """
+
+    async def is_archived(self, customer_id: str, pack_version: str) -> bool: ...
+
+    async def archive(self, customer_id: str, pack_version: str) -> None: ...
+
+    async def unarchive(self, customer_id: str, pack_version: str) -> bool: ...
+
+    async def list_versions(self, customer_id: str) -> list[str]: ...
+
+
+class PostgresArchivedFeaturePackRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def is_archived(self, customer_id: str, pack_version: str) -> bool:
+        row = await self._session.get(ArchivedFeaturePack, (customer_id, pack_version))
+        await _release_read_transaction(self._session)
+        return row is not None
+
+    async def archive(self, customer_id: str, pack_version: str) -> None:
+        """Idempotent: re-archiving an already-archived version is a no-op (the
+        composite PK makes the upsert do-nothing)."""
+        stmt = (
+            pg_insert(ArchivedFeaturePack)
+            .values(customer_id=customer_id, pack_version=pack_version)
+            .on_conflict_do_nothing(
+                index_elements=[
+                    ArchivedFeaturePack.customer_id,
+                    ArchivedFeaturePack.pack_version,
+                ]
+            )
+        )
+        await self._session.execute(stmt)
+        await _commit(self._session)
+
+    async def unarchive(self, customer_id: str, pack_version: str) -> bool:
+        """Delete the marker (un-hide). Returns True if a marker was removed,
+        False if the version was not archived for this customer."""
+        row = await self._session.get(ArchivedFeaturePack, (customer_id, pack_version))
+        if row is None:
+            await _release_read_transaction(self._session)
+            return False
+        await self._session.delete(row)
+        await _commit(self._session)
+        return True
+
+    async def list_versions(self, customer_id: str) -> list[str]:
+        stmt = (
+            select(ArchivedFeaturePack.pack_version)
+            .where(ArchivedFeaturePack.customer_id == customer_id)
+            .order_by(ArchivedFeaturePack.archived_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        await _release_read_transaction(self._session)
+        return list(rows)
+
+
+class InMemoryArchivedFeaturePackRepo:
+    def __init__(self) -> None:
+        # (customer_id, pack_version) -> archived_at
+        self._archived: dict[tuple[str, str], datetime] = {}
+
+    async def is_archived(self, customer_id: str, pack_version: str) -> bool:
+        return (customer_id, pack_version) in self._archived
+
+    async def archive(self, customer_id: str, pack_version: str) -> None:
+        self._archived.setdefault((customer_id, pack_version), datetime.now(timezone.utc))
+
+    async def unarchive(self, customer_id: str, pack_version: str) -> bool:
+        return self._archived.pop((customer_id, pack_version), None) is not None
+
+    async def list_versions(self, customer_id: str) -> list[str]:
+        rows = [
+            (version, at)
+            for (cid, version), at in self._archived.items()
+            if cid == customer_id
+        ]
+        rows.sort(key=lambda r: r[1], reverse=True)
+        return [version for version, _ in rows]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1235,6 +1329,18 @@ def get_in_memory_crawl_run_repo() -> InMemoryCrawlRunRepo:
     if _in_memory_crawl_runs is None:
         _in_memory_crawl_runs = InMemoryCrawlRunRepo()
     return _in_memory_crawl_runs
+
+
+_in_memory_archived_feature_packs: InMemoryArchivedFeaturePackRepo | None = None
+
+
+def get_in_memory_archived_feature_pack_repo() -> InMemoryArchivedFeaturePackRepo:
+    """Process-wide in-memory archived-feature-pack repo (#214), same pattern as
+    crawl configs/runs. Reset in tests via ``._archived.clear()``."""
+    global _in_memory_archived_feature_packs
+    if _in_memory_archived_feature_packs is None:
+        _in_memory_archived_feature_packs = InMemoryArchivedFeaturePackRepo()
+    return _in_memory_archived_feature_packs
 
 
 _in_memory_feature_store_connections: InMemoryFeatureStoreConnectionRepo | None = None

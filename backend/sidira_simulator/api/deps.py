@@ -27,6 +27,7 @@ from sidira_simulator.adapters.r2 import ArtifactStore, get_store
 from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
+    ArchivedFeaturePackRepo,
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
@@ -34,6 +35,7 @@ from sidira_simulator.adapters.repositories import (
     PersonaBuildRepo,
     PostgresAgentFeedbackRepo,
     PostgresAgentInstanceRepo,
+    PostgresArchivedFeaturePackRepo,
     PostgresCrawlConfigRepo,
     PostgresCrawlRunRepo,
     PostgresCustomerRepo,
@@ -41,6 +43,7 @@ from sidira_simulator.adapters.repositories import (
     PostgresPersonaBuildRepo,
     PostgresSimulationRepo,
     SimulationRepo,
+    get_in_memory_archived_feature_pack_repo,
     get_in_memory_crawl_config_repo,
     get_in_memory_crawl_run_repo,
     get_in_memory_feature_store_connection_repo,
@@ -146,6 +149,14 @@ def get_persona_build_repo(session: RepositorySession = None) -> PersonaBuildRep
     if session is None:
         return get_in_memory_persona_build_repo()
     return PostgresPersonaBuildRepo(session)
+
+
+def get_archived_feature_pack_repo(
+    session: RepositorySession = None,
+) -> ArchivedFeaturePackRepo:
+    if session is None:
+        return get_in_memory_archived_feature_pack_repo()
+    return PostgresArchivedFeaturePackRepo(session)
 
 
 async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher | None"]:
