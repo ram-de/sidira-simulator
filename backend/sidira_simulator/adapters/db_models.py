@@ -83,12 +83,18 @@ class Simulation(Base):
 
 
 class CrawlConfig(Base):
-    """Saved crawl setup for one customer (#171) — the inputs the crawler's
-    MVP contract asks the customer to supply (capabilities + entry URLs, sandbox
-    tenant, test users per role, cadence, depth). One row per customer; the
-    config itself is JSONB validated by schemas/crawl.py:CrawlSetup at the API
+    """Saved crawl setup for one customer (#171, #215/#245) — the inputs the
+    crawler's MVP contract asks the customer to supply (capabilities + entry
+    URLs, sandbox tenant, test users per role, cadence, depth). The config
+    itself is JSONB validated by schemas/crawl.py:CrawlSetup at the API
     boundary. Crawl *runs* are not modeled here — they arrive with the walker
     (sidira-crawler #1–#3) alongside the trigger endpoint.
+
+    Keyed by ``(customer_id, setup_id)``: an org may hold multiple crawl
+    targets ("setups"), each a separate product. Every existing endpoint
+    operates on the ``"default"`` setup (migration 015 backfilled the prior
+    single row to ``setup_id="default"``); multi-setup CRUD + dispatch
+    threading land in later PRs of the #215/#245 epic.
     """
 
     __tablename__ = "crawl_configs"
@@ -96,6 +102,16 @@ class CrawlConfig(Base):
     customer_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("customers.id", ondelete="CASCADE"), primary_key=True
     )
+    # A product/crawl target within the org. Existing single-target tenants use
+    # the reserved "default" setup; later PRs mint additional ids for extra
+    # products. NOT NULL with a server default so old single-key callers and the
+    # backfilled prod row both resolve to "default".
+    setup_id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, server_default="default"
+    )
+    # Human-readable label for the setup (used by the PR2 CRUD/list UI).
+    # Nullable: the backfilled default row gets "Default"; otherwise optional.
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     config_json: Mapped[dict[str, Any]] = mapped_column(JSONB)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

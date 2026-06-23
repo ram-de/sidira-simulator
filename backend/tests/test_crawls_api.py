@@ -94,6 +94,25 @@ def test_put_overwrites_prior_save(client):
     assert got["setup"]["cadence"] == "on_demand"
 
 
+def test_crawl_setup_endpoints_operate_on_the_default_setup(client):
+    """#215/#245 PR1: GET/PUT /crawl-setup are unchanged endpoints that now land
+    on the org's reserved "default" setup. A single-target tenant is identical;
+    the row persists under setup_id="default" (the only key those routes use)."""
+    from sidira_simulator.adapters.repositories import (
+        DEFAULT_SETUP_ID,
+        get_in_memory_crawl_config_repo,
+    )
+
+    client.put("/crawl-setup", json=_setup_payload(walk_depth=5))
+    repo = get_in_memory_crawl_config_repo()
+    # Exactly one row, keyed to the default setup.
+    assert list(repo._configs.keys()) == [("demo", DEFAULT_SETUP_ID)]
+    # And it is reachable by the default-keyed get the routes use.
+    row = repo._configs[("demo", DEFAULT_SETUP_ID)]
+    assert row["setup_id"] == DEFAULT_SETUP_ID
+    assert client.get("/crawl-setup").json()["setup"]["walk_depth"] == 5
+
+
 def test_walk_depth_defaults_to_six_and_accepts_new_ceiling(client):
     """#227: walk_depth realigned to the crawler's per-capability max_hops intent —
     default 6 (parity with CapabilityConfig.max_hops), range 2–8 so depth is a
@@ -203,7 +222,7 @@ def test_password_stored_encrypted_not_cleartext(client):
     from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
 
     client.put("/crawl-setup", json=_setup_payload())
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     stored = json.dumps(row["config_json"])
     assert "adm-pw-s3cret" not in stored
     assert "mbr-pw-s3cret" not in stored

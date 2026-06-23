@@ -11,8 +11,10 @@ from datetime import datetime, timezone
 import pytest
 
 from sidira_simulator.adapters.repositories import (
+    DEFAULT_SETUP_ID,
     InMemoryAgentFeedbackRepo,
     InMemoryAgentInstanceRepo,
+    InMemoryCrawlConfigRepo,
     InMemoryCustomerRepo,
     InMemoryFeatureStoreConnectionRepo,
     InMemorySimulationRepo,
@@ -248,3 +250,87 @@ async def test_fs_record_test_result_is_customer_scoped(
     # The owned row was untouched.
     row = await feature_stores.get("fs-abc", "demo")
     assert row["last_test_status"] is None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# CrawlConfig composite key (#215/#245 PR 1/3)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def crawl_configs() -> InMemoryCrawlConfigRepo:
+    return InMemoryCrawlConfigRepo()
+
+
+@pytest.mark.asyncio
+async def test_crawl_config_defaults_to_default_setup(
+    crawl_configs: InMemoryCrawlConfigRepo,
+) -> None:
+    """A caller that passes only customer_id (every existing endpoint) reads and
+    writes the reserved "default" setup — identical behavior to pre-composite."""
+    assert await crawl_configs.get("demo") is None
+    saved = await crawl_configs.upsert("demo", {"walk_depth": 3})
+    assert saved["setup_id"] == DEFAULT_SETUP_ID
+    got = await crawl_configs.get("demo")
+    assert got is not None
+    assert got["setup_id"] == DEFAULT_SETUP_ID
+    assert got["config_json"] == {"walk_depth": 3}
+    # The default setup is reachable both by omission and by explicit id.
+    assert await crawl_configs.get("demo", DEFAULT_SETUP_ID) == got
+
+
+@pytest.mark.asyncio
+async def test_crawl_config_upsert_overwrites_same_setup(
+    crawl_configs: InMemoryCrawlConfigRepo,
+) -> None:
+    await crawl_configs.upsert("demo", {"walk_depth": 3})
+    await crawl_configs.upsert("demo", {"walk_depth": 6})
+    got = await crawl_configs.get("demo")
+    assert got["config_json"] == {"walk_depth": 6}
+    # Still one row for the default setup.
+    assert len(await crawl_configs.list("demo")) == 1
+
+
+@pytest.mark.asyncio
+async def test_two_setups_coexist_for_one_customer(
+    crawl_configs: InMemoryCrawlConfigRepo,
+) -> None:
+    """A second setup_id does not clobber the default — both rows coexist and
+    list() returns them for the org (foundational for PR2 CRUD)."""
+    await crawl_configs.upsert("demo", {"walk_depth": 3}, name="Default")
+    await crawl_configs.upsert("demo", {"walk_depth": 6}, setup_id="checkout", name="Checkout")
+
+    default = await crawl_configs.get("demo")
+    checkout = await crawl_configs.get("demo", "checkout")
+    assert default["config_json"] == {"walk_depth": 3}
+    assert default["name"] == "Default"
+    assert checkout["config_json"] == {"walk_depth": 6}
+    assert checkout["name"] == "Checkout"
+
+    rows = await crawl_configs.list("demo")
+    assert {r["setup_id"] for r in rows} == {DEFAULT_SETUP_ID, "checkout"}
+
+
+@pytest.mark.asyncio
+async def test_crawl_config_list_is_customer_scoped(
+    crawl_configs: InMemoryCrawlConfigRepo,
+) -> None:
+    await crawl_configs.upsert("demo", {"walk_depth": 3})
+    await crawl_configs.upsert("other", {"walk_depth": 6})
+    rows = await crawl_configs.list("demo")
+    assert [r["customer_id"] for r in rows] == ["demo"]
+    assert await crawl_configs.list("nobody") == []
+
+
+@pytest.mark.asyncio
+async def test_crawl_config_upsert_preserves_name_on_resave(
+    crawl_configs: InMemoryCrawlConfigRepo,
+) -> None:
+    """Re-saving an existing setup without a name keeps the prior label — the
+    PUT /crawl-setup path never supplies a name, so a label set later by CRUD
+    must survive a setup re-save."""
+    await crawl_configs.upsert("demo", {"walk_depth": 3}, name="My Product")
+    await crawl_configs.upsert("demo", {"walk_depth": 6})  # no name
+    got = await crawl_configs.get("demo")
+    assert got["name"] == "My Product"
+    assert got["config_json"] == {"walk_depth": 6}

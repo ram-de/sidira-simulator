@@ -6,6 +6,7 @@ from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
     Base,
+    CrawlConfig,
     Customer,
     Simulation,
 )
@@ -55,6 +56,19 @@ def test_agent_instances_has_persona_pack_version_for_identity_pinning() -> None
     assert "simulation_id" in cols
     assert "materialization_index" in cols
     assert cols["materialization_index"].nullable is True
+
+
+def test_crawl_config_has_composite_setup_key() -> None:
+    """#215/#245 PR1: crawl_configs is keyed by (customer_id, setup_id) and
+    carries a nullable display name. setup_id is NOT NULL with a 'default'
+    server default so old single-key callers and the backfilled prod row both
+    resolve to the default setup."""
+    cols = {c.name: c for c in CrawlConfig.__table__.columns}
+    pk_cols = {c.name for c in CrawlConfig.__table__.primary_key.columns}
+    assert pk_cols == {"customer_id", "setup_id"}
+    assert cols["setup_id"].nullable is False
+    assert cols["setup_id"].server_default.arg == "default"
+    assert cols["name"].nullable is True
 
 
 def test_agent_feedback_columns() -> None:
