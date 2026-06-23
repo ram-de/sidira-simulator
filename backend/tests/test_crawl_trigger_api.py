@@ -76,8 +76,10 @@ def _seed_config(customer_id: str, *, with_credentials: bool = True) -> None:
     if with_credentials:
         blob = credentials.encrypt({"member": "member-pw-s3cret"})
         config[CREDENTIALS_ENC_KEY] = credentials.serialize_blob(blob)
-    get_in_memory_crawl_config_repo()._configs[customer_id] = {
+    get_in_memory_crawl_config_repo()._configs[(customer_id, "default")] = {
         "customer_id": customer_id,
+        "setup_id": "default",
+        "name": "Default",
         "config_json": config,
         "updated_at": datetime.now(timezone.utc),
     }
@@ -357,7 +359,7 @@ def test_dispatch_blocked_when_stored_credentials_undecryptable(client, fake_dis
     #206 Slice C)."""
     from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
 
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     row["config_json"][CREDENTIALS_ENC_KEY]["ciphertext"] = "QUJDREVG"  # valid b64, bad tag
     resp = client.post("/crawls")
     assert resp.status_code == 503
@@ -372,7 +374,7 @@ def test_dispatch_blocked_when_a_role_login_is_missing(client, fake_dispatcher):
     dispatch a partial-login crawl (codex P2, #206 Slice C)."""
     from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
 
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     # Re-encrypt an empty secret map: the setup's "member" role now has no login.
     row["config_json"][CREDENTIALS_ENC_KEY] = credentials.serialize_blob(credentials.encrypt({}))
     resp = client.post("/crawls")
@@ -412,8 +414,10 @@ def test_legacy_invalid_setup_is_409_not_500(client, fake_dispatcher, monkeypatc
     dispatches."""
     bad = _setup_dict()
     bad["sandbox_url"] = "https://user:pass@legacy.example.com"
-    get_in_memory_crawl_config_repo()._configs["org_legacy"] = {
+    get_in_memory_crawl_config_repo()._configs[("org_legacy", "default")] = {
         "customer_id": "org_legacy",
+        "setup_id": "default",
+        "name": "Default",
         "config_json": bad,
         "updated_at": datetime.now(timezone.utc),
     }

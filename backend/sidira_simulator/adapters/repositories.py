@@ -460,56 +460,125 @@ class InMemoryAgentFeedbackRepo:
 # ──────────────────────────────────────────────────────────────────────
 
 
-class CrawlConfigRepo(Protocol):
-    async def get(self, customer_id: str) -> dict[str, Any] | None: ...
+# Reserved setup id for the org's single/primary crawl target. Every existing
+# endpoint (GET/PUT /crawl-setup, dispatch, the credential pull) operates on
+# this setup; migration 015 backfilled the prior single row here. Callers that
+# pass only customer_id keep hitting it. Multi-setup CRUD lands in PR2 (#215).
+DEFAULT_SETUP_ID = "default"
 
-    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]: ...
+
+class CrawlConfigRepo(Protocol):
+    async def get(
+        self, customer_id: str, setup_id: str = DEFAULT_SETUP_ID
+    ) -> dict[str, Any] | None: ...
+
+    async def upsert(
+        self,
+        customer_id: str,
+        config_json: dict[str, Any],
+        setup_id: str = DEFAULT_SETUP_ID,
+        name: str | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def list(self, customer_id: str) -> list[dict[str, Any]]: ...
 
 
 class PostgresCrawlConfigRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get(self, customer_id: str) -> dict[str, Any] | None:
-        row = await self._session.get(CrawlConfig, customer_id)
+    async def get(
+        self, customer_id: str, setup_id: str = DEFAULT_SETUP_ID
+    ) -> dict[str, Any] | None:
+        row = await self._session.get(CrawlConfig, (customer_id, setup_id))
         result = _crawl_config_to_dict(row) if row is not None else None
         await _release_read_transaction(self._session)
         return result
 
-    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]:
+    async def upsert(
+        self,
+        customer_id: str,
+        config_json: dict[str, Any],
+        setup_id: str = DEFAULT_SETUP_ID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        # name is only written on insert (and only when provided), so an upsert
+        # of an existing setup never clobbers a label set by a later CRUD edit.
+        insert_values: dict[str, Any] = {
+            "customer_id": customer_id,
+            "setup_id": setup_id,
+            "config_json": config_json,
+        }
+        if name is not None:
+            insert_values["name"] = name
+        update_set: dict[str, Any] = {"config_json": config_json, "updated_at": func.now()}
+        if name is not None:
+            update_set["name"] = name
         stmt = (
             pg_insert(CrawlConfig)
-            .values(customer_id=customer_id, config_json=config_json)
+            .values(**insert_values)
             .on_conflict_do_update(
-                index_elements=[CrawlConfig.customer_id],
-                set_={"config_json": config_json, "updated_at": func.now()},
+                index_elements=[CrawlConfig.customer_id, CrawlConfig.setup_id],
+                set_=update_set,
             )
         )
         await self._session.execute(stmt)
         await _commit(self._session)
-        row = await self._session.get(CrawlConfig, customer_id)
+        row = await self._session.get(CrawlConfig, (customer_id, setup_id))
         assert row is not None
         result = _crawl_config_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list(self, customer_id: str) -> list[dict[str, Any]]:
+        stmt = (
+            select(CrawlConfig)
+            .where(CrawlConfig.customer_id == customer_id)
+            .order_by(CrawlConfig.setup_id)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_crawl_config_to_dict(row) for row in rows]
         await _release_read_transaction(self._session)
         return result
 
 
 class InMemoryCrawlConfigRepo:
     def __init__(self) -> None:
-        self._configs: dict[str, dict[str, Any]] = {}
+        # Keyed by (customer_id, setup_id) to mirror the composite PK.
+        self._configs: dict[tuple[str, str], dict[str, Any]] = {}
 
-    async def get(self, customer_id: str) -> dict[str, Any] | None:
-        row = self._configs.get(customer_id)
+    async def get(
+        self, customer_id: str, setup_id: str = DEFAULT_SETUP_ID
+    ) -> dict[str, Any] | None:
+        row = self._configs.get((customer_id, setup_id))
         return dict(row) if row is not None else None
 
-    async def upsert(self, customer_id: str, config_json: dict[str, Any]) -> dict[str, Any]:
+    async def upsert(
+        self,
+        customer_id: str,
+        config_json: dict[str, Any],
+        setup_id: str = DEFAULT_SETUP_ID,
+        name: str | None = None,
+    ) -> dict[str, Any]:
+        existing = self._configs.get((customer_id, setup_id))
+        # Preserve a prior label on re-save unless a new one is supplied.
+        resolved_name = name if name is not None else (existing or {}).get("name")
         row = {
             "customer_id": customer_id,
+            "setup_id": setup_id,
+            "name": resolved_name,
             "config_json": config_json,
             "updated_at": datetime.now(timezone.utc),
         }
-        self._configs[customer_id] = row
+        self._configs[(customer_id, setup_id)] = row
         return dict(row)
+
+    async def list(self, customer_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(row)
+            for (cid, _sid), row in sorted(self._configs.items())
+            if cid == customer_id
+        ]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1257,6 +1326,8 @@ def _crawl_run_to_dict(row: CrawlRun) -> dict[str, Any]:
 def _crawl_config_to_dict(row: CrawlConfig) -> dict[str, Any]:
     return {
         "customer_id": row.customer_id,
+        "setup_id": row.setup_id,
+        "name": row.name,
         "config_json": row.config_json,
         "updated_at": row.updated_at,
     }

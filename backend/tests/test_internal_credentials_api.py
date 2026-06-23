@@ -126,7 +126,7 @@ def test_undecryptable_blob_is_503_not_500(client):
     """A rotated key or corrupted ciphertext must surface as a controlled 503,
     never an opaque 500 (codex P2)."""
     _seed_setup(client)
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     # Tamper the ciphertext so AESGCM auth fails (InvalidTag).
     row["config_json"]["credentials_enc"]["ciphertext"] = "QUJDREVG"  # bogus base64
     resp = client.get(_URL, headers=_auth())
@@ -142,7 +142,7 @@ def test_incomplete_credentials_is_409_not_partial_200(client):
     from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
 
     _seed_setup(client)  # setup has admin + member roles
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     # Re-encrypt with only the admin login — member is now uncovered.
     row["config_json"][CREDENTIALS_ENC_KEY] = credentials.serialize_blob(
         credentials.encrypt({"admin": "adm-pw-s3cret"})
@@ -158,7 +158,7 @@ def test_setup_without_credentials_is_404(client):
     from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
 
     _seed_setup(client)
-    row = get_in_memory_crawl_config_repo()._configs["demo"]
+    row = get_in_memory_crawl_config_repo()._configs[("demo", "default")]
     row["config_json"].pop(CREDENTIALS_ENC_KEY, None)
     resp = client.get(_URL, headers=_auth())
     assert resp.status_code == 404
