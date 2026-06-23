@@ -2922,6 +2922,11 @@ function InspectorRail({
     { k: "CAPABILITY", v: sim.hypothesis.capability_name },
     { k: "PERSONA PACK", v: sim.persona_pack_version },
     { k: "FEATURE PACK", v: sim.feature_pack_version },
+    // #215/#245 PR 3b: which crawl setup this run resolved its pack from. Only
+    // shown for a non-default setup so legacy/default runs render unchanged.
+    ...(sim.setup_id && sim.setup_id !== "default"
+      ? [{ k: "SETUP", v: sim.setup_id }]
+      : []),
     { k: "STIMULUS", v: stimulus },
     {
       k: "COHORT",

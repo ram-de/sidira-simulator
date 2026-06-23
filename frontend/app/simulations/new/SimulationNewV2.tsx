@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   ApiError,
   createSimulation,
+  DEFAULT_SETUP_ID,
   getActivePersonas,
   getCapabilities,
   getSimulationLimits,
+  listCrawlSetups,
   listSupportedModels,
   parseNeedsInput,
   preflightSimulation,
   type ActivePersonasResponse,
+  type CrawlSetupListItem,
   type FeaturePackManifest,
   type Hypothesis,
   type ModelInfo,
@@ -382,6 +385,18 @@ export default function SimulationNewV2() {
   // 404, so "no real personas yet" is now starter-OR-404, not 404 alone.
   const [personasAreStarter, setPersonasAreStarter] = useState(false);
 
+  // #215/#245 PR 3b: which crawl setup this sim targets. Defaults to the
+  // "default" anchor, so a default-only org behaves EXACTLY as today (the setup
+  // picker stays hidden and `setup_id` is omitted from the request). When the
+  // org has >1 setup, the PM picks one; its capabilities are fetched scoped to
+  // it and the sim is created against it.
+  const [setups, setSetups] = useState<CrawlSetupListItem[]>([]);
+  const [setupId, setSetupId] = useState<string>(DEFAULT_SETUP_ID);
+  // Honest state for the roster fetch: a failure must not silently route a
+  // multi-setup org to "default", so we surface a quiet note rather than
+  // swallowing it (a default-only org never sees this — it just runs default).
+  const [setupsError, setSetupsError] = useState<string | null>(null);
+
   const [capability, setCapability] = useState<string>("");
   // #313 / T4: structured claim authoring is the default; the free-text
   // escape hatch (`claimMode === "freetext"`) bypasses the composer for terse
@@ -553,11 +568,50 @@ export default function SimulationNewV2() {
     new Set(),
   );
 
+  // #215/#245 PR 3b: load the org's crawl setups once. Non-fatal — if the list
+  // call fails or returns only the default anchor, the picker stays hidden and
+  // the wizard runs against "default" exactly as before this PR.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const m = await getCapabilities();
+        const rows = await listCrawlSetups();
+        if (cancelled) return;
+        setSetups(rows);
+        // Default the selection to the "default" anchor when present (the
+        // common case), else the first setup — so the capability load below
+        // always targets a setup that exists.
+        if (rows.length > 0 && !rows.some((r) => r.setup_id === DEFAULT_SETUP_ID)) {
+          setSetupId(rows[0].setup_id);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        // Don't silently route a possibly-multi-setup org to "default" — record
+        // the failure so the wizard can disclose it. The run still targets the
+        // default anchor (the safe legacy behavior); a default-only org's
+        // experience is unchanged because the note only renders on error.
+        setSetupsError(
+          e instanceof Error ? e.message : "could not list crawl setups",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Capabilities are scoped to the SELECTED setup (#215/#245 PR 3b). Re-runs
+  // when the setup changes so switching setups re-lists THAT setup's pack. An
+  // omitted/`"default"` id keeps the request byte-identical to pre-#215 prod.
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingCaps(true);
+    setCapsError(null);
+    setCapsNotFound(false);
+    setCapability("");
+    (async () => {
+      try {
+        const m = await getCapabilities(false, setupId);
         if (cancelled) return;
         setManifest(m);
         if (m.capabilities && m.capabilities.length > 0) {
@@ -565,11 +619,12 @@ export default function SimulationNewV2() {
         }
       } catch (e) {
         if (cancelled) return;
+        setManifest(null);
         if (e instanceof ApiError) {
           if (e.status === 404) setCapsNotFound(true);
           setCapsError(
             e.status === 404
-              ? "No capabilities found for this customer. Run a crawl first."
+              ? "No capabilities found for this setup. Run a crawl first."
               : `Failed to load capabilities: ${e.message}`,
           );
         } else if (e instanceof Error) {
@@ -584,7 +639,7 @@ export default function SimulationNewV2() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setupId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -673,6 +728,12 @@ export default function SimulationNewV2() {
 
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
+  // #215/#245 PR 3b: the setup picker only appears when the org actually has
+  // more than one crawl setup. A default-only org sees no new control.
+  const hasMultipleSetups = setups.length > 1;
+  const setupLabelFor = (s: CrawlSetupListItem): string =>
+    s.name?.trim() ||
+    (s.setup_id === DEFAULT_SETUP_ID ? "Default setup" : s.setup_id);
   const activePerArmCap = simulationLimits?.max_agents_per_arm ?? null;
   // Realized agents per arm = min(modeled population, user-requested agent
   // count, env cap). `requestedAgentCount == null` (empty field) means "use the
@@ -928,6 +989,12 @@ export default function SimulationNewV2() {
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
       selected_personas: personaFilter,
       model_id: selectedModelId || null,
+      // #215/#245 PR 3b: target the selected crawl setup. Only sent for a
+      // non-default setup so a default-only run is byte-identical to a
+      // pre-#215 request (the backend defaults setup_id to "default").
+      ...(setupId && setupId !== DEFAULT_SETUP_ID
+        ? { setup_id: setupId }
+        : {}),
       // #313 / T4: the epic #309 T1 override. Only set when the user took the
       // explicit "run anyway as generic reception" affordance; otherwise the
       // payload is byte-identical to a pre-#313 request (false is the default
@@ -999,6 +1066,11 @@ export default function SimulationNewV2() {
   const manifestRows: Array<[string, string]> = [
     ["Designator", "DRAFT · UNCOMMITTED"],
     ["Mode", abMode ? "A/B — PAIRED" : "SINGLE ARM"],
+    // Only surface the setup row when there's a choice to make — a default-only
+    // org's manifest is unchanged (#215/#245 PR 3b).
+    ...(hasMultipleSetups
+      ? ([["Setup", setupId]] as Array<[string, string]>)
+      : []),
     ["Capability", capability || "—"],
     [
       "Slice",
@@ -1347,6 +1419,48 @@ export default function SimulationNewV2() {
             {/* ── 02 · Subject ───────────────────────────── */}
             <section style={sectionStyle}>
               <div style={sectionLabelStyle}>02 · Subject</div>
+              {/* #215/#245 PR 3b: crawl-setup target. Shown only when the org
+                  has >1 setup; a default-only org sees no new control (the
+                  capability picker is the first field, exactly as today). */}
+              {hasMultipleSetups && (
+                <div style={fieldStyle}>
+                  <label htmlFor="setup" style={sublabelStyle}>
+                    Crawl setup
+                  </label>
+                  {/* Setup names are user-authored prose, not machine
+                      designators — render in the body font (§5.4), unlike the
+                      capability/model selects which carry machine slugs. */}
+                  <select
+                    id="setup"
+                    value={setupId}
+                    onChange={(e) => setSetupId(e.target.value)}
+                    disabled={loadingCaps || submitting}
+                    style={inputStyle}
+                  >
+                    {setups.map((s) => (
+                      <option key={s.setup_id} value={s.setup_id}>
+                        {setupLabelFor(s)}
+                        {s.setup_id === DEFAULT_SETUP_ID ? " · default" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={hintStyle}>
+                    Which crawl setup&rsquo;s feature pack this run reads as the
+                    as-built control. The capabilities below are this
+                    setup&rsquo;s.
+                  </div>
+                </div>
+              )}
+              {/* Honest disclosure: the roster fetch failed, so the run targets
+                  the default setup. Never blocks (a multi-setup org can still
+                  run default); a default-only org never reaches this. */}
+              {setupsError && (
+                <div style={{ ...warnNoteStyle, marginTop: 14 }}>
+                  Could not load this org&rsquo;s crawl setups
+                  {hasMultipleSetups ? "" : " — this run will target the default setup"}.
+                  Reload to choose a different setup. ({setupsError})
+                </div>
+              )}
               <div style={{ ...fieldStyle, ...fieldRowStyle }}>
                 <div style={{ minWidth: 0 }}>
                   <label htmlFor="capability" style={sublabelStyle}>
