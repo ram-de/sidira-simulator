@@ -415,6 +415,13 @@ export default function SimulationNewV2() {
   // Parsed to a number only at submit time. Codex P2 (round 1).
   const [populationInput, setPopulationInput] = useState<string>("1000");
   const populationSize = parsePositiveInt(populationInput);
+  // Second cohort knob alongside population: how many LLM agents to actually
+  // materialize. Kept as a string so an empty field means "use the backend cap"
+  // (the historical derive-from-population behavior) rather than collapsing to 0.
+  // When set, the realized sample is min(population, agentCount, cap) — the env
+  // cap stays a hard ceiling this value can lower but never exceed.
+  const [agentCountInput, setAgentCountInput] = useState<string>("");
+  const requestedAgentCount = parsePositiveInt(agentCountInput);
   // R2 #167: `showAdvanced` is now the "+ new stimulus…" inline authoring
   // well in 02 · Subject (formerly the "Advanced options" disclosure). Same
   // state, same payload semantics: proposed_prd is sent only when the well
@@ -667,6 +674,20 @@ export default function SimulationNewV2() {
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
   const activePerArmCap = simulationLimits?.max_agents_per_arm ?? null;
+  // Realized agents per arm = min(modeled population, user-requested agent
+  // count, env cap). `requestedAgentCount == null` (empty field) means "use the
+  // cap" — the historical derive-from-population behavior. Null when inputs
+  // aren't ready (population blank or limits unloaded) so callers can fall back
+  // to a loading/placeholder state. Single source of truth for the display +
+  // the A/B cost calc so they can't drift.
+  const realizedAgentCount =
+    populationSize != null && populationSize > 0 && activePerArmCap != null
+      ? Math.min(
+          populationSize,
+          requestedAgentCount ?? activePerArmCap,
+          activePerArmCap,
+        )
+      : null;
   const formDisabled =
     loadingCaps ||
     loadingModels ||
@@ -811,6 +832,18 @@ export default function SimulationNewV2() {
       setValidationError("Population must be between 1 and 10,000.");
       return null;
     }
+    // Agent count is optional (empty = use the backend cap). But a non-empty
+    // field that isn't a whole number ≥ 1 is a typo, not "use the cap" —
+    // surface it inline rather than silently falling back or letting a 0 reach
+    // the backend (schema ge=1) as a raw 422. parsePositiveInt("0") returns 0,
+    // so guard `< 1` explicitly, mirroring the population check above.
+    if (
+      agentCountInput.trim() !== "" &&
+      (requestedAgentCount == null || requestedAgentCount < 1)
+    ) {
+      setValidationError("Agents must be a whole number of at least 1.");
+      return null;
+    }
     // Phase 5 #101: if the persona pack loaded and the PM cleared every
     // chip, refuse to submit -- the API would 422 and the wizard
     // shouldn't trip that.
@@ -828,8 +861,14 @@ export default function SimulationNewV2() {
     }
 
     // Phase 4.6 #88: when A/B mode is on, total agents = 2 × per_arm.
-    // The PM has to acknowledge the cost if total exceeds the threshold.
-    const perArmAgents = Math.min(populationSize, activePerArmCap);
+    // The PM has to acknowledge the cost if total exceeds the threshold. The
+    // per-arm count honors the optional agent-count knob (min of population,
+    // request, cap) so the acknowledgement reflects the real LLM fan-out.
+    const perArmAgents = Math.min(
+      populationSize,
+      requestedAgentCount ?? activePerArmCap,
+      activePerArmCap,
+    );
     const totalAgents = abMode ? 2 * perArmAgents : perArmAgents;
     if (
       abMode &&
@@ -880,6 +919,12 @@ export default function SimulationNewV2() {
     return {
       hypothesis: hyp,
       population_size: populationSize,
+      // Only send the agent-count knob when the user set it; omitting it keeps
+      // the payload byte-identical to a pre-knob request (backend derives the
+      // sample from the cap). The backend re-clamps to the env ceiling.
+      ...(requestedAgentCount != null
+        ? { sampled_agent_count: requestedAgentCount }
+        : {}),
       arm_split: abMode ? { treatment_fraction: 0.5 } : null,
       selected_personas: personaFilter,
       model_id: selectedModelId || null,
@@ -948,11 +993,9 @@ export default function SimulationNewV2() {
   }
 
   // R2 #167: live manifest values — every row is a real, currently-configured
-  // value (DESIGN.md §8: no decorative furniture, no copy thresholds).
-  const perArmPreview =
-    populationSize != null && populationSize > 0 && activePerArmCap != null
-      ? Math.min(populationSize, activePerArmCap)
-      : null;
+  // value (DESIGN.md §8: no decorative furniture, no copy thresholds). The
+  // per-arm preview honors the optional agent-count knob via realizedAgentCount.
+  const perArmPreview = realizedAgentCount;
   const manifestRows: Array<[string, string]> = [
     ["Designator", "DRAFT · UNCOMMITTED"],
     ["Mode", abMode ? "A/B — PAIRED" : "SINGLE ARM"],
@@ -1491,25 +1534,52 @@ export default function SimulationNewV2() {
             <section style={sectionStyle}>
               <div style={sectionLabelStyle}>04 · Reading</div>
               <div style={{ ...fieldStyle, ...fieldRowStyle }}>
-                <div style={{ minWidth: 0 }}>
-                  <label htmlFor="population-size" style={sublabelStyle}>
-                    Population
-                  </label>
-                  <input
-                    id="population-size"
-                    type="number"
-                    min={1}
-                    max={10_000}
-                    value={populationInput}
-                    onChange={(e) => setPopulationInput(e.target.value)}
-                    disabled={formDisabled}
-                    style={{
-                      ...inputStyle,
-                      fontFamily: FONT_MONO,
-                      fontSize: 13,
-                      ...TNUM,
-                    }}
-                  />
+                <div style={fieldRowStyle}>
+                  <div style={{ minWidth: 0 }}>
+                    <label htmlFor="population-size" style={sublabelStyle}>
+                      Population
+                    </label>
+                    <input
+                      id="population-size"
+                      type="number"
+                      min={1}
+                      max={10_000}
+                      value={populationInput}
+                      onChange={(e) => setPopulationInput(e.target.value)}
+                      disabled={formDisabled}
+                      style={{
+                        ...inputStyle,
+                        fontFamily: FONT_MONO,
+                        fontSize: 13,
+                        ...TNUM,
+                      }}
+                    />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <label htmlFor="agent-count" style={sublabelStyle}>
+                      Agents
+                    </label>
+                    <input
+                      id="agent-count"
+                      type="number"
+                      min={1}
+                      max={activePerArmCap ?? undefined}
+                      value={agentCountInput}
+                      placeholder={
+                        activePerArmCap != null
+                          ? `cap ${activePerArmCap}`
+                          : "cap"
+                      }
+                      onChange={(e) => setAgentCountInput(e.target.value)}
+                      disabled={formDisabled}
+                      style={{
+                        ...inputStyle,
+                        fontFamily: FONT_MONO,
+                        fontSize: 13,
+                        ...TNUM,
+                      }}
+                    />
+                  </div>
                 </div>
                 <ModelSelectorSection
                   models={models}
@@ -1522,30 +1592,32 @@ export default function SimulationNewV2() {
                 />
               </div>
               <div style={hintStyle}>
-                How many users this hypothesis affects.{" "}
+                Population is how many users this hypothesis affects; Agents is
+                how many synthetic agents to actually run (blank = backend cap).{" "}
                 {loadingLimits ? (
                   <>Loading simulation limits...</>
                 ) : limitsError ? (
                   <>Simulation limits are unavailable; run is disabled.</>
-                ) : activePerArmCap != null &&
-                  populationSize != null &&
-                  populationSize > 0 ? (
+                ) : realizedAgentCount != null ? (
                   <>
                     We&rsquo;ll stratify down to{" "}
                     <strong>
-                      {Math.min(populationSize, activePerArmCap)} sampled agent
-                      {Math.min(populationSize, activePerArmCap) === 1
-                        ? ""
-                        : "s"}
+                      {realizedAgentCount} sampled agent
+                      {realizedAgentCount === 1 ? "" : "s"}
                     </strong>{" "}
                     in proportion to your persona weights (Hamilton
                     allocation).
-                    {populationSize > activePerArmCap && (
-                      <> Backend cap: {activePerArmCap} agents.</>
-                    )}
+                    {activePerArmCap != null &&
+                      realizedAgentCount === activePerArmCap &&
+                      Math.min(
+                        populationSize ?? Infinity,
+                        requestedAgentCount ?? Infinity,
+                      ) > activePerArmCap && (
+                        <> Backend cap: {activePerArmCap} agents.</>
+                      )}
                   </>
                 ) : (
-                  <>Enter a number between 1 and 10,000.</>
+                  <>Enter a population between 1 and 10,000.</>
                 )}
               </div>
               {limitsError && (

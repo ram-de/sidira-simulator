@@ -25,7 +25,7 @@ from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 WeightScheme = Literal["head_count", "order_weighted", "revenue_weighted"]
 
-_DEFAULT_MAX_AGENTS = 50
+_DEFAULT_MAX_AGENTS = 100
 # Producers (sidira-personas, hand-authored fixtures) emit weights as floats,
 # so allow a small drift around 1.0. Anything beyond this is a real producer bug.
 _WEIGHT_SUM_TOLERANCE = 1e-3

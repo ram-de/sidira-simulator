@@ -149,6 +149,20 @@ class SimulationRequest(BaseModel):
     population_size: int = Field(default=1000, ge=1, le=10_000_000)
     # Bound to signed BIGINT range so over-large values fail at request validation
     # rather than as a Postgres INSERT error after the row is half-built. (codex P2)
+    sampled_agent_count: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Optional user-chosen number of LLM agents to actually materialize "
+            "for this run — the second knob alongside `population_size` (the "
+            "modeled userbase). When None (default), the run uses the backend's "
+            "effective agent cap (SIDIRA_MAX_AGENTS), reproducing the historical "
+            "derive-from-population behavior. When set, the realized sample is "
+            "min(population_size, sampled_agent_count, env_cap): the env cap stays "
+            "a hard cost ceiling the per-request value can lower but never exceed. "
+            "Bounded ge=1; the API clamps the effective value to the env cap."
+        ),
+    )
     run_seed: int | None = Field(default=None, ge=-(2**63), le=2**63 - 1)
     arm_split: ArmSplit | None = Field(
         default=None,

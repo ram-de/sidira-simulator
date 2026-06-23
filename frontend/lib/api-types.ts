@@ -2423,6 +2423,11 @@ export interface components {
              * @default 1000
              */
             population_size: number;
+            /**
+             * Sampled Agent Count
+             * @description Optional user-chosen number of LLM agents to actually materialize for this run — the second knob alongside `population_size` (the modeled userbase). When None (default), the run uses the backend's effective agent cap (SIDIRA_MAX_AGENTS), reproducing the historical derive-from-population behavior. When set, the realized sample is min(population_size, sampled_agent_count, env_cap): the env cap stays a hard cost ceiling the per-request value can lower but never exceed. Bounded ge=1; the API clamps the effective value to the env cap.
+             */
+            sampled_agent_count?: number | null;
             /** Run Seed */
             run_seed?: number | null;
             /** @description When present, runs A/B mode (treatment + control arms with paired sampling). When None, runs single-arm (today's behavior). See docs/4.6-ab-experiment-mode.md. */

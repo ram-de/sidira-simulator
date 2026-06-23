@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-DEFAULT_MAX_AGENTS = 50
+DEFAULT_MAX_AGENTS = 100
 # #221 distribution elicitation. Defaults reproduce the historical single-reaction,
 # temperature=0 path byte-for-byte, so the feature is opt-in via env.
 DEFAULT_ELICITATION_SAMPLES = 1
