@@ -23,6 +23,8 @@ def test_models_import_and_register_with_metadata() -> None:
         "crawl_runs",
         "feature_store_connections",
         "persona_build_runs",
+        # #214 — soft-delete marker hiding a Feature Pack version from the Library.
+        "archived_feature_packs",
     }
 
 

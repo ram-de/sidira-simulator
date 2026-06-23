@@ -201,6 +201,36 @@ class PersonaBuildRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ArchivedFeaturePack(Base):
+    """A soft-delete marker hiding one Feature Pack VERSION from the Library (#214).
+
+    Feature packs live in R2 (``customers/<id>/featurepacks/<version>/``), not in a
+    DB row — they are GENERATED, NEVER AUTHORED. This table is the ONLY DB presence
+    a pack version gets, and it carries a single fact: "this customer archived this
+    version." Archiving is a soft-delete — it HIDES the version from the Library, it
+    NEVER deletes the R2 artifacts and NEVER changes pack content (that would corrupt
+    the control arm).
+
+    Critically, this marker is read ONLY by the Library-listing endpoints. Pack
+    resolution for RUNNING a simulation (``FeaturePackLoader.load_manifest_at_version``
+    / ``load_capability``) NEVER consults it, so a historical simulation that froze an
+    archived version still resolves and replays. Archive hides; it does not break.
+
+    One row per (customer, version): the presence of the row means archived, its
+    absence means visible. Unarchiving deletes the row.
+    """
+
+    __tablename__ = "archived_feature_packs"
+
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), primary_key=True
+    )
+    pack_version: Mapped[str] = mapped_column(String(64), primary_key=True)
+    archived_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class AgentInstance(Base):
     """Metadata for one AgentInstance. Identity + reaction + chat live in R2.
 

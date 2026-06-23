@@ -6,8 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from sidira_simulator.adapters.base import ArtifactNotFound, ArtifactSchemaError
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
-from sidira_simulator.api.deps import current_customer_id, get_feature_pack_loader
+from sidira_simulator.adapters.repositories import ArchivedFeaturePackRepo
+from sidira_simulator.api.deps import (
+    current_customer_id,
+    get_archived_feature_pack_repo,
+    get_feature_pack_loader,
+)
 from sidira_simulator.schemas.feature_pack import (
+    ArchiveState,
     CapabilityRecord,
     CapabilitySummary,
     FeaturePackManifest,
@@ -15,6 +21,10 @@ from sidira_simulator.schemas.feature_pack import (
 )
 
 router = APIRouter(prefix="/capabilities", tags=["capabilities"])
+
+# The archive/unarchive actions live under the pack's OWN prefix (a pack VERSION
+# is the subject, not a capability), mirroring why `/feature-pack/summary` sits
+# apart from `/capabilities/`. Shared with `summary_router` below.
 
 # The pack-summary projection lives under its OWN prefix, NOT as /capabilities/summary.
 # A sibling static segment under /capabilities would collide with the dynamic
@@ -25,23 +35,50 @@ router = APIRouter(prefix="/capabilities", tags=["capabilities"])
 # slug needs reserving. (#207)
 summary_router = APIRouter(prefix="/feature-pack", tags=["capabilities"])
 
+# Archive (soft-delete / hide-from-Library) for a pack VERSION (#214). Its own
+# prefix because the subject is a pack version, not a capability — and a version
+# string like `2026-W21` would never be a valid capability slug anyway.
+archive_router = APIRouter(prefix="/featurepacks", tags=["capabilities"])
+
 
 @router.get("", response_model=FeaturePackManifest)
 async def list_capabilities(
+    include_archived: bool = False,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+    archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
 ) -> FeaturePackManifest:
-    """Return the latest Feature Pack manifest for the authenticated customer."""
+    """Return the latest Feature Pack manifest for the authenticated customer.
+
+    By default the Library hides any version the customer ARCHIVED (#214): if the
+    latest pack is archived, this 404s exactly as an empty tenant would, so the
+    Library shows the empty-pack state rather than a version the PM chose to retire.
+    Pass ``?include_archived=true`` to see it anyway (the Library's "Show archived"
+    toggle). Archiving never deletes the pack: a historical simulation that froze
+    this version still resolves it (FeaturePackLoader never consults this marker).
+    """
     try:
-        return loader.load_latest_manifest(customer_id)
+        manifest = loader.load_latest_manifest(customer_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    archived = await archived_repo.is_archived(customer_id, manifest.snapshot_version)
+    if archived and not include_archived:
+        raise HTTPException(
+            status_code=404,
+            detail=f"feature pack {manifest.snapshot_version!r} is archived",
+        )
+    # Report the TRUE archive state so the Library labels the version and offers
+    # the right archive ⇄ unarchive action from fact, not from the toggle (#214).
+    manifest.archived = archived
+    return manifest
 
 
 @summary_router.get("/summary", response_model=FeaturePackSummary)
 async def list_capabilities_summary(
+    include_archived: bool = False,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+    archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
 ) -> FeaturePackSummary:
     """Return the latest pack as lightweight `{name, roles}` rows + provenance.
 
@@ -77,6 +114,15 @@ async def list_capabilities_summary(
         manifest = loader.load_latest_manifest(customer_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    # Mirror the manifest route's archive filter (#214): a retired latest pack
+    # reads as 404 (empty) for the browse view unless the toggle is on.
+    if not include_archived and await archived_repo.is_archived(
+        customer_id, manifest.snapshot_version
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail=f"feature pack {manifest.snapshot_version!r} is archived",
+        )
     summaries: list[CapabilitySummary] = []
     for name in manifest.capabilities:
         # `domain` rides along from the manifest's grouping index (#244 / crawler
@@ -146,3 +192,58 @@ async def get_capability(
         generated_at=manifest.generated_at,
         capability=capability,
     )
+
+
+def _require_pack_exists(
+    loader: FeaturePackLoader, customer_id: str, version: str
+) -> None:
+    """404 if this customer has no pack at ``version`` in R2.
+
+    Archiving is a soft-delete of a REAL version, so we refuse to mark a phantom
+    one. We probe the manifest (not the `latest` pointer) so any historical
+    version — not just the current latest — can be archived. Customer scope comes
+    for free: the loader keys every read on ``customer_id``, so one tenant can
+    never archive another's version even on a correct version guess.
+    """
+    try:
+        loader.load_manifest_at_version(customer_id, version)
+    except ArtifactNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"no feature pack {version!r} for this customer",
+        ) from exc
+
+
+@archive_router.post("/{version}/archive", response_model=ArchiveState)
+async def archive_feature_pack(
+    version: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+    archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
+) -> ArchiveState:
+    """Archive (hide from the Library) one Feature Pack version (#214).
+
+    A SOFT-DELETE: the version is hidden from the Library's pack listing, but its
+    R2 artifacts are untouched and it STAYS resolvable for any historical
+    simulation that froze it — ``FeaturePackLoader`` never reads this marker, so a
+    past run still replays. This is distinct from the forbidden hand-edit /
+    hard-delete (both corrupt the control arm). Idempotent: re-archiving an
+    already-archived version is a no-op.
+    """
+    _require_pack_exists(loader, customer_id, version)
+    await archived_repo.archive(customer_id, version)
+    return ArchiveState(customer_id=customer_id, pack_version=version, archived=True)
+
+
+@archive_router.post("/{version}/unarchive", response_model=ArchiveState)
+async def unarchive_feature_pack(
+    version: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: FeaturePackLoader = Depends(get_feature_pack_loader),
+    archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
+) -> ArchiveState:
+    """Unarchive (un-hide) a Feature Pack version (#214). Idempotent — unarchiving
+    a version that was never archived returns ``archived=false`` without error."""
+    _require_pack_exists(loader, customer_id, version)
+    await archived_repo.unarchive(customer_id, version)
+    return ArchiveState(customer_id=customer_id, pack_version=version, archived=False)
