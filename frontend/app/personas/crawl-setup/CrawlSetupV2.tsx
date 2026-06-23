@@ -1,40 +1,53 @@
 "use client";
 
 // ───────────────────────────────────────────────────────────────────────────
-// /personas/crawl-setup — the v2 dark "Reading Console" reskin.
+// /personas/crawl-setup — the v2 dark "Reading Console" multi-setup manager.
 //
-// FORK-AND-RESTYLE of CrawlSetupLegacy.tsx (the FROZEN source of truth for ALL
-// behaviour). This file reproduces every data load, poll, state branch,
-// validation, save / start-crawl mutation, error / loading branch, honesty
-// disclosure, <Link> / button / onClick the legacy page has — byte-for-byte in
-// LOGIC — and changes ONLY the presentation (markup + CSS classes + layout)
-// into the dark Console language of design-rethink/mocks/crawl-setup.html.
+// #215/#245 PR 3b: the org may now keep MULTIPLE crawl setups, each keyed by a
+// server-minted `setup_id`. "default" is the legacy anchor every org already
+// has. This page now manages the SET of setups:
+//   • a setup picker (name · sandbox · capability_count · last updated) to switch
+//   • Create a new setup (name + config + credentials → POST /crawl-setups)
+//   • Edit the selected setup (GET its config, PUT to save — credentials are
+//     re-entered per the #206 pull model; a GET NEVER returns a password)
+//   • Delete a non-default setup (the default's delete is hidden; 409 handled)
+//   • Trigger a crawl for the selected setup (POST /crawls with its setup_id)
 //
-// It renders INSIDE AppShellV2 surface="console" (the shell owns the dark rail +
-// appbar). The body is scoped under a single `.rconsole` wrapper so the copied
-// dark token block applies; we do NOT emit the mock's own .shell/.rail/.topbar.
+// DEFAULT-ONLY ORGS SEE NO REGRESSION: when the org has exactly the one
+// "default" setup, the picker collapses to an unobtrusive label + an "+ Add
+// setup" affordance, and the editor below is byte-equivalent in FEEL to today's
+// single-setup page — same sections, same fields, same crawl trigger. The
+// default setup keeps loading/saving through the SINGULAR /crawl-setup
+// endpoints (lossless), exactly as before; named setups use the plural ones.
 //
-// Structure note: the legacy renders capability NAMES (§01) and ENTRY POINTS
-// (§02) as two separate sections — that exact two-section data shape is
-// preserved (NOT merged into the mock's collapsible-per-capability layout),
-// since the iron rule forbids re-logicking. Only presentation is dark-Console.
+// The editor body preserves the legacy two-section data shape (capability NAMES
+// §01 / ENTRY POINTS §02) and every validation, poll, save, start-crawl path,
+// error/loading branch, and honesty disclosure copy verbatim.
 //
 // Honesty law (DESIGN.md §8.1 / §8.6): NO fabricated fields. No spinners —
 // pending is honest text. No verdict color; alert is border + word, never a
-// fill. Every disclosure / status / hint copy survives verbatim.
+// fill. Glass appears nowhere (this is configuration, a record — not a reading).
 // ───────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
+  createCrawlSetup,
+  DEFAULT_SETUP_ID,
+  deleteCrawlSetup,
   getCapabilities,
   getCrawl,
   getCrawlSetup,
+  getCrawlSetupById,
   listCrawls,
+  listCrawlSetups,
   saveCrawlSetup,
   startCrawl,
+  updateCrawlSetup,
   type CrawlCadence,
+  type CrawlSetup,
   type CrawlSetupInput,
+  type CrawlSetupListItem,
   type CrawlSummary,
   type FeaturePackManifest,
 } from "@/lib/api";
@@ -45,6 +58,7 @@ import AppShellV2 from "@/components/v2/AppShellV2";
 const MAX_CAPABILITIES = 10;
 const MAX_ENTRY_URLS = 3;
 const MAX_TEST_USERS = 8;
+const MAX_SETUP_NAME = 120;
 
 interface CapabilityDraft {
   name: string;
@@ -69,6 +83,43 @@ const isHttpUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
 // (schemas/crawl.py) here so a bad name is caught before save instead of
 // bouncing back as a raw 422 after the user re-enters passwords.
 const isCapabilitySlug = (value: string) => /^[A-Za-z0-9_-]+$/.test(value.trim());
+
+// ── form draft helpers ──────────────────────────────────────────────────────
+
+// The blank-slate draft used for a new setup and for the initial default load.
+function blankDraft(): {
+  caps: CapabilityDraft[];
+  sandboxUrl: string;
+  users: TestUserDraft[];
+  ipNote: string;
+  cadence: CrawlCadence;
+  walkDepth: number;
+} {
+  return {
+    caps: [emptyCapability()],
+    sandboxUrl: "",
+    users: [
+      { role: "admin", username: "", password: "" },
+      { role: "member", username: "", password: "" },
+    ],
+    ipNote: "",
+    cadence: "weekly",
+    walkDepth: 6,
+  };
+}
+
+// A loaded (password-free) CrawlSetup → the editor draft. GET never returns
+// passwords, so they load blank and must be re-entered to re-save.
+function setupToDraft(s: CrawlSetup) {
+  return {
+    caps: s.capabilities.map((c) => ({ name: c.name, urls: [...c.entry_urls] })),
+    sandboxUrl: s.sandbox_url,
+    users: s.test_users.map((u) => ({ ...u, password: "" })),
+    ipNote: s.ip_allowlist_note,
+    cadence: s.cadence,
+    walkDepth: s.walk_depth,
+  };
+}
 
 function validate(
   caps: CapabilityDraft[],
@@ -100,11 +151,44 @@ function validate(
   return null;
 }
 
+function buildPayload(
+  caps: CapabilityDraft[],
+  sandboxUrl: string,
+  users: TestUserDraft[],
+  ipNote: string,
+  cadence: CrawlCadence,
+  walkDepth: number,
+): CrawlSetupInput {
+  return {
+    capabilities: caps.map((c) => ({
+      name: c.name.trim(),
+      entry_urls: c.urls.map((u) => u.trim()).filter(Boolean),
+    })),
+    sandbox_url: sandboxUrl.trim(),
+    test_users: users
+      .filter((u) => u.role.trim() && u.username.trim())
+      // Password is sent byte-for-byte (no trim) — surrounding whitespace can
+      // be significant; only its presence is validated above.
+      .map((u) => ({
+        role: u.role.trim(),
+        username: u.username.trim(),
+        password: u.password,
+      })),
+    ip_allowlist_note: ipNote.trim(),
+    cadence,
+    walk_depth: walkDepth,
+  };
+}
+
 type SaveState =
   | { state: "idle" }
   | { state: "saving" }
   | { state: "saved"; at: string }
   | { state: "error"; message: string };
+
+// A pseudo setup_id the picker uses while authoring a brand-new setup that has
+// no server id yet. The editor is in "create" mode whenever this is selected.
+const NEW_SETUP = "__new__";
 
 // GET /crawls/{id} cadence while a crawl is pending/running. The crawl takes
 // ~40 min; the poll only reads status, so a slow beat is plenty.
@@ -147,72 +231,170 @@ function crawlStatusLine(c: CrawlSummary): string {
 const utcStamp = (iso: string) =>
   new Date(iso).toISOString().replace("T", " · ").slice(0, 18) + " UTC";
 
+const setupLabel = (s: CrawlSetupListItem): string =>
+  s.name?.trim() || (s.setup_id === DEFAULT_SETUP_ID ? "Default setup" : s.setup_id);
+
 export default function CrawlSetupV2() {
-  const [caps, setCaps] = useState<CapabilityDraft[]>([emptyCapability()]);
-  const [sandboxUrl, setSandboxUrl] = useState("");
-  const [users, setUsers] = useState<TestUserDraft[]>([
-    { role: "admin", username: "", password: "" },
-    { role: "member", username: "", password: "" },
-  ]);
-  const [ipNote, setIpNote] = useState("");
-  const [cadence, setCadence] = useState<CrawlCadence>("weekly");
-  const [walkDepth, setWalkDepth] = useState(6);
+  // ── setup roster (the list of the org's crawl setups) ────────────────────
+  const [setups, setSetups] = useState<CrawlSetupListItem[]>([]);
+  const [setupsLoading, setSetupsLoading] = useState(true);
+  const [setupsError, setSetupsError] = useState<string | null>(null);
+  // The selected setup_id, or the NEW_SETUP sentinel while creating. Starts on
+  // the "default" anchor (which EVERY org has) so the config load fires
+  // immediately on mount — byte-equivalent to the old singular page — WITHOUT
+  // waiting on the roster fetch. The roster runs in parallel and only re-points
+  // this if the default anchor somehow isn't in the org's list.
+  const [selectedId, setSelectedId] = useState<string>(DEFAULT_SETUP_ID);
+  // The new setup's human name (create mode only).
+  const [newName, setNewName] = useState("");
+
+  // ── editor form state (one setup at a time) ──────────────────────────────
+  const init = blankDraft();
+  const [caps, setCaps] = useState<CapabilityDraft[]>(init.caps);
+  const [sandboxUrl, setSandboxUrl] = useState(init.sandboxUrl);
+  const [users, setUsers] = useState<TestUserDraft[]>(init.users);
+  const [ipNote, setIpNote] = useState(init.ipNote);
+  const [cadence, setCadence] = useState<CrawlCadence>(init.cadence);
+  const [walkDepth, setWalkDepth] = useState(init.walkDepth);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [save, setSave] = useState<SaveState>({ state: "idle" });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<FeaturePackManifest | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // #193 fire-and-watch: the latest crawl row (in-flight or last outcome).
   const [crawl, setCrawl] = useState<CrawlSummary | null>(null);
   const [crawlStarting, setCrawlStarting] = useState(false);
   const [crawlError, setCrawlError] = useState<string | null>(null);
 
+  const isCreating = selectedId === NEW_SETUP;
+  // The setup_id of the editor target — null while creating (no server id yet).
+  const editingId = isCreating ? null : selectedId;
+  const isDefault = editingId === DEFAULT_SETUP_ID;
+
+  // Apply a draft to the editor fields (one place so load/create/switch agree).
+  const applyDraft = useCallback((d: ReturnType<typeof blankDraft>) => {
+    setCaps(d.caps);
+    setSandboxUrl(d.sandboxUrl);
+    setUsers(d.users);
+    setIpNote(d.ipNote);
+    setCadence(d.cadence);
+    setWalkDepth(d.walkDepth);
+  }, []);
+
+  // ── load the setup roster on mount, pick a default selection ──────────────
+  useEffect(() => {
+    let cancelled = false;
+    listCrawlSetups()
+      .then((rows) => {
+        if (cancelled) return;
+        setSetups(rows);
+        // The initial selection is already the default anchor (set on mount),
+        // so the common case needs no re-point and triggers no second load.
+        // Only re-point when the default anchor genuinely isn't in the roster
+        // (an org whose primary setup is named) AND the user hasn't already
+        // navigated (still on default, not creating).
+        if (
+          rows.length > 0 &&
+          !rows.some((r) => r.setup_id === DEFAULT_SETUP_ID)
+        ) {
+          setSelectedId((cur) =>
+            cur === DEFAULT_SETUP_ID ? rows[0].setup_id : cur,
+          );
+        }
+        setSetupsLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        // The roster is non-fatal: the page already loaded the default anchor
+        // and works exactly as the single-setup page did. Surface the error so
+        // a multi-setup org knows switching/creating isn't available.
+        setSetupsError(apiErrorMessage(e));
+        setSetupsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ── load the selected setup's config + manifest + crawl history ───────────
+  // Re-runs whenever the selection changes. Creating (NEW_SETUP) resets to a
+  // blank draft with no network read.
   useEffect(() => {
     let cancelled = false;
 
-    getCrawlSetup()
-      .then((envelope) => {
+    // reset per-selection editor chrome
+    setSave({ state: "idle" });
+    setValidationError(null);
+    setLoadError(null);
+    setDeleteError(null);
+    setCrawl(null);
+    setCrawlError(null);
+
+    if (selectedId === NEW_SETUP) {
+      applyDraft(blankDraft());
+      setManifest(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const id = selectedId;
+
+    // The default setup keeps the SINGULAR endpoint (lossless, byte-equivalent
+    // to today's page); named setups use the plural by-id endpoint. Both return
+    // a password-free config — credentials load blank per the pull model.
+    const loadConfig =
+      id === DEFAULT_SETUP_ID
+        ? getCrawlSetup().then((env) => ({
+            setup: env.setup,
+            updated_at: env.updated_at,
+          }))
+        : getCrawlSetupById(id).then((sum) => ({
+            setup: sum.setup,
+            updated_at: sum.updated_at,
+          }));
+
+    loadConfig
+      .then(({ setup, updated_at }) => {
         if (cancelled) return;
-        if (envelope.setup) {
-          const s = envelope.setup;
-          setCaps(
-            s.capabilities.map((c) => ({ name: c.name, urls: [...c.entry_urls] })),
-          );
-          setSandboxUrl(s.sandbox_url);
-          // GET never returns passwords — load role+username, blank password.
-          setUsers(s.test_users.map((u) => ({ ...u, password: "" })));
-          setIpNote(s.ip_allowlist_note);
-          setCadence(s.cadence);
-          setWalkDepth(s.walk_depth);
-          if (envelope.updated_at) setSave({ state: "saved", at: envelope.updated_at });
+        if (setup) {
+          applyDraft(setupToDraft(setup));
+          if (updated_at) setSave({ state: "saved", at: updated_at });
+        } else {
+          // default setup never configured → blank draft (the empty-tenant case)
+          applyDraft(blankDraft());
         }
         setLoading(false);
       })
       .catch((e) => {
         if (cancelled) return;
-        setLoadError(e?.message ?? "request failed");
+        setLoadError(apiErrorMessage(e));
         setLoading(false);
       });
 
-    // Snapshot context for the manifest rail — absent on an empty tenant.
-    getCapabilities()
+    // Snapshot context for the manifest rail — absent on an empty setup. Scoped
+    // to THIS setup so the rail's SNAPSHOT reflects what this setup serves.
+    getCapabilities(false, id)
       .then((m) => {
         if (!cancelled) setManifest(m);
       })
       .catch((e) => {
-        if (!cancelled && !(e instanceof ApiError && e.status === 404)) {
-          // Non-404 errors only affect rail context; the form still works.
-          setManifest(null);
+        if (!cancelled) {
+          if (!(e instanceof ApiError && e.status === 404)) {
+            // Non-404 errors only affect rail context; the form still works.
+            setManifest(null);
+          } else {
+            setManifest(null);
+          }
         }
       });
 
-    // Rediscover a crawl after tab close/reopen: prefer the newest in-flight
-    // row (a newer terminal row — e.g. a dispatch-failed attempt — must not
-    // shadow a live crawl), fall back to the last outcome on record. Never
-    // overwrite a crawl already started on this page: this response can
-    // resolve after a fast POST /crawls.
+    // Rediscover an in-flight crawl after tab close/reopen. The crawl list is
+    // org-wide (not per-setup on the backend), so we surface the newest
+    // in-flight row, else the last outcome, as the org's current crawl state.
     listCrawls()
       .then((rows) => {
         if (cancelled || rows.length === 0) return;
@@ -226,7 +408,7 @@ export default function CrawlSetupV2() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedId, applyDraft]);
 
   // Watch poll — runs only while the crawl is pending/running; the id is
   // stable across polls so the interval survives until a terminal status.
@@ -240,13 +422,15 @@ export default function CrawlSetupV2() {
         if (cancelled) return;
         setCrawl(next);
         if (next.status === "complete") {
-          // The CI-side pointer flip already published — refresh the
-          // manifest rail so SNAPSHOT shows what the tenant now serves.
-          getCapabilities()
-            .then((m) => {
-              if (!cancelled) setManifest(m);
-            })
-            .catch(() => {});
+          // The CI-side pointer flip already published — refresh the manifest
+          // rail for the SELECTED setup so SNAPSHOT shows what it now serves.
+          if (editingId) {
+            getCapabilities(false, editingId)
+              .then((m) => {
+                if (!cancelled) setManifest(m);
+              })
+              .catch(() => {});
+          }
         }
       } catch {
         // 502 = flaky GitHub poll (the backend keeps the row's last-known
@@ -258,13 +442,14 @@ export default function CrawlSetupV2() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [watchId]);
+  }, [watchId, editingId]);
 
   const handleStartCrawl = async () => {
     setCrawlError(null);
     setCrawlStarting(true);
     try {
-      setCrawl(await startCrawl());
+      // editingId is non-null here (the trigger is disabled in create mode).
+      setCrawl(await startCrawl(editingId ?? DEFAULT_SETUP_ID));
     } catch (e) {
       setCrawlError(apiErrorMessage(e));
     } finally {
@@ -277,36 +462,85 @@ export default function CrawlSetupV2() {
     setValidationError(error);
     if (error) return;
 
-    const payload: CrawlSetupInput = {
-      capabilities: caps.map((c) => ({
-        name: c.name.trim(),
-        entry_urls: c.urls.map((u) => u.trim()).filter(Boolean),
-      })),
-      sandbox_url: sandboxUrl.trim(),
-      test_users: users
-        .filter((u) => u.role.trim() && u.username.trim())
-        // Password is sent byte-for-byte (no trim) — surrounding whitespace can
-        // be significant; only its presence is validated above.
-        .map((u) => ({
-          role: u.role.trim(),
-          username: u.username.trim(),
-          password: u.password,
-        })),
-      ip_allowlist_note: ipNote.trim(),
+    if (isCreating && !newName.trim()) {
+      setValidationError("Name the new setup before saving it.");
+      return;
+    }
+
+    const payload = buildPayload(
+      caps,
+      sandboxUrl,
+      users,
+      ipNote,
       cadence,
-      walk_depth: walkDepth,
-    };
+      walkDepth,
+    );
 
     setSave({ state: "saving" });
     try {
-      const envelope = await saveCrawlSetup(payload);
-      setSave({ state: "saved", at: envelope.updated_at ?? "" });
+      if (isCreating) {
+        // POST mints the setup_id from the name; switch the selection to it.
+        const summary = await createCrawlSetup({
+          ...payload,
+          name: newName.trim(),
+        });
+        const rows = await listCrawlSetups();
+        setSetups(rows);
+        setNewName("");
+        setSelectedId(summary.setup_id);
+        // The selection effect re-loads the freshly-saved config + rail.
+      } else if (editingId === DEFAULT_SETUP_ID) {
+        // Default keeps the singular PUT — lossless, byte-equivalent to today.
+        const env = await saveCrawlSetup(payload);
+        setSave({ state: "saved", at: env.updated_at ?? "" });
+        const rows = await listCrawlSetups();
+        setSetups(rows);
+      } else if (editingId) {
+        const summary = await updateCrawlSetup(editingId, payload);
+        setSave({ state: "saved", at: summary.updated_at ?? "" });
+        const rows = await listCrawlSetups();
+        setSetups(rows);
+      }
     } catch (e) {
-      setSave({
-        state: "error",
-        message: e instanceof Error ? e.message : "save failed",
-      });
+      setSave({ state: "error", message: apiErrorMessage(e) });
     }
+  };
+
+  const handleDelete = async () => {
+    // Guarded in the UI: the default setup never shows a delete affordance, and
+    // create mode has nothing to delete. The 409 path below is the belt-and-
+    // suspenders if a default delete somehow fires.
+    if (!editingId || isDefault) return;
+    const label = setups.find((s) => s.setup_id === editingId);
+    const name = label ? setupLabel(label) : editingId;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        `Delete the "${name}" crawl setup? Its already-published Feature Packs stay in place — any historical simulation that froze one still resolves. This only removes the saved config.`,
+      )
+    ) {
+      return;
+    }
+    setDeleteError(null);
+    try {
+      await deleteCrawlSetup(editingId);
+      const rows = await listCrawlSetups();
+      setSetups(rows);
+      // Fall back to the default anchor after a delete.
+      setSelectedId(
+        rows.find((r) => r.setup_id === DEFAULT_SETUP_ID)?.setup_id ??
+          rows[0]?.setup_id ??
+          DEFAULT_SETUP_ID,
+      );
+    } catch (e) {
+      // 409 (tried to delete default) reads as honest text, never a crash.
+      setDeleteError(apiErrorMessage(e));
+    }
+  };
+
+  const handleAddSetup = () => {
+    setNewName("");
+    setSelectedId(NEW_SETUP);
   };
 
   // Capability mutators — entry URLs live with their capability.
@@ -341,8 +575,16 @@ export default function CrawlSetupV2() {
   );
   const roles = users.filter((u) => u.role.trim()).map((u) => u.role.trim().toUpperCase());
 
+  // A default-only org (just the one anchor, and not mid-create) gets the
+  // unobtrusive label — no picker chrome, byte-equivalent to today's page.
+  const onlyDefault =
+    setups.length <= 1 &&
+    setups.every((s) => s.setup_id === DEFAULT_SETUP_ID) &&
+    !isCreating;
+
   // R2 #167 posture: every manifest row is a real, currently-configured value.
   const manifestRows: Array<[string, string]> = [
+    ["Setup", isCreating ? `${newName.trim() || "untitled"} · NEW` : editingId ?? "—"],
     ["Snapshot", manifest ? `${manifest.snapshot_version} · CURRENT` : "NONE YET — FIRST CRAWL CREATES IT"],
     ["Capabilities", String(namedCaps.length)],
     ["Entry points", String(entryUrlCount)],
@@ -371,6 +613,83 @@ export default function CrawlSetupV2() {
                 GENERATED — NEVER AUTHORED · THE PACK IS THE CONTROL ARM
               </span>
             </div>
+
+            {/* ── setup switcher band ──────────────────────────────
+                Byte-equivalence rule (#215/#245 PR 3b): while the roster is
+                still loading, the bar renders NOTHING — a default-only org sees
+                no new chrome and no loading line; the editor below loads the
+                default setup immediately. Once resolved, a default-only org
+                gets only a single unobtrusive "+ ADD SETUP" affordance; a
+                multi-setup org gets the full picker. */}
+            {!setupsLoading && (
+              <div className="setupbar">
+                {onlyDefault ? (
+                  // Default-only org: the lone, unobtrusive "add another"
+                  // affordance — no picker, no label (the active setup already
+                  // shows in the manifest rail's Setup row).
+                  <button type="button" className="btn-add" onClick={handleAddSetup}>
+                    + ADD SETUP
+                  </button>
+                ) : (
+                  <>
+                    <label htmlFor="setup-picker" className="setupbar-label">
+                      Setup
+                    </label>
+                    {/* Setup names are user-authored prose, not machine
+                        designators — body font, not mono (DESIGN.md §5.4). */}
+                    <select
+                      id="setup-picker"
+                      className="in setup-select"
+                      value={selectedId}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === NEW_SETUP) {
+                          handleAddSetup();
+                        } else {
+                          setSelectedId(v);
+                        }
+                      }}
+                    >
+                      {setups.map((s) => (
+                        <option key={s.setup_id} value={s.setup_id}>
+                          {setupLabel(s)}
+                          {s.setup_id === DEFAULT_SETUP_ID ? " · default" : ""}
+                          {` — ${s.capability_count} cap${s.capability_count === 1 ? "" : "s"}`}
+                        </option>
+                      ))}
+                      {isCreating && (
+                        <option value={NEW_SETUP}>
+                          {newName.trim() ? `${newName.trim()} (new)` : "New setup…"}
+                        </option>
+                      )}
+                    </select>
+                    <button type="button" className="btn-add" onClick={handleAddSetup}>
+                      + ADD SETUP
+                    </button>
+                    {/* Delete — non-default setups only; hidden for default + create. */}
+                    {editingId && !isDefault && (
+                      <button
+                        type="button"
+                        className="btn-del"
+                        onClick={handleDelete}
+                      >
+                        DELETE SETUP
+                      </button>
+                    )}
+                  </>
+                )}
+                {setupsError && (
+                  <span className="setupbar-warn">
+                    Couldn&apos;t list setups — editing the default. {setupsError}
+                  </span>
+                )}
+                {deleteError && (
+                  <span role="alert" className="setupbar-alert">
+                    {deleteError}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -380,6 +699,29 @@ export default function CrawlSetupV2() {
             <div className="layout">
               {/* ── FORM COLUMN ─────────────────────────────────── */}
               <div className="formcol">
+                {/* Create-mode name field — the only field the singular editor
+                    lacks. The server slugifies it into the setup_id. */}
+                {isCreating && (
+                  <div className="field newname-field">
+                    <label htmlFor="new-setup-name" className="sublabel">
+                      New setup name
+                    </label>
+                    <input
+                      id="new-setup-name"
+                      className="in"
+                      value={newName}
+                      maxLength={MAX_SETUP_NAME}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="e.g. EU sandbox · checkout flows"
+                    />
+                    <div className="hint">
+                      A human label for this crawl target. We mint a URL-safe id
+                      from it; you can keep several setups for different
+                      sandboxes, regions, or capability slices.
+                    </div>
+                  </div>
+                )}
+
                 {loading && (
                   <div className="loadline">Loading the saved crawl setup…</div>
                 )}
@@ -668,7 +1010,11 @@ export default function CrawlSetupV2() {
                       onClick={handleSave}
                       disabled={loading || save.state === "saving"}
                     >
-                      {save.state === "saving" ? "Saving..." : "Save setup"}
+                      {save.state === "saving"
+                        ? "Saving..."
+                        : isCreating
+                          ? "Create setup"
+                          : "Save setup"}
                     </button>
                     {save.state === "saved" && (
                       <div className="saved-cap mono">
@@ -677,13 +1023,14 @@ export default function CrawlSetupV2() {
                     )}
                   </div>
 
-                  {/* Crawl trigger + watch (#193) */}
+                  {/* Crawl trigger + watch (#193). Disabled while creating — a
+                      setup must be saved (have a setup_id) before it can crawl. */}
                   <div className="rail-watch">
                     <button
                       type="button"
                       className="btn secondary"
                       onClick={handleStartCrawl}
-                      disabled={crawlStarting || isInFlight(crawl)}
+                      disabled={crawlStarting || isInFlight(crawl) || isCreating}
                     >
                       {crawlStarting
                         ? "Dispatching..."
@@ -691,6 +1038,11 @@ export default function CrawlSetupV2() {
                           ? "Crawl in flight"
                           : "Start crawl"}
                     </button>
+                    {isCreating && (
+                      <div className="rail-cap mono">
+                        SAVE THE SETUP FIRST — A CRAWL NEEDS A SAVED TARGET.
+                      </div>
+                    )}
                     {crawlError && (
                       <div role="alert" className="rail-alert">
                         {crawlError}
@@ -798,12 +1150,34 @@ const CS_CSS = `
   letter-spacing:.08em; color:var(--text-mut); border:1px solid rgba(51,64,92,.7);
   border-radius:var(--r-well); padding:3px 8px; white-space:nowrap;}
 
+/* setup switcher band — the label is a mono-caps zone furniture word; the
+   picker + prose notes are body font (the picker carries a user-authored name). */
+.rconsole .setupbar{padding:18px 40px 0; display:flex; align-items:center;
+  gap:12px; flex-wrap:wrap;}
+.rconsole .setupbar-label{font-family:var(--font-mono); font-size:11px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-mut);}
+.rconsole .setup-select{width:auto; min-width:260px; max-width:460px;}
+.rconsole .btn-del{background:transparent; border:1px solid rgba(51,64,92,.7);
+  border-radius:var(--r-well); padding:7px 12px; font-family:var(--font-mono);
+  font-size:11px; letter-spacing:.05em; color:var(--text-mut); cursor:pointer;
+  transition:color .14s,border-color .14s;}
+.rconsole .btn-del:hover{color:var(--text-hi); border-color:var(--alert);}
+.rconsole .setupbar-warn{flex-basis:100%; font-size:13px; line-height:1.5;
+  color:var(--text-mut);}
+.rconsole .setupbar-alert{flex-basis:100%; font-size:13px; line-height:1.5;
+  color:var(--text); border-left:2px solid var(--alert); padding:8px 10px;
+  background:var(--console-800); border-radius:var(--r-well);}
+
 /* layout grid — manifest is the primary audit surface */
 .rconsole .layout{display:grid; grid-template-columns:1fr 408px; gap:0;
   align-items:start;}
 .rconsole .formcol{padding:40px 40px 96px; min-width:0;}
 .rconsole .auditcol{position:sticky; top:52px; align-self:start;
   border-left:1px solid rgba(51,64,92,.5); min-height:calc(100vh - 52px);}
+
+/* create-mode setup-name field sits above the form body */
+.rconsole .newname-field{max-width:620px; margin-top:0; margin-bottom:32px;
+  padding-bottom:24px; border-bottom:1px solid rgba(51,64,92,.5);}
 
 /* form-level state lines / banners — alert is border + word, never a fill */
 .rconsole .loadline{color:var(--text-mut); font-size:14px;}
@@ -835,6 +1209,9 @@ const CS_CSS = `
   transition:border-color .14s,box-shadow .14s;}
 .rconsole input.in::placeholder{color:var(--text-mut); opacity:.7;}
 .rconsole input.in.mono,.rconsole select.in{font-family:var(--font-mono); font-size:13px;}
+/* the setup picker carries a user-authored NAME, not a machine designator, so
+   it overrides the select.in mono rule back to the body font (DESIGN.md §5.4). */
+.rconsole select.in.setup-select{font-family:var(--font-sans); font-size:14px;}
 .rconsole input.in:focus,.rconsole select.in:focus{border-color:var(--signal-dim);
   box-shadow:0 0 0 2px rgba(57,184,148,.35);}
 .rconsole select.in{appearance:none; -webkit-appearance:none; cursor:pointer;
@@ -856,9 +1233,11 @@ const CS_CSS = `
 .rconsole .btn-x:hover{color:var(--text-hi); border-color:var(--alert);}
 .rconsole .btn-add{margin-top:12px; background:transparent;
   border:1px solid rgba(51,64,92,.7); border-radius:var(--r-well); padding:7px 12px;
-  font-size:11px; letter-spacing:.05em; color:var(--text-mut); cursor:pointer;
-  transition:color .14s,background .14s;}
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.05em;
+  color:var(--text-mut); cursor:pointer; transition:color .14s,background .14s;}
 .rconsole .btn-add:hover{color:var(--text-hi); background:var(--console-800);}
+/* the setup-bar add button sits inline with the picker, not below a field */
+.rconsole .setupbar .btn-add{margin-top:0;}
 
 /* audit rail */
 .rconsole .rail-inner{display:flex; flex-direction:column;}
@@ -924,6 +1303,7 @@ const CS_CSS = `
   }
   .rconsole .cs-bleed.top{margin-top:calc(-1 * var(--space-room,24px));}
   .rconsole .pagehead{padding:24px 24px 0;}
+  .rconsole .setupbar{padding:16px 24px 0;}
   .rconsole .formcol{padding:24px 24px 64px;}
 }
 @media (prefers-reduced-motion:reduce){.rconsole *{animation:none!important;}}

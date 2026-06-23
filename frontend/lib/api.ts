@@ -145,8 +145,19 @@ export type PersonaPackDetail = {
   personas: PersonaProfileView[];
 };
 export type Hypothesis = components["schemas"]["Hypothesis"];
-export type Simulation = components["schemas"]["Simulation"];
-export type SimulationRequest = components["schemas"]["SimulationRequest"];
+// #215/#245 PR 3a/3b: the backend Simulation + SimulationRequest now carry a
+// `setup_id` (which crawl setup's Feature Pack the sim resolves against), but
+// the checked-in api-types.ts predates it — same stale-generated caveat as
+// FeaturePackManifest.archived above. Optional on the response so a legacy row
+// (or an older backend) reads as the "default" anchor; optional on the request
+// so omitting it stays byte-identical to a pre-#215 create. Collapse to the
+// bare generated type once api-types.ts is regenerated.
+export type Simulation = components["schemas"]["Simulation"] & {
+  setup_id?: string;
+};
+export type SimulationRequest = components["schemas"]["SimulationRequest"] & {
+  setup_id?: string;
+};
 export type SimulationResult = components["schemas"]["SimulationResult"];
 export type InputFlags = components["schemas"]["InputFlags"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
@@ -225,16 +236,35 @@ export const apiDelete = (path: string) => _req<void>(path, { method: "DELETE" }
 // empty tenant); ?include_archived=true is the "Show archived" opt-in. Archiving
 // never deletes the pack — a historical sim that froze the version still resolves
 // it, because the loader never consults the archive marker.
-export const getCapabilities = (includeArchived = false) =>
+// #215/#245 PR 3b: `setupId` selects which crawl setup's pack to read. Omitted
+// (the default) → `"default"` so the call is byte-identical to pre-#215 prod —
+// same R2 prefix, same pointer (the backend defaults the query param to
+// "default"). We only append `?setup_id=` for a non-default setup so a
+// default-only org's request stays exactly as it was before this PR.
+const setupQuery = (setupId?: string): string =>
+  setupId && setupId !== DEFAULT_SETUP_ID
+    ? `setup_id=${encodeURIComponent(setupId)}`
+    : "";
+
+const joinQuery = (...parts: string[]): string => {
+  const q = parts.filter(Boolean).join("&");
+  return q ? `?${q}` : "";
+};
+
+export const getCapabilities = (includeArchived = false, setupId?: string) =>
   apiGet<FeaturePackManifest>(
-    includeArchived ? "/capabilities?include_archived=true" : "/capabilities",
+    `/capabilities${joinQuery(
+      includeArchived ? "include_archived=true" : "",
+      setupQuery(setupId),
+    )}`,
   );
 
-export const getCapabilitySummary = (includeArchived = false) =>
+export const getCapabilitySummary = (includeArchived = false, setupId?: string) =>
   apiGet<FeaturePackSummary>(
-    includeArchived
-      ? "/feature-pack/summary?include_archived=true"
-      : "/feature-pack/summary",
+    `/feature-pack/summary${joinQuery(
+      includeArchived ? "include_archived=true" : "",
+      setupQuery(setupId),
+    )}`,
   );
 
 // #214: archive (hide from Library) / unarchive a Feature Pack version. SOFT-DELETE
@@ -350,10 +380,86 @@ export interface CrawlSetupEnvelope {
   updated_at: string | null;
 }
 
+// The reserved setup id for the org's primary/legacy crawl target. Mirrors the
+// backend's schemas.crawl.DEFAULT_SETUP_ID — every org always has it, the
+// singular /crawl-setup endpoints anchor on it, and DELETE refuses it (409).
+export const DEFAULT_SETUP_ID = "default";
+
 export const getCrawlSetup = () => apiGet<CrawlSetupEnvelope>("/crawl-setup");
 
 export const saveCrawlSetup = (setup: CrawlSetupInput) =>
   apiPut<CrawlSetupInput, CrawlSetupEnvelope>("/crawl-setup", setup);
+
+// ── Multi-setup CRUD (#215/#245 PR 3b) ─────────────────────────────────────
+// Multiple crawl setups per org, each keyed by a server-minted `setup_id`. The
+// singular endpoints above keep operating on the "default" anchor unchanged;
+// these sit alongside for the named setups. Inline types mirror the backend
+// schemas.crawl.CrawlSetupListItem / CrawlSetupSummary / CrawlSetupCreateInput
+// exactly (same stale-codegen caveat as CrawlSummary). NO GET ever returns a
+// credential — the #206 pull model: passwords go in on create/save, are
+// encrypted at rest, and are delivered only over the authenticated CI pull.
+
+// The lighter list row: identity + label + non-secret provenance, no full
+// config body. `cadence` is a free string here (the backend list item types it
+// as str), but in practice carries a CrawlCadence value.
+export interface CrawlSetupListItem {
+  setup_id: string;
+  name: string | null;
+  sandbox_url: string;
+  capability_count: number;
+  cadence: string;
+  updated_at: string | null;
+}
+
+// One setup as the detail view shows it: identity + label + the password-free
+// config. NEVER carries credentials.
+export interface CrawlSetupSummary {
+  setup_id: string;
+  name: string | null;
+  setup: CrawlSetup;
+  updated_at: string | null;
+}
+
+// POST body: a full CrawlSetupInput (with passwords, per the pull model) plus a
+// human `name` the server slugifies into the setup_id.
+export interface CrawlSetupCreateInput extends CrawlSetupInput {
+  name: string;
+}
+
+export const listCrawlSetups = () =>
+  apiGet<CrawlSetupListItem[]>("/crawl-setups");
+
+// 201 with the password-free summary. The server mints the setup_id from the
+// name; the client never picks the raw id.
+export const createCrawlSetup = (payload: CrawlSetupCreateInput) =>
+  apiPost<CrawlSetupCreateInput, CrawlSetupSummary>("/crawl-setups", payload);
+
+// One setup by id, secret-free. `"default"` works too (the legacy anchor).
+// Throws ApiError(404) when the id doesn't exist for this org.
+export const getCrawlSetupById = (setupId: string) =>
+  apiGet<CrawlSetupSummary>(`/crawl-setups/${encodeURIComponent(setupId)}`);
+
+// PUT updates an existing setup's config; the optional `?name=` relabels it.
+// 404 if the id doesn't exist (PUT updates, it never creates — creation is
+// POST). Credentials follow the pull model: re-entered on each save.
+export const updateCrawlSetup = (
+  setupId: string,
+  setup: CrawlSetupInput,
+  name?: string,
+) =>
+  apiPut<CrawlSetupInput, CrawlSetupSummary>(
+    `/crawl-setups/${encodeURIComponent(setupId)}${
+      name != null ? `?name=${encodeURIComponent(name)}` : ""
+    }`,
+    setup,
+  );
+
+// 204 on success. Deleting the reserved "default" setup → 409 (the UI hides the
+// delete affordance for it; the 409 is still handled if it ever fires). 404 if
+// the id doesn't exist. CONFIG-ONLY: never touches R2, so a historical sim that
+// froze a pack from this setup still resolves.
+export const deleteCrawlSetup = (setupId: string) =>
+  apiDelete(`/crawl-setups/${encodeURIComponent(setupId)}`);
 
 // #193 fire-and-watch crawl trigger. POST dispatches the crawler's CI
 // workflow and returns immediately; the browser is never load-bearing — the
@@ -375,8 +481,14 @@ export interface CrawlSummary {
   error: string | null;
 }
 
-export const startCrawl = () =>
-  apiPost<Record<string, never>, CrawlSummary>("/crawls", {});
+// #215/#245 PR 3b: `setupId` selects which saved crawl setup the run uses. An
+// empty body (the default) is byte-identical to today's single-setup dispatch;
+// only a non-default id is sent so a default-only org's POST is unchanged.
+export const startCrawl = (setupId?: string) =>
+  apiPost<{ setup_id?: string }, CrawlSummary>(
+    "/crawls",
+    setupId && setupId !== DEFAULT_SETUP_ID ? { setup_id: setupId } : {},
+  );
 
 export const getCrawl = (id: string) => apiGet<CrawlSummary>(`/crawls/${id}`);
 
