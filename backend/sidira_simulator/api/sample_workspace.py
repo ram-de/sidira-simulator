@@ -42,6 +42,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from sidira_simulator.adapters.base import ArtifactSchemaError, load_json_artifact
+from sidira_simulator.adapters.feature_pack_loader import feature_pack_prefix
 from sidira_simulator.adapters.r2 import ArtifactStore
 from sidira_simulator.api.deps import current_customer_id, get_artifact_store
 from sidira_simulator.schemas.feature_pack import FeaturePackManifest
@@ -67,7 +68,10 @@ def _personas_latest_key(customer_id: str) -> str:
 
 
 def _featurepacks_latest_key(customer_id: str) -> str:
-    return f"customers/{customer_id}/featurepacks/latest"
+    # The sample clone operates on the DEFAULT setup's pack — route through the
+    # single prefix helper so this stays a read/write site of record and the
+    # default path is byte-identical to legacy (#215/#245 PR 2, codex P2).
+    return f"{feature_pack_prefix(customer_id)}/latest"
 
 
 def _has_pointer(store: ArtifactStore, key: str) -> bool:
@@ -164,8 +168,8 @@ async def generate_sample_workspace(
         )
 
         # ── Feature pack: manifest + each capability's PRD and Figma files ──
-        src_fp = f"customers/{src}/featurepacks/{feature_version}"
-        dst_fp = f"customers/{customer_id}/featurepacks/{feature_version}"
+        src_fp = f"{feature_pack_prefix(src)}/{feature_version}"
+        dst_fp = f"{feature_pack_prefix(customer_id)}/{feature_version}"
 
         manifest = load_json_artifact(store, f"{src_fp}/manifest.json", FeaturePackManifest)
         for capability in manifest.capabilities:

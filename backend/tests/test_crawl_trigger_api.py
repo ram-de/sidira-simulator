@@ -190,6 +190,51 @@ def test_post_dispatches_and_returns_202_pending(client, fake_dispatcher):
     assert "password" not in config_json
 
 
+def test_post_with_setup_id_dispatches_that_setups_config(client, fake_dispatcher):
+    """A trigger naming a setup_id resolves THAT setup and rides it to CI as
+    product_id (#215/#245) — so CI pulls the matching creds and writes the pack
+    under the per-setup R2 prefix."""
+    # Seed a second, named setup with a distinguishable sandbox URL.
+    named = _setup_dict(sandbox_url="https://ios.example.com")
+    blob = credentials.encrypt({"member": "ios-pw"})
+    from sidira_simulator.api.crawls import CREDENTIALS_ENC_KEY
+
+    named[CREDENTIALS_ENC_KEY] = credentials.serialize_blob(blob)
+    get_in_memory_crawl_config_repo()._configs[("demo", "mobile-ios")] = {
+        "customer_id": "demo",
+        "setup_id": "mobile-ios",
+        "name": "Mobile iOS",
+        "config_json": named,
+        "updated_at": datetime.now(timezone.utc),
+    }
+
+    resp = client.post("/crawls", json={"setup_id": "mobile-ios"})
+    assert resp.status_code == 202
+    _, _, _, config_json = fake_dispatcher.dispatched[-1]
+    payload = json.loads(config_json)
+    assert payload["product_id"] == "mobile-ios"  # setup_id rides as product_id
+    assert payload["sandbox_url"] == "https://ios.example.com"
+
+
+def test_post_unknown_setup_id_is_400(client):
+    resp = client.post("/crawls", json={"setup_id": "does-not-exist"})
+    assert resp.status_code == 400
+
+
+def test_post_traversal_setup_id_is_400(client):
+    """A path-traversal setup_id is rejected before it can cross the dispatch
+    boundary as a hostile product_id / R2 key segment (codex P1)."""
+    resp = client.post("/crawls", json={"setup_id": "../../other"})
+    assert resp.status_code == 400
+
+
+def test_post_no_body_is_default_setup(client, fake_dispatcher):
+    """Byte-identical to today: an empty POST resolves the default setup."""
+    client.post("/crawls")
+    _, _, _, config_json = fake_dispatcher.dispatched[-1]
+    assert json.loads(config_json)["product_id"] == "default"
+
+
 def test_post_dispatch_failure_is_502_and_row_failed(client, fake_dispatcher):
     fake_dispatcher.dispatch_error = CrawlDispatchError("GitHub API unreachable: boom")
     resp = client.post("/crawls")

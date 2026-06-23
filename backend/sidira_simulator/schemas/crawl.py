@@ -209,3 +209,87 @@ class CrawlSetupEnvelope(BaseModel):
     customer_id: str
     setup: CrawlSetup | None = None
     updated_at: datetime | None = None
+
+
+# ── Multi-setup CRUD (#215/#245 PR 2) ──────────────────────────────────────
+
+# Reserved setup id for the org's single/primary crawl target. Mirrors
+# adapters.repositories.DEFAULT_SETUP_ID — duplicated here to avoid a schema →
+# adapters import. The singular GET/PUT /crawl-setup endpoints and the legacy
+# R2 prefix all anchor on this; CRUD must refuse to mint or delete it.
+DEFAULT_SETUP_ID = "default"
+
+# A setup_id becomes BOTH an R2 key segment
+# (customers/<id>/setups/<setup_id>/featurepacks/...) and a URL path segment
+# (/crawl-setups/<setup_id>), so hold it to the same slug discipline as a
+# capability name: URL- and path-safe, single segment, no separators.
+_SETUP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
+
+
+def is_safe_setup_id(setup_id: str) -> bool:
+    """True iff ``setup_id`` is a single safe key/path segment (no separators,
+    no ``..``). The ``"default"`` anchor is always safe. Used at the dispatch and
+    credential-pull boundaries so a raw setup_id can never become a hostile R2
+    key segment on the crawler side (codex P1)."""
+    return setup_id == DEFAULT_SETUP_ID or bool(_SETUP_ID_RE.match(setup_id))
+
+
+def make_setup_id(name: str, existing_ids: set[str]) -> str:
+    """Derive a stable, url-safe setup_id from a client-supplied name.
+
+    The client never picks the raw id (it could collide with ``"default"`` or
+    another setup, or smuggle path separators). We slugify the name, then append
+    a short uniqueness suffix until the id is free for this org. Never returns
+    ``"default"`` (the legacy anchor) — a name that slugifies to it gets a
+    suffix like any other collision.
+    """
+    base = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")[:40]
+    if not base:
+        base = "setup"
+    candidate = base
+    suffix = 1
+    # Treat "default" as already-taken so a name like "Default" can't claim it.
+    taken = set(existing_ids) | {DEFAULT_SETUP_ID}
+    while candidate in taken or not _SETUP_ID_RE.match(candidate):
+        suffix += 1
+        candidate = f"{base}-{suffix}"
+    return candidate
+
+
+class CrawlSetupSummary(BaseModel):
+    """One setup as the list/detail views show it: identity + label + the
+    password-free, non-secret config. NEVER carries credentials (the
+    role→password map stays encrypted at rest under CREDENTIALS_ENC_KEY and is
+    delivered only over the authenticated CI pull)."""
+
+    setup_id: str
+    name: str | None = None
+    setup: CrawlSetup
+    updated_at: datetime | None = None
+
+
+class CrawlSetupListItem(BaseModel):
+    """A lighter row for the list view: identity + label + provenance, no full
+    config body. Still secret-free by construction."""
+
+    setup_id: str
+    name: str | None = None
+    sandbox_url: str
+    capability_count: int
+    cadence: str
+    updated_at: datetime | None = None
+
+
+class CrawlSetupCreateInput(CrawlSetupInput):
+    """``POST /crawl-setups`` body: a full crawl setup (with passwords, like the
+    PUT body) plus a human ``name`` the server slugifies into the setup_id."""
+
+    name: str = Field(min_length=1, max_length=120, description="Human label for this setup")
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("setup name must be non-empty")
+        return v

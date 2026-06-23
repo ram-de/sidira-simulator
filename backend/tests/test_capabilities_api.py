@@ -70,6 +70,54 @@ def test_get_capability_returns_prd_and_figma() -> None:
     assert {"guest", "member", "premium_member"} <= set(cap["roles"])
 
 
+def test_capabilities_default_setup_byte_identical(tmp_path: Path) -> None:
+    """Default setup (no ?setup_id) reads the legacy prefix — byte-identical to
+    pre-#215 prod. The manifest written at the legacy path resolves with and
+    without the explicit default setup_id."""
+    store = LocalArtifactStore(tmp_path)
+    _write_manifest(store, "2026-W21", ["reorder"])
+    _use_loader(store)
+    client = TestClient(app)
+    assert client.get("/capabilities").status_code == 200
+    assert client.get("/capabilities?setup_id=default").status_code == 200
+
+
+def test_capabilities_named_setup_reads_its_own_prefix(tmp_path: Path) -> None:
+    """A pack written under a named setup's prefix is listed only when that
+    setup_id is passed; the default prefix sees nothing (no collision)."""
+    store = LocalArtifactStore(tmp_path)
+    manifest = {
+        "customer_id": "demo",
+        "snapshot_version": "2026-W30",
+        "generated_at": "2026-07-20T00:00:00Z",
+        "capabilities": ["mobile_checkout"],
+    }
+    store.write_text(
+        "customers/demo/setups/mobile-ios/featurepacks/latest", "2026-W30"
+    )
+    store.write_text(
+        "customers/demo/setups/mobile-ios/featurepacks/2026-W30/manifest.json",
+        json.dumps(manifest),
+    )
+    _use_loader(store)
+    client = TestClient(app)
+
+    scoped = client.get("/capabilities?setup_id=mobile-ios")
+    assert scoped.status_code == 200, scoped.text
+    assert scoped.json()["capabilities"] == ["mobile_checkout"]
+
+    # Default setup (legacy prefix) is empty — proving per-setup isolation.
+    assert client.get("/capabilities").status_code == 404
+
+
+def test_capabilities_rejects_traversal_setup_id(tmp_path: Path) -> None:
+    """A path-traversal setup_id resolves to 404 (the 404-wall), never a 500 or
+    a cross-tenant read (codex P1)."""
+    _use_loader(LocalArtifactStore(tmp_path))
+    resp = TestClient(app).get("/capabilities?setup_id=../../other")
+    assert resp.status_code == 404, resp.text
+
+
 def test_get_capability_missing_returns_404() -> None:
     """An unknown capability name in an otherwise-valid pack is a 404."""
     _use_loader(LocalArtifactStore(_FIXTURE_ROOT))

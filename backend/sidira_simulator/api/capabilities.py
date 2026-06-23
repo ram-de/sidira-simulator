@@ -5,8 +5,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 
 from sidira_simulator.adapters.base import ArtifactNotFound, ArtifactSchemaError
-from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
-from sidira_simulator.adapters.repositories import ArchivedFeaturePackRepo
+from sidira_simulator.adapters.feature_pack_loader import (
+    FeaturePackLoader,
+    UnsafeSetupId,
+    feature_pack_prefix,
+)
+from sidira_simulator.adapters.repositories import (
+    DEFAULT_SETUP_ID,
+    ArchivedFeaturePackRepo,
+)
 from sidira_simulator.api.deps import (
     current_customer_id,
     get_archived_feature_pack_repo,
@@ -19,6 +26,19 @@ from sidira_simulator.schemas.feature_pack import (
     FeaturePackManifest,
     FeaturePackSummary,
 )
+
+
+def _validate_setup_id(setup_id: str) -> None:
+    """404 (the 404-wall convention) on a setup_id that is not a safe R2 key
+    segment — a path-traversal attempt resolves to "no such pack", never a 500
+    or a cross-tenant read (codex P1). The default setup is always safe."""
+    if setup_id == DEFAULT_SETUP_ID:
+        return
+    try:
+        feature_pack_prefix("_probe", setup_id)
+    except UnsafeSetupId as exc:
+        raise HTTPException(status_code=404, detail="feature pack not found") from exc
+
 
 router = APIRouter(prefix="/capabilities", tags=["capabilities"])
 
@@ -44,11 +64,16 @@ archive_router = APIRouter(prefix="/featurepacks", tags=["capabilities"])
 @router.get("", response_model=FeaturePackManifest)
 async def list_capabilities(
     include_archived: bool = False,
+    setup_id: str = DEFAULT_SETUP_ID,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
     archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
 ) -> FeaturePackManifest:
     """Return the latest Feature Pack manifest for the authenticated customer.
+
+    ``?setup_id=`` selects which crawl setup's packs to list (#215/#245). It
+    defaults to ``"default"`` so an unparameterized call is byte-identical to
+    pre-#215 prod — same R2 prefix, same pointer.
 
     By default the Library hides any version the customer ARCHIVED (#214): if the
     latest pack is archived, this 404s exactly as an empty tenant would, so the
@@ -57,8 +82,9 @@ async def list_capabilities(
     toggle). Archiving never deletes the pack: a historical simulation that froze
     this version still resolves it (FeaturePackLoader never consults this marker).
     """
+    _validate_setup_id(setup_id)
     try:
-        manifest = loader.load_latest_manifest(customer_id)
+        manifest = loader.load_latest_manifest(customer_id, setup_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     archived = await archived_repo.is_archived(customer_id, manifest.snapshot_version)
@@ -76,6 +102,7 @@ async def list_capabilities(
 @summary_router.get("/summary", response_model=FeaturePackSummary)
 async def list_capabilities_summary(
     include_archived: bool = False,
+    setup_id: str = DEFAULT_SETUP_ID,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
     archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
@@ -110,8 +137,9 @@ async def list_capabilities_summary(
     `capability_roles` field, a small crawler follow-up); fine at today's pack
     size (~tens of capabilities) until then.
     """
+    _validate_setup_id(setup_id)
     try:
-        manifest = loader.load_latest_manifest(customer_id)
+        manifest = loader.load_latest_manifest(customer_id, setup_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     # Mirror the manifest route's archive filter (#214): a retired latest pack
@@ -129,7 +157,9 @@ async def list_capabilities_summary(
         # #18) — no extra read, and it survives even when the body is missing.
         domain = manifest.capability_domains.get(name)
         try:
-            capability = loader.load_capability(customer_id, manifest.snapshot_version, name)
+            capability = loader.load_capability(
+                customer_id, manifest.snapshot_version, name, setup_id
+            )
             summaries.append(
                 CapabilitySummary(name=capability.name, roles=capability.roles, domain=domain)
             )
@@ -147,6 +177,7 @@ async def list_capabilities_summary(
 @router.get("/{capability_name}", response_model=CapabilityRecord)
 async def get_capability(
     capability_name: str,
+    setup_id: str = DEFAULT_SETUP_ID,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
 ) -> CapabilityRecord:
@@ -172,8 +203,9 @@ async def get_capability(
     the capability load could otherwise serve a capability from a different pack
     than the one whose membership we checked (TOCTOU), reintroducing the orphan.
     """
+    _validate_setup_id(setup_id)
     try:
-        manifest = loader.load_latest_manifest(customer_id)
+        manifest = loader.load_latest_manifest(customer_id, setup_id)
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if capability_name not in manifest.capabilities:
@@ -182,7 +214,9 @@ async def get_capability(
             detail=f"capability {capability_name!r} is not in the latest pack",
         )
     try:
-        capability = loader.load_capability(customer_id, manifest.snapshot_version, capability_name)
+        capability = loader.load_capability(
+            customer_id, manifest.snapshot_version, capability_name, setup_id
+        )
     except ArtifactNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ArtifactSchemaError as exc:
@@ -195,18 +229,22 @@ async def get_capability(
 
 
 def _require_pack_exists(
-    loader: FeaturePackLoader, customer_id: str, version: str
+    loader: FeaturePackLoader,
+    customer_id: str,
+    version: str,
+    setup_id: str = DEFAULT_SETUP_ID,
 ) -> None:
-    """404 if this customer has no pack at ``version`` in R2.
+    """404 if this customer has no pack at ``version`` in R2 under ``setup_id``.
 
     Archiving is a soft-delete of a REAL version, so we refuse to mark a phantom
     one. We probe the manifest (not the `latest` pointer) so any historical
-    version — not just the current latest — can be archived. Customer scope comes
-    for free: the loader keys every read on ``customer_id``, so one tenant can
-    never archive another's version even on a correct version guess.
+    version — not just the current latest — can be archived. Customer + setup
+    scope come for free: the loader keys every read on ``customer_id`` and the
+    per-setup R2 prefix, so one tenant can never archive another's version, and a
+    version that exists only under a different setup 404s here.
     """
     try:
-        loader.load_manifest_at_version(customer_id, version)
+        loader.load_manifest_at_version(customer_id, version, setup_id)
     except ArtifactNotFound as exc:
         raise HTTPException(
             status_code=404,
@@ -217,11 +255,16 @@ def _require_pack_exists(
 @archive_router.post("/{version}/archive", response_model=ArchiveState)
 async def archive_feature_pack(
     version: str,
+    setup_id: str = DEFAULT_SETUP_ID,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
     archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
 ) -> ArchiveState:
     """Archive (hide from the Library) one Feature Pack version (#214).
+
+    ``?setup_id=`` selects which setup's pack to existence-check (#215/#245),
+    defaulting to ``"default"`` so an unparameterized call is byte-identical to
+    today. The existence probe reads through the per-setup R2 prefix.
 
     A SOFT-DELETE: the version is hidden from the Library's pack listing, but its
     R2 artifacts are untouched and it STAYS resolvable for any historical
@@ -229,8 +272,17 @@ async def archive_feature_pack(
     past run still replays. This is distinct from the forbidden hand-edit /
     hard-delete (both corrupt the control arm). Idempotent: re-archiving an
     already-archived version is a no-op.
+
+    KNOWN LIMITATION (#215/#245, deferred to PR 3): the archive marker table is
+    keyed ``(customer_id, pack_version)`` — NOT setup-aware (adding setup_id to
+    its PK is a migration, out of this PR's scope). So if two setups of one org
+    happen to share a version string, archiving one hides the other in the
+    Library. This is a VISIBILITY edge case only — the loader never consults this
+    marker, so pack RESOLUTION and the integrity invariant are unaffected. PR 3
+    re-keys the marker by setup. (codex P2)
     """
-    _require_pack_exists(loader, customer_id, version)
+    _validate_setup_id(setup_id)
+    _require_pack_exists(loader, customer_id, version, setup_id)
     await archived_repo.archive(customer_id, version)
     return ArchiveState(customer_id=customer_id, pack_version=version, archived=True)
 
@@ -238,12 +290,17 @@ async def archive_feature_pack(
 @archive_router.post("/{version}/unarchive", response_model=ArchiveState)
 async def unarchive_feature_pack(
     version: str,
+    setup_id: str = DEFAULT_SETUP_ID,
     customer_id: str = Depends(current_customer_id),
     loader: FeaturePackLoader = Depends(get_feature_pack_loader),
     archived_repo: ArchivedFeaturePackRepo = Depends(get_archived_feature_pack_repo),
 ) -> ArchiveState:
     """Unarchive (un-hide) a Feature Pack version (#214). Idempotent — unarchiving
-    a version that was never archived returns ``archived=false`` without error."""
-    _require_pack_exists(loader, customer_id, version)
+    a version that was never archived returns ``archived=false`` without error.
+
+    ``?setup_id=`` selects which setup's pack to existence-check, default
+    ``"default"`` (byte-identical to today)."""
+    _validate_setup_id(setup_id)
+    _require_pack_exists(loader, customer_id, version, setup_id)
     await archived_repo.unarchive(customer_id, version)
     return ArchiveState(customer_id=customer_id, pack_version=version, archived=False)
