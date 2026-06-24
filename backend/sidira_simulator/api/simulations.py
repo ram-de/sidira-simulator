@@ -264,6 +264,21 @@ async def create_simulation(
     # subsequent migration when #89 lands.
     treatment_fraction = payload.arm_split.treatment_fraction if payload.arm_split else None
 
+    # Phase 8 #43: a refinement run links to its parent. Validate OWNERSHIP
+    # before create — the column is a plain FK to simulations.id, so an unchecked
+    # parent would (a) succeed for an existing foreign id but fail the FK insert
+    # for a missing one, leaking cross-customer existence by timing/outcome, and
+    # (b) persist a lineage edge to a sim this customer can't see. Same
+    # non-leaking 404 as /compare: missing and foreign both 404 identically
+    # (codex P1).
+    if payload.parent_simulation_id is not None:
+        parent_row = await orchestrator.get(payload.parent_simulation_id, customer_id)
+        if parent_row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Parent simulation {payload.parent_simulation_id} not found",
+            )
+
     try:
         sim_id, run = await orchestrator.prepare(
             customer_id=customer_id,
@@ -315,8 +330,12 @@ def _weakness_counts_by_category(result_json: dict | None) -> dict[str, dict]:
     """Aggregate a result's weaknesses BY CATEGORY.
 
     Returns {category -> {"agent_count": int, "frequency": float | None}}.
-    `agent_count` sums `supporting_agent_ids` across every weakness row of the
-    category (a category can surface as multiple rows). `frequency` is the max
+    `agent_count` sums each row's TRUE backing count (`support_count`, falling
+    back to `len(supporting_agent_ids)` for legacy rows without it) across every
+    weakness row of the category (a category can surface as multiple rows).
+    `supporting_agent_ids` is capped for display, so summing its length would
+    under-report and could mark a materially-changed weakness as "unchanged"
+    (codex P2). `frequency` is the max
     observed frequency for the category (None when no row carried one — e.g. the
     structural `underpowered_design` flag). The diff is keyed on `category`
     (the closed Weakness Literal), so "the wrong_cohort weakness got fixed" is a
@@ -330,7 +349,10 @@ def _weakness_counts_by_category(result_json: dict | None) -> dict[str, dict]:
         if not category:
             continue
         entry = counts.setdefault(category, {"agent_count": 0, "frequency": None})
-        entry["agent_count"] += len(w.get("supporting_agent_ids") or [])
+        support_count = w.get("support_count")
+        if support_count is None:
+            support_count = len(w.get("supporting_agent_ids") or [])
+        entry["agent_count"] += support_count
         freq = w.get("frequency")
         if freq is not None:
             entry["frequency"] = freq if entry["frequency"] is None else max(entry["frequency"], freq)

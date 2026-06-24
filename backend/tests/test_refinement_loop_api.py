@@ -430,3 +430,85 @@ def test_compare_route_not_captured_as_simulation_id(client_with_stub_llm) -> No
     client, _, _ = client_with_stub_llm
     resp = client.get("/simulations/compare")
     assert resp.status_code == 422, resp.text
+
+
+# ── codex P1: parent ownership validated before create (no existence oracle) ──
+
+
+def _post_with_parent(client: TestClient, *, prose: str, parent: str):
+    """POST a sim with an explicit parent, returning the raw response (no 202
+    assertion — these cases expect a 404 from the ownership pre-check)."""
+    return client.post(
+        "/simulations",
+        json={
+            "hypothesis": {"capability_name": "reorder", "prose": prose},
+            "population_size": 3,
+            "run_as_generic_reception": True,
+            "parent_simulation_id": parent,
+        },
+    )
+
+
+def test_create_with_nonexistent_parent_404s(client_with_stub_llm) -> None:
+    """A parent id that doesn't exist → 404 before the row is created (the plain
+    FK would otherwise fail the insert and leak 'this id is unknown')."""
+    client, sim_repo, _ = client_with_stub_llm
+    before = len(sim_repo._sims)
+    resp = _post_with_parent(client, prose="Orphan refinement.", parent="ghost-id")
+    assert resp.status_code == 404, resp.text
+    assert len(sim_repo._sims) == before  # nothing persisted
+
+
+def test_create_with_foreign_parent_404s_and_does_not_link(client_with_stub_llm) -> None:
+    """A parent owned by ANOTHER customer → 404, identical to the missing case, so
+    a caller can't use create success/failure as a cross-customer existence oracle
+    (codex P1). No lineage edge to an unowned sim is persisted."""
+    client, sim_repo, _ = client_with_stub_llm
+    foreign = _inject_completed_sim(
+        sim_repo,
+        customer_id="other-customer",
+        sim_id="foreign-parent",
+        prose="Another tenant's sim.",
+    )
+    before = len(sim_repo._sims)
+    # Default customer ("demo") tries to parent onto cust B's sim.
+    resp = _post_with_parent(client, prose="Sneaky refinement.", parent=foreign)
+    assert resp.status_code == 404, resp.text
+    assert len(sim_repo._sims) == before  # no row created, no foreign edge stored
+
+
+# ── codex P2: weakness diff uses true support_count, not capped id list ──
+
+
+def test_compare_uses_true_support_count_over_capped_ids(client_with_stub_llm) -> None:
+    """supporting_agent_ids is capped for display; support_count is the truth.
+    A category whose true backing grew 10→50 must read as `changed`, even though
+    both sides expose the same 3 capped ids (len-based math would call it
+    `unchanged` — codex P2)."""
+    client, sim_repo, _ = client_with_stub_llm
+    old = _run_sim(client, prose="Old run.")
+    new = _run_sim(client, prose="New run.", parent=old)
+
+    sim_repo._sims[old]["result_json"]["weaknesses"] = [
+        {
+            "category": "wrong_cohort",
+            "summary": "x",
+            "supporting_agent_ids": ["a1", "a2", "a3"],  # capped
+            "support_count": 10,  # true backing
+        },
+    ]
+    sim_repo._sims[new]["result_json"]["weaknesses"] = [
+        {
+            "category": "wrong_cohort",
+            "summary": "x",
+            "supporting_agent_ids": ["b1", "b2", "b3"],  # same capped length
+            "support_count": 50,  # true backing grew
+        },
+    ]
+
+    body = client.get("/simulations/compare", params={"old": old, "new": new}).json()
+    assert body["weakness_categories_changed"] == ["wrong_cohort"]
+    diff = {d["category"]: d for d in body["weakness_category_diffs"]}["wrong_cohort"]
+    assert diff["old_agent_count"] == 10
+    assert diff["new_agent_count"] == 50
+    assert diff["agent_count_delta"] == 40
