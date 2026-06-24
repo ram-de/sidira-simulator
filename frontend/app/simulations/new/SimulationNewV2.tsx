@@ -395,6 +395,13 @@ export default function SimulationNewV2() {
   const consumedRefinementProse = useRef(false);
   const appliedInheritedCapability = useRef(false);
   const appliedInheritedSetup = useRef(false);
+  const appliedInheritedArmMode = useRef(false);
+  // User-intent guard for the A/B inherit (codex P2 #3): a late parent fetch
+  // must NOT clobber a deliberate single-arm (or A/B) choice the PM already made
+  // on the toggle. The applied-once ref alone can't see that — the inherit
+  // effect early-returns when this is set. Flipped true inside the toggle's
+  // onToggle handler, the moment the user touches the control.
+  const userToggledArmMode = useRef(false);
   // The fetched parent simulation, held in STATE (not a ref) so the apply
   // effects + the live preflight + render all re-run when it resolves. A ref
   // would silently misfire when getSimulation(parent) resolves AFTER the
@@ -533,6 +540,28 @@ export default function SimulationNewV2() {
       if (hyp.decision_point) setDecisionPoint(hyp.decision_point);
       if (hyp.choice_set && hyp.choice_set.length > 0)
         setChoiceSetText(hyp.choice_set.join("\n"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent]);
+
+  // Inherit the parent's A/B (arm) mode once the parent resolves. A "Try this"
+  // refinement off an A/B parent (arm_split non-null) should stay A/B — without
+  // this the toggle silently defaulted to single-arm, dropping the control arm
+  // the founder ran. Dirty-guarded by a one-time ref (same pattern as the
+  // inherited prd/OEC/setup fields): we apply at most once, so a PM who toggles
+  // A/B off (or on) before the parent fetch resolves is never overridden. A
+  // single-arm parent (arm_split null) leaves abMode at its default false — we
+  // only ever turn it ON from inheritance, never force it off. Keyed on
+  // inheritedParent so it fires whenever the parent arrives.
+  useEffect(() => {
+    if (appliedInheritedArmMode.current) return;
+    // User-intent guard (codex P2 #3): a deliberate toggle interaction wins over
+    // a late-resolving parent fetch — never override a mode the PM chose.
+    if (userToggledArmMode.current) return;
+    if (!inheritedParent) return;
+    appliedInheritedArmMode.current = true;
+    if (inheritedParent.arm_split != null) {
+      setAbMode(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inheritedParent]);
@@ -1490,6 +1519,7 @@ export default function SimulationNewV2() {
               <NeedsInputNote
                 detail={needsInput}
                 submitting={submitting}
+                isRefinement={isRefinement}
                 onRunAnyway={handleRunAnyway}
                 onDismiss={() => setNeedsInput(null)}
               />
@@ -1649,7 +1679,11 @@ export default function SimulationNewV2() {
               )}
 
               {/* #313 / T4 (deliverable 4): live inline answerability lint. */}
-              <ClaimLintNotes preflight={preflight} stale={preflightStale} />
+              <ClaimLintNotes
+                preflight={preflight}
+                stale={preflightStale}
+                isRefinement={isRefinement}
+              />
             </section>
 
             {/* ── 02 · Subject ───────────────────────────── */}
@@ -1843,6 +1877,9 @@ export default function SimulationNewV2() {
               <ABModeSection
                 enabled={abMode}
                 onToggle={(next) => {
+                  // codex P2 #3: mark the toggle user-touched so a late parent
+                  // fetch can't clobber this deliberate choice.
+                  userToggledArmMode.current = true;
                   setAbMode(next);
                   // Clear stale acknowledgement when the user flips the toggle.
                   // #313 / T4: the metric picker is NO LONGER A/B-only — a
@@ -2652,9 +2689,17 @@ function MetricSection({
 function ClaimLintNotes({
   preflight,
   stale,
+  isRefinement,
 }: {
   preflight: PreflightResponse | null;
   stale: boolean;
+  // #482 follow-up: a refinement that the gate WILL let through is never hard-
+  // blocked — Begin reading runs it sentiment-only (run_as_generic_reception).
+  // For that case the needs_input verdict is ADVISORY, not a wall: reframe the
+  // header + body to "will read as generic reception" and keep the OEC/figma
+  // guidance as an optional upgrade. Non-refinement authoring (the path that
+  // genuinely 422s) is unchanged.
+  isRefinement: boolean;
 }) {
   if (!preflight) return null;
 
@@ -2664,8 +2709,21 @@ function ClaimLintNotes({
   const hasAnswerability = preflight.reasons.length > 0;
   const hasFraming = preflight.leading_framing_reasons.length > 0;
 
-  const header =
-    preflight.state === "needs_input"
+  // A refinement reframes the needs_input (OEC/figma gap) state to advisory ONLY
+  // when the gate will actually let it through. codex P2 #2: the preflight
+  // verdict exposes `allow_override` (lib/api.ts PreflightResponse) — the same
+  // bit the backend uses to decide whether run_as_generic_reception is honored.
+  // Gate strictly on it: a non-overridable refinement block (e.g. out_of_scope,
+  // a structural requirement that still 422s for a refinement) keeps the honest
+  // hard framing rather than the misleading "will read" copy.
+  const refinementAdvisory =
+    isRefinement &&
+    preflight.state === "needs_input" &&
+    preflight.allow_override === true;
+
+  const header = refinementAdvisory
+    ? "will read as generic reception (sentiment only)"
+    : preflight.state === "needs_input"
       ? "needs a detail before it can be read"
       : preflight.state === "out_of_scope"
         ? "outside this instrument's measurement scope"
@@ -2676,6 +2734,13 @@ function ClaimLintNotes({
       {hasAnswerability && (
         <div style={disclosureNoteStyle}>
           <div style={disclosureLabelStyle}>{header}</div>
+          {refinementAdvisory && (
+            <div style={{ ...disclosureBodyTextStyle, marginBottom: 8 }}>
+              This refinement will read on Begin reading. Without an OEC metric
+              or a structured change it reads sentiment-only — add either below
+              for a calibrated lift verdict.
+            </div>
+          )}
           <ReasonFixList
             reasons={preflight.reasons}
             fixes={preflight.fixes}
@@ -2713,22 +2778,42 @@ function ClaimLintNotes({
 function NeedsInputNote({
   detail,
   submitting,
+  isRefinement,
   onRunAnyway,
   onDismiss,
 }: {
   detail: NeedsInputDetail;
   submitting: boolean;
+  // #482 follow-up: a refinement that the gate WILL let through (allow_override)
+  // is never hard-blocked — Begin reading already runs it sentiment-only. So
+  // reframe this 422 surface from a wall ("one detail needed before this can be
+  // read") to advisory ("will read as generic reception"). codex P2 #1: gate
+  // strictly on `detail.allow_override === true`. A non-overridable refinement
+  // block (out_of_scope / a structural requirement that still 422s even for a
+  // refinement) keeps the honest hard framing — softening it would LIE about a
+  // real wall. Non-refinement authoring (which genuinely 422s) is unchanged too.
+  isRefinement: boolean;
   onRunAnyway: () => void;
   onDismiss: () => void;
 }) {
+  const advisory = isRefinement && detail.allow_override === true;
   return (
     <div
       role="alert"
       style={{ ...disclosureNoteStyle, maxWidth: 620, marginBottom: 16 }}
     >
       <div style={disclosureLabelStyle}>
-        one detail needed before this can be read
+        {advisory
+          ? "will read as generic reception (sentiment only)"
+          : "one detail needed before this can be read"}
       </div>
+      {advisory && (
+        <div style={{ ...disclosureBodyTextStyle, marginBottom: 8 }}>
+          This refinement will read on Begin reading. Without an OEC metric or a
+          structured change it reads sentiment-only — add either for a calibrated
+          lift verdict.
+        </div>
+      )}
       <ReasonFixList reasons={detail.reasons} fixes={detail.fixes} />
       <div
         style={{
