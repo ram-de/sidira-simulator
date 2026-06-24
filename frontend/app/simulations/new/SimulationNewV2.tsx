@@ -23,6 +23,7 @@ import {
   type PersonaSummary,
   type PreflightResponse,
   type ReverseFigma,
+  type Simulation,
   type SimulationLimitsResponse,
   type SimulationRequest,
 } from "@/lib/api";
@@ -394,15 +395,20 @@ export default function SimulationNewV2() {
   const consumedRefinementProse = useRef(false);
   const appliedInheritedCapability = useRef(false);
   const appliedInheritedSetup = useRef(false);
-  // The parent's hypothesis, fetched once. Drives the inherit effects below.
-  const [inheritedHypothesis, setInheritedHypothesis] =
-    useState<Hypothesis | null>(null);
-  // proposed_figma has no authoring path in the wizard (#183), so an inherited
-  // figma is held here and threaded straight into buildHypothesis — without it
-  // the answerability gate (#309) would still fire on a figma-only parent.
-  const inheritedFigma = useRef<ReverseFigma | null>(null);
-  // The crawl setup the parent ran against; applied once the setup roster loads.
-  const inheritedSetupId = useRef<string | null>(null);
+  // The fetched parent simulation, held in STATE (not a ref) so the apply
+  // effects + the live preflight + render all re-run when it resolves. A ref
+  // would silently misfire when getSimulation(parent) resolves AFTER the
+  // setup/capability rosters load (codex P2 #1/#3). null = not a refinement, or
+  // the fetch hasn't resolved / failed → every derivation below is byte-
+  // identical to a non-refinement create.
+  const [inheritedParent, setInheritedParent] = useState<Simulation | null>(
+    null,
+  );
+  // proposed_figma has no authoring path in the wizard (#183); a refinement
+  // inherits the parent's figma DERIVED FROM STATE so both the advisory preflight
+  // and the real createSimulation body react once the parent loads.
+  const inheritedFigma: ReverseFigma | null =
+    inheritedParent?.hypothesis?.proposed_figma ?? null;
   // True for the life of the wizard when opened from a refinement CTA. Drives
   // the answerability fallback: a refinement must ALWAYS be runnable on Begin
   // reading, so a non-answerable refinement submits with run_as_generic_reception.
@@ -472,56 +478,19 @@ export default function SimulationNewV2() {
     }
     if (!parent) return;
 
+    // Fetch the parent and store it in STATE. The structured fields are applied
+    // by the dirty-guarded effects below (keyed on inheritedParent + their
+    // roster), so whichever resolves last triggers the apply — no ref race.
     let cancelled = false;
     (async () => {
       try {
         const sim = await getSimulation(parent);
-        if (cancelled) return;
-        const hyp = sim.hypothesis;
-        // Inherit proposed_figma straight into the submit thread (no authoring
-        // path here, #183) so a figma-bearing parent stays answerable.
-        inheritedFigma.current = hyp.proposed_figma ?? null;
-        // Inherit the crawl setup the parent ran against (applied once the setup
-        // roster loads — see the setup-apply effect).
-        if (sim.setup_id) inheritedSetupId.current = sim.setup_id;
-        // Inherit proposed_prd into the stimulus well so it reaches the payload
-        // AND the PM can see/edit it (showAdvanced gates whether it is sent).
-        if (hyp.proposed_prd && hyp.proposed_prd.trim()) {
-          setShowAdvanced(true);
-          setProposedPrd(hyp.proposed_prd);
-        }
-        // Inherit the OEC metric + its template fields. The wizard's metric
-        // picker only represents conversion/retention/ctr; the backend's fourth
-        // value ("visit") and null have no picker — leave the metric unset for
-        // those (the answerability fallback below keeps the run unblocked).
-        if (
-          hyp.metric_name === "conversion" ||
-          hyp.metric_name === "retention" ||
-          hyp.metric_name === "ctr"
-        ) {
-          setMetricName(hyp.metric_name);
-          if (hyp.conversion_action)
-            setConversionAction(hyp.conversion_action);
-          if (hyp.conversion_action_label)
-            setConversionActionLabel(hyp.conversion_action_label);
-          if (hyp.decision_point) setDecisionPoint(hyp.decision_point);
-          if (hyp.choice_set && hyp.choice_set.length > 0)
-            setChoiceSetText(hyp.choice_set.join("\n"));
-        }
-        // Capability is inherited via a dedicated effect that waits for the
-        // feature pack to load (it can only be set once it exists in the pack).
-        setInheritedHypothesis(hyp);
-        // If the CTA didn't carry a refined prose, fall back to the parent's
-        // own claim so the wizard isn't blank.
-        if (!consumedRefinementProse.current && hyp.prose && hyp.prose.trim()) {
-          setClaimMode("freetext");
-          setHypothesis(hyp.prose);
-        }
+        if (!cancelled) setInheritedParent(sim);
       } catch {
         // Defensive: a failed parent fetch leaves the wizard in today's
         // prose-only behavior. The parent id still rides the create payload so
         // the lineage link survives; the run is just authored from scratch.
-        if (!cancelled) setInheritedHypothesis(null);
+        if (!cancelled) setInheritedParent(null);
       }
     })();
     return () => {
@@ -531,13 +500,71 @@ export default function SimulationNewV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Inherit the parent's crawl setup once the roster has loaded — only when the
-  // setup actually exists in this org's roster (else keep the default anchor).
-  // Guarded so a later manual setup switch is never overwritten. (capabilities
-  // are inherited by a sibling effect below, after `capabilities` is derived.)
+  // Apply the parent's proposed_prd + OEC metric once the parent resolves.
+  // Dirty-guarded (codex P2 #2): a slow fetch must NOT clobber a PM who already
+  // started editing — apply the inherited prd only if the well is still empty,
+  // and the metric only if it's still unset. The wizard's metric picker only
+  // represents conversion/retention/ctr; the backend's fourth value ("visit")
+  // and null have no picker → leave the metric unset (the answerability fallback
+  // keeps the run unblocked). Keyed on inheritedParent so it fires whenever the
+  // parent arrives (before OR after the user lands on the page).
+  const appliedInheritedFields = useRef(false);
+  useEffect(() => {
+    if (appliedInheritedFields.current) return;
+    if (!inheritedParent) return;
+    appliedInheritedFields.current = true;
+    const hyp = inheritedParent.hypothesis;
+    // proposed_prd → stimulus well, only if the user hasn't authored one.
+    if (hyp.proposed_prd && hyp.proposed_prd.trim() && !proposedPrd.trim()) {
+      setShowAdvanced(true);
+      setProposedPrd(hyp.proposed_prd);
+    }
+    // OEC metric + template fields, only if the metric is still at its default.
+    if (
+      metricName == null &&
+      (hyp.metric_name === "conversion" ||
+        hyp.metric_name === "retention" ||
+        hyp.metric_name === "ctr")
+    ) {
+      setMetricName(hyp.metric_name);
+      if (hyp.conversion_action) setConversionAction(hyp.conversion_action);
+      if (hyp.conversion_action_label)
+        setConversionActionLabel(hyp.conversion_action_label);
+      if (hyp.decision_point) setDecisionPoint(hyp.decision_point);
+      if (hyp.choice_set && hyp.choice_set.length > 0)
+        setChoiceSetText(hyp.choice_set.join("\n"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent]);
+
+  // Fallback claim: if the CTA carried no refined ?prose, seed the textarea with
+  // the parent's own claim so the wizard isn't blank. Dirty-guarded — only if
+  // the claim is STILL empty (a PM who started typing during the fetch is never
+  // overwritten). A consumed ?prose already seeded the claim synchronously on
+  // mount, so this is skipped in that (common) case.
+  const appliedFallbackClaim = useRef(false);
+  useEffect(() => {
+    if (appliedFallbackClaim.current) return;
+    if (!inheritedParent) return;
+    if (consumedRefinementProse.current) return;
+    appliedFallbackClaim.current = true;
+    const prose = inheritedParent.hypothesis.prose;
+    if (prose && prose.trim() && !hypothesis.trim()) {
+      setClaimMode("freetext");
+      setHypothesis(prose);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent]);
+
+  // Inherit the parent's crawl setup once BOTH the parent and the roster have
+  // loaded — only when the setup actually exists in this org's roster (else keep
+  // the default anchor). Depends on inheritedParent AND setups so whichever
+  // resolves last triggers it (codex P2 #1: a ref-only effect missed the parent
+  // when listCrawlSetups resolved first, silently running against DEFAULT).
+  // Guarded so a later manual setup switch is never overwritten.
   useEffect(() => {
     if (appliedInheritedSetup.current) return;
-    const want = inheritedSetupId.current;
+    const want = inheritedParent?.setup_id;
     if (!want || want === DEFAULT_SETUP_ID) return;
     if (setups.length === 0) return;
     appliedInheritedSetup.current = true;
@@ -550,7 +577,7 @@ export default function SimulationNewV2() {
       setSetupId(want);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setups]);
+  }, [inheritedParent, setups]);
 
   // The prose actually submitted: composed from the structured fields, or the
   // free-text box verbatim. Derived so the preflight lint + manifest + submit
@@ -871,20 +898,22 @@ export default function SimulationNewV2() {
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
 
-  // Inherit the parent's capability once the feature pack has loaded — a
-  // capability can only be selected if it exists in THIS setup's pack. Guarded
-  // so a later manual change is never overwritten. If the parent's capability
-  // isn't in the pack (e.g. the setup changed), we leave the default selection.
-  // Placed here (after `capabilities` is derived) so it sees the loaded pack.
+  // Inherit the parent's capability once BOTH the parent and the feature pack
+  // have loaded — a capability can only be selected if it exists in THIS setup's
+  // pack. Depends on inheritedParent AND capabilities so whichever resolves last
+  // triggers it (a ref-only version misfired when getSimulation resolved after
+  // the pack). Guarded so a later manual change is never overwritten; if the
+  // parent's capability isn't in the pack (e.g. setup changed) we keep the
+  // default selection. Placed here (after `capabilities` is derived).
   useEffect(() => {
     if (appliedInheritedCapability.current) return;
-    const want = inheritedHypothesis?.capability_name;
+    const want = inheritedParent?.hypothesis?.capability_name;
     if (!want) return;
     if (capabilities.length === 0) return;
     appliedInheritedCapability.current = true;
     if (capabilities.includes(want)) setCapability(want);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inheritedHypothesis, capabilities]);
+  }, [inheritedParent, capabilities]);
   // #215/#245 PR 3b: the setup picker only appears when the org actually has
   // more than one crawl setup. A default-only org sees no new control.
   const hasMultipleSetups = setups.length > 1;
@@ -964,7 +993,9 @@ export default function SimulationNewV2() {
       // The wizard has no figma authoring path (#183), but a refinement inherits
       // the parent's proposed_figma so a figma-bearing parent stays answerable —
       // thread it into the payload (null for a normal, non-refinement create).
-      proposed_figma: inheritedFigma.current,
+      // Derived from inheritedParent STATE, so the live preflight (which reads
+      // buildHypothesis) recomputes once the parent loads, not just the POST.
+      proposed_figma: inheritedFigma,
       ...metricFields,
     };
   }
@@ -982,6 +1013,10 @@ export default function SimulationNewV2() {
   const preflightConvAction = conversionAction.trim();
   const preflightConvLabel = conversionActionLabel.trim();
   const preflightChoice = choiceSetText;
+  // codex P2 #3: buildHypothesis now reads the inherited figma, so the advisory
+  // preflight must re-fire when it arrives. A boolean presence flag is enough —
+  // the structural answerability check only cares whether a design is attached.
+  const preflightHasFigma = inheritedFigma != null;
   useEffect(() => {
     const hyp = buildHypothesis();
     if (!hyp) {
@@ -1023,6 +1058,7 @@ export default function SimulationNewV2() {
     preflightChoice,
     showAdvanced,
     proposedPrd,
+    preflightHasFigma,
   ]);
 
   // #313 / T4: build the create payload once, shared by the normal submit and
@@ -1231,7 +1267,7 @@ export default function SimulationNewV2() {
   function refinementNeedsGenericOverride(): boolean {
     if (!isRefinement) return false;
     const hasOec = effectiveMetric != null;
-    const hasFigma = inheritedFigma.current != null;
+    const hasFigma = inheritedFigma != null;
     const hasPrd = showAdvanced && proposedPrd.trim().length > 0;
     return !hasOec && !hasFigma && !hasPrd;
   }
