@@ -163,6 +163,14 @@ export type Simulation = components["schemas"]["Simulation"] & {
   // customer-scoped. Collapse to the bare generated types once regenerated.
   parent_simulation_id?: string | null;
   lineage?: LineageEntry[];
+  // A/B (arm) mode: non-null when the run was authored as a two-arm experiment
+  // (treatment vs. control). `treatment_fraction` is the share routed to the
+  // treatment arm (the wizard bakes 0.5). Null/absent for a single-arm run.
+  // Same stale-generated caveat as `setup_id`/`lineage` above — hand-augmented
+  // until api-types.ts is regenerated, at which point it collapses to the bare
+  // generated `arm_split` field. A refinement reads this to inherit the parent's
+  // arm mode (so "Try this" off an A/B parent stays A/B).
+  arm_split?: { treatment_fraction: number } | null;
 };
 export type SimulationRequest = components["schemas"]["SimulationRequest"] & {
   setup_id?: string;
