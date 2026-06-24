@@ -21,10 +21,14 @@ from sidira_simulator.api.deps import (
 from sidira_simulator.schemas.simulation import (
     ArmSplit,
     Hypothesis,
+    LineageEntry,
     Simulation,
+    SimulationComparison,
+    SimulationRef,
     SimulationRequest,
     SimulationResult,
     SimulationStatus,
+    WeaknessCategoryDiff,
 )
 from sidira_simulator.services.answerability import assess_answerability
 from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
@@ -274,6 +278,9 @@ async def create_simulation(
             # resolves THAT setup's pack (already validated by the request schema's
             # is_safe_setup_id field validator). Omitted → "default" → legacy path.
             setup_id=payload.setup_id,
+            # Phase 8 #43: link this run into a refinement-loop lineage. None for
+            # fresh runs; the lineage chain is walked at GET /simulations/{id}.
+            parent_simulation_id=payload.parent_simulation_id,
             include_no_persona_control=payload.include_no_persona_control,
             include_current_state_control=payload.include_current_state_control,
             input_lint=input_lint,
@@ -294,6 +301,257 @@ async def create_simulation(
     )
 
 
+# Phase 8 #42: refinement-loop compare. Constants + helpers for the weakness-
+# category and refinement-suggestion diffs.
+
+# The closed set of completed states a sim must be in to be comparable. A
+# pending/running/failed sim has no stable result to diff, so compare 404s on it
+# (matching the "either sim doesn't exist, isn't owned, or isn't completed"
+# contract) rather than diffing a half-built result.
+_COMPARABLE_STATUSES = {SimulationStatus.COMPLETE.value}
+
+
+def _weakness_counts_by_category(result_json: dict | None) -> dict[str, dict]:
+    """Aggregate a result's weaknesses BY CATEGORY.
+
+    Returns {category -> {"agent_count": int, "frequency": float | None}}.
+    `agent_count` sums `supporting_agent_ids` across every weakness row of the
+    category (a category can surface as multiple rows). `frequency` is the max
+    observed frequency for the category (None when no row carried one — e.g. the
+    structural `underpowered_design` flag). The diff is keyed on `category`
+    (the closed Weakness Literal), so "the wrong_cohort weakness got fixed" is a
+    stable, machine-comparable signal.
+    """
+    counts: dict[str, dict] = {}
+    for w in (result_json or {}).get("weaknesses") or []:
+        if not isinstance(w, dict):
+            continue
+        category = w.get("category")
+        if not category:
+            continue
+        entry = counts.setdefault(category, {"agent_count": 0, "frequency": None})
+        entry["agent_count"] += len(w.get("supporting_agent_ids") or [])
+        freq = w.get("frequency")
+        if freq is not None:
+            entry["frequency"] = freq if entry["frequency"] is None else max(entry["frequency"], freq)
+    return counts
+
+
+def _positive_sentiment_share(result_json: dict | None) -> float | None:
+    """Share of per-agent analyses with positive sentiment, or None.
+
+    None when the result carries no per_agent_analyses (e.g. a pre-#51
+    result_json), so the comparison's sentiment shift is omitted rather than
+    fabricated from missing data.
+    """
+    analyses = (result_json or {}).get("per_agent_analyses") or []
+    if not analyses:
+        return None
+    positive = sum(1 for a in analyses if isinstance(a, dict) and a.get("sentiment") == "positive")
+    return positive / len(analyses)
+
+
+def _comparison_ref(row: dict) -> SimulationRef:
+    """Build the compact SimulationRef header for one side of a comparison."""
+    return SimulationRef(
+        id=row["id"],
+        status=(
+            SimulationStatus(row["status"]) if row.get("status") else SimulationStatus.PENDING
+        ),
+        confidence_score=_row_confidence_score(row),
+        hypothesis_label=_hypothesis_label(row.get("hypothesis_json")),
+    )
+
+
+@router.get("/compare", response_model=SimulationComparison)
+async def compare_simulations(
+    old: str,
+    new: str,
+    customer_id: str = Depends(current_customer_id),
+    orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+) -> SimulationComparison:
+    """Structured old→new diff for the refinement loop (Phase 8 #42).
+
+    Both sims must be owned by the requesting customer AND completed, else 404
+    (we never disclose whether a foreign id exists). The diff is purely
+    descriptive — score delta + weakness-category diff (appeared / disappeared /
+    changed) + refinement-suggestion deltas + an optional sentiment shift — built
+    from the two persisted results. Nothing is re-run and no new score computed.
+
+    Registered BEFORE `/{simulation_id}` so "compare" is matched as this route,
+    not captured as a simulation_id path param.
+    """
+    old_row = await orchestrator.get(old, customer_id)
+    new_row = await orchestrator.get(new, customer_id)
+    # Customer-scoped 404: a missing OR not-owned sim returns None from
+    # orchestrator.get (it enforces the customer match). We 404 without saying
+    # which side failed, so a cross-customer probe can't enumerate ids.
+    for row in (old_row, new_row):
+        if row is None or row.get("status") not in _COMPARABLE_STATUSES:
+            raise HTTPException(
+                status_code=404,
+                detail="Both simulations must exist, be owned by you, and be completed.",
+            )
+
+    old_result = old_row.get("result_json") or {}
+    new_result = new_row.get("result_json") or {}
+
+    # ── Headline score movement ──
+    old_score = _row_confidence_score(old_row)
+    new_score = _row_confidence_score(new_row)
+    score_delta = (
+        new_score - old_score if old_score is not None and new_score is not None else None
+    )
+
+    # ── Weakness diff BY CATEGORY ──
+    old_counts = _weakness_counts_by_category(old_result)
+    new_counts = _weakness_counts_by_category(new_result)
+    diffs: list[WeaknessCategoryDiff] = []
+    appeared: list[str] = []
+    disappeared: list[str] = []
+    changed: list[str] = []
+    for category in sorted(set(old_counts) | set(new_counts)):
+        old_entry = old_counts.get(category)
+        new_entry = new_counts.get(category)
+        old_n = old_entry["agent_count"] if old_entry else 0
+        new_n = new_entry["agent_count"] if new_entry else 0
+        if old_entry is None and new_entry is not None:
+            change = "appeared"
+            appeared.append(category)
+        elif old_entry is not None and new_entry is None:
+            change = "disappeared"
+            disappeared.append(category)
+        elif old_n != new_n:
+            change = "changed"
+            changed.append(category)
+        else:
+            change = "unchanged"
+        diffs.append(
+            WeaknessCategoryDiff(
+                category=category,
+                change=change,
+                old_agent_count=old_n,
+                new_agent_count=new_n,
+                agent_count_delta=new_n - old_n,
+                old_frequency=old_entry["frequency"] if old_entry else None,
+                new_frequency=new_entry["frequency"] if new_entry else None,
+            )
+        )
+
+    # ── Refinement-suggestion deltas (set-diffed on the raw strings) ──
+    old_suggestions = list(old_result.get("refinement_suggestions") or [])
+    new_suggestions = list(new_result.get("refinement_suggestions") or [])
+    old_set = set(old_suggestions)
+    new_set = set(new_suggestions)
+    added = [s for s in new_suggestions if s not in old_set]
+    resolved = [s for s in old_suggestions if s not in new_set]
+
+    # ── Optional overall sentiment shift ──
+    old_pos = _positive_sentiment_share(old_result)
+    new_pos = _positive_sentiment_share(new_result)
+    sentiment_delta = (
+        new_pos - old_pos if old_pos is not None and new_pos is not None else None
+    )
+
+    return SimulationComparison(
+        old=_comparison_ref(old_row),
+        new=_comparison_ref(new_row),
+        old_confidence_score=old_score,
+        new_confidence_score=new_score,
+        confidence_score_delta=score_delta,
+        weakness_category_diffs=diffs,
+        weakness_categories_appeared=appeared,
+        weakness_categories_disappeared=disappeared,
+        weakness_categories_changed=changed,
+        old_refinement_suggestions=old_suggestions,
+        new_refinement_suggestions=new_suggestions,
+        refinement_suggestions_added=added,
+        refinement_suggestions_resolved=resolved,
+        old_sentiment_positive_share=old_pos,
+        new_sentiment_positive_share=new_pos,
+        sentiment_positive_share_delta=sentiment_delta,
+    )
+
+
+# Phase 8 #43: refinement-loop lineage. The chain is bounded on two axes so a
+# self-referential or accidentally-circular parent pointer (or a maliciously
+# crafted one) can never spin the request handler: a hard depth cap AND a
+# seen-set cycle guard. The cap is the customer-facing promise of how many
+# refinement iterations a single GET surfaces; deeper history is reachable by
+# fetching an ancestor directly.
+_LINEAGE_MAX_DEPTH = 10
+
+# Short prose prefix length for a timeline node label. Long enough to recognise
+# the hypothesis, short enough for a compact node; trimmed to a word boundary.
+_HYPOTHESIS_LABEL_CHARS = 80
+
+
+def _hypothesis_label(hypothesis_json: dict | None) -> str | None:
+    """Trim a hypothesis's prose to a short, word-boundary timeline label."""
+    if not hypothesis_json:
+        return None
+    prose = (hypothesis_json.get("prose") or "").strip()
+    if not prose:
+        return None
+    if len(prose) <= _HYPOTHESIS_LABEL_CHARS:
+        return prose
+    clipped = prose[:_HYPOTHESIS_LABEL_CHARS].rsplit(" ", 1)[0].rstrip()
+    return f"{clipped}…"
+
+
+def _row_confidence_score(row: dict) -> float | None:
+    """Pull the headline confidence_score off a persisted sim row, if scored."""
+    result = row.get("result_json") or {}
+    return result.get("confidence_score")
+
+
+async def _walk_lineage(
+    row: dict,
+    customer_id: str,
+    orchestrator: SimulationOrchestrator,
+) -> list[LineageEntry]:
+    """Walk a sim's `parent_simulation_id` chain upward into a lineage list.
+
+    Nearest-ancestor-first (the direct parent at index 0). Customer-scoped: an
+    ancestor not owned by / visible to the requesting customer terminates the
+    walk (orchestrator.get already enforces the customer match and returns None
+    for a foreign or missing row). Depth-capped at `_LINEAGE_MAX_DEPTH` and
+    cycle-safe via a seen-set so a circular parent pointer stops gracefully
+    instead of looping forever. The starting row itself is NOT included.
+    """
+    lineage: list[LineageEntry] = []
+    seen: set[str] = {row["id"]}
+    parent_id = row.get("parent_simulation_id")
+
+    while parent_id is not None and len(lineage) < _LINEAGE_MAX_DEPTH:
+        if parent_id in seen:
+            # Cycle: a sim points (directly or transitively) back at one we've
+            # already visited. Stop gracefully rather than looping forever.
+            break
+        seen.add(parent_id)
+        ancestor = await orchestrator.get(parent_id, customer_id)
+        if ancestor is None:
+            # Dangling pointer or an ancestor owned by another customer — the
+            # walk ends here, never leaking a foreign sim into the chain.
+            break
+        lineage.append(
+            LineageEntry(
+                id=ancestor["id"],
+                parent_simulation_id=ancestor.get("parent_simulation_id"),
+                status=(
+                    SimulationStatus(ancestor["status"])
+                    if ancestor.get("status")
+                    else SimulationStatus.PENDING
+                ),
+                confidence_score=_row_confidence_score(ancestor),
+                hypothesis_label=_hypothesis_label(ancestor.get("hypothesis_json")),
+            )
+        )
+        parent_id = ancestor.get("parent_simulation_id")
+
+    return lineage
+
+
 @router.get("/{simulation_id}", response_model=Simulation)
 async def get_simulation(
     simulation_id: str,
@@ -303,6 +561,10 @@ async def get_simulation(
     row = await orchestrator.get(simulation_id, customer_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"Simulation {simulation_id} not found")
+
+    # Phase 8 #43: walk the refinement-loop lineage upward (depth-capped,
+    # cycle-safe, customer-scoped). Empty for un-parented runs.
+    lineage = await _walk_lineage(row, customer_id, orchestrator)
 
     # Phase 4.6 #88: surface arm_split on GET so the frontend can branch
     # on "was this an A/B run" without inspecting result_json.
@@ -324,6 +586,9 @@ async def get_simulation(
         # default keeps the in-memory repo + any pre-migration dict resilient.
         setup_id=row.get("setup_id", "default"),
         hypothesis=row["hypothesis_json"],
+        # Phase 8 #43: refinement-loop lineage (parent pointer + walked chain).
+        parent_simulation_id=row.get("parent_simulation_id"),
+        lineage=lineage,
         population_size=row.get("population_size"),
         sampled_agent_count=row.get("sampled_agent_count"),
         run_seed=row.get("run_seed"),

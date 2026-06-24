@@ -68,6 +68,7 @@ class SimulationOrchestrator:
         selected_personas: list[str] | None = None,
         model_id: str | None = None,
         setup_id: str = DEFAULT_SETUP_ID,
+        parent_simulation_id: str | None = None,
         sample_size: int = 10,
         include_no_persona_control: bool = False,
         include_current_state_control: bool = False,
@@ -135,6 +136,11 @@ class SimulationOrchestrator:
             selected_personas=selected_personas,
             model_id=model_id,
             setup_id=setup_id,
+            # Phase 8 #43: link this run into a refinement-loop lineage. The
+            # column already exists (001_initial); the value is not validated for
+            # existence here — a dangling parent simply yields a single-element
+            # lineage when GET /simulations/{id} walks upward.
+            parent_simulation_id=parent_simulation_id,
         )
 
         async def run() -> None:

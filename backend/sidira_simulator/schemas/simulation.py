@@ -147,6 +147,23 @@ class SimulationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")  # reject the retired persona_sample_size
 
     hypothesis: Hypothesis
+    # Phase 8 #43: optional pointer to the simulation this run refines. When
+    # set, the new sim is linked into the lineage chain walked by
+    # GET /simulations/{id} so the result page can show "this is iteration N of
+    # a refinement loop". The column already exists (001_initial); the API just
+    # threads the value through. None = a fresh, un-parented run (today's
+    # behavior, backwards-compatible). Customer-scoped at GET time: an ancestor
+    # owned by another customer terminates the walk, never leaks.
+    parent_simulation_id: str | None = Field(
+        default=None,
+        description=(
+            "Phase 8 #43: id of the simulation this run refines. Links the new "
+            "sim into a refinement-loop lineage chain (run → refine → re-run). "
+            "None = a fresh run with no parent (today's behavior). Not validated "
+            "for existence at submit time — a dangling parent simply yields a "
+            "single-element lineage at GET time."
+        ),
+    )
     population_size: int = Field(default=1000, ge=1, le=10_000_000)
     # Bound to signed BIGINT range so over-large values fail at request validation
     # rather than as a Postgres INSERT error after the row is half-built. (codex P2)
@@ -641,6 +658,26 @@ class SimulationResult(BaseModel):
     metric_sentiment_disagreement_caveat: str | None = None
 
 
+class LineageEntry(BaseModel):
+    """One ancestor in a simulation's refinement-loop lineage (Phase 8 #43).
+
+    Compact projection used by the `lineage` chain on GET /simulations/{id}:
+    just enough for a frontend timeline to render each prior iteration as a
+    clickable node (id + status + headline score + a short hypothesis label)
+    without N follow-up fetches. The chain is ordered nearest-ancestor-first
+    (the run's direct parent at index 0), customer-scoped, depth-capped at 10,
+    and cycle-safe — see `_walk_lineage` in the simulations router.
+    """
+
+    id: str
+    parent_simulation_id: str | None = None
+    status: SimulationStatus
+    confidence_score: float | None = None
+    # Short prose prefix of the ancestor's hypothesis, trimmed for a timeline
+    # label. None for ancestors with no prose recorded.
+    hypothesis_label: str | None = None
+
+
 class Simulation(BaseModel):
     id: str
     customer_id: str
@@ -654,6 +691,13 @@ class Simulation(BaseModel):
     # frontend (PR3b) reads this to label which setup a run used.
     setup_id: str = DEFAULT_SETUP_ID
     hypothesis: Hypothesis
+    # Phase 8 #43: the parent this run refines (None for fresh runs), plus the
+    # ancestor chain walked upward from it. `lineage` is nearest-ancestor-first,
+    # depth-capped ≤10, cycle-safe, and customer-scoped (an ancestor owned by
+    # another customer terminates the walk). Empty for un-parented runs; built
+    # by the GET /simulations/{id} handler, not persisted.
+    parent_simulation_id: str | None = None
+    lineage: list[LineageEntry] = Field(default_factory=list)
     population_size: int | None = None
     sampled_agent_count: int | None = None
     run_seed: int | None = None
@@ -669,3 +713,81 @@ class Simulation(BaseModel):
     model_id: str | None = None
     agent_instance_ids: list[str] = Field(default_factory=list)
     result: SimulationResult | None = None
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Refinement-loop compare (Phase 8 #42)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class SimulationRef(BaseModel):
+    """One side of a comparison — the id + headline of a compared sim."""
+
+    id: str
+    status: SimulationStatus
+    confidence_score: float | None = None
+    hypothesis_label: str | None = None
+
+
+class WeaknessCategoryDiff(BaseModel):
+    """How one weakness CATEGORY moved between two runs (Phase 8 #42).
+
+    The unit of the diff is `Weakness.category` (the closed Literal enum), not a
+    free-text summary — so "the wrong_cohort weakness got fixed" is a stable,
+    machine-comparable signal. `agent_count` is the number of supporting agents
+    for that category in each run (summed across all weakness rows of the
+    category), letting the frontend show "12 agents flagged this, now 3".
+    `change` classifies the movement:
+
+    - "appeared":    present in new, absent in old
+    - "disappeared": present in old, absent in new (the refinement-loop win)
+    - "changed":     present in both, supporting-agent count differs
+    - "unchanged":   present in both, same supporting-agent count
+    """
+
+    category: str
+    change: Literal["appeared", "disappeared", "changed", "unchanged"]
+    old_agent_count: int = 0
+    new_agent_count: int = 0
+    agent_count_delta: int = 0
+    old_frequency: float | None = None
+    new_frequency: float | None = None
+
+
+class SimulationComparison(BaseModel):
+    """Structured old→new diff for the refinement loop (Phase 8 #42).
+
+    Returned by GET /simulations/compare?old=<id>&new=<id>. Both sims must be
+    owned by the requesting customer AND completed — otherwise 404. The diff is
+    purely DESCRIPTIVE (built from the two persisted results); it computes no new
+    score and re-runs nothing.
+    """
+
+    old: SimulationRef
+    new: SimulationRef
+
+    # Headline score movement.
+    old_confidence_score: float | None = None
+    new_confidence_score: float | None = None
+    confidence_score_delta: float | None = None
+
+    # Weakness diff BY CATEGORY (the load-bearing refinement signal).
+    weakness_category_diffs: list[WeaknessCategoryDiff] = Field(default_factory=list)
+    weakness_categories_appeared: list[str] = Field(default_factory=list)
+    weakness_categories_disappeared: list[str] = Field(default_factory=list)
+    weakness_categories_changed: list[str] = Field(default_factory=list)
+
+    # Refinement-suggestion deltas: surface both lists so the frontend can show
+    # "you were told to do X; did the new run still surface X?" Set-diffed on the
+    # raw suggestion strings.
+    old_refinement_suggestions: list[str] = Field(default_factory=list)
+    new_refinement_suggestions: list[str] = Field(default_factory=list)
+    refinement_suggestions_added: list[str] = Field(default_factory=list)
+    refinement_suggestions_resolved: list[str] = Field(default_factory=list)
+
+    # Optional overall sentiment shift, derived from per-agent analyses
+    # (AgentAnalysisSummary). None when either run has no per-agent analyses
+    # (e.g. a pre-#51 result_json). Positive = the new run skews more positive.
+    old_sentiment_positive_share: float | None = None
+    new_sentiment_positive_share: float | None = None
+    sentiment_positive_share_delta: float | None = None
