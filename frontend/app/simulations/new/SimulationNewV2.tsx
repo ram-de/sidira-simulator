@@ -8,6 +8,7 @@ import {
   DEFAULT_SETUP_ID,
   getActivePersonas,
   getCapabilities,
+  getSimulation,
   getSimulationLimits,
   listCrawlSetups,
   listSupportedModels,
@@ -21,6 +22,8 @@ import {
   type NeedsInputDetail,
   type PersonaSummary,
   type PreflightResponse,
+  type ReverseFigma,
+  type Simulation,
   type SimulationLimitsResponse,
   type SimulationRequest,
 } from "@/lib/api";
@@ -374,12 +377,42 @@ export default function SimulationNewV2() {
 
   // #44 refinement carry-through: the result page's "Try this" CTA opens this
   // wizard with ?parent=<sim id>&prose=<refinement text>. We read both ONCE on
-  // mount — the prose pre-fills the free-text claim (editable; never locked) and
-  // the parent id is threaded onto the create payload so the new run is LINKED
-  // to its parent (the Phase-8 lineage chain). Reading once (not on every
+  // mount — the parent id is threaded onto the create payload so the new run is
+  // LINKED to its parent (the Phase-8 lineage chain). Reading once (not on every
   // searchParams change) means the PM's later edits are never clobbered.
   const parentSimulationId = useRef<string | null>(null);
   const consumedPrefill = useRef(false);
+
+  // refinement-inherit (follow-up to #44): the refined claim text from ?prose
+  // REPLACES the parent's claim; everything else (OEC metric + its fields,
+  // proposed_figma, proposed_prd, capability, crawl setup_id) is INHERITED from
+  // the parent's full hypothesis so a refinement of an answerable run stays
+  // answerable instead of dead-ending at the #309 gate. We fetch the parent via
+  // getSimulation(parentId) once; the inherited fields flow into BOTH visible
+  // wizard state AND the submitted request. Each inherited field is guarded by
+  // its own one-time ref so the prefill never clobbers the PM's later edits and
+  // so the capability/setup seeds can wait for their async option lists.
+  const consumedRefinementProse = useRef(false);
+  const appliedInheritedCapability = useRef(false);
+  const appliedInheritedSetup = useRef(false);
+  // The fetched parent simulation, held in STATE (not a ref) so the apply
+  // effects + the live preflight + render all re-run when it resolves. A ref
+  // would silently misfire when getSimulation(parent) resolves AFTER the
+  // setup/capability rosters load (codex P2 #1/#3). null = not a refinement, or
+  // the fetch hasn't resolved / failed → every derivation below is byte-
+  // identical to a non-refinement create.
+  const [inheritedParent, setInheritedParent] = useState<Simulation | null>(
+    null,
+  );
+  // proposed_figma has no authoring path in the wizard (#183); a refinement
+  // inherits the parent's figma DERIVED FROM STATE so both the advisory preflight
+  // and the real createSimulation body react once the parent loads.
+  const inheritedFigma: ReverseFigma | null =
+    inheritedParent?.hypothesis?.proposed_figma ?? null;
+  // True for the life of the wizard when opened from a refinement CTA. Drives
+  // the answerability fallback: a refinement must ALWAYS be runnable on Begin
+  // reading, so a non-answerable refinement submits with run_as_generic_reception.
+  const [isRefinement, setIsRefinement] = useState(false);
 
   const [manifest, setManifest] = useState<FeaturePackManifest | null>(null);
   const [loadingCaps, setLoadingCaps] = useState(true);
@@ -421,25 +454,130 @@ export default function SimulationNewV2() {
     useState<ClaimDirection>("increases");
   const [hypothesis, setHypothesis] = useState<string>("");
 
-  // #44: consume the ?parent / ?prose carry-through ONCE. A refinement is free
-  // prose (it doesn't fit the structured change/cohort/metric template), so we
-  // drop into free-text mode and seed the textarea with the suggestion. The PM
-  // edits it like any other claim before begin-reading; the parent id rides the
-  // create payload. Guarded by a ref so a re-render never re-applies the seed
-  // over the user's edits.
+  // refinement carry-through: consume the ?parent / ?prose carry ONCE on mount.
+  // The refined prose seeds the free-text claim (editable; never locked). When a
+  // parent id is present we ALSO fetch the parent sim and inherit its full
+  // structured hypothesis (metric/figma/prd/capability/setup) so a refinement of
+  // an answerable run stays answerable. Reading once (not on every searchParams
+  // change) plus the per-field guards below means the PM's later edits are never
+  // clobbered. The parent fetch is fully defensive — a 404/owned-by-no-one/
+  // network failure falls back to today's prose-only prefill and never crashes.
   useEffect(() => {
     if (consumedPrefill.current) return;
     consumedPrefill.current = true;
     const parent = searchParams?.get("parent");
     const prose = searchParams?.get("prose");
-    if (parent) parentSimulationId.current = parent;
+    if (parent) {
+      parentSimulationId.current = parent;
+      setIsRefinement(true);
+    }
     if (prose && prose.trim()) {
+      consumedRefinementProse.current = true;
       setClaimMode("freetext");
       setHypothesis(prose);
     }
+    if (!parent) return;
+
+    // Fetch the parent and store it in STATE. The structured fields are applied
+    // by the dirty-guarded effects below (keyed on inheritedParent + their
+    // roster), so whichever resolves last triggers the apply — no ref race.
+    let cancelled = false;
+    (async () => {
+      try {
+        const sim = await getSimulation(parent);
+        if (!cancelled) setInheritedParent(sim);
+      } catch {
+        // Defensive: a failed parent fetch leaves the wizard in today's
+        // prose-only behavior. The parent id still rides the create payload so
+        // the lineage link survives; the run is just authored from scratch.
+        if (!cancelled) setInheritedParent(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // searchParams is stable for the life of the route; read once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Apply the parent's proposed_prd + OEC metric once the parent resolves.
+  // Dirty-guarded (codex P2 #2): a slow fetch must NOT clobber a PM who already
+  // started editing — apply the inherited prd only if the well is still empty,
+  // and the metric only if it's still unset. The wizard's metric picker only
+  // represents conversion/retention/ctr; the backend's fourth value ("visit")
+  // and null have no picker → leave the metric unset (the answerability fallback
+  // keeps the run unblocked). Keyed on inheritedParent so it fires whenever the
+  // parent arrives (before OR after the user lands on the page).
+  const appliedInheritedFields = useRef(false);
+  useEffect(() => {
+    if (appliedInheritedFields.current) return;
+    if (!inheritedParent) return;
+    appliedInheritedFields.current = true;
+    const hyp = inheritedParent.hypothesis;
+    // proposed_prd → stimulus well, only if the user hasn't authored one.
+    if (hyp.proposed_prd && hyp.proposed_prd.trim() && !proposedPrd.trim()) {
+      setShowAdvanced(true);
+      setProposedPrd(hyp.proposed_prd);
+    }
+    // OEC metric + template fields, only if the metric is still at its default.
+    if (
+      metricName == null &&
+      (hyp.metric_name === "conversion" ||
+        hyp.metric_name === "retention" ||
+        hyp.metric_name === "ctr")
+    ) {
+      setMetricName(hyp.metric_name);
+      if (hyp.conversion_action) setConversionAction(hyp.conversion_action);
+      if (hyp.conversion_action_label)
+        setConversionActionLabel(hyp.conversion_action_label);
+      if (hyp.decision_point) setDecisionPoint(hyp.decision_point);
+      if (hyp.choice_set && hyp.choice_set.length > 0)
+        setChoiceSetText(hyp.choice_set.join("\n"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent]);
+
+  // Fallback claim: if the CTA carried no refined ?prose, seed the textarea with
+  // the parent's own claim so the wizard isn't blank. Dirty-guarded — only if
+  // the claim is STILL empty (a PM who started typing during the fetch is never
+  // overwritten). A consumed ?prose already seeded the claim synchronously on
+  // mount, so this is skipped in that (common) case.
+  const appliedFallbackClaim = useRef(false);
+  useEffect(() => {
+    if (appliedFallbackClaim.current) return;
+    if (!inheritedParent) return;
+    if (consumedRefinementProse.current) return;
+    appliedFallbackClaim.current = true;
+    const prose = inheritedParent.hypothesis.prose;
+    if (prose && prose.trim() && !hypothesis.trim()) {
+      setClaimMode("freetext");
+      setHypothesis(prose);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent]);
+
+  // Inherit the parent's crawl setup once BOTH the parent and the roster have
+  // loaded — only when the setup actually exists in this org's roster (else keep
+  // the default anchor). Depends on inheritedParent AND setups so whichever
+  // resolves last triggers it (codex P2 #1: a ref-only effect missed the parent
+  // when listCrawlSetups resolved first, silently running against DEFAULT).
+  // Guarded so a later manual setup switch is never overwritten.
+  useEffect(() => {
+    if (appliedInheritedSetup.current) return;
+    const want = inheritedParent?.setup_id;
+    if (!want || want === DEFAULT_SETUP_ID) return;
+    if (setups.length === 0) return;
+    appliedInheritedSetup.current = true;
+    if (setups.some((s) => s.setup_id === want)) {
+      // Re-arm the capability inherit so it re-applies against the parent
+      // setup's freshly-loaded pack (the setupId-change reloads capabilities and
+      // resets the selection to caps[0]); without this the inherited capability
+      // would be lost on a multi-setup refinement.
+      appliedInheritedCapability.current = false;
+      setSetupId(want);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent, setups]);
 
   // The prose actually submitted: composed from the structured fields, or the
   // free-text box verbatim. Derived so the preflight lint + manifest + submit
@@ -759,6 +897,23 @@ export default function SimulationNewV2() {
 
   const capabilities = manifest?.capabilities ?? [];
   const hasCapabilities = capabilities.length > 0;
+
+  // Inherit the parent's capability once BOTH the parent and the feature pack
+  // have loaded — a capability can only be selected if it exists in THIS setup's
+  // pack. Depends on inheritedParent AND capabilities so whichever resolves last
+  // triggers it (a ref-only version misfired when getSimulation resolved after
+  // the pack). Guarded so a later manual change is never overwritten; if the
+  // parent's capability isn't in the pack (e.g. setup changed) we keep the
+  // default selection. Placed here (after `capabilities` is derived).
+  useEffect(() => {
+    if (appliedInheritedCapability.current) return;
+    const want = inheritedParent?.hypothesis?.capability_name;
+    if (!want) return;
+    if (capabilities.length === 0) return;
+    appliedInheritedCapability.current = true;
+    if (capabilities.includes(want)) setCapability(want);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inheritedParent, capabilities]);
   // #215/#245 PR 3b: the setup picker only appears when the org actually has
   // more than one crawl setup. A default-only org sees no new control.
   const hasMultipleSetups = setups.length > 1;
@@ -835,7 +990,12 @@ export default function SimulationNewV2() {
       prose,
       proposed_prd:
         showAdvanced && proposedPrd.trim() ? proposedPrd.trim() : null,
-      proposed_figma: null,
+      // The wizard has no figma authoring path (#183), but a refinement inherits
+      // the parent's proposed_figma so a figma-bearing parent stays answerable —
+      // thread it into the payload (null for a normal, non-refinement create).
+      // Derived from inheritedParent STATE, so the live preflight (which reads
+      // buildHypothesis) recomputes once the parent loads, not just the POST.
+      proposed_figma: inheritedFigma,
       ...metricFields,
     };
   }
@@ -853,6 +1013,10 @@ export default function SimulationNewV2() {
   const preflightConvAction = conversionAction.trim();
   const preflightConvLabel = conversionActionLabel.trim();
   const preflightChoice = choiceSetText;
+  // codex P2 #3: buildHypothesis now reads the inherited figma, so the advisory
+  // preflight must re-fire when it arrives. A boolean presence flag is enough —
+  // the structural answerability check only cares whether a design is attached.
+  const preflightHasFigma = inheritedFigma != null;
   useEffect(() => {
     const hyp = buildHypothesis();
     if (!hyp) {
@@ -894,6 +1058,7 @@ export default function SimulationNewV2() {
     preflightChoice,
     showAdvanced,
     proposedPrd,
+    preflightHasFigma,
   ]);
 
   // #313 / T4: build the create payload once, shared by the normal submit and
@@ -1054,6 +1219,21 @@ export default function SimulationNewV2() {
       if (e instanceof ApiError) {
         const detail = e.body ? parseNeedsInput(e.body) : null;
         if (detail) {
+          // refinement guarantee: a refinement must NEVER hard-block. If the
+          // #309 gate fires on a refinement run that wasn't already overridden,
+          // auto-resubmit ONCE with the generic-reception override so Begin
+          // reading always runs (the client-side answerability proxy may miss
+          // an edge the backend gate catches). This is refinement-only — a
+          // normal create still surfaces the inline guidance + explicit "run
+          // anyway" affordance unchanged.
+          if (
+            isRefinement &&
+            detail.allow_override &&
+            req.run_as_generic_reception !== true
+          ) {
+            await submitRequest({ ...req, run_as_generic_reception: true });
+            return;
+          }
           // The deploy-unblocker: surface the named reasons + fixes inline as
           // authoring guidance, NOT a dead-end. The override affordance (when
           // allow_override) lets the user resubmit as generic reception.
@@ -1073,13 +1253,32 @@ export default function SimulationNewV2() {
     }
   }
 
+  // refinement answerability fallback: a refinement must ALWAYS be runnable on
+  // Begin reading (never hard-block at the #309 gate). The inherited structured
+  // context makes an answerable parent answerable; but if the current hypothesis
+  // carries no representable OEC, no inherited figma, and no proposed_prd (e.g.
+  // the parent ran sentiment-only, or the OEC was the unrepresentable "visit"),
+  // we submit with run_as_generic_reception so the gate doesn't 422. Mirrors the
+  // backend's answerability check client-side. Non-refinement creates are
+  // unaffected (this is false for them, preserving the explicit-override path).
+  // The PM can still upgrade a sentiment-only refinement by adding an OEC — once
+  // a metric is declared this returns false and the run is calibrated, not
+  // generic.
+  function refinementNeedsGenericOverride(): boolean {
+    if (!isRefinement) return false;
+    const hasOec = effectiveMetric != null;
+    const hasFigma = inheritedFigma != null;
+    const hasPrd = showAdvanced && proposedPrd.trim().length > 0;
+    return !hasOec && !hasFigma && !hasPrd;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitError(null);
     setValidationError(null);
     setNeedsInput(null);
 
-    const req = buildRequest(false);
+    const req = buildRequest(refinementNeedsGenericOverride());
     if (!req) return;
     await submitRequest(req);
   }
