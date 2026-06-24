@@ -39,6 +39,7 @@ import {
   isTerminalStatus,
   listSimulationAgents,
   type Hypothesis,
+  type LineageEntry,
   type RunEvent,
   type Simulation,
   type EvidenceEdge,
@@ -602,6 +603,42 @@ const RCONSOLE_CSS = `
   border-top:1px solid var(--console-line);}
 .rconsole .refrow:first-of-type{border-top:none;}
 .rconsole .refrow .txt{font-size:14px; color:var(--text); line-height:1.5;}
+
+/* refinement history timeline (#46) — vertical ancestor→current chain. A node
+   per iteration; the rail is the §8.8 hairline, never a decorative spine. Each
+   node links to its sim; each adjacent pair links to the compare view. */
+.rconsole .timeline{position:relative; margin-top:4px;}
+.rconsole .tlnode{position:relative; padding:0 0 0 26px;}
+.rconsole .tlnode .dot{position:absolute; left:4px; top:6px; width:9px; height:9px;
+  border-radius:9999px; background:var(--text); box-shadow:0 0 0 3px var(--console-800);}
+.rconsole .tlnode .dot.open{background:transparent; border:1px solid var(--text-mut);}
+.rconsole .tlnode .dot.alert{background:var(--alert);}
+.rconsole .tlnode .dot.current{background:var(--signal-dim);}
+/* the connecting rail runs from a node's dot down to the next node's dot */
+.rconsole .tlnode .stem{position:absolute; left:8px; top:15px; bottom:-13px;
+  width:1px; background:var(--console-line);}
+.rconsole .tlnode:last-child .stem{display:none;}
+.rconsole .tlrow{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  width:100%; text-align:left; background:transparent; border:none; padding:9px 0;
+  cursor:pointer; color:inherit; min-width:0;}
+.rconsole .tlrow.static{cursor:default;}
+.rconsole .tlrow .tllab{font-size:14px; color:var(--text-hi); line-height:1.4;
+  flex:1 1 auto; min-width:0;}
+.rconsole .tlrow.current .tllab{font-weight:600;}
+.rconsole button.tlrow:hover .tllab{text-decoration:underline;
+  text-decoration-color:var(--console-line);}
+.rconsole .tlrow .tlscore{font-size:13px; color:var(--text-mut); flex:0 0 auto;
+  font-family:var(--font-mono);}
+.rconsole .tlrow .tlself{font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--signal-dim); border:1px solid var(--console-line);
+  border-radius:var(--r-well); padding:2px 7px; flex:0 0 auto;}
+.rconsole .tldiff{padding:2px 0 8px 0;}
+.rconsole .tldiff .difflink{font-size:10px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-mut); border:1px solid var(--console-line);
+  border-radius:var(--r-well); padding:3px 8px; display:inline-block;}
+.rconsole .tldiff .difflink:hover{color:var(--text-hi); border-color:var(--text-mut);}
+.rconsole .tlfoot{font-size:11px; color:var(--text-mut); line-height:1.6;
+  margin-top:12px; max-width:74ch;}
 
 /* run log */
 .rconsole .runlog{list-style:none; padding:12px; margin:0;
@@ -1384,6 +1421,13 @@ export default function SimulationDetailV2() {
   // Parse the composed prose into labeled blocks for legible display (null when
   // it doesn't match the canonical shape → caller falls back to raw prose).
   const claim = parseClaim(hypothesis.prose);
+  // #46: the current sim's label for the bottom node of the refinement timeline.
+  // The lineage entries carry a backend `hypothesis_label`; for the current run
+  // we mirror that shape from its own prose (trimmed to a one-line label).
+  const currentNodeLabel = (() => {
+    const prose = hypothesis.prose.trim();
+    return prose.length > 120 ? `${prose.slice(0, 117)}…` : prose;
+  })();
   const treatFrac = sim.arm_split?.treatment_fraction ?? null;
   const isAB = treatFrac != null;
 
@@ -1788,6 +1832,22 @@ export default function SimulationDetailV2() {
               </div>
             </section>
 
+            {/* Refinement history timeline (#46) — only when this run has a
+                lineage (i.e. it was created from a parent). Linear chain only;
+                branching awaits a backend descendants endpoint. */}
+            {(sim.lineage ?? []).length > 0 && (
+              <RefinementTimeline
+                lineage={sim.lineage ?? []}
+                current={{
+                  id: sim.id,
+                  label: currentNodeLabel,
+                  score: completeResult?.confidence_score ?? null,
+                  status,
+                  isCurrent: true,
+                }}
+              />
+            )}
+
             {/* Failure card */}
             {status === "failed" && (
               <section className="panel panel-pad alert" role="alert">
@@ -1906,6 +1966,7 @@ export default function SimulationDetailV2() {
               completeResult.refinement_suggestions.length > 0 && (
                 <RefinementQueue
                   suggestions={completeResult.refinement_suggestions}
+                  parentId={sim.id}
                 />
               )}
 
@@ -2790,10 +2851,132 @@ function EvidenceRegister({
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Refinement queue — opens a fresh hypothesis (no prefill contract).
-// Logic byte-identical to legacy RefinementQueue.
+// Refinement history timeline (#46) — the LINEAR ancestor→current iteration
+// chain as a vertical timeline. ROOT at top → … → current sim at bottom.
+//
+// `sim.lineage` is NEAREST-ANCESTOR-FIRST (lineage[0] = immediate parent, last =
+// root), so we REVERSE it for display (root first) and append the current sim as
+// the final node. Each node links to that sim; each adjacent (parent→child) pair
+// links to the compare view.
+//
+// SCOPING (#46): the backend lineage walks ANCESTORS only — it does not return
+// descendants or siblings, so true BRANCHING (two children diverging from one
+// parent) is NOT renderable yet. This is deliberately a single linear spine.
+// Branching awaits a backend "descendants" endpoint (orchestrator follow-up).
 // ───────────────────────────────────────────────────────────────────────────
-function RefinementQueue({ suggestions }: { suggestions: string[] }) {
+type TimelineNode = {
+  id: string;
+  label: string;
+  score: number | null;
+  status: SimulationStatus;
+  isCurrent: boolean;
+};
+
+function scoreLabel(score: number | null): string {
+  return score == null ? "—.—" : score.toFixed(1);
+}
+
+function RefinementTimeline({
+  lineage,
+  current,
+}: {
+  lineage: LineageEntry[];
+  current: TimelineNode;
+}) {
+  // Reverse the nearest-first lineage so the ROOT renders at the top, then the
+  // current sim closes the chain at the bottom.
+  const ancestorsRootFirst: TimelineNode[] = [...lineage]
+    .reverse()
+    .map((e) => ({
+      id: e.id,
+      label: e.hypothesis_label,
+      score: e.confidence_score,
+      status: e.status,
+      isCurrent: false,
+    }));
+  const nodes: TimelineNode[] = [...ancestorsRootFirst, current];
+
+  return (
+    <section className="panel panel-pad">
+      <h2 className="sechead tight">REFINEMENT HISTORY</h2>
+      <p className="bodytext" style={{ fontSize: 12.5, margin: "0 0 16px" }}>
+        This reading&rsquo;s iteration chain — root hypothesis at the top, this
+        run at the bottom. Open any iteration, or diff an adjacent pair.
+      </p>
+      <div className="timeline">
+        {nodes.map((node, i) => {
+          const dotClass = node.isCurrent
+            ? "dot current"
+            : node.status === "failed"
+              ? "dot alert"
+              : node.status === "complete"
+                ? "dot"
+                : "dot open";
+          // The parent→child compare link sits UNDER each non-root node, diffing
+          // it against the node above it (its immediate parent in the chain).
+          const parent = i > 0 ? nodes[i - 1] : null;
+          return (
+            <div className="tlnode" key={node.id}>
+              <span className={dotClass} aria-hidden="true" />
+              <span className="stem" aria-hidden="true" />
+              {node.isCurrent ? (
+                <div className="tlrow current static">
+                  <span className="tllab">{node.label}</span>
+                  <span className="tlscore">{scoreLabel(node.score)}</span>
+                  <span className="tlself">THIS RUN</span>
+                </div>
+              ) : (
+                <Link
+                  href={`/simulations/${node.id}`}
+                  className="tlrow"
+                >
+                  <span className="tllab">{node.label}</span>
+                  <span className="tlscore">{scoreLabel(node.score)}</span>
+                </Link>
+              )}
+              {parent != null && (
+                <div className="tldiff">
+                  <Link
+                    href={`/simulations/compare/${parent.id}/${node.id}`}
+                    className="difflink"
+                  >
+                    DIFF {parent.id.slice(0, 4).toUpperCase()} →{" "}
+                    {node.id.slice(0, 4).toUpperCase()}
+                  </Link>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="tlfoot">
+        Linear ancestor chain only — sibling branches (two refinements of one
+        run) are not shown yet.
+      </p>
+    </section>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Refinement queue (#44) — each suggestion opens the wizard with the refinement
+// prose pre-filled (free-text mode) AND parent_simulation_id carried through, so
+// the next run is created LINKED to this one (the Phase-8 lineage chain). The PM
+// can still EDIT the pre-fill before submitting — the wizard reads these as the
+// INITIAL value of an editable field, never a locked payload. The carry-through
+// is via query params (?parent=<id>&prose=<refinement text>); SimulationNewV2
+// reads them once on mount (see the prefill block there).
+// ───────────────────────────────────────────────────────────────────────────
+function RefinementQueue({
+  suggestions,
+  parentId,
+}: {
+  suggestions: string[];
+  parentId: string;
+}) {
+  const tryHref = (suggestion: string) =>
+    `/simulations/new?parent=${encodeURIComponent(parentId)}&prose=${encodeURIComponent(
+      suggestion,
+    )}`;
   return (
     <section className="panel panel-pad">
       <h2 className="sechead tight">REFINEMENT QUEUE</h2>
@@ -2801,14 +2984,15 @@ function RefinementQueue({ suggestions }: { suggestions: string[] }) {
         className="bodytext"
         style={{ fontSize: 12.5, margin: "0 0 14px" }}
       >
-        Queueing opens a fresh hypothesis in the wizard — suggestions are not
-        prefilled. Copy the wording you want to keep.
+        Trying a refinement opens a fresh hypothesis in the wizard with this
+        wording pre-filled and linked to this run as its parent. Edit the prose
+        before you begin reading — nothing is locked.
       </p>
       {suggestions.map((s, i) => (
         <div className="refrow" key={i}>
           <div className="txt">{s}</div>
-          <Link href="/simulations/new" className="chiplink">
-            QUEUE AS HYPOTHESIS →
+          <Link href={tryHref(s)} className="chiplink">
+            TRY THIS →
           </Link>
         </div>
       ))}

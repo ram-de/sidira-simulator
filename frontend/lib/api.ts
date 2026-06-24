@@ -154,10 +154,81 @@ export type Hypothesis = components["schemas"]["Hypothesis"];
 // bare generated type once api-types.ts is regenerated.
 export type Simulation = components["schemas"]["Simulation"] & {
   setup_id?: string;
+  // Phase 8 refinement loop (#479, merged to main). The backend Simulation read
+  // now carries its iteration lineage. `api-types.ts` predates these fields
+  // (the generated file is refreshed via `npm run gen-types` against a running
+  // backend); hand-augmented here, same stale-generated caveat as setup_id
+  // above. `lineage` is NEAREST-ANCESTOR-FIRST (lineage[0] = immediate parent,
+  // last = root), empty for un-parented runs, depth-capped at 10, cycle-safe,
+  // customer-scoped. Collapse to the bare generated types once regenerated.
+  parent_simulation_id?: string | null;
+  lineage?: LineageEntry[];
 };
 export type SimulationRequest = components["schemas"]["SimulationRequest"] & {
   setup_id?: string;
+  // Phase 8 (#479): create a run LINKED to a parent so the lineage walk can
+  // reconstruct the iteration chain. Optional — omitting it keeps the payload
+  // byte-identical to a pre-#479 create.
+  parent_simulation_id?: string | null;
 };
+
+// ── Phase 8 refinement loop types (#479) ────────────────────────────────────
+// Hand-authored mirrors of the backend response shapes (lineage + compare).
+// These are NOT yet in the generated api-types.ts; keep them in lockstep with
+// backend/sidira_simulator/schemas until `gen-types` is rerun against a live
+// backend, at which point they collapse to components["schemas"][…].
+
+export type WeaknessCategory = Weakness["category"];
+
+export interface LineageEntry {
+  id: string;
+  parent_simulation_id: string | null;
+  status: SimulationStatus;
+  confidence_score: number | null;
+  hypothesis_label: string;
+}
+
+export interface SimulationRef {
+  id: string;
+  status: SimulationStatus;
+  confidence_score: number | null;
+  hypothesis_label: string;
+}
+
+export type WeaknessChange =
+  | "appeared"
+  | "disappeared"
+  | "changed"
+  | "unchanged";
+
+export interface WeaknessCategoryDiff {
+  category: WeaknessCategory;
+  change: WeaknessChange;
+  old_agent_count: number;
+  new_agent_count: number;
+  agent_count_delta: number;
+  old_frequency: number;
+  new_frequency: number;
+}
+
+export interface SimulationComparison {
+  old: SimulationRef;
+  new: SimulationRef;
+  old_confidence_score: number | null;
+  new_confidence_score: number | null;
+  confidence_score_delta: number | null;
+  weakness_category_diffs: WeaknessCategoryDiff[];
+  weakness_categories_appeared: string[];
+  weakness_categories_disappeared: string[];
+  weakness_categories_changed: string[];
+  old_refinement_suggestions: string[];
+  new_refinement_suggestions: string[];
+  refinement_suggestions_added: string[];
+  refinement_suggestions_resolved: string[];
+  old_sentiment_positive_share: number | null;
+  new_sentiment_positive_share: number | null;
+  sentiment_positive_share_delta: number | null;
+}
 export type SimulationResult = components["schemas"]["SimulationResult"];
 export type InputFlags = components["schemas"]["InputFlags"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
@@ -568,6 +639,14 @@ export const listSimulations = (limit = 50) =>
 
 export const getSimulation = (id: string) =>
   apiGet<Simulation>(`/simulations/${id}`);
+
+// Phase 8 (#479): side-by-side diff of two COMPLETE, owned simulations. 404s
+// if either is missing, not-owned, or not yet complete — the caller renders a
+// clean empty/error state for that.
+export const compareSimulations = (oldId: string, newId: string) =>
+  apiGet<SimulationComparison>(
+    `/simulations/compare?old=${encodeURIComponent(oldId)}&new=${encodeURIComponent(newId)}`,
+  );
 
 export const getSimulationState = (id: string) =>
   apiGet<SimulationRunState>(`/simulations/${id}/state`);

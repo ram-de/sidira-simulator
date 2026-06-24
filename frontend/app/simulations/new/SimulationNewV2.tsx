@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ApiError,
   createSimulation,
@@ -370,6 +370,16 @@ function deriveCompleteness(args: {
 
 export default function SimulationNewV2() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // #44 refinement carry-through: the result page's "Try this" CTA opens this
+  // wizard with ?parent=<sim id>&prose=<refinement text>. We read both ONCE on
+  // mount — the prose pre-fills the free-text claim (editable; never locked) and
+  // the parent id is threaded onto the create payload so the new run is LINKED
+  // to its parent (the Phase-8 lineage chain). Reading once (not on every
+  // searchParams change) means the PM's later edits are never clobbered.
+  const parentSimulationId = useRef<string | null>(null);
+  const consumedPrefill = useRef(false);
 
   const [manifest, setManifest] = useState<FeaturePackManifest | null>(null);
   const [loadingCaps, setLoadingCaps] = useState(true);
@@ -410,6 +420,27 @@ export default function SimulationNewV2() {
   const [claimDirection, setClaimDirection] =
     useState<ClaimDirection>("increases");
   const [hypothesis, setHypothesis] = useState<string>("");
+
+  // #44: consume the ?parent / ?prose carry-through ONCE. A refinement is free
+  // prose (it doesn't fit the structured change/cohort/metric template), so we
+  // drop into free-text mode and seed the textarea with the suggestion. The PM
+  // edits it like any other claim before begin-reading; the parent id rides the
+  // create payload. Guarded by a ref so a re-render never re-applies the seed
+  // over the user's edits.
+  useEffect(() => {
+    if (consumedPrefill.current) return;
+    consumedPrefill.current = true;
+    const parent = searchParams?.get("parent");
+    const prose = searchParams?.get("prose");
+    if (parent) parentSimulationId.current = parent;
+    if (prose && prose.trim()) {
+      setClaimMode("freetext");
+      setHypothesis(prose);
+    }
+    // searchParams is stable for the life of the route; read once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // The prose actually submitted: composed from the structured fields, or the
   // free-text box verbatim. Derived so the preflight lint + manifest + submit
   // all read one source of truth.
@@ -994,6 +1025,12 @@ export default function SimulationNewV2() {
       // pre-#215 request (the backend defaults setup_id to "default").
       ...(setupId && setupId !== DEFAULT_SETUP_ID
         ? { setup_id: setupId }
+        : {}),
+      // #44: link the new run to its parent when the wizard was opened from a
+      // refinement "Try this" CTA. Omitted otherwise, so a normal create is
+      // byte-identical to a pre-#479 request.
+      ...(parentSimulationId.current
+        ? { parent_simulation_id: parentSimulationId.current }
         : {}),
       // #313 / T4: the epic #309 T1 override. Only set when the user took the
       // explicit "run anyway as generic reception" affordance; otherwise the
