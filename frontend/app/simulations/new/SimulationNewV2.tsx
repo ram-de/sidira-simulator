@@ -396,6 +396,12 @@ export default function SimulationNewV2() {
   const appliedInheritedCapability = useRef(false);
   const appliedInheritedSetup = useRef(false);
   const appliedInheritedArmMode = useRef(false);
+  // User-intent guard for the A/B inherit (codex P2 #3): a late parent fetch
+  // must NOT clobber a deliberate single-arm (or A/B) choice the PM already made
+  // on the toggle. The applied-once ref alone can't see that — the inherit
+  // effect early-returns when this is set. Flipped true inside the toggle's
+  // onToggle handler, the moment the user touches the control.
+  const userToggledArmMode = useRef(false);
   // The fetched parent simulation, held in STATE (not a ref) so the apply
   // effects + the live preflight + render all re-run when it resolves. A ref
   // would silently misfire when getSimulation(parent) resolves AFTER the
@@ -549,6 +555,9 @@ export default function SimulationNewV2() {
   // inheritedParent so it fires whenever the parent arrives.
   useEffect(() => {
     if (appliedInheritedArmMode.current) return;
+    // User-intent guard (codex P2 #3): a deliberate toggle interaction wins over
+    // a late-resolving parent fetch — never override a mode the PM chose.
+    if (userToggledArmMode.current) return;
     if (!inheritedParent) return;
     appliedInheritedArmMode.current = true;
     if (inheritedParent.arm_split != null) {
@@ -1868,6 +1877,9 @@ export default function SimulationNewV2() {
               <ABModeSection
                 enabled={abMode}
                 onToggle={(next) => {
+                  // codex P2 #3: mark the toggle user-touched so a late parent
+                  // fetch can't clobber this deliberate choice.
+                  userToggledArmMode.current = true;
                   setAbMode(next);
                   // Clear stale acknowledgement when the user flips the toggle.
                   // #313 / T4: the metric picker is NO LONGER A/B-only — a
@@ -2681,10 +2693,10 @@ function ClaimLintNotes({
 }: {
   preflight: PreflightResponse | null;
   stale: boolean;
-  // #482 follow-up: a refinement is NEVER hard-blocked at the answerability
-  // gate — Begin reading runs it sentiment-only (run_as_generic_reception). So
-  // for a refinement the needs_input verdict is ADVISORY, not a wall: reframe
-  // the header + body to "will read as generic reception" and keep the OEC/figma
+  // #482 follow-up: a refinement that the gate WILL let through is never hard-
+  // blocked — Begin reading runs it sentiment-only (run_as_generic_reception).
+  // For that case the needs_input verdict is ADVISORY, not a wall: reframe the
+  // header + body to "will read as generic reception" and keep the OEC/figma
   // guidance as an optional upgrade. Non-refinement authoring (the path that
   // genuinely 422s) is unchanged.
   isRefinement: boolean;
@@ -2697,11 +2709,17 @@ function ClaimLintNotes({
   const hasAnswerability = preflight.reasons.length > 0;
   const hasFraming = preflight.leading_framing_reasons.length > 0;
 
-  // A refinement reframes ONLY the needs_input (OEC/figma gap) state — the run
-  // isn't blocked, it just reads sentiment-only. out_of_scope / advisory are
-  // unchanged (out_of_scope still routes through the same generic-reception
-  // override, but its headline isn't the misleading "needs a detail" wall).
-  const refinementAdvisory = isRefinement && preflight.state === "needs_input";
+  // A refinement reframes the needs_input (OEC/figma gap) state to advisory ONLY
+  // when the gate will actually let it through. codex P2 #2: the preflight
+  // verdict exposes `allow_override` (lib/api.ts PreflightResponse) — the same
+  // bit the backend uses to decide whether run_as_generic_reception is honored.
+  // Gate strictly on it: a non-overridable refinement block (e.g. out_of_scope,
+  // a structural requirement that still 422s for a refinement) keeps the honest
+  // hard framing rather than the misleading "will read" copy.
+  const refinementAdvisory =
+    isRefinement &&
+    preflight.state === "needs_input" &&
+    preflight.allow_override === true;
 
   const header = refinementAdvisory
     ? "will read as generic reception (sentiment only)"
@@ -2766,25 +2784,30 @@ function NeedsInputNote({
 }: {
   detail: NeedsInputDetail;
   submitting: boolean;
-  // #482 follow-up: a refinement is never hard-blocked — Begin reading already
-  // runs it sentiment-only. So reframe this 422 surface from a wall ("one detail
-  // needed before this can be read") to advisory ("will read as generic
-  // reception"). Non-refinement authoring (which genuinely 422s) is unchanged.
+  // #482 follow-up: a refinement that the gate WILL let through (allow_override)
+  // is never hard-blocked — Begin reading already runs it sentiment-only. So
+  // reframe this 422 surface from a wall ("one detail needed before this can be
+  // read") to advisory ("will read as generic reception"). codex P2 #1: gate
+  // strictly on `detail.allow_override === true`. A non-overridable refinement
+  // block (out_of_scope / a structural requirement that still 422s even for a
+  // refinement) keeps the honest hard framing — softening it would LIE about a
+  // real wall. Non-refinement authoring (which genuinely 422s) is unchanged too.
   isRefinement: boolean;
   onRunAnyway: () => void;
   onDismiss: () => void;
 }) {
+  const advisory = isRefinement && detail.allow_override === true;
   return (
     <div
       role="alert"
       style={{ ...disclosureNoteStyle, maxWidth: 620, marginBottom: 16 }}
     >
       <div style={disclosureLabelStyle}>
-        {isRefinement
+        {advisory
           ? "will read as generic reception (sentiment only)"
           : "one detail needed before this can be read"}
       </div>
-      {isRefinement && (
+      {advisory && (
         <div style={{ ...disclosureBodyTextStyle, marginBottom: 8 }}>
           This refinement will read on Begin reading. Without an OEC metric or a
           structured change it reads sentiment-only — add either for a calibrated
