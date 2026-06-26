@@ -655,6 +655,27 @@ submit (the authoritative block/override lives in the needs_input/`422` path).
 The lone advisory item (mechanism) is excluded from the count and tagged
 `· advisory` in mono — purely presentational. No new colors/pills/icons.
 
+**Retrieval / prior-memory verdicts (experiment-memory, `/memory`).** The pre-gate
+hypothesis check renders a *retrieval* verdict — categorically distinct from the
+§8.2 ship/no-ship **prediction** lexicon — matching a user's hypothesis against the
+recorded experiment archive. Three terms, each a mono uppercase chip whose **word
+carries the state** (color never carries it alone, §4.3 / §7.8):
+
+- `ALREADY TESTED` — an exact/near-exact prior exists. **Neutral** (paper /
+  `ink-muted`); the **real recorded outcome** rides alongside it per §8.3
+  (`WON / LOST / FLAT · ±x% on <metric> · n=… · date`) — a record, never a prediction.
+- `SIMILAR PRIOR` — a related-but-not-identical prior exists. A `hold` cue rendered
+  as a `warn` **edge only** (semantic border on a paper-tone surface — never a fill,
+  per the §8.2 edge pattern), because the honesty law requires the caveat
+  **"similar ≠ guaranteed same effect"** to render verbatim and un-smoothed beside it.
+- `NOVEL · NO PRIOR` — no match. **Neutral** (`ink-muted`); a candidate to test.
+
+These are **retrieval of real outcomes, not engine predictions**, so the screen's
+provenance reads `RETRIEVAL · REAL OUTCOMES` with `calibrated: false` (the §8.2
+empty-ledger state), and the ship/no-ship verdict + `confidence_score` are **not**
+rendered here. The chips reuse the existing `neutral` / `hold` badge kinds — no new
+colors, pills, or icons.
+
 ### 8.3 Honest numbers
 
 - The headline number is labeled for what it is. MVP:
