@@ -435,9 +435,9 @@ def test_sql_query_guard_rejects_writes() -> None:
     for bad in ("DELETE FROM experiments", "DROP TABLE t", "SELECT 1; DROP TABLE t", "UPDATE t SET x=1"):
         with pytest.raises(sql_connector.SqlQueryError):
             sql_connector.validate_query(bad)
-    # a read-only SELECT / CTE is accepted
+    # a plain read-only SELECT is accepted
     assert sql_connector.validate_query("SELECT * FROM experiments")
-    assert sql_connector.validate_query("WITH x AS (SELECT 1) SELECT * FROM x")
+    assert sql_connector.validate_query("SELECT id, name, effect_size FROM experiments")
 
 
 def test_sql_query_guard_rejects_function_call_selects() -> None:
@@ -491,6 +491,50 @@ def test_sql_query_guard_allows_read_aggregates() -> None:
     assert sql_connector.validate_query("SELECT MAX(effect_size) FROM experiments")
     assert sql_connector.validate_query(
         "SELECT coalesce(name, 'n/a') FROM experiments"
+    )
+
+
+def test_sql_query_guard_rejects_later_selectlist_and_cte_bypasses() -> None:
+    """The codex-named P1 bypass classes the old first-item-only scan missed: a
+    function call in a LATER select-list position, a set-returning function, a
+    CTE/WITH query, and a subquery-with-function in the projection. All must be
+    rejected by validate_query (defense-in-depth; the read-only transaction is
+    the actual boundary)."""
+    bypass_attempts = (
+        # function call in a NON-first select-list position
+        "SELECT col, evil_func() FROM t",
+        "SELECT id, name, my_proc(id) FROM experiments",
+        "SELECT a, b, public.run_job(1) AS r FROM t",
+        # function call hidden after an allow-listed aggregate
+        "SELECT count(*), nextval_wrapper() FROM t",
+        # set-returning functions in the projection
+        "SELECT generate_series(1, 10) FROM t",
+        "SELECT id, unnest(arr) FROM t",
+        "SELECT regexp_split_to_table(s, ',') FROM t",
+        # CTE / WITH queries (now rejected outright)
+        "WITH x AS (SELECT 1) SELECT * FROM x",
+        "WITH evil AS (SELECT setval('s', 1)) SELECT * FROM evil",
+        "  with cte as (select * from t) select * from cte",
+        # subquery (with a function) in the select-list
+        "SELECT (SELECT my_proc()) FROM t",
+        "SELECT id, (SELECT max(x) FROM other) FROM t",
+    )
+    for bad in bypass_attempts:
+        with pytest.raises(sql_connector.SqlQueryError):
+            sql_connector.validate_query(bad)
+
+
+def test_sql_query_guard_allows_columns_with_aggregates_in_any_position() -> None:
+    """Scanning the WHOLE select-list must not over-reject a legitimate mix of
+    plain columns and allow-listed read aggregates in any order."""
+    assert sql_connector.validate_query(
+        "SELECT id, name, count(*) FROM experiments"
+    )
+    assert sql_connector.validate_query(
+        "SELECT round(avg(effect_size), 2), max(n) FROM experiments"
+    )
+    assert sql_connector.validate_query(
+        "SELECT name, coalesce(notes, ''), cast(n AS text) FROM experiments"
     )
 
 

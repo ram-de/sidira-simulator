@@ -2,21 +2,30 @@
 
 HONEST + safe by construction, with defense in depth:
 
-1. **DB-level read-only** is the real boundary. We open the connection in a
-   read-only transaction before the query runs (**PostgreSQL only**):
-   ``default_transaction_read_only=on`` + ``SET TRANSACTION READ ONLY`` + a
-   session ``statement_timeout`` so a write is rejected by the server (not just
-   by our keyword filter) and a runaway query cannot hang the import. The keyword
-   filter below is a *second* layer, not the security boundary.
-2. **Statement allow-list** (see :func:`validate_query`): exactly one plain
-   ``SELECT ... FROM <table/view>`` / ``WITH ... SELECT ... FROM ...`` statement.
-   Function-call-style SELECTs that can have side effects (``SELECT nextval(...)``,
-   ``SELECT setval(...)``, ``SELECT dblink_exec(...)``, ``SELECT my_proc()``),
-   bare expression SELECTs with no FROM, and ``CALL`` / ``DO`` statements are all
-   rejected because they are not a plain table/view read.
-3. **Customer creds should themselves be read-only.** We document this and
-   recommend a read-only role; the read-only transaction is belt-and-suspenders
-   on top of that.
+THE SECURITY BOUNDARY IS THE DATABASE, NOT THIS MODULE'S SYNTAX CHECK.
+
+1. **DB-level read-only is the real, sole security boundary.** We open the
+   connection in a read-only transaction before the query runs (**PostgreSQL
+   only**): ``default_transaction_read_only=on`` + ``SET TRANSACTION READ ONLY``
+   + a session ``statement_timeout``, and the customer is required to supply a
+   read-only database role. In a read-only transaction the *server* refuses ANY
+   write — including writes smuggled through a function call (``setval()``,
+   ``nextval()``, ``dblink_exec()``, ``lo_import()``, a writing stored proc, …):
+   those raise ``ERROR: cannot execute ... in a read-only transaction``. So even
+   a query that slips past the syntactic guard below cannot mutate data. A
+   runaway query is cut off by ``statement_timeout``.
+2. **The syntactic allow-list (:func:`validate_query`) is defense-in-depth and
+   UX — NOT the security boundary.** It restricts accepted SQL to a plain
+   ``SELECT ... FROM <table/view>`` shape so customers get a clear, early error
+   instead of a confusing server-side read-only failure, and so an obviously
+   abusive query is turned away before we even open a connection. It is
+   conservative (reject-on-doubt) but it is *not* what makes the connector safe;
+   the read-only transaction is. We rely on a real SQL parser only if one is a
+   project dependency — none is (``sqlglot``/``sqlparse`` are absent and we will
+   not pull in a heavy new dependency just to harden a non-boundary check), so
+   this guard is a careful lexical scan, accepted as best-effort.
+3. **Customer creds must themselves be read-only.** We document this and require
+   a read-only role; the read-only transaction is belt-and-suspenders on top.
 
 Advertised support is **PostgreSQL only** — the single dialect where we can
 actually enforce read-only at the DB level. We do NOT claim "any SQLAlchemy
@@ -61,10 +70,15 @@ _UNSUPPORTED_BACKEND_MESSAGE = UNSUPPORTED_BACKEND_MESSAGE
 
 NEEDS_MESSAGE = (
     "Connect a database by supplying a read-only PostgreSQL connection string "
-    "and a SELECT query. Supported database: PostgreSQL only. We open the "
-    "connection in a read-only transaction (server-enforced) and map the "
-    "returned columns — no connection, no data (we never fabricate imported "
-    "results). Use a read-only database role for the credentials you supply."
+    "and a SELECT query. Supported database: PostgreSQL only. The security "
+    "boundary is the database itself: we run your query inside a server-enforced "
+    "read-only transaction (default_transaction_read_only + SET TRANSACTION READ "
+    "ONLY + statement_timeout) and you must supply a read-only database role, so "
+    "the server refuses every write — including writes hidden in a function call. "
+    "We also pre-screen the query to a plain SELECT … FROM <table/view> as "
+    "defense-in-depth (and for a clear early error), but that check is not the "
+    "boundary. We map the returned columns — no connection, no data (we never "
+    "fabricate imported results)."
 )
 
 # Forbidden keywords: anything that could write or change schema. The connector
@@ -108,26 +122,83 @@ _SIDE_EFFECTING_FUNCS = re.compile(
     re.IGNORECASE,
 )
 
-# A plain table/view read names its source after SELECT (or via DISTINCT / a
-# column list) and then FROM. A SELECT whose select-list is itself a single
-# function call ("SELECT some_proc(...) FROM ...", "SELECT f() AS x") is a
-# proc/function invocation, not a table read — reject it even if a FROM clause is
-# bolted on. We look for a function call (an identifier immediately followed by
-# "(") appearing before the FROM keyword. ``COUNT(*)`` / ``SUM(...)`` style
-# aggregates are still allowed because the allowed-aggregate guard below clears
-# them first.
-_SELECT_LIST_FUNC_CALL = re.compile(
-    r"^\s*(?:distinct\s+)?[a-z_][a-z0-9_.]*\s*\(",
-    re.IGNORECASE,
+# A plain table/view read projects column references (and a small allow-list of
+# pure read aggregates), then reads FROM a relation. ANY other function/proc call
+# ANYWHERE in the select-list — first position OR a later comma-separated item OR
+# a set-returning function — makes the statement a function invocation, not a
+# table read, so we reject it. The previous version only inspected the FIRST
+# select-list item, which let ``SELECT col, evil_func() FROM t`` and
+# set-returning functions slip past. We now scan EVERY top-level projection item.
+#
+# Matches a function call: an identifier (optionally schema-qualified) immediately
+# followed by "(". Used to find every call token in the projection.
+_FUNC_CALL_TOKEN = re.compile(r"([a-z_][a-z0-9_.]*)\s*\(", re.IGNORECASE)
+
+# Aggregates / common pure read functions that may legitimately appear in a
+# select-list of a table read ("SELECT count(*), round(avg(x),2) FROM t"). These
+# are read-only by nature. ANY function call NOT in this set is rejected wherever
+# it appears in the projection. The core read-aggregate allow-list codex named is
+# count/sum/avg/min/max/coalesce/cast/round; we also permit a few obviously pure
+# scalar helpers that commonly wrap a projected column.
+_ALLOWED_PROJECTION_FUNCS = frozenset(
+    {"count", "sum", "avg", "min", "max", "coalesce", "cast", "round",
+     "lower", "upper", "length", "abs", "date_trunc", "extract", "to_char",
+     "nullif"}
 )
 
-# Aggregates / common pure functions that may legitimately lead a select-list of
-# a table read ("SELECT count(*) FROM t"). These are read-only by nature, so a
-# select-list beginning with one of them is not treated as a proc invocation.
-_ALLOWED_LEADING_FUNCS = frozenset(
-    {"count", "sum", "avg", "min", "max", "coalesce", "cast", "round",
-     "lower", "upper", "length", "abs", "date_trunc", "extract", "to_char"}
-)
+# A CTE / WITH query and a subquery in the projection are rejected outright: they
+# open arbitrary nested SELECTs (and set-returning / lateral function calls) that
+# this lexical guard cannot soundly walk. Rejecting them keeps the accepted shape
+# to a single, flat ``SELECT <columns/aggregates> FROM <relation>``. (The
+# read-only transaction would still contain any read smuggled through them — this
+# is the conservative, reject-on-doubt posture, not the security boundary.)
+_WITH_CTE = re.compile(r"^\s*with\b", re.IGNORECASE)
+_SUBQUERY_SELECT = re.compile(r"\(\s*select\b", re.IGNORECASE)
+
+
+def _split_top_level_commas(s: str) -> list[str]:
+    """Split a select-list on commas that are NOT inside parentheses.
+
+    ``round(avg(x), 2), name`` -> ``['round(avg(x), 2)', ' name']`` — the comma
+    inside ``round(...)`` is not a projection separator. Conservative: unbalanced
+    input still returns the best-effort split (the caller treats parens
+    pessimistically elsewhere).
+    """
+    items: list[str] = []
+    depth = 0
+    start = 0
+    for i, ch in enumerate(s):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth = max(0, depth - 1)
+        elif ch == "," and depth == 0:
+            items.append(s[start:i])
+            start = i + 1
+    items.append(s[start:])
+    return items
+
+
+def _reject_disallowed_projection_funcs(select_list: str) -> None:
+    """Raise if any non-allow-listed function/proc call appears in the projection.
+
+    Scans EVERY top-level comma-separated projection item (not just the first) and
+    every function-call token within it. A call whose bare (un-qualified) name is
+    not in :data:`_ALLOWED_PROJECTION_FUNCS` is rejected — this covers a function
+    in a later select-list position (``SELECT col, evil_func() FROM t``),
+    set-returning functions (``SELECT generate_series(1,10) FROM t``), and proc
+    invocations, regardless of where they sit in the list.
+    """
+    for item in _split_top_level_commas(select_list):
+        for match in _FUNC_CALL_TOKEN.finditer(item):
+            fn = match.group(1).rsplit(".", 1)[-1].lower()
+            if fn not in _ALLOWED_PROJECTION_FUNCS:
+                raise SqlQueryError(
+                    "query must be a plain SELECT FROM a table/view — only column "
+                    "references and read aggregates "
+                    "(count/sum/avg/min/max/coalesce/cast/round) are allowed in "
+                    "the select-list; any other function/procedure call is rejected"
+                )
 
 
 class SqlCredentialError(RuntimeError):
@@ -195,17 +266,28 @@ def is_supported_backend(connection_string: str) -> bool:
 def validate_query(query: str) -> str:
     """Return the cleaned query, or raise if it is not a single read-only SELECT.
 
-    Guard rails (read-only import path) — the SECOND layer behind the DB-level
-    read-only transaction. We restrict accepted SQL to a plain
-    ``SELECT ... FROM <table/view>`` shape:
+    DEFENSE-IN-DEPTH / UX — **NOT the security boundary.** The security boundary
+    is the server-side read-only transaction + the customer's read-only role (see
+    the module docstring and :func:`_run_query`); that refuses every write,
+    including writes hidden in a function call, even if a query slips past this
+    check. This guard turns away obviously-not-a-read queries early with a clear
+    error, and is deliberately conservative (reject-on-doubt). It is a careful
+    lexical scan because no SQL parser is a project dependency.
+
+    We restrict accepted SQL to a single, flat ``SELECT <cols/aggregates> FROM
+    <table/view>`` shape:
     - exactly one statement (no ``;``-chained second statement);
-    - must begin with SELECT or WITH (CTE) — ``CALL`` / ``DO`` / any other
-      statement form is rejected;
+    - must begin with SELECT — ``WITH`` / CTEs are rejected (they open arbitrary
+      nested SELECTs a lexical scan cannot soundly walk), as are ``CALL`` / ``DO``
+      / any other statement form;
     - must read FROM a table/view (a bare ``SELECT <expr>`` with no FROM, e.g.
       ``SELECT setval('s', 1)``, is rejected — it is not a table read);
-    - the select-list must not itself be a function/proc call
-      (``SELECT my_proc()``, ``SELECT f() FROM ...``) other than a small
-      allow-list of pure read aggregates (count/sum/…);
+    - NO subquery in the projection (``SELECT (SELECT …) FROM t`` is rejected);
+    - the ENTIRE select-list — every comma-separated projection item, not just
+      the first — must contain only column references + the read-aggregate
+      allow-list (count/sum/avg/min/max/coalesce/cast/round); ANY other
+      function/proc call anywhere in the projection (a later position, a
+      set-returning function, a nested call) is rejected;
     - must not invoke a side-effecting / volatile function anywhere
       (nextval/setval/dblink*/lo_*/pg_*/advisory-lock funcs/…);
     - must not contain any data/DDL keyword.
@@ -216,10 +298,15 @@ def validate_query(query: str) -> str:
     if ";" in q:
         raise SqlQueryError("only a single SELECT statement is allowed (no ';' chaining)")
     head = q.split(None, 1)[0].lower()
-    if head not in ("select", "with"):
+    if head == "with" or _WITH_CTE.match(q):
         raise SqlQueryError(
-            "query must be a read-only SELECT (or a WITH … SELECT) — "
-            "CALL/DO/procedure statements are rejected"
+            "query must be a single plain SELECT — WITH/CTE queries are rejected "
+            "(they nest arbitrary SELECTs the read-only guard cannot soundly walk)"
+        )
+    if head != "select":
+        raise SqlQueryError(
+            "query must be a read-only SELECT — WITH/CTE, CALL/DO and procedure "
+            "statements are rejected"
         )
     if _SIDE_EFFECTING_FUNCS.search(q):
         raise SqlQueryError(
@@ -236,22 +323,25 @@ def validate_query(query: str) -> str:
         raise SqlQueryError(
             "query must read FROM a table or view (a SELECT with no FROM is rejected)"
         )
-    # Reject a proc/function-call-style select-list ("SELECT my_proc() FROM …").
-    # We inspect only the portion of the FIRST select (after the leading SELECT,
-    # before its FROM). A WITH-CTE leads with WITH, not a function call, so this
-    # check applies to the SELECT-led shape; the side-effecting-func + FROM guards
-    # already constrain the CTE body.
-    if head == "select":
-        select_list = re.split(r"\bfrom\b", q[len("select"):], maxsplit=1, flags=re.IGNORECASE)[0]
-        m = _SELECT_LIST_FUNC_CALL.match(select_list)
-        if m:
-            lead = re.match(r"\s*(?:distinct\s+)?([a-z_][a-z0-9_.]*)", select_list, re.IGNORECASE)
-            fn = (lead.group(1).rsplit(".", 1)[-1].lower() if lead else "")
-            if fn not in _ALLOWED_LEADING_FUNCS:
-                raise SqlQueryError(
-                    "query must be a plain SELECT FROM a table/view — a SELECT whose "
-                    "select-list is a function/procedure call is rejected"
-                )
+    # Isolate the select-list: everything after the leading SELECT and before the
+    # FIRST top-level FROM. (Top-level FROM = a FROM not nested in parens; but we
+    # reject projection subqueries below, so a simple first-FROM split is sound
+    # for the accepted flat shape.)
+    select_list = re.split(
+        r"\bfrom\b", q[len("select"):], maxsplit=1, flags=re.IGNORECASE
+    )[0]
+    # No subquery in the projection — that smuggles a nested SELECT (and any
+    # set-returning / lateral call inside it) past the flat-shape guarantee.
+    if _SUBQUERY_SELECT.search(select_list):
+        raise SqlQueryError(
+            "query must be a plain SELECT FROM a table/view — a subquery in the "
+            "select-list is rejected"
+        )
+    # Scan the WHOLE select-list (every projection item, every call token) and
+    # reject any function/proc call outside the read-aggregate allow-list. This is
+    # the fix for function calls in later select-list positions and set-returning
+    # functions, which the old first-item-only check missed.
+    _reject_disallowed_projection_funcs(select_list)
     return q
 
 

@@ -149,6 +149,47 @@ dup-header rejection, tenant allowlist). Changed files: `sql_connector.py`, `exp
 Tests (v2): **46/46 connectors green**; full backend **1657 passed** (only the same 2 pre-existing
 `test_deploy_config` failures). `tsc --noEmit` green.
 
+## Third codex-review round (#488 v3, 2026-06-26) — 1×P1: select-list guard only checked the first item
+Codex found the v2 proc/function-call guard applied the select-list check to ONLY the first
+top-level SELECT expression, so function calls in later positions (`SELECT col, evil_func() FROM t`),
+set-returning functions, CTEs (`WITH … SELECT`), and projection subqueries still passed. The
+validator did not actually enforce the "plain SELECT … FROM <table/view>" it claimed.
+
+**Approach: full lexical scan, NO new parser.** Checked `pyproject.toml` + the backend venv —
+neither `sqlglot` nor `sqlparse` is a dependency or installed, and the ticket says don't add a
+heavy dep just to harden a non-boundary check. So `validate_query` now:
+- **rejects `WITH`/CTE queries outright** (they nest arbitrary SELECTs a lexical scan can't soundly
+  walk) — this changes prior behaviour where a CTE was accepted; the old `test_sql_query_guard_rejects_writes`
+  CTE-accept assertion was updated to a flat multi-column SELECT.
+- **rejects any subquery in the projection** (`(\s*select` before the first top-level FROM).
+- **scans the ENTIRE select-list** via `_split_top_level_commas` (comma-split ignoring parens) +
+  `_FUNC_CALL_TOKEN.finditer` over every item, rejecting ANY function call whose bare name is not
+  in the read-aggregate allow-list `_ALLOWED_PROJECTION_FUNCS`
+  (count/sum/avg/min/max/coalesce/cast/round + a few pure scalar helpers). New helper
+  `_reject_disallowed_projection_funcs`. Replaces the old first-item-only `_SELECT_LIST_FUNC_CALL`.
+- The side-effecting-func regex (`nextval`/`setval`/`dblink*`/`lo_*`/`pg_*`/advisory) and the
+  forbidden-keyword/SELECT-INTO guards are unchanged and still scan the whole statement.
+
+**Security framing made explicit (code + NEEDS_MESSAGE):** the module docstring + `validate_query`
+docstring + `NEEDS_MESSAGE` now state plainly that the **DB-level read-only transaction +
+statement_timeout + the customer's read-only role is the SECURITY BOUNDARY** (the server refuses
+every write, including writes hidden in a function call), and the syntactic validator is
+defense-in-depth / UX, reject-on-doubt — NOT the sole guard.
+
+New tests: `test_sql_query_guard_rejects_later_selectlist_and_cte_bypasses` (covers all 4 codex
+bypass classes: later-position func, set-returning func, CTE, subquery-with-func) and
+`test_sql_query_guard_allows_columns_with_aggregates_in_any_position` (so the full-list scan doesn't
+over-reject `SELECT id, name, count(*) FROM t`). Note: a function in a WHERE clause (e.g. `now()`)
+is intentionally NOT rejected by the projection scan — it's not a write vector and the read-only
+txn contains it; side-effecting funcs in WHERE are still caught by `_SIDE_EFFECTING_FUNCS`.
+
+Changed files: `sql_connector.py`, `test_connectors.py`. No UI copy change → no DESIGN.md update.
+All prior fixes intact (Postgres-only, secret redaction, generic errors, dry-run preview, CSV dedup,
+tenant scoping).
+
+Tests (v3): **48/48 connectors green**; full backend **1659 passed, 11 skipped** (only the same 2
+pre-existing `test_deploy_config` failures). `tsc --noEmit` green.
+
 ## Pre-existing failures (re-verified against clean `origin/main` checkout)
 - `test_deploy_config::test_public_api_is_gated_by_backend_internal_key` and
   `test_deploy_config::test_frontend_splits_public_site_from_product_app_hosts` — both read
