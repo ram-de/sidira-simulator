@@ -163,7 +163,7 @@ encode these proportions. Use them directly rather than recomposing.
 
 | Layer | Token | Hex | Carries |
 | --- | --- | --- | --- |
-| **Structure** = Sid | `ink` | `#0E1A2B` | the entire ink layer — mark, wordmark, body text, rules, structural foundation. Already navy-leaning. Sid is the thing everything else stands on. |
+| **Structure** = Sid | `ink` | `#0E1A2B` | the entire ink layer — wordmark, body text, rules, structural foundation. Already navy-leaning. Sid is the thing everything else stands on. (The mark itself is no longer an `ink` monochrome surface — it rests in the standard dual-color lockup, `DUO_SID` + `DUO_AVIRA`, on every surface; §1.3.) |
 | **Signal** = brand-functional | `signal` | `#C8FF3D` | live state · the instrument is reading · oscilloscope-phosphor accent. No personal meaning. Countable budget: lime lives on **at most three carriers per screen** — a glass well's live traces (the well counts as one carrier; §9.1 sanctions two traces inside it), the §9.5 live carrier, and the active state of one control. Never on two adjacent elements, never as fill, never as background. |
 | **Vital** = Avira | `avira` | `#D696C8` | secondary accent for narrowly-scoped narrative surfaces — see §4.4. |
 
@@ -183,7 +183,7 @@ underdraw of the same path. Never CSS glow, blur, or `drop-shadow`.
 | `paper-elevated` | `#FAF6EE` | cards · modals · elevated panels |
 | `paper-recessed` | `#EBE5D8` | inputs · code blocks · receded panels |
 | `rule` | `rgba(14,26,43,0.16)` | hairline dividers, **`0.75px` CSS** — a true hairline (replaces solid `#D6CFC0`; unit law in §7.2 — never `pt`) |
-| `ink` | `#0E1A2B` | primary text · mark · lines |
+| `ink` | `#0E1A2B` | primary text · lines · wordmark (the mark rests dual-color — `DUO_SID` + `DUO_AVIRA`, §1.3 — not `ink`) |
 | `ink-muted` | `#4A5668` | secondary text · axis labels · captions |
 
 #### Glass — the instrument display
@@ -239,7 +239,7 @@ in five documented surfaces. Anywhere else is wrong.
 
 | Surface | Sid (`#2C5577`) | Avira (`#D696C8`) |
 | --- | --- | --- |
-| Founder-mode mark (3-and-3 split) | 3 left-side blades | 3 right-side blades |
+| Standard dual-color mark (3-and-3 split, §1.3 — every surface) | 3 left-side blades | 3 right-side blades |
 | Cofounder / about page | (ink is sid-coded; no extra token used) | one rose hairline rule above founder bios |
 | First-ever simulation run | — | one-time rose pulse on the "begin" button |
 | Persona chart series | — | the "warm" archetype gets rose as its series color |
@@ -899,8 +899,10 @@ These are never allowed to ship.
 - The wordmark in lowercase.
 - The mark with gradient fills, drop shadows, bevels, or 3D effects.
 - The mark with arbitrary rotation outside the §9.2 animation keyframes.
-- The mark in any color other than `ink`, `paper`, or the sanctioned dual
-  Sid-blue + Avira-rose split.
+- The mark in any color other than the sanctioned dual Sid-blue + Avira-rose
+  split (the §1.3 everywhere-standard) — or, on legacy fallback assets only,
+  the deprecated `ink` / `paper` monochrome form. `ink` monochrome is no
+  longer a resting mark color state (§1.3).
 - Stock photography. Abstract blob backgrounds. Geometric mesh patterns.
 - "AI-shimmer" / pulsing-gradient loading states.
 - `system-ui`, `-apple-system`, `Inter`, `Roboto`, or `Helvetica` as a primary
@@ -925,13 +927,13 @@ These are never allowed to ship.
 | --- | --- |
 | `DESIGN.md` (this file) | canonical source of truth |
 | `frontend/lib/design.ts` | the token values in code — update together with §4 |
-| `frontend/app/icon.svg` | favicon + app-icon (duo-color mark on paper ground — §1.3 brand-mode) |
+| `frontend/app/icon.svg` | favicon + app-icon (duo-color mark on paper ground — §1.3) |
 | `frontend/public/brand/sidira-mark-duo.svg` | standard dual-color mark — default everywhere (§1.3) |
 | `frontend/public/brand/sidira-mark.svg` | legacy monochrome mark — fallback only |
 | `frontend/public/brand/sidira-lockup-duo.svg` | primary horizontal lockup (dual-color, default everywhere — §3) |
 | `frontend/public/brand/sidira-lockup.svg` | legacy monochrome horizontal lockup — fallback only |
 | `frontend/public/brand/merch/sidira-sticker-mark.svg` | merch · hex die-cut sticker, ink mark on paper (38 mm) |
-| `frontend/public/brand/merch/sidira-sticker-duo.svg` | merch · hex die-cut sticker, duo mark — ships only if merch is sanctioned as a §1.3 brand-mode surface (open founder decision) |
+| `frontend/public/brand/merch/sidira-sticker-duo.svg` | merch · hex die-cut sticker, standard dual-color mark (§1.3) — ships only if merch is sanctioned as a product surface (open founder decision) |
 | `frontend/public/brand/merch/sidira-sticker-reading.svg` | merch · settle-trace reading sticker, signal + paper on glass (84 × 30 mm) |
 | `frontend/public/brand/merch/sidira-sticker-verdict.svg` | merch · verdict-with-policy sticker, ink on paper (84 × 31 mm) |
 | `frontend/public/brand/merch/sidira-sticker-wordmark.svg` | merch · lockup strip sticker, ink on paper (80 × 21 mm) |
