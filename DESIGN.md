@@ -741,6 +741,53 @@ Key/value grids (telemetry, provenance §8.7) follow the same treatment:
 mono `ink-muted` keys, `ink` values, hairline separations, gaps from the §6
 scale (12 / 16).
 
+### 8.9 Ingestion onboarding — connector states + the mapping firewall (#19)
+
+The experiment archive (`/memory`) ships with synthetic seed data; the
+**onboarding flow** (`/memory/connect`) is how a customer brings their *real*
+recorded experiments in. It is the ingestion counterpart to the §8.2 retrieval
+verdicts, and it obeys the same honesty laws. No new colors, pills, or icons —
+it reuses the v2 console vocabulary verbatim.
+
+**Connector states are honest, never aspirational.** The source picker lists
+every registered connector with a state word that carries its own meaning (color
+never carries state alone, §4.3 / §7.8):
+
+- `READY` — the connector runs now with no extra setup (CSV upload). Neutral
+  (`ink-muted` register chip / `neutral` badge).
+- `NEEDS CREDENTIALS` — a real, registered connector that is **inactive** until
+  the customer supplies their own credentials (Statsig API key, SQL connection
+  string + read-only query). Rendered with the `hold` badge edge (the same
+  "proceed with care" cue §8.2 gives a `SIMILAR PRIOR`) and its verbatim
+  "what to supply" message. A `needs_credentials` connector **never renders
+  fabricated rows** — pulling real data is a customer/founder action, and the
+  surface says so plainly. This is the ingestion-side application of the
+  honest-numbers law (§8.3): the product never invents "imported" data.
+
+**The field-mapping step renders the two-table firewall.** Mapping a source
+column to an Experiment field is grouped into two labelled blocks —
+`INPUT · WHAT CHANGED` (change_description · variants · primary_metric ·
+category) and `OUTCOME · WHAT HAPPENED` (winner · result · effect_size_pct · n ·
+date) — mono zone labels over per-field mapping rows. The split is not
+decorative: input and outcome are mapped from independent columns and the
+backend never derives one from the other (the firewall is structural, schema +
+`services/connectors/mapping.py`). Surfacing the two groups makes the firewall
+legible to the buyer instead of hidden in code.
+
+**The ingestion preview reuses the §8.8 register.** Before a customer commits an
+import they verify the mapped rows in a register: mono uppercase headers,
+right-aligned tabular numerals for the outcome columns (result · effect ·
+n), `ink`/muted body, the `0.75px` hairline as the row separator (no zebra,
+no skeletons). Per-row parse failures are shown as an honest §7.7-anatomy note
+(`rule`/`warn` edge, message in `ink`, mono `ROW n` designator) — never silently
+dropped and never fabricated into a value. Pending/empty states follow §8.6
+(`LOADING CONNECTORS…`, `NO ROWS MAPPED — CHECK THE MAPPING`) as honest text.
+
+**Step rail.** The five-step flow (SOURCE · CONNECT · MAP · PREVIEW · IMPORT) is
+a mono designator rail — `01`–`05` numerals + uppercase labels, current step in
+`ink`/`text-hi`, done/upcoming muted/faint. No icons, no progress bar (§10 — the
+flow is a sequence of records, not a live reading).
+
 ---
 
 ## 9. Motion
@@ -915,6 +962,7 @@ table above.
 | 2026-06-16 | 0.3.3 | **Abstention verdict** (epic #309 T2, `#311`). §8.2 adds the fourth verdict state `NOT ANSWERABLE BY THIS INSTRUMENT` to the MVP + calibrated lexicons and the verdict→token map (`ink-muted` — a measurement-scope condition, not `warn`/`alert`). When the deterministic answerability gate classifies the OEC as `out_of_scope` (long-horizon / network / novelty-decay), `verdictFor()` WITHHOLDS the ship/no-ship verdict as its outermost branch (precedes the `underpowered_design` flip and the numeric path); the score is still computed and `confidence_score` is never discounted (panel hard constraint). The withheld verdict carries its inspectable named reasons in a hairline-`rule` §7.7 note (message in `ink`, no semantic fill). No new colors/pills/icons. |
 | 2026-06-16 | 0.3.4 | **Input-lint disclosure surface** (epic #309 T3, `#312`). §8.2 codifies the degrade-and-disclose **disclosure note** as a sanctioned pattern: a non-verdict caution about the *input* (vague / leading prose, or a paraphrase-unstable pre-flight verdict) carried on `input_flags` and rendered beside the normal reading on the simulation detail page. It REUSES the §7.7 note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, message in `ink`, no semantic fill, no pill/icon — because it is a data caution, not an alarm. Unlike the 0.3.3 `out_of_scope` abstention it does **not** change the verdict label (the verdict is computed and shown normally); for the `abstain` state the note header reads "indeterminate — please clarify." No new colors/pills/icons; the lint routes and never discounts `confidence_score` (panel hard constraint). |
 | 2026-06-16 | 0.3.5 | **Answerable hypothesis authoring** (epic #309 T4, `#313`; the deploy-unblocker). The `simulations/new` wizard's `01 · Claim` section now defaults to four structured fields following the falsifiable template "If [change] for [cohort], then [OEC metric] [direction]," composed into the prose the API expects and shown verbatim in a `paper-recessed` mono preview; a quiet `Free-text instead →` toggle (§7.7 quiet control) keeps the escape hatch so terse expert claims are never over-constrained. The OEC metric picker (`05 · Outcome metric`) is **decoupled from A/B mode** — declaring a metric clears the answerability gate's `oec_undeclared` block in either mode (the paired lift delta stays A/B-only; single-arm reports the metric rate). Two new authoring surfaces REUSE the §8.2 / §7.7 disclosure-note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, mono label, body in `ink` (fixes in `ink-muted`), no semantic fill / pill / icon / alert-red: (1) a **live inline lint** rendering the deterministic zero-LLM `POST /simulations/preflight` answerability + leading-framing reasons/fixes as the user authors, and (2) the **needs_input surface** that catches the create path's `422` and renders the named reasons + fixes as guidance (never a dead-end), offering an explicit `Run anyway as generic reception` quiet affordance when `allow_override` (resubmits with `run_as_generic_reception`). No new colors/pills/icons; no migration; `confidence_score` arithmetic untouched (panel hard constraints). |
+| 2026-06-26 | 0.3.7 | **Ingestion onboarding** (#19; the experiment-archive connector flow). Adds §8.9: the `/memory/connect` onboarding surface that brings a customer's REAL recorded experiments into the archive (today the archive is synthetic seed data only). Codifies (1) **honest connector states** — `READY` (CSV, runs now) vs `NEEDS CREDENTIALS` (Statsig / SQL — registered but inactive until the customer supplies their own key / connection string; rendered with the existing `hold` badge edge + verbatim "what to supply" message, and NEVER fabricating imported rows — the ingestion-side application of the §8.3 honest-numbers law); (2) the **field-mapping firewall made visible** — the mapping step groups targets into `INPUT · WHAT CHANGED` and `OUTCOME · WHAT HAPPENED`, mapped from independent columns (the §8 two-table firewall is structural in `services/connectors/mapping.py`, now legible in the UI); (3) the **ingestion preview register** reusing §8.8 verbatim (mono headers, right-aligned tabular outcome numerals, hairline separators, per-row errors as a §7.7 note — never silently dropped) with §8.6 honest pending/empty states; (4) a mono **step rail** (no icons, no progress bar per §10). No new colors / pills / icons; reuses the v2 console vocabulary. Backend is additive only — a new connector framework + ingestion write-path that does NOT touch the archive read interface. |
 | 2026-06-16 | 0.3.6 | **Glanceable completeness checklist** (epic #309 T6, `#337`). §8.2 codifies a display-only `Completeness` block in the `simulations/new` manifest rail: an `N OF M ESSENTIALS` count rendered as a §8.2 panel-verdict-chip (mono, `paper-recessed` fill, `rule` border) over a per-item present/absent list in the §7.10 text-glyph register — present `✓` (`success`) + `ink` label, absent `·` + `ink-muted` label, each row prefixed with a mono `PRESENT`/`MISSING` word so color never carries state alone (§4.3 / §7.8). The six essentials (change · cohort · OEC metric · direction · conditional design attached · advisory mechanism) are derived **deterministically, zero-LLM** from the wizard's form state + the EXISTING live `POST /simulations/preflight` `reason_codes` (the "conditional design attached" item reuses the gate's own `structurally_invisible_change` signal rather than re-deriving the regime classifier client-side); the count is a human-glance number **never fed to `confidence_score` / the verdict / persistence** and **never gates submit** (the authoritative block/override stays in the T4 needs_input/`422` path). The lone advisory item (mechanism) is excluded from the count and mono-tagged `· advisory`. Frontend-only — no backend / no route / no migration. No new colors/pills/icons; `confidence_score` arithmetic untouched (panel hard constraint). |
 
 ---

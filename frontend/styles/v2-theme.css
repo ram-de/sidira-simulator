@@ -1768,3 +1768,273 @@ a.v2-sims-row:hover{
   .v2-mem-cite{ flex-wrap:wrap; }
   .v2-mem-match-sim{ margin-left:0; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   /memory/connect — experiment-archive ONBOARDING (#19). The ingestion flow.
+   Reuses the .v2-mem-* vocabulary (input/section/alert) and adds the connector
+   picker, step rail, field-mapping rows, and the §8.8 preview register. Tokens
+   only; no new colors/pills/icons.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.v2-connect{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-room);
+  max-width:920px;
+}
+.v2-connect-section{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-cozy);
+}
+.v2-connect-pending{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  margin:0;
+}
+/* ── step rail — mono designators, no icons ── */
+.v2-connect-steps{
+  list-style:none;
+  margin:0;
+  padding:0 0 var(--space-base);
+  display:flex;
+  gap:var(--space-room);
+  flex-wrap:wrap;
+  border-bottom:0.75px solid var(--console-line-50);
+}
+.v2-connect-step{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-snug);
+}
+.v2-connect-step-n{
+  font-size:11px;
+  letter-spacing:0.06em;
+  color:var(--text-faint);
+}
+.v2-connect-step-label{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-faint);
+}
+.v2-connect-step--current .v2-connect-step-n,
+.v2-connect-step--current .v2-connect-step-label{ color:var(--text-hi); }
+.v2-connect-step--done .v2-connect-step-n,
+.v2-connect-step--done .v2-connect-step-label{ color:var(--text-mut); }
+/* ── source picker ── */
+.v2-connect-sources{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:var(--space-base);
+}
+.v2-connect-source{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+  padding:var(--space-base);
+  text-align:left;
+  background:var(--console-850);
+  border:0.75px solid var(--console-line-60);
+  border-radius:var(--r-panel);
+  cursor:pointer;
+  transition:border-color 0.08s var(--ease-out), background 0.08s var(--ease-out);
+}
+.v2-connect-source:hover{ background:var(--console-800); border-color:var(--console-line); }
+.v2-connect-source:focus-visible{ outline:none; border-color:var(--signal-dim); }
+.v2-connect-source-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--space-snug);
+}
+.v2-connect-source-name{ font-size:15px; color:var(--text-hi); }
+.v2-connect-source-sub{ font-size:13px; line-height:1.5; color:var(--text-mut); margin:0; }
+.v2-connect-source-go{
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--text-mut);
+  margin-top:var(--space-tight);
+}
+/* ── connect step: upload + credential fields ── */
+.v2-connect-upload{
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-snug);
+  padding:var(--space-snug) var(--space-base);
+  font-size:11px;
+  letter-spacing:0.08em;
+  color:var(--text-hi);
+  background:var(--console-850);
+  border:0.75px solid var(--console-line-60);
+  border-radius:var(--r-well);
+  cursor:pointer;
+  width:max-content;
+}
+.v2-connect-upload:hover{ background:var(--console-800); }
+.v2-connect-file{ display:none; }
+.v2-connect-fields{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-base);
+}
+.v2-connect-field{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-tight);
+}
+.v2-connect-field--inline{
+  flex-direction:row;
+  align-items:center;
+  gap:var(--space-cozy);
+}
+.v2-connect-field-label{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-connect-input{
+  width:100%;
+  padding:var(--space-snug) var(--space-cozy);
+  font-family:var(--v2-font-sans);
+  font-size:14px;
+  color:var(--text-hi);
+  background:var(--console-850);
+  border:0.75px solid var(--console-line-60);
+  border-radius:var(--r-well);
+  transition:border-color 0.14s var(--ease-out);
+}
+.v2-connect-input:focus-visible{ outline:none; border-color:var(--signal-dim); }
+.v2-connect-input--narrow{ width:64px; text-align:center; }
+.v2-connect-note{
+  font-size:13px;
+  line-height:1.5;
+  color:var(--text);
+  margin:0;
+  padding:var(--space-snug) var(--space-cozy);
+  background:var(--console-850);
+  border-left:2px solid var(--console-line);
+  border-radius:0 var(--r-well) var(--r-well) 0;
+}
+/* ── mapping ── */
+.v2-connect-mapgroup{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+}
+.v2-connect-mapgroup-h{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  padding-bottom:var(--space-tight);
+  border-bottom:0.75px solid var(--console-line-50);
+}
+.v2-connect-maprows{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-tight);
+}
+.v2-connect-maprow{
+  display:grid;
+  grid-template-columns:200px 1fr;
+  align-items:center;
+  gap:var(--space-cozy);
+}
+.v2-connect-maprow-field{ font-size:14px; color:var(--text-hi); }
+.v2-connect-select{
+  width:100%;
+  padding:var(--space-snug) var(--space-cozy);
+  font-size:12px;
+  color:var(--text-hi);
+  background:var(--console-850);
+  border:0.75px solid var(--console-line-60);
+  border-radius:var(--r-well);
+}
+.v2-connect-select:focus-visible{ outline:none; border-color:var(--signal-dim); }
+/* ── §8.8 preview register ── */
+.v2-connect-register{
+  display:flex;
+  flex-direction:column;
+  margin-top:var(--space-snug);
+  border-top:0.75px solid var(--console-line-50);
+}
+.v2-connect-reg-head,
+.v2-connect-reg-row{
+  display:grid;
+  grid-template-columns:2.4fr 1.6fr 0.7fr 0.7fr 0.7fr;
+  gap:var(--space-cozy);
+  align-items:baseline;
+}
+.v2-connect-reg-head{
+  padding:10px 0 6px;
+  font-family:var(--v2-font-mono);
+  font-size:11px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-connect-reg-row{
+  padding:9px 0;
+  border-bottom:0.75px solid var(--console-line-50);
+  transition:background 0.08s var(--ease-out);
+}
+.v2-connect-reg-row:hover{ background:var(--console-850); }
+.v2-connect-reg-num{ text-align:right; }
+.v2-connect-reg-change{ font-size:13px; line-height:1.4; color:var(--text-hi); }
+.v2-connect-reg-metric{ font-size:13px; line-height:1.4; color:var(--text-mut); }
+.v2-connect-register .v2-mono{ font-size:11px; color:var(--text); }
+/* ── per-row errors — honest note, never hidden ── */
+.v2-connect-rowerrors{
+  padding:var(--space-cozy) var(--space-base);
+  background:var(--console-850);
+  border-left:2px solid var(--edge-warn);
+  border-radius:0 var(--r-well) var(--r-well) 0;
+}
+.v2-connect-rowerrors-h{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-connect-rowerrors ul{
+  list-style:none;
+  margin:var(--space-snug) 0 0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-tight);
+}
+.v2-connect-rowerrors li{ font-size:13px; line-height:1.45; color:var(--text); }
+.v2-connect-rowerrors .v2-mono{ font-size:11px; color:var(--text-mut); }
+/* ── import result ── */
+.v2-connect-result{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-base);
+}
+.v2-connect-result-n{ font-size:32px; color:var(--text-hi); }
+.v2-connect-result-label{ font-size:14px; line-height:1.5; color:var(--text-mut); }
+/* ── nav + links + actions ── */
+.v2-connect-nav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--space-base);
+  margin-top:var(--space-base);
+  padding-top:var(--space-base);
+  border-top:0.75px solid var(--console-line-50);
+}
+.v2-connect-actions{ display:flex; gap:var(--space-snug); }
+.v2-connect-link{ color:var(--text-hi); text-decoration:underline; }
+.v2-connect-link:hover{ color:var(--signal); }
+@media(max-width:640px){
+  .v2-connect-maprow{ grid-template-columns:1fr; gap:var(--space-tight); }
+  .v2-connect-reg-head,
+  .v2-connect-reg-row{ grid-template-columns:1.6fr 0.8fr 0.8fr; }
+  .v2-connect-reg-metric{ display:none; }
+  .v2-connect-reg-head span:nth-child(5),
+  .v2-connect-reg-row span:nth-child(5){ display:none; }
+}
