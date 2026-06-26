@@ -5,21 +5,12 @@ import PublicConsoleTopBar from "@/components/PublicConsoleTopBar";
 import { ConsoleShell } from "@/components/v2";
 import "@/styles/v2-theme.css";
 
-// Dark "Reading Console" reskin of the public /about page. Renders inside a
-// `.v2-console` scope so all `var(--console-*)` / `var(--text*)` tokens resolve
-// from styles/v2-theme.css. The duo aperture mark in the top bar is sanctioned
-// here: /about is a brand-mode surface (DESIGN.md §1.3).
-//
-// Content is grounded, not invented: every claim traces to repo material
-// (README, ROADMAP, the accuracy report, the twin-council white paper). No
-// metrics, customers, testimonials, team bios, or features that don't exist; no
-// "predicts winners" overclaim (counter-intuitive A/B direction is at chance
-// today — honesty is the brand). The name-origin story is kept off buyer-facing
-// surfaces by design (DESIGN.md intro).
+// Public brand-mode surface (DESIGN.md §1.3). Marketing copy; grounded in repo
+// material — no metrics/customers/overclaims.
 export const metadata: Metadata = {
   title: "About — Sidira",
   description:
-    "Sidira is AI audience simulation that pre-screens which A/B-test ideas are worth running — upstream of A/B testing, validated honestly.",
+    "Sidira is AI audience simulation that pre-screens which A/B-test ideas are worth running, upstream of A/B testing, with pre-registered, honest measurement.",
 };
 
 const SECTION: React.CSSProperties = { marginTop: 56 };
@@ -130,12 +121,12 @@ export default function AboutPage() {
           <h2 style={H2}>How we measure ourselves</h2>
           <p style={BODY}>
             A vendor you should trust is one that shows you its measurement,
-            including where it falls short. We pre-register every prediction and
-            fingerprint it before we look at the result, grade against real
-            randomized experiments, run independent adversarial leak audits, demand
-            replication on fresh data, and report the nulls &mdash; including the
-            ones that caught our own false positives before they could become
-            claims.
+            including where it falls short. Our benchmark work is built around
+            sealed, pre-registered predictions, independent leak audits,
+            fresh-data replication where possible, and reporting the nulls
+            &mdash; including the ones that caught our own false positives before
+            they could become claims. Calibrated probabilities are on the
+            roadmap, claimed only when a backtest on real experiments earns them.
           </p>
           <p style={BODY}>
             Signed-in customers can read the full accuracy &amp; methodology report:

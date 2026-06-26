@@ -36,10 +36,8 @@ const STEPS = [
   },
 ];
 
-// Honest "what it is / what it is not" — grounded in the accuracy report and the
-// white-paper thesis: the live randomized experiment stays the ground truth;
-// Sidira pre-screens which bets are worth that traffic. No invented metrics, no
-// "predicts winners" claim (counter-intuitive A/B direction is at chance today).
+// Public brand-mode surface (DESIGN.md §1.3). Marketing copy; grounded in repo
+// material — no metrics/customers/overclaims.
 const STANDING = [
   {
     label: "What it is",
@@ -51,7 +49,7 @@ const STANDING = [
   },
   {
     label: "How we hold ourselves",
-    body: "We pre-register predictions, fingerprint them before we look at the results, run adversarial leak audits, demand replication on fresh data, and report the nulls. Calibrated probabilities are on the roadmap — claimed only when the backtest earns them.",
+    body: "Our benchmark work is built around sealed, pre-registered predictions, independent leak audits, fresh-data replication where possible, and reporting the nulls. Calibrated probabilities are on the roadmap — claimed only when a backtest on real experiments earns them.",
   },
 ];
 
