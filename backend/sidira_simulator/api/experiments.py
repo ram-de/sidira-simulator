@@ -18,6 +18,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from sidira_simulator.adapters.llm import ChatClient
+from sidira_simulator.api.deps import current_customer_id, get_orchestrator
 from sidira_simulator.schemas.experiment_memory import (
     ConversationRequest,
     ConversationResponse,
@@ -30,8 +31,15 @@ from sidira_simulator.services.experiment_archive import seed_experiments
 from sidira_simulator.services.experiment_chat import ExperimentChatService
 from sidira_simulator.services.experiment_fusion import FusedConversationService
 from sidira_simulator.services.experiment_similarity import search_similar
+from sidira_simulator.services.live_simulations import to_simulated_hypotheses
+from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
+
+# How many of the customer's most-recent simulations the fused conversation reads
+# over. Mirrors the /simulations Hypotheses-tab default (simulations.list_recent),
+# so the chat sees the same recent window the tab shows.
+_LIVE_SIM_LIMIT = 50
 
 
 def get_experiment_chat_client() -> ChatClient | None:
@@ -88,24 +96,51 @@ def post_chat(
 
 
 @router.post("/conversation", response_model=ConversationResponse)
-def post_conversation(
+async def post_conversation(
     req: ConversationRequest,
+    customer_id: str = Depends(current_customer_id),
+    orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
     chat_client: ChatClient | None = Depends(get_experiment_chat_client),
 ) -> ConversationResponse:
-    """Multi-turn, fused conversation over experiments + simulations (#31, #32).
+    """Multi-turn, fused conversation over the customer's simulations (#31, #32, #33).
 
     Extends the single-shot ``/chat`` in two ways, without touching it:
 
-    - FUSION (#31): retrieval draws on BOTH the real MEASURED experiment archive
-      and the Sidira PREDICTED simulation archive. When a simulation and an
-      experiment tested the same change, the answer tells the predicted-vs-measured
-      story; every citation is labeled MEASURED or PREDICTED.
+    - FUSION (#31): retrieval draws on BOTH a MEASURED experiment side and the
+      Sidira PREDICTED simulation side. When a simulation and an experiment tested
+      the same change, the answer tells the predicted-vs-measured story; every
+      citation is labeled MEASURED or PREDICTED.
     - MULTI-TURN (#32): the request carries prior turns so a follow-up resolves
       against the prior turn's subject. Suggested follow-up chips are returned.
+
+    TENANT SCOPING (#33): the PREDICTED side is the CUSTOMER'S OWN completed
+    simulations — the same source the ``/simulations`` Hypotheses tab lists, loaded
+    via the orchestrator and scoped to ``customer_id`` — not the synthetic demo
+    seed. This is why a hypothesis that exists on the Hypotheses tab (e.g. a
+    "Continue Watching" change) is now retrievable here. We hold no MEASURED
+    experiment archive for a real tenant yet (that arrives with connector
+    ingestion, #19/#20), so the measured side is empty rather than mixing in
+    unrelated demo experiments. When the tenant has NO completed simulations (a
+    fresh workspace or the offline/keyless demo), we fall back to the synthetic
+    seed so the fused predicted-vs-measured story still demonstrates.
 
     Grounded/extractive-fallback behavior is preserved: with an LLM key the model
     composes the prose; without one it degrades to a grounded extractive fused
     answer (``used_llm=false``).
     """
-    service = FusedConversationService(chat_client=chat_client)
+    rows = await orchestrator.list_recent(customer_id, limit=_LIVE_SIM_LIMIT)
+    if rows:
+        # The tenant HAS simulations → retrieve over THEIR completed ones, never the
+        # demo seed. ``live_sims`` may be empty when their recent simulations are all
+        # still pending; that yields an honest "nothing completed to draw on yet"
+        # answer rather than leaking synthetic demo data to a real customer. The
+        # seed is reserved for a workspace with NO simulations at all.
+        service = FusedConversationService(
+            experiments=[],
+            simulations=to_simulated_hypotheses(rows),
+            chat_client=chat_client,
+        )
+    else:
+        # Brand-new workspace / keyless local demo → the demoable synthetic seed.
+        service = FusedConversationService(chat_client=chat_client)
     return service.answer(req.message, req.history, req.top_k)

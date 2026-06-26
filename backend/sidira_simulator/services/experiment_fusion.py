@@ -135,10 +135,17 @@ def _predicted_effect_label(s: SimulatedHypothesis) -> str:
         PredictedDirection.FLAT: "FLAT",
     }[s.predicted_direction]
     # Magnitude is uncalibrated (DESIGN.md §8.3): lead with direction + agreement,
-    # show the pp as a predicted, uncalibrated figure.
+    # show the pp as a predicted, uncalibrated figure. When no metric delta was
+    # computed, omit the pp entirely rather than fabricate one — a direction-only
+    # citation, never a magnitude we don't have.
+    head = (
+        f"PREDICTED · {arrow} (uncalibrated) · agreement {s.confidence_score:.0f}/100"
+    )
+    if s.predicted_metric_lift_pp is None:
+        return f"{head} · on {s.primary_metric} · {s.sim_date}"
     return (
-        f"PREDICTED · {arrow} (uncalibrated) · agreement {s.confidence_score:.0f}/100 · "
-        f"~{s.predicted_metric_lift_pp:+.1f}pp on {s.primary_metric} · {s.sim_date}"
+        f"{head} · ~{s.predicted_metric_lift_pp:+.1f}pp on {s.primary_metric} · "
+        f"{s.sim_date}"
     )
 
 

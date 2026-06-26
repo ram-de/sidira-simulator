@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  ApiError,
   converseExperiments,
   searchSimilarExperiments,
   type CitationSource,
@@ -31,6 +32,33 @@ import {
 } from "@/lib/api";
 import AppShellV2 from "@/components/v2/AppShellV2";
 import { Button, Panel, StatusBadge } from "@/components/v2";
+
+// The Clerk session token (the __session cookie) is short-lived and refreshed by
+// Clerk's browser SDK; an idle tab can fire a follow-up carrying a stale one, which
+// the /api auth gate rejects with 401 ("Authentication required"). We read Clerk off
+// its browser global rather than the useAuth() hook ON PURPOSE: ClerkProvider mounts
+// only when Clerk is configured (app/layout.tsx), so a hook would crash the keyless
+// local/demo build. window.Clerk is simply absent there, and we no-op.
+type ClerkGlobal = {
+  session?: { getToken: (opts?: { skipCache?: boolean }) => Promise<string | null> };
+};
+
+// Force a fresh session token so a retried request carries a valid cookie. Returns
+// true only if a refresh was actually attempted (Clerk present + a live session).
+async function refreshClerkSession(): Promise<boolean> {
+  const clerk = (globalThis as { Clerk?: ClerkGlobal }).Clerk;
+  if (!clerk?.session) return false;
+  try {
+    await clerk.session.getToken({ skipCache: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isAuthError(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 401;
+}
 
 // One rendered exchange in the conversation thread (#32). Carries the user's
 // question, the grounded answer, its per-answer citations, suggested follow-ups,
@@ -164,7 +192,19 @@ export default function MemoryConsoleV2() {
       answer: t.answer,
     }));
     try {
-      const res = await converseExperiments(q, history, 6);
+      let res: Awaited<ReturnType<typeof converseExperiments>>;
+      try {
+        res = await converseExperiments(q, history, 6);
+      } catch (e) {
+        // A 401 here almost always means the session token lapsed in an idle
+        // tab. Refresh it once and retry before giving up — the user is still
+        // signed in (this is a protected route), the cookie just went stale.
+        if (isAuthError(e) && (await refreshClerkSession())) {
+          res = await converseExperiments(q, history, 6);
+        } else {
+          throw e;
+        }
+      }
       const id = ++turnSeq.current;
       setThread((prev) => [
         ...prev,
@@ -187,7 +227,11 @@ export default function MemoryConsoleV2() {
         ),
       );
     } catch (e) {
-      setChatError((e as Error)?.message ?? "Conversation failed");
+      setChatError(
+        isAuthError(e)
+          ? "Your session expired. Refresh the page or sign in again to continue."
+          : (e as Error)?.message ?? "Conversation failed",
+      );
     } finally {
       setChatLoading(false);
     }
