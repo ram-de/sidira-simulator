@@ -27,7 +27,7 @@ import {
   TopBar,
   Designator,
   ProvenanceBar,
-  ConsoleMarkMono,
+  SheetMarkDuo,
   type NavItem,
   type ProvSeg,
 } from "@/components/v2";
@@ -79,7 +79,7 @@ export default function AuthV2Page() {
             {/* ── card header: mono mark + a single eyebrow ─────────────── */}
             <div className="v2-auth-head">
               <span className="v2-auth-mark" aria-hidden>
-                <ConsoleMarkMono size={34} />
+                <SheetMarkDuo size={34} />
               </span>
               <Designator>SIGN IN · SIDIRA CONSOLE</Designator>
               <h1 className="v2-auth-title">Open the instrument.</h1>

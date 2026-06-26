@@ -25,7 +25,7 @@
 
 import type { ReactNode } from "react";
 import { ConsoleShell } from "./ConsoleShell";
-import { ConsoleMarkMono } from "./Marks";
+import { SheetMarkDuo } from "./Marks";
 import { ProvenanceMarker, type ProvenanceMarkerProps } from "./Provenance";
 
 // A primary nav entry in the left rail. `key` is what `activeNav` matches on
@@ -90,7 +90,7 @@ export function AppFrame({
             className="v2-rail-brand"
             aria-label="Sidira Console home"
           >
-            <ConsoleMarkMono size={28} />
+            <SheetMarkDuo size={28} />
           </a>
 
           <nav className="v2-rail-nav">

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { ConsoleMarkMono } from "@/components/v2";
+import { SheetMarkDuo } from "@/components/v2";
 import { clerkEnabled, hostedSignUpUrl } from "@/lib/clerk";
 import "@/styles/v2-theme.css";
 
@@ -46,7 +46,7 @@ function AuthStage({ children }: { children: React.ReactNode }) {
       <div className="auth-col">
         <div className="auth-head">
           <span className="auth-mark" aria-hidden>
-            <ConsoleMarkMono size={34} />
+            <SheetMarkDuo size={34} />
           </span>
         </div>
         {children}
