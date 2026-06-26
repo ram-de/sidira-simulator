@@ -11,14 +11,19 @@ from __future__ import annotations
 from datetime import datetime
 
 from sidira_simulator.schemas.experiment_memory import ExperimentCategory
+from sidira_simulator.schemas.simulation import SimulationStatus
 from sidira_simulator.schemas.simulation_archive import PredictedDirection
 from sidira_simulator.services.live_simulations import to_simulated_hypotheses
+
+# The real finished-status value ("complete", NOT "completed"). Anchoring tests to
+# the enum keeps them honest if the adapter's literal ever drifts again.
+_COMPLETE = SimulationStatus.COMPLETE.value
 
 
 def _row(
     *,
     sim_id: str = "sim-live-1",
-    status: str = "completed",
+    status: str = _COMPLETE,
     prose: str = "Add a 'Continue Watching' rail to the home screen",
     metric_name: str | None = "retention",
     capability_name: str = "home_screen",
@@ -105,6 +110,15 @@ def test_skips_non_citable_rows() -> None:
     ]
     out = to_simulated_hypotheses(rows)
     assert [s.id for s in out] == ["ok"]
+
+
+def test_accepts_complete_status_and_rejects_the_completed_typo() -> None:
+    """Regression: a finished sim is status 'complete', NOT 'completed'. The adapter
+    must accept the real enum value and skip the (wrong) 'completed' literal — the
+    bug that made every tenant simulation invisible to /memory."""
+    assert SimulationStatus.COMPLETE.value == "complete"
+    assert to_simulated_hypotheses([_row(status="complete")]), "'complete' must be cited"
+    assert to_simulated_hypotheses([_row(status="completed")]) == [], "'completed' is not a real status"
 
 
 def test_primary_metric_falls_back_to_capability_then_default() -> None:

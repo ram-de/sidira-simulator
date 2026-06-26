@@ -25,10 +25,15 @@ prediction to cite.
 from __future__ import annotations
 
 from sidira_simulator.schemas.experiment_memory import ExperimentCategory
+from sidira_simulator.schemas.simulation import SimulationStatus
 from sidira_simulator.schemas.simulation_archive import (
     PredictedDirection,
     SimulatedHypothesis,
 )
+
+# The status a finished simulation carries. SimulationStatus.COMPLETE is the
+# string "complete" (NOT "completed") — only these rows have a result to cite.
+_COMPLETED_STATUS = SimulationStatus.COMPLETE.value
 
 # Below this absolute pp a predicted metric delta reads as FLAT rather than a
 # directional call: the engine's magnitude is uncalibrated, so a hair off zero is
@@ -69,12 +74,12 @@ def to_simulated_hypotheses(rows: list[dict]) -> list[SimulatedHypothesis]:
     """Project completed live-simulation rows into the fusion's PREDICTED side.
 
     ``rows`` are the dicts ``SimulationOrchestrator.list_recent`` returns. Rows that
-    are not ``completed``, or that lack a hypothesis prose, a result, or an
-    agreement score, are skipped — there is no citable prediction.
+    are not COMPLETE, or that lack a hypothesis prose, a result, or an agreement
+    score, are skipped — there is no citable prediction.
     """
     out: list[SimulatedHypothesis] = []
     for row in rows:
-        if (row.get("status") or "") != "completed":
+        if (row.get("status") or "") != _COMPLETED_STATUS:
             continue
         hyp = row.get("hypothesis_json") or {}
         result = row.get("result_json") or {}
