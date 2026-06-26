@@ -23,6 +23,7 @@ from sidira_simulator.schemas.experiment_memory import (
     ConversationTurn,
     ExperimentCategory,
 )
+from sidira_simulator.schemas.simulation import SimulationStatus
 from sidira_simulator.schemas.simulation_archive import (
     PredictedDirection,
     SimulatedHypothesis,
@@ -200,7 +201,7 @@ def _clear_orchestrator() -> None:
 def _completed_sim_row(sim_id: str, prose: str, *, metric_lift_pp: float) -> dict:
     return {
         "id": sim_id,
-        "status": "completed",
+        "status": SimulationStatus.COMPLETE.value,  # "complete", not "completed"
         "hypothesis_json": {"prose": prose, "metric_name": "retention"},
         "result_json": {"confidence_score": 64.0, "metric_lift_pp": metric_lift_pp},
         "completed_at": "2026-06-24T10:00:00+00:00",
