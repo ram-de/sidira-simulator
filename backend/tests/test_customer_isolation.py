@@ -355,6 +355,18 @@ TENANT_AGNOSTIC_ROUTES = {
     ("POST", "/experiments/search-similar"),
     ("POST", "/experiments/chat"),
     ("POST", "/experiments/conversation"),
+    # Connector onboarding (#19): catalog + CSV parsing/validation helpers that
+    # read/write NO tenant archive — they list connectors, serve the static CSV
+    # template/sample, parse an uploaded CSV for preview, and validate credential
+    # SHAPE. The tenant-scoped connector routes (/{kind}/preview, /{kind}/import,
+    # GET /connectors/imports) DO depend on current_customer_id and are not listed
+    # here. When validate/preview begin persisting per-customer connector state
+    # they move out of this allowlist.
+    ("GET", "/connectors"),
+    ("GET", "/connectors/csv/template"),
+    ("GET", "/connectors/csv/sample"),
+    ("POST", "/connectors/csv/preview"),
+    ("POST", "/connectors/{kind}/validate"),
 }
 
 # Non-APIRoute mounts FastAPI registers itself (docs/openapi). Anything else

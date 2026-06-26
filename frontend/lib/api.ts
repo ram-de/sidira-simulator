@@ -1087,6 +1087,140 @@ export const chatExperiments = (message: string, topK = 6) =>
     { message, top_k: topK },
   );
 
+// ── connectors / experiment onboarding (#19) ─────────────────────────────
+// The INGESTION side of the archive: connect a source -> map columns ->
+// preview -> import. Hand-typed (same pattern as the experiment-memory block
+// above): these routes postdate the committed api-types.ts. Shapes mirror
+// backend/sidira_simulator/schemas/connector.py. CSV works with no credentials;
+// Statsig/SQL report a needs_credentials state until the customer supplies
+// their own — the client never fabricates an "imported" result.
+
+export type ConnectorKind = "csv" | "statsig" | "sql";
+export type ConnectorState = "active" | "needs_credentials";
+
+export type ConnectorDescriptor = {
+  kind: ConnectorKind;
+  name: string;
+  summary: string;
+  state: ConnectorState;
+  credential_fields: string[];
+  needs_message: string | null;
+};
+
+export type FieldMapping = {
+  columns: Record<string, string>;
+  variant_delimiter: string;
+};
+
+// Named CsvColumnProfile to avoid colliding with the feature-store ColumnProfile
+// above (different shape — this one carries sample values for the mapping UI).
+export type CsvColumnProfile = { name: string; sample_values: string[] };
+export type RowError = { row: number; message: string };
+
+export type CsvPreviewResponse = {
+  columns: CsvColumnProfile[];
+  suggested_mapping: FieldMapping;
+  row_count: number;
+  preview: Experiment[];
+  errors: RowError[];
+};
+
+export type ValidateConnectorResponse = {
+  kind: ConnectorKind;
+  ok: boolean;
+  state: ConnectorState;
+  message: string;
+};
+
+export type ImportResult = {
+  kind: ConnectorKind;
+  state: ConnectorState;
+  imported: number;
+  failed: number;
+  errors: RowError[];
+  experiments: Experiment[];
+  message: string;
+};
+
+export type ImportSummary = {
+  id: string;
+  kind: ConnectorKind;
+  imported: number;
+  at: string;
+};
+
+export type ListImportsResponse = {
+  imports: ImportSummary[];
+  archive_size: number;
+};
+
+// The nine Experiment fields a mapping targets (input side then outcome side —
+// the two-table firewall). Used by the mapping UI to render a row per field.
+export const TARGET_FIELDS: readonly string[] = [
+  "change_description",
+  "variants",
+  "primary_metric",
+  "category",
+  "winner",
+  "result",
+  "effect_size_pct",
+  "n",
+  "date",
+];
+
+export const listConnectors = () =>
+  apiGet<{ connectors: ConnectorDescriptor[] }>("/connectors");
+
+// CSV preview is multipart (file upload) — _req sets a JSON content-type, so we
+// call fetch directly here and let the browser set the multipart boundary.
+export const previewCsv = async (
+  file: File,
+  variantDelimiter = "|",
+): Promise<CsvPreviewResponse> => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("variant_delimiter", variantDelimiter);
+  const res = await fetch(`${API_BASE}/connectors/csv/preview`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return (await res.json()) as CsvPreviewResponse;
+};
+
+export const validateConnector = (
+  kind: ConnectorKind,
+  config: Record<string, string>,
+) =>
+  apiPost<{ config: Record<string, string> }, ValidateConnectorResponse>(
+    `/connectors/${kind}/validate`,
+    { config },
+  );
+
+export type ImportPayload = {
+  mapping: FieldMapping;
+  rows?: Record<string, string>[];
+  config?: Record<string, string>;
+};
+
+// Dry-run a credentialed import: pulls + maps the first rows but persists
+// NOTHING, so the customer can verify the mapped result before confirming the
+// real import (Statsig/SQL). The shape is the same ImportResult as /import.
+export const previewConnectorImport = (
+  kind: ConnectorKind,
+  payload: ImportPayload,
+) => apiPost<ImportPayload, ImportResult>(`/connectors/${kind}/preview`, payload);
+
+export const runConnectorImport = (kind: ConnectorKind, payload: ImportPayload) =>
+  apiPost<ImportPayload, ImportResult>(`/connectors/${kind}/import`, payload);
+
+export const listImports = () =>
+  apiGet<ListImportsResponse>("/connectors/imports");
+
+// Absolute URLs for the template/sample downloads (anchor href, not fetch).
+export const csvTemplateUrl = `${API_BASE}/connectors/csv/template`;
+export const csvSampleUrl = `${API_BASE}/connectors/csv/sample`;
+
 // ── fused multi-turn conversation (#31 fusion + #32 multi-turn) ──────────────
 // Hand-typed against backend/sidira_simulator/schemas/experiment_memory.py
 // (CitationSource / FusedCitation / ConversationRequest / ConversationResponse).

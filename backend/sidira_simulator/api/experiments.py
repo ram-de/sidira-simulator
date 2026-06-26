@@ -62,6 +62,13 @@ def post_search_similar(req: SearchSimilarRequest) -> SearchSimilarResponse:
 
     This runs BEFORE any prediction and never calls the simulation engine.
     """
+    # NOTE (tenant scoping — intentional, tracked separately): the archive here is
+    # the SHARED seed sample, read without a customer_id, because no real
+    # per-customer archive exists yet (imports land in the in-memory
+    # IngestionStore, not yet wired into retrieval). When the persisted per-tenant
+    # archive lands, this read MUST be scoped to the caller's customer_id (mirror
+    # the IngestionStore.archive_for(customer_id) pattern). Until then the seed is
+    # the same demo data for everyone, so there is no cross-tenant leak to guard.
     return search_similar(req.hypothesis, seed_experiments(), req.top_k)
 
 

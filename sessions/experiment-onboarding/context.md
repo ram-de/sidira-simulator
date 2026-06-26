@@ -1,0 +1,210 @@
+---
+type: session
+domain: experiment-onboarding
+status: open
+started: 2026-06-26
+owner: ram-de
+ticket: "#19"
+---
+
+# Session: experiment-onboarding — connect your experimentation platform and pull results
+
+## Goal
+Build the missing ONBOARDING flow for the experiment archive (`/memory`). Today the archive
+is **synthetic seed data only** (`services/experiment_archive.py::seed_experiments`). This adds
+a **connector framework** that ingests real external experiments into the existing `Experiment`
+schema, plus a DESIGN.md-compliant onboarding page (`/memory/connect`):
+pick a source → authenticate/upload → map fields → preview → import → archive populated.
+
+## Hard constraints (from the ticket)
+- **ADD an ingestion/write path. Do NOT refactor the existing read interface** —
+  `experiment_archive.seed_experiments()` + `experiment_similarity`/`experiment_chat` are being
+  extended by another builder in parallel. The read side is untouched.
+- **DESIGN.md is law.** No emoji, no icon library (text glyphs only), tokens only, v2 console
+  system (AppShellV2 / v2-theme.css), §8.8 register for the preview table, §8.6 honest
+  pending/empty states, radius 2/4/6, §7.7 controls. New vocabulary → DESIGN.md update SAME PR.
+- **Two-table firewall**: ingestion keeps the input side (`change_description`, `variants`,
+  `primary_metric`, `category`) cleanly separate from the outcome side (`winner`, `result`,
+  `effect_size_pct`, `n`, `date`). No leakage path invented — connectors only *map columns*,
+  never derive outcome from input or vice versa.
+- **HONEST**: CSV works fully NOW. Statsig + SQL are real connectors that work the moment the
+  customer supplies credentials — they NEVER fabricate "imported" data. No creds → a clear
+  "needs credentials" registered-but-inactive state.
+
+## Architecture decisions
+- **No Alembic migration.** Connectors are request-scoped (creds supplied at import time) and
+  imports land in an **in-memory ingestion store** keyed by customer (`IngestionStore`). This
+  keeps the PR migration-free (clean for the deploy runbook) and avoids touching the read
+  interface. A future PR can persist via the existing `credentials.encrypt` + repo pattern
+  (mirrors `feature_stores`) when a real customer arrives.
+- **Connector registry** (`services/connectors/registry.py`): declarative descriptors —
+  `csv` (active), `statsig` (needs key), `sql` (needs connection). The API lists these so the
+  UI renders an honest picker (active vs needs-credentials), never a hardcoded CSV form.
+- **Field mapping** is the firewall boundary: a `FieldMapping` maps source columns → the 9
+  Experiment fields. Pure, deterministic, zero-LLM. `mapping.py` + `csv_connector.py` parse and
+  build `Experiment` records; validation reports per-row errors honestly.
+
+## Backend layout
+- `schemas/connector.py` — connector descriptors, FieldMapping, import request/result models.
+- `services/connectors/` — `base.py` (Connector protocol), `registry.py`, `mapping.py`,
+  `csv_connector.py`, `statsig_connector.py`, `sql_connector.py`, `ingestion_store.py`.
+- `services/experiment_ingest.py` — the ADD-only write path: validated Experiments → store.
+- `api/connectors.py` — `GET /connectors`, `GET /connectors/csv/template`,
+  `POST /connectors/csv/preview` (multipart), `POST /connectors/{kind}/validate`,
+  `POST /connectors/{kind}/import`, `GET /connectors/imports`.
+
+## Frontend
+- `app/memory/connect/page.tsx` + `ConnectFlowV2.tsx` — 5-step flow under AppShellV2.
+- `.v2-connect-*` classes in `styles/v2-theme.css` (mirrors `.v2-mem-*`).
+- "Connect a source" entry point added to `MemoryConsoleV2`.
+
+## DESIGN.md additions
+- §8.9 (new) "Ingestion preview register + connector states" — the preview reuses the §8.8
+  register; connector availability uses honest text states (active / needs credentials), no
+  new colors/pills/icons. Changelog 0.3.7.
+
+## Status / TODO
+- [x] backend connectors + tests (28 tests, all green)
+- [x] api routes + wiring in main.py (`/connectors/*`)
+- [x] frontend connect flow (`/memory/connect`, 5 steps) + entry point on `/memory`
+- [x] DESIGN.md §8.9 + changelog 0.3.7
+- [x] tests green (backend connector + experiment-memory + feature-store suites) + `tsc --noEmit` green + `next build` compiles `/memory/connect`
+- [x] PR opened (no merge, no deploy)
+
+## What's live vs needs creds
+- **CSV**: works end-to-end NOW (parse → map → preview → import populates the archive). Verified via curl.
+- **Statsig**: structured; needs the customer's Statsig Console API key. No key → honest `needs_credentials` (0 rows). Network pull isolated in `statsig_connector._fetch_experiments` (stubbed in tests).
+- **SQL**: needs the customer's connection string + read-only SELECT. **Postgres + SQLite only**
+  (other dialects refused). Defense-in-depth: DB-level read-only transaction (`SET TRANSACTION
+  READ ONLY` + `statement_timeout` on Postgres) is the real boundary; the keyword filter +
+  function-call/no-FROM rejection is the second layer. Connect/exec errors are sanitized to generic
+  messages (raw driver text logged server-side only). Round-trip isolated in `_run_query` (stubbed).
+
+## Codex-review fixes (#488 follow-up, 2026-06-26)
+Applied the BLOCKERS + quick MAJORS from the codex review:
+- **BLOCKER 1 — SQL real read-only.** `sql_connector` now enforces DB-level read-only as the
+  real boundary: Postgres opens with `default_transaction_read_only=on` + `statement_timeout`
+  and runs `SET TRANSACTION READ ONLY` then rolls back; SQLite is the only other supported
+  backend; any other dialect is **refused** (`SqlUnsupportedBackendError`) rather than trusting
+  the keyword filter. `validate_query` now also rejects **function-call SELECTs** (nextval/setval/
+  dblink/pg_sleep/proc-call) and **bare expression SELECTs with no FROM**, plus `SELECT … INTO`.
+  Advertised support narrowed to Postgres + SQLite; needs-message tells customers to use a
+  read-only role. Tests: function-call bypass, setval, SELECT INTO, unsupported backend.
+- **BLOCKER 2 — credential redaction.** Joined `/connectors/{kind}/validate|preview|import` to the
+  existing `_is_secret_body_path` redactor in `main.py` (the #206/#328 framework). A 422 on a
+  credentialed body now redacts the input → secret never echoes. Tests assert the SQL conn-string /
+  Statsig key do not appear in the 422 body.
+- **MAJOR 3 — sanitize SQL errors.** `_run_query` raises distinct `SqlConnectError` /
+  `SqlExecutionError` (raw driver text), logged server-side; the orchestrator returns generic
+  "Could not connect with the supplied connection string." / "Query failed under the read-only
+  import policy." The customer's own rejected query (guard-rail message) is still shown — it has
+  no driver internals.
+- **MAJOR 5 — credentialed preview.** Added a real dry-run `preview_import()` + `POST
+  /connectors/{kind}/preview` (no store dependency → cannot persist). Frontend PREVIEW step now
+  runs the dry-run for Statsig/SQL, shows the mapped rows, and only the explicit
+  `Confirm & import to archive →` persists. DESIGN.md §8.9 + changelog 0.3.9 (UI copy lockstep).
+- **MAJOR 6 — CSV duplicate/blank headers.** `parse_csv` rejects blank or duplicate (case-insensitive)
+  headers up front with a clear "ambiguous mapping" error. Tests added.
+- **MINOR 8 — removed the unused `get_descriptor` import** from `experiment_ingest.py`.
+- **MAJOR 4 (left intentionally):** added a NOTE comment at the `seed_experiments()` read in
+  `api/experiments.py` — the shared seed archive is read un-scoped on purpose until the persisted
+  per-tenant archive lands; tracked separately. No memory-read behavior changed.
+- **MINOR 7 — left** the conservative keyword filter as the second layer (now backed by the
+  DB-level read-only transaction as the real boundary).
+
+Tests: **41/41 connectors green**; full backend **1652 passed** (only the 2 pre-existing
+`test_deploy_config` failures remain — see below). `tsc --noEmit` green.
+
+## Second codex-review round (#488 v2, 2026-06-26) — 2×P1 + 2×P2 in the SQL connector
+A re-review found the read-only story still had holes. Fixed all four:
+- **P1 — SQLite was advertised read-only but opened read-write.** SQLite gave no way to enforce
+  read-only via a plain connection string (`create_engine(connection_string)` with no `mode=ro`),
+  so we **dropped SQLite entirely — the SQL connector is now PostgreSQL-only**, the one dialect
+  where `default_transaction_read_only` + `SET TRANSACTION READ ONLY` make read-only real.
+  `_SUPPORTED_BACKENDS = ("postgresql",)`; `_run_query` no longer branches on backend; module
+  docstring + `NEEDS_MESSAGE` + registry copy updated; the unsupported-backend test now also
+  asserts `sqlite://` is refused.
+- **P1 — proc/function-style SELECTs bypassed `validate_query`.** Tightened the allow-list to a
+  plain `SELECT … FROM <table/view>` shape: reject `CALL`/`DO`, a select-list that is itself a
+  function/proc call (`SELECT my_proc() FROM …`, `SELECT f(x) AS y FROM t`) except a small
+  read-aggregate allow-list (count/sum/avg/min/max/coalesce/cast/…), and broadened the
+  side-effecting-func regex to `currval`/`dblink*`/`lo_*`/`pg_advisory*`/**any `pg_*(`** /
+  `nextval`/`setval`. New test `test_sql_query_guard_rejects_proc_and_volatile_func_bypasses`
+  plus `…_allows_read_aggregates` (so the proc guard doesn't false-positive on `count(*)`).
+  The Postgres read-only transaction remains the primary write-boundary; this is defense-in-depth.
+- **P2 — validate path accepted unsupported dialects.** `validate_connector` (SQL branch) now
+  calls the new `sql_connector.is_supported_backend()` and reports a non-Postgres URL as
+  NOT-ready up front (instead of 'ready' then refused at import). Test
+  `test_sql_validate_rejects_unsupported_backend_early`.
+- **P2 — unsupported / no-scheme strings could echo secrets.** Both `fetch_rows`/`_run_query`
+  and the validate path now return the generic `UNSUPPORTED_BACKEND_MESSAGE` ("supports
+  PostgreSQL only…") and NEVER interpolate connection-string-derived text — an ODBC `Pwd=…`
+  no-scheme string is no longer reflected. Raw detail stays in the server log. Tests assert a
+  `Pwd=hunter2` string never appears in the error or the validate response.
+
+All already-resolved fixes kept intact (422 redaction, generic SQL errors, dry-run preview, CSV
+dup-header rejection, tenant allowlist). Changed files: `sql_connector.py`, `experiment_ingest.py`,
+`test_connectors.py`. No UI copy change → no DESIGN.md update.
+
+Tests (v2): **46/46 connectors green**; full backend **1657 passed** (only the same 2 pre-existing
+`test_deploy_config` failures). `tsc --noEmit` green.
+
+## Third codex-review round (#488 v3, 2026-06-26) — 1×P1: select-list guard only checked the first item
+Codex found the v2 proc/function-call guard applied the select-list check to ONLY the first
+top-level SELECT expression, so function calls in later positions (`SELECT col, evil_func() FROM t`),
+set-returning functions, CTEs (`WITH … SELECT`), and projection subqueries still passed. The
+validator did not actually enforce the "plain SELECT … FROM <table/view>" it claimed.
+
+**Approach: full lexical scan, NO new parser.** Checked `pyproject.toml` + the backend venv —
+neither `sqlglot` nor `sqlparse` is a dependency or installed, and the ticket says don't add a
+heavy dep just to harden a non-boundary check. So `validate_query` now:
+- **rejects `WITH`/CTE queries outright** (they nest arbitrary SELECTs a lexical scan can't soundly
+  walk) — this changes prior behaviour where a CTE was accepted; the old `test_sql_query_guard_rejects_writes`
+  CTE-accept assertion was updated to a flat multi-column SELECT.
+- **rejects any subquery in the projection** (`(\s*select` before the first top-level FROM).
+- **scans the ENTIRE select-list** via `_split_top_level_commas` (comma-split ignoring parens) +
+  `_FUNC_CALL_TOKEN.finditer` over every item, rejecting ANY function call whose bare name is not
+  in the read-aggregate allow-list `_ALLOWED_PROJECTION_FUNCS`
+  (count/sum/avg/min/max/coalesce/cast/round + a few pure scalar helpers). New helper
+  `_reject_disallowed_projection_funcs`. Replaces the old first-item-only `_SELECT_LIST_FUNC_CALL`.
+- The side-effecting-func regex (`nextval`/`setval`/`dblink*`/`lo_*`/`pg_*`/advisory) and the
+  forbidden-keyword/SELECT-INTO guards are unchanged and still scan the whole statement.
+
+**Security framing made explicit (code + NEEDS_MESSAGE):** the module docstring + `validate_query`
+docstring + `NEEDS_MESSAGE` now state plainly that the **DB-level read-only transaction +
+statement_timeout + the customer's read-only role is the SECURITY BOUNDARY** (the server refuses
+every write, including writes hidden in a function call), and the syntactic validator is
+defense-in-depth / UX, reject-on-doubt — NOT the sole guard.
+
+New tests: `test_sql_query_guard_rejects_later_selectlist_and_cte_bypasses` (covers all 4 codex
+bypass classes: later-position func, set-returning func, CTE, subquery-with-func) and
+`test_sql_query_guard_allows_columns_with_aggregates_in_any_position` (so the full-list scan doesn't
+over-reject `SELECT id, name, count(*) FROM t`). Note: a function in a WHERE clause (e.g. `now()`)
+is intentionally NOT rejected by the projection scan — it's not a write vector and the read-only
+txn contains it; side-effecting funcs in WHERE are still caught by `_SIDE_EFFECTING_FUNCS`.
+
+Changed files: `sql_connector.py`, `test_connectors.py`. No UI copy change → no DESIGN.md update.
+All prior fixes intact (Postgres-only, secret redaction, generic errors, dry-run preview, CSV dedup,
+tenant scoping).
+
+Tests (v3): **48/48 connectors green**; full backend **1659 passed, 11 skipped** (only the same 2
+pre-existing `test_deploy_config` failures). `tsc --noEmit` green.
+
+## Pre-existing failures (re-verified against clean `origin/main` checkout)
+- `test_deploy_config::test_public_api_is_gated_by_backend_internal_key` and
+  `test_deploy_config::test_frontend_splits_public_site_from_product_app_hosts` — both read
+  `deploy/` + `frontend/app/page.tsx`, which this PR does NOT touch; they fail on this worktree's
+  base state and are unrelated.
+- **CORRECTION:** `test_customer_isolation::test_every_route_resolves_the_tenant` was previously
+  noted here as pre-existing `_IncludedRouter` drift — that was WRONG. It PASSES on clean main and
+  failed only because the PR added connector routes without allowlisting the tenant-agnostic ones.
+  **Fixed**: added `GET /connectors`, csv template/sample/preview, and `{kind}/validate` to
+  `TENANT_AGNOSTIC_ROUTES` (with a comment). The tenant-scoped `{kind}/preview`, `{kind}/import`,
+  and `GET /connectors/imports` correctly depend on `current_customer_id`. Now passes.
+- `test_identity_seed::test_cross_process_determinism` did NOT fail in this run.
+
+## Note for a future PR
+Imports land in an in-memory `IngestionStore` (migration-free). To persist + connect the ingested
+archive to the retrieval pipeline, add a Postgres repo (mirror `feature_stores`: `credentials.encrypt`
++ Alembic migration) once the parallel read-interface work lands — the connector/import API surface
+stays the same.

@@ -81,7 +81,11 @@ export function Button({
   href?: string;
   children: ReactNode;
   className?: string;
-} & React.HTMLAttributes<HTMLElement>) {
+  // Accept the native button attributes (e.g. `disabled`, `type`) and anchor
+  // attributes (e.g. `target`) — both are spread onto the rendered element
+  // below. `disabled` drives the §7.7 honest disabled state via `.v2-btn:disabled`.
+} & React.ButtonHTMLAttributes<HTMLButtonElement> &
+  React.AnchorHTMLAttributes<HTMLAnchorElement>) {
   const cls = cx(
     "v2-btn",
     `v2-btn--${variant}`,

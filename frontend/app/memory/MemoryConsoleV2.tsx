@@ -200,6 +200,11 @@ export default function MemoryConsoleV2() {
       activeNav="memory"
       title="Experiment memory"
       provenance={{ label: "RETRIEVAL · REAL OUTCOMES", calibrated: false, live: false }}
+      actions={
+        <Button as="a" variant="secondary" href="/memory/connect">
+          Connect a source →
+        </Button>
+      }
     >
       <div className="v2-mem">
         <p className="v2-mem-law v2-mono">
