@@ -1566,3 +1566,205 @@ a.v2-sims-row:hover{
   .v2-lib-grid{grid-template-columns:1fr;}
   .v2-lib-law{margin-left:0;}
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Experiment Memory (#28, #29) — /memory. Retrieval over the past-experiment
+   archive: a pre-gate dedup check + a grounded chat. Console palette, token-
+   driven only (no raw hex beyond the shared tokens already defined above).
+   ───────────────────────────────────────────────────────────────────────── */
+.v2-mem{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-section);
+  max-width:880px;
+}
+/* the honesty law eyebrow — mono, muted, never signal (mirrors .v2-sims-law) */
+.v2-mem-law{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  margin:0;
+}
+.v2-mem-section{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-cozy);
+}
+.v2-mem-section-title{
+  font-family:var(--v2-font-serif);
+  font-size:22px;
+  font-weight:500;
+  color:var(--text-hi);
+  margin:0;
+}
+.v2-mem-section-sub{
+  font-size:14px;
+  line-height:1.55;
+  color:var(--text-mut);
+  margin:0;
+  max-width:64ch;
+}
+/* ── input form ── */
+.v2-mem-form{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+}
+.v2-mem-input{
+  width:100%;
+  resize:vertical;
+  padding:var(--space-cozy) var(--space-base);
+  font-family:var(--v2-font-sans);
+  font-size:15px;
+  line-height:1.5;
+  color:var(--text-hi);
+  background:var(--console-850);
+  border:1px solid var(--console-line-60);
+  border-radius:var(--r-well);
+  transition:border-color 0.14s var(--ease-out);
+}
+.v2-mem-input::placeholder{ color:var(--text-faint); }
+.v2-mem-input:focus-visible{
+  outline:none;
+  border-color:var(--signal-dim);
+}
+.v2-mem-form-actions{
+  display:flex;
+  justify-content:flex-end;
+}
+/* ── alert ── */
+.v2-mem-alert{
+  padding:var(--space-snug) var(--space-cozy);
+  font-size:13px;
+  color:var(--text);
+  background:var(--console-750);
+  border:1px solid var(--alert);
+  border-radius:var(--r-well);
+}
+/* ── result panel ── */
+.v2-mem-result{ padding:var(--space-room); }
+.v2-mem-verdict{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+}
+.v2-mem-headline{
+  font-size:15px;
+  line-height:1.55;
+  color:var(--text-hi);
+  margin:0;
+}
+/* the "similar != guaranteed same effect" caveat — bordered note, never hidden */
+.v2-mem-caveat{
+  margin:var(--space-base) 0 0;
+  padding:var(--space-cozy) var(--space-base);
+  font-size:13px;
+  line-height:1.5;
+  color:var(--text);
+  background:var(--console-850);
+  border-left:2px solid var(--edge-warn);
+  border-radius:0 var(--r-well) var(--r-well) 0;
+}
+/* ── similar-match rows ── */
+.v2-mem-matches{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-base);
+  margin-top:var(--space-room);
+  padding-top:var(--space-room);
+  border-top:0.75px solid var(--console-line-50);
+}
+.v2-mem-match{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-tight);
+}
+.v2-mem-match-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-cozy);
+}
+.v2-mem-match-id{
+  font-size:11px;
+  letter-spacing:0.06em;
+  color:var(--text);
+}
+.v2-mem-match-cat{
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-mem-match-sim{
+  margin-left:auto;
+  font-size:11px;
+  color:var(--text-mut);
+}
+.v2-mem-match-desc{
+  font-size:14px;
+  line-height:1.45;
+  color:var(--text-hi);
+  margin:0;
+}
+.v2-mem-match-result{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-snug);
+}
+.v2-mem-result-word{
+  font-size:11px;
+  letter-spacing:0.08em;
+  color:var(--text);
+}
+.v2-mem-result-detail{
+  font-size:11px;
+  color:var(--text-mut);
+}
+/* ── chat answer ── */
+.v2-mem-answer{
+  font-size:15px;
+  line-height:1.6;
+  color:var(--text-hi);
+  margin:0;
+  white-space:pre-wrap;
+}
+.v2-mem-prov{
+  margin-top:var(--space-base);
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-mem-cites{
+  list-style:none;
+  margin:var(--space-base) 0 0;
+  padding:var(--space-base) 0 0;
+  border-top:0.75px solid var(--console-line-50);
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+}
+.v2-mem-cite{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-cozy);
+  font-size:13px;
+  color:var(--text);
+}
+.v2-mem-cite-id{
+  font-size:11px;
+  letter-spacing:0.06em;
+  color:var(--text-mut);
+  flex:0 0 auto;
+}
+.v2-mem-cite-desc{ flex:1 1 auto; line-height:1.4; }
+.v2-mem-cite-res{
+  flex:0 0 auto;
+  font-size:11px;
+  color:var(--text-mut);
+}
+@media(max-width:560px){
+  .v2-mem-cite{ flex-wrap:wrap; }
+  .v2-mem-match-sim{ margin-left:0; }
+}

@@ -1026,3 +1026,63 @@ export const isTerminalStatus = (s: SimulationStatus | undefined | null) =>
 
 export const isBuildTerminal = (s: BuildStatus | undefined | null) =>
   s === "complete" || s === "failed";
+
+// ── experiment memory (#28, #29) ─────────────────────────────────────────
+// Hand-typed (mirrors the Capability/CrawlSummary pattern above): these routes
+// postdate the committed api-types.ts, so the shapes are written here against
+// backend/sidira_simulator/schemas/experiment_memory.py. Collapse to
+// components["schemas"] once gen-types is re-run against a backend serving them.
+
+export type ExperimentResult = "win" | "loss" | "flat";
+export type ExperimentCategory = "copy" | "pricing" | "ui" | "flow";
+export type Verdict = "already_tested" | "similar" | "novel";
+
+export type Experiment = {
+  id: string;
+  change_description: string;
+  variants: string[];
+  primary_metric: string;
+  category: ExperimentCategory;
+  winner: string;
+  result: ExperimentResult;
+  effect_size_pct: number;
+  n: number;
+  date: string;
+};
+
+export type SimilarMatch = { experiment: Experiment; similarity: number };
+
+export type SearchSimilarResponse = {
+  hypothesis: string;
+  verdict: Verdict;
+  headline: string;
+  caveat: string | null;
+  matches: SimilarMatch[];
+};
+
+export type ChatCitation = {
+  id: string;
+  change_description: string;
+  result: ExperimentResult;
+  effect_size_pct: number;
+  primary_metric: string;
+};
+
+export type ExperimentChatResponse = {
+  answer: string;
+  citations: ChatCitation[];
+  grounded: boolean;
+  used_llm: boolean;
+};
+
+export const searchSimilarExperiments = (hypothesis: string, topK = 5) =>
+  apiPost<{ hypothesis: string; top_k: number }, SearchSimilarResponse>(
+    "/experiments/search-similar",
+    { hypothesis, top_k: topK },
+  );
+
+export const chatExperiments = (message: string, topK = 6) =>
+  apiPost<{ message: string; top_k: number }, ExperimentChatResponse>(
+    "/experiments/chat",
+    { message, top_k: topK },
+  );
