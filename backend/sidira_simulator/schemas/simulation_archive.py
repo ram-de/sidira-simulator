@@ -79,12 +79,15 @@ class SimulatedHypothesis(BaseModel):
             "SimulationResult.confidence_score. Never a measured probability."
         ),
     )
-    predicted_metric_lift_pp: float = Field(
+    predicted_metric_lift_pp: float | None = Field(
+        default=None,
         description=(
             "Predicted paired treatment-control delta on the primary metric, in "
             "percentage points. The live SimulationResult.metric_lift_pp. "
-            "Uncalibrated — read as rank/direction, not effect size (DESIGN.md §8.3)."
-        )
+            "Uncalibrated — read as rank/direction, not effect size (DESIGN.md §8.3). "
+            "None when no metric delta was computed (e.g. a non-metric run): the "
+            "citation then reports DIRECTION only and never fabricates a magnitude."
+        ),
     )
     sim_date: str = Field(description="ISO date the simulation ran (YYYY-MM-DD).")
     # Optional explicit link to the real experiment this prediction is paired

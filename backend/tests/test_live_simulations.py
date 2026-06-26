@@ -71,11 +71,13 @@ def test_direction_from_signed_metric_delta() -> None:
     assert down.predicted_direction is PredictedDirection.DOWN
 
 
-def test_direction_falls_back_to_headline_lift() -> None:
-    # No metric_lift_pp, but a negative headline lift → DOWN.
+def test_direction_falls_back_to_headline_lift_without_fabricating_pp() -> None:
+    # No metric_lift_pp, but a negative headline lift → direction DOWN, yet the
+    # metric-lift figure stays None (never fabricated as 0.0, which would contradict
+    # the direction in the rendered citation — DESIGN.md §8.3).
     sim = to_simulated_hypotheses([_row(metric_lift_pp=None, lift=-3.1)])[0]
     assert sim.predicted_direction is PredictedDirection.DOWN
-    assert sim.predicted_metric_lift_pp == 0.0  # no metric delta to report
+    assert sim.predicted_metric_lift_pp is None
 
 
 def test_flat_when_no_signal_or_inside_band() -> None:

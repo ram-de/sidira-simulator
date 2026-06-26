@@ -102,8 +102,11 @@ def to_simulated_hypotheses(rows: list[dict]) -> list[SimulatedHypothesis]:
                     metric_lift_pp, result.get("lift")
                 ),
                 confidence_score=float(confidence),
-                predicted_metric_lift_pp=float(
-                    metric_lift_pp if metric_lift_pp is not None else 0.0
+                # Report ONLY a real metric delta; None (no metric computed) yields
+                # a direction-only citation rather than a fabricated 0.0pp that
+                # could contradict the direction (DESIGN.md §8.3).
+                predicted_metric_lift_pp=(
+                    float(metric_lift_pp) if metric_lift_pp is not None else None
                 ),
                 sim_date=_sim_date(row),
                 paired_experiment_id=None,

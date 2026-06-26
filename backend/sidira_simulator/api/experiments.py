@@ -128,14 +128,19 @@ async def post_conversation(
     composes the prose; without one it degrades to a grounded extractive fused
     answer (``used_llm=false``).
     """
-    live_sims = to_simulated_hypotheses(
-        await orchestrator.list_recent(customer_id, limit=_LIVE_SIM_LIMIT)
-    )
-    if live_sims:
+    rows = await orchestrator.list_recent(customer_id, limit=_LIVE_SIM_LIMIT)
+    if rows:
+        # The tenant HAS simulations → retrieve over THEIR completed ones, never the
+        # demo seed. ``live_sims`` may be empty when their recent simulations are all
+        # still pending; that yields an honest "nothing completed to draw on yet"
+        # answer rather than leaking synthetic demo data to a real customer. The
+        # seed is reserved for a workspace with NO simulations at all.
         service = FusedConversationService(
-            experiments=[], simulations=live_sims, chat_client=chat_client
+            experiments=[],
+            simulations=to_simulated_hypotheses(rows),
+            chat_client=chat_client,
         )
     else:
-        # No tenant simulations yet → the demoable synthetic seed (both sides).
+        # Brand-new workspace / keyless local demo → the demoable synthetic seed.
         service = FusedConversationService(chat_client=chat_client)
     return service.answer(req.message, req.history, req.top_k)

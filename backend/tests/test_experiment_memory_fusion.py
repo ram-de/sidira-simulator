@@ -21,10 +21,15 @@ from sidira_simulator.main import app
 from sidira_simulator.schemas.experiment_memory import (
     CitationSource,
     ConversationTurn,
+    ExperimentCategory,
 )
-from sidira_simulator.schemas.simulation_archive import PredictedDirection
+from sidira_simulator.schemas.simulation_archive import (
+    PredictedDirection,
+    SimulatedHypothesis,
+)
 from sidira_simulator.services.experiment_fusion import (
     FusedConversationService,
+    _predicted_effect_label,
     _resolve_query,
 )
 from sidira_simulator.services.simulation_archive import seed_simulations
@@ -312,3 +317,47 @@ def test_conversation_endpoint_uses_injected_llm_stub() -> None:
     assert body["used_llm"] is True
     assert body["answer"].startswith("We predicted UP")
     assert body["citations"]
+
+
+def test_predicted_citation_without_metric_lift_is_direction_only() -> None:
+    """A prediction with no metric delta must cite DIRECTION only — never a
+    fabricated ~+0.0pp that could contradict the direction (DESIGN.md §8.3)."""
+    sim = SimulatedHypothesis(
+        id="sim-live-x",
+        change_description="Add a Continue Watching rail",
+        primary_metric="home_screen",
+        category=ExperimentCategory.UI,
+        predicted_direction=PredictedDirection.DOWN,
+        confidence_score=58.0,
+        predicted_metric_lift_pp=None,
+        sim_date="2026-06-24",
+    )
+    label = _predicted_effect_label(sim)
+    assert "DOWN" in label and "uncalibrated" in label
+    assert "pp" not in label, "no fabricated magnitude when none was computed"
+
+
+def test_tenant_with_only_pending_sims_never_sees_demo_seed() -> None:
+    """#33/P2: a customer that HAS simulations (even if all still pending) must not
+    be shown synthetic demo-seed data — the seed is only for an empty workspace."""
+    pending = {
+        "id": "sim-pending",
+        "status": "running",
+        "hypothesis_json": {"prose": "Add a Continue Watching rail", "metric_name": "retention"},
+        "result_json": None,
+        "completed_at": None,
+        "created_at": "2026-06-25T09:00:00+00:00",
+    }
+    _override_orchestrator([pending])
+    try:
+        resp = TestClient(app).post(
+            "/experiments/conversation",
+            json={"message": "what do we know about continue watching?", "top_k": 6},
+        )
+    finally:
+        _clear_orchestrator()
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    cited = {c["id"] for c in body["citations"]}
+    assert "exp-0001" not in cited and "sim-0001" not in cited, "demo seed must not leak"
+    assert not body["citations"], "no completed simulations → nothing to cite"
