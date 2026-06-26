@@ -41,6 +41,14 @@ Two capabilities:
   suite + a keyless local demo both run.
 - Identity = ram-de for the PR. Do NOT merge, do NOT deploy.
 
+## Status: DONE — PR #486 (feat/experiment-memory), not merged/deployed
+- Backend + frontend + tests built and green.
+- Backend suite: 1595 passed; 3 pre-existing test_deploy_config.py failures
+  (Caddyfile basic_auth / host helpers) unrelated to this change.
+- Frontend: tsc clean, next build compiles /memory. next lint has no committed
+  eslint config in-repo (interactive prompt) — pre-existing, untouched.
+- GitNexus detect-changes: risk low, 0 affected processes.
+
 ## Decisions for review
 - Trust thresholds (cosine): >=0.62 "already-tested", >=0.28 "similar",
   else "novel". Tuned against the seed set; easy to revisit.
