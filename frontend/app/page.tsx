@@ -23,16 +23,35 @@ export default function HomePage() {
 
 const STEPS = [
   {
-    title: "Describe the bet",
-    body: "Capture the proposed product change and the audience it should move. Sidira reads PRDs and Figma the way your reviewers do.",
+    title: "Describe the change and who it should move",
+    body: "Capture a proposed product change and the audience it targets. Sidira reads the change the way a reviewer would — no production traffic, no shipping to learn.",
   },
   {
-    title: "Run the simulation",
-    body: "See where customer reactions cluster before the team commits build time. Every agent in the cohort can be interviewed afterwards.",
+    title: "Read the simulated reaction",
+    body: "A panel of audience-grounded agents reacts before the team commits build time. You get a directional read and the weaknesses the cohort surfaces — a hypothesis to test, not a verdict.",
   },
   {
-    title: "Refine with evidence",
-    body: "Turn weak spots into sharper hypotheses for the next product review. Iterate before the build, not after the rollout.",
+    title: "Interview the agents that reacted",
+    body: "After every run, the agents are conversable. Ask why a segment didn't engage — the way you'd interview the users who ran in your A/B test — and sharpen the hypothesis before you spend the traffic.",
+  },
+];
+
+// Honest "what it is / what it is not" — grounded in the accuracy report and the
+// white-paper thesis: the live randomized experiment stays the ground truth;
+// Sidira pre-screens which bets are worth that traffic. No invented metrics, no
+// "predicts winners" claim (counter-intuitive A/B direction is at chance today).
+const STANDING = [
+  {
+    label: "What it is",
+    body: "A pre-experiment screen. Sidira generates fast, diverse, audience-grounded directional hypotheses and surfaces weaknesses, so a team can prioritize which ideas are worth a live test.",
+  },
+  {
+    label: "What it is not",
+    body: "Not a replacement for A/B testing, and not a digital-twin oracle. The live randomized experiment stays the ground truth. A chat with an agent is a hypothesis aid, never evidence.",
+  },
+  {
+    label: "How we hold ourselves",
+    body: "We pre-register predictions, fingerprint them before we look at the results, run adversarial leak audits, demand replication on fresh data, and report the nulls. Calibrated probabilities are on the roadmap — claimed only when the backtest earns them.",
   },
 ];
 
@@ -114,9 +133,11 @@ function PublicCompanyHome() {
             fontWeight: 450,
           }}
         >
-          Sidira pressure-tests product hypotheses against customer-grounded
-          personas. Read the cohort&rsquo;s reaction before the roadmap bet
-          becomes an engineering commitment.
+          Sidira is AI audience simulation that pre-screens which A/B-test ideas
+          are worth running. It sits <em>upstream</em> of A/B testing &mdash; the
+          live experiment stays the ground truth &mdash; reading a
+          customer-grounded panel&rsquo;s reaction before a roadmap bet becomes an
+          engineering commitment. Screen, don&rsquo;t replace.
         </p>
         <div
           style={{
@@ -185,7 +206,7 @@ function PublicCompanyHome() {
               textWrap: "balance",
             }}
           >
-            One instrument, three steps, no roadmap bet escaping unexamined.
+            Three steps, run before the build &mdash; not after the rollout.
           </h2>
         </div>
 
@@ -248,6 +269,102 @@ function PublicCompanyHome() {
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* Where it stands — honest "what it is / is not / how we hold ourselves".
+          Same section-head + hairline-row composition as "How it works"; no new
+          vocabulary. Grounded in the accuracy report + white-paper thesis. */}
+      <section
+        style={{
+          maxWidth: 1240,
+          margin: "0 auto",
+          padding: "0 24px 112px",
+        }}
+      >
+        <div
+          className="sidira-public-section-head"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "200px 1fr",
+            gap: 32,
+            paddingBottom: 32,
+          }}
+        >
+          <p
+            style={{
+              color: "var(--text-mut)",
+              fontFamily: "var(--v2-font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              margin: 0,
+              textTransform: "uppercase",
+            }}
+          >
+            Where it stands
+          </p>
+          <h2
+            style={{
+              color: "var(--text-hi)",
+              fontWeight: 600,
+              fontSize: "2.05rem",
+              letterSpacing: "-0.028em",
+              lineHeight: 1.1,
+              margin: 0,
+              maxWidth: "40ch",
+              textWrap: "balance",
+            }}
+          >
+            Honest about what a simulation can and can&rsquo;t tell you yet.
+          </h2>
+        </div>
+
+        <dl
+          style={{
+            margin: 0,
+            padding: 0,
+            borderTop: "1px solid var(--console-line-40)",
+          }}
+        >
+          {STANDING.map((row) => (
+            <div
+              key={row.label}
+              className="sidira-public-step-row"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "200px 1fr",
+                gap: 32,
+                padding: "28px 0",
+                borderBottom: "1px solid var(--console-line-40)",
+                alignItems: "baseline",
+              }}
+            >
+              <dt
+                style={{
+                  color: "var(--text-hi)",
+                  fontFamily: "var(--v2-font-mono)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  margin: 0,
+                }}
+              >
+                {row.label}
+              </dt>
+              <dd
+                style={{
+                  color: "var(--text)",
+                  fontSize: 16,
+                  lineHeight: 1.6,
+                  margin: 0,
+                  maxWidth: "62ch",
+                }}
+              >
+                {row.body}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       {/* Footer */}
