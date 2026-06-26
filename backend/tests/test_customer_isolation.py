@@ -348,6 +348,13 @@ TENANT_AGNOSTIC_ROUTES = {
     # Auth is the dedicated SIDIRA_CRAWLER_CREDENTIALS_TOKEN bearer (see
     # api/internal.py), not current_customer_id.
     ("GET", "/internal/crawl-credentials/{customer}"),
+    # Experiment-memory (#28/#29 + #31/#32): pure RETRIEVAL over the demo SEED
+    # archive (real experiments) and the synthetic-simulation seed — no tenant
+    # data is read or written (mirrors /models, /config/limits). When this meets
+    # a real customer the archive load becomes tenant-scoped and these move out.
+    ("POST", "/experiments/search-similar"),
+    ("POST", "/experiments/chat"),
+    ("POST", "/experiments/conversation"),
 }
 
 # Non-APIRoute mounts FastAPI registers itself (docs/openapi). Anything else

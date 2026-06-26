@@ -19,6 +19,8 @@ from fastapi import APIRouter, Depends
 
 from sidira_simulator.adapters.llm import ChatClient
 from sidira_simulator.schemas.experiment_memory import (
+    ConversationRequest,
+    ConversationResponse,
     ExperimentChatRequest,
     ExperimentChatResponse,
     SearchSimilarRequest,
@@ -26,6 +28,7 @@ from sidira_simulator.schemas.experiment_memory import (
 )
 from sidira_simulator.services.experiment_archive import seed_experiments
 from sidira_simulator.services.experiment_chat import ExperimentChatService
+from sidira_simulator.services.experiment_fusion import FusedConversationService
 from sidira_simulator.services.experiment_similarity import search_similar
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
@@ -75,3 +78,27 @@ def post_chat(
     """
     service = ExperimentChatService(chat_client=chat_client)
     return service.answer(req.message, req.top_k)
+
+
+@router.post("/conversation", response_model=ConversationResponse)
+def post_conversation(
+    req: ConversationRequest,
+    chat_client: ChatClient | None = Depends(get_experiment_chat_client),
+) -> ConversationResponse:
+    """Multi-turn, fused conversation over experiments + simulations (#31, #32).
+
+    Extends the single-shot ``/chat`` in two ways, without touching it:
+
+    - FUSION (#31): retrieval draws on BOTH the real MEASURED experiment archive
+      and the Sidira PREDICTED simulation archive. When a simulation and an
+      experiment tested the same change, the answer tells the predicted-vs-measured
+      story; every citation is labeled MEASURED or PREDICTED.
+    - MULTI-TURN (#32): the request carries prior turns so a follow-up resolves
+      against the prior turn's subject. Suggested follow-up chips are returned.
+
+    Grounded/extractive-fallback behavior is preserved: with an LLM key the model
+    composes the prose; without one it degrades to a grounded extractive fused
+    answer (``used_llm=false``).
+    """
+    service = FusedConversationService(chat_client=chat_client)
+    return service.answer(req.message, req.history, req.top_k)

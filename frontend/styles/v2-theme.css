@@ -1768,3 +1768,114 @@ a.v2-sims-row:hover{
   .v2-mem-cite{ flex-wrap:wrap; }
   .v2-mem-match-sim{ margin-left:0; }
 }
+
+/* ── fused multi-turn conversation (#31 fusion + #32 multi-turn) ─────────── */
+/* The chat is "evidentiary but human" (DESIGN.md §7.4): body-font prose at body
+   volume, mono only for designators. Tokens only — no hardcoded color. */
+.v2-mem-thread{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-room);
+}
+.v2-mem-turn{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-snug);
+}
+/* the user's question — quiet, body font, a mono YOU designator */
+.v2-mem-ask{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-snug);
+  font-size:15px;
+  line-height:1.55;
+  color:var(--text-hi);
+  margin:0;
+}
+.v2-mem-ask-label{
+  flex:0 0 auto;
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--text-mut);
+}
+/* inline MEASURED/PREDICTED designators in the section sub-copy + citation source.
+   The WORD carries the state (DESIGN.md §8.2) — neutral tone, no fill, no color. */
+.v2-mem-inline-src,
+.v2-mem-cite-src{
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+/* citation head row: id + its source designator */
+.v2-mem-cite-head{
+  display:flex;
+  align-items:baseline;
+  gap:var(--space-snug);
+  flex:0 0 auto;
+}
+/* per-answer fused citations stack (override the inline single-row from /chat) */
+.v2-mem-cite{
+  flex-direction:column;
+  align-items:flex-start;
+  gap:var(--space-tight);
+}
+/* the pre-formatted effect label (measured % or predicted uncalibrated agreement) */
+.v2-mem-cite-res{
+  white-space:normal;
+  line-height:1.45;
+}
+/* suggested follow-up chips (#32). Reuse the §7.7 quiet/row-action control
+   anatomy: mono, rule border, radius 2 (var --r-well = 4 is the panel radius;
+   inputs/chips take the 2px well-edge). Hover may invert per §7.7. */
+.v2-mem-followups{
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--space-snug);
+  margin-top:var(--space-base);
+  padding-top:var(--space-base);
+  border-top:0.75px solid var(--console-line-50);
+}
+.v2-mem-chip{
+  font-size:11px;
+  letter-spacing:0.04em;
+  color:var(--text);
+  background:transparent;
+  border:1px solid var(--console-line-60);
+  border-radius:var(--r-well);
+  padding:6px 12px;
+  cursor:pointer;
+  transition:border-color 0.08s var(--ease-out), color 0.08s var(--ease-out);
+}
+.v2-mem-chip:hover{
+  border-color:var(--signal-dim);
+  color:var(--text-hi);
+}
+.v2-mem-chip:focus-visible{
+  outline:1px solid var(--text-hi);
+  outline-offset:2px;
+}
+.v2-mem-chip:disabled{
+  opacity:0.5;
+  cursor:not-allowed;
+}
+/* reading choreography on a freshly arrived turn (DESIGN.md §9.4): a single
+   transform-only enter, then it settles. Lands on the settled frame for
+   reduced-motion users. */
+.v2-mem-result--arriving{
+  opacity:0;
+  transform:translateY(4px);
+}
+.v2-mem-result{
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity 0.22s var(--ease-out), transform 0.22s var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce){
+  .v2-mem-result,
+  .v2-mem-result--arriving{
+    transition:none;
+    opacity:1;
+    transform:none;
+  }
+}
