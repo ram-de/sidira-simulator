@@ -2,7 +2,7 @@
 // DESIGN SYSTEM v2 — AppFrame (§4.5 Nav / app-shell).
 //
 // The standard in-app application chrome for the dark Console: a persistent
-// LEFT RAIL (Console mono mark + primary nav + workspace affordance) plus an
+// LEFT RAIL (Console duo mark + primary nav + workspace affordance) plus an
 // in-content TOP BAR (page title + optional actions + one global provenance
 // marker), wrapping each page's body in the MAIN slot. Pages 3–13 of the v2
 // rollout (simulations-list, personas-list, persona-detail, capability-detail,

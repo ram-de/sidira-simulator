@@ -5,7 +5,7 @@
 // top-level /v2/<slug> namespace. Reachable only by typing /v2/auth — nothing
 // links here, and it touches NO real auth-walled route. The global product nav
 // is suppressed on /v2/* (components/ConditionalTopNav.tsx); this page ships its
-// own self-contained Console TopBar with the mono mark.
+// own self-contained Console TopBar with the duo mark.
 //
 // ARCHETYPE — Console (dark). Auth is the gateway into the dark in-app
 // experience (design-system-v2.md §4: app-shell/dashboard/setup are Console). A
@@ -76,7 +76,7 @@ export default function AuthV2Page() {
 
         <Wrap style={{ position: "relative", zIndex: 1 }}>
           <div className="v2-auth-card v2-elevated">
-            {/* ── card header: mono mark + a single eyebrow ─────────────── */}
+            {/* ── card header: duo mark + a single eyebrow ─────────────── */}
             <div className="v2-auth-head">
               <span className="v2-auth-mark" aria-hidden>
                 <SheetMarkDuo size={34} />
