@@ -55,12 +55,20 @@ const NAV = [
     glyph: "LIB",
     matches: ["/personas"],
   },
+  {
+    // Experiment memory (#28, #29) — retrieval over the past-experiment archive.
+    key: "memory",
+    label: "Memory",
+    href: "/memory",
+    glyph: "MEM",
+    matches: ["/memory"],
+  },
 ] as const;
 
 export type AppShellV2Props = {
   // which real nav section is current (matches a NAV key). Falls back to
   // pathname matching, but callers pass it explicitly for clarity.
-  activeNav?: "simulations" | "personas";
+  activeNav?: "simulations" | "personas" | "memory";
   // the page title shown in the appbar.
   title: string;
   // optional right-aligned appbar actions (e.g. the "New hypothesis" CTA).
