@@ -13,8 +13,8 @@
 //    rail). Its fixed DUO_SID/DUO_AVIRA strokes render on any ground.
 //  • ConsoleMarkMono — legacy monochrome ink mark, currentColor stroke. No
 //    longer the in-product default (§1.3 now rests dual-color everywhere);
-//    kept as a fallback and still used by the ConsoleShell marketing TopBar,
-//    AppFrame mock, and auth screens until those are migrated.
+//    retained only as a legacy fallback — NO live usage remains (ConsoleShell,
+//    AppFrame, and the auth screens now render SheetMarkDuo too; §1.3).
 // ───────────────────────────────────────────────────────────────────────────
 import { DUO_SID, DUO_AVIRA } from "@/lib/design";
 
