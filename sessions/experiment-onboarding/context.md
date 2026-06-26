@@ -115,6 +115,40 @@ Applied the BLOCKERS + quick MAJORS from the codex review:
 Tests: **41/41 connectors green**; full backend **1652 passed** (only the 2 pre-existing
 `test_deploy_config` failures remain — see below). `tsc --noEmit` green.
 
+## Second codex-review round (#488 v2, 2026-06-26) — 2×P1 + 2×P2 in the SQL connector
+A re-review found the read-only story still had holes. Fixed all four:
+- **P1 — SQLite was advertised read-only but opened read-write.** SQLite gave no way to enforce
+  read-only via a plain connection string (`create_engine(connection_string)` with no `mode=ro`),
+  so we **dropped SQLite entirely — the SQL connector is now PostgreSQL-only**, the one dialect
+  where `default_transaction_read_only` + `SET TRANSACTION READ ONLY` make read-only real.
+  `_SUPPORTED_BACKENDS = ("postgresql",)`; `_run_query` no longer branches on backend; module
+  docstring + `NEEDS_MESSAGE` + registry copy updated; the unsupported-backend test now also
+  asserts `sqlite://` is refused.
+- **P1 — proc/function-style SELECTs bypassed `validate_query`.** Tightened the allow-list to a
+  plain `SELECT … FROM <table/view>` shape: reject `CALL`/`DO`, a select-list that is itself a
+  function/proc call (`SELECT my_proc() FROM …`, `SELECT f(x) AS y FROM t`) except a small
+  read-aggregate allow-list (count/sum/avg/min/max/coalesce/cast/…), and broadened the
+  side-effecting-func regex to `currval`/`dblink*`/`lo_*`/`pg_advisory*`/**any `pg_*(`** /
+  `nextval`/`setval`. New test `test_sql_query_guard_rejects_proc_and_volatile_func_bypasses`
+  plus `…_allows_read_aggregates` (so the proc guard doesn't false-positive on `count(*)`).
+  The Postgres read-only transaction remains the primary write-boundary; this is defense-in-depth.
+- **P2 — validate path accepted unsupported dialects.** `validate_connector` (SQL branch) now
+  calls the new `sql_connector.is_supported_backend()` and reports a non-Postgres URL as
+  NOT-ready up front (instead of 'ready' then refused at import). Test
+  `test_sql_validate_rejects_unsupported_backend_early`.
+- **P2 — unsupported / no-scheme strings could echo secrets.** Both `fetch_rows`/`_run_query`
+  and the validate path now return the generic `UNSUPPORTED_BACKEND_MESSAGE` ("supports
+  PostgreSQL only…") and NEVER interpolate connection-string-derived text — an ODBC `Pwd=…`
+  no-scheme string is no longer reflected. Raw detail stays in the server log. Tests assert a
+  `Pwd=hunter2` string never appears in the error or the validate response.
+
+All already-resolved fixes kept intact (422 redaction, generic SQL errors, dry-run preview, CSV
+dup-header rejection, tenant allowlist). Changed files: `sql_connector.py`, `experiment_ingest.py`,
+`test_connectors.py`. No UI copy change → no DESIGN.md update.
+
+Tests (v2): **46/46 connectors green**; full backend **1657 passed** (only the same 2 pre-existing
+`test_deploy_config` failures). `tsc --noEmit` green.
+
 ## Pre-existing failures (re-verified against clean `origin/main` checkout)
 - `test_deploy_config::test_public_api_is_gated_by_backend_internal_key` and
   `test_deploy_config::test_frontend_splits_public_site_from_product_app_hosts` — both read

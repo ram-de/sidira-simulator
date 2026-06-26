@@ -82,6 +82,18 @@ def validate_connector(
                 state=ConnectorState.NEEDS_CREDENTIALS,
                 message=sql_connector.NEEDS_MESSAGE,
             )
+        # Reject an unsupported dialect (e.g. a MySQL URL) HERE — otherwise it is
+        # reported 'ready' on validate and only refused at import (P2). The
+        # message is the connector's generic supported-backends string; we never
+        # echo connection-string-derived text back (an ODBC no-scheme string
+        # would carry a password).
+        if not sql_connector.is_supported_backend(req.config.get("connection_string", "")):
+            return ValidateConnectorResponse(
+                kind=kind,
+                ok=False,
+                state=ConnectorState.NEEDS_CREDENTIALS,
+                message=sql_connector.UNSUPPORTED_BACKEND_MESSAGE,
+            )
         try:
             sql_connector.validate_query(req.config.get("query", ""))
         except sql_connector.SqlQueryError as exc:

@@ -458,18 +458,68 @@ def test_sql_query_guard_rejects_function_call_selects() -> None:
             sql_connector.validate_query(bad)
 
 
+def test_sql_query_guard_rejects_proc_and_volatile_func_bypasses() -> None:
+    """Defense-in-depth: function/proc-style SELECTs and CALL/DO statements must
+    not slip past validate_query even when a FROM clause is bolted on, and the
+    broader volatile-function families (currval/lo_*/pg_*/advisory locks/dblink*)
+    are rejected anywhere in the statement (P1)."""
+    bypass_attempts = (
+        # CALL / DO statement forms (not a SELECT at all)
+        "CALL do_something()",
+        "DO $$ BEGIN PERFORM 1; END $$",
+        # select-list IS a proc/function call, even with a FROM bolted on
+        "SELECT my_proc() FROM experiments",
+        "SELECT public.run_job(1) FROM dual",
+        "SELECT f(x) AS y FROM t",
+        # volatile / side-effecting funcs anywhere in the statement
+        "SELECT * FROM t WHERE id = currval('s')",
+        "SELECT * FROM t WHERE x = pg_advisory_lock(1)",
+        "SELECT * FROM t WHERE y = lo_import('/etc/passwd')",
+        "SELECT * FROM t WHERE z = dblink_connect('x')",
+        "SELECT * FROM t WHERE q = pg_terminate_backend(1)",
+        "SELECT * FROM t WHERE q = pg_read_file('/etc/passwd')",
+    )
+    for bad in bypass_attempts:
+        with pytest.raises(sql_connector.SqlQueryError):
+            sql_connector.validate_query(bad)
+
+
+def test_sql_query_guard_allows_read_aggregates() -> None:
+    """A select-list led by a pure read aggregate (count/sum/…) over a real table
+    is still a legitimate read and must NOT be rejected by the proc-call guard."""
+    assert sql_connector.validate_query("SELECT count(*) FROM experiments")
+    assert sql_connector.validate_query("SELECT MAX(effect_size) FROM experiments")
+    assert sql_connector.validate_query(
+        "SELECT coalesce(name, 'n/a') FROM experiments"
+    )
+
+
 def test_sql_query_guard_rejects_select_into() -> None:
     with pytest.raises(sql_connector.SqlQueryError):
         sql_connector.validate_query("SELECT * INTO new_table FROM experiments")
 
 
 def test_sql_fetch_rejects_unsupported_backend() -> None:
-    """We only advertise/enforce read-only on Postgres + SQLite. A MySQL URL is
+    """We only advertise/enforce read-only on PostgreSQL. A MySQL or SQLite URL is
     refused rather than falling back to the keyword filter alone (BLOCKER 1)."""
-    with pytest.raises(sql_connector.SqlUnsupportedBackendError):
+    for url in ("mysql://u:p@h/db", "sqlite:///local.db", "sqlite://"):
+        with pytest.raises(sql_connector.SqlUnsupportedBackendError):
+            sql_connector.fetch_rows(
+                {"connection_string": url, "query": "SELECT * FROM t"}
+            )
+
+
+def test_sql_unsupported_backend_message_is_generic_no_secret() -> None:
+    """A no-scheme / ODBC-style connection string (which carries a password) must
+    NOT be reflected back in the unsupported-backend message (P2)."""
+    secret = "Driver={PostgreSQL};Server=h;Pwd=hunter2;"
+    with pytest.raises(sql_connector.SqlUnsupportedBackendError) as exc:
         sql_connector.fetch_rows(
-            {"connection_string": "mysql://u:p@h/db", "query": "SELECT * FROM t"}
+            {"connection_string": secret, "query": "SELECT * FROM t"}
         )
+    assert "hunter2" not in str(exc.value)
+    assert "Pwd" not in str(exc.value)
+    assert "PostgreSQL only" in str(exc.value)
 
 
 def test_sql_execution_error_is_sanitized_in_import(client: TestClient, monkeypatch) -> None:
@@ -497,9 +547,43 @@ def test_sql_execution_error_is_sanitized_in_import(client: TestClient, monkeypa
 def test_sql_validate_rejects_write_query() -> None:
     out = validate_connector(
         ConnectorKind.SQL,
-        ValidateConnectorRequest(config={"connection_string": "sqlite://", "query": "DELETE FROM t"}),
+        ValidateConnectorRequest(
+            config={"connection_string": "postgresql://u:p@h/db", "query": "DELETE FROM t"}
+        ),
     )
     assert out.ok is False
+
+
+def test_sql_validate_rejects_unsupported_backend_early() -> None:
+    """A MySQL URL must be reported NOT ready on validate (not 'ready' then refused
+    at import) and the message must be the generic supported-backends string with
+    no connection-string text echoed back (P2)."""
+    out = validate_connector(
+        ConnectorKind.SQL,
+        ValidateConnectorRequest(
+            config={"connection_string": "mysql://u:p@h/db", "query": "SELECT * FROM t"}
+        ),
+    )
+    assert out.ok is False
+    assert out.state is ConnectorState.NEEDS_CREDENTIALS
+    assert "PostgreSQL only" in out.message
+
+
+def test_sql_validate_unsupported_backend_does_not_echo_secret() -> None:
+    """A no-scheme ODBC-style string carries a password; the validate response
+    must not reflect it (P2)."""
+    out = validate_connector(
+        ConnectorKind.SQL,
+        ValidateConnectorRequest(
+            config={
+                "connection_string": "Driver={PostgreSQL};Server=h;Pwd=hunter2;",
+                "query": "SELECT * FROM t",
+            }
+        ),
+    )
+    assert out.ok is False
+    assert "hunter2" not in out.message
+    assert "Pwd" not in out.message
 
 
 def test_sql_import_with_stubbed_query_maps_rows(client: TestClient, monkeypatch) -> None:
@@ -517,7 +601,7 @@ def test_sql_import_with_stubbed_query_maps_rows(client: TestClient, monkeypatch
     mapping = suggest_mapping(list(csv_connector.TEMPLATE_COLUMNS))
     payload = ImportRequest(
         mapping=mapping,
-        config={"connection_string": "sqlite://", "query": "SELECT * FROM experiments"},
+        config={"connection_string": "postgresql://u:p@h/db", "query": "SELECT * FROM experiments"},
     ).model_dump()
     body = client.post("/connectors/sql/import", json=payload).json()
     assert body["state"] == "active"
@@ -582,7 +666,7 @@ def test_sql_preview_maps_rows_without_persisting(client: TestClient, monkeypatc
     monkeypatch.setattr(sql_connector, "_run_query", _fake_run)
     payload = ImportRequest(
         mapping=suggest_mapping(list(csv_connector.TEMPLATE_COLUMNS)),
-        config={"connection_string": "sqlite://", "query": "SELECT * FROM experiments"},
+        config={"connection_string": "postgresql://u:p@h/db", "query": "SELECT * FROM experiments"},
     ).model_dump()
 
     body = client.post("/connectors/sql/preview", json=payload).json()
