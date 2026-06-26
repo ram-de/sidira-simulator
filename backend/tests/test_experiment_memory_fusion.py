@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from sidira_simulator.api.deps import get_orchestrator
 from sidira_simulator.api.experiments import get_experiment_chat_client
 from sidira_simulator.main import app
 from sidira_simulator.schemas.experiment_memory import (
@@ -169,15 +170,53 @@ def test_bare_followup_without_history_does_not_resolve_subject() -> None:
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
 
+class _FakeOrchestrator:
+    """Stands in for SimulationOrchestrator: returns the rows it was given.
+
+    ``list_recent`` is the only method the conversation route calls. Rows mirror
+    the dict shape the real orchestrator yields (hypothesis_json / result_json).
+    """
+
+    def __init__(self, rows: list[dict]) -> None:
+        self._rows = rows
+
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict]:
+        return list(self._rows)
+
+
+def _override_orchestrator(rows: list[dict]) -> None:
+    app.dependency_overrides[get_orchestrator] = lambda: _FakeOrchestrator(rows)
+
+
+def _clear_orchestrator() -> None:
+    app.dependency_overrides.pop(get_orchestrator, None)
+
+
+def _completed_sim_row(sim_id: str, prose: str, *, metric_lift_pp: float) -> dict:
+    return {
+        "id": sim_id,
+        "status": "completed",
+        "hypothesis_json": {"prose": prose, "metric_name": "retention"},
+        "result_json": {"confidence_score": 64.0, "metric_lift_pp": metric_lift_pp},
+        "completed_at": "2026-06-24T10:00:00+00:00",
+        "created_at": "2026-06-23T09:00:00+00:00",
+    }
+
+
 def test_conversation_endpoint_offline_extractive() -> None:
-    resp = TestClient(app).post(
-        "/experiments/conversation",
-        json={
-            "message": "what have we predicted vs measured on pricing?",
-            "history": [],
-            "top_k": 6,
-        },
-    )
+    # No tenant simulations → the synthetic seed fallback (deterministic).
+    _override_orchestrator([])
+    try:
+        resp = TestClient(app).post(
+            "/experiments/conversation",
+            json={
+                "message": "what have we predicted vs measured on pricing?",
+                "history": [],
+                "top_k": 6,
+            },
+        )
+    finally:
+        _clear_orchestrator()
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["used_llm"] is False
@@ -188,23 +227,60 @@ def test_conversation_endpoint_offline_extractive() -> None:
 
 
 def test_conversation_endpoint_carries_history() -> None:
-    resp = TestClient(app).post(
-        "/experiments/conversation",
-        json={
-            "message": "why did that one lose?",
-            "history": [
-                {
-                    "question": "Tell me about the urgency countdown timer at checkout.",
-                    "answer": "Sidira predicted a lift; the real A/B measured a loss on checkout conversion.",
-                }
-            ],
-            "top_k": 6,
-        },
-    )
+    _override_orchestrator([])  # seed fallback
+    try:
+        resp = TestClient(app).post(
+            "/experiments/conversation",
+            json={
+                "message": "why did that one lose?",
+                "history": [
+                    {
+                        "question": "Tell me about the urgency countdown timer at checkout.",
+                        "answer": "Sidira predicted a lift; the real A/B measured a loss on checkout conversion.",
+                    }
+                ],
+                "top_k": 6,
+            },
+        )
+    finally:
+        _clear_orchestrator()
     assert resp.status_code == 200, resp.text
     body = resp.json()
     cited = {c["id"] for c in body["citations"]}
     assert "exp-0001" in cited
+
+
+def test_conversation_reads_tenant_simulations_not_seed() -> None:
+    """#33: with the customer's own completed simulations present, the chat
+    retrieves over THEM (not the demo seed) — the "Continue Watching" hypothesis
+    that exists on the Hypotheses tab now surfaces here."""
+    rows = [
+        _completed_sim_row(
+            "sim-cw-1",
+            "Add a 'Continue Watching' rail to the Streamly home screen",
+            metric_lift_pp=1.6,
+        ),
+        _completed_sim_row(
+            "sim-cw-2",
+            "Personalize 'Top Picks' below Continue Watching",
+            metric_lift_pp=-0.8,
+        ),
+    ]
+    _override_orchestrator(rows)
+    try:
+        resp = TestClient(app).post(
+            "/experiments/conversation",
+            json={"message": "what do we know about continue watching?", "top_k": 6},
+        )
+    finally:
+        _clear_orchestrator()
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    cited = {c["id"] for c in body["citations"]}
+    assert "sim-cw-1" in cited, "tenant's own continue-watching sim must be retrieved"
+    # Tenant has no measured experiment archive yet → predicted-only, never the seed.
+    assert {c["source"] for c in body["citations"]} == {"predicted"}
+    assert "exp-0001" not in cited and "sim-0001" not in cited, "demo seed must not leak in"
 
 
 def test_conversation_endpoint_rejects_empty_message() -> None:
@@ -221,6 +297,7 @@ def test_conversation_endpoint_uses_injected_llm_stub() -> None:
             return "We predicted UP (sim-0001), the real A/B measured a loss (exp-0001)."
 
     app.dependency_overrides[get_experiment_chat_client] = lambda: _StubChat()
+    _override_orchestrator([])  # seed fallback so the MEASURED side is present
     try:
         resp = TestClient(app).post(
             "/experiments/conversation",
@@ -228,6 +305,7 @@ def test_conversation_endpoint_uses_injected_llm_stub() -> None:
         )
     finally:
         app.dependency_overrides.pop(get_experiment_chat_client, None)
+        _clear_orchestrator()
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
