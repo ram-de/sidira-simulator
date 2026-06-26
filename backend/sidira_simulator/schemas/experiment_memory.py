@@ -160,3 +160,96 @@ class ExperimentChatResponse(BaseModel):
     used_llm: bool = Field(
         description="True if an LLM composed the prose; False for the offline extractive fallback."
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Fusion + multi-turn conversation (#31, #32)
+#
+# The conversation surface fuses two evidence sources — real MEASURED experiments
+# and Sidira-engine PREDICTED simulations — into a threaded chat. The schemas below
+# are ADDITIVE; the existing /chat + /search-similar contracts above are untouched
+# (back-compat with the merged feature + builder B's parallel ingestion work).
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class CitationSource(str, Enum):
+    """Which evidence kind a fused citation came from (#31).
+
+    The load-bearing distinction of the fusion: a MEASURED figure is a real
+    recorded A/B outcome; a PREDICTED figure is uncalibrated Sidira-simulation
+    agreement (DESIGN.md §8.3). The UI renders the source word verbatim beside
+    every figure so a prediction is never mistaken for a measurement (DESIGN.md
+    §8.2 PREDICTED/MEASURED citation lexicon — color never carries the state).
+    """
+
+    MEASURED = "measured"  # a real, concluded experiment (experiment archive)
+    PREDICTED = "predicted"  # a Sidira-engine simulation (simulation archive)
+
+
+class FusedCitation(BaseModel):
+    """One cited item in a fused answer — measured OR predicted.
+
+    A union-ish shape: ``source`` discriminates, ``effect_label`` is the already
+    formatted, source-appropriate figure (a measured ``+18.5%`` vs a predicted
+    ``UP · agreement 69/100`` line) so the frontend never has to know how to
+    format each source's native unit. ``id``/``change_description``/``metric``
+    are common across both.
+    """
+
+    id: str
+    source: CitationSource
+    change_description: str
+    metric: str
+    # Pre-formatted, source-appropriate effect string (measured % vs predicted
+    # direction + uncalibrated agreement). The honesty label rides this text.
+    effect_label: str
+
+
+class ConversationTurn(BaseModel):
+    """One prior (question, answer) exchange carried back as context (#32).
+
+    The frontend holds the full thread and replays the prior turns on each new
+    question so a follow-up ("why did that one lose?") resolves against what was
+    just discussed. Only the text is carried — citations are recomputed per turn
+    so provenance stays grounded in fresh retrieval, never stale.
+    """
+
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+
+
+class ConversationRequest(BaseModel):
+    """A multi-turn conversation request over the fused archive (#32)."""
+
+    message: str = Field(min_length=1, description="The latest question.")
+    history: list[ConversationTurn] = Field(
+        default_factory=list,
+        description=(
+            "Prior turns, oldest first. Carried so a follow-up resolves against "
+            "the prior turn's subject. Empty for the first turn."
+        ),
+    )
+    top_k: int = Field(default=6, ge=1, le=25)
+
+
+class ConversationResponse(BaseModel):
+    """A grounded, fused answer to one conversation turn (#32 + #31).
+
+    ``citations`` distinguishes MEASURED vs PREDICTED per item (#31).
+    ``follow_ups`` are suggested next questions the frontend renders as chips
+    (alongside its free-text box). Grounded/extractive-fallback behavior is
+    preserved from the single-shot chat.
+    """
+
+    answer: str
+    citations: list[FusedCitation]
+    follow_ups: list[str] = Field(
+        default_factory=list,
+        description="Suggested next questions (rendered as chips).",
+    )
+    grounded: bool = Field(
+        description="True when produced from retrieved archive evidence (always)."
+    )
+    used_llm: bool = Field(
+        description="True if an LLM composed the prose; False for the offline extractive fallback."
+    )
