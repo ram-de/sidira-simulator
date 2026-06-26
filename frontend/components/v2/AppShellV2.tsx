@@ -30,7 +30,11 @@ import { usePathname } from "next/navigation";
 import AuthControls from "@/components/AuthControls";
 import { clerkAppearanceConsole } from "@/lib/clerk";
 import { ConsoleShell } from "./ConsoleShell";
-import { ConsoleMarkMono } from "./Marks";
+// §1.3 (ticket #35): the dual-color mark is the standard mark on every surface,
+// in-product nav and dashboard included. The console rail brand mark uses the
+// duo aperture (SheetMarkDuo) — its fixed DUO_SID/DUO_AVIRA strokes render
+// identically on the dark console ground (no currentColor dependency).
+import { SheetMarkDuo } from "./Marks";
 import { ProvenanceMarker, type ProvenanceMarkerProps } from "./Provenance";
 // The shell owns the v2 stylesheet import so every production v2 page that uses
 // it inherits the `.v2-console` tokens + the .v2-appframe/.v2-rail*/.v2-sims-*
@@ -102,7 +106,7 @@ export default function AppShellV2({
         {/* ── LEFT RAIL — persistent vertical nav, real destinations ───────── */}
         <aside className="v2-rail" aria-label="Primary">
           <Link href="/" className="v2-rail-brand" aria-label="Sidira Console home">
-            <ConsoleMarkMono size={28} />
+            <SheetMarkDuo size={28} />
           </Link>
 
           <nav className="v2-rail-nav">

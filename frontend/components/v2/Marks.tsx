@@ -7,10 +7,14 @@
 // the same set SidiraLockup.tsx / SidiraLockupDuo.tsx render. The duo blue/rose
 // come from lib/design.ts (DUO_SID / DUO_AVIRA) — no new hardcoded hexes.
 //
-//  • SheetMarkDuo — brand-mode (DESIGN.md §1.3): 3 Sid-blue + 3 Avira-rose
-//    blades on the paper ground. Used by the SheetTopBar (public marketing).
-//  • ConsoleMarkMono — in-product (DESIGN.md §1.3): monochrome ink mark,
-//    currentColor stroke. Used by the Console TopBar.
+//  • SheetMarkDuo — the standard dual-color mark (DESIGN.md §1.3, ticket #35):
+//    3 Sid-blue + 3 Avira-rose blades. It is the default mark EVERYWHERE now —
+//    public marketing (SheetTopBar) AND in-product (the AppShellV2 console
+//    rail). Its fixed DUO_SID/DUO_AVIRA strokes render on any ground.
+//  • ConsoleMarkMono — legacy monochrome ink mark, currentColor stroke. No
+//    longer the in-product default (§1.3 now rests dual-color everywhere);
+//    kept as a fallback and still used by the ConsoleShell marketing TopBar,
+//    AppFrame mock, and auth screens until those are migrated.
 // ───────────────────────────────────────────────────────────────────────────
 import { DUO_SID, DUO_AVIRA } from "@/lib/design";
 

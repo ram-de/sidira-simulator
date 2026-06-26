@@ -90,10 +90,14 @@ visual, UI, and brand decision. Read it before:
 
 The mark, the wordmark, and the lockup files live in
 `frontend/public/brand/` and `frontend/app/icon.svg`. Reuse them; do not
-recreate them. The dual-color "founder-mode" variants are reserved for
-brand-mode surfaces (favicon · app icon · public site · about / press /
-anniversary — DESIGN.md §1.3) and the in-product aperture-close animation
-only — never resting in the nav or dashboard.
+recreate them. The dual-color mark is the **standard mark on every surface —
+in-product nav and dashboard included** (DESIGN.md §1.3, ticket #35). There is
+no monochrome-vs-dual or brand-surfaces-only split: the mark rests dual-color
+everywhere (favicon · app icon · public site · about / press / anniversary ·
+product nav · dashboard · console shell). The legacy monochrome mark/lockup
+remain in the repo only as fallbacks. The in-product aperture-close animation
+(DESIGN.md §9.2) still applies during simulation runs and the decision-commit
+beat.
 
 When QAing or reviewing UI changes, flag any code that violates DESIGN.md
 (refuse list in §10) or that deviates from the locked specs without an

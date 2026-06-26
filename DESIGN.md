@@ -68,22 +68,31 @@ mark; use `sidira-mark.svg` with the stroke override above.
 
 ### 1.3 Color states
 
-The mark has three sanctioned color states. Anything else is wrong.
+The mark has two sanctioned color states. Anything else is wrong.
 
 | State | When it appears | Color |
 | --- | --- | --- |
-| **Static default** | product nav · in-app UI · business card · screenshots · everywhere not listed below | monochrome `ink` (`#0E1A2B`) |
-| **Animated (transient)** | inside the product while a simulation is being computed, while a confidence trace is settling, during persona-group fan-out, and the **decision-commit beat** (one non-looping aperture cycle when a verdict commits — §9.2) | cycles monochrome → dual-color → monochrome via the aperture-close animation (§9) |
-| **Brand-mode (frozen)** | favicon · app icon · public site (`sidira.ai`) · `/about` · press kit · social avatar · company anniversary hero · investor decks page-one only | dual-color (3 Sid-blue blades + 3 Avira-rose blades) on paper ground (`#F4EFE6`), static |
+| **Static default (dual-color)** | everywhere — product nav · dashboard · in-app UI · favicon · app icon · public site (`sidira.ai`) · `/about` · press kit · social avatar · business card · screenshots · all surfaces not mid-animation | dual-color (3 Sid-blue blades + 3 Avira-rose blades), static |
+| **Animated (transient)** | inside the product while a simulation is being computed, while a confidence trace is settling, during persona-group fan-out, and the **decision-commit beat** (one non-looping aperture cycle when a verdict commits — §9.2) | cycles dual-color → through the aperture-close animation → dual-color (§9) |
 
-The default is monochrome inside the product. The dual-color brand-mode is
-used on all public/brand surfaces and the favicon. The in-product prohibition
-applies to **resting** color: the nav mark may pass through dual-color
-mid-animation (it always does — see the §9.2 keyframes), but it never *rests*
-dual-color. The dashboard, product nav, and product shell rest monochrome,
-always. Buyer-facing product UI stays monochrome.
-*(Resting-vs-transient clarification + decision-commit beat carve-out:
-founder decision, 2026-06-10.)*
+The dual-color lockup is **the standard mark on every surface, in-product
+nav and dashboard included.** There is no monochrome-vs-dual split and no
+brand-surfaces-only reservation: the mark rests dual-color everywhere — the
+product nav, the dashboard, the console shell, and buyer-facing product UI all
+carry the Sid-blue + Avira-rose split at rest. The mark may still *pass
+through* the aperture-close animation during the transient states above (the
+§9.2 keyframes still apply during a simulation run and the decision-commit
+beat); the animation note remains valid. `ink` monochrome is no longer a
+mark color state — it is reserved for the wordmark and structure (§2).
+
+**RATIONALE (founder, 2026-06-26, ticket #35):** the founder chose visual
+brand consistency over the brand-vs-product split. One mark, one color story,
+on every surface a user or buyer ever sees — the dual-color aperture is the
+identity, not a special-occasion variant. This deliberately overrides the
+prior "monotone in-product / dual-color brand-surfaces-only / never resting
+in the nav or dashboard" policy.
+*(Two-state consolidation + everywhere-standard dual-color: founder decision,
+2026-06-26.)*
 
 ### 1.4 Clear space
 
@@ -95,8 +104,8 @@ the only thing allowed there.
 
 | File | Use |
 | --- | --- |
-| `frontend/public/brand/sidira-mark.svg` | canonical monochrome mark, `currentColor` stroke |
-| `frontend/public/brand/sidira-mark-duo.svg` | founder-mode dual-color (Sid-blue + Avira-rose) |
+| `frontend/public/brand/sidira-mark-duo.svg` | **standard mark** — dual-color (Sid-blue + Avira-rose), used everywhere (§1.3) |
+| `frontend/public/brand/sidira-mark.svg` | legacy monochrome mark, `currentColor` stroke — fallback only, no longer default (§1.3) |
 | `frontend/app/icon.svg` | favicon / app-icon (duo-color mark on paper ground, `rx: 32`) |
 
 ---
@@ -122,14 +131,18 @@ nothing else.
 
 ## 3. Lockups
 
-Four sanctioned lockups. The primary horizontal is the one used by default.
+Four sanctioned lockups. The primary horizontal is the one used by default,
+and it carries the **dual-color mark everywhere** (§1.3).
 
 | Lockup | Composition | Use | Asset |
 | --- | --- | --- | --- |
-| Primary horizontal | mark + `SIDIRA` left-aligned | nav · email signature · press · default everywhere | `sidira-lockup.svg` |
-| Founder-mode horizontal | dual-color mark + `SIDIRA` | cofounder page · about · press kit · anniversary | `sidira-lockup-duo.svg` |
-| Stacked | mark above `SIDIRA` centered | marketing footer · business card · press kit | (compose at usage site — same proportions) |
-| Mark only | mark, no wordmark | app icon · favicon · social avatar · loading state | `sidira-mark.svg` · `app/icon.svg` |
+| Primary horizontal | dual-color mark + `SIDIRA` left-aligned | nav · dashboard · email signature · press · default everywhere | `sidira-lockup-duo.svg` |
+| Stacked | dual-color mark above `SIDIRA` centered | marketing footer · business card · press kit | (compose at usage site — same proportions) |
+| Mark only | dual-color mark, no wordmark | app icon · favicon · social avatar · loading state | `sidira-mark-duo.svg` · `app/icon.svg` |
+
+The legacy monochrome lockup (`sidira-lockup.svg`) and mono mark
+(`sidira-mark.svg`) remain in the repo as fallbacks but are no longer the
+default on any surface (§1.3, ticket #35).
 
 ### 3.1 Lockup proportions
 
@@ -232,23 +245,25 @@ in five documented surfaces. Anywhere else is wrong.
 | Persona chart series | — | the "warm" archetype gets rose as its series color |
 | Anniversary / launch hero | — | a single rose word in a marketing headline |
 
-Forbidden uses for `avira`:
+Forbidden uses for `avira` (as a **standalone** accent — the resting duo
+mark is exempt, see below):
 - as a button fill
 - as a primary CTA color
-- on the dashboard / result page / wizard / agent chat (transient §1.3
-  animation states excepted)
+- as a standalone accent (a lone rose tick / fill / chrome element) on the
+  dashboard / result page / wizard / agent chat — the duo *mark* resting
+  there is sanctioned (§1.3), but avira may not appear as a separate accent
 - as a standalone accent in the favicon / app icon / nav lockup — its only
-  sanctioned appearance there is as half of the duo mark (§1.3 brand-mode
-  favicon, §9.2 animation keyframes)
-- anywhere a buyer's first impression is being formed
+  sanctioned appearance there is as half of the duo mark (§1.3 everywhere-
+  standard mark, §9.2 animation keyframes)
+- anywhere a buyer's first impression is being formed *as a standalone accent*
 
-The duo-color favicon is a sanctioned exception to the first-impression rule,
-not a contradiction of it: the favicon is a §1.3 **brand-mode** surface
-(browser chrome), not product UI. This line exists so the question stops
-being re-litigated.
+The duo mark resting everywhere — favicon, nav, and dashboard included — is
+the §1.3 standard, not a contradiction of these rules: the rules above govern
+`avira` as a *standalone* accent, never the two-color mark itself. This line
+exists so the question stops being re-litigated.
 
-`sid-blue` `#2C5577` is **only** used in the duo mark (founder-mode surfaces,
-the brand-mode favicon, and the §9.2 animation keyframes). It is not a
+`sid-blue` `#2C5577` is **only** used in the duo mark (every surface now —
+§1.3 — and the §9.2 animation keyframes). It is not a
 system-wide token. Outside the duo mark, structure is `ink`. In code the duo
 hexes exist as **scoped constants** — `DUO_SID` / `DUO_AVIRA` in
 `frontend/lib/design.ts` — and the §9.2 keyframes and duo lockup components
@@ -802,11 +817,11 @@ settle trace.
 | Property | Value |
 | --- | --- |
 | Trigger (loop) | simulation kicked off · result loading · the 800 ms before a settle trace · persona-group fan-out |
-| Trigger (single cycle) | **decision commit** — when §9.4 commits a reading, the nav mark plays ONE aperture cycle, then rests monochrome (§1.3 carve-out) |
+| Trigger (single cycle) | **decision commit** — when §9.4 commits a reading, the nav mark plays ONE aperture cycle, then returns to its resting dual-color (§1.3) |
 | Loop | `3.4 s ease-in-out infinite` (single cycle: one 3.4 s pass, no loop) |
-| Keyframes | `0%, 100%`: `rotate(0) scale(1)`, monochrome ink; `40%, 60%`: `rotate(-8deg) scale(0.86)`, dual-color (Sid-blue + Avira-rose) |
+| Keyframes | `0%, 100%`: `rotate(0) scale(1)`, resting dual-color (Sid-blue + Avira-rose); `40%, 60%`: `rotate(-8deg) scale(0.86)`, dual-color at peak focus. The aperture *focuses* (rotate + scale) on the now-always-dual mark; it no longer crosses a mono↔duo color boundary (§1.3, ticket #35) |
 | Implementation | CSS only — no JS, no bundle weight |
-| Reduced motion | static monochrome mark |
+| Reduced motion | static dual-color mark |
 
 ### 9.3 Other motion
 
@@ -911,10 +926,10 @@ These are never allowed to ship.
 | `DESIGN.md` (this file) | canonical source of truth |
 | `frontend/lib/design.ts` | the token values in code — update together with §4 |
 | `frontend/app/icon.svg` | favicon + app-icon (duo-color mark on paper ground — §1.3 brand-mode) |
-| `frontend/public/brand/sidira-mark.svg` | canonical monochrome mark |
-| `frontend/public/brand/sidira-mark-duo.svg` | founder-mode dual-color mark |
-| `frontend/public/brand/sidira-lockup.svg` | primary horizontal lockup |
-| `frontend/public/brand/sidira-lockup-duo.svg` | founder-mode horizontal lockup |
+| `frontend/public/brand/sidira-mark-duo.svg` | standard dual-color mark — default everywhere (§1.3) |
+| `frontend/public/brand/sidira-mark.svg` | legacy monochrome mark — fallback only |
+| `frontend/public/brand/sidira-lockup-duo.svg` | primary horizontal lockup (dual-color, default everywhere — §3) |
+| `frontend/public/brand/sidira-lockup.svg` | legacy monochrome horizontal lockup — fallback only |
 | `frontend/public/brand/merch/sidira-sticker-mark.svg` | merch · hex die-cut sticker, ink mark on paper (38 mm) |
 | `frontend/public/brand/merch/sidira-sticker-duo.svg` | merch · hex die-cut sticker, duo mark — ships only if merch is sanctioned as a §1.3 brand-mode surface (open founder decision) |
 | `frontend/public/brand/merch/sidira-sticker-reading.svg` | merch · settle-trace reading sticker, signal + paper on glass (84 × 30 mm) |
@@ -944,6 +959,7 @@ table above.
 | 2026-06-16 | 0.3.5 | **Answerable hypothesis authoring** (epic #309 T4, `#313`; the deploy-unblocker). The `simulations/new` wizard's `01 · Claim` section now defaults to four structured fields following the falsifiable template "If [change] for [cohort], then [OEC metric] [direction]," composed into the prose the API expects and shown verbatim in a `paper-recessed` mono preview; a quiet `Free-text instead →` toggle (§7.7 quiet control) keeps the escape hatch so terse expert claims are never over-constrained. The OEC metric picker (`05 · Outcome metric`) is **decoupled from A/B mode** — declaring a metric clears the answerability gate's `oec_undeclared` block in either mode (the paired lift delta stays A/B-only; single-arm reports the metric rate). Two new authoring surfaces REUSE the §8.2 / §7.7 disclosure-note anatomy verbatim — `0.75px` `rule` border, `paper-recessed` fill, mono label, body in `ink` (fixes in `ink-muted`), no semantic fill / pill / icon / alert-red: (1) a **live inline lint** rendering the deterministic zero-LLM `POST /simulations/preflight` answerability + leading-framing reasons/fixes as the user authors, and (2) the **needs_input surface** that catches the create path's `422` and renders the named reasons + fixes as guidance (never a dead-end), offering an explicit `Run anyway as generic reception` quiet affordance when `allow_override` (resubmits with `run_as_generic_reception`). No new colors/pills/icons; no migration; `confidence_score` arithmetic untouched (panel hard constraints). |
 | 2026-06-26 | 0.3.7 | **Fused PREDICTED/MEASURED citation lexicon + conversation chat** (#31 fusion, #32 multi-turn). §8.2 adds the experiment-memory chat's fused-citation source lexicon: `MEASURED · REAL EXPERIMENT` (a real recorded A/B outcome, §8.3 record) vs `PREDICTED · SIDIRA SIM` (uncalibrated simulated-agent agreement, explicitly `(uncalibrated)` per §8.3 — a direction/rank call, never an effect size; a prediction MISS is surfaced honestly, not smoothed). Both render in the **neutral** mono designator register (no semantic fill) and are categorically distinct from the §8.2 ship/no-ship verdict lexicon (still not rendered on `/memory`). The single-shot "Ask the archive" becomes a threaded conversation (§7.4 evidentiary-but-human prose, mono only for designators); per-answer citations; suggested follow-up chips reuse the §7.7 quiet/row-action control anatomy; streamed turns follow §9.4 reading choreography with the `prefers-reduced-motion` settled-frame fallback. No new colors/pills/icons; tokens only. |
 | 2026-06-16 | 0.3.6 | **Glanceable completeness checklist** (epic #309 T6, `#337`). §8.2 codifies a display-only `Completeness` block in the `simulations/new` manifest rail: an `N OF M ESSENTIALS` count rendered as a §8.2 panel-verdict-chip (mono, `paper-recessed` fill, `rule` border) over a per-item present/absent list in the §7.10 text-glyph register — present `✓` (`success`) + `ink` label, absent `·` + `ink-muted` label, each row prefixed with a mono `PRESENT`/`MISSING` word so color never carries state alone (§4.3 / §7.8). The six essentials (change · cohort · OEC metric · direction · conditional design attached · advisory mechanism) are derived **deterministically, zero-LLM** from the wizard's form state + the EXISTING live `POST /simulations/preflight` `reason_codes` (the "conditional design attached" item reuses the gate's own `structurally_invisible_change` signal rather than re-deriving the regime classifier client-side); the count is a human-glance number **never fed to `confidence_score` / the verdict / persistence** and **never gates submit** (the authoritative block/override stays in the T4 needs_input/`422` path). The lone advisory item (mechanism) is excluded from the count and mono-tagged `· advisory`. Frontend-only — no backend / no route / no migration. No new colors/pills/icons; `confidence_score` arithmetic untouched (panel hard constraint). |
+| 2026-06-26 | 0.4 | **Dual-color everywhere** (founder-signed; ticket #35, this PR). The dual-color aperture mark becomes the **standard mark on every surface — in-product nav and dashboard included** — replacing the prior "monotone in-product / dual-color brand-surfaces-only / never resting in the nav or dashboard" policy. §1.3 consolidated to two color states (static dual-color default + transient animation); §3 primary horizontal lockup repointed to the duo assets; §4.4 forbidden-`avira` list scoped to *standalone* accents only (the resting duo mark is exempt); §1.5/§11 asset roles updated (duo = standard, mono = fallback). The §9.2 aperture-close animation note is unchanged and still valid. RATIONALE: the founder chose visual brand consistency over the brand-vs-product split — one mark, one color story, on every surface. Code lockstep: `TopNav.tsx` (`SidiraLockup`→`SidiraLockupDuo`) and `AppShellV2.tsx` rail (`ConsoleMarkMono`→`SheetMarkDuo`) now render dual-color in-product. |
 
 ---
 
