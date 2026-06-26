@@ -1,8 +1,8 @@
 import { TOKENS, FONT_NARROW, DUO_SID, DUO_AVIRA } from "@/lib/design";
 
 // Dual-color aperture lockup — Sid-blue left blades, Avira-rose right blades.
-// Per DESIGN.md §4.4: use only on public/brand surfaces (homepage, /about, press).
-// Never in the product nav, favicon, or in-app UI.
+// Per DESIGN.md §1.3: the standard mark on every surface — product nav/dashboard,
+// favicon, and brand surfaces alike. The monochrome lockup is a legacy fallback.
 export default function SidiraLockupDuo({ height = 36 }: { height?: number }) {
   return (
     <svg

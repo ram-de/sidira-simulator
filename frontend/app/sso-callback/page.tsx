@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreateOrganization, useAuth } from "@clerk/nextjs";
 
-import { ConsoleMarkMono } from "@/components/v2";
+import { SheetMarkDuo } from "@/components/v2";
 import { getActivePersonas } from "@/lib/api";
 import {
   clerkEnabled,
@@ -136,7 +136,7 @@ function AuthStage({
       <div className="auth-col">
         <div className="auth-head">
           <span className="auth-mark" aria-hidden>
-            <ConsoleMarkMono size={34} />
+            <SheetMarkDuo size={34} />
           </span>
           {eyebrow ? <span className="v2-desig">{eyebrow}</span> : null}
           {title ? <h1 className="auth-title">{title}</h1> : null}

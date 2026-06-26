@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import AuthControls from "@/components/AuthControls";
-import SidiraLockup from "@/components/SidiraLockup";
+import SidiraLockupDuo from "@/components/SidiraLockupDuo";
 import { TOKENS, FONT_SANS, EASE_MECH } from "@/lib/design";
 
 // Workbench chrome — DESIGN.md §9.3 + R2 mock (product-mock-mvp.html).
@@ -38,7 +38,7 @@ export default function TopNav() {
         aria-label="Sidira home"
         style={{ color: TOKENS.ink, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
       >
-        <SidiraLockup height={28} />
+        <SidiraLockupDuo height={28} />
       </Link>
       <nav style={{ display: "flex", gap: 24, flex: 1, alignSelf: "stretch", alignItems: "stretch" }}>
         {TABS.map((tab) => {

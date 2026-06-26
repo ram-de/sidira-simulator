@@ -10,7 +10,7 @@ export const APP_URL =
     : "https://app.sidira.ai";
 
 // Public-surface top bar (home, about). The duo lockup is sanctioned here —
-// public site and about are brand-mode surfaces (DESIGN.md §1.3) — and it
+// public site and about use the standard dual-color mark (DESIGN.md §1.3) — and it
 // links home so every public page has a way back.
 export default function PublicTopBar({
   currentPath,
