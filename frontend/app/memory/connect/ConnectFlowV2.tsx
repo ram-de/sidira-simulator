@@ -27,6 +27,7 @@ import {
   csvTemplateUrl,
   listConnectors,
   previewCsv,
+  previewConnectorImport,
   runConnectorImport,
   validateConnector,
   TARGET_FIELDS,
@@ -113,6 +114,10 @@ export default function ConnectFlowV2() {
   // PREVIEW + IMPORT state
   const [preview, setPreview] = useState<Experiment[]>([]);
   const [previewErrors, setPreviewErrors] = useState<RowError[]>([]);
+  // Honest dry-run message for credentialed connectors (Statsig/SQL): the
+  // preview pulls + maps rows but persists nothing (MAJOR 5).
+  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [previewReady, setPreviewReady] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   useEffect(() => {
@@ -137,6 +142,8 @@ export default function ConnectFlowV2() {
     setDelimiter("|");
     setPreview([]);
     setPreviewErrors([]);
+    setPreviewMessage(null);
+    setPreviewReady(false);
     setResult(null);
   };
 
@@ -205,17 +212,41 @@ export default function ConnectFlowV2() {
     setStep("MAP");
   };
 
-  // ── PREVIEW: CSV is previewed locally via the preview endpoint result; for
-  // Statsig/SQL the import endpoint returns the mapped experiments, so PREVIEW
-  // for those reuses the import in dry contexts — here we run the import and
-  // show its result directly (the source rows are pulled server-side). For CSV
-  // we already have a verifiable preview from /csv/preview. ──
-  const goToPreview = () => {
-    if (kind === "csv" && csvPreview) {
-      setPreview(csvPreview.preview);
-      setPreviewErrors(csvPreview.errors);
+  // ── PREVIEW: CSV is previewed locally via the /csv/preview result. For
+  // credentialed connectors (Statsig/SQL) we run a real DRY-RUN against
+  // /connectors/{kind}/preview: it pulls + maps the first rows with the
+  // customer's credentials but writes NOTHING to the archive (MAJOR 5). The
+  // customer verifies the mapped result, then explicitly confirms via /import. ──
+  const goToPreview = async () => {
+    if (kind === "csv") {
+      if (csvPreview) {
+        setPreview(csvPreview.preview);
+        setPreviewErrors(csvPreview.errors);
+      }
+      setPreviewReady(true);
+      setPreviewMessage(null);
+      setStep("PREVIEW");
+      return;
     }
+    if (!kind) return;
+    // Credentialed connector: dry-run pull + map, persist nothing.
+    setBusy(true);
+    setConnectErr(null);
+    setPreviewReady(false);
     setStep("PREVIEW");
+    try {
+      const fieldMapping: FieldMapping = { columns: mapping, variant_delimiter: delimiter };
+      const res = await previewConnectorImport(kind, { mapping: fieldMapping, config });
+      setPreview(res.experiments);
+      setPreviewErrors(res.errors);
+      setPreviewMessage(res.message);
+      // Only let the customer confirm the import once a non-error preview ran.
+      setPreviewReady(res.state !== "needs_credentials");
+    } catch (e) {
+      setConnectErr((e as Error)?.message ?? "Preview failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const runImport = async () => {
@@ -477,17 +508,22 @@ export default function ConnectFlowV2() {
               </p>
             ) : (
               <p className="v2-mem-section-sub">
-                {descriptor?.name} rows are pulled with your credentials at import
-                time. Confirm the mapping, then run the import to fetch and map
-                them.
+                {busy
+                  ? `Pulling a sample from ${descriptor?.name} with your credentials — nothing is imported yet.`
+                  : (previewMessage ??
+                    `${descriptor?.name} rows are pulled with your credentials. This is a dry run — nothing is imported until you confirm.`)}
               </p>
             )}
 
-            {kind === "csv" && preview.length > 0 && (
+            {busy && kind !== "csv" && (
+              <p className="v2-connect-pending v2-mono">PREVIEWING — NOTHING IMPORTED YET</p>
+            )}
+
+            {!busy && preview.length > 0 && (
               <PreviewRegister experiments={preview} />
             )}
 
-            {kind === "csv" && preview.length === 0 && (
+            {!busy && preview.length === 0 && (
               <p className="v2-connect-pending v2-mono">
                 NO ROWS MAPPED — CHECK THE MAPPING
               </p>
@@ -512,8 +548,12 @@ export default function ConnectFlowV2() {
               <Button variant="ghost" onClick={() => setStep("MAP")}>
                 ← Back
               </Button>
-              <Button variant="primary" onClick={runImport} disabled={busy}>
-                {busy ? "Importing…" : "Import to archive →"}
+              <Button
+                variant="primary"
+                onClick={runImport}
+                disabled={busy || !previewReady}
+              >
+                {busy ? "Working…" : "Confirm & import to archive →"}
               </Button>
             </div>
           </section>

@@ -33,7 +33,11 @@ from sidira_simulator.services.connectors.ingestion_store import (
 )
 from sidira_simulator.services.connectors.mapping import suggest_mapping
 from sidira_simulator.services.connectors.registry import describe_connectors
-from sidira_simulator.services.experiment_ingest import run_import, validate_connector
+from sidira_simulator.services.experiment_ingest import (
+    preview_import,
+    run_import,
+    validate_connector,
+)
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
@@ -126,6 +130,23 @@ async def csv_preview(
 def validate(kind: ConnectorKind, req: ValidateConnectorRequest) -> ValidateConnectorResponse:
     """Validate/configure a connector — honest about what credentials are missing."""
     return validate_connector(kind, req)
+
+
+@router.post("/{kind}/preview", response_model=ImportResult)
+def preview_connector_import(
+    kind: ConnectorKind,
+    req: ImportRequest,
+    customer_id: str = Depends(current_customer_id),
+) -> ImportResult:
+    """Dry-run a credentialed import: pull + map the first rows, persist NOTHING.
+
+    The honest "see it before you commit" path for Statsig/SQL — it fetches from
+    the customer's source with their credentials and shows the mapped result, but
+    NEVER writes to the archive. The customer reviews the preview, then calls
+    ``/import`` to actually persist (MAJOR 5). No store dependency: a preview can
+    never touch the customer's archive.
+    """
+    return preview_import(kind, req, customer_id=customer_id)
 
 
 @router.post("/{kind}/import", response_model=ImportResult)

@@ -1203,6 +1203,14 @@ export type ImportPayload = {
   config?: Record<string, string>;
 };
 
+// Dry-run a credentialed import: pulls + maps the first rows but persists
+// NOTHING, so the customer can verify the mapped result before confirming the
+// real import (Statsig/SQL). The shape is the same ImportResult as /import.
+export const previewConnectorImport = (
+  kind: ConnectorKind,
+  payload: ImportPayload,
+) => apiPost<ImportPayload, ImportResult>(`/connectors/${kind}/preview`, payload);
+
 export const runConnectorImport = (kind: ConnectorKind, payload: ImportPayload) =>
   apiPost<ImportPayload, ImportResult>(`/connectors/${kind}/import`, payload);
 

@@ -141,6 +141,26 @@ def test_parse_csv_rejects_headerless() -> None:
         csv_connector.parse_csv(b"")
 
 
+def test_parse_csv_rejects_duplicate_headers() -> None:
+    """Duplicate headers make the field mapping ambiguous — reject up front
+    instead of silently collapsing (csv.DictReader keeps only the last) (MAJOR 6)."""
+    with pytest.raises(csv_connector.CsvParseError) as exc:
+        csv_connector.parse_csv(b"result,result,n\nwin,loss,100\n")
+    assert "duplicate" in str(exc.value).lower()
+
+
+def test_parse_csv_rejects_case_insensitive_duplicate_headers() -> None:
+    with pytest.raises(csv_connector.CsvParseError):
+        csv_connector.parse_csv(b"Result,result\nwin,loss\n")
+
+
+def test_parse_csv_rejects_blank_header() -> None:
+    """A blank column header is un-addressable in a mapping — reject it (MAJOR 6)."""
+    with pytest.raises(csv_connector.CsvParseError) as exc:
+        csv_connector.parse_csv(b"change_description,,result\nx,y,win\n")
+    assert "blank" in str(exc.value).lower()
+
+
 def test_sample_csv_roundtrips_into_valid_experiments() -> None:
     columns, rows = csv_connector.parse_csv(csv_connector.sample_csv().encode("utf-8"))
     assert columns == list(csv_connector.TEMPLATE_COLUMNS)
@@ -420,6 +440,60 @@ def test_sql_query_guard_rejects_writes() -> None:
     assert sql_connector.validate_query("WITH x AS (SELECT 1) SELECT * FROM x")
 
 
+def test_sql_query_guard_rejects_function_call_selects() -> None:
+    """A 'SELECT' that calls a side-effecting function (or has no FROM) is NOT a
+    read — the keyword filter alone would wave these through, so the guard
+    rejects function-call SELECTs and bare expression SELECTs (BLOCKER 1)."""
+    bypass_attempts = (
+        "SELECT nextval('my_seq')",
+        "SELECT setval('my_seq', 999)",
+        "SELECT dblink_exec('UPDATE t SET x=1')",
+        "SELECT pg_sleep(10)",
+        "SELECT my_proc()",  # no FROM → rejected as not-a-table-read
+        "SELECT 1",  # bare expression, no FROM
+        "SELECT pg_read_file('/etc/passwd')",
+    )
+    for bad in bypass_attempts:
+        with pytest.raises(sql_connector.SqlQueryError):
+            sql_connector.validate_query(bad)
+
+
+def test_sql_query_guard_rejects_select_into() -> None:
+    with pytest.raises(sql_connector.SqlQueryError):
+        sql_connector.validate_query("SELECT * INTO new_table FROM experiments")
+
+
+def test_sql_fetch_rejects_unsupported_backend() -> None:
+    """We only advertise/enforce read-only on Postgres + SQLite. A MySQL URL is
+    refused rather than falling back to the keyword filter alone (BLOCKER 1)."""
+    with pytest.raises(sql_connector.SqlUnsupportedBackendError):
+        sql_connector.fetch_rows(
+            {"connection_string": "mysql://u:p@h/db", "query": "SELECT * FROM t"}
+        )
+
+
+def test_sql_execution_error_is_sanitized_in_import(client: TestClient, monkeypatch) -> None:
+    """A raw driver exception (with the connection string / host) must NOT echo
+    back to the caller — the import returns a generic message (MAJOR 3)."""
+    def _boom(connection_string: str, query: str):
+        raise sql_connector.SqlExecutionError(
+            "could not connect to server at secret-host:5432 password=hunter2"
+        )
+
+    monkeypatch.setattr(sql_connector, "_run_query", _boom)
+    payload = ImportRequest(
+        mapping=suggest_mapping(list(csv_connector.TEMPLATE_COLUMNS)),
+        config={"connection_string": "postgresql://u:p@h/db", "query": "SELECT * FROM t"},
+    ).model_dump()
+    res = client.post("/connectors/sql/import", json=payload)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["imported"] == 0
+    assert "secret-host" not in res.text
+    assert "hunter2" not in res.text
+    assert "read-only import policy" in body["message"]
+
+
 def test_sql_validate_rejects_write_query() -> None:
     out = validate_connector(
         ConnectorKind.SQL,
@@ -449,6 +523,105 @@ def test_sql_import_with_stubbed_query_maps_rows(client: TestClient, monkeypatch
     assert body["state"] == "active"
     assert body["imported"] == 1
     assert body["experiments"][0]["category"] == "flow"
+
+
+# ── credential redaction on validation errors (BLOCKER 2) ───────────────────────
+
+
+def test_validate_error_does_not_leak_sql_connection_string(client: TestClient) -> None:
+    """A malformed credentialed body 422s. The connector routes are secret-body
+    paths, so the rejected value (which carries the SQL connection string) is
+    redacted — the secret never echoes back (BLOCKER 2)."""
+    secret = "postgresql://admin:sup3r-s3cret@db.internal:5432/prod"
+    # `config` must be a dict[str,str]; send it as the wrong type so Pydantic
+    # rejects the field and would normally echo the whole body as the error input.
+    res = client.post(
+        "/connectors/sql/validate",
+        json={"config": secret},  # str, not the required object
+    )
+    assert res.status_code == 422
+    assert secret not in res.text
+    assert "sup3r-s3cret" not in res.text
+
+
+def test_import_error_does_not_leak_statsig_key(client: TestClient) -> None:
+    secret = "statsig-secret-server-key-abc123"
+    res = client.post(
+        "/connectors/statsig/import",
+        json={"mapping": "not-an-object", "config": {"api_key": secret}},
+    )
+    assert res.status_code == 422
+    assert secret not in res.text
+
+
+def test_preview_error_does_not_leak_credentials(client: TestClient) -> None:
+    secret = "postgresql://u:leak-me@h/db"
+    res = client.post(
+        "/connectors/sql/preview",
+        json={"config": secret},
+    )
+    assert res.status_code == 422
+    assert "leak-me" not in res.text
+
+
+# ── credentialed dry-run preview persists nothing (MAJOR 5) ──────────────────────
+
+
+def test_sql_preview_maps_rows_without_persisting(client: TestClient, monkeypatch) -> None:
+    """The /preview dry-run pulls + maps rows but NEVER writes to the archive —
+    the customer confirms via /import afterward (MAJOR 5)."""
+    def _fake_run(connection_string: str, query: str):
+        columns = list(csv_connector.TEMPLATE_COLUMNS)
+        row = (
+            "Move checkout to a single page", "3-step|single-page",
+            "checkout completion rate", "flow", "single-page", "win",
+            10.4, 14600, "2024-03-21",
+        )
+        return columns, [row]
+
+    monkeypatch.setattr(sql_connector, "_run_query", _fake_run)
+    payload = ImportRequest(
+        mapping=suggest_mapping(list(csv_connector.TEMPLATE_COLUMNS)),
+        config={"connection_string": "sqlite://", "query": "SELECT * FROM experiments"},
+    ).model_dump()
+
+    body = client.post("/connectors/sql/preview", json=payload).json()
+    assert body["state"] == "active"
+    assert len(body["experiments"]) == 1  # the mapped row is shown
+    # ...but nothing was written to the archive.
+    assert client.get("/connectors/imports").json()["archive_size"] == 0
+    assert "nothing imported" in body["message"].lower()
+
+
+def test_statsig_preview_does_not_persist(client: TestClient, monkeypatch) -> None:
+    def _fake_fetch(api_key: str, *, timeout: float = 20.0):
+        return [
+            {
+                "description": "Raise the Pro price",
+                "groups": [{"name": "$29"}, {"name": "$39"}],
+                "primaryMetrics": [{"name": "revenue per visitor"}],
+                "category": "pricing",
+                "decision": {"winningGroup": "$39", "result": "win", "effectSizePct": 18.5},
+                "sampleSize": 12700,
+                "endTime": "2024-03-28",
+            }
+        ]
+
+    monkeypatch.setattr(statsig_connector, "_fetch_experiments", _fake_fetch)
+    payload = ImportRequest(
+        mapping=suggest_mapping(list(csv_connector.TEMPLATE_COLUMNS)),
+        config={"api_key": "secret-key"},
+    ).model_dump()
+    body = client.post("/connectors/statsig/preview", json=payload).json()
+    assert len(body["experiments"]) == 1
+    assert client.get("/connectors/imports").json()["archive_size"] == 0
+
+
+def test_preview_without_credentials_is_needs_credentials(client: TestClient) -> None:
+    payload = ImportRequest(mapping=_identity_mapping(), config={}).model_dump()
+    body = client.post("/connectors/sql/preview", json=payload).json()
+    assert body["state"] == "needs_credentials"
+    assert body["imported"] == 0
 
 
 # ── ingestion store isolation ──────────────────────────────────────────────────

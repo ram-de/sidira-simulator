@@ -93,6 +93,30 @@ def parse_csv(raw: bytes) -> tuple[list[str], list[dict[str, str]]]:
         raise CsvParseError("CSV has no header row")
 
     columns = [(name or "").strip() for name in reader.fieldnames]
+
+    # Reject ambiguous headers UP FRONT. csv.DictReader silently collapses
+    # duplicate column names (last value wins) and turns a blank header into an
+    # un-addressable column — either makes the field mapping ambiguous (which
+    # source column did the customer mean?), so we refuse rather than guess
+    # (MAJOR 6).
+    if any(not name for name in columns):
+        raise CsvParseError(
+            "CSV has a blank column header — every column must be named so the "
+            "mapping is unambiguous"
+        )
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for name in columns:
+        key = name.lower()
+        if key in seen and name not in duplicates:
+            duplicates.append(name)
+        seen.add(key)
+    if duplicates:
+        raise CsvParseError(
+            "CSV has duplicate column header(s): "
+            + ", ".join(sorted(duplicates))
+            + " — rename them so the mapping is unambiguous"
+        )
     rows: list[dict[str, str]] = []
     for raw_row in reader:
         rows.append(

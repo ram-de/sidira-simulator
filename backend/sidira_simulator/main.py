@@ -68,12 +68,26 @@ _SECRET_VALIDATION_LOC_TOKENS = frozenset({"password", "test_users"})
 #   - `/feature-stores` (create): Snowflake `password` on SnowflakeConnectionRequest
 #     (#328). The `/feature-stores/{id}/...` sub-routes operate on a saved
 #     connection and carry no password, so they are intentionally NOT matched.
+#   - `/connectors/{kind}/validate` + `/connectors/{kind}/preview` +
+#     `/connectors/{kind}/import` (#19): the connector `config` dict carries the
+#     customer's credentials (Statsig API key, SQL connection string). A 422 on
+#     any field would otherwise echo the whole credentialed body. The CSV-only
+#     `/connectors/csv/*` and `GET /connectors*` routes carry no secret and need
+#     no redaction (matching only the credentialed sub-paths keeps the guard
+#     tight).
+_CONNECTOR_SECRET_SUFFIXES = ("/validate", "/preview", "/import")
+
+
 def _is_secret_body_path(path: str) -> bool:
     return (
         path == "/crawl-setup"
         or path == "/crawl-setups"
         or path.startswith("/crawl-setups/")
         or path == "/feature-stores"
+        or (
+            path.startswith("/connectors/")
+            and path.endswith(_CONNECTOR_SECRET_SUFFIXES)
+        )
     )
 
 
