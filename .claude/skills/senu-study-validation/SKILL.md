@@ -31,11 +31,13 @@ Each dimension: what to check · PASS bar · the failure it guards against · ow
 
 1. **Outcome variance / no ceiling — THE #1 KILLER.** What is the registered *primary outcome*, and
    does its distribution have real spread, or does it pin near a boundary?
-   - PASS: a continuous or choice-between-options outcome with a sim/pilot-verified ~40–60% split (no
-     >~80% mass at any value). FAIL: reflexive-yes / "did ≥1 thing" / conversion that ceilings ~90–100%
-     (Beat-the-Clock's `converted = claims.length>0`; F&F's reflexive yes). Demand the sim/pilot
-     distribution (mean, SD, %floor, %cap) BEFORE recruiting. *Owner: outcome **definition** = Sidira;
-     ceiling/variance **diagnostic** = senu.*
+   - PASS depends on the primary's type. **Continuous primary:** sim/pilot-verified real spread — low
+     mass at the floor/cap and an SE small enough to resolve the MDE (judge by spread + SE vs MDE, NOT
+     by a 40–60% split). **Binary / choice-between primary:** a sim/pilot-verified ~40–60% split with no
+     >~80% mass at any single value. FAIL (either type): reflexive-yes / "did ≥1 thing" / conversion
+     that ceilings ~90–100% (Beat-the-Clock's `converted = claims.length>0`; F&F's reflexive yes), or a
+     continuous outcome pinned at a boundary. Demand the sim/pilot distribution (mean, SD, %floor, %cap)
+     BEFORE recruiting. *Owner: outcome **definition** = Sidira; ceiling/variance **diagnostic** = senu.*
 2. **Counter-intuitive lever.** Is the live A/B manipulation genuinely counter-intuitive (the naive /
    more-is-better prediction differs from the registered human-truth direction), or an obvious
    sanity-check (e.g. savings-framing, "efficiency sort → more")? PASS: a human can't confidently call
@@ -43,8 +45,14 @@ Each dimension: what to check · PASS bar · the failure it guards against · ow
    nothing about the bias. *Owner: Sidira (study author).*
 3. **Two-table leakage firewall.** Does the export cleanly separate **pre-treatment** persona features
    (Table A) from **sealed outcomes** (Table B)? Any pre-treatment field that encodes the outcome? Any
-   path the predictor could read B before sealing? PASS: `exportEnvelope` keeps `personaProfile` and
-   `abOutcome` distinct; outcomes excluded from the features-only slice. *Owner: senu (platform rail).*
+   path the predictor could read B before sealing? Keeping `personaProfile` and `abOutcome` as distinct
+   fields is necessary but NOT sufficient — if Table B ships in the same pre-seal envelope, the firewall
+   is breachable regardless of which fields Sidira's harness chooses to read. PASS requires EITHER (a) a
+   Table-A-only / features-only export *delivered to the predictor before the engine predicts* (B simply
+   absent from what's shipped), OR (b) a platform-enforced **seal-gated** Table-B release (B is
+   cryptographically/structurally withheld until the prediction is locked). If B ships in the same
+   pre-seal envelope, mark this NOT fully passing even if Sidira's harness avoids reading it. *Owner:
+   senu (platform rail).*
 4. **Sealed / blind / role-separated prereg.** Is there a sealed prereg with **three separated
    artifacts** — (a) the human-truth hypothesis, (b) the engine's *blind* prediction (locked before
    unblinding), (c) the measured truth — with **win = engine-vs-measured-truth, never vs the human
@@ -52,9 +60,10 @@ Each dimension: what to check · PASS bar · the failure it guards against · ow
    hypothesis into "the Sidira prediction" (the Exp-1 leak). Changing the design after data = void.
    *Owner: prereg **content** = Sidira; **sealing mechanism** (hash/lock) = senu.*
 5. **Power / N adequacy + achievability.** Is the registered N sufficient for the MDE on the *actual*
-   primary (two-sample **mean** test for a continuous primary; two-proportion only for a binary
-   primary — don't size a continuous outcome on a risk-difference), AND achievable for the recruitment
-   plan? FAIL: N inflated-down by an implausibly large MDE; or required-N ≫ reachable cohort (→ run it
+   primary — sized with the power model that matches the randomization and scoring unit (two-sample,
+   paired, mixed / repeated-measures, or cluster-aware [player-level / persona-conditioned]; two-
+   proportion only when the primary is binary) — and don't size a continuous outcome on a risk-
+   difference. AND achievable for the recruitment plan? FAIL: N inflated-down by an implausibly large MDE; or required-N ≫ reachable cohort (→ run it
    as an explicit underpowered *pilot*, not the confirmatory test). *Owner: Sidira (registers N);
    power-gate mechanism = senu.*
 6. **Comprehension + anti-random-clicking gate.** Is there a per-item response-time floor AND a *live*
@@ -62,14 +71,20 @@ Each dimension: what to check · PASS bar · the failure it guards against · ow
    FAIL: the F&F failure — confused/random clicking that timing/engagement audits can't see. Must be
    live, not just server-graded after. *Owner: senu (generic quality rail).*
 7. **Predictability / reliability ceiling (NEW).** Given the planned N and the plausible effect size,
-   is the effect resolvable AT ALL? Estimate the reliability ceiling (≈ 1 − sampling-var / observed-var;
-   max achievable rank-corr ≈ √reliability). FAIL/abstain-flag: a small effect + modest N → most
-   variance is sampling noise → no predictor (engine or human) can call it; don't stake a claim on it.
-   *Owner: Sidira (methodology).*
+   is the effect resolvable AT ALL? The reliability-ceiling formula (reliability ≈ 1 − sampling-var /
+   observed-var, clamped to [0,1]; max achievable rank-corr ≈ √reliability) applies to **ranking /
+   correlation against noisy observed effects ACROSS MULTIPLE effects** — not to a single point estimate.
+   For a SINGLE effect, use power / Type-S (sign-error) / deadband logic instead of the ceiling formula.
+   FAIL/abstain-flag: a small effect + modest N → most variance is sampling noise → no predictor (engine
+   or human) can call it; don't stake a claim on it. *Owner: Sidira (methodology).*
 8. **Arm-invariance / single clean manipulation.** For reward/payout studies, is the payout
-   **arm-invariant** (the lever literally cannot move the ₹/reward)? Is the treatment a *single* change
-   vs control (no confounds bundled)? FAIL: lever leaks into the outcome; multiple simultaneous changes.
-   *Owner: senu (payout rail) + Sidira (lever design).*
+   **arm-invariant** in its *mechanics* — the external payout FORMULA, endowments, and prize mapping
+   are identical across arms (no arm term in the ₹/reward computation)? The treatment MAY move the
+   behavioral primary (e.g. Beat-the-Clock's loud timer *should* shift `earnedPaise` via choices), but
+   ONLY through participant choices — never through a mechanical arm term in the payout. Is the treatment
+   a *single* change vs control (no confounds bundled)? FAIL: the arm mechanically alters the payout
+   formula/endowment/mapping; multiple simultaneous changes. *Owner: senu (payout rail) + Sidira (lever
+   design).*
 9. **Renderable treatment.** Is the change a concrete rendered artifact the engine can simulate a
    persona reacting to (UI/copy/price/flow), not an opaque/internal tweak? FAIL: unrenderable change →
    the engine has nothing to react to. *Owner: Sidira.*
@@ -91,9 +106,11 @@ If NOT-A-FIT: why this design can't produce a clean engine test (and whether a r
 - **Beat the Clock = NOT-READY → fixed:** `converted=≥1-claim` ceilinged (dim 1 ❌) + obvious
   savings-framing lever (dim 2 ❌). Fix: continuous `earnedPaise` primary + sealed ~50/50 bar; swap to
   the H2 loud-timer counter-intuitive lever; keep firewall/arm-invariant payout. Exp-2 sealed prereg.
-- **Counter-Intuition Battery = GOOD, with gaps:** 4 genuinely counter-intuitive items, choice-between-
-  options outcomes (variance by design), strong firewall/randomization (dims 1–3 ✅) — gaps: no prereg
-  doc, thin comprehension gate, sunk-cost ceiling risk (dims 4,6 ⚠️).
+- **Counter-Intuition Battery = GOOD, with gaps:** 4 genuinely counter-intuitive items with choice-
+  between outcomes — promising, but dim 1 passes only with pilot/sim evidence of spread, so mark it
+  promising-with-gaps (NOT dims 1–3 ✅ "by design"; the F&F ceiling finding shows choice-between is not
+  automatically spread). Strong firewall/randomization (dims 2–3 ✅), dim 1 ⚠️ pending the pilot
+  distribution — plus gaps: no prereg doc, thin comprehension gate, sunk-cost ceiling risk (dims 4,6 ⚠️).
 
 ## Rules of thumb
 - A high score on prose/engagement but a ceilinged or obvious outcome = **NOT-A-FIT**. The outcome and
