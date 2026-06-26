@@ -16,20 +16,43 @@
 // sits under AppShellV2 -> ConsoleShell's `.v2-console`.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  chatExperiments,
+  converseExperiments,
   searchSimilarExperiments,
-  type ChatCitation,
-  type ExperimentChatResponse,
+  type CitationSource,
+  type ConversationTurn,
   type ExperimentResult,
+  type FusedCitation,
   type SearchSimilarResponse,
   type SimilarMatch,
   type Verdict,
 } from "@/lib/api";
 import AppShellV2 from "@/components/v2/AppShellV2";
 import { Button, Panel, StatusBadge } from "@/components/v2";
+
+// One rendered exchange in the conversation thread (#32). Carries the user's
+// question, the grounded answer, its per-answer citations, suggested follow-ups,
+// and provenance (extractive vs composed). `pending` marks the turn whose answer
+// is still streaming in — its reading choreography (DESIGN.md §9.4) fires once.
+type ThreadTurn = {
+  id: number;
+  question: string;
+  answer: string;
+  citations: FusedCitation[];
+  followUps: string[];
+  usedLlm: boolean;
+  pending: boolean;
+};
+
+// Citation source -> the mono designator word. The WORD carries the state
+// (DESIGN.md §8.2 PREDICTED/MEASURED lexicon — color never carries it alone);
+// both reuse the neutral designator tone, no new colors/pills/icons.
+const SOURCE_LABEL: Record<CitationSource, string> = {
+  measured: "MEASURED · REAL EXPERIMENT",
+  predicted: "PREDICTED · SIDIRA SIM",
+};
 
 // Verdict -> badge kind + the honest label string. `similar` borrows the `hold`
 // badge (amber edge) as a "proceed with care" cue; tested/novel are neutral.
@@ -78,14 +101,18 @@ function MatchRow({ match }: { match: SimilarMatch }) {
   );
 }
 
-function CitationRow({ c }: { c: ChatCitation }) {
+// A fused citation (#31): distinguishes MEASURED (real experiment) from
+// PREDICTED (Sidira sim). The source word + the pre-formatted effect label both
+// carry the state; tone stays neutral (DESIGN.md §8.2 / §4.3).
+function FusedCitationRow({ c }: { c: FusedCitation }) {
   return (
     <li className="v2-mem-cite">
-      <span className="v2-mem-cite-id v2-mono">{c.id.toUpperCase()}</span>
-      <span className="v2-mem-cite-desc">{c.change_description}</span>
-      <span className="v2-mem-cite-res v2-mono v2-tnum">
-        {RESULT_LABEL[c.result]} · {pct(c.effect_size_pct)}
+      <span className="v2-mem-cite-head">
+        <span className="v2-mem-cite-id v2-mono">{c.id.toUpperCase()}</span>
+        <span className="v2-mem-cite-src v2-mono">{SOURCE_LABEL[c.source]}</span>
       </span>
+      <span className="v2-mem-cite-desc">{c.change_description}</span>
+      <span className="v2-mem-cite-res v2-mono v2-tnum">{c.effect_label}</span>
     </li>
   );
 }
@@ -97,11 +124,18 @@ export default function MemoryConsoleV2() {
   const [dedupLoading, setDedupLoading] = useState(false);
   const [dedupError, setDedupError] = useState<string | null>(null);
 
-  // ── chat state ──
+  // ── conversation state (#32: threaded, multi-turn) ──
   const [question, setQuestion] = useState("");
-  const [chat, setChat] = useState<ExperimentChatResponse | null>(null);
+  const [thread, setThread] = useState<ThreadTurn[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const turnSeq = useRef(0);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Keep the latest turn in view as the thread grows (reading order, §7.5).
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [thread.length]);
 
   const runDedup = async () => {
     const h = hypothesis.trim();
@@ -117,15 +151,43 @@ export default function MemoryConsoleV2() {
     }
   };
 
-  const runChat = async () => {
-    const q = question.trim();
-    if (!q) return;
+  // Ask one conversation turn. `text` lets a follow-up chip submit directly.
+  const ask = async (text: string) => {
+    const q = text.trim();
+    if (!q || chatLoading) return;
     setChatError(null);
     setChatLoading(true);
+    setQuestion("");
+    // Carry the prior turns as context so a follow-up resolves against them.
+    const history: ConversationTurn[] = thread.map((t) => ({
+      question: t.question,
+      answer: t.answer,
+    }));
     try {
-      setChat(await chatExperiments(q, 6));
+      const res = await converseExperiments(q, history, 6);
+      const id = ++turnSeq.current;
+      setThread((prev) => [
+        ...prev,
+        {
+          id,
+          question: q,
+          answer: res.answer,
+          citations: res.citations,
+          followUps: res.follow_ups,
+          usedLlm: res.used_llm,
+          pending: true,
+        },
+      ]);
+      // Reading choreography (§9.4): the just-arrived turn is "pending" for one
+      // frame so its enter animation fires once, then settles. Reduced-motion
+      // users get the settled frame immediately (the CSS handles that).
+      requestAnimationFrame(() =>
+        setThread((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, pending: false } : t)),
+        ),
+      );
     } catch (e) {
-      setChatError((e as Error)?.message ?? "Chat failed");
+      setChatError((e as Error)?.message ?? "Conversation failed");
     } finally {
       setChatLoading(false);
     }
@@ -212,34 +274,101 @@ export default function MemoryConsoleV2() {
           )}
         </section>
 
-        {/* ── Chat over the archive ─────────────────────────────────────── */}
+        {/* ── Conversation over the fused archive (#31 + #32) ───────────── */}
         <section className="v2-mem-section" aria-labelledby="v2-mem-chat-h">
           <h2 id="v2-mem-chat-h" className="v2-mem-section-title">
             Ask the archive
           </h2>
           <p className="v2-mem-section-sub">
-            Ask what the team has learned. Answers are grounded in — and cite —
-            real past experiments.
+            A grounded conversation across two kinds of evidence: real{" "}
+            <span className="v2-mem-inline-src v2-mono">MEASURED</span> A/B
+            experiments and Sidira&rsquo;s own{" "}
+            <span className="v2-mem-inline-src v2-mono">PREDICTED</span>{" "}
+            simulations. Ask a follow-up and it carries the thread&rsquo;s context.
           </p>
+
+          {thread.length > 0 && (
+            <div
+              className="v2-mem-thread"
+              role="log"
+              aria-label="Conversation with the archive"
+              aria-live="polite"
+            >
+              {thread.map((t) => (
+                <div key={t.id} className="v2-mem-turn">
+                  <p className="v2-mem-ask">
+                    <span className="v2-mem-ask-label v2-mono">YOU</span>
+                    {t.question}
+                  </p>
+                  <Panel
+                    className={
+                      "v2-mem-result" + (t.pending ? " v2-mem-result--arriving" : "")
+                    }
+                  >
+                    <p className="v2-mem-answer">{t.answer}</p>
+                    <div className="v2-mem-prov v2-mono">
+                      {t.usedLlm ? "COMPOSED FROM ARCHIVE" : "EXTRACTIVE · NO LLM"}{" "}
+                      · GROUNDED IN {t.citations.length}{" "}
+                      {t.citations.length === 1 ? "SOURCE" : "SOURCES"}
+                    </div>
+                    {t.citations.length > 0 && (
+                      <ul className="v2-mem-cites">
+                        {t.citations.map((c) => (
+                          <FusedCitationRow key={`${t.id}-${c.id}`} c={c} />
+                        ))}
+                      </ul>
+                    )}
+                    {t.followUps.length > 0 && (
+                      <div
+                        className="v2-mem-followups"
+                        aria-label="Suggested follow-up questions"
+                      >
+                        {t.followUps.map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            className="v2-mem-chip v2-mono"
+                            onClick={() => ask(f)}
+                            disabled={chatLoading}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+                </div>
+              ))}
+              <div ref={threadEndRef} />
+            </div>
+          )}
 
           <form
             className="v2-mem-form"
             onSubmit={(ev) => {
               ev.preventDefault();
-              runChat();
+              ask(question);
             }}
           >
             <textarea
               className="v2-mem-input"
               rows={2}
-              placeholder="e.g. What have we learned about urgency framing? Which pricing tests won?"
+              placeholder={
+                thread.length === 0
+                  ? "e.g. What did we predict vs measure on pricing? Which urgency tests backfired?"
+                  : "Ask a follow-up…"
+              }
               value={question}
               onChange={(ev) => setQuestion(ev.target.value)}
               aria-label="Question for the archive"
             />
             <div className="v2-mem-form-actions">
-              <Button variant="primary" onClick={runChat}>
-                {chatLoading ? "Reading…" : "Ask →"}
+              <Button variant="primary" onClick={() => ask(question)}>
+                {chatLoading
+                  ? "Reading…"
+                  : thread.length === 0
+                    ? "Ask →"
+                    : "Send →"}
               </Button>
             </div>
           </form>
@@ -248,24 +377,6 @@ export default function MemoryConsoleV2() {
             <div role="alert" className="v2-mem-alert">
               Could not answer: {chatError}
             </div>
-          )}
-
-          {chat && (
-            <Panel className="v2-mem-result">
-              <p className="v2-mem-answer">{chat.answer}</p>
-              <div className="v2-mem-prov v2-mono">
-                {chat.used_llm ? "COMPOSED FROM ARCHIVE" : "EXTRACTIVE · NO LLM"} ·
-                GROUNDED IN {chat.citations.length}{" "}
-                {chat.citations.length === 1 ? "EXPERIMENT" : "EXPERIMENTS"}
-              </div>
-              {chat.citations.length > 0 && (
-                <ul className="v2-mem-cites">
-                  {chat.citations.map((c) => (
-                    <CitationRow key={c.id} c={c} />
-                  ))}
-                </ul>
-              )}
-            </Panel>
           )}
         </section>
       </div>

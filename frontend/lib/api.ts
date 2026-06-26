@@ -1212,3 +1212,43 @@ export const listImports = () =>
 // Absolute URLs for the template/sample downloads (anchor href, not fetch).
 export const csvTemplateUrl = `${API_BASE}/connectors/csv/template`;
 export const csvSampleUrl = `${API_BASE}/connectors/csv/sample`;
+
+// ── fused multi-turn conversation (#31 fusion + #32 multi-turn) ──────────────
+// Hand-typed against backend/sidira_simulator/schemas/experiment_memory.py
+// (CitationSource / FusedCitation / ConversationRequest / ConversationResponse).
+// Collapse to components["schemas"] once gen-types re-runs against a backend
+// serving these routes.
+
+// Which evidence kind a fused citation came from. MEASURED = a real recorded
+// experiment; PREDICTED = an uncalibrated Sidira simulation (DESIGN.md §8.2/§8.3).
+export type CitationSource = "measured" | "predicted";
+
+export type FusedCitation = {
+  id: string;
+  source: CitationSource;
+  change_description: string;
+  metric: string;
+  // Pre-formatted, source-appropriate effect string (the honesty label rides it).
+  effect_label: string;
+};
+
+// One prior (question, answer) exchange carried back as context.
+export type ConversationTurn = { question: string; answer: string };
+
+export type ConversationResponse = {
+  answer: string;
+  citations: FusedCitation[];
+  follow_ups: string[];
+  grounded: boolean;
+  used_llm: boolean;
+};
+
+export const converseExperiments = (
+  message: string,
+  history: ConversationTurn[] = [],
+  topK = 6,
+) =>
+  apiPost<
+    { message: string; history: ConversationTurn[]; top_k: number },
+    ConversationResponse
+  >("/experiments/conversation", { message, history, top_k: topK });
