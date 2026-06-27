@@ -33,14 +33,17 @@ from pathlib import Path
 from bench_store import record_run
 
 HERE = Path(__file__).resolve().parent
-BASE = HERE.parents[1] / "datasets" / "sspp-dellavigna-vivalt"
-# data lives in the benchmark-gate-validation worktree; allow override via the
-# sibling-worktree path when this branch doesn't carry the raw files.
-CANDIDATES = [
-    BASE,
-    Path("/Users/ram/Projects/sidira-simulator/.claude/worktrees/benchmark-gate-validation"
-         "/sessions/agent-behavior-spec/datasets/sspp-dellavigna-vivalt"),
-]
+# Canonical repo-relative location: sessions/agent-behavior-spec/datasets/...
+# (HERE is sessions/agent-behavior-spec/gated-cost-benchmark, so parents[0] is
+# sessions/agent-behavior-spec). The raw SSPP data is large and not committed on
+# every branch, so we also probe a sibling worktree that has it — purely a
+# local-dev convenience; the canonical path is the source of truth.
+BASE = HERE.parents[0] / "datasets" / "sspp-dellavigna-vivalt"
+_SIBLING = (
+    "/Users/ram/Projects/sidira-simulator/.claude/worktrees/benchmark-gate-validation"
+    "/sessions/agent-behavior-spec/datasets/sspp-dellavigna-vivalt"
+)
+CANDIDATES = [BASE, Path(_SIBLING)]
 
 
 def _data_root() -> Path:
