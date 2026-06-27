@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -1304,36 +1304,54 @@ class InMemoryPersonaBuildRepo:
 
 
 class ConversationRepo(Protocol):
-    """Persistent multi-thread conversations over the fused archive (#41).
+    """Persistent multi-thread conversations over the fused archive (#41, #42).
 
-    Every method is customer-scoped: a thread (and its turns) is ONLY ever
-    visible to its owning ``customer_id``. An unknown id OR another tenant's id
-    reads as None / returns False — the route maps that to 404 so a thread's
-    existence never leaks across tenants. ``append_turn`` auto-titles the thread
-    from the first question when it is still untitled (Claude-style default).
+    Every method is scoped by BOTH the tenant (``customer_id`` — the Clerk org,
+    the outer boundary) AND the end user (``user_id`` — the Clerk session sub,
+    the inner PRIVATE boundary, #42). A thread is visible to / mutable by its
+    owning ``(customer_id, user_id)`` ONLY: a user can never see or touch another
+    user's thread even within the same org. An unknown id, a cross-tenant id, OR
+    a same-tenant-but-other-user id all read as None / return False — the route
+    maps that to 404 so a thread's existence never leaks across users OR tenants.
+
+    BACK-COMPAT: ``user_id`` is nullable for legacy rows created before #42 (a
+    pre-existing demo thread). A legacy NULL-user row is treated as ORG-VISIBLE —
+    visible to / editable by ANY user in the owning tenant — so it is not
+    orphaned. Encoded as the predicate ``user_id == current OR user_id IS NULL``;
+    every NEW thread always stamps a concrete ``user_id``, so this only ever
+    matches the legacy rows. ``customer_id`` stays the hard outer boundary
+    regardless. ``append_turn`` auto-titles the thread from the first question
+    when it is still untitled (Claude-style default).
     """
 
     async def create(
-        self, *, conversation_id: str, customer_id: str, title: str | None = None
+        self,
+        *,
+        conversation_id: str,
+        customer_id: str,
+        user_id: str,
+        title: str | None = None,
     ) -> dict[str, Any]: ...
 
-    async def list_for_customer(
-        self, customer_id: str, limit: int = 100
+    async def list_for_user(
+        self, customer_id: str, user_id: str, limit: int = 100
     ) -> list[dict[str, Any]]: ...
 
     async def get(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None: ...
 
     async def get_with_turns(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None: ...
 
     async def rename(
-        self, conversation_id: str, customer_id: str, title: str
+        self, conversation_id: str, customer_id: str, user_id: str, title: str
     ) -> dict[str, Any] | None: ...
 
-    async def delete(self, conversation_id: str, customer_id: str) -> bool: ...
+    async def delete(
+        self, conversation_id: str, customer_id: str, user_id: str
+    ) -> bool: ...
 
     async def append_turn(
         self,
@@ -1341,6 +1359,7 @@ class ConversationRepo(Protocol):
         turn_id: str,
         conversation_id: str,
         customer_id: str,
+        user_id: str,
         question: str,
         answer: str,
         citations: list[Any],
@@ -1371,14 +1390,39 @@ def derive_default_title(question: str) -> str:
     return cleaned
 
 
+def _row_visible_to_user(
+    row: "Conversation | None", customer_id: str, user_id: str
+) -> bool:
+    """The (customer_id, user_id) access predicate for a fetched row (#42).
+
+    A thread is accessible iff it belongs to the tenant AND it is either owned by
+    this user OR a legacy NULL-user row (org-visible back-compat). ``customer_id``
+    is the hard outer boundary; ``user_id`` is the private inner boundary."""
+    if row is None or row.customer_id != customer_id:
+        return False
+    return row.user_id is None or row.user_id == user_id
+
+
 class PostgresConversationRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def create(
-        self, *, conversation_id: str, customer_id: str, title: str | None = None
+        self,
+        *,
+        conversation_id: str,
+        customer_id: str,
+        user_id: str,
+        title: str | None = None,
     ) -> dict[str, Any]:
-        row = Conversation(id=conversation_id, customer_id=customer_id, title=title)
+        # New rows ALWAYS stamp a concrete user_id (#42) — the NULL case is legacy
+        # rows only.
+        row = Conversation(
+            id=conversation_id,
+            customer_id=customer_id,
+            user_id=user_id,
+            title=title,
+        )
         self._session.add(row)
         await _commit(self._session)
         await self._session.refresh(row)
@@ -1386,12 +1430,20 @@ class PostgresConversationRepo:
         await _release_read_transaction(self._session)
         return result
 
-    async def list_for_customer(
-        self, customer_id: str, limit: int = 100
+    async def list_for_user(
+        self, customer_id: str, user_id: str, limit: int = 100
     ) -> list[dict[str, Any]]:
+        # Scope by BOTH tenant AND user (#42). Legacy NULL-user rows stay visible
+        # to any user in the tenant (org-visible back-compat).
         stmt = (
             select(Conversation)
-            .where(Conversation.customer_id == customer_id)
+            .where(
+                Conversation.customer_id == customer_id,
+                or_(
+                    Conversation.user_id == user_id,
+                    Conversation.user_id.is_(None),
+                ),
+            )
             .order_by(Conversation.updated_at.desc())
             .limit(limit)
         )
@@ -1401,27 +1453,30 @@ class PostgresConversationRepo:
         return result
 
     async def get(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None:
         row = await self._session.get(Conversation, conversation_id)
         result = (
             _conversation_to_dict(row)
-            if row is not None and row.customer_id == customer_id
+            if _row_visible_to_user(row, customer_id, user_id)
             else None
         )
         await _release_read_transaction(self._session)
         return result
 
     async def get_with_turns(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None:
         row = await self._session.get(Conversation, conversation_id)
-        if row is None or row.customer_id != customer_id:
+        if not _row_visible_to_user(row, customer_id, user_id):
             await _release_read_transaction(self._session)
             return None
-        # Tenant isolation: even though the parent is already customer-checked,
-        # scope the turns by customer_id too so a mis-tenanted turn row (e.g. a
-        # bad backfill or a future denormalization bug) can never be replayed.
+        assert row is not None
+        # Tenant isolation: even though the parent is already (customer, user)-
+        # checked, scope the turns by customer_id too so a mis-tenanted turn row
+        # (e.g. a bad backfill or a future denormalization bug) can never be
+        # replayed. (Turns are not user-stamped — the parent thread carries the
+        # user scope; a turn always rides its parent's private boundary.)
         stmt = (
             select(ConversationTurn)
             .where(
@@ -1437,12 +1492,13 @@ class PostgresConversationRepo:
         return result
 
     async def rename(
-        self, conversation_id: str, customer_id: str, title: str
+        self, conversation_id: str, customer_id: str, user_id: str, title: str
     ) -> dict[str, Any] | None:
         row = await self._session.get(Conversation, conversation_id)
-        if row is None or row.customer_id != customer_id:
+        if not _row_visible_to_user(row, customer_id, user_id):
             await _release_read_transaction(self._session)
             return None
+        assert row is not None
         row.title = title
         await _commit(self._session)
         await self._session.refresh(row)
@@ -1450,11 +1506,14 @@ class PostgresConversationRepo:
         await _release_read_transaction(self._session)
         return result
 
-    async def delete(self, conversation_id: str, customer_id: str) -> bool:
+    async def delete(
+        self, conversation_id: str, customer_id: str, user_id: str
+    ) -> bool:
         row = await self._session.get(Conversation, conversation_id)
-        if row is None or row.customer_id != customer_id:
+        if not _row_visible_to_user(row, customer_id, user_id):
             await _release_read_transaction(self._session)
             return False
+        assert row is not None
         await self._session.delete(row)
         await _commit(self._session)
         return True
@@ -1465,15 +1524,17 @@ class PostgresConversationRepo:
         turn_id: str,
         conversation_id: str,
         customer_id: str,
+        user_id: str,
         question: str,
         answer: str,
         citations: list[Any],
         used_llm: bool,
     ) -> dict[str, Any] | None:
         row = await self._session.get(Conversation, conversation_id)
-        if row is None or row.customer_id != customer_id:
+        if not _row_visible_to_user(row, customer_id, user_id):
             await _release_read_transaction(self._session)
             return None
+        assert row is not None
         # next_index is computed in Python off a tenant-scoped count; the
         # uq_conversation_turns_conversation_id_turn_index unique constraint is the
         # backstop. On the rare concurrent-append collision the commit raises
@@ -1511,10 +1572,10 @@ class PostgresConversationRepo:
                 # (the prior session objects are now detached) and retry.
                 last_error = exc
                 row = await self._session.get(Conversation, conversation_id)
-                if row is None or row.customer_id != customer_id:
+                if not _row_visible_to_user(row, customer_id, user_id):
                     return None
                 continue
-            return await self.get_with_turns(conversation_id, customer_id)
+            return await self.get_with_turns(conversation_id, customer_id, user_id)
         # Exhausted retries against a sustained collision — surface the integrity
         # error so the route returns a clean retry-able failure, not a silent dup.
         assert last_error is not None
@@ -1526,13 +1587,31 @@ class InMemoryConversationRepo:
         # conversation_id -> {meta..., "turns": [turn dicts]}
         self._threads: dict[str, dict[str, Any]] = {}
 
+    @staticmethod
+    def _visible(
+        row: dict[str, Any] | None, customer_id: str, user_id: str
+    ) -> bool:
+        """(customer_id, user_id) access predicate (#42), mirroring the Postgres
+        ``_row_visible_to_user``: tenant-scoped AND (owned by this user OR a
+        legacy NULL-user org-visible row)."""
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        return row.get("user_id") is None or row["user_id"] == user_id
+
     async def create(
-        self, *, conversation_id: str, customer_id: str, title: str | None = None
+        self,
+        *,
+        conversation_id: str,
+        customer_id: str,
+        user_id: str,
+        title: str | None = None,
     ) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         row = {
             "id": conversation_id,
             "customer_id": customer_id,
+            # New rows ALWAYS stamp a concrete user_id (#42).
+            "user_id": user_id,
             "title": title,
             "created_at": now,
             "updated_at": now,
@@ -1541,46 +1620,52 @@ class InMemoryConversationRepo:
         self._threads[conversation_id] = row
         return _conversation_meta(row)
 
-    async def list_for_customer(
-        self, customer_id: str, limit: int = 100
+    async def list_for_user(
+        self, customer_id: str, user_id: str, limit: int = 100
     ) -> list[dict[str, Any]]:
         rows = [
-            r for r in self._threads.values() if r["customer_id"] == customer_id
+            r
+            for r in self._threads.values()
+            if self._visible(r, customer_id, user_id)
         ]
         rows.sort(key=lambda r: r["updated_at"], reverse=True)
         return [_conversation_meta(r) for r in rows[:limit]]
 
     async def get(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None:
         row = self._threads.get(conversation_id)
-        if row is None or row["customer_id"] != customer_id:
+        if not self._visible(row, customer_id, user_id):
             return None
         return _conversation_meta(row)
 
     async def get_with_turns(
-        self, conversation_id: str, customer_id: str
+        self, conversation_id: str, customer_id: str, user_id: str
     ) -> dict[str, Any] | None:
         row = self._threads.get(conversation_id)
-        if row is None or row["customer_id"] != customer_id:
+        if not self._visible(row, customer_id, user_id):
             return None
+        assert row is not None
         result = _conversation_meta(row)
         result["turns"] = [dict(t) for t in row["turns"]]
         return result
 
     async def rename(
-        self, conversation_id: str, customer_id: str, title: str
+        self, conversation_id: str, customer_id: str, user_id: str, title: str
     ) -> dict[str, Any] | None:
         row = self._threads.get(conversation_id)
-        if row is None or row["customer_id"] != customer_id:
+        if not self._visible(row, customer_id, user_id):
             return None
+        assert row is not None
         row["title"] = title
         row["updated_at"] = datetime.now(timezone.utc)
         return _conversation_meta(row)
 
-    async def delete(self, conversation_id: str, customer_id: str) -> bool:
+    async def delete(
+        self, conversation_id: str, customer_id: str, user_id: str
+    ) -> bool:
         row = self._threads.get(conversation_id)
-        if row is None or row["customer_id"] != customer_id:
+        if not self._visible(row, customer_id, user_id):
             return False
         del self._threads[conversation_id]
         return True
@@ -1591,14 +1676,16 @@ class InMemoryConversationRepo:
         turn_id: str,
         conversation_id: str,
         customer_id: str,
+        user_id: str,
         question: str,
         answer: str,
         citations: list[Any],
         used_llm: bool,
     ) -> dict[str, Any] | None:
         row = self._threads.get(conversation_id)
-        if row is None or row["customer_id"] != customer_id:
+        if not self._visible(row, customer_id, user_id):
             return None
+        assert row is not None
         next_index = len(row["turns"])
         row["turns"].append(
             {
@@ -1616,7 +1703,7 @@ class InMemoryConversationRepo:
         if next_index == 0 and not row["title"]:
             row["title"] = derive_default_title(question)
         row["updated_at"] = datetime.now(timezone.utc)
-        return await self.get_with_turns(conversation_id, customer_id)
+        return await self.get_with_turns(conversation_id, customer_id, user_id)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1628,6 +1715,7 @@ def _conversation_to_dict(row: Conversation) -> dict[str, Any]:
     return {
         "id": row.id,
         "customer_id": row.customer_id,
+        "user_id": row.user_id,
         "title": row.title,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
@@ -1654,6 +1742,7 @@ def _conversation_meta(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": row["id"],
         "customer_id": row["customer_id"],
+        "user_id": row.get("user_id"),
         "title": row["title"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],

@@ -1,10 +1,14 @@
-"""Persistent, multi-thread "Ask the archive" conversations (#41).
+"""Persistent, multi-thread "Ask the archive" conversations (#41, #42).
 
 Turns the single ephemeral /memory thread into a real PERSISTENT, MULTI-THREAD
-assistant (Claude / ChatGPT style), scoped to the customer (tenant). Every route
-is ``current_customer_id``-scoped — a thread (and its turns) is ONLY ever visible
-to its owning tenant, and an unknown / cross-tenant id 404s so existence never
-leaks across customers.
+assistant (Claude / ChatGPT style), scoped PRIVATELY per USER within a tenant.
+Every route is scoped by BOTH ``current_customer_id`` (the Clerk org — the outer
+tenant boundary) AND ``current_user_id`` (the Clerk session sub — the inner
+private boundary, #42): a thread (and its turns) is ONLY ever visible to its
+owning (customer, user). An unknown id, a cross-tenant id, OR a same-tenant
+other-user id all 404 so existence never leaks across users OR customers. Legacy
+NULL-user rows (a pre-#42 demo thread) stay org-visible for back-compat — see
+``ConversationRepo``.
 
 Routes (all under ``/conversations``):
 
@@ -32,6 +36,7 @@ from sidira_simulator.adapters.llm import ChatClient
 from sidira_simulator.adapters.repositories import ConversationRepo
 from sidira_simulator.api.deps import (
     current_customer_id,
+    current_user_id,
     get_conversation_repo,
     get_customer_repo,
     get_orchestrator,
@@ -86,17 +91,19 @@ def _persisted_turn(turn: dict) -> PersistedTurn:
 async def create_conversation(
     req: CreateConversationRequest,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
 ) -> ConversationSummary:
-    """Open a new (empty) thread for the customer. Title is optional — it
-    auto-derives from the first appended turn when left unset."""
+    """Open a new (empty) thread, owned PRIVATELY by the current user (#42).
+    Title is optional — it auto-derives from the first appended turn when unset."""
     # Ensure the tenant row exists (the conversations FK references customers),
     # mirroring how the orchestrator backfills a customer on first write.
     await customer_repo.ensure_exists(customer_id)
     row = await repo.create(
         conversation_id=_new_id(),
         customer_id=customer_id,
+        user_id=user_id,
         title=req.title,
     )
     return _summary(row)
@@ -105,10 +112,12 @@ async def create_conversation(
 @router.get("", response_model=ConversationListResponse)
 async def list_conversations(
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
 ) -> ConversationListResponse:
-    """The customer's threads, newest-touched first (the switcher list)."""
-    rows = await repo.list_for_customer(customer_id)
+    """The current user's OWN threads, newest-touched first (the switcher list).
+    Another user's threads in the same org never appear here (#42)."""
+    rows = await repo.list_for_user(customer_id, user_id)
     return ConversationListResponse(conversations=[_summary(r) for r in rows])
 
 
@@ -116,11 +125,13 @@ async def list_conversations(
 async def get_conversation(
     conversation_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
 ) -> ConversationDetail:
-    """One thread with its full ordered turn history. 404 when the id is unknown
-    OR belongs to another tenant (existence never leaks)."""
-    row = await repo.get_with_turns(conversation_id, customer_id)
+    """One thread with its full ordered turn history. 404 when the id is unknown,
+    belongs to another tenant, OR belongs to another user (#42) — existence never
+    leaks across users or tenants."""
+    row = await repo.get_with_turns(conversation_id, customer_id, user_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return ConversationDetail(
@@ -137,10 +148,12 @@ async def rename_conversation(
     conversation_id: str,
     req: RenameConversationRequest,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
 ) -> ConversationSummary:
-    """Rename a thread (PATCH title). 404 when unknown / cross-tenant."""
-    row = await repo.rename(conversation_id, customer_id, req.title.strip())
+    """Rename a thread (PATCH title). 404 when unknown / cross-tenant /
+    cross-user (#42)."""
+    row = await repo.rename(conversation_id, customer_id, user_id, req.title.strip())
     if row is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return _summary(row)
@@ -150,10 +163,12 @@ async def rename_conversation(
 async def delete_conversation(
     conversation_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
 ) -> None:
-    """Delete a thread (its turns cascade). 404 when unknown / cross-tenant."""
-    ok = await repo.delete(conversation_id, customer_id)
+    """Delete a thread (its turns cascade). 404 when unknown / cross-tenant /
+    cross-user (#42)."""
+    ok = await repo.delete(conversation_id, customer_id, user_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -163,6 +178,7 @@ async def append_turn(
     conversation_id: str,
     req: AppendTurnRequest,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ConversationRepo = Depends(get_conversation_repo),
     orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
     chat_client: ChatClient | None = Depends(get_experiment_chat_client),
@@ -174,9 +190,9 @@ async def append_turn(
     answer through the SAME tenant-scoped path as ``POST
     /experiments/conversation``, then persists Q + A + citations to the thread and
     auto-titles it from the first question when still untitled. 404 when the
-    thread is unknown / cross-tenant — never generates for a thread the caller
-    doesn't own."""
-    existing = await repo.get_with_turns(conversation_id, customer_id)
+    thread is unknown / cross-tenant / cross-user (#42) — never generates for a
+    thread the caller doesn't own."""
+    existing = await repo.get_with_turns(conversation_id, customer_id, user_id)
     if existing is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
@@ -196,6 +212,7 @@ async def append_turn(
         turn_id=_new_id(),
         conversation_id=conversation_id,
         customer_id=customer_id,
+        user_id=user_id,
         question=req.message,
         answer=answer.answer,
         citations=[c.model_dump() for c in answer.citations],

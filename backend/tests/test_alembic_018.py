@@ -44,12 +44,14 @@ def test_migration_018_revision_chain() -> None:
     assert mod.down_revision == "017"
 
 
-def test_migration_018_is_single_head() -> None:
+def test_migration_018_chains_from_017() -> None:
+    # 018 is no longer the head (019 chains after it for #42's user_id); assert
+    # the 017 ← 018 link is intact. Single-head is asserted in test_alembic_019.
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert list(script.get_heads()) == ["018"]
-    head = script.get_revision("018")
-    assert head.down_revision == "017"
+    rev_018 = script.get_revision("018")
+    assert rev_018.down_revision == "017"
+    assert "018" not in script.get_heads()  # 019 now chains after it
 
 
 def test_migration_018_upgrade_creates_both_tables() -> None:

@@ -188,14 +188,17 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
         await customers.ensure_exists("org_a")
         await customers.ensure_exists("org_b")
 
-    # Tenant A builds a 2-turn thread.
+    # Tenant A builds a 2-turn thread (user_a owns it).
     async with get_sessionmaker()() as session:
         repo = PostgresConversationRepo(session)
-        conv_a = await repo.create(conversation_id="conv_a", customer_id="org_a")
+        conv_a = await repo.create(
+            conversation_id="conv_a", customer_id="org_a", user_id="user_a"
+        )
         await repo.append_turn(
             turn_id="a_t0",
             conversation_id="conv_a",
             customer_id="org_a",
+            user_id="user_a",
             question="A first?",
             answer="A0.",
             citations=[],
@@ -205,6 +208,7 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
             turn_id="a_t1",
             conversation_id="conv_a",
             customer_id="org_a",
+            user_id="user_a",
             question="A second?",
             answer="A1.",
             citations=[],
@@ -215,11 +219,14 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
     # Tenant B has its own separate thread.
     async with get_sessionmaker()() as session:
         repo = PostgresConversationRepo(session)
-        await repo.create(conversation_id="conv_b", customer_id="org_b")
+        await repo.create(
+            conversation_id="conv_b", customer_id="org_b", user_id="user_b"
+        )
         b_turn = await repo.append_turn(
             turn_id="b_t0",
             conversation_id="conv_b",
             customer_id="org_b",
+            user_id="user_b",
             question="B first?",
             answer="B0.",
             citations=[],
@@ -233,13 +240,13 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
         repo = PostgresConversationRepo(session)
 
         # A sees only A's turns, in order.
-        a_detail = await repo.get_with_turns("conv_a", "org_a")
+        a_detail = await repo.get_with_turns("conv_a", "org_a", "user_a")
         assert a_detail is not None
         assert [t["turn_index"] for t in a_detail["turns"]] == [0, 1]
         assert all(t["question"].startswith("A") for t in a_detail["turns"])
 
         # Cross-tenant read of A's thread as org_b returns None (never the turns).
-        assert await repo.get_with_turns("conv_a", "org_b") is None
+        assert await repo.get_with_turns("conv_a", "org_b", "user_b") is None
 
         # And appending the next A turn still gets index 2 — tenant-scoped count
         # is unaffected by B's thread.
@@ -247,6 +254,7 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
             turn_id="a_t2",
             conversation_id="conv_a",
             customer_id="org_a",
+            user_id="user_a",
             question="A third?",
             answer="A2.",
             citations=[],
@@ -254,3 +262,76 @@ async def test_postgres_conversation_repo_tenant_isolation(monkeypatch) -> None:
         )
         assert a_next is not None
         assert [t["turn_index"] for t in a_next["turns"]] == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_postgres_conversation_repo_per_user_isolation(monkeypatch) -> None:
+    """POSTGRES-path PER-USER isolation for #42: two users in the SAME tenant get
+    disjoint thread lists, and neither can get/rename/delete/append the other's
+    thread (cross-user → None, exactly like cross-tenant). A legacy NULL-user row
+    stays ORG-VISIBLE to both (back-compat).
+
+    Skipped unless SIDIRA_TEST_DATABASE_URL is set (same gate as the smoke above).
+    """
+    database_url = os.environ.get("SIDIRA_TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("set SIDIRA_TEST_DATABASE_URL to run Postgres integration smoke")
+
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    _reset_postgres_singletons()
+    await asyncio.to_thread(_run_migrations)
+    await _truncate_conversations()
+
+    # One tenant, two users.
+    async with get_sessionmaker()() as session:
+        await PostgresCustomerRepo(session).ensure_exists("org_shared")
+
+    # User A and User B each open a private thread in the same org; a legacy
+    # NULL-user row also exists (simulating a pre-#42 demo thread).
+    async with get_sessionmaker()() as session:
+        repo = PostgresConversationRepo(session)
+        await repo.create(
+            conversation_id="ua", customer_id="org_shared", user_id="user_a"
+        )
+        await repo.create(
+            conversation_id="ub", customer_id="org_shared", user_id="user_b"
+        )
+    async with get_sessionmaker()() as session:
+        # Legacy row: customer set, user_id NULL (no create() path mints these).
+        await session.execute(
+            text(
+                "INSERT INTO conversations (id, customer_id, user_id) "
+                "VALUES ('legacy', 'org_shared', NULL)"
+            )
+        )
+        await session.commit()
+
+    async with get_sessionmaker()() as session:
+        repo = PostgresConversationRepo(session)
+        # Each user lists only their OWN thread + the org-visible legacy row.
+        a_ids = {r["id"] for r in await repo.list_for_user("org_shared", "user_a")}
+        b_ids = {r["id"] for r in await repo.list_for_user("org_shared", "user_b")}
+        assert a_ids == {"ua", "legacy"}
+        assert b_ids == {"ub", "legacy"}
+
+        # B cannot get / rename / delete / append A's private thread.
+        assert await repo.get_with_turns("ua", "org_shared", "user_b") is None
+        assert await repo.rename("ua", "org_shared", "user_b", "hijack") is None
+        assert await repo.append_turn(
+            turn_id="x",
+            conversation_id="ua",
+            customer_id="org_shared",
+            user_id="user_b",
+            question="q",
+            answer="a",
+            citations=[],
+            used_llm=False,
+        ) is None
+        assert await repo.delete("ua", "org_shared", "user_b") is False
+
+    # A's thread is untouched after B's failed attempts.
+    async with get_sessionmaker()() as session:
+        repo = PostgresConversationRepo(session)
+        a_detail = await repo.get_with_turns("ua", "org_shared", "user_a")
+        assert a_detail is not None
+        assert a_detail["title"] is None

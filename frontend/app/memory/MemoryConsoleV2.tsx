@@ -226,6 +226,52 @@ function FusedCitationRow({ turnId, c }: { turnId: string; c: FusedCitation }) {
   );
 }
 
+// On-demand sources disclosure (#43): the answer's citation source cards are
+// collapsed by default behind a quiet "Sources (N)" toggle (declutter), revealed
+// on demand — either by clicking the toggle or by clicking an inline citation
+// link (which opens this and scrolls to its card). The toggle is a §7.7 quiet
+// control (mono designator, no chip/pill/icon — §7.10); when open it carries the
+// SAME firewall labels (PREDICTED/MEASURED · uncalibrated · agreement) on each
+// revealed source as before — the cards are unchanged, only their default
+// visibility is. The disclosure expand/collapse honors prefers-reduced-motion.
+function SourcesDisclosure({
+  turnId,
+  citations,
+  open,
+  onToggle,
+}: {
+  turnId: string;
+  citations: FusedCitation[];
+  open: boolean;
+  onToggle: (turnId: string) => void;
+}) {
+  const count = citations.length;
+  const panelId = `mem-sources-${turnId}`;
+  return (
+    <div className="v2-mem-sources">
+      <button
+        type="button"
+        className="v2-mem-sources-toggle v2-mono"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => onToggle(turnId)}
+      >
+        <span className="v2-mem-sources-caret" aria-hidden="true">
+          {open ? "–" : "+"}
+        </span>
+        Sources ({count})
+      </button>
+      {open && (
+        <ul id={panelId} className="v2-mem-cites">
+          {citations.map((c) => (
+            <FusedCitationRow key={`${turnId}-${c.id}`} turnId={turnId} c={c} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function threadTitle(t: ConversationSummary): string {
   return t.title?.trim() || UNTITLED_LABEL;
 }
@@ -383,6 +429,11 @@ export default function MemoryConsoleV2() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  // #43: sources are collapsed by default ("Sources (N)" disclosure) and revealed
+  // on demand. This holds the set of turn ids whose disclosure is currently open;
+  // an inline citation link opens its turn's disclosure (if collapsed) before
+  // scrolling to the source. Per-turn so each answer's disclosure is independent.
+  const [openSources, setOpenSources] = useState<Set<string>>(() => new Set());
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   // Monotonic token so only the MOST RECENT loadThread() applies its result:
   // rapidly selecting thread A then B must never let a slow A response overwrite
@@ -520,27 +571,59 @@ export default function MemoryConsoleV2() {
     [activeId, startNewThread, refreshThreads],
   );
 
-  // Inline citation link → its source card (#40). Scroll the matching per-turn
-  // card into view and pulse a brief highlight so the eye lands on the evidence.
+  // Toggle one turn's "Sources (N)" disclosure (#43). Pure set update so each
+  // turn's disclosure stays independent.
+  const toggleSources = useCallback((turnId: string) => {
+    setOpenSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(turnId)) next.delete(turnId);
+      else next.add(turnId);
+      return next;
+    });
+  }, []);
+
+  // Inline citation link → its source card (#40 + #43). The sources disclosure is
+  // collapsed by default; clicking a citation EXPANDS its turn's disclosure (if
+  // collapsed), then scrolls the matching per-turn card into view and pulses a
+  // brief highlight so the eye lands on just that source. The DOM card only
+  // exists once the disclosure is open, so we open it via state first and defer
+  // the scroll/highlight to the next frame (after React has mounted the cards).
   // The pulse is a self-removing class; under prefers-reduced-motion the CSS
   // drops the animation but still tints the card briefly, so the affordance
   // never depends on motion. smooth scroll degrades to a jump for reduced-motion.
   const jumpToCitation = useCallback((turnId: string, citeId: string) => {
     if (typeof document === "undefined") return;
-    const el = document.getElementById(citeAnchorId(turnId, citeId));
-    if (!el) return;
+    // Ensure the disclosure is open (no-op if already open) so the card mounts.
+    setOpenSources((prev) => {
+      if (prev.has(turnId)) return prev;
+      const next = new Set(prev);
+      next.add(turnId);
+      return next;
+    });
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({
-      behavior: reduce ? "auto" : "smooth",
-      block: "nearest",
-    });
-    // Restart the pulse if it's already running (rapid re-clicks).
-    el.classList.remove("v2-mem-cite--flash");
-    void el.offsetWidth; // reflow so the class re-add re-triggers the animation
-    el.classList.add("v2-mem-cite--flash");
-    window.setTimeout(() => el.classList.remove("v2-mem-cite--flash"), 1400);
+    // Defer to the next frame: if the disclosure was just opened, the card is
+    // mounted by React on the upcoming commit. requestAnimationFrame runs after
+    // that commit's paint, so getElementById resolves the freshly mounted card.
+    const focusCard = () => {
+      const el = document.getElementById(citeAnchorId(turnId, citeId));
+      if (!el) return;
+      el.scrollIntoView({
+        behavior: reduce ? "auto" : "smooth",
+        block: "nearest",
+      });
+      // Restart the pulse if it's already running (rapid re-clicks).
+      el.classList.remove("v2-mem-cite--flash");
+      void el.offsetWidth; // reflow so the class re-add re-triggers the animation
+      el.classList.add("v2-mem-cite--flash");
+      window.setTimeout(() => el.classList.remove("v2-mem-cite--flash"), 1400);
+    };
+    if (typeof window !== "undefined" && window.requestAnimationFrame) {
+      window.requestAnimationFrame(focusCard);
+    } else {
+      focusCard();
+    }
   }, []);
 
   // Ask one conversation turn. `text` lets a follow-up chip submit directly.
@@ -733,15 +816,12 @@ export default function MemoryConsoleV2() {
                             {t.citations.length === 1 ? "SOURCE" : "SOURCES"}
                           </div>
                           {t.citations.length > 0 && (
-                            <ul className="v2-mem-cites">
-                              {t.citations.map((c) => (
-                                <FusedCitationRow
-                                  key={`${t.id}-${c.id}`}
-                                  turnId={t.id}
-                                  c={c}
-                                />
-                              ))}
-                            </ul>
+                            <SourcesDisclosure
+                              turnId={t.id}
+                              citations={t.citations}
+                              open={openSources.has(t.id)}
+                              onToggle={toggleSources}
+                            />
                           )}
                           {t.followUps.length > 0 && (
                             <div

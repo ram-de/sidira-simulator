@@ -54,6 +54,9 @@ def client(monkeypatch):
     # Seed fallback (no tenant sims) → deterministic offline extractive answers.
     app.dependency_overrides[get_orchestrator] = lambda: _FakeOrchestrator([])
     monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "demo")
+    # #42: conversations are now scoped per USER too. Pin a default user so the
+    # CRUD / tenant tests are deterministic; per-user tests override SIDIRA_USER_ID.
+    monkeypatch.setenv("SIDIRA_USER_ID", "user-1")
     try:
         with TestClient(app) as c:
             yield c
@@ -216,6 +219,74 @@ def test_each_tenant_lists_only_its_own_threads(client, monkeypatch):
     monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "tenant-a")
     a_list = client.get("/conversations").json()["conversations"]
     assert [c["id"] for c in a_list] == [a_id]
+
+
+# ── Per-USER (private) isolation within ONE tenant (#42) ──────────────────────
+
+
+def _as_user(monkeypatch, user_id: str) -> None:
+    """Switch the acting user within the same tenant (demo)."""
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "demo")
+    monkeypatch.setenv("SIDIRA_USER_ID", user_id)
+
+
+def test_users_in_same_org_get_disjoint_thread_lists(client, monkeypatch):
+    """User A and User B in the SAME org must each see only their OWN threads —
+    private per user, not shared across the org (#42)."""
+    _as_user(monkeypatch, "user-a")
+    a_id = client.post("/conversations", json={"title": "A private"}).json()["id"]
+
+    _as_user(monkeypatch, "user-b")
+    b_id = client.post("/conversations", json={"title": "B private"}).json()["id"]
+    assert [c["id"] for c in client.get("/conversations").json()["conversations"]] == [
+        b_id
+    ]
+
+    _as_user(monkeypatch, "user-a")
+    assert [c["id"] for c in client.get("/conversations").json()["conversations"]] == [
+        a_id
+    ]
+
+
+def test_cross_user_same_org_cannot_touch_thread(client, monkeypatch):
+    """B's get/rename/delete/append on A's thread → 404 (never 403), exactly like
+    cross-tenant. A user must never see/modify another user's thread even inside
+    the same org (#42)."""
+    _as_user(monkeypatch, "user-a")
+    a_id = client.post("/conversations", json={}).json()["id"]
+    client.post(f"/conversations/{a_id}/turns", json={"message": "A's private note"})
+
+    _as_user(monkeypatch, "user-b")
+    assert client.get(f"/conversations/{a_id}").status_code == 404
+    assert client.patch(
+        f"/conversations/{a_id}", json={"title": "hijack"}
+    ).status_code == 404
+    assert client.delete(f"/conversations/{a_id}").status_code == 404
+    assert client.post(
+        f"/conversations/{a_id}/turns", json={"message": "x"}
+    ).status_code == 404
+    # B's own list never shows A's thread.
+    assert client.get("/conversations").json()["conversations"] == []
+
+    # Back to A — thread + its single turn are untouched.
+    _as_user(monkeypatch, "user-a")
+    detail = client.get(f"/conversations/{a_id}").json()
+    assert len(detail["turns"]) == 1
+    assert detail["turns"][0]["question"] == "A's private note"
+
+
+def test_tenant_boundary_still_holds_with_per_user_scope(client, monkeypatch):
+    """Even with the SAME user_id, a different tenant must not see the thread —
+    customer_id stays the hard outer boundary on top of the per-user scope (#42).
+    """
+    monkeypatch.setenv("SIDIRA_USER_ID", "shared-sub")
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org-x")
+    x_id = client.post("/conversations", json={}).json()["id"]
+
+    # Same user sub, different org → cannot see org-x's thread.
+    monkeypatch.setenv("SIDIRA_CUSTOMER_ID", "org-y")
+    assert client.get("/conversations").json()["conversations"] == []
+    assert client.get(f"/conversations/{x_id}").status_code == 404
 
 
 # ── follow-up context replay ───────────────────────────────────────────────────

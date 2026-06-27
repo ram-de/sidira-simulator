@@ -467,6 +467,14 @@ newest at the bottom, like a chat app.
   it reads mono; a **dotted underline** (never a chip/pill/fill) marks it
   linkable so color never carries the affordance alone (§4.3 / §7.10 no-icons).
   The prose stays clean; the evidence stays navigable.
+- **Sources on-demand — the disclosure (#43).** The per-answer source cards are
+  **collapsed by default** behind a quiet **`Sources (N)`** disclosure under each
+  answer, so the prose + provenance read clean and the evidence is one click
+  away. Clicking an inline citation link **expands** the disclosure (if collapsed)
+  and scrolls to + highlights just that source. Same §7.7 quiet-control register
+  as the link (mono designator, dotted underline, `+`/`–` text-glyph caret — no
+  chip/pill/icon); the revealed cards keep the PREDICTED/MEASURED firewall intact
+  (anatomy in §8.2).
 
 **Persistent multi-thread conversations — the thread rail (#41).** "Ask the
 archive" is a real PERSISTENT, MULTI-THREAD assistant (Claude / ChatGPT
@@ -813,6 +821,26 @@ relabel anything. An id-shaped string with no matching card stays plain text.
 The PREDICTED/MEASURED firewall is untouched: a citation link is a navigation
 affordance on a designator, never a relabel of the source's honesty word.
 
+**Sources on-demand — the disclosure (#43).** The per-answer source cards are
+**collapsed by default** behind a quiet **`Sources (N)`** disclosure under each
+answer (declutter): the prose + provenance line read clean, and the evidence is
+one click away. The toggle is a **§7.7 quiet control** in the same register as the
+inline citation link — a mono designator (`ink-muted`, `11px`) marked control-able
+by a `dotted` `console-line` underline only, with a `+` / `–` **text-glyph** caret
+(§7.10 text-glyph register, **never** an icon font / emoji); hover/focus lift to
+`ink-hi` + `signal-dim` edge with the standard focus ring (§7.8) and proper
+`aria-expanded` / `aria-controls`. The disclosure carries the hairline `0.75px`
+`console-line` divider the always-open list used to own, so the separation reads
+consistently open OR closed. **Two ways open it:** clicking the toggle, OR
+clicking an **inline citation link** — which expands its turn's disclosure (if
+collapsed) and then scrolls to + pulse-highlights just that one source (the §8.2
+land-the-eye pulse above, `prefers-reduced-motion` fallback intact; the open is a
+state change, never an animated reflow). Each **revealed** source card is
+**unchanged** — the PREDICTED/MEASURED firewall words, the `(uncalibrated)` label,
+the `agreement N/100` reading, and the effect label all render exactly as before;
+only the cards' **default visibility** changed. Tokens only; no new colors / pills
+/ icons.
+
 ### 8.3 Honest numbers
 
 - The headline number is labeled for what it is. MVP:
@@ -1102,6 +1130,7 @@ table above.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-06-26 | 0.4.4 | **Sources on-demand in "Ask the archive" + per-user private threads** (#43 declutter; #42 privacy). §7.4 + §8.2 codify the **sources disclosure**: the per-answer citation source cards are now **collapsed by default** behind a quiet `Sources (N)` toggle under each answer (the prose + provenance read clean; the evidence is one click away), replacing the prior always-expanded card list. The toggle is a **§7.7 quiet control** in the inline-citation-link register — a mono designator (`ink-muted`, `11px`) marked control-able by a `dotted` `console-line` underline with a `+`/`–` **text-glyph** caret (§7.10, never an icon font / emoji), `aria-expanded`/`aria-controls`, hover/focus lift to `ink-hi` + `signal-dim` edge + the §7.8 ring. It owns the hairline `0.75px` divider the open list used to own, so separation reads consistent open OR closed. Clicking an **inline citation link** (#40) now **expands** the disclosure (if collapsed) and then scrolls to + pulse-highlights just that one source (the §8.2 land-the-eye pulse, `prefers-reduced-motion` static-tint fallback intact; the open is a state change, never an animated reflow). Each **revealed** card is unchanged — the PREDICTED/MEASURED firewall words, `(uncalibrated)`, `agreement N/100`, and the effect label all render exactly as before; only the cards' default visibility changed. The YOU/ARCHIVE bubbles, follow-up chips, and grouping are preserved. Tokens only; no new colors/pills/icons. (#42 is a backend privacy change with no surface delta: conversations are now scoped PRIVATELY per user — a user never sees another user's threads even within the same org — see the PR + migration 019; the rail/threading vocabulary is unchanged.) Code lockstep: `MemoryConsoleV2.tsx` (`SourcesDisclosure` + `jumpToCitation`/`toggleSources` wiring) + the `.v2-mem-sources` / `.v2-mem-sources-toggle` / `.v2-mem-sources-caret` classes (and the reworked `.v2-mem-cites` divider) in `styles/v2-theme.css`. |
 | 2026-06-26 | 0.4.3 | **Persistent, multi-thread "Ask the archive"** (#41; founder UX). §7.4 adds the **persistent multi-thread conversation vocabulary**: conversations are saved server-side (tenant-scoped) so a tab-switch / reload never loses the thread, and the PM keeps several independent threads switchable with nothing lost. Codifies the left **conversation rail** (`240px`, sticky; page widens to `≤ 1180px` only on this threaded surface — `/chat` + connect keep their measure): a `CONVERSATIONS` mono designator header + a `+ New` control + the tenant's threads **newest-touched first** (the reload anchor). The active thread carries a quiet `console-750` fill + hairline `rule`; an untitled thread reads as a faint italic **"New conversation"** placeholder until it **auto-titles from its first question** (trimmed + ellipsis-capped — Claude-style default, editable). **Rename is inline** (double-click / `Rename` action → inline input; Enter commits, Escape cancels — never a modal); **delete is a two-step quiet confirm** (`Delete` → `Confirm` in the `alert` token, dismissed on blur — no dialog, no resting destructive button). Rename/delete are mono **text** row-actions (§7.7 quiet anatomy, no icon library / emoji — §7.10), revealed on hover/focus (always visible on mobile, where the rail **stacks above** the conversation per §7.5). Each turn is persisted as it happens (optimistic UI); a re-opened thread re-renders byte-identical evidence with the PREDICTED/MEASURED firewall intact. The YOU/ARCHIVE bubbles, inline citation links (§7.4/§8.2), follow-up chips, provenance line, and §9.4 reading choreography are all unchanged — this adds thread management + persistence, not a new chat register. Tokens only; no new colors/pills/icons. Backend: a tenant-scoped `Conversation` + `ConversationTurn` store (InMemory + Postgres, migration 018) and a `/conversations` router reusing the fused `/experiments/conversation` answer logic per turn. Code lockstep: `MemoryConsoleV2.tsx` (`ThreadRail` + persistence wiring) + the `.v2-mem--threaded` / `.v2-mem-layout` / `.v2-mem-rail-*` classes in `styles/v2-theme.css`. |
 | 2026-06-26 | 0.4.2 | **Inline citation links in "Ask the archive"** (#40; founder UX). §7.4 + §8.2 codify the answer prose turning its repeated short ids (`sim-…` / `exp-…`) into compact **in-app citation links** (Glean/Perplexity register) that anchor-jump to — and briefly pulse-highlight — their matching per-turn source card below, so the prose reads cleanly instead of repeating `sim-ACEBE2BA (PREDICTED)` inline. The link is the same neutral **mono designator** as the card id, marked linkable by a `dotted` `console-line` underline only — **no chip / pill / fill / icon** (§4.3 / §7.10); hover/focus lift to `ink-hi` + `signal-dim` edge with the standard focus ring (§7.8). The target card's DOM anchor is **scoped per turn** (no collision when the same prior is cited twice) and pulses a `signal-dim` edge + recessed fill that settles back; under `prefers-reduced-motion` the pulse becomes a quiet held tint and the scroll degrades to a jump. **Safety law (codified):** linkifying is **tokenization into React nodes, never markup injection** (no `dangerouslySetInnerHTML`), and a candidate id is linked **only when it resolves to a real citation in that answer** — never a dead link, never a relabel. The PREDICTED/MEASURED honesty firewall, the citation rows, agreement/uncalibrated labels, grouping, follow-up chips, and the YOU/ARCHIVE bubbles are all unchanged. Tokens only; no new colors/pills/icons. Code lockstep: `MemoryConsoleV2.tsx` (`AnswerProse` / `tokenizeCitations` / `jumpToCitation`) + the `.v2-mem-citelink` / `.v2-mem-cite--flash` classes in `styles/v2-theme.css`. |
 | 2026-06-02 | 0.1 | Initial DESIGN.md. Locked: six-blade diaphragm mark · narrow uppercase SIDIRA wordmark · hybrid color C (monochrome default, dual-color during animation, dual-color founder-mode lockup) · Sid + Avira architecture · settle-trace motion bet · Söhne / Berkeley Mono / GT Sectra Fine type stack. Replaces the legacy teal/blue split-test mark. |
