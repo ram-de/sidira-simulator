@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sidira_simulator.adapters.db_models import (
@@ -1351,6 +1352,12 @@ class ConversationRepo(Protocol):
 # repo impls) so the in-memory and Postgres paths derive byte-identical titles.
 _AUTO_TITLE_MAX = 80
 
+# Bounded retries when a concurrent append collides on the
+# (conversation_id, turn_index) unique constraint. Appends to one thread are
+# effectively serial in practice, so a single retry almost always wins; the cap
+# just prevents an unbounded loop under pathological contention.
+_APPEND_MAX_RETRIES = 5
+
 
 def derive_default_title(question: str) -> str:
     """Trim a first question into a Claude-style default thread title.
@@ -1412,9 +1419,15 @@ class PostgresConversationRepo:
         if row is None or row.customer_id != customer_id:
             await _release_read_transaction(self._session)
             return None
+        # Tenant isolation: even though the parent is already customer-checked,
+        # scope the turns by customer_id too so a mis-tenanted turn row (e.g. a
+        # bad backfill or a future denormalization bug) can never be replayed.
         stmt = (
             select(ConversationTurn)
-            .where(ConversationTurn.conversation_id == conversation_id)
+            .where(
+                ConversationTurn.conversation_id == conversation_id,
+                ConversationTurn.customer_id == customer_id,
+            )
             .order_by(ConversationTurn.turn_index.asc())
         )
         turns = (await self._session.execute(stmt)).scalars().all()
@@ -1461,28 +1474,51 @@ class PostgresConversationRepo:
         if row is None or row.customer_id != customer_id:
             await _release_read_transaction(self._session)
             return None
-        count_stmt = select(func.count(ConversationTurn.id)).where(
-            ConversationTurn.conversation_id == conversation_id
-        )
-        next_index = (await self._session.execute(count_stmt)).scalar_one()
-        turn = ConversationTurn(
-            id=turn_id,
-            conversation_id=conversation_id,
-            customer_id=customer_id,
-            turn_index=next_index,
-            question=question,
-            answer=answer,
-            citations_json=citations,
-            used_llm=used_llm,
-        )
-        self._session.add(turn)
-        # First turn on an untitled thread auto-titles it (Claude-style default).
-        if next_index == 0 and not row.title:
-            row.title = derive_default_title(question)
-        # Touch updated_at so the thread floats to the top of list-newest-first.
-        row.updated_at = datetime.now(timezone.utc)
-        await _commit(self._session)
-        return await self.get_with_turns(conversation_id, customer_id)
+        # next_index is computed in Python off a tenant-scoped count; the
+        # uq_conversation_turns_conversation_id_turn_index unique constraint is the
+        # backstop. On the rare concurrent-append collision the commit raises
+        # IntegrityError — recompute the next index and retry a bounded number of
+        # times so the caller gets a clean append, never a 500 or a dup index.
+        last_error: IntegrityError | None = None
+        for _ in range(_APPEND_MAX_RETRIES):
+            # Tenant-scoped count so a mis-tenanted turn row can never perturb
+            # this conversation's ordering.
+            count_stmt = select(func.count(ConversationTurn.id)).where(
+                ConversationTurn.conversation_id == conversation_id,
+                ConversationTurn.customer_id == customer_id,
+            )
+            next_index = (await self._session.execute(count_stmt)).scalar_one()
+            turn = ConversationTurn(
+                id=turn_id,
+                conversation_id=conversation_id,
+                customer_id=customer_id,
+                turn_index=next_index,
+                question=question,
+                answer=answer,
+                citations_json=citations,
+                used_llm=used_llm,
+            )
+            self._session.add(turn)
+            # First turn on an untitled thread auto-titles it (Claude default).
+            if next_index == 0 and not row.title:
+                row.title = derive_default_title(question)
+            # Touch updated_at so the thread floats to the top of newest-first.
+            row.updated_at = datetime.now(timezone.utc)
+            try:
+                await _commit(self._session)
+            except IntegrityError as exc:
+                # _commit already rolled the transaction back. Re-fetch the parent
+                # (the prior session objects are now detached) and retry.
+                last_error = exc
+                row = await self._session.get(Conversation, conversation_id)
+                if row is None or row.customer_id != customer_id:
+                    return None
+                continue
+            return await self.get_with_turns(conversation_id, customer_id)
+        # Exhausted retries against a sustained collision — surface the integrity
+        # error so the route returns a clean retry-able failure, not a silent dup.
+        assert last_error is not None
+        raise last_error
 
 
 class InMemoryConversationRepo:

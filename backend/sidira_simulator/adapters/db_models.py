@@ -10,7 +10,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -326,6 +336,13 @@ class Conversation(Base):
     """
 
     __tablename__ = "conversations"
+    # Composite unique on (id, customer_id) so a child turn's composite FK can
+    # target it — the DB backstop that a turn can never cross tenants.
+    __table_args__ = (
+        UniqueConstraint(
+            "id", "customer_id", name="uq_conversations_id_customer_id"
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     customer_id: Mapped[str] = mapped_column(
@@ -361,6 +378,25 @@ class ConversationTurn(Base):
     """
 
     __tablename__ = "conversation_turns"
+    __table_args__ = (
+        # Composite FK: (conversation_id, customer_id) MUST match a real
+        # (id, customer_id) on conversations, so a turn can never reference a
+        # conversation of another tenant at the DB level.
+        ForeignKeyConstraint(
+            ["conversation_id", "customer_id"],
+            ["conversations.id", "conversations.customer_id"],
+            ondelete="CASCADE",
+            name="fk_conversation_turns_conversation_customer",
+        ),
+        # At most one turn per (conversation_id, turn_index): concurrent appends
+        # can't persist ambiguous ordering. next_index is computed in Python, so
+        # a rare collision surfaces as an IntegrityError (clean retry) not a dup.
+        UniqueConstraint(
+            "conversation_id",
+            "turn_index",
+            name="uq_conversation_turns_conversation_id_turn_index",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     conversation_id: Mapped[str] = mapped_column(

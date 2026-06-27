@@ -384,6 +384,16 @@ export default function MemoryConsoleV2() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  // Monotonic token so only the MOST RECENT loadThread() applies its result:
+  // rapidly selecting thread A then B must never let a slow A response overwrite
+  // B's history (latest-wins request sequencing).
+  const loadTokenRef = useRef(0);
+  // Synchronous double-submit guard. React state (chatLoading) updates async, so
+  // two near-simultaneous submits can both observe chatLoading === false AND
+  // activeId === null, mint TWO threads, and duplicate the first turn. This ref
+  // flips synchronously inside ask() so the second submit bails immediately.
+  // (Same gate class as the simulation submit guard.)
+  const askInFlightRef = useRef(false);
 
   // Keep the latest turn in view as the thread grows (reading order, §7.5).
   useEffect(() => {
@@ -391,11 +401,17 @@ export default function MemoryConsoleV2() {
   }, [thread.length]);
 
   // Load one thread's persisted history into the visible conversation.
+  // Latest-wins: each call claims a token; a slower earlier load is ignored once
+  // a newer load has started, so selecting A then B never lets A's late response
+  // clobber B.
   const loadThread = useCallback(async (id: string) => {
+    const token = ++loadTokenRef.current;
+    const isStale = () => token !== loadTokenRef.current;
     setLoadingHistory(true);
     setChatError(null);
     try {
       const detail = await getConversation(id);
+      if (isStale()) return; // a newer selection superseded this load
       setThread(
         detail.turns.map((t) => ({
           id: t.id,
@@ -410,6 +426,7 @@ export default function MemoryConsoleV2() {
       setActiveId(id);
       writeLastThreadId(id);
     } catch (e) {
+      if (isStale()) return; // a newer selection owns the view now
       // A vanished thread (deleted in another tab) → drop back to no-thread.
       if (e instanceof ApiError && e.status === 404) {
         writeLastThreadId(null);
@@ -419,7 +436,9 @@ export default function MemoryConsoleV2() {
         setChatError((e as Error)?.message ?? "Could not load conversation");
       }
     } finally {
-      setLoadingHistory(false);
+      // Only the most recent load may clear the loading flag — otherwise a slow
+      // superseded load would prematurely hide the newer load's spinner.
+      if (!isStale()) setLoadingHistory(false);
     }
   }, []);
 
@@ -531,7 +550,15 @@ export default function MemoryConsoleV2() {
   // citations — so the conversation survives navigation / reload.
   const ask = async (text: string) => {
     const q = text.trim();
-    if (!q || chatLoading) return;
+    // Synchronous guard FIRST: a second click/Enter in the same tick bails here
+    // before any thread is minted, so we never create two threads / duplicate the
+    // first turn. chatLoading (async state) is the visual gate; this ref is the
+    // race-proof one.
+    if (!q || askInFlightRef.current || chatLoading) return;
+    // Don't submit against a thread that's still loading — activeId may be stale
+    // (mid-switch). Wait for the load to settle; the user can resubmit.
+    if (loadingHistory) return;
+    askInFlightRef.current = true;
     setChatError(null);
     setChatLoading(true);
     setQuestion("");
@@ -621,6 +648,7 @@ export default function MemoryConsoleV2() {
           : (e as Error)?.message ?? "Conversation failed",
       );
     } finally {
+      askInFlightRef.current = false;
       setChatLoading(false);
     }
   };
@@ -726,7 +754,7 @@ export default function MemoryConsoleV2() {
                                   type="button"
                                   className="v2-mem-chip v2-mono"
                                   onClick={() => ask(f)}
-                                  disabled={chatLoading}
+                                  disabled={chatLoading || loadingHistory}
                                 >
                                   {f}
                                 </button>
@@ -766,7 +794,16 @@ export default function MemoryConsoleV2() {
                 aria-label="Question for the archive"
               />
               <div className="v2-mem-form-actions">
-                <Button variant="primary" onClick={() => ask(question)}>
+                <Button
+                  variant="primary"
+                  // Disable while a turn is in flight or history is loading so a
+                  // second submit can't race in and create a duplicate thread/turn
+                  // (the askInFlightRef is the synchronous backstop). type stays
+                  // "button" (the form's onSubmit handles Enter) so a click fires
+                  // ask() exactly once, not also via form submission.
+                  disabled={chatLoading || loadingHistory || !question.trim()}
+                  onClick={() => ask(question)}
+                >
                   {chatLoading
                     ? "Reading…"
                     : thread.length === 0

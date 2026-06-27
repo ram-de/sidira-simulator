@@ -60,6 +60,12 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["customer_id"], ["customers.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        # Composite unique so a child turn's (conversation_id, customer_id) FK can
+        # target it — the DB-level backstop that a turn can never reference a
+        # conversation belonging to a different tenant.
+        sa.UniqueConstraint(
+            "id", "customer_id", name="uq_conversations_id_customer_id"
+        ),
     )
     op.create_index(
         "ix_conversations_customer_id", "conversations", ["customer_id"]
@@ -84,7 +90,26 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["conversation_id"], ["conversations.id"], ondelete="CASCADE"
         ),
+        # Composite FK: a turn's (conversation_id, customer_id) MUST match a real
+        # (id, customer_id) on conversations — so a turn can never reference a
+        # conversation of a different tenant at the DB level. CASCADE so a tenant
+        # delete (which cascades through conversations) also reaps the turns.
+        sa.ForeignKeyConstraint(
+            ["conversation_id", "customer_id"],
+            ["conversations.id", "conversations.customer_id"],
+            ondelete="CASCADE",
+            name="fk_conversation_turns_conversation_customer",
+        ),
         sa.PrimaryKeyConstraint("id"),
+        # Concurrent appends can't persist ambiguous ordering: at most one turn
+        # per (conversation_id, turn_index). append computes next_index in Python,
+        # so on the rare collision this surfaces as an IntegrityError the route
+        # turns into a clean retry rather than a silent dup.
+        sa.UniqueConstraint(
+            "conversation_id",
+            "turn_index",
+            name="uq_conversation_turns_conversation_id_turn_index",
+        ),
     )
     op.create_index(
         "ix_conversation_turns_conversation_id",
