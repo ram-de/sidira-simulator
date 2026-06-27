@@ -29,6 +29,7 @@ import { usePathname } from "next/navigation";
 
 import AuthControls from "@/components/AuthControls";
 import { clerkAppearanceConsole } from "@/lib/clerk";
+import { useIsOrgAdmin } from "@/lib/useOrgRole";
 import { ConsoleShell } from "./ConsoleShell";
 // §1.3 (ticket #35): the dual-color mark is the standard mark on every surface,
 // in-product nav and dashboard included. The console rail brand mark uses the
@@ -69,10 +70,22 @@ const NAV = [
   },
 ] as const;
 
+// Admin-only nav entry (#49). Kept OUT of the shared NAV array because it is
+// conditionally rendered — only when the live Clerk org role is admin/owner
+// (useIsOrgAdmin). A member never sees this link; the /admin route itself also
+// gates its body, and the backend require_admin is the authoritative wall.
+const ADMIN_NAV = {
+  key: "admin",
+  label: "Admin",
+  href: "/admin",
+  glyph: "ADM",
+  matches: ["/admin"],
+} as const;
+
 export type AppShellV2Props = {
   // which real nav section is current (matches a NAV key). Falls back to
   // pathname matching, but callers pass it explicitly for clarity.
-  activeNav?: "simulations" | "personas" | "memory";
+  activeNav?: "simulations" | "personas" | "memory" | "admin";
   // the page title shown in the appbar.
   title: string;
   // optional right-aligned appbar actions (e.g. the "New hypothesis" CTA).
@@ -99,6 +112,10 @@ export default function AppShellV2({
   children,
 }: AppShellV2Props) {
   const pathname = usePathname() ?? "/";
+  // Admin nav entry shows only for admins/owners (UX gate; the route + backend
+  // enforce too). When Clerk is off (dev/CI) this resolves to admin.
+  const isAdmin = useIsOrgAdmin();
+  const navItems = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   return (
     <ConsoleShell>
@@ -110,7 +127,7 @@ export default function AppShellV2({
           </Link>
 
           <nav className="v2-rail-nav">
-            {NAV.map((item) => {
+            {navItems.map((item) => {
               const active =
                 (activeNav && item.key === activeNav) ||
                 item.matches.some(

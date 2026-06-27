@@ -16,6 +16,7 @@ const TEMPORARY_APP_BASIC_AUTH = process.env.SIDIRA_WEB_PROXY_BASIC_AUTH?.trim()
 // The public marketing host is exempted separately (it never serves these).
 const isProtectedRoute = createRouteMatcher([
   "/",
+  "/admin(.*)",
   "/memory(.*)",
   "/personas(.*)",
   "/product(.*)",

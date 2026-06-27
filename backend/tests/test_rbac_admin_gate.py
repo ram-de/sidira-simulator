@@ -226,6 +226,8 @@ ADMIN_GATED = [
     ("POST", "/experiment-sources", _EXP_SOURCE_BODY),
     ("POST", "/experiment-sources/es-nonexistent/test", None),
     ("DELETE", "/experiment-sources/es-nonexistent", None),
+    # #49: the admin-console summary is an admin surface (configuration) → admin-only.
+    ("GET", "/admin/summary", None),
 ]
 
 # Execution / read routes that MUST stay open to members.
