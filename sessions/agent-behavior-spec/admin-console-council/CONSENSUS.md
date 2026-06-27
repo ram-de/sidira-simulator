@@ -40,10 +40,14 @@ transfer ownership, delete workspace, payment method).
 > admin power. **No admin "view all conversations" backdoor** (admin-over-org ≠ admin-over-person).
 
 ## Data-refresh model (the founder's questions, answered)
-The reproducibility trap is already solved in the schema (a `Simulation` pins
-`persona_pack_version` / `feature_pack_version` / `run_seed`; artifacts are immutable versioned
-snapshots behind a `latest` pointer). So **"refresh" only ever publishes a new version + flips
-the pointer — it never mutates a saved run.** Given that, refresh is a freshness-vs-cost call:
+Reproducibility is PARTLY in place: artifacts are immutable versioned snapshots behind a `latest`
+pointer, and a `Simulation` row records `persona_pack_version` / `feature_pack_version` /
+`run_seed` — but that pinning is **provenance/display only today**. The background run reloads
+`latest` again (`simulation_orchestrator.py:223`), so there is **no exact-replay path that
+resolves a saved sim against its pinned artifacts** — that is a WORK ITEM (#47), not a solved
+guarantee. So a "refresh" safely publishes a new version + flips the pointer for *new* runs, but
+re-running an *old* sim today would pick up `latest`, not its pinned version. Given that, refresh
+is a freshness-vs-cost call:
 
 - **Experimentation source → one-time import on connect + on-demand "Re-import." NEVER live.**
   Past A/Bs are historical; live per-query buys zero freshness and burns warehouse credits / rate
@@ -54,9 +58,11 @@ the pointer — it never mutates a saved run.** Given that, refresh is a freshne
 - **Personas → on-demand "Rebuild" with HUMAN promotion** (stability-gated, expensive, can fail —
   never auto-promote) + a soft "personas are N months old" nudge. No cron.
 
-**Console reproducibility rule:** a refresh publishes a new version; viewing/re-running a saved
-sim ALWAYS resolves its pinned version, never `latest`. Surface the pinned
-`persona_pack_version` / `feature_pack_version` on every result page.
+**Console reproducibility rule (TARGET — partly a work item, #47):** a refresh publishes a new
+version; viewing/re-running a saved sim MUST resolve its pinned version, never `latest`. Today the
+versions are pinned for provenance but the re-run path still reloads `latest`
+(`simulation_orchestrator.py:223`) — closing that is part of #47. Surface the pinned
+`persona_pack_version` / `feature_pack_version` on every result page (provenance works now).
 
 ## Security / governance hard lines
 - **Secrets** (DB creds, Statsig/Snowflake keys): write-only, **never echoed** (return last-4 /
@@ -64,7 +70,12 @@ sim ALWAYS resolves its pinned version, never `latest`. Surface the pinned
   AAD-bound to `customer_id:connection_id` (crypto already built in `adapters/credentials.py`).
 - **Cross-tenant + cross-user isolation = a non-bypassable, CI-enforced invariant** (extend
   `test_customer_isolation.py` to the new console surfaces).
-- **Cascade delete:** deleting a source removes its cred blob + derived persona packs (no orphaned
+- **Cascade delete (FUTURE policy, not current behavior):** today deleting a feature-store keeps
+  existing persona-build records and crawl-config delete is config-only (never touches R2
+  artifacts) — so derived artifacts currently SURVIVE a source delete. Target policy: deleting a
+  source removes its cred blob + derived persona packs — BUT with an explicit exception preserving
+  any version a saved sim is pinned to (else delete breaks reproducibility). Reconcile delete vs
+  immutable-pinned-artifacts as part of the admin-console data-governance work. Goal: no orphaned
   PII-derived artifacts).
 - **Members never see:** raw credential config (beyond last-4), or another member's private
   `/memory` threads.
