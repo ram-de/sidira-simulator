@@ -34,6 +34,8 @@ from sidira_simulator.adapters.repositories import (
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
+    ExperimentConnectionRepo,
+    ExperimentImportRunRepo,
     FeatureStoreConnectionRepo,
     PersonaBuildRepo,
     PostgresAgentFeedbackRepo,
@@ -43,6 +45,8 @@ from sidira_simulator.adapters.repositories import (
     PostgresCrawlConfigRepo,
     PostgresCrawlRunRepo,
     PostgresCustomerRepo,
+    PostgresExperimentConnectionRepo,
+    PostgresExperimentImportRunRepo,
     PostgresFeatureStoreConnectionRepo,
     PostgresPersonaBuildRepo,
     PostgresSimulationRepo,
@@ -51,6 +55,8 @@ from sidira_simulator.adapters.repositories import (
     get_in_memory_conversation_repo,
     get_in_memory_crawl_config_repo,
     get_in_memory_crawl_run_repo,
+    get_in_memory_experiment_connection_repo,
+    get_in_memory_experiment_import_run_repo,
     get_in_memory_feature_store_connection_repo,
     get_in_memory_persona_build_repo,
     get_in_memory_repos,
@@ -222,6 +228,22 @@ def get_feature_store_connection_repo(
     if session is None:
         return get_in_memory_feature_store_connection_repo()
     return PostgresFeatureStoreConnectionRepo(session)
+
+
+def get_experiment_connection_repo(
+    session: RepositorySession = None,
+) -> ExperimentConnectionRepo:
+    if session is None:
+        return get_in_memory_experiment_connection_repo()
+    return PostgresExperimentConnectionRepo(session)
+
+
+def get_experiment_import_run_repo(
+    session: RepositorySession = None,
+) -> ExperimentImportRunRepo:
+    if session is None:
+        return get_in_memory_experiment_import_run_repo()
+    return PostgresExperimentImportRunRepo(session)
 
 
 def get_persona_build_repo(session: RepositorySession = None) -> PersonaBuildRepo:

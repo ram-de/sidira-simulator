@@ -206,6 +206,13 @@ _CRAWL_SETUP_BODY = {
 }
 _CRAWL_CREATE_BODY = {**_CRAWL_SETUP_BODY, "name": "iOS Sandbox"}
 
+_EXP_SOURCE_BODY = {
+    "name": "Prod Statsig",
+    "kind": "statsig",
+    "config": {"api_key": "secret-statsig-key"},
+    "mapping": {"columns": {}},
+}
+
 ADMIN_GATED = [
     ("POST", "/feature-stores", _FS_CREATE_BODY),
     ("DELETE", "/feature-stores/fs-nonexistent", None),
@@ -214,6 +221,11 @@ ADMIN_GATED = [
     ("POST", "/crawl-setups", _CRAWL_CREATE_BODY),
     ("PUT", "/crawl-setups/some-setup", _CRAWL_SETUP_BODY),
     ("DELETE", "/crawl-setups/some-setup", None),
+    # #46: persisted experiment-source connections — create / test / delete are
+    # configuration / credential-bearing → admin-only.
+    ("POST", "/experiment-sources", _EXP_SOURCE_BODY),
+    ("POST", "/experiment-sources/es-nonexistent/test", None),
+    ("DELETE", "/experiment-sources/es-nonexistent", None),
 ]
 
 # Execution / read routes that MUST stay open to members.
@@ -223,6 +235,9 @@ MEMBER_OPEN = [
     ("GET", "/crawl-setup", None),
     ("GET", "/feature-stores", None),
     ("GET", "/crawls", None),
+    # #46: listing a source + re-importing it are reads / execution → member-ok.
+    ("GET", "/experiment-sources", None),
+    ("POST", "/experiment-sources/es-nonexistent/reimport", None),
 ]
 
 
@@ -235,6 +250,7 @@ def _clear_in_memory_repos() -> None:
     can't bleed into (or out of) these route assertions."""
     from sidira_simulator.adapters.repositories import (
         get_in_memory_crawl_config_repo,
+        get_in_memory_experiment_connection_repo,
         get_in_memory_feature_store_connection_repo,
         get_in_memory_repos,
     )
@@ -243,6 +259,7 @@ def _clear_in_memory_repos() -> None:
     customer_repo._customers.clear()
     get_in_memory_feature_store_connection_repo()._connections.clear()
     get_in_memory_crawl_config_repo()._configs.clear()
+    get_in_memory_experiment_connection_repo()._connections.clear()
 
 
 @pytest.fixture

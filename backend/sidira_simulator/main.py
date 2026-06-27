@@ -18,6 +18,7 @@ from sidira_simulator.api import (
     connectors,
     conversations,
     crawls,
+    experiment_sources,
     experiments,
     feature_stores,
     feedback,
@@ -85,6 +86,12 @@ def _is_secret_body_path(path: str) -> bool:
         or path == "/crawl-setups"
         or path.startswith("/crawl-setups/")
         or path == "/feature-stores"
+        # #46: POST /experiment-sources (create) carries the source `config` dict
+        # whose secret keys (Statsig api_key / SQL connection_string) are
+        # write-only credentials. A 422 on any field would otherwise echo the
+        # whole credentialed body. The `/experiment-sources/{id}/...` sub-routes
+        # operate on a saved source and carry no secret, so they are NOT matched.
+        or path == "/experiment-sources"
         or (path.startswith("/connectors/") and path.endswith(_CONNECTOR_SECRET_SUFFIXES))
     )
 
@@ -202,6 +209,7 @@ def create_app() -> FastAPI:
     app.include_router(experiments.router)
     app.include_router(conversations.router)
     app.include_router(connectors.router)
+    app.include_router(experiment_sources.router)
     app.include_router(internal.router)
     app.include_router(feature_stores.router)
     app.include_router(persona_builds.router)

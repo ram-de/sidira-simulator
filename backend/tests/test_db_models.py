@@ -33,6 +33,9 @@ def test_models_import_and_register_with_metadata() -> None:
         # #41 — persistent, multi-thread "Ask the archive" conversations + turns.
         "conversations",
         "conversation_turns",
+        # #46 — persisted, admin-managed experiment SOURCES + import-run history.
+        "experiment_connections",
+        "experiment_import_runs",
     }
 
 

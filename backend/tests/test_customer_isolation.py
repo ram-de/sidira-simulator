@@ -329,6 +329,66 @@ def test_run_state_isolated_by_path(tmp_path: Path) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# ExperimentConnection + ExperimentImportRun (#46)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_experiment_connection_isolated() -> None:
+    """A connects an experiment source; B's get/list/delete on A's id read /
+    touch nothing (cross-tenant → repo returns None/[]/False → route 404)."""
+    from sidira_simulator.adapters.repositories import InMemoryExperimentConnectionRepo
+
+    repo = InMemoryExperimentConnectionRepo()
+    await repo.insert(
+        {
+            "id": "es-iso-1",
+            "customer_id": CUST_A,
+            "name": "A's Statsig",
+            "kind": "statsig",
+            "display_config": {"_mapping": {"columns": {}}},
+            "credentials_enc": {"kek_id": "local", "ciphertext": "x", "nonce": "y"},
+        }
+    )
+    # B cannot see, list, or delete A's row.
+    assert await repo.get("es-iso-1", CUST_B) is None
+    assert await repo.list_for_customer(CUST_B) == []
+    assert await repo.delete("es-iso-1", CUST_B) is False
+    # A still owns it (B's delete was a no-op).
+    assert await repo.get("es-iso-1", CUST_A) is not None
+
+
+@pytest.mark.asyncio
+async def test_experiment_import_run_isolated() -> None:
+    """B cannot read or finish A's import-run row."""
+    from sidira_simulator.adapters.repositories import InMemoryExperimentImportRunRepo
+
+    repo = InMemoryExperimentImportRunRepo()
+    await repo.create(
+        {
+            "id": "eir-iso-1",
+            "connection_id": "es-iso-1",
+            "customer_id": CUST_A,
+            "status": "running",
+        }
+    )
+    assert await repo.list_for_connection("es-iso-1", CUST_B) == []
+    assert (
+        await repo.finish(
+            "eir-iso-1",
+            CUST_B,
+            status="succeeded",
+            finished_at=NOW,
+            imported_count=1,
+            failed_count=0,
+            error=None,
+        )
+        is False
+    )
+    assert await repo.list_for_connection("es-iso-1", CUST_A) != []
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Route-level regression guard
 # ──────────────────────────────────────────────────────────────────────
 
