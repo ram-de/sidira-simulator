@@ -24,6 +24,8 @@ prediction to cite.
 
 from __future__ import annotations
 
+import re
+
 from sidira_simulator.schemas.experiment_memory import ExperimentCategory
 from sidira_simulator.schemas.simulation import SimulationStatus
 from sidira_simulator.schemas.simulation_archive import (
@@ -34,6 +36,36 @@ from sidira_simulator.schemas.simulation_archive import (
 # The status a finished simulation carries. SimulationStatus.COMPLETE is the
 # string "complete" (NOT "completed") — only these rows have a result to cite.
 _COMPLETED_STATUS = SimulationStatus.COMPLETE.value
+
+# Match a "<prefix>-<canonical-UUID>" id: a kind prefix (sim-/exp-) then a full
+# 8-4-4-4-12 hex UUID (with or without the surrounding "sim-" already stripped).
+# We shorten ONLY a genuine UUID to the SAME glanceable style the
+# Hypotheses/Personas tabs use (first 8 hex, uppercased, kind prefix kept) — rather
+# than parroting a full UUID into the answer prose + citation headers (#37). A
+# short id (the seed's ``sim-0008``, a test fixture ``sim-cw-1``) does not match the
+# UUID shape and is left intact, so it stays recognizable.
+_PREFIXED_UUID_RE = re.compile(
+    r"^([a-zA-Z]+)-([0-9a-fA-F]{8})-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def short_sim_id(raw_id: str) -> str:
+    """A short, human-readable designator for a simulation/experiment id (#37).
+
+    ``sim-acebe2ba-9206-4d1f-8b3a-1c2d3e4f5a6b`` → ``sim-ACEBE2BA`` (first UUID
+    block, uppercased, kind prefix kept). An id that is already short — a seed id
+    (``sim-0008``) or a test fixture (``sim-cw-1``) — does not match the canonical
+    UUID shape and is returned unchanged, so it stays recognizable. Falls back to
+    the raw id whenever it does not match (never raises, never mangles a short id).
+    """
+    if not raw_id:
+        return raw_id
+    m = _PREFIXED_UUID_RE.match(raw_id)
+    if not m:
+        return raw_id
+    prefix, first_block = m.group(1), m.group(2)
+    return f"{prefix}-{first_block.upper()}"
 
 # Below this absolute pp a predicted metric delta reads as FLAT rather than a
 # directional call: the engine's magnitude is uncalibrated, so a hair off zero is
@@ -95,7 +127,10 @@ def to_simulated_hypotheses(rows: list[dict]) -> list[SimulatedHypothesis]:
         )
         out.append(
             SimulatedHypothesis(
-                id=str(row.get("id") or ""),
+                # Render a SHORT designator (sim-ACEBE2BA), never the raw UUID —
+                # so neither the citation header nor the LLM prose parrots a full
+                # uuid (#37). Seed ids (sim-0008) pass through unchanged.
+                id=short_sim_id(str(row.get("id") or "")),
                 change_description=prose,
                 primary_metric=str(primary_metric),
                 # Live rows carry no firewall change-category; UI is the neutral

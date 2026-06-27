@@ -14,9 +14,11 @@ import {
   listSupportedModels,
   parseNeedsInput,
   preflightSimulation,
+  submitGateCheck,
   type ActivePersonasResponse,
   type CrawlSetupListItem,
   type FeaturePackManifest,
+  type GateMatch,
   type Hypothesis,
   type ModelInfo,
   type NeedsInputDetail,
@@ -26,6 +28,7 @@ import {
   type Simulation,
   type SimulationLimitsResponse,
   type SimulationRequest,
+  type SubmitGateResponse,
 } from "@/lib/api";
 import { FONT_SANS, FONT_MONO, TNUM } from "@/lib/design";
 import SampleWorkspaceCard from "@/components/SampleWorkspaceCard";
@@ -714,6 +717,15 @@ export default function SimulationNewV2() {
   // (never a dead-end) and, when `allow_override`, offers a one-tap "run anyway
   // as generic reception" affordance that resubmits with the override flag.
   const [needsInput, setNeedsInput] = useState<NeedsInputDetail | null>(null);
+  // #38: submit-time ADVISORY dedup gate. On Begin reading we ask the tenant-scoped
+  // /experiments/search-similar (the submit gate) what Sidira has ALREADY PREDICTED
+  // for this hypothesis. The result is purely informational — it NEVER blocks the
+  // run (no modal, no "are you sure?", one click still runs). `novel` shows nothing;
+  // `similar` shows a quiet inline note; `already_tested` shows a prominent (but
+  // still non-blocking) inline panel with the prior PREDICTION(s) + agreement
+  // spread. `gateChecking` drives the brief "checking prior runs…" pending state.
+  const [submitGate, setSubmitGate] = useState<SubmitGateResponse | null>(null);
+  const [gateChecking, setGateChecking] = useState(false);
   // "Begin reading" lives at the bottom of the manifest rail, but the gate /
   // validation banners render at the top of the form. Without this, a gated
   // submit (e.g. oec_undeclared) silently paints a banner off-screen and the
@@ -721,7 +733,7 @@ export default function SimulationNewV2() {
   // WCAG error-summary pattern) whenever a blocking message appears.
   const alertRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (needsInput || validationError || submitError) {
+    if (needsInput || validationError || submitError || submitGate) {
       // Honor prefers-reduced-motion — the theme disables other motion for it,
       // so a smooth bottom-to-top jump would be an out-of-place vestibular risk.
       const reduceMotion =
@@ -733,7 +745,7 @@ export default function SimulationNewV2() {
       });
       alertRef.current?.focus({ preventScroll: true });
     }
-  }, [needsInput, validationError, submitError]);
+  }, [needsInput, validationError, submitError, submitGate]);
   // #313 / T4 (deliverable 4 — inline lint): the deterministic, zero-LLM
   // POST /simulations/preflight verdict, refreshed (debounced) as the user
   // authors. It surfaces the SAME answerability reasons/fixes + the separable
@@ -1309,6 +1321,25 @@ export default function SimulationNewV2() {
 
     const req = buildRequest(refinementNeedsGenericOverride());
     if (!req) return;
+
+    // #38: ADVISORY submit gate. We check what Sidira has ALREADY PREDICTED for
+    // this hypothesis and surface it inline — INFORM, never block. The check
+    // happens in this SAME click (a brief "checking prior runs…" state), then the
+    // run proceeds regardless of the verdict: there is no modal, no confirmation,
+    // no path where the gate stops the run. A `novel` verdict (or a failed check)
+    // shows nothing; a `similar`/`already_tested` verdict renders an inline panel
+    // that the PM sees while the run starts. The gate is best-effort: a transient
+    // failure must never stop a run the PM asked for, so we swallow its errors.
+    setGateChecking(true);
+    try {
+      const gate = await submitGateCheck(req.hypothesis.prose, 5);
+      setSubmitGate(gate.verdict === "novel" ? null : gate);
+    } catch {
+      setSubmitGate(null);
+    } finally {
+      setGateChecking(false);
+    }
+
     await submitRequest(req);
   }
 
@@ -1524,6 +1555,17 @@ export default function SimulationNewV2() {
                 onDismiss={() => setNeedsInput(null)}
               />
             )}
+
+            {/* #38 — submit-time advisory gate. Non-blocking: renders the prior
+                Sidira PREDICTION(s) for this hypothesis inline while the run
+                starts. Never traps the run; has no buttons. `novel` (or a failed
+                check) leaves submitGate null and nothing renders. */}
+            {gateChecking && (
+              <div role="status" style={{ ...disclosureNoteStyle, maxWidth: 620, marginBottom: 16 }}>
+                <div style={disclosureLabelStyle}>checking prior runs…</div>
+              </div>
+            )}
+            {!gateChecking && submitGate && <SubmitGatePanel gate={submitGate} />}
           </div>
 
           <div
@@ -2123,7 +2165,11 @@ export default function SimulationNewV2() {
                   cursor: formDisabled ? "not-allowed" : "pointer",
                 }}
               >
-                {submitting ? "Submitting..." : "Begin reading →"}
+                {gateChecking
+                  ? "Checking prior runs…"
+                  : submitting
+                    ? "Submitting..."
+                    : "Begin reading →"}
               </button>
               <div
                 style={{
@@ -2879,6 +2925,103 @@ function ReasonFixList({
         </ul>
       )}
     </>
+  );
+}
+
+// #38 — submit-time ADVISORY gate panel. Renders what Sidira has ALREADY
+// PREDICTED for this hypothesis, surfaced inline on Begin reading. NON-BLOCKING by
+// construction: it has NO buttons, never traps the run, and the run proceeds in
+// the same click that produced it. Honesty (DESIGN.md §8.2/§8.3): every figure is
+// a PREDICTED, uncalibrated agreement — labeled as such, never a measured result.
+// `already_tested` reads neutral (§8.2 ALREADY TESTED = paper/ink-muted);
+// `similar` carries a `warn` left edge (§8.2 SIMILAR PRIOR = semantic edge on a
+// paper surface, never a fill). Copy INFORMS ("predicted before, and how much it
+// varied"), never discourages.
+function GatePredictionRow({ match }: { match: GateMatch }) {
+  const direction = match.predicted_direction.toUpperCase();
+  // The agreement spread: one figure, or "65 / 78 / 82" when re-run. The WORD
+  // "uncalibrated" + "agreement" carry the honesty (§8.3), not color.
+  const spread = match.agreements.map((a) => Math.round(a)).join(" / ");
+  const runs =
+    match.run_count > 1
+      ? `predicted ${match.run_count}× · agreement ${spread}/100`
+      : `predicted · agreement ${spread}/100`;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            letterSpacing: "0.06em",
+            color: TOKENS.ink,
+            ...TNUM,
+          }}
+        >
+          {match.id.toUpperCase()}
+        </span>
+        <span
+          style={{
+            fontFamily: FONT_MONO,
+            fontSize: 10.5,
+            letterSpacing: "0.04em",
+            color: TOKENS.inkMuted,
+            ...TNUM,
+          }}
+        >
+          PREDICTED {direction} (uncalibrated) · {runs} on {match.primary_metric}
+          {" · "}
+          {Math.round(match.similarity * 100)}% match
+        </span>
+      </div>
+      <p style={{ ...disclosureBodyTextStyle, marginTop: 4 }}>
+        {match.change_description}
+      </p>
+    </div>
+  );
+}
+
+function SubmitGatePanel({ gate }: { gate: SubmitGateResponse }) {
+  const isSimilar = gate.verdict === "similar";
+  const label =
+    gate.verdict === "already_tested"
+      ? "SIDIRA HAS PREDICTED THIS BEFORE"
+      : "SIDIRA HAS PREDICTED SOMETHING SIMILAR";
+  return (
+    <div
+      role="note"
+      style={{
+        ...disclosureNoteStyle,
+        maxWidth: 620,
+        marginBottom: 16,
+        // §8.2: SIMILAR PRIOR gets a warn EDGE on a paper surface (never a fill);
+        // ALREADY TESTED is neutral (rule border only).
+        ...(isSimilar
+          ? { borderLeft: `2px solid ${TOKENS.warn}` }
+          : {}),
+      }}
+    >
+      <div style={disclosureLabelStyle}>{label}</div>
+      <div style={disclosureBodyTextStyle}>{gate.headline}</div>
+      {gate.caveat && (
+        <div style={{ ...disclosureBodyTextStyle, color: TOKENS.inkMuted }}>
+          {gate.caveat}
+        </div>
+      )}
+      {gate.matches.map((m) => (
+        <GatePredictionRow key={m.id} match={m} />
+      ))}
+      <div style={{ ...disclosureBodyTextStyle, color: TOKENS.inkMuted }}>
+        This is a prediction, not a measurement — your run is starting now.
+      </div>
+    </div>
   );
 }
 

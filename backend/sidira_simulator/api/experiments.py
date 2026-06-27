@@ -24,14 +24,14 @@ from sidira_simulator.schemas.experiment_memory import (
     ConversationResponse,
     ExperimentChatRequest,
     ExperimentChatResponse,
-    SearchSimilarRequest,
-    SearchSimilarResponse,
+    SubmitGateRequest,
+    SubmitGateResponse,
 )
-from sidira_simulator.services.experiment_archive import seed_experiments
 from sidira_simulator.services.experiment_chat import ExperimentChatService
 from sidira_simulator.services.experiment_fusion import FusedConversationService
-from sidira_simulator.services.experiment_similarity import search_similar
+from sidira_simulator.services.experiment_gate import gate_similar
 from sidira_simulator.services.live_simulations import to_simulated_hypotheses
+from sidira_simulator.services.simulation_archive import seed_simulations
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
@@ -54,30 +54,46 @@ def get_experiment_chat_client() -> ChatClient | None:
     return None
 
 
-@router.post("/search-similar", response_model=SearchSimilarResponse)
-def post_search_similar(req: SearchSimilarRequest) -> SearchSimilarResponse:
-    """Pre-gate dedup for a NEW hypothesis (#29).
+@router.post("/search-similar", response_model=SubmitGateResponse)
+async def post_search_similar(
+    req: SubmitGateRequest,
+    customer_id: str = Depends(current_customer_id),
+    orchestrator: SimulationOrchestrator = Depends(get_orchestrator),
+) -> SubmitGateResponse:
+    """Submit-time ADVISORY dedup gate for a NEW hypothesis (#38).
 
-    Returns the most similar past experiments with their REAL recorded results,
-    plus a trust-ordered verdict:
+    TENANT-SCOPED (#38a): ranks the caller's OWN prior Sidira PREDICTIONS — the
+    same completed simulations the ``/simulations`` Hypotheses tab lists, loaded
+    via the orchestrator and scoped to ``customer_id`` — NOT the shared demo seed.
+    Falls back to the synthetic seed ONLY when the tenant has no simulations at all
+    (a fresh workspace / the keyless local demo), mirroring ``post_conversation``.
 
-    - ``already_tested`` — effectively the same test already ran; the headline
-      states the real result.
-    - ``similar`` — analogical priors only; ``caveat`` carries the
-      "similar != guaranteed same effect" honesty label.
-    - ``novel`` — no prior to lean on; ``matches`` is empty so a weak match never
-      masquerades as evidence.
+    SOURCE-AWARE / HONEST (#38b): a match is a ``GateMatch`` (a prior PREDICTION),
+    never the measured-``Experiment`` shape. Every figure is uncalibrated
+    simulated-agent agreement, never a measured winner/effect (DESIGN.md §8.3).
+    Re-runs of the same hypothesis are grouped with their agreement spread.
 
-    This runs BEFORE any prediction and never calls the simulation engine.
+    Trust-ordered verdict, ADVISORY only — the run is NEVER blocked on it:
+
+    - ``already_tested`` — Sidira has effectively predicted this before; show the
+      prior prediction(s) + agreement spread.
+    - ``similar`` — an analogical prior prediction only; ``caveat`` carries the
+      "a prediction is not a measurement" honesty label.
+    - ``novel`` — no prior prediction to lean on; ``matches`` is empty.
+
+    This runs BEFORE the new run starts and never calls the simulation engine.
     """
-    # NOTE (tenant scoping — intentional, tracked separately): the archive here is
-    # the SHARED seed sample, read without a customer_id, because no real
-    # per-customer archive exists yet (imports land in the in-memory
-    # IngestionStore, not yet wired into retrieval). When the persisted per-tenant
-    # archive lands, this read MUST be scoped to the caller's customer_id (mirror
-    # the IngestionStore.archive_for(customer_id) pattern). Until then the seed is
-    # the same demo data for everyone, so there is no cross-tenant leak to guard.
-    return search_similar(req.hypothesis, seed_experiments(), req.top_k)
+    rows = await orchestrator.list_recent(customer_id, limit=_LIVE_SIM_LIMIT)
+    if rows:
+        # The tenant HAS simulations → gate over THEIR completed ones, never the
+        # demo seed. ``sims`` may be empty when their recent rows are all still
+        # pending; that yields an honest NOVEL ("running it fresh") rather than
+        # leaking synthetic demo predictions to a real customer.
+        sims = to_simulated_hypotheses(rows)
+    else:
+        # Brand-new workspace / keyless local demo → the demoable synthetic seed.
+        sims = seed_simulations()
+    return gate_similar(req.hypothesis, sims, req.top_k)
 
 
 @router.post("/chat", response_model=ExperimentChatResponse)

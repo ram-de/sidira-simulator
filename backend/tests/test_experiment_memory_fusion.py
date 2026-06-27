@@ -33,6 +33,7 @@ from sidira_simulator.services.experiment_fusion import (
     _predicted_effect_label,
     _resolve_query,
 )
+from sidira_simulator.services.live_simulations import to_simulated_hypotheses
 from sidira_simulator.services.simulation_archive import seed_simulations
 
 # ── simulation seed sanity ────────────────────────────────────────────────────
@@ -318,6 +319,47 @@ def test_conversation_endpoint_uses_injected_llm_stub() -> None:
     assert body["used_llm"] is True
     assert body["answer"].startswith("We predicted UP")
     assert body["citations"]
+
+
+def _completed_dupe_row(sim_id: str, prose: str, *, confidence: float, date: str) -> dict:
+    return {
+        "id": sim_id,
+        "status": SimulationStatus.COMPLETE.value,
+        "hypothesis_json": {"prose": prose, "metric_name": "retention"},
+        "result_json": {"confidence_score": confidence, "metric_lift_pp": 1.2},
+        "completed_at": f"{date}T10:00:00+00:00",
+        "created_at": f"{date}T09:00:00+00:00",
+    }
+
+
+def test_extractive_groups_reruns_with_spread() -> None:
+    """#37.2/.4: near-duplicate sims of the SAME hypothesis collapse into one
+    finding carrying the agreement spread, not separate near-identical rows."""
+    prose = "Add a 'Continue Watching' rail to the home screen"
+    sims = to_simulated_hypotheses(
+        [
+            _completed_dupe_row("sim-a", prose, confidence=65.0, date="2026-06-18"),
+            _completed_dupe_row("sim-b", prose, confidence=78.0, date="2026-06-20"),
+            _completed_dupe_row("sim-c", prose, confidence=82.0, date="2026-06-22"),
+        ]
+    )
+    svc = FusedConversationService(experiments=[], simulations=sims)
+    resp = svc.answer("what do we know about a continue watching rail?")
+    answer = resp.answer
+    # One grouped line with the spread, not three separate predicted findings.
+    assert "3×" in answer
+    assert "65 / 78 / 82" in answer
+
+
+def test_low_agreement_is_surfaced_as_contrast() -> None:
+    """#37.3: a low-agreement prediction is flagged, not buried — the product's
+    core value is surfacing where simulated agreement is low."""
+    sims = to_simulated_hypotheses(
+        [_completed_dupe_row("sim-low", "Add a tipping prompt at checkout", confidence=41.0, date="2026-06-20")]
+    )
+    svc = FusedConversationService(experiments=[], simulations=sims)
+    resp = svc.answer("what about a tipping prompt at checkout?")
+    assert "LOW AGREEMENT" in resp.answer
 
 
 def test_predicted_citation_without_metric_lift_is_direction_only() -> None:
