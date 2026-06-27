@@ -30,6 +30,7 @@ import {
   getActivePersonas,
   getCapabilities,
   getSimulation,
+  listPersonaPacks,
   listSimulations,
   unarchiveFeaturePack,
   type ActivePersonasResponse,
@@ -66,6 +67,22 @@ interface DerivedStimulus {
 const STIMULUS_DETAIL_FAN_OUT = 8;
 const STIMULUS_CARD_CAP = 6;
 
+// #47 persona-age nudge: a soft, never-blocking note suggesting a rebuild once
+// the active persona pack is older than this. Display-only — it triggers no
+// auto-action, and it reads the build date the pack already records. 3 months
+// is a sensible default for "behavior may have drifted; consider a refresh".
+const PERSONA_PACK_STALE_MONTHS = 3;
+const APPROX_DAYS_PER_MONTH = 30.44;
+
+// Whole months elapsed since `iso`, floored. null when the date is unparseable
+// (so the nudge stays off rather than firing on a bad value).
+function monthsSince(iso: string): number | null {
+  const built = new Date(iso).getTime();
+  if (Number.isNaN(built)) return null;
+  const days = (Date.now() - built) / 86_400_000;
+  return Math.floor(days / APPROX_DAYS_PER_MONTH);
+}
+
 type Fetchable<T> =
   | { state: "loading" }
   | { state: "ready"; data: T }
@@ -87,6 +104,11 @@ export default function PersonasListV2() {
     state: "loading",
   });
   const [stimuli, setStimuli] = useState<Fetchable<DerivedStimulus[]>>({ state: "loading" });
+  // #47 persona-age nudge: ISO build date of the active (latest promoted) pack.
+  // `getActivePersonas` (GET /personas) carries no build date, so we read it
+  // from the pack list (GET /persona-packs · PackSummary.created_at). null until
+  // loaded / when no promoted pack exists — the nudge simply doesn't render.
+  const [activePackBuiltAt, setActivePackBuiltAt] = useState<string | null>(null);
 
   // #214 — the Library hides archived pack versions by default. The toggle
   // re-fetches with ?include_archived so a retired pack can be reviewed and
@@ -152,6 +174,22 @@ export default function PersonasListV2() {
     settle(setPersonas, getActivePersonas());
     settle(setStimuli, deriveStimuli(), (rows) => rows.length === 0);
 
+    // #47 persona-age nudge: best-effort read of the active pack's build date.
+    // Never blocks the page or surfaces an error — on any failure the nudge just
+    // stays hidden. The active pack is the latest promoted version.
+    listPersonaPacks()
+      .then((packs) => {
+        if (cancelled) return;
+        const active =
+          packs.find((p) => p.is_latest && p.status === "promoted") ??
+          packs.find((p) => p.status === "promoted") ??
+          null;
+        setActivePackBuiltAt(active?.created_at ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setActivePackBuiltAt(null);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -213,7 +251,7 @@ export default function PersonasListV2() {
           archiving={archiving}
           archiveError={archiveError}
         />
-        <PersonaPacksSection personas={personas} />
+        <PersonaPacksSection personas={personas} builtAt={activePackBuiltAt} />
         <StimuliSection stimuli={stimuli} />
 
         {/* sessions/sample-workspace: probes GET /personas + GET /capabilities
@@ -564,7 +602,18 @@ function FeaturePackSection({
   );
 }
 
-function PersonaPacksSection({ personas }: { personas: Fetchable<ActivePersonasResponse> }) {
+function PersonaPacksSection({
+  personas,
+  builtAt,
+}: {
+  personas: Fetchable<ActivePersonasResponse>;
+  // ISO build date of the active pack, or null when unknown — see #47 above.
+  builtAt: string | null;
+}) {
+  // #47 persona-age nudge: whole months since the active pack was built, and
+  // whether that crosses the soft staleness threshold. Display-only.
+  const ageMonths = builtAt != null ? monthsSince(builtAt) : null;
+  const isStale = ageMonths != null && ageMonths >= PERSONA_PACK_STALE_MONTHS;
   const leading =
     personas.state === "ready"
       ? [...personas.data.personas]
@@ -618,9 +667,22 @@ function PersonaPacksSection({ personas }: { personas: Fetchable<ActivePersonasR
                 ["Personas", String(personas.data.personas.length)],
                 ["Status", "PROMOTED · USED BY NEW RUNS"],
                 ...(leading ? ([["Leading", leading]] as [string, string][]) : []),
+                ...(builtAt
+                  ? ([["Built", isoDate(builtAt)]] as [string, string][])
+                  : []),
                 ["Graded", "UNGRADED — CALIBRATION LEDGER EMPTY"],
               ]}
             />
+            {/* #47 persona-age nudge: soft, non-blocking rebuild suggestion once
+                the pack passes the staleness threshold. No auto-action. */}
+            {isStale && ageMonths != null && (
+              <CardNote>
+                These personas were built {ageMonths} month
+                {ageMonths === 1 ? "" : "s"} ago — if your customers or product
+                have moved on since, consider rebuilding the pack to keep new
+                readings grounded in recent behavior. Saved runs are unaffected.
+              </CardNote>
+            )}
             <CardLink href="/personas/latest">BROWSE PERSONAS →</CardLink>
           </Card>
         )}
