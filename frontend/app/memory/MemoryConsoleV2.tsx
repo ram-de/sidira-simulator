@@ -97,26 +97,32 @@ function citeAnchorId(turnId: number, citeId: string): string {
 // id pattern is a literal regex over plain text and each candidate is only
 // linkified when it maps to an actual citation (case-insensitive), so we never
 // mint a dead link or relabel anything.
-const CITE_ID_RE = /\b((?:sim|exp)-[A-Za-z0-9]+)\b/g;
-
 type LinkifyNode = string | { token: string; citeId: string; key: string };
 
-// Split `text` into a flat list of plain strings and citation tokens. A token is
-// emitted only when its lower-cased form is a key in `byId` (a real citation in
-// THIS answer); any id-shaped string with no matching card stays plain text.
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Split `text` into a flat list of plain strings and citation tokens. We build the
+// match set from the ACTUAL cited ids in `byId` (the real citations in THIS answer)
+// rather than a fixed id-shape pattern, so any id form linkifies — `sim-ACEBE2BA`,
+// `exp-0008`, AND multi-segment ids like `sim-cw-1` — and, by construction, only
+// ids that resolve to a card here (never a dead link, never a relabel). Longest-
+// first alternation so a longer id isn't pre-empted by a shorter prefix.
 function tokenizeCitations(
   text: string,
   byId: Map<string, FusedCitation>,
 ): LinkifyNode[] {
+  if (byId.size === 0) return text ? [text] : [];
+  const ids = [...byId.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp);
+  const re = new RegExp(`\\b(${ids.join("|")})\\b`, "gi");
   const out: LinkifyNode[] = [];
   let last = 0;
   let occurrence = 0;
-  // Reset lastIndex defensively — the regex is module-scoped with /g.
-  CITE_ID_RE.lastIndex = 0;
-  for (let m = CITE_ID_RE.exec(text); m !== null; m = CITE_ID_RE.exec(text)) {
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
     const raw = m[1];
     const cite = byId.get(raw.toLowerCase());
-    if (!cite) continue; // id-shaped but not a real citation → leave as text
+    if (!cite) continue; // defensive — should always resolve by construction
     if (m.index > last) out.push(text.slice(last, m.index));
     out.push({
       token: raw,
