@@ -982,7 +982,8 @@ export default function SimulationNewV2() {
     loadingLimits ||
     simulationLimits == null ||
     !hasCapabilities ||
-    submitting;
+    submitting ||
+    gateChecking;
   // Phase 5 #101: derive filter state.
   const totalPersonaCount = activePersonas.length;
   const selectedCount = selectedPersonas.size;
@@ -1315,6 +1316,9 @@ export default function SimulationNewV2() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Guard re-entry: a double-click (incl. while the advisory gate is checking)
+    // must never create two simulations.
+    if (submitting || gateChecking) return;
     setSubmitError(null);
     setValidationError(null);
     setNeedsInput(null);
@@ -1332,8 +1336,13 @@ export default function SimulationNewV2() {
     // failure must never stop a run the PM asked for, so we swallow its errors.
     setGateChecking(true);
     try {
-      const gate = await submitGateCheck(req.hypothesis.prose, 5);
-      setSubmitGate(gate.verdict === "novel" ? null : gate);
+      // Bounded so a slow/hung gate can NEVER delay the run the PM asked for:
+      // after 4s we proceed as if novel (the advisory is a nicety, not a barrier).
+      const gate = await Promise.race([
+        submitGateCheck(req.hypothesis.prose, 5),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+      setSubmitGate(gate && gate.verdict !== "novel" ? gate : null);
     } catch {
       setSubmitGate(null);
     } finally {

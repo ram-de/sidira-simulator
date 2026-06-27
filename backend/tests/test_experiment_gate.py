@@ -131,6 +131,13 @@ def test_short_sim_id_shortens_a_real_uuid() -> None:
     assert short_sim_id("exp-12345678-aaaa-bbbb-cccc-0123456789ab") == "exp-12345678"
 
 
+def test_short_sim_id_shortens_a_bare_uuid() -> None:
+    # The live orchestrator mints BARE uuids (str(uuid.uuid4()), no prefix) — these
+    # are the common live case and must NOT leak raw into prose/citations (#37).
+    assert short_sim_id("acebe2ba-9206-4d1f-8b3a-1c2d3e4f5a6b") == "sim-ACEBE2BA"
+    assert short_sim_id("12345678-AAAA-BBBB-CCCC-0123456789AB") == "sim-12345678"
+
+
 def test_short_sim_id_leaves_short_ids_intact() -> None:
     # Seed ids and test fixtures are already short — never mangled.
     assert short_sim_id("sim-0008") == "sim-0008"

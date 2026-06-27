@@ -172,7 +172,7 @@ export default function MemoryConsoleV2() {
     <AppShellV2
       activeNav="memory"
       title="Experiment memory"
-      provenance={{ label: "RETRIEVAL · REAL OUTCOMES", calibrated: false, live: false }}
+      provenance={{ label: "RETRIEVAL · MEASURED + PREDICTED", calibrated: false, live: false }}
       actions={
         <Button as="a" variant="secondary" href="/memory/connect">
           Connect a source →
@@ -181,7 +181,7 @@ export default function MemoryConsoleV2() {
     >
       <div className="v2-mem">
         <p className="v2-mem-law v2-mono">
-          RETRIEVAL OVER PAST EXPERIMENTS · EVERY FIGURE IS A REAL RECORDED OUTCOME · NO PREDICTION
+          RETRIEVAL OVER MEASURED EXPERIMENTS + SIDIRA PREDICTIONS · MEASURED = REAL RECORDED OUTCOME · PREDICTED = UNCALIBRATED SIMULATION, NEVER A MEASURED RESULT
         </p>
 
         {/* ── Conversation over the fused archive (#31 + #32) ───────────── */}
