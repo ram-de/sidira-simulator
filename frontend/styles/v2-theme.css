@@ -1578,6 +1578,146 @@ a.v2-sims-row:hover{
   gap:var(--space-section);
   max-width:880px;
 }
+/* #41 — the persistent multi-thread layout widens the page to seat the thread
+   rail beside the conversation; the single-column max-width is lifted only when
+   threaded so the existing /chat + connect surfaces keep their measure. */
+.v2-mem--threaded{ max-width:1180px; }
+.v2-mem-layout{
+  display:grid;
+  grid-template-columns:240px minmax(0, 1fr);
+  gap:var(--space-section);
+  align-items:start;
+}
+/* ── thread rail (#41): the switcher — New + the tenant's threads, newest first.
+   Dark Console archetype, tokens only, no icons (§7.10). ── */
+.v2-mem-rail{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-cozy);
+  position:sticky;
+  top:var(--space-room);
+  min-width:0;
+}
+.v2-mem-rail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:var(--space-snug);
+  padding-bottom:var(--space-snug);
+  border-bottom:0.75px solid var(--console-line-50);
+}
+.v2-mem-rail-title{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+.v2-mem-rail-new{
+  font-size:11px;
+  letter-spacing:0.04em;
+  color:var(--text);
+  background:transparent;
+  border:1px solid var(--console-line-60);
+  border-radius:var(--r-well);
+  padding:4px 10px;
+  cursor:pointer;
+  transition:border-color 0.08s var(--ease-out), color 0.08s var(--ease-out);
+}
+.v2-mem-rail-new:hover{ border-color:var(--signal-dim); color:var(--text-hi); }
+.v2-mem-rail-new:focus-visible{ outline:1px solid var(--text-hi); outline-offset:2px; }
+.v2-mem-rail-new:disabled{ opacity:0.5; cursor:not-allowed; }
+.v2-mem-rail-empty{
+  font-size:12px;
+  line-height:1.5;
+  color:var(--text-mut);
+  margin:0;
+}
+.v2-mem-rail-list{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-tight);
+}
+.v2-mem-rail-itemwrap{ min-width:0; }
+.v2-mem-rail-item{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:var(--space-snug) var(--space-snug);
+  border:0.75px solid transparent;
+  border-radius:var(--r-well);
+  transition:background 0.1s var(--ease-out), border-color 0.1s var(--ease-out);
+}
+.v2-mem-rail-item:hover{ background:var(--console-800); }
+.v2-mem-rail-item--active{
+  background:var(--console-750);
+  border-color:var(--console-line-50);
+}
+.v2-mem-rail-pick{
+  display:block;
+  width:100%;
+  text-align:left;
+  background:transparent;
+  border:0;
+  padding:0;
+  cursor:pointer;
+  min-width:0;
+}
+.v2-mem-rail-pick:focus-visible{ outline:1px solid var(--text-hi); outline-offset:2px; }
+.v2-mem-rail-name{
+  display:block;
+  font-size:13px;
+  line-height:1.4;
+  color:var(--text-hi);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.v2-mem-rail-name--untitled{ color:var(--text-faint); font-style:italic; }
+.v2-mem-rail-actions{
+  display:flex;
+  gap:var(--space-snug);
+  opacity:0;
+  transition:opacity 0.1s var(--ease-out);
+}
+.v2-mem-rail-item:hover .v2-mem-rail-actions,
+.v2-mem-rail-item--active .v2-mem-rail-actions,
+.v2-mem-rail-item:focus-within .v2-mem-rail-actions{ opacity:1; }
+.v2-mem-rail-act{
+  font-size:10px;
+  letter-spacing:0.04em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  background:transparent;
+  border:0;
+  padding:2px 0;
+  cursor:pointer;
+  transition:color 0.08s var(--ease-out);
+}
+.v2-mem-rail-act:hover{ color:var(--text-hi); }
+.v2-mem-rail-act:focus-visible{ outline:1px solid var(--text-hi); outline-offset:2px; }
+.v2-mem-rail-act--danger{ color:var(--alert); }
+.v2-mem-rail-rename{
+  width:100%;
+  font-family:var(--v2-font-sans);
+  font-size:13px;
+  line-height:1.4;
+  color:var(--text-hi);
+  background:var(--console-850);
+  border:1px solid var(--signal-dim);
+  border-radius:var(--r-well);
+  padding:var(--space-snug);
+}
+.v2-mem-rail-rename:focus-visible{ outline:none; }
+/* Mobile: the rail stacks above the conversation (§7.5 — not a squeezed
+   sidebar). Its actions are always visible (no hover on touch). */
+@media (max-width:880px){
+  .v2-mem-layout{ grid-template-columns:1fr; }
+  .v2-mem-rail{ position:static; }
+  .v2-mem-rail-actions{ opacity:1; }
+}
 /* the honesty law eyebrow — mono, muted, never signal (mirrors .v2-sims-law) */
 .v2-mem-law{
   font-size:10px;

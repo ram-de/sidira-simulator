@@ -26,6 +26,9 @@ def test_models_import_and_register_with_metadata() -> None:
         "persona_build_runs",
         # #214 — soft-delete marker hiding a Feature Pack version from the Library.
         "archived_feature_packs",
+        # #41 — persistent, multi-thread "Ask the archive" conversations + turns.
+        "conversations",
+        "conversation_turns",
     }
 
 

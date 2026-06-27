@@ -45,17 +45,21 @@ def test_migration_017_revision_chain() -> None:
     assert mod.down_revision == "016"
 
 
-def test_migration_017_is_single_head() -> None:
-    """The whole alembic chain must have exactly one head — 017 — after this PR.
+def test_migration_017_chains_from_016_in_linear_history() -> None:
+    """017 chains 016 ← 017 and the whole alembic history stays linear (one head).
 
     Two heads would make `alembic upgrade head` ambiguous and the prod deploy
-    (SIDIRA_AUTO_MIGRATE) fail. This walks the real script directory.
+    (SIDIRA_AUTO_MIGRATE) fail. 017 is no longer the head (018 / #41 now is — see
+    test_alembic_018), so this asserts 017's parent + that the chain is still
+    single-headed. This walks the real script directory.
     """
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert list(script.get_heads()) == ["017"]
-    head = script.get_revision("017")
-    assert head.down_revision == "016"
+    # Exactly one head keeps `upgrade head` unambiguous (the head itself moves as
+    # new migrations land; its identity is owned by the latest migration's test).
+    assert len(script.get_heads()) == 1
+    rev = script.get_revision("017")
+    assert rev.down_revision == "016"
 
 
 def test_migration_017_upgrade_adds_setup_id_column() -> None:

@@ -312,3 +312,71 @@ class AgentFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     agent: Mapped[AgentInstance] = relationship(back_populates="feedback")
+
+
+class Conversation(Base):
+    """One persistent "Ask the archive" thread (#41).
+
+    A multi-turn conversation the PM holds with the fused archive. Tenant-scoped
+    via ``customer_id`` (CASCADE on tenant delete, mirroring every other per-
+    tenant table). ``title`` is Claude-style: NULL until the first turn lands,
+    then auto-derived from the first question (and editable via PATCH). Ordered
+    turns live in ``conversation_turns`` (Q + A + per-answer citations); the
+    PREDICTED/MEASURED firewall lives in the persisted citation JSON, untouched.
+    """
+
+    __tablename__ = "conversations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # NULL until the first turn auto-titles it (or the user renames). The UI shows
+    # a placeholder ("New conversation") for an untitled, empty thread.
+    title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Bumped on every appended turn + on rename, so list-newest-first surfaces the
+    # most recently touched thread at the top (the "restore last-active" anchor).
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    turns: Mapped[list["ConversationTurn"]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="ConversationTurn.turn_index",
+    )
+
+
+class ConversationTurn(Base):
+    """One (question, answer) exchange persisted in a thread (#41).
+
+    ``citations_json`` stores the per-answer fused citations verbatim (the
+    MEASURED/PREDICTED source word + pre-formatted effect label) so a reloaded
+    thread re-renders byte-identical evidence without re-querying — the firewall
+    state rides the stored JSON. ``turn_index`` is a 0-based per-conversation
+    ordinal so history replays in the exact order it was asked.
+    """
+
+    __tablename__ = "conversation_turns"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    # Denormalized tenant id so a turn read can be customer-scoped without a join.
+    customer_id: Mapped[str] = mapped_column(String(64), index=True)
+    turn_index: Mapped[int] = mapped_column(Integer)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    # Per-answer fused citations (list of {id, source, change_description, metric,
+    # effect_label}); [] when the answer cited nothing.
+    citations_json: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    used_llm: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    conversation: Mapped[Conversation] = relationship(back_populates="turns")

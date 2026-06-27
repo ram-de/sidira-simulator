@@ -1281,3 +1281,78 @@ export const converseExperiments = (
     { message: string; history: ConversationTurn[]; top_k: number },
     ConversationResponse
   >("/experiments/conversation", { message, history, top_k: topK });
+
+// ── persistent, multi-thread "Ask the archive" (#41) ────────────────────────
+// Hand-typed against backend/sidira_simulator/schemas/experiment_memory.py
+// (ConversationSummary / ConversationDetail / PersistedTurn / AppendTurn*).
+// Tenant-scoped: every call resolves the customer server-side; a thread (and its
+// turns) is only ever visible to its owner. Collapse to components["schemas"]
+// once gen-types re-runs against a backend serving these routes.
+
+// One thread in the switcher list. `title` is null until the first turn auto-
+// derives a Claude-style default (the UI shows a "New conversation" placeholder).
+export type ConversationSummary = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// One persisted (question, answer) exchange in a thread's history. Carries the
+// per-answer fused citations verbatim (the MEASURED/PREDICTED firewall) so a
+// reloaded thread re-renders identical evidence.
+export type PersistedTurn = {
+  id: string;
+  question: string;
+  answer: string;
+  citations: FusedCitation[];
+  used_llm: boolean;
+  created_at: string;
+};
+
+// A thread with its full ordered turn history (the open-thread payload).
+export type ConversationDetail = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  turns: PersistedTurn[];
+};
+
+// The just-generated + persisted turn, plus the (possibly newly auto-titled)
+// thread metadata so the switcher updates in place. `follow_ups`/`grounded` ride
+// alongside so the live UI renders chips without a re-fetch.
+export type AppendTurnResponse = {
+  turn: PersistedTurn;
+  follow_ups: string[];
+  grounded: boolean;
+  conversation: ConversationSummary;
+};
+
+export const listConversations = () =>
+  apiGet<{ conversations: ConversationSummary[] }>("/conversations").then(
+    (r) => r.conversations,
+  );
+
+export const createConversation = (title?: string) =>
+  apiPost<{ title: string | null }, ConversationSummary>("/conversations", {
+    title: title ?? null,
+  });
+
+export const getConversation = (id: string) =>
+  apiGet<ConversationDetail>(`/conversations/${encodeURIComponent(id)}`);
+
+export const renameConversation = (id: string, title: string) =>
+  _req<ConversationSummary>(`/conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+
+export const deleteConversation = (id: string) =>
+  apiDelete(`/conversations/${encodeURIComponent(id)}`);
+
+export const appendConversationTurn = (id: string, message: string, topK = 6) =>
+  apiPost<{ message: string; top_k: number }, AppendTurnResponse>(
+    `/conversations/${encodeURIComponent(id)}/turns`,
+    { message, top_k: topK },
+  );

@@ -468,6 +468,42 @@ newest at the bottom, like a chat app.
   linkable so color never carries the affordance alone (§4.3 / §7.10 no-icons).
   The prose stays clean; the evidence stays navigable.
 
+**Persistent multi-thread conversations — the thread rail (#41).** "Ask the
+archive" is a real PERSISTENT, MULTI-THREAD assistant (Claude / ChatGPT
+register, restrained for the dark Console): conversations are saved server-side
+(tenant-scoped), so a tab-switch / reload never loses the thread, and the PM can
+keep several independent threads and switch between them with nothing lost.
+
+- **Thread rail, not chrome.** A left **conversation rail** (`240px`, sticky)
+  seats beside the thread; the page widens to `≤ 1180px` only on this threaded
+  surface (the `/chat` + connect surfaces keep their single-column measure). The
+  rail is a `CONVERSATIONS` mono designator header + a `+ New` control + the
+  tenant's threads **newest-touched first** (the most-recently-active floats to
+  the top — the reload anchor). **Tokens only — no icon library, no emoji**
+  (§7.10): rename/delete are mono **text** row-actions (§7.7 quiet control
+  anatomy), revealed on hover/focus (always visible on touch / mobile).
+- **Active + untitled states.** The active thread carries a quiet
+  `console-750` fill + hairline `rule`; the rest are transparent until hover
+  (`console-800`). A thread with no title yet reads as a faint italic
+  **"New conversation"** placeholder — it auto-titles from its first question
+  (a trimmed first question, capped with an ellipsis; **Claude-style default**,
+  editable).
+- **Rename inline; delete quietly.** Rename is **in-place** (double-click the
+  row or the `Rename` action → an inline input; Enter commits, Escape cancels) —
+  never a modal. Delete is a **two-step quiet confirm** (`Delete` → `Confirm`,
+  the confirm in the `alert` token, dismissed on blur) — no dialog box, no
+  destructive-red button resting in the rail.
+- **Reload survives; turns persist as they happen.** On mount the rail loads the
+  tenant's threads and restores the last-active (or most-recent); each turn is
+  persisted to the backend as it is asked (optimistic UI — the question shows
+  immediately, the answer replaces a pending turn). The persisted turn keeps its
+  fused citations verbatim, so a re-opened thread re-renders byte-identical
+  evidence with the PREDICTED/MEASURED firewall intact. The mobile rail **stacks
+  above** the conversation (§7.5 stacked instrument readout — not a squeezed
+  sidebar). The YOU/ARCHIVE bubbles, inline citation links, follow-up chips,
+  provenance line, and §9.4 reading choreography are all unchanged — this adds
+  thread management + persistence, not a new chat register.
+
 ### 7.5 Mobile posture
 
 Mobile is a **stacked instrument readout**, not a squeezed desktop panel.
@@ -1066,6 +1102,7 @@ table above.
 
 | Date | Version | Change |
 | --- | --- | --- |
+| 2026-06-26 | 0.4.3 | **Persistent, multi-thread "Ask the archive"** (#41; founder UX). §7.4 adds the **persistent multi-thread conversation vocabulary**: conversations are saved server-side (tenant-scoped) so a tab-switch / reload never loses the thread, and the PM keeps several independent threads switchable with nothing lost. Codifies the left **conversation rail** (`240px`, sticky; page widens to `≤ 1180px` only on this threaded surface — `/chat` + connect keep their measure): a `CONVERSATIONS` mono designator header + a `+ New` control + the tenant's threads **newest-touched first** (the reload anchor). The active thread carries a quiet `console-750` fill + hairline `rule`; an untitled thread reads as a faint italic **"New conversation"** placeholder until it **auto-titles from its first question** (trimmed + ellipsis-capped — Claude-style default, editable). **Rename is inline** (double-click / `Rename` action → inline input; Enter commits, Escape cancels — never a modal); **delete is a two-step quiet confirm** (`Delete` → `Confirm` in the `alert` token, dismissed on blur — no dialog, no resting destructive button). Rename/delete are mono **text** row-actions (§7.7 quiet anatomy, no icon library / emoji — §7.10), revealed on hover/focus (always visible on mobile, where the rail **stacks above** the conversation per §7.5). Each turn is persisted as it happens (optimistic UI); a re-opened thread re-renders byte-identical evidence with the PREDICTED/MEASURED firewall intact. The YOU/ARCHIVE bubbles, inline citation links (§7.4/§8.2), follow-up chips, provenance line, and §9.4 reading choreography are all unchanged — this adds thread management + persistence, not a new chat register. Tokens only; no new colors/pills/icons. Backend: a tenant-scoped `Conversation` + `ConversationTurn` store (InMemory + Postgres, migration 018) and a `/conversations` router reusing the fused `/experiments/conversation` answer logic per turn. Code lockstep: `MemoryConsoleV2.tsx` (`ThreadRail` + persistence wiring) + the `.v2-mem--threaded` / `.v2-mem-layout` / `.v2-mem-rail-*` classes in `styles/v2-theme.css`. |
 | 2026-06-26 | 0.4.2 | **Inline citation links in "Ask the archive"** (#40; founder UX). §7.4 + §8.2 codify the answer prose turning its repeated short ids (`sim-…` / `exp-…`) into compact **in-app citation links** (Glean/Perplexity register) that anchor-jump to — and briefly pulse-highlight — their matching per-turn source card below, so the prose reads cleanly instead of repeating `sim-ACEBE2BA (PREDICTED)` inline. The link is the same neutral **mono designator** as the card id, marked linkable by a `dotted` `console-line` underline only — **no chip / pill / fill / icon** (§4.3 / §7.10); hover/focus lift to `ink-hi` + `signal-dim` edge with the standard focus ring (§7.8). The target card's DOM anchor is **scoped per turn** (no collision when the same prior is cited twice) and pulses a `signal-dim` edge + recessed fill that settles back; under `prefers-reduced-motion` the pulse becomes a quiet held tint and the scroll degrades to a jump. **Safety law (codified):** linkifying is **tokenization into React nodes, never markup injection** (no `dangerouslySetInnerHTML`), and a candidate id is linked **only when it resolves to a real citation in that answer** — never a dead link, never a relabel. The PREDICTED/MEASURED honesty firewall, the citation rows, agreement/uncalibrated labels, grouping, follow-up chips, and the YOU/ARCHIVE bubbles are all unchanged. Tokens only; no new colors/pills/icons. Code lockstep: `MemoryConsoleV2.tsx` (`AnswerProse` / `tokenizeCitations` / `jumpToCitation`) + the `.v2-mem-citelink` / `.v2-mem-cite--flash` classes in `styles/v2-theme.css`. |
 | 2026-06-02 | 0.1 | Initial DESIGN.md. Locked: six-blade diaphragm mark · narrow uppercase SIDIRA wordmark · hybrid color C (monochrome default, dual-color during animation, dual-color founder-mode lockup) · Sid + Avira architecture · settle-trace motion bet · Söhne / Berkeley Mono / GT Sectra Fine type stack. Replaces the legacy teal/blue split-test mark. |
 | 2026-06-10 | 0.2 | **R2 "Paper bench, glass display"** (founder-signed; epic #156, this PR = #163). Adds: glass surface + tokens (§4.2) · lime-on-glass law + phosphor persistence (§4.1) · `success` token (§4.3) · true-hairline `rule` · data-furniture section (§8): decision-rule primitive, MVP verdict lexicon (`HIGH SIM AGREEMENT` stem, `DECISIVE` calibrated-only), honest-numbers rules, data-bound marks, paired-difference lift · surface restraint "same system, different pressure" (§7.4) · mobile = stacked instrument readout (§7.5) · Library IA (§7.6) · motion §9.3 mech ease + §9.4 reading choreography + §9.5 live carrier + §9.6 marketing motion + §9.7 live plotting · refuse-list additions. Drops GT Sectra Fine; fallback family unified on Archivo; MVP ships fallbacks (founder, 2026-06-10). Resolves: duo commit-beat carve-out (§1.3/§9.2) · favicon duo-on-paper confirmed (§1.3/§4.4/§11 reconciled) · verdict stem. Grid folded into §7.3. |

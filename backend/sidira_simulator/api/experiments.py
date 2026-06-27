@@ -144,6 +144,25 @@ async def post_conversation(
     composes the prose; without one it degrades to a grounded extractive fused
     answer (``used_llm=false``).
     """
+    service = await build_fused_conversation_service(
+        orchestrator, customer_id, chat_client
+    )
+    return service.answer(req.message, req.history, req.top_k)
+
+
+async def build_fused_conversation_service(
+    orchestrator: SimulationOrchestrator,
+    customer_id: str,
+    chat_client: ChatClient | None,
+) -> FusedConversationService:
+    """Build the tenant-scoped fused conversation service.
+
+    Factored out of ``post_conversation`` so the persistent-thread router (#41)
+    generates each turn's answer through the EXACT same fused path + tenant rules:
+    retrieve over the customer's OWN completed simulations, falling back to the
+    synthetic demo seed only for a workspace with no simulations at all (a fresh
+    workspace / the keyless local demo). The PREDICTED/MEASURED firewall +
+    uncalibrated labeling are unchanged."""
     rows = await orchestrator.list_recent(customer_id, limit=_LIVE_SIM_LIMIT)
     if rows:
         # The tenant HAS simulations → retrieve over THEIR completed ones, never the
@@ -151,12 +170,10 @@ async def post_conversation(
         # still pending; that yields an honest "nothing completed to draw on yet"
         # answer rather than leaking synthetic demo data to a real customer. The
         # seed is reserved for a workspace with NO simulations at all.
-        service = FusedConversationService(
+        return FusedConversationService(
             experiments=[],
             simulations=to_simulated_hypotheses(rows),
             chat_client=chat_client,
         )
-    else:
-        # Brand-new workspace / keyless local demo → the demoable synthetic seed.
-        service = FusedConversationService(chat_client=chat_client)
-    return service.answer(req.message, req.history, req.top_k)
+    # Brand-new workspace / keyless local demo → the demoable synthetic seed.
+    return FusedConversationService(chat_client=chat_client)

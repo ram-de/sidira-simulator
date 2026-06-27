@@ -24,6 +24,8 @@ from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
     ArchivedFeaturePack,
+    Conversation,
+    ConversationTurn,
     CrawlConfig,
     CrawlRun,
     Customer,
@@ -1296,8 +1298,330 @@ class InMemoryPersonaBuildRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Conversation (#41) — persistent, multi-thread "Ask the archive"
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ConversationRepo(Protocol):
+    """Persistent multi-thread conversations over the fused archive (#41).
+
+    Every method is customer-scoped: a thread (and its turns) is ONLY ever
+    visible to its owning ``customer_id``. An unknown id OR another tenant's id
+    reads as None / returns False — the route maps that to 404 so a thread's
+    existence never leaks across tenants. ``append_turn`` auto-titles the thread
+    from the first question when it is still untitled (Claude-style default).
+    """
+
+    async def create(
+        self, *, conversation_id: str, customer_id: str, title: str | None = None
+    ) -> dict[str, Any]: ...
+
+    async def list_for_customer(
+        self, customer_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]: ...
+
+    async def get(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None: ...
+
+    async def get_with_turns(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None: ...
+
+    async def rename(
+        self, conversation_id: str, customer_id: str, title: str
+    ) -> dict[str, Any] | None: ...
+
+    async def delete(self, conversation_id: str, customer_id: str) -> bool: ...
+
+    async def append_turn(
+        self,
+        *,
+        turn_id: str,
+        conversation_id: str,
+        customer_id: str,
+        question: str,
+        answer: str,
+        citations: list[Any],
+        used_llm: bool,
+    ) -> dict[str, Any] | None: ...
+
+
+# Claude-style default title: a trimmed first question. Kept here (shared by both
+# repo impls) so the in-memory and Postgres paths derive byte-identical titles.
+_AUTO_TITLE_MAX = 80
+
+
+def derive_default_title(question: str) -> str:
+    """Trim a first question into a Claude-style default thread title.
+
+    Collapses whitespace, strips a trailing question mark for compactness, and
+    caps the length with an ellipsis. Never empty (the caller only invokes this
+    on a non-empty first question)."""
+    cleaned = " ".join(question.strip().split())
+    if len(cleaned) > _AUTO_TITLE_MAX:
+        cleaned = cleaned[: _AUTO_TITLE_MAX - 1].rstrip() + "…"
+    return cleaned
+
+
+class PostgresConversationRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self, *, conversation_id: str, customer_id: str, title: str | None = None
+    ) -> dict[str, Any]:
+        row = Conversation(id=conversation_id, customer_id=customer_id, title=title)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _conversation_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(
+        self, customer_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        stmt = (
+            select(Conversation)
+            .where(Conversation.customer_id == customer_id)
+            .order_by(Conversation.updated_at.desc())
+            .limit(limit)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_conversation_to_dict(r) for r in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None:
+        row = await self._session.get(Conversation, conversation_id)
+        result = (
+            _conversation_to_dict(row)
+            if row is not None and row.customer_id == customer_id
+            else None
+        )
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get_with_turns(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None:
+        row = await self._session.get(Conversation, conversation_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return None
+        stmt = (
+            select(ConversationTurn)
+            .where(ConversationTurn.conversation_id == conversation_id)
+            .order_by(ConversationTurn.turn_index.asc())
+        )
+        turns = (await self._session.execute(stmt)).scalars().all()
+        result = _conversation_to_dict(row)
+        result["turns"] = [_conversation_turn_to_dict(t) for t in turns]
+        await _release_read_transaction(self._session)
+        return result
+
+    async def rename(
+        self, conversation_id: str, customer_id: str, title: str
+    ) -> dict[str, Any] | None:
+        row = await self._session.get(Conversation, conversation_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return None
+        row.title = title
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _conversation_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def delete(self, conversation_id: str, customer_id: str) -> bool:
+        row = await self._session.get(Conversation, conversation_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        await self._session.delete(row)
+        await _commit(self._session)
+        return True
+
+    async def append_turn(
+        self,
+        *,
+        turn_id: str,
+        conversation_id: str,
+        customer_id: str,
+        question: str,
+        answer: str,
+        citations: list[Any],
+        used_llm: bool,
+    ) -> dict[str, Any] | None:
+        row = await self._session.get(Conversation, conversation_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return None
+        count_stmt = select(func.count(ConversationTurn.id)).where(
+            ConversationTurn.conversation_id == conversation_id
+        )
+        next_index = (await self._session.execute(count_stmt)).scalar_one()
+        turn = ConversationTurn(
+            id=turn_id,
+            conversation_id=conversation_id,
+            customer_id=customer_id,
+            turn_index=next_index,
+            question=question,
+            answer=answer,
+            citations_json=citations,
+            used_llm=used_llm,
+        )
+        self._session.add(turn)
+        # First turn on an untitled thread auto-titles it (Claude-style default).
+        if next_index == 0 and not row.title:
+            row.title = derive_default_title(question)
+        # Touch updated_at so the thread floats to the top of list-newest-first.
+        row.updated_at = datetime.now(timezone.utc)
+        await _commit(self._session)
+        return await self.get_with_turns(conversation_id, customer_id)
+
+
+class InMemoryConversationRepo:
+    def __init__(self) -> None:
+        # conversation_id -> {meta..., "turns": [turn dicts]}
+        self._threads: dict[str, dict[str, Any]] = {}
+
+    async def create(
+        self, *, conversation_id: str, customer_id: str, title: str | None = None
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        row = {
+            "id": conversation_id,
+            "customer_id": customer_id,
+            "title": title,
+            "created_at": now,
+            "updated_at": now,
+            "turns": [],
+        }
+        self._threads[conversation_id] = row
+        return _conversation_meta(row)
+
+    async def list_for_customer(
+        self, customer_id: str, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        rows = [
+            r for r in self._threads.values() if r["customer_id"] == customer_id
+        ]
+        rows.sort(key=lambda r: r["updated_at"], reverse=True)
+        return [_conversation_meta(r) for r in rows[:limit]]
+
+    async def get(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None:
+        row = self._threads.get(conversation_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        return _conversation_meta(row)
+
+    async def get_with_turns(
+        self, conversation_id: str, customer_id: str
+    ) -> dict[str, Any] | None:
+        row = self._threads.get(conversation_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        result = _conversation_meta(row)
+        result["turns"] = [dict(t) for t in row["turns"]]
+        return result
+
+    async def rename(
+        self, conversation_id: str, customer_id: str, title: str
+    ) -> dict[str, Any] | None:
+        row = self._threads.get(conversation_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        row["title"] = title
+        row["updated_at"] = datetime.now(timezone.utc)
+        return _conversation_meta(row)
+
+    async def delete(self, conversation_id: str, customer_id: str) -> bool:
+        row = self._threads.get(conversation_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        del self._threads[conversation_id]
+        return True
+
+    async def append_turn(
+        self,
+        *,
+        turn_id: str,
+        conversation_id: str,
+        customer_id: str,
+        question: str,
+        answer: str,
+        citations: list[Any],
+        used_llm: bool,
+    ) -> dict[str, Any] | None:
+        row = self._threads.get(conversation_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        next_index = len(row["turns"])
+        row["turns"].append(
+            {
+                "id": turn_id,
+                "conversation_id": conversation_id,
+                "customer_id": customer_id,
+                "turn_index": next_index,
+                "question": question,
+                "answer": answer,
+                "citations_json": list(citations),
+                "used_llm": used_llm,
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+        if next_index == 0 and not row["title"]:
+            row["title"] = derive_default_title(question)
+        row["updated_at"] = datetime.now(timezone.utc)
+        return await self.get_with_turns(conversation_id, customer_id)
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _conversation_to_dict(row: Conversation) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "title": row.title,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _conversation_turn_to_dict(row: ConversationTurn) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "conversation_id": row.conversation_id,
+        "customer_id": row.customer_id,
+        "turn_index": row.turn_index,
+        "question": row.question,
+        "answer": row.answer,
+        "citations_json": row.citations_json or [],
+        "used_llm": row.used_llm,
+        "created_at": row.created_at,
+    }
+
+
+def _conversation_meta(row: dict[str, Any]) -> dict[str, Any]:
+    """In-memory thread row → metadata dict (no turns), matching the Postgres
+    ``_conversation_to_dict`` shape."""
+    return {
+        "id": row["id"],
+        "customer_id": row["customer_id"],
+        "title": row["title"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
 
 
 def _persona_build_to_dict(row: PersonaBuildRun) -> dict[str, Any]:
@@ -1469,6 +1793,18 @@ def get_in_memory_persona_build_repo() -> InMemoryPersonaBuildRepo:
     if _in_memory_persona_builds is None:
         _in_memory_persona_builds = InMemoryPersonaBuildRepo()
     return _in_memory_persona_builds
+
+
+_in_memory_conversations: InMemoryConversationRepo | None = None
+
+
+def get_in_memory_conversation_repo() -> InMemoryConversationRepo:
+    """Process-wide in-memory conversation repo (#41), same pattern as crawl
+    configs/runs + persona builds. Reset in tests via ``._threads.clear()``."""
+    global _in_memory_conversations
+    if _in_memory_conversations is None:
+        _in_memory_conversations = InMemoryConversationRepo()
+    return _in_memory_conversations
 
 
 def get_in_memory_repos() -> tuple[

@@ -16,6 +16,7 @@ from sidira_simulator.api import (
     capabilities,
     config,
     connectors,
+    conversations,
     crawls,
     experiments,
     feature_stores,
@@ -197,6 +198,7 @@ def create_app() -> FastAPI:
     app.include_router(capabilities.archive_router)
     app.include_router(crawls.router)
     app.include_router(experiments.router)
+    app.include_router(conversations.router)
     app.include_router(connectors.router)
     app.include_router(internal.router)
     app.include_router(feature_stores.router)
