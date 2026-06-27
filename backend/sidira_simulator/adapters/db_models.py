@@ -364,6 +364,12 @@ class Conversation(Base):
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="ConversationTurn.turn_index",
+        # conversation_turns has TWO FK paths to conversations — the single-column
+        # conversation_id FK AND the composite (conversation_id, customer_id) FK
+        # added for tenant integrity. Pin the ORM join to conversation_id so the
+        # mapper can configure (otherwise: AmbiguousForeignKeysError → every
+        # conversation op 500s). The composite FK stays as a DB-level guard.
+        foreign_keys="[ConversationTurn.conversation_id]",
     )
 
 
@@ -415,4 +421,9 @@ class ConversationTurn(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    conversation: Mapped[Conversation] = relationship(back_populates="turns")
+    conversation: Mapped[Conversation] = relationship(
+        back_populates="turns",
+        # Same disambiguation as Conversation.turns: join on the single-column FK,
+        # not the composite (conversation_id, customer_id) integrity constraint.
+        foreign_keys="[ConversationTurn.conversation_id]",
+    )
