@@ -10,7 +10,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -312,3 +322,97 @@ class AgentFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     agent: Mapped[AgentInstance] = relationship(back_populates="feedback")
+
+
+class Conversation(Base):
+    """One persistent "Ask the archive" thread (#41).
+
+    A multi-turn conversation the PM holds with the fused archive. Tenant-scoped
+    via ``customer_id`` (CASCADE on tenant delete, mirroring every other per-
+    tenant table). ``title`` is Claude-style: NULL until the first turn lands,
+    then auto-derived from the first question (and editable via PATCH). Ordered
+    turns live in ``conversation_turns`` (Q + A + per-answer citations); the
+    PREDICTED/MEASURED firewall lives in the persisted citation JSON, untouched.
+    """
+
+    __tablename__ = "conversations"
+    # Composite unique on (id, customer_id) so a child turn's composite FK can
+    # target it — the DB backstop that a turn can never cross tenants.
+    __table_args__ = (
+        UniqueConstraint(
+            "id", "customer_id", name="uq_conversations_id_customer_id"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # NULL until the first turn auto-titles it (or the user renames). The UI shows
+    # a placeholder ("New conversation") for an untitled, empty thread.
+    title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    # Bumped on every appended turn + on rename, so list-newest-first surfaces the
+    # most recently touched thread at the top (the "restore last-active" anchor).
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    turns: Mapped[list["ConversationTurn"]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="ConversationTurn.turn_index",
+    )
+
+
+class ConversationTurn(Base):
+    """One (question, answer) exchange persisted in a thread (#41).
+
+    ``citations_json`` stores the per-answer fused citations verbatim (the
+    MEASURED/PREDICTED source word + pre-formatted effect label) so a reloaded
+    thread re-renders byte-identical evidence without re-querying — the firewall
+    state rides the stored JSON. ``turn_index`` is a 0-based per-conversation
+    ordinal so history replays in the exact order it was asked.
+    """
+
+    __tablename__ = "conversation_turns"
+    __table_args__ = (
+        # Composite FK: (conversation_id, customer_id) MUST match a real
+        # (id, customer_id) on conversations, so a turn can never reference a
+        # conversation of another tenant at the DB level.
+        ForeignKeyConstraint(
+            ["conversation_id", "customer_id"],
+            ["conversations.id", "conversations.customer_id"],
+            ondelete="CASCADE",
+            name="fk_conversation_turns_conversation_customer",
+        ),
+        # At most one turn per (conversation_id, turn_index): concurrent appends
+        # can't persist ambiguous ordering. next_index is computed in Python, so
+        # a rare collision surfaces as an IntegrityError (clean retry) not a dup.
+        UniqueConstraint(
+            "conversation_id",
+            "turn_index",
+            name="uq_conversation_turns_conversation_id_turn_index",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    # Denormalized tenant id so a turn read can be customer-scoped without a join.
+    customer_id: Mapped[str] = mapped_column(String(64), index=True)
+    turn_index: Mapped[int] = mapped_column(Integer)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    # Per-answer fused citations (list of {id, source, change_description, metric,
+    # effect_label}); [] when the answer cited nothing.
+    citations_json: Mapped[list[Any]] = mapped_column(JSONB, default=list)
+    used_llm: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    conversation: Mapped[Conversation] = relationship(back_populates="turns")

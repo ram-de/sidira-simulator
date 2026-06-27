@@ -28,6 +28,7 @@ from sidira_simulator.adapters.repositories import (
     AgentFeedbackRepo,
     AgentInstanceRepo,
     ArchivedFeaturePackRepo,
+    ConversationRepo,
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
@@ -36,6 +37,7 @@ from sidira_simulator.adapters.repositories import (
     PostgresAgentFeedbackRepo,
     PostgresAgentInstanceRepo,
     PostgresArchivedFeaturePackRepo,
+    PostgresConversationRepo,
     PostgresCrawlConfigRepo,
     PostgresCrawlRunRepo,
     PostgresCustomerRepo,
@@ -44,6 +46,7 @@ from sidira_simulator.adapters.repositories import (
     PostgresSimulationRepo,
     SimulationRepo,
     get_in_memory_archived_feature_pack_repo,
+    get_in_memory_conversation_repo,
     get_in_memory_crawl_config_repo,
     get_in_memory_crawl_run_repo,
     get_in_memory_feature_store_connection_repo,
@@ -157,6 +160,12 @@ def get_archived_feature_pack_repo(
     if session is None:
         return get_in_memory_archived_feature_pack_repo()
     return PostgresArchivedFeaturePackRepo(session)
+
+
+def get_conversation_repo(session: RepositorySession = None) -> ConversationRepo:
+    if session is None:
+        return get_in_memory_conversation_repo()
+    return PostgresConversationRepo(session)
 
 
 async def get_crawl_dispatcher() -> AsyncIterator["GitHubCrawlDispatcher | None"]:
