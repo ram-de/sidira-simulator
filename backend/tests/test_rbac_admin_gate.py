@@ -57,9 +57,12 @@ def test_extract_org_role_reads_basic_member() -> None:
     assert auth._extract_org_role({"o": {"id": "org_abc", "rol": "basic_member"}}) == "basic_member"
 
 
-def test_extract_org_role_reads_top_level_org_role_claim() -> None:
-    # Forward-compat / non-v2 templates that emit a flat org_role claim.
-    assert auth._extract_org_role({"org_role": "admin"}) == "admin"
+def test_extract_org_role_ignores_flat_org_role_claim() -> None:
+    # SECURITY (codex #503): only the provider-authored active-org `o.rol` is
+    # trusted. A flat top-level `org_role` claim can be user-metadata-derived on a
+    # custom JWT template, so it must NOT confer a role (else a member could mint
+    # themselves admin).
+    assert auth._extract_org_role({"org_role": "admin"}) is None
 
 
 def test_extract_org_role_returns_none_when_absent() -> None:

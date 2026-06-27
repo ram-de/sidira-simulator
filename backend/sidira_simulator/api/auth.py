@@ -129,18 +129,17 @@ def _extract_org_role(payload: dict) -> str | None:
     Clerk v2 session tokens nest the active org under the compact ``o`` claim
     ({"o": {"id": "org_…", "rol": "admin", "slg": …}}); the role lives in
     ``o.rol``. ``auth.py`` deliberately ignored this until #45 — extracting it is
-    what makes role enforcement possible. Also accept a top-level ``org_role``
-    claim for forward-compatibility / non-v2 templates. Returns the lower-cased
-    role string, or ``None`` when no org role is present (a personal-account
-    session, or a tenant claim that carries no role)."""
+    what makes role enforcement possible. We trust ONLY the provider-authored
+    active-org ``o.rol`` claim — NOT a flat top-level ``org_role`` claim, which on a
+    custom JWT template can be sourced from user-editable metadata and would let a
+    member mint themselves admin (codex #503). Returns the lower-cased role string,
+    or ``None`` when no org role is present (a personal-account session, or a tenant
+    claim that carries no role)."""
     org = payload.get("o")
     if isinstance(org, dict):
         role = org.get("rol")
         if role:
             return str(role).lower()
-    role = payload.get("org_role")
-    if role:
-        return str(role).lower()
     return None
 
 
