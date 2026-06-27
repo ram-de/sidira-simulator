@@ -709,11 +709,15 @@ carries the state** (color never carries it alone, §4.3 / §7.8):
   **"similar ≠ guaranteed same effect"** to render verbatim and un-smoothed beside it.
 - `NOVEL · NO PRIOR` — no match. **Neutral** (`ink-muted`); a candidate to test.
 
-These are **retrieval of real outcomes, not engine predictions**, so the screen's
-provenance reads `RETRIEVAL · REAL OUTCOMES` with `calibrated: false` (the §8.2
-empty-ledger state), and the ship/no-ship verdict + `confidence_score` are **not**
-rendered here. The chips reuse the existing `neutral` / `hold` badge kinds — no new
-colors, pills, or icons.
+These verdict chips now render in the **submit-time advisory gate** (#38, fired at
+"begin simulating"), not a standalone `/memory` box. The fused `/memory` surface
+carries BOTH real recorded outcomes AND Sidira's own uncalibrated predictions, so its
+provenance reads `RETRIEVAL · MEASURED + PREDICTED` with `calibrated: false` (the §8.2
+empty-ledger state): a `MEASURED` figure is a real recorded outcome (§8.3), a
+`PREDICTED` figure is an uncalibrated simulation and is labelled as such — **never
+shown as a measured result**. The ship/no-ship verdict + `confidence_score` are
+**not** rendered here. The chips reuse the existing `neutral` / `hold` badge kinds —
+no new colors, pills, or icons.
 
 **Fused citation source — `PREDICTED` vs `MEASURED` (experiment-memory chat,
 `/memory`).** The grounded conversation (#31) fuses two evidence kinds, and a
