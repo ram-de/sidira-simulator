@@ -45,12 +45,15 @@ def test_migration_019_revision_chain() -> None:
     assert mod.down_revision == "018"
 
 
-def test_migration_019_is_single_head() -> None:
+def test_migration_019_chains_from_018() -> None:
+    # 019 is no longer the head (020 chains after it for #46's experiment
+    # sources); assert the 018 ← 019 link is intact. Single-head is asserted in
+    # test_alembic_020.
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     script = ScriptDirectory.from_config(cfg)
-    assert list(script.get_heads()) == ["019"]
-    head = script.get_revision("019")
-    assert head.down_revision == "018"
+    rev_019 = script.get_revision("019")
+    assert rev_019.down_revision == "018"
+    assert "019" not in script.get_heads()  # 020 now chains after it
 
 
 def test_migration_019_upgrade_adds_user_id_column_and_index() -> None:

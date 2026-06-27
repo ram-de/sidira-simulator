@@ -204,6 +204,84 @@ class FeatureStoreConnection(Base):
     last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class ExperimentConnection(Base):
+    """A persisted, admin-managed experiment SOURCE (#46). One row per source the
+    admin connects (Statsig / SQL / CSV). Mirrors ``FeatureStoreConnection``: the
+    non-secret display config (host/database/project/query + the confirmed field
+    mapping) lives in ``display_config``; the source credentials are NEVER stored
+    in cleartext — only the serialized envelope-encrypted blob in
+    ``credentials_enc``, AAD-bound to ``customer_id:id`` (see
+    adapters/credentials.py). GET/list never returns the credentials or the blob.
+
+    Refresh model (admin-console council): one-time import on connect + on-demand
+    "Re-import" using the stored creds — NEVER live per-query. Each re-import
+    writes an ``ExperimentImportRun`` row.
+    """
+
+    __tablename__ = "experiment_connections"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(256))
+    kind: Mapped[str] = mapped_column(String(32))
+    # Non-secret display config (host/database/project/query/delimiter + the
+    # confirmed FieldMapping). NEVER a credential.
+    display_config: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # Serialized credentials.EncryptedBlob (base64'd byte fields). NULL for the
+    # CSV kind (no secret). Never the cleartext credentials.
+    credentials_enc: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), server_default="connected")
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    last_import_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    import_runs: Mapped[list["ExperimentImportRun"]] = relationship(
+        back_populates="connection", cascade="all, delete-orphan"
+    )
+
+
+class ExperimentImportRun(Base):
+    """One import run against an :class:`ExperimentConnection` (#46) — the initial
+    import on connect or an on-demand re-import. Records the start/finish, the
+    imported/failed row counts, the terminal status, and a CUSTOMER-SAFE error
+    (never a raw driver/transport string that could carry a credential — #488).
+    Cascades when its parent connection is deleted.
+    """
+
+    __tablename__ = "experiment_import_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    connection_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("experiment_connections.id", ondelete="CASCADE"),
+        index=True,
+    )
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(16))
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    imported_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    failed_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    connection: Mapped["ExperimentConnection"] = relationship(back_populates="import_runs")
+
+
 class PersonaBuildRun(Base):
     """One persona-pack build (#24). The build executes as a BackgroundTask:
     load the saved feature-store connection's creds, run the source query,

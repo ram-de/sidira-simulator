@@ -30,6 +30,8 @@ from sidira_simulator.adapters.db_models import (
     CrawlConfig,
     CrawlRun,
     Customer,
+    ExperimentConnection,
+    ExperimentImportRun,
     FeatureStoreConnection,
     PersonaBuildRun,
     Simulation,
@@ -995,6 +997,297 @@ class InMemoryFeatureStoreConnectionRepo:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# ExperimentConnection + ExperimentImportRun (#46)
+# ──────────────────────────────────────────────────────────────────────
+
+
+class ExperimentConnectionRepo(Protocol):
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None: ...
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]: ...
+
+    async def name_exists(self, customer_id: str, name: str) -> bool: ...
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool: ...
+
+    async def mark_import(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        imported_at: datetime,
+    ) -> bool: ...
+
+
+class PostgresExperimentConnectionRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        row = ExperimentConnection(**connection)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _experiment_connection_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = await self._session.get(ExperimentConnection, connection_id)
+        # Scope by customer: never hand back another tenant's row even on a
+        # correct id guess (cross-tenant → 404 at the route).
+        result = (
+            _experiment_connection_to_dict(row)
+            if row is not None and row.customer_id == customer_id
+            else None
+        )
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        stmt = (
+            select(ExperimentConnection)
+            .where(ExperimentConnection.customer_id == customer_id)
+            .order_by(ExperimentConnection.created_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_experiment_connection_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        """True if this customer already has a source whose name matches `name`
+        case-insensitively (after trim). App-level uniqueness guard (mirrors the
+        feature-store pattern) — no DB unique constraint, so no extra migration."""
+        target = name.strip().lower()
+        stmt = select(ExperimentConnection.id).where(
+            ExperimentConnection.customer_id == customer_id,
+            func.lower(func.trim(ExperimentConnection.name)) == target,
+        )
+        row = (await self._session.execute(stmt)).first()
+        await _release_read_transaction(self._session)
+        return row is not None
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        """Customer-scoped delete. Returns True if a row owned by `customer_id`
+        was deleted, False if the id is unknown OR belongs to another tenant —
+        the route maps both to 404 so existence never leaks across customers. The
+        FK ``ondelete=CASCADE`` removes the import-history rows; the cred blob is
+        a column on the deleted row, so it goes with it."""
+        row = await self._session.get(ExperimentConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        await self._session.delete(row)
+        await _commit(self._session)
+        return True
+
+    async def mark_import(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        imported_at: datetime,
+    ) -> bool:
+        """Stamp the connection's last-import time + status after a (re-)import.
+        Customer-scoped: an unknown id OR another tenant's id returns False and
+        writes nothing."""
+        row = await self._session.get(ExperimentConnection, connection_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        row.status = status
+        row.last_import_at = imported_at
+        await _commit(self._session)
+        return True
+
+
+class InMemoryExperimentConnectionRepo:
+    def __init__(self) -> None:
+        self._connections: dict[str, dict[str, Any]] = {}
+
+    async def insert(self, connection: dict[str, Any]) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        row = {
+            "status": "connected",
+            "created_by": None,
+            "credentials_enc": None,
+            "last_import_at": None,
+            **connection,
+            "created_at": now,
+            "updated_at": now,
+        }
+        self._connections[row["id"]] = row
+        return dict(row)
+
+    async def get(self, connection_id: str, customer_id: str) -> dict[str, Any] | None:
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return None
+        return dict(row)
+
+    async def list_for_customer(self, customer_id: str) -> list[dict[str, Any]]:
+        rows = [r for r in self._connections.values() if r["customer_id"] == customer_id]
+        rows.sort(key=lambda r: r["created_at"], reverse=True)
+        return [dict(r) for r in rows]
+
+    async def name_exists(self, customer_id: str, name: str) -> bool:
+        target = name.strip().lower()
+        return any(
+            r["customer_id"] == customer_id and r["name"].strip().lower() == target
+            for r in self._connections.values()
+        )
+
+    async def delete(self, connection_id: str, customer_id: str) -> bool:
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        del self._connections[connection_id]
+        return True
+
+    async def mark_import(
+        self,
+        connection_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        imported_at: datetime,
+    ) -> bool:
+        row = self._connections.get(connection_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        row["status"] = status
+        row["last_import_at"] = imported_at
+        return True
+
+
+class ExperimentImportRunRepo(Protocol):
+    async def create(self, run: dict[str, Any]) -> dict[str, Any]: ...
+
+    async def finish(
+        self,
+        run_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        finished_at: datetime,
+        imported_count: int,
+        failed_count: int,
+        error: str | None,
+    ) -> bool: ...
+
+    async def list_for_connection(
+        self, connection_id: str, customer_id: str
+    ) -> list[dict[str, Any]]: ...
+
+
+class PostgresExperimentImportRunRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(self, run: dict[str, Any]) -> dict[str, Any]:
+        row = ExperimentImportRun(**run)
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _experiment_import_run_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def finish(
+        self,
+        run_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        finished_at: datetime,
+        imported_count: int,
+        failed_count: int,
+        error: str | None,
+    ) -> bool:
+        row = await self._session.get(ExperimentImportRun, run_id)
+        if row is None or row.customer_id != customer_id:
+            await _release_read_transaction(self._session)
+            return False
+        row.status = status
+        row.finished_at = finished_at
+        row.imported_count = imported_count
+        row.failed_count = failed_count
+        row.error = error
+        await _commit(self._session)
+        return True
+
+    async def list_for_connection(
+        self, connection_id: str, customer_id: str
+    ) -> list[dict[str, Any]]:
+        stmt = (
+            select(ExperimentImportRun)
+            .where(
+                ExperimentImportRun.connection_id == connection_id,
+                ExperimentImportRun.customer_id == customer_id,
+            )
+            .order_by(ExperimentImportRun.started_at.desc())
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_experiment_import_run_to_dict(row) for row in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryExperimentImportRunRepo:
+    def __init__(self) -> None:
+        self._runs: dict[str, dict[str, Any]] = {}
+
+    async def create(self, run: dict[str, Any]) -> dict[str, Any]:
+        row = {
+            "finished_at": None,
+            "imported_count": 0,
+            "failed_count": 0,
+            "error": None,
+            **run,
+            "started_at": run.get("started_at") or datetime.now(timezone.utc),
+        }
+        self._runs[row["id"]] = row
+        return dict(row)
+
+    async def finish(
+        self,
+        run_id: str,
+        customer_id: str,
+        *,
+        status: str,
+        finished_at: datetime,
+        imported_count: int,
+        failed_count: int,
+        error: str | None,
+    ) -> bool:
+        row = self._runs.get(run_id)
+        if row is None or row["customer_id"] != customer_id:
+            return False
+        row["status"] = status
+        row["finished_at"] = finished_at
+        row["imported_count"] = imported_count
+        row["failed_count"] = failed_count
+        row["error"] = error
+        return True
+
+    async def list_for_connection(
+        self, connection_id: str, customer_id: str
+    ) -> list[dict[str, Any]]:
+        rows = [
+            r
+            for r in self._runs.values()
+            if r["connection_id"] == connection_id and r["customer_id"] == customer_id
+        ]
+        rows.sort(key=lambda r: r["started_at"], reverse=True)
+        return [dict(r) for r in rows]
+
+
+# ──────────────────────────────────────────────────────────────────────
 # PersonaBuildRun (#24)
 # ──────────────────────────────────────────────────────────────────────
 
@@ -1788,6 +2081,38 @@ def _feature_store_connection_to_dict(row: FeatureStoreConnection) -> dict[str, 
     }
 
 
+def _experiment_connection_to_dict(row: ExperimentConnection) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "name": row.name,
+        "kind": row.kind,
+        "display_config": row.display_config,
+        # Carried for the decrypt path (test / re-import) — the route NEVER
+        # echoes it; the response model has no field for it.
+        "credentials_enc": row.credentials_enc,
+        "status": row.status,
+        "created_by": row.created_by,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+        "last_import_at": row.last_import_at,
+    }
+
+
+def _experiment_import_run_to_dict(row: ExperimentImportRun) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "connection_id": row.connection_id,
+        "customer_id": row.customer_id,
+        "status": row.status,
+        "started_at": row.started_at,
+        "finished_at": row.finished_at,
+        "imported_count": row.imported_count,
+        "failed_count": row.failed_count,
+        "error": row.error,
+    }
+
+
 def _crawl_run_to_dict(row: CrawlRun) -> dict[str, Any]:
     return {
         "id": row.id,
@@ -1905,6 +2230,28 @@ def get_in_memory_feature_store_connection_repo() -> InMemoryFeatureStoreConnect
     if _in_memory_feature_store_connections is None:
         _in_memory_feature_store_connections = InMemoryFeatureStoreConnectionRepo()
     return _in_memory_feature_store_connections
+
+
+_in_memory_experiment_connections: InMemoryExperimentConnectionRepo | None = None
+_in_memory_experiment_import_runs: InMemoryExperimentImportRunRepo | None = None
+
+
+def get_in_memory_experiment_connection_repo() -> InMemoryExperimentConnectionRepo:
+    """Process-wide in-memory experiment-connection repo (#46), same pattern as
+    the feature-store repo. Reset in tests via ``._connections.clear()``."""
+    global _in_memory_experiment_connections
+    if _in_memory_experiment_connections is None:
+        _in_memory_experiment_connections = InMemoryExperimentConnectionRepo()
+    return _in_memory_experiment_connections
+
+
+def get_in_memory_experiment_import_run_repo() -> InMemoryExperimentImportRunRepo:
+    """Process-wide in-memory experiment-import-run repo (#46). Reset in tests via
+    ``._runs.clear()``."""
+    global _in_memory_experiment_import_runs
+    if _in_memory_experiment_import_runs is None:
+        _in_memory_experiment_import_runs = InMemoryExperimentImportRunRepo()
+    return _in_memory_experiment_import_runs
 
 
 _in_memory_persona_builds: InMemoryPersonaBuildRepo | None = None
