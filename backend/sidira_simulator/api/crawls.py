@@ -30,6 +30,7 @@ from sidira_simulator.api.deps import (
     get_crawl_run_repo,
     get_customer_repo,
     get_feature_pack_loader,
+    require_admin,
 )
 from sidira_simulator.adapters import credentials
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
@@ -112,6 +113,7 @@ def _rehydrate_setup(row: dict) -> CrawlSetup:
             detail="saved crawl setup is no longer valid — re-save it on the crawl setup window",
         ) from exc
 
+
 # A dispatched run materializes on GitHub within seconds. If it still cannot
 # be found after this long, the run either never got created or fell out of
 # the lookup window — without a cutoff the row would report pending forever.
@@ -178,7 +180,11 @@ def _build_stored_config(payload: CrawlSetupInput, customer_id: str) -> dict:
     return stored
 
 
-@router.put("/crawl-setup", response_model=CrawlSetupEnvelope)
+@router.put(
+    "/crawl-setup",
+    response_model=CrawlSetupEnvelope,
+    dependencies=[Depends(require_admin)],  # #45: crawl config + encrypted login creds — admin-only
+)
 async def save_crawl_setup(
     payload: CrawlSetupInput,
     customer_id: str = Depends(current_customer_id),
@@ -239,7 +245,12 @@ async def list_crawl_setups(
     return [_setup_list_item(row) for row in await repo.list(customer_id)]
 
 
-@router.post("/crawl-setups", response_model=CrawlSetupSummary, status_code=201)
+@router.post(
+    "/crawl-setups",
+    response_model=CrawlSetupSummary,
+    status_code=201,
+    dependencies=[Depends(require_admin)],  # #45: crawl config + encrypted login creds — admin-only
+)
 async def create_crawl_setup(
     payload: CrawlSetupCreateInput,
     customer_id: str = Depends(current_customer_id),
@@ -275,7 +286,11 @@ async def get_crawl_setup_by_id(
     return _setup_summary(row)
 
 
-@router.put("/crawl-setups/{setup_id}", response_model=CrawlSetupSummary)
+@router.put(
+    "/crawl-setups/{setup_id}",
+    response_model=CrawlSetupSummary,
+    dependencies=[Depends(require_admin)],  # #45: crawl config + encrypted login creds — admin-only
+)
 async def update_crawl_setup_by_id(
     setup_id: str,
     payload: CrawlSetupInput,
@@ -296,7 +311,13 @@ async def update_crawl_setup_by_id(
     return _setup_summary(row)
 
 
-@router.delete("/crawl-setups/{setup_id}", status_code=204)
+@router.delete(
+    "/crawl-setups/{setup_id}",
+    status_code=204,
+    dependencies=[
+        Depends(require_admin)
+    ],  # #45: deletes a crawl config (+ its stored creds) — admin-only
+)
 async def delete_crawl_setup_by_id(
     setup_id: str,
     customer_id: str = Depends(current_customer_id),

@@ -85,10 +85,7 @@ def _is_secret_body_path(path: str) -> bool:
         or path == "/crawl-setups"
         or path.startswith("/crawl-setups/")
         or path == "/feature-stores"
-        or (
-            path.startswith("/connectors/")
-            and path.endswith(_CONNECTOR_SECRET_SUFFIXES)
-        )
+        or (path.startswith("/connectors/") and path.endswith(_CONNECTOR_SECRET_SUFFIXES))
     )
 
 
@@ -146,6 +143,11 @@ def create_app() -> FastAPI:
             return JSONResponse({"detail": "No tenant for user"}, status_code=403)
         request.state.user_id = state.user_id
         request.state.customer_id = state.customer_id
+        # Surface the org role (#45) so `require_admin` can gate configuration /
+        # credential-write routes. May be None (session carries no org role);
+        # require_admin then denies — when Clerk IS configured we never fall back
+        # to the dev "admin" default, so a roleless/member session can't write.
+        request.state.org_role = state.org_role
         return await call_next(request)
 
     @app.middleware("http")
