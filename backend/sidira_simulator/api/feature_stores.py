@@ -18,12 +18,18 @@ from sidira_simulator.adapters.feature_stores import (
     FeatureStoreConnectionError,
 )
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
-from sidira_simulator.adapters.repositories import FeatureStoreConnectionRepo
+from sidira_simulator.adapters.repositories import (
+    AuditLogRepo,
+    FeatureStoreConnectionRepo,
+)
 from sidira_simulator.api.deps import (
     current_customer_id,
+    current_user_id,
+    get_audit_log_repo,
     get_feature_store_connection_repo,
     require_admin,
 )
+from sidira_simulator.services import audit
 from sidira_simulator.services import column_mapper, document_extractor
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
 from sidira_simulator.services.document_extractor import (
@@ -194,7 +200,9 @@ def _connection_error(exc: FeatureStoreConnectionError) -> HTTPException:
 async def create_connection(
     payload: SnowflakeConnectionRequest,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> ConnectionSummary:
     """Encrypt the password at rest and persist a sanitized connection row."""
     # Unique connection names per customer (#327). The "Saved connections" picker
@@ -235,6 +243,17 @@ async def create_connection(
             "password_enc": credentials.serialize_blob(blob),
         }
     )
+    # Emit AFTER the connection persists. NON-SECRET context only (kind + label);
+    # NEVER the password / account host.
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.FEATURE_STORE_CREATED,
+        target_type=audit.FEATURE_STORE,
+        target_id=connection_id,
+        metadata={"kind": payload.kind, "name": payload.name},
+    )
     return _summary_from_row(row)
 
 
@@ -255,7 +274,9 @@ async def list_connections(
 async def delete_connection(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> None:
     """Delete a saved connection (#327). Customer-scoped: the repo only deletes a
     row this customer OWNS, and returns False for an unknown id OR another
@@ -266,6 +287,14 @@ async def delete_connection(
     deleted = await repo.delete(connection_id, customer_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="connection not found")
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.FEATURE_STORE_DELETED,
+        target_type=audit.FEATURE_STORE,
+        target_id=connection_id,
+    )
 
 
 @router.post(
@@ -278,7 +307,9 @@ async def delete_connection(
 async def test_connection(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: FeatureStoreConnectionRepo = Depends(get_feature_store_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> None:
     """Round-trip a trivial query. 204 on success; on failure a structured
     body {"error_kind", "message"} with 400 for auth/permission, 502 for
@@ -318,6 +349,17 @@ async def test_connection(
         tested_at=tested_at,
         error_kind=None,
         error_message=None,
+    )
+    # Audit the successful test (mirrors experiment-source test auditing). NON-SECRET
+    # context only — the connection id, never the creds.
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.FEATURE_STORE_TESTED,
+        target_type=audit.FEATURE_STORE,
+        target_id=connection_id,
+        metadata={"status": "ok"},
     )
 
 

@@ -38,16 +38,19 @@ from pydantic import BaseModel, Field
 from sidira_simulator.adapters import credentials
 from sidira_simulator.adapters.credentials import CredentialError
 from sidira_simulator.adapters.repositories import (
+    AuditLogRepo,
     ExperimentConnectionRepo,
     ExperimentImportRunRepo,
 )
 from sidira_simulator.api.deps import (
     current_customer_id,
     current_user_id,
+    get_audit_log_repo,
     get_experiment_connection_repo,
     get_experiment_import_run_repo,
     require_admin,
 )
+from sidira_simulator.services import audit
 from sidira_simulator.schemas.connector import (
     ConnectorKind,
     ConnectorState,
@@ -200,6 +203,7 @@ async def create_source(
     customer_id: str = Depends(current_customer_id),
     user_id: str = Depends(current_user_id),
     repo: ExperimentConnectionRepo = Depends(get_experiment_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> SourceSummary:
     """Connect a persisted experiment source: encrypt the credentials at rest
     (AAD-bound to ``customer_id:id``) and persist a sanitized row. Admin-only —
@@ -238,6 +242,16 @@ async def create_source(
             "status": "connected",
             "created_by": user_id,
         }
+    )
+    # Emit AFTER the source persists. NON-SECRET context only (kind + label).
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.EXPERIMENT_SOURCE_CONNECTED,
+        target_type=audit.EXPERIMENT_SOURCE,
+        target_id=connection_id,
+        metadata={"kind": payload.kind.value, "name": payload.name},
     )
     return _summary_from_row(row)
 
@@ -290,7 +304,9 @@ async def list_imports(
 async def delete_source(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ExperimentConnectionRepo = Depends(get_experiment_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> None:
     """Delete a saved source. Customer-scoped: unknown id OR another tenant's id
     both → 404 (existence never leaks). The cred blob is a column on the deleted
@@ -298,6 +314,14 @@ async def delete_source(
     deleted = await repo.delete(connection_id, customer_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="source not found")
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.EXPERIMENT_SOURCE_DELETED,
+        target_type=audit.EXPERIMENT_SOURCE,
+        target_id=connection_id,
+    )
 
 
 @router.post(
@@ -308,7 +332,9 @@ async def delete_source(
 async def test_source(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ExperimentConnectionRepo = Depends(get_experiment_connection_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> None:
     """Validate the stored config can run (shape + credential presence). 204 on
     ready; 400 with a customer-safe message when the source needs credentials /
@@ -323,15 +349,26 @@ async def test_source(
         # validate_connector's messages are already customer-safe (never reflect a
         # connection string back — see experiment_ingest / sql_connector).
         raise HTTPException(status_code=400, detail=result.message)
+    # Emit only on a SUCCESSFUL test (a failed test raised above).
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.EXPERIMENT_SOURCE_TESTED,
+        target_type=audit.EXPERIMENT_SOURCE,
+        target_id=connection_id,
+    )
 
 
 @router.post("/{connection_id}/reimport", response_model=ImportRunSummary)
 async def reimport_source(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: ExperimentConnectionRepo = Depends(get_experiment_connection_repo),
     run_repo: ExperimentImportRunRepo = Depends(get_experiment_import_run_repo),
     store: IngestionStore = Depends(get_store),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> ImportRunSummary:
     """RE-IMPORT on demand: pull the source again using the STORED credentials and
     materialize the mapped experiments into the customer's archive.
@@ -396,6 +433,22 @@ async def reimport_source(
         customer_id,
         status="connected" if not failed else "error",
         imported_at=finished_at,
+    )
+
+    # NON-SECRET outcome context only (run id, status, row counts).
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.EXPERIMENT_SOURCE_REIMPORTED,
+        target_type=audit.EXPERIMENT_SOURCE,
+        target_id=connection_id,
+        metadata={
+            "run_id": run_id,
+            "status": status,
+            "imported_count": result.imported,
+            "failed_count": result.failed,
+        },
     )
 
     return ImportRunSummary(

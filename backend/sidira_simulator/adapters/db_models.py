@@ -515,3 +515,52 @@ class ConversationTurn(Base):
         # not the composite (conversation_id, customer_id) integrity constraint.
         foreign_keys="[ConversationTurn.conversation_id]",
     )
+
+
+class AuditLogEntry(Base):
+    """One append-only workspace audit event (#48).
+
+    The DURABLE, customer-visible audit log the admin-console council asked for:
+    "emit audit EVENTS from day one". One row per workspace-MUTATING action
+    (connect / delete an experiment source, create / delete a feature store,
+    create / update / delete a crawl config, trigger a persona rebuild). Each row
+    captures WHO (``actor_user_id`` — the Clerk session ``sub``), WHAT
+    (``action`` — a dotted verb like ``experiment_source.created``), on WHICH
+    target (``target_type`` + ``target_id``), and WHEN (``created_at``), scoped to
+    the tenant by ``customer_id``.
+
+    APPEND-ONLY: rows are only ever INSERTed and read; the repo exposes no
+    update/delete. (This is distinct from the per-access credential audit CHANNEL
+    in adapters/credentials.py — that ships structured logs to a sink; THIS is the
+    queryable, customer-visible table built on top.)
+
+    NO SECRETS: ``audit_metadata`` is OPTIONAL non-secret context only (a label, a
+    name, a count) — NEVER a credential, connection string, password, or token.
+    The instrumentation records target ids / non-secret labels exclusively.
+
+    FK DISCIPLINE (#499): a SINGLE, unambiguous FK to ``customers.id`` and NO ORM
+    ``relationship()`` on either side, so ``configure_mappers()`` can never hit the
+    AmbiguousForeignKeysError class of failure. The FK is purely a DB-level
+    integrity + cascade guard (an org's audit trail is removed with the org).
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
+    )
+    # The Clerk session `sub` of the actor (api/deps.current_user_id). Nullable so
+    # a future system-initiated event can be attributed to no human actor.
+    actor_user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Dotted verb, e.g. 'experiment_source.created' / 'crawl_config.deleted'.
+    action: Mapped[str] = mapped_column(String(64))
+    # The kind of thing acted on ('experiment_source', 'feature_store', ...) and
+    # its id. target_id is nullable for actions without a single id target.
+    target_type: Mapped[str] = mapped_column(String(64))
+    target_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Optional NON-SECRET context (a label / name / count). NEVER a credential.
+    audit_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )

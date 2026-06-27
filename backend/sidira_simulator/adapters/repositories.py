@@ -25,6 +25,7 @@ from sidira_simulator.adapters.db_models import (
     AgentFeedback,
     AgentInstance,
     ArchivedFeaturePack,
+    AuditLogEntry,
     Conversation,
     ConversationTurn,
     CrawlConfig,
@@ -2254,6 +2255,142 @@ def get_in_memory_experiment_import_run_repo() -> InMemoryExperimentImportRunRep
     return _in_memory_experiment_import_runs
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Audit log (#48) — append-only workspace audit events
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _audit_entry_to_dict(row: AuditLogEntry) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customer_id": row.customer_id,
+        "actor_user_id": row.actor_user_id,
+        "action": row.action,
+        "target_type": row.target_type,
+        "target_id": row.target_id,
+        "metadata": row.audit_metadata,
+        "created_at": row.created_at,
+    }
+
+
+class AuditLogRepo(Protocol):
+    """Append-only, per-org workspace audit log (#48).
+
+    The DURABLE, customer-visible record of workspace-MUTATING actions. The API is
+    deliberately APPEND-ONLY: ``record`` (INSERT) and ``list_for_customer`` (read,
+    newest-first, paginated) — there is intentionally NO update or delete method,
+    so an audit trail can only ever grow. Every method is scoped by
+    ``customer_id``; a cross-tenant read returns nothing (the tenant boundary is
+    the hard outer scope, mirrored across both impls).
+
+    ``audit_metadata`` is OPTIONAL non-secret context only (a label / name /
+    count). The instrumentation never passes a credential here.
+    """
+
+    async def record(
+        self,
+        *,
+        entry_id: str,
+        customer_id: str,
+        actor_user_id: str | None,
+        action: str,
+        target_type: str,
+        target_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]: ...
+
+    async def list_for_customer(
+        self, customer_id: str, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]: ...
+
+
+class PostgresAuditLogRepo:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def record(
+        self,
+        *,
+        entry_id: str,
+        customer_id: str,
+        actor_user_id: str | None,
+        action: str,
+        target_type: str,
+        target_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        row = AuditLogEntry(
+            id=entry_id,
+            customer_id=customer_id,
+            actor_user_id=actor_user_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            audit_metadata=metadata,
+        )
+        self._session.add(row)
+        await _commit(self._session)
+        await self._session.refresh(row)
+        result = _audit_entry_to_dict(row)
+        await _release_read_transaction(self._session)
+        return result
+
+    async def list_for_customer(
+        self, customer_id: str, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        # Tenant-scoped, newest-first, paginated. Tie-break by id so rows sharing a
+        # created_at (same-instant inserts) page deterministically.
+        stmt = (
+            select(AuditLogEntry)
+            .where(AuditLogEntry.customer_id == customer_id)
+            .order_by(AuditLogEntry.created_at.desc(), AuditLogEntry.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(stmt)).scalars().all()
+        result = [_audit_entry_to_dict(r) for r in rows]
+        await _release_read_transaction(self._session)
+        return result
+
+
+class InMemoryAuditLogRepo:
+    def __init__(self) -> None:
+        # Insertion order is append order; reads reverse it for newest-first.
+        self._entries: list[dict[str, Any]] = []
+
+    async def record(
+        self,
+        *,
+        entry_id: str,
+        customer_id: str,
+        actor_user_id: str | None,
+        action: str,
+        target_type: str,
+        target_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        entry = {
+            "id": entry_id,
+            "customer_id": customer_id,
+            "actor_user_id": actor_user_id,
+            "action": action,
+            "target_type": target_type,
+            "target_id": target_id,
+            "metadata": metadata,
+            "created_at": datetime.now(timezone.utc),
+        }
+        self._entries.append(entry)
+        return dict(entry)
+
+    async def list_for_customer(
+        self, customer_id: str, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        scoped = [e for e in self._entries if e["customer_id"] == customer_id]
+        # Newest-first (reverse insertion order), then page.
+        scoped.reverse()
+        return [dict(e) for e in scoped[offset : offset + limit]]
+
+
 _in_memory_persona_builds: InMemoryPersonaBuildRepo | None = None
 
 
@@ -2277,6 +2414,18 @@ def get_in_memory_conversation_repo() -> InMemoryConversationRepo:
     if _in_memory_conversations is None:
         _in_memory_conversations = InMemoryConversationRepo()
     return _in_memory_conversations
+
+
+_in_memory_audit_log: InMemoryAuditLogRepo | None = None
+
+
+def get_in_memory_audit_log_repo() -> InMemoryAuditLogRepo:
+    """Process-wide in-memory audit-log repo (#48), same pattern as the other
+    in-memory repos. Reset in tests via ``._entries.clear()``."""
+    global _in_memory_audit_log
+    if _in_memory_audit_log is None:
+        _in_memory_audit_log = InMemoryAuditLogRepo()
+    return _in_memory_audit_log
 
 
 def get_in_memory_repos() -> tuple[

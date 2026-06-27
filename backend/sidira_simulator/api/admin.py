@@ -31,11 +31,13 @@ read methods and counts.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from sidira_simulator.adapters.repositories import (
+    AuditLogRepo,
     CrawlConfigRepo,
     CrawlRunRepo,
     ExperimentConnectionRepo,
@@ -44,6 +46,7 @@ from sidira_simulator.adapters.repositories import (
 )
 from sidira_simulator.api.deps import (
     current_customer_id,
+    get_audit_log_repo,
     get_crawl_config_repo,
     get_crawl_run_repo,
     get_experiment_connection_repo,
@@ -196,3 +199,47 @@ async def get_console_summary(
         crawl=crawl,
         personas=personas,
     )
+
+
+# ── Audit log (#48) — append-only workspace activity ────────────────────────
+
+
+class AuditEntry(BaseModel):
+    """One workspace audit event (#48). ``metadata`` is OPTIONAL non-secret
+    context only (a label / name / count) — never a credential."""
+
+    id: str
+    actor_user_id: str | None = None
+    action: str
+    target_type: str
+    target_id: str | None = None
+    metadata: dict[str, Any] | None = None
+    created_at: datetime
+
+
+# Pagination guard: a single page is bounded so a list call can't pull an
+# unbounded audit trail into one response.
+_AUDIT_MAX_LIMIT = 200
+
+
+@router.get(
+    "/audit",
+    response_model=list[AuditEntry],
+    dependencies=[Depends(require_admin)],  # #48: audit trail is an admin surface
+)
+async def list_audit(
+    customer_id: str = Depends(current_customer_id),
+    limit: int = Query(50, ge=1, le=_AUDIT_MAX_LIMIT),
+    offset: int = Query(0, ge=0),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
+) -> list[AuditEntry]:
+    """The workspace's append-only audit trail (#48), newest-first, paginated.
+
+    Admin-only (the trail is an admin surface, like the rest of the console) and
+    customer-scoped: a tenant only ever reads its OWN events — a cross-tenant
+    customer_id reads an empty list (the repo filters by customer_id; existence
+    never leaks). The data is RETRIEVABLE here from day one; a richer in-console
+    viewer is a deferred follow-up. Secret-free by construction — the table only
+    ever stored non-secret context."""
+    rows = await audit_repo.list_for_customer(customer_id, limit=limit, offset=offset)
+    return [AuditEntry(**row) for row in rows]
