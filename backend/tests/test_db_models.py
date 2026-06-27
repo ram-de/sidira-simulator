@@ -155,3 +155,20 @@ def test_customer_external_id_supports_provider_swap() -> None:
     # Tenant-scoped tables key on the internal id, not a provider id.
     sim_fks = {fk.target_fullname for fk in Simulation.__table__.foreign_keys}
     assert "customers.id" in sim_fks
+
+
+def test_conversation_relationship_mappers_configure() -> None:
+    """Regression (#41 hotfix): conversation_turns has TWO FK paths to conversations
+    — the single-column conversation_id FK AND the composite (conversation_id,
+    customer_id) tenant-integrity FK. Without pinning the ORM join to
+    conversation_id, ``configure_mappers()`` raises AmbiguousForeignKeysError and
+    EVERY conversation op 500s in prod. The in-memory API tests use the InMemory
+    repo and never trigger mapper configuration, so this DB-free check is the guard.
+    """
+    from sqlalchemy.orm import configure_mappers
+
+    configure_mappers()  # must NOT raise AmbiguousForeignKeysError
+
+    # The relationship joins on conversation_id only, never the tenant column.
+    pj = str(Conversation.turns.property.primaryjoin)
+    assert "conversation_id" in pj and "customer_id" not in pj, pj
