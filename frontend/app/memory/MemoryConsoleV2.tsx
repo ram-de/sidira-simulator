@@ -19,7 +19,7 @@
 // sits under AppShellV2 -> ConsoleShell's `.v2-console`.
 // ───────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
@@ -80,12 +80,106 @@ const SOURCE_LABEL: Record<CitationSource, string> = {
   predicted: "PREDICTED · SIDIRA SIM",
 };
 
+// The DOM id of a citation source card, scoped to its turn so the same prior id
+// cited in two different turns never collides. The matching inline citation
+// link (below) anchor-jumps here.
+function citeAnchorId(turnId: number, citeId: string): string {
+  return `mem-cite-${turnId}-${citeId.toLowerCase()}`;
+}
+
+// Inline citation links (#40): the composed answer prose repeats the short ids
+// (e.g. `sim-ACEBE2BA`, `exp-0008`) the server already shortened. Rather than
+// leaving them as cluttered plain text, we turn each occurrence that matches a
+// real per-answer citation into a compact in-app citation link (Glean/Perplexity
+// style) that scrolls to — and briefly highlights — its source card below.
+//
+// SAFETY: we NEVER inject markup. The text is tokenized into React nodes; the
+// id pattern is a literal regex over plain text and each candidate is only
+// linkified when it maps to an actual citation (case-insensitive), so we never
+// mint a dead link or relabel anything.
+type LinkifyNode = string | { token: string; citeId: string; key: string };
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Split `text` into a flat list of plain strings and citation tokens. We build the
+// match set from the ACTUAL cited ids in `byId` (the real citations in THIS answer)
+// rather than a fixed id-shape pattern, so any id form linkifies — `sim-ACEBE2BA`,
+// `exp-0008`, AND multi-segment ids like `sim-cw-1` — and, by construction, only
+// ids that resolve to a card here (never a dead link, never a relabel). Longest-
+// first alternation so a longer id isn't pre-empted by a shorter prefix.
+function tokenizeCitations(
+  text: string,
+  byId: Map<string, FusedCitation>,
+): LinkifyNode[] {
+  if (byId.size === 0) return text ? [text] : [];
+  const ids = [...byId.keys()].sort((a, b) => b.length - a.length).map(escapeRegExp);
+  const re = new RegExp(`\\b(${ids.join("|")})\\b`, "gi");
+  const out: LinkifyNode[] = [];
+  let last = 0;
+  let occurrence = 0;
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
+    const raw = m[1];
+    const cite = byId.get(raw.toLowerCase());
+    if (!cite) continue; // defensive — should always resolve by construction
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push({
+      token: raw,
+      citeId: cite.id,
+      key: `${cite.id.toLowerCase()}-${occurrence++}`,
+    });
+    last = m.index + raw.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+// The answer prose with its short ids rendered as in-app citation links. When no
+// id resolves to a card, this is just the plain answer text (one string node).
+function AnswerProse({
+  turnId,
+  text,
+  citations,
+  onJump,
+}: {
+  turnId: number;
+  text: string;
+  citations: FusedCitation[];
+  onJump: (turnId: number, citeId: string) => void;
+}) {
+  const byId = new Map(citations.map((c) => [c.id.toLowerCase(), c]));
+  const nodes = tokenizeCitations(text, byId);
+  return (
+    <p className="v2-mem-answer">
+      {nodes.map((n, i) =>
+        typeof n === "string" ? (
+          <Fragment key={`t-${i}`}>{n}</Fragment>
+        ) : (
+          <button
+            key={n.key}
+            type="button"
+            className="v2-mem-citelink v2-mono"
+            // The link points at a per-turn card anchor; aria spells out the
+            // jump for SR users (the visible text is just the short id).
+            aria-label={`Jump to cited source ${n.token.toUpperCase()} below`}
+            onClick={() => onJump(turnId, n.citeId)}
+          >
+            {n.token}
+          </button>
+        ),
+      )}
+    </p>
+  );
+}
+
 // A fused citation (#31): distinguishes MEASURED (real experiment) from
 // PREDICTED (Sidira sim). The source word + the pre-formatted effect label both
-// carry the state; tone stays neutral (DESIGN.md §8.2 / §4.3).
-function FusedCitationRow({ c }: { c: FusedCitation }) {
+// carry the state; tone stays neutral (DESIGN.md §8.2 / §4.3). The card carries
+// a per-turn anchor id (#40) so the inline citation link can scroll to it.
+function FusedCitationRow({ turnId, c }: { turnId: number; c: FusedCitation }) {
   return (
-    <li className="v2-mem-cite">
+    <li id={citeAnchorId(turnId, c.id)} className="v2-mem-cite">
       <span className="v2-mem-cite-head">
         <span className="v2-mem-cite-id v2-mono">{c.id.toUpperCase()}</span>
         <span className="v2-mem-cite-src v2-mono">{SOURCE_LABEL[c.source]}</span>
@@ -109,6 +203,29 @@ export default function MemoryConsoleV2() {
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [thread.length]);
+
+  // Inline citation link → its source card (#40). Scroll the matching per-turn
+  // card into view and pulse a brief highlight so the eye lands on the evidence.
+  // The pulse is a self-removing class; under prefers-reduced-motion the CSS
+  // drops the animation but still tints the card briefly, so the affordance
+  // never depends on motion. smooth scroll degrades to a jump for reduced-motion.
+  const jumpToCitation = useCallback((turnId: number, citeId: string) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(citeAnchorId(turnId, citeId));
+    if (!el) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "nearest",
+    });
+    // Restart the pulse if it's already running (rapid re-clicks).
+    el.classList.remove("v2-mem-cite--flash");
+    void el.offsetWidth; // reflow so the class re-add re-triggers the animation
+    el.classList.add("v2-mem-cite--flash");
+    window.setTimeout(() => el.classList.remove("v2-mem-cite--flash"), 1400);
+  }, []);
 
   // Ask one conversation turn. `text` lets a follow-up chip submit directly.
   const ask = async (text: string) => {
@@ -224,7 +341,12 @@ export default function MemoryConsoleV2() {
                         (t.pending ? " v2-mem-result--arriving" : "")
                       }
                     >
-                    <p className="v2-mem-answer">{t.answer}</p>
+                    <AnswerProse
+                      turnId={t.id}
+                      text={t.answer}
+                      citations={t.citations}
+                      onJump={jumpToCitation}
+                    />
                     <div className="v2-mem-prov v2-mono">
                       {t.usedLlm ? "COMPOSED FROM ARCHIVE" : "EXTRACTIVE · NO LLM"}{" "}
                       · GROUNDED IN {t.citations.length}{" "}
@@ -233,7 +355,11 @@ export default function MemoryConsoleV2() {
                     {t.citations.length > 0 && (
                       <ul className="v2-mem-cites">
                         {t.citations.map((c) => (
-                          <FusedCitationRow key={`${t.id}-${c.id}`} c={c} />
+                          <FusedCitationRow
+                            key={`${t.id}-${c.id}`}
+                            turnId={t.id}
+                            c={c}
+                          />
                         ))}
                       </ul>
                     )}
