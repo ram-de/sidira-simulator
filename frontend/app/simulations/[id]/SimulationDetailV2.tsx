@@ -677,7 +677,7 @@ const RCONSOLE_CSS = `
   text-transform:uppercase; color:var(--text-mut); margin-bottom:8px;}
 .rconsole .quotewell .qt{font-size:13.5px; color:var(--text-hi); line-height:1.55;}
 .rconsole .quotewell .qm{font-size:11px; color:var(--text-mut);}
-.rconsole .prov{margin:0 0 18px;}
+.rconsole .prov{margin:0 0 8px;}
 .rconsole .provrow{display:grid; grid-template-columns:118px minmax(0,1fr);
   gap:8px; padding:6px 0; border-top:1px solid var(--console-line);}
 .rconsole .provrow:first-child{border-top:none;}
@@ -685,6 +685,12 @@ const RCONSOLE_CSS = `
   color:var(--text-mut); padding-top:1px;}
 .rconsole .provrow dd{margin:0; font-size:11.5px; color:var(--text-hi);
   overflow-wrap:anywhere;}
+/* §8.7 provenance register: a quiet note that pack versions are frozen at run
+   time, so a later pack refresh reads as a NEW version, not a silent mutation. */
+.rconsole .provrow dd .pinned{font-size:9.5px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-mut); margin-left:6px;}
+.rconsole .provnote{margin:0 0 18px; font-size:10.5px; line-height:1.5;
+  color:var(--text-mut);}
 .rconsole .artlink{font-size:11.5px; letter-spacing:.04em; color:var(--text);}
 .rconsole .artlink:hover{color:var(--text-hi);}
 
@@ -3104,8 +3110,29 @@ function InspectorRail({
     { k: "RUN", v: sim.id.slice(0, 8).toUpperCase() },
     { k: "CREATED", v: formatDateTime(sim.created_at) },
     { k: "CAPABILITY", v: sim.hypothesis.capability_name },
-    { k: "PERSONA PACK", v: sim.persona_pack_version },
-    { k: "FEATURE PACK", v: sim.feature_pack_version },
+    // Pack versions are frozen at run time (DESIGN.md §7.6 / §8.7 — "run
+    // provenance pins all three"). The `PINNED` tag makes that explicit on the
+    // saved run so a later pack refresh reads as a NEW version, not a silent
+    // mutation of this result. Display-only; the pin itself is recorded backend
+    // -side at run time.
+    {
+      k: "PERSONA PACK",
+      v: (
+        <>
+          {sim.persona_pack_version}
+          <span className="pinned">PINNED</span>
+        </>
+      ),
+    },
+    {
+      k: "FEATURE PACK",
+      v: (
+        <>
+          {sim.feature_pack_version}
+          <span className="pinned">PINNED</span>
+        </>
+      ),
+    },
     // #215/#245 PR 3b: which crawl setup this run resolved its pack from. Only
     // shown for a non-default setup so legacy/default runs render unchanged.
     ...(sim.setup_id && sim.setup_id !== "default"
@@ -3238,6 +3265,11 @@ function InspectorRail({
           </div>
         ))}
       </dl>
+      <p className="provnote">
+        Pack versions are pinned at run time — this reading was scored against
+        the snapshots above. Rebuilding a pack mints a new version; saved runs
+        keep reading against the version they ran on.
+      </p>
 
       <h2 className="sechead tight">ARTIFACTS</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
