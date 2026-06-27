@@ -14,8 +14,10 @@ from typing import TYPE_CHECKING, Annotated, AsyncIterator
 if TYPE_CHECKING:
     from sidira_simulator.adapters.github_actions import GitHubCrawlDispatcher
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sidira_simulator.api import auth
 
 from sidira_simulator.adapters.feature_pack_loader import FeaturePackLoader
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
@@ -103,6 +105,53 @@ def current_user_id(request: Request) -> str:
     user_id = resolve_sidira_env("USER_ID", DEFAULT_USER_ID)
     assert user_id is not None
     return user_id
+
+
+# Dev / test fallback org role (#45). The keyless path (local dev + the suite,
+# where the Clerk gate is a pass-through) has no session and therefore no org
+# role — so it falls back to "admin", mirroring DEFAULT_CUSTOMER_ID: the env /
+# fallback path only ever runs when Clerk is disabled. This is what keeps the
+# existing suite and local dev able to exercise the now-admin-gated config routes
+# without auth fixtures. SIDIRA_ORG_ROLE lets a local dev simulate a member.
+# CRITICAL: this fallback is ONLY consulted when Clerk is NOT configured. When
+# Clerk IS configured, the role comes from the validated session and a member is
+# denied — we never silently grant admin to a real member session.
+DEFAULT_ORG_ROLE = "admin"
+
+
+def current_org_role(request: Request) -> str | None:
+    """Resolve the caller's org role (#45) — the admin/member privilege level.
+
+    Prefers ``request.state.org_role`` set by the Clerk auth gate from the
+    session `o.rol` claim. When the Clerk gate is active that value is
+    authoritative (including ``None`` for a roleless session — we do NOT fall
+    back). Only when Clerk is UNCONFIGURED (local dev / the test suite) does this
+    resolve the SIDIRA_ORG_ROLE env var, defaulting to "admin", mirroring
+    ``current_customer_id``'s env/fallback discipline so the no-auth path can
+    still reach the admin-gated config routes."""
+    if auth.clerk_configured():
+        # Clerk is authoritative: whatever the gate resolved (role or None).
+        return getattr(request.state, "org_role", None)
+    # Keyless dev/test path — no session exists. Use the env fallback.
+    return resolve_sidira_env("ORG_ROLE", DEFAULT_ORG_ROLE)
+
+
+def require_admin(request: Request) -> None:
+    """FastAPI dependency that gates a route to the admin tier (#45).
+
+    owner/admin → allowed; member (or a roleless session) → 403. Configuration
+    and credential-bearing writes (connect a source, save Snowflake creds, edit a
+    crawl setup) are admin-only; execution (run a crawl, build personas, run a
+    sim, re-import, read results) stays open to members — enforced by simply NOT
+    depending on this. Resolves the role via ``current_org_role`` so the
+    keyless/local/test path (no Clerk) falls back to admin and the suite stays
+    green; with Clerk configured a member session is denied here, never granted
+    the dev default."""
+    if not auth.is_admin_role(current_org_role(request)):
+        raise HTTPException(
+            status_code=403,
+            detail="admin role required for this action",
+        )
 
 
 async def get_repository_session() -> AsyncIterator[AsyncSession | None]:

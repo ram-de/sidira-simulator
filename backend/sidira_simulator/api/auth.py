@@ -24,6 +24,14 @@ from sidira_simulator.services.runtime_config import resolve_sidira_env
 # self-contained and forward-compatible with whatever signup writes.
 _CUSTOMER_CLAIMS = ("customer_id", "org_id")
 
+# Clerk org roles that map to the "admin" tier (#45). Clerk emits roles either
+# bare ("admin"/"basic_member") or system-prefixed ("org:admin"). owner+admin →
+# admin tier (configuration: connect sources, save credentials, manage members);
+# everything else (basic_member / a custom member role) is a non-admin member.
+# Owner-only powers (transfer ownership, delete workspace, payment) are a later
+# ticket — #45 only needs the admin/member split.
+_ADMIN_ORG_ROLES = frozenset({"admin", "owner", "org:admin", "org:owner"})
+
 
 @dataclass(frozen=True)
 class AuthState:
@@ -31,6 +39,13 @@ class AuthState:
 
     user_id: str
     customer_id: str | None
+    # The caller's role WITHIN the active org (the Clerk `o.rol` claim, e.g.
+    # "admin"/"basic_member"), normalized to lower-case. ``None`` when the token
+    # carries no org role. The auth gate surfaces this on request.state so the
+    # `require_admin` dependency (#45) can gate configuration / credential-write
+    # routes. Distinct from customer_id (the tenant) — this is the actor's
+    # privilege level inside that tenant.
+    org_role: str | None = None
 
 
 def clerk_secret() -> str | None:
@@ -108,6 +123,39 @@ def _extract_customer_id(payload: dict) -> str | None:
     return None
 
 
+def _extract_org_role(payload: dict) -> str | None:
+    """Resolve the caller's role in the active org from session claims.
+
+    Clerk v2 session tokens nest the active org under the compact ``o`` claim
+    ({"o": {"id": "org_…", "rol": "admin", "slg": …}}); the role lives in
+    ``o.rol``. ``auth.py`` deliberately ignored this until #45 — extracting it is
+    what makes role enforcement possible. Also accept a top-level ``org_role``
+    claim for forward-compatibility / non-v2 templates. Returns the lower-cased
+    role string, or ``None`` when no org role is present (a personal-account
+    session, or a tenant claim that carries no role)."""
+    org = payload.get("o")
+    if isinstance(org, dict):
+        role = org.get("rol")
+        if role:
+            return str(role).lower()
+    role = payload.get("org_role")
+    if role:
+        return str(role).lower()
+    return None
+
+
+def is_admin_role(org_role: str | None) -> bool:
+    """True when an org role maps to the admin tier (owner/admin), else False.
+
+    The single source of truth for the admin/member split — both the
+    ``require_admin`` dependency and its tests resolve "is this caller an admin"
+    through here, so the role-name vocabulary lives in one place. A ``None`` role
+    (no org role on the token) is NOT an admin."""
+    if org_role is None:
+        return False
+    return org_role.lower() in _ADMIN_ORG_ROLES
+
+
 def authenticate(request: Request) -> AuthState | None:
     """Validate the request's Clerk session token.
 
@@ -126,4 +174,8 @@ def authenticate(request: Request) -> AuthState | None:
     user_id = payload.get("sub")
     if not user_id:
         return None
-    return AuthState(user_id=str(user_id), customer_id=_extract_customer_id(payload))
+    return AuthState(
+        user_id=str(user_id),
+        customer_id=_extract_customer_id(payload),
+        org_role=_extract_org_role(payload),
+    )

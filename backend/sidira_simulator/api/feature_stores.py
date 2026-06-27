@@ -19,7 +19,11 @@ from sidira_simulator.adapters.feature_stores import (
 )
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
 from sidira_simulator.adapters.repositories import FeatureStoreConnectionRepo
-from sidira_simulator.api.deps import current_customer_id, get_feature_store_connection_repo
+from sidira_simulator.api.deps import (
+    current_customer_id,
+    get_feature_store_connection_repo,
+    require_admin,
+)
 from sidira_simulator.services import column_mapper, document_extractor
 from sidira_simulator.services.column_mapper import ColumnMappingError, MappingSuggestion
 from sidira_simulator.services.document_extractor import (
@@ -61,6 +65,7 @@ async def _record_test_result_best_effort(
         logger.warning(
             "failed to persist test result for connection %s", connection_id, exc_info=True
         )
+
 
 #: HTTP status codes per classified connection-failure kind. Client-fixable
 #: problems (bad creds / missing grants) are 400; problems on the store/network
@@ -180,7 +185,12 @@ def _connection_error(exc: FeatureStoreConnectionError) -> HTTPException:
     )
 
 
-@router.post("", response_model=ConnectionSummary, status_code=201)
+@router.post(
+    "",
+    response_model=ConnectionSummary,
+    status_code=201,
+    dependencies=[Depends(require_admin)],  # #45: persists Snowflake creds — admin-only
+)
 async def create_connection(
     payload: SnowflakeConnectionRequest,
     customer_id: str = Depends(current_customer_id),
@@ -205,9 +215,7 @@ async def create_connection(
     connection_id = f"fs-{uuid4().hex[:12]}"
     aad = f"{customer_id}:{connection_id}".encode()
     try:
-        blob = credentials.encrypt(
-            {"password": payload.password}, customer_id=customer_id, aad=aad
-        )
+        blob = credentials.encrypt({"password": payload.password}, customer_id=customer_id, aad=aad)
     except CredentialError as exc:
         raise HTTPException(
             status_code=503, detail="credential encryption is not configured"
@@ -239,7 +247,11 @@ async def list_connections(
     return [_summary_from_row(row) for row in rows]
 
 
-@router.delete("/{connection_id}", status_code=204)
+@router.delete(
+    "/{connection_id}",
+    status_code=204,
+    dependencies=[Depends(require_admin)],  # #45: deletes a stored credential — admin-only
+)
 async def delete_connection(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
@@ -256,7 +268,13 @@ async def delete_connection(
         raise HTTPException(status_code=404, detail="connection not found")
 
 
-@router.post("/{connection_id}/test", status_code=204)
+@router.post(
+    "/{connection_id}/test",
+    status_code=204,
+    dependencies=[
+        Depends(require_admin)
+    ],  # #45: exercises stored creds against the store — admin-only
+)
 async def test_connection(
     connection_id: str,
     customer_id: str = Depends(current_customer_id),
@@ -460,7 +478,5 @@ async def extract_documents(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except DocumentExtractionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    row_count, columns = document_extractor.profile_feature_rows(
-        rows, payload.extraction_schema
-    )
+    row_count, columns = document_extractor.profile_feature_rows(rows, payload.extraction_schema)
     return ExtractDocumentsResponse(row_count=row_count, columns=columns, rows=rows)
