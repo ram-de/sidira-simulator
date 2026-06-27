@@ -12,6 +12,7 @@ from sidira_simulator import __version__
 from sidira_simulator.adapters.migrations import run_startup_migrations
 from sidira_simulator.api import auth
 from sidira_simulator.api import (
+    admin,
     agents,
     capabilities,
     config,
@@ -217,6 +218,7 @@ def create_app() -> FastAPI:
     app.include_router(personas.router)
     app.include_router(sample_workspace.router)
     app.include_router(webhooks.router)
+    app.include_router(admin.router)
 
     return app
 

@@ -1242,6 +1242,122 @@ export const listImports = () =>
 export const csvTemplateUrl = `${API_BASE}/connectors/csv/template`;
 export const csvSampleUrl = `${API_BASE}/connectors/csv/sample`;
 
+// ── persisted experiment SOURCES (#46) — admin-managed connections ───────────
+// Hand-typed against backend/sidira_simulator/api/experiment_sources.py. A source
+// is CONNECTED once (creds encrypted at rest, never echoed) and RE-IMPORTED on
+// demand — the refresh model is one-time-on-connect + on-demand re-import, NEVER
+// live per-query. create/test/delete are admin-only server-side (require_admin);
+// list/get + reimport are member-readable / member-executable.
+
+// Sanitized source row — NEVER carries a credential. `credentials_set` is the
+// write-only-secret flag (#488): true means a credential is stored, without ever
+// echoing it. `display_config` carries only non-secret fields (host/database/
+// project/query/delimiter); secrets (statsig api_key, sql connection_string) are
+// dropped server-side and never returned.
+export interface ExperimentSourceSummary {
+  id: string;
+  name: string;
+  kind: ConnectorKind;
+  status: string;
+  display_config: Record<string, unknown>;
+  credentials_set: boolean;
+  created_by?: string | null;
+  created_at: string;
+  last_import_at?: string | null;
+}
+
+export interface ExperimentImportRunSummary {
+  id: string;
+  status: "running" | "succeeded" | "failed";
+  started_at: string;
+  finished_at?: string | null;
+  imported_count: number;
+  failed_count: number;
+  error?: string | null;
+}
+
+// POST body. `config` carries the connector's full config; the SECRET keys are
+// encrypted at rest and never returned. `mapping` is the confirmed column→field
+// mapping the re-import re-applies.
+export interface CreateExperimentSourceRequest {
+  name: string;
+  kind: ConnectorKind;
+  config: Record<string, string>;
+  mapping: FieldMapping;
+}
+
+export const listExperimentSources = () =>
+  apiGet<ExperimentSourceSummary[]>("/experiment-sources");
+
+// Admin-only server-side (require_admin) — a member create throws ApiError(403).
+export const createExperimentSource = (req: CreateExperimentSourceRequest) =>
+  apiPost<CreateExperimentSourceRequest, ExperimentSourceSummary>(
+    "/experiment-sources",
+    req,
+  );
+
+// 204 on ready; admin-only. ApiError(400) with a customer-safe message when the
+// source still needs credentials / config.
+export const testExperimentSource = (id: string) =>
+  apiPost<Record<string, never>, void>(
+    `/experiment-sources/${encodeURIComponent(id)}/test`,
+    {},
+  );
+
+// Admin-only; 204 on success, 404 if it isn't yours (existence never leaks).
+export const deleteExperimentSource = (id: string) =>
+  apiDelete(`/experiment-sources/${encodeURIComponent(id)}`);
+
+// RE-IMPORT on demand (member-OK — execution). Pulls the source again with the
+// STORED creds + saved mapping; returns the run record (status/counts).
+export const reimportExperimentSource = (id: string) =>
+  apiPost<Record<string, never>, ExperimentImportRunSummary>(
+    `/experiment-sources/${encodeURIComponent(id)}/reimport`,
+    {},
+  );
+
+export const listExperimentImports = (id: string) =>
+  apiGet<ExperimentImportRunSummary[]>(
+    `/experiment-sources/${encodeURIComponent(id)}/imports`,
+  );
+
+// ── admin console summary (#49) ──────────────────────────────────────────────
+// Hand-typed against backend/sidira_simulator/api/admin.py. One admin-gated,
+// customer-scoped aggregation of the workspace's pipe-state — counts / status /
+// metadata only, no secrets, no per-user conversation data. Admin-only server-
+// side (require_admin); a member fetch throws ApiError(403).
+export interface ConsoleSummary {
+  customer_id: string;
+  experiment_sources: {
+    total: number;
+    connected: number;
+    error: number;
+    last_import_at?: string | null;
+  };
+  feature_stores: {
+    total: number;
+    ok: number;
+    failed: number;
+    untested: number;
+    last_tested_at?: string | null;
+  };
+  crawl: {
+    configured: boolean;
+    setup_count: number;
+    last_run_status?: string | null;
+    last_run_at?: string | null;
+  };
+  personas: {
+    pack_version?: string | null;
+    persona_count?: number | null;
+    last_build_status?: string | null;
+    last_build_at?: string | null;
+    total_builds: number;
+  };
+}
+
+export const getConsoleSummary = () => apiGet<ConsoleSummary>("/admin/summary");
+
 // ── fused multi-turn conversation (#31 fusion + #32 multi-turn) ──────────────
 // Hand-typed against backend/sidira_simulator/schemas/experiment_memory.py
 // (CitationSource / FusedCitation / ConversationRequest / ConversationResponse).
