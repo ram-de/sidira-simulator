@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from sidira_simulator.api.deps import get_orchestrator
 from sidira_simulator.api.experiments import get_experiment_chat_client
 from sidira_simulator.main import app
 from sidira_simulator.schemas.experiment_memory import Verdict
+from sidira_simulator.schemas.simulation import SimulationStatus
 from sidira_simulator.services.experiment_archive import seed_experiments
 from sidira_simulator.services.experiment_similarity import (
     ALREADY_TESTED_THRESHOLD,
@@ -20,6 +22,41 @@ from sidira_simulator.services.experiment_similarity import (
     classify,
     search_similar,
 )
+
+
+# ── submit-gate route harness (#38: tenant-scoped, predicted priors) ──────────
+
+
+class _FakeOrchestrator:
+    """Stands in for SimulationOrchestrator; ``list_recent`` is the only method
+    the submit-gate route calls. Rows mirror the orchestrator's dict shape."""
+
+    def __init__(self, rows: list[dict]) -> None:
+        self._rows = rows
+
+    async def list_recent(self, customer_id: str, limit: int = 50) -> list[dict]:
+        return list(self._rows)
+
+
+def _override_orchestrator(rows: list[dict]) -> None:
+    app.dependency_overrides[get_orchestrator] = lambda: _FakeOrchestrator(rows)
+
+
+def _clear_orchestrator() -> None:
+    app.dependency_overrides.pop(get_orchestrator, None)
+
+
+def _completed_sim_row(
+    sim_id: str, prose: str, *, confidence: float, metric_lift_pp: float, date: str
+) -> dict:
+    return {
+        "id": sim_id,
+        "status": SimulationStatus.COMPLETE.value,  # "complete", not "completed"
+        "hypothesis_json": {"prose": prose, "metric_name": "conversion"},
+        "result_json": {"confidence_score": confidence, "metric_lift_pp": metric_lift_pp},
+        "completed_at": f"{date}T10:00:00+00:00",
+        "created_at": f"{date}T09:00:00+00:00",
+    }
 
 # ── seed archive sanity ──────────────────────────────────────────────────────
 
@@ -134,21 +171,123 @@ def test_outcome_fields_do_not_affect_ranking() -> None:
 # ── endpoints ────────────────────────────────────────────────────────────────
 
 
-def test_search_similar_endpoint() -> None:
-    resp = TestClient(app).post(
-        "/experiments/search-similar",
-        json={"hypothesis": "add an urgency countdown timer to checkout", "top_k": 3},
-    )
+def test_search_similar_gate_over_tenant_predictions() -> None:
+    """#38a/b: the submit gate ranks the TENANT's own prior PREDICTIONS and
+    returns the source-aware GateMatch shape (predicted, never measured)."""
+    rows = [
+        _completed_sim_row(
+            "sim-timer",
+            "Add an urgency countdown timer to the checkout page",
+            confidence=72.0,
+            metric_lift_pp=1.2,
+            date="2026-06-20",
+        ),
+    ]
+    _override_orchestrator(rows)
+    try:
+        resp = TestClient(app).post(
+            "/experiments/search-similar",
+            json={"hypothesis": "add an urgency countdown timer to checkout", "top_k": 3},
+        )
+    finally:
+        _clear_orchestrator()
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["verdict"] in {"already_tested", "similar", "novel"}
-    assert body["matches"][0]["experiment"]["id"] == "exp-0001"
-    # Real outcome present on the match.
-    assert "effect_size_pct" in body["matches"][0]["experiment"]
+    assert body["verdict"] == "already_tested"
+    match = body["matches"][0]
+    # Source-aware GATE shape — NOT the measured-Experiment shape.
+    assert match["id"] == "sim-timer"
+    assert "experiment" not in match, "a predicted prior must not use the measured shape"
+    assert "effect_size_pct" not in match and "winner" not in match
+    assert match["agreements"] == [72.0]
+    assert match["run_count"] == 1
+    assert match["predicted_direction"] in {"up", "down", "flat"}
+    # Honest: no measured caveat for already_tested; headline frames a prediction.
+    assert "prediction" in body["headline"].lower()
+
+
+def test_search_similar_groups_reruns_with_agreement_spread() -> None:
+    """#38c: the SAME hypothesis simulated multiple times collapses into one match
+    carrying the agreement spread, not separate near-duplicate findings."""
+    prose = "Add a 'Continue Watching' rail to the home screen"
+    rows = [
+        _completed_sim_row("sim-cw-a", prose, confidence=65.0, metric_lift_pp=1.6, date="2026-06-18"),
+        _completed_sim_row("sim-cw-b", prose, confidence=78.0, metric_lift_pp=2.0, date="2026-06-20"),
+        _completed_sim_row("sim-cw-c", prose, confidence=82.0, metric_lift_pp=2.1, date="2026-06-22"),
+    ]
+    _override_orchestrator(rows)
+    try:
+        resp = TestClient(app).post(
+            "/experiments/search-similar",
+            json={"hypothesis": "add a continue watching rail to the home screen", "top_k": 5},
+        )
+    finally:
+        _clear_orchestrator()
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["matches"]) == 1, "three re-runs of one hypothesis group into one match"
+    match = body["matches"][0]
+    assert match["run_count"] == 3
+    # Spread is oldest→newest agreement.
+    assert match["agreements"] == [65.0, 78.0, 82.0]
+    # The representative (most-recent) run leads the id + date.
+    assert match["id"] == "sim-cw-c"
+    assert match["last_sim_date"] == "2026-06-22"
+
+
+def test_search_similar_falls_back_to_seed_when_tenant_empty() -> None:
+    """#38a: a fresh workspace (no simulations) falls back to the synthetic seed,
+    so the gate still demonstrates — but still as PREDICTED priors, never measured."""
+    _override_orchestrator([])
+    try:
+        resp = TestClient(app).post(
+            "/experiments/search-similar",
+            json={"hypothesis": "add an urgency countdown timer to checkout", "top_k": 3},
+        )
+    finally:
+        _clear_orchestrator()
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # The seed sim archive carries the urgency-timer prediction (sim-0001).
+    assert body["verdict"] in {"already_tested", "similar"}
+    assert body["matches"], "seed fallback must surface a prior prediction"
+    assert all("experiment" not in m for m in body["matches"])
+
+
+def test_search_similar_novel_when_no_prior_prediction() -> None:
+    rows = [
+        _completed_sim_row(
+            "sim-x",
+            "Add an urgency countdown timer to the checkout page",
+            confidence=70.0,
+            metric_lift_pp=1.0,
+            date="2026-06-20",
+        ),
+    ]
+    _override_orchestrator(rows)
+    try:
+        resp = TestClient(app).post(
+            "/experiments/search-similar",
+            json={
+                "hypothesis": "Switch our datacenter region to cut backend p99 latency",
+                "top_k": 5,
+            },
+        )
+    finally:
+        _clear_orchestrator()
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["verdict"] == "novel"
+    assert body["matches"] == [], "novel must not surface a weak prior as evidence"
+    assert body["caveat"] is None
 
 
 def test_search_similar_rejects_empty_hypothesis() -> None:
-    resp = TestClient(app).post("/experiments/search-similar", json={"hypothesis": ""})
+    _override_orchestrator([])
+    try:
+        resp = TestClient(app).post("/experiments/search-similar", json={"hypothesis": ""})
+    finally:
+        _clear_orchestrator()
     assert resp.status_code == 422
 
 

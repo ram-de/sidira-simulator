@@ -1050,14 +1050,32 @@ export type Experiment = {
   date: string;
 };
 
-export type SimilarMatch = { experiment: Experiment; similarity: number };
+// ── submit-time advisory gate (#38) ───────────────────────────────────────
+// A SOURCE-AWARE dedup the run wizard fires at submit: it ranks the tenant's own
+// PRIOR SIDIRA PREDICTIONS (never measured experiments) for the new hypothesis. A
+// match is a `GateMatch` (predicted, uncalibrated — DESIGN.md §8.3), NOT the
+// measured-`Experiment` shape, so a prediction can never render as a real result.
+// `agreements` carries one score per prior run of the same hypothesis so the UI
+// shows the spread; re-runs are grouped server-side into one match.
+export type PredictedDirection = "up" | "down" | "flat";
 
-export type SearchSimilarResponse = {
+export type GateMatch = {
+  id: string;
+  change_description: string;
+  primary_metric: string;
+  similarity: number;
+  predicted_direction: PredictedDirection;
+  agreements: number[];
+  run_count: number;
+  last_sim_date: string;
+};
+
+export type SubmitGateResponse = {
   hypothesis: string;
   verdict: Verdict;
   headline: string;
   caveat: string | null;
-  matches: SimilarMatch[];
+  matches: GateMatch[];
 };
 
 export type ChatCitation = {
@@ -1075,8 +1093,11 @@ export type ExperimentChatResponse = {
   used_llm: boolean;
 };
 
-export const searchSimilarExperiments = (hypothesis: string, topK = 5) =>
-  apiPost<{ hypothesis: string; top_k: number }, SearchSimilarResponse>(
+// Submit-time advisory gate (#38). ADVISORY only — the caller NEVER blocks the
+// run on the verdict; it informs ("here's what Sidira predicted before, and how
+// much it varied").
+export const submitGateCheck = (hypothesis: string, topK = 5) =>
+  apiPost<{ hypothesis: string; top_k: number }, SubmitGateResponse>(
     "/experiments/search-similar",
     { hypothesis, top_k: topK },
   );

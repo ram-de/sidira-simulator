@@ -348,13 +348,15 @@ TENANT_AGNOSTIC_ROUTES = {
     # Auth is the dedicated SIDIRA_CRAWLER_CREDENTIALS_TOKEN bearer (see
     # api/internal.py), not current_customer_id.
     ("GET", "/internal/crawl-credentials/{customer}"),
-    # Experiment-memory (#28/#29 + #31/#32): pure RETRIEVAL over the demo SEED
-    # archive (real experiments) and the synthetic-simulation seed — no tenant
-    # data is read or written (mirrors /models, /config/limits). When this meets
-    # a real customer the archive load becomes tenant-scoped and these move out.
-    ("POST", "/experiments/search-similar"),
+    # Experiment-memory (#28): the single-shot /chat is pure RETRIEVAL over the
+    # demo SEED archive (real experiments) — no tenant data is read or written
+    # (mirrors /models, /config/limits). When this meets a real customer the
+    # archive load becomes tenant-scoped and it moves out.
+    # NB: /experiments/search-similar (#38) and /experiments/conversation (#33)
+    # are NOW tenant-scoped (they read the caller's own simulations via the
+    # orchestrator + current_customer_id), so they are deliberately NOT listed
+    # here — the guard verifies their scoping like any other tenant route.
     ("POST", "/experiments/chat"),
-    ("POST", "/experiments/conversation"),
     # Connector onboarding (#19): catalog + CSV parsing/validation helpers that
     # read/write NO tenant archive — they list connectors, serve the static CSV
     # template/sample, parse an uploaded CSV for preview, and validate credential

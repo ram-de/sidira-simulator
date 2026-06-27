@@ -1,15 +1,18 @@
 "use client";
 
 // ───────────────────────────────────────────────────────────────────────────
-// /memory — Experiment Memory (#28, #29), v2 Console reskin.
+// /memory — Experiment Memory (#28, #31, #32), v2 Console reskin.
 //
-// Two retrieval surfaces over the past-experiment archive — NO prediction:
-//   1. Pre-gate dedup: type a NEW hypothesis -> trust-ordered verdict
-//      (already-tested · similar · novel) + similar past experiments with their
-//      REAL recorded results. The "similar != guaranteed same effect" caveat is
-//      shown verbatim on a SIMILAR verdict (honesty law, never smoothed).
-//   2. Chat: ask the archive a question -> a grounded answer that cites the
-//      real experiments it drew from.
+// ONE archive front-door: "Ask the archive" — a grounded, multi-turn conversation
+// across two kinds of evidence (real MEASURED A/B experiments and Sidira's own
+// PREDICTED simulations). Each answer cites the items it drew from, labeled
+// MEASURED or PREDICTED (DESIGN.md §8.2/§8.3).
+//
+// The standalone "Check a new hypothesis" dedup box was REMOVED (#38d): that
+// pre-gate check now fires at submit in the run wizard (POST
+// /experiments/search-similar → the advisory submit gate), so a duplicate
+// proactive box on /memory was dead weight. The archive keeps a single front
+// door; a PM who wants to check a change can still ask the archive directly.
 //
 // Token-driven only; all layout lives in styles/v2-theme.css (.v2-mem-*), so
 // this island ships no inline <style> (no hydration risk). The whole subtree
@@ -21,17 +24,12 @@ import { useEffect, useRef, useState } from "react";
 import {
   ApiError,
   converseExperiments,
-  searchSimilarExperiments,
   type CitationSource,
   type ConversationTurn,
-  type ExperimentResult,
   type FusedCitation,
-  type SearchSimilarResponse,
-  type SimilarMatch,
-  type Verdict,
 } from "@/lib/api";
 import AppShellV2 from "@/components/v2/AppShellV2";
-import { Button, Panel, StatusBadge } from "@/components/v2";
+import { Button, Panel } from "@/components/v2";
 
 // The Clerk session token (the __session cookie) is short-lived and refreshed by
 // Clerk's browser SDK; an idle tab can fire a follow-up carrying a stale one, which
@@ -82,53 +80,6 @@ const SOURCE_LABEL: Record<CitationSource, string> = {
   predicted: "PREDICTED · SIDIRA SIM",
 };
 
-// Verdict -> badge kind + the honest label string. `similar` borrows the `hold`
-// badge (amber edge) as a "proceed with care" cue; tested/novel are neutral.
-const VERDICT_META: Record<
-  Verdict,
-  { kind: "neutral" | "hold"; label: string }
-> = {
-  already_tested: { kind: "neutral", label: "ALREADY TESTED" },
-  similar: { kind: "hold", label: "SIMILAR PRIOR" },
-  novel: { kind: "neutral", label: "NOVEL · NO PRIOR" },
-};
-
-const RESULT_LABEL: Record<ExperimentResult, string> = {
-  win: "WON",
-  loss: "LOST",
-  flat: "FLAT",
-};
-
-function pct(value: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function MatchRow({ match }: { match: SimilarMatch }) {
-  const e = match.experiment;
-  return (
-    <div className="v2-mem-match" role="row">
-      <div className="v2-mem-match-head">
-        <span className="v2-mem-match-id v2-mono v2-tnum" title={e.id}>
-          {e.id.toUpperCase()}
-        </span>
-        <span className="v2-mem-match-cat v2-mono">{e.category}</span>
-        <span className="v2-mem-match-sim v2-mono v2-tnum" title="Cosine similarity to your hypothesis">
-          {Math.round(match.similarity * 100)}% match
-        </span>
-      </div>
-      <p className="v2-mem-match-desc">{e.change_description}</p>
-      <div className="v2-mem-match-result">
-        <span className="v2-mem-result-word v2-mono">
-          {RESULT_LABEL[e.result]}
-        </span>
-        <span className="v2-mem-result-detail v2-mono v2-tnum">
-          {pct(e.effect_size_pct)} on {e.primary_metric} · n={e.n.toLocaleString()} · {e.date}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // A fused citation (#31): distinguishes MEASURED (real experiment) from
 // PREDICTED (Sidira sim). The source word + the pre-formatted effect label both
 // carry the state; tone stays neutral (DESIGN.md §8.2 / §4.3).
@@ -146,12 +97,6 @@ function FusedCitationRow({ c }: { c: FusedCitation }) {
 }
 
 export default function MemoryConsoleV2() {
-  // ── dedup state ──
-  const [hypothesis, setHypothesis] = useState("");
-  const [dedup, setDedup] = useState<SearchSimilarResponse | null>(null);
-  const [dedupLoading, setDedupLoading] = useState(false);
-  const [dedupError, setDedupError] = useState<string | null>(null);
-
   // ── conversation state (#32: threaded, multi-turn) ──
   const [question, setQuestion] = useState("");
   const [thread, setThread] = useState<ThreadTurn[]>([]);
@@ -164,20 +109,6 @@ export default function MemoryConsoleV2() {
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [thread.length]);
-
-  const runDedup = async () => {
-    const h = hypothesis.trim();
-    if (!h) return;
-    setDedupError(null);
-    setDedupLoading(true);
-    try {
-      setDedup(await searchSimilarExperiments(h, 5));
-    } catch (e) {
-      setDedupError((e as Error)?.message ?? "Search failed");
-    } finally {
-      setDedupLoading(false);
-    }
-  };
 
   // Ask one conversation turn. `text` lets a follow-up chip submit directly.
   const ask = async (text: string) => {
@@ -237,13 +168,11 @@ export default function MemoryConsoleV2() {
     }
   };
 
-  const verdictMeta = dedup ? VERDICT_META[dedup.verdict] : null;
-
   return (
     <AppShellV2
       activeNav="memory"
       title="Experiment memory"
-      provenance={{ label: "RETRIEVAL · REAL OUTCOMES", calibrated: false, live: false }}
+      provenance={{ label: "RETRIEVAL · MEASURED + PREDICTED", calibrated: false, live: false }}
       actions={
         <Button as="a" variant="secondary" href="/memory/connect">
           Connect a source →
@@ -252,71 +181,8 @@ export default function MemoryConsoleV2() {
     >
       <div className="v2-mem">
         <p className="v2-mem-law v2-mono">
-          RETRIEVAL OVER PAST EXPERIMENTS · EVERY FIGURE IS A REAL RECORDED OUTCOME · NO PREDICTION
+          RETRIEVAL OVER MEASURED EXPERIMENTS + SIDIRA PREDICTIONS · MEASURED = REAL RECORDED OUTCOME · PREDICTED = UNCALIBRATED SIMULATION, NEVER A MEASURED RESULT
         </p>
-
-        {/* ── Pre-gate hypothesis dedup ─────────────────────────────────── */}
-        <section className="v2-mem-section" aria-labelledby="v2-mem-dedup-h">
-          <h2 id="v2-mem-dedup-h" className="v2-mem-section-title">
-            Check a new hypothesis
-          </h2>
-          <p className="v2-mem-section-sub">
-            Before you test, see whether the archive already answers it. Results
-            are trust-ordered: already-tested shows the real result; similar is
-            an analogical prior only; novel means there is nothing to lean on.
-          </p>
-
-          <form
-            className="v2-mem-form"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              runDedup();
-            }}
-          >
-            <textarea
-              className="v2-mem-input"
-              rows={3}
-              placeholder="e.g. Add an urgency countdown timer to the checkout page"
-              value={hypothesis}
-              onChange={(ev) => setHypothesis(ev.target.value)}
-              aria-label="New hypothesis"
-            />
-            <div className="v2-mem-form-actions">
-              <Button variant="primary" onClick={runDedup}>
-                {dedupLoading ? "Checking…" : "Check the archive →"}
-              </Button>
-            </div>
-          </form>
-
-          {dedupError && (
-            <div role="alert" className="v2-mem-alert">
-              Could not check the archive: {dedupError}
-            </div>
-          )}
-
-          {dedup && verdictMeta && (
-            <Panel className="v2-mem-result">
-              <div className="v2-mem-verdict">
-                <StatusBadge kind={verdictMeta.kind}>{verdictMeta.label}</StatusBadge>
-                <p className="v2-mem-headline">{dedup.headline}</p>
-              </div>
-
-              {dedup.caveat && (
-                <p className="v2-mem-caveat" role="note">
-                  {dedup.caveat}
-                </p>
-              )}
-
-              {dedup.matches.length > 0 && (
-                <div className="v2-mem-matches" role="table" aria-label="Similar past experiments">
-                  {dedup.matches.map((m) => (
-                    <MatchRow key={m.experiment.id} match={m} />
-                  ))}
-                </div>
-              )}
-            </Panel>
-          )}
-        </section>
 
         {/* ── Conversation over the fused archive (#31 + #32) ───────────── */}
         <section className="v2-mem-section" aria-labelledby="v2-mem-chat-h">
@@ -328,7 +194,9 @@ export default function MemoryConsoleV2() {
             <span className="v2-mem-inline-src v2-mono">MEASURED</span> A/B
             experiments and Sidira&rsquo;s own{" "}
             <span className="v2-mem-inline-src v2-mono">PREDICTED</span>{" "}
-            simulations. Ask a follow-up and it carries the thread&rsquo;s context.
+            simulations. Ask a follow-up and it carries the thread&rsquo;s context
+            — or check whether a change you&rsquo;re weighing has been tested or
+            predicted before.
           </p>
 
           {thread.length > 0 && (
@@ -340,15 +208,22 @@ export default function MemoryConsoleV2() {
             >
               {thread.map((t) => (
                 <div key={t.id} className="v2-mem-turn">
-                  <p className="v2-mem-ask">
-                    <span className="v2-mem-ask-label v2-mono">YOU</span>
-                    {t.question}
-                  </p>
-                  <Panel
-                    className={
-                      "v2-mem-result" + (t.pending ? " v2-mem-result--arriving" : "")
-                    }
-                  >
+                  {/* user turn — right-offset, distinct surface, mono speaker */}
+                  <div className="v2-mem-msg v2-mem-msg--you">
+                    <span className="v2-mem-msg-who v2-mono">YOU</span>
+                    <div className="v2-mem-bubble v2-mem-bubble--you">
+                      <p className="v2-mem-ask">{t.question}</p>
+                    </div>
+                  </div>
+                  {/* archive turn — left-offset, panel surface carries all evidence */}
+                  <div className="v2-mem-msg v2-mem-msg--archive">
+                    <span className="v2-mem-msg-who v2-mono">ARCHIVE</span>
+                    <Panel
+                      className={
+                        "v2-mem-result v2-mem-bubble v2-mem-bubble--archive" +
+                        (t.pending ? " v2-mem-result--arriving" : "")
+                      }
+                    >
                     <p className="v2-mem-answer">{t.answer}</p>
                     <div className="v2-mem-prov v2-mono">
                       {t.usedLlm ? "COMPOSED FROM ARCHIVE" : "EXTRACTIVE · NO LLM"}{" "}
@@ -380,7 +255,8 @@ export default function MemoryConsoleV2() {
                         ))}
                       </div>
                     )}
-                  </Panel>
+                    </Panel>
+                  </div>
                 </div>
               ))}
               <div ref={threadEndRef} />

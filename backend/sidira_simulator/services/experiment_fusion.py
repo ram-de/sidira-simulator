@@ -59,8 +59,16 @@ _FUSION_SYSTEM = (
     "- PREDICTED: a Sidira simulation of a hypothesis. Its 'agreement' figure is "
     "UNCALIBRATED simulated-agent agreement, never a measured effect.\n"
     "Rules:\n"
-    "- Cite every item by id (exp-#### for measured, sim-#### for predicted) and "
-    "label it MEASURED or PREDICTED. Never present a prediction as a measurement.\n"
+    "- Cite every item by the EXACT short id given in the evidence (e.g. exp-0008, "
+    "sim-72060A41) and label it MEASURED or PREDICTED. Use the id verbatim — NEVER "
+    "expand it into a long UUID or invent digits. Never present a prediction as a "
+    "measurement.\n"
+    "- When the SAME hypothesis was predicted more than once (an evidence line says "
+    "'PREDICTED N×' with a spread like 'agreement 65 / 78 / 82'), treat it as ONE "
+    "finding and report the spread — do NOT list the re-runs as separate results.\n"
+    "- When an evidence line is flagged LOW AGREEMENT, surface it as a contrast: a "
+    "weak, counter-intuitive signal worth a real test, never a confident call. Do "
+    "not bury it.\n"
     "- When a simulation and an experiment tested the SAME change, tell the story: "
     "what Sidira PREDICTED, what the real A/B MEASURED, and the learning — "
     "especially when the prediction MISSED. Do not smooth over a miss.\n"
@@ -126,6 +134,67 @@ def _measured_effect_label(e: Experiment) -> str:
     return (
         f"MEASURED · {verb} {e.effect_size_pct:+.1f}% on {e.primary_metric} · n={e.n:,} · {e.date}"
     )
+
+
+# Agreement at/under this reads as LOW — the simulated panel barely leaned, so the
+# prediction is weak/counter-intuitive and is worth flagging as a contrast (the
+# product's core value is surfacing where agreement is low, not burying it). The
+# 100-point scale's rough midpoint; the figure is uncalibrated either way (§8.3).
+_LOW_AGREEMENT = 55.0
+
+
+def _group_sims_by_change(
+    sims: list[SimulatedHypothesis],
+) -> list[list[SimulatedHypothesis]]:
+    """Collapse re-runs of the SAME hypothesis into groups, preserving order (#37.2).
+
+    Two sims are the same hypothesis when their tokenized change text is identical
+    (the SAME tokenizer retrieval uses — whitespace/case differences group, a
+    genuinely different change does not). Near-duplicate sims of one hypothesis
+    then render as ONE finding with their agreement spread, not separate rows.
+    """
+    groups: dict[str, list[SimulatedHypothesis]] = {}
+    order: list[str] = []
+    for s in sims:
+        key = " ".join(_tokenize(s.change_description))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(s)
+    return [groups[k] for k in order]
+
+
+def _grouped_predicted_line(group: list[SimulatedHypothesis]) -> str:
+    """One readout line for a group of re-runs of the same hypothesis (#37.2/.4).
+
+    A single run renders exactly as before. Multiple runs render the spread
+    ("predicted 3×: agreement 65 / 78 / 82") on the most-recent run's metric +
+    direction (metric consistency #37.4 — one hypothesis, one metric, not a mix
+    of "browse" vs "retention" across re-runs). Low-agreement runs are flagged as
+    a contrast (#37.3) rather than smoothed over.
+    """
+    by_date = sorted(group, key=lambda s: s.sim_date)
+    rep = by_date[-1]
+    if len(group) == 1:
+        line = f"- {rep.id}: {rep.change_description} — {_predicted_effect_label(rep)}"
+    else:
+        spread = " / ".join(f"{s.confidence_score:.0f}" for s in by_date)
+        arrow = {
+            PredictedDirection.UP: "UP",
+            PredictedDirection.DOWN: "DOWN",
+            PredictedDirection.FLAT: "FLAT",
+        }[rep.predicted_direction]
+        line = (
+            f"- {rep.id}: {rep.change_description} — PREDICTED {len(group)}× "
+            f"(uncalibrated) · {arrow} · agreement {spread}/100 on "
+            f"{rep.primary_metric} · latest {rep.sim_date}"
+        )
+    if rep.confidence_score <= _LOW_AGREEMENT:
+        line += (
+            " · LOW AGREEMENT — the simulated panel barely leaned; treat as a weak, "
+            "counter-intuitive signal worth a real test, not a confident call"
+        )
+    return line
 
 
 def _predicted_effect_label(s: SimulatedHypothesis) -> str:
@@ -294,10 +363,13 @@ def _extractive_fused_answer(
         blocks.append(
             "Sidira PREDICTED (simulated, uncalibrated — direction/rank, not a measured effect):"
         )
+        # Group re-runs of the same hypothesis so near-duplicates render as one
+        # finding with their agreement spread (#37.2), with low-agreement results
+        # flagged as a contrast (#37.3).
         blocks.append(
             "\n".join(
-                f"- {s.id}: {s.change_description} — {_predicted_effect_label(s)}"
-                for s in standalone_sim
+                _grouped_predicted_line(g)
+                for g in _group_sims_by_change(standalone_sim)
             )
         )
 
@@ -323,10 +395,19 @@ def _format_fused_context(
         if e.id in paired_exp:
             continue
         lines.append(f"[MEASURED {e.id}] {e.change_description}\n  {_measured_effect_label(e)}")
-    for s in sim_matches:
-        if s.id in paired_sim:
-            continue
-        lines.append(f"[PREDICTED {s.id}] {s.change_description}\n  {_predicted_effect_label(s)}")
+    # Group re-runs of the same predicted hypothesis so the model sees ONE entry
+    # with the agreement spread (#37.2/.4) rather than near-identical rows it would
+    # list as separate findings; low agreement is flagged inline (#37.3).
+    standalone_sim = [s for s in sim_matches if s.id not in paired_sim]
+    for group in _group_sims_by_change(standalone_sim):
+        rep = sorted(group, key=lambda s: s.sim_date)[-1]
+        if len(group) == 1:
+            lines.append(f"[PREDICTED {rep.id}] {rep.change_description}\n  {_predicted_effect_label(rep)}")
+        else:
+            lines.append(
+                f"[PREDICTED {rep.id}] {rep.change_description}\n  "
+                + _grouped_predicted_line(group).lstrip("- ")
+            )
     return "\n".join(lines)
 
 

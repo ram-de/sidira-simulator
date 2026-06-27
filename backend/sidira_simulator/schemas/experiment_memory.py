@@ -130,6 +130,90 @@ class SearchSimilarResponse(BaseModel):
     matches: list[SimilarMatch]
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Submit-time advisory gate (#38)
+#
+# A SOURCE-AWARE dedup for the run wizard's submit step. Unlike the measured
+# `SimilarMatch` above (a real, concluded A/B outcome), a gate match is a PRIOR
+# SIDIRA PREDICTION — uncalibrated simulated-agent agreement, NEVER a measured
+# winner/effect (DESIGN.md §8.3). The schema is deliberately separate so a
+# predicted prior can never be rendered through the measured-Experiment shape and
+# mistaken for a real result. The verdict trust-ordering (already_tested / similar
+# / novel) is reused, but the matches it carries are predicted, not measured.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class GateMatch(BaseModel):
+    """A prior SIDIRA PREDICTION surfaced for a new hypothesis at submit (#38).
+
+    Source-aware (DESIGN.md §8.2/§8.3): every field is a PREDICTED, UNCALIBRATED
+    figure, never a measured outcome. ``agreements`` holds one or more agreement
+    scores because the SAME hypothesis may have been simulated multiple times —
+    the gate groups those runs and shows the spread (e.g. "predicted 3×: agreement
+    65 / 78 / 82") rather than listing near-duplicates as separate priors.
+    """
+
+    # A short, human-readable designator (e.g. "sim-72060A41"), never a raw UUID.
+    id: str = Field(description="Short prior-run designator; never a raw UUID.")
+    change_description: str = Field(
+        description="The hypothesis this prior PREDICTED on — the input side."
+    )
+    primary_metric: str = Field(description="The OEC the prediction was expressed on.")
+    similarity: float = Field(
+        ge=0.0, le=1.0, description="Cosine similarity of the new hypothesis to this prior."
+    )
+    # PREDICTED-outcome side (uncalibrated, never a measured effect):
+    predicted_direction: str = Field(
+        description="up / down / flat — the direction the prior prediction leaned."
+    )
+    agreements: list[float] = Field(
+        min_length=1,
+        description=(
+            "One agreement score per prior run of this hypothesis (0-100, "
+            "uncalibrated). Multiple entries when the same change was simulated "
+            "more than once — render the spread, not a single figure."
+        ),
+    )
+    run_count: int = Field(
+        ge=1, description="How many prior runs were grouped into this match."
+    )
+    last_sim_date: str = Field(description="Date of the most recent grouped run (YYYY-MM-DD).")
+
+
+class SubmitGateRequest(BaseModel):
+    """A submit-time gate check for a new hypothesis (#38).
+
+    Identical request shape to ``SearchSimilarRequest`` but routed at the wizard's
+    submit step against the TENANT's OWN prior simulations.
+    """
+
+    hypothesis: str = Field(
+        min_length=1, description="The NEW change being submitted. Carries no outcome."
+    )
+    top_k: int = Field(default=5, ge=1, le=25)
+
+
+class SubmitGateResponse(BaseModel):
+    """Advisory (NON-BLOCKING) submit-gate result over PRIOR PREDICTIONS (#38).
+
+    The verdict is trust-ordered exactly like the measured dedup, but every match
+    is a PREDICTED prior (``GateMatch``), labeled uncalibrated. The frontend uses
+    ``verdict`` to decide UI weight (novel → silent, similar → inline note,
+    already_tested → prominent panel) and NEVER blocks the run on it.
+    """
+
+    hypothesis: str
+    verdict: Verdict
+    headline: str = Field(
+        description="One honest sentence framing what Sidira already predicted (or didn't)."
+    )
+    caveat: str | None = Field(
+        default=None,
+        description="The 'similar != same test, and a prediction is not a measurement' label.",
+    )
+    matches: list[GateMatch]
+
+
 class ExperimentChatRequest(BaseModel):
     message: str = Field(min_length=1, description="A question about the experiment archive.")
     top_k: int = Field(default=6, ge=1, le=25)

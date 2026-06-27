@@ -2040,33 +2040,71 @@ a.v2-sims-row:hover{
 }
 
 /* ── fused multi-turn conversation (#31 fusion + #32 multi-turn) ─────────── */
-/* The chat is "evidentiary but human" (DESIGN.md §7.4): body-font prose at body
-   volume, mono only for designators. Tokens only — no hardcoded color. */
+/* The chat is "evidentiary but human" (DESIGN.md §7.4): a real back-and-forth
+   thread — speaker turns are visually distinct and attributed (offset bubbles +
+   a mono speaker designator above each), newest at the bottom, like a chat app.
+   Body-font prose at body volume; mono only for designators. Tokens only — no
+   hardcoded color, no gradient fills, no pills. */
 .v2-mem-thread{
   display:flex;
   flex-direction:column;
   gap:var(--space-room);
 }
+/* one exchange = a user turn then the archive's reply, comfortably spaced */
 .v2-mem-turn{
   display:flex;
   flex-direction:column;
-  gap:var(--space-snug);
+  gap:var(--space-base);
 }
-/* the user's question — quiet, body font, a mono YOU designator */
-.v2-mem-ask{
+/* a single speaker turn: the mono designator stacks above its bubble and the
+   whole turn offsets to one side so the dialogue reads as turn-taking */
+.v2-mem-msg{
   display:flex;
-  align-items:baseline;
-  gap:var(--space-snug);
+  flex-direction:column;
+  gap:var(--space-tight);
+  max-width:80%;
+}
+.v2-mem-msg--you{
+  align-self:flex-end;
+  align-items:flex-end;
+}
+.v2-mem-msg--archive{
+  align-self:flex-start;
+  align-items:flex-start;
+}
+/* the speaker designator — mono, muted, neutral register (no color carries it) */
+.v2-mem-msg-who{
+  font-size:10px;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+}
+/* shared bubble shell — a panel-radius surface with comfortable inner padding */
+.v2-mem-bubble{
+  border-radius:var(--r-panel);
+}
+/* the user's bubble — a lighter console fill, distinct from the archive panel,
+   right-offset; quiet body-font prose inside */
+.v2-mem-bubble--you{
+  padding:var(--space-cozy) var(--space-base);
+  background:var(--console-750);
+  border:0.75px solid var(--console-line-50);
+  /* square the trailing corner toward the speaker, chat-app style */
+  border-bottom-right-radius:var(--r-well);
+}
+/* the archive reply — keeps the elevated Panel that carries all the evidence;
+   square the leading corner toward its speaker so the offset reads */
+.v2-mem-bubble--archive{
+  width:100%;
+  border-bottom-left-radius:var(--r-well);
+}
+/* the user's question prose — body font, body volume */
+.v2-mem-ask{
   font-size:15px;
   line-height:1.55;
   color:var(--text-hi);
   margin:0;
-}
-.v2-mem-ask-label{
-  flex:0 0 auto;
-  font-size:10px;
-  letter-spacing:0.1em;
-  color:var(--text-mut);
+  white-space:pre-wrap;
 }
 /* inline MEASURED/PREDICTED designators in the section sub-copy + citation source.
    The WORD carries the state (DESIGN.md §8.2) — neutral tone, no fill, no color. */
@@ -2148,4 +2186,9 @@ a.v2-sims-row:hover{
     opacity:1;
     transform:none;
   }
+}
+/* mobile: turns nearly fill the column but keep their side offset + designator
+   so the dialogue still reads as turn-taking (§7.5 stacked instrument readout) */
+@media (max-width:560px){
+  .v2-mem-msg{ max-width:92%; }
 }
