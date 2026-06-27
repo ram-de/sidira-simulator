@@ -42,6 +42,7 @@ EXPERIMENT_SOURCE_DELETED = "experiment_source.deleted"
 EXPERIMENT_SOURCE_REIMPORTED = "experiment_source.reimported"
 # Feature stores
 FEATURE_STORE_CREATED = "feature_store.created"
+FEATURE_STORE_TESTED = "feature_store.tested"
 FEATURE_STORE_DELETED = "feature_store.deleted"
 # Crawl configs
 CRAWL_CONFIG_CREATED = "crawl_config.created"
