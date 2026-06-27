@@ -208,15 +208,22 @@ export default function MemoryConsoleV2() {
             >
               {thread.map((t) => (
                 <div key={t.id} className="v2-mem-turn">
-                  <p className="v2-mem-ask">
-                    <span className="v2-mem-ask-label v2-mono">YOU</span>
-                    {t.question}
-                  </p>
-                  <Panel
-                    className={
-                      "v2-mem-result" + (t.pending ? " v2-mem-result--arriving" : "")
-                    }
-                  >
+                  {/* user turn — right-offset, distinct surface, mono speaker */}
+                  <div className="v2-mem-msg v2-mem-msg--you">
+                    <span className="v2-mem-msg-who v2-mono">YOU</span>
+                    <div className="v2-mem-bubble v2-mem-bubble--you">
+                      <p className="v2-mem-ask">{t.question}</p>
+                    </div>
+                  </div>
+                  {/* archive turn — left-offset, panel surface carries all evidence */}
+                  <div className="v2-mem-msg v2-mem-msg--archive">
+                    <span className="v2-mem-msg-who v2-mono">ARCHIVE</span>
+                    <Panel
+                      className={
+                        "v2-mem-result v2-mem-bubble v2-mem-bubble--archive" +
+                        (t.pending ? " v2-mem-result--arriving" : "")
+                      }
+                    >
                     <p className="v2-mem-answer">{t.answer}</p>
                     <div className="v2-mem-prov v2-mono">
                       {t.usedLlm ? "COMPOSED FROM ARCHIVE" : "EXTRACTIVE · NO LLM"}{" "}
@@ -248,7 +255,8 @@ export default function MemoryConsoleV2() {
                         ))}
                       </div>
                     )}
-                  </Panel>
+                    </Panel>
+                  </div>
                 </div>
               ))}
               <div ref={threadEndRef} />
