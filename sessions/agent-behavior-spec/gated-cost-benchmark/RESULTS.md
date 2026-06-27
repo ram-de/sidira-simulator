@@ -69,7 +69,38 @@ each run appends a row to `RUNS.csv` via `record_run(...)` with `gated=yes`,
 `callable_accuracy`, and `abstain_rate` populated — same table, directly comparable to
 this rank-only baseline.
 
+## Result — product portfolio, LIVE engine (`portfolio_gated_cost.py`)
+
+A live prod run (208cd9e · `benchmark-portfolio` · 10 agents/arm · Groq llama-3.3-70b)
+over **8 real product-change A/B tests**, each a directional bit (treatment vs
+control won). All 8 are deliberately **counter-intuitive** cases — the set is built
+to stress the engine's "more-is-better" bias.
+
+- **Raw direction:** balanced sign-match **0.533** (forced, n=8); **4/6 = 0.667** on
+  the cases it actually called (non-zero signal); it self-abstained (|signal|≈0) on 2/8.
+  At/near the 0.625 "always pick the balance" baseline — consistent with the known
+  finding.
+- **THE MOAT TEST (does confidence track accuracy?) — FAILS on raw signal.** Ordering
+  by |predicted signal| (the engine's own confidence proxy), the risk–coverage curve
+  is **0.00 → 0.50 → 0.33 → 0.50 → 0.60 → 0.67** as coverage rises. The engine's
+  **single most-confident call (multistep-form, +0.17) is its biggest MISS** (the
+  form added steps and lost; the engine confidently predicted it would win). Accuracy
+  *rises* with coverage — the opposite of what an abstention gate needs.
+  (`abstention_is_monotone` returns True only **vacuously** — it no-ops at n<10.)
+
+**Honest conclusion (the strategically important one):** on this data, **abstaining
+on low engine-confidence gives NO lift** — confidence does not track accuracy, so the
+gate would drop correct calls as readily as wrong ones. Dollar savings from raw-signal
+gating ≈ **$0**. This matches the literature (raw LLM confidence is overconfident;
+Kamath 2006.09462): the abstention moat needs a **TRAINED selective-prediction
+calibrator on REAL outcomes**, not the engine's raw signal — i.e. calibration to a
+**client's own A/B history** (#18/#20). Public data can't supply that history, so this
+result **empirically validates the design-partner pilot path** (#23/#24) as the only
+way to actually prove the moat. n=8 is below the gate's certification floor (G0≥50) —
+illustrative, not certified.
+
 ## Files
 - `bench_store.py` — append-only ledger (`RUNS.csv`); `record_run(**fields)` upserts by `run_id`.
 - `gym_gated_cost.py` — the gym rank + cost analysis (records `gym-rank-stored-blind`).
+- `portfolio_gated_cost.py` — the live product-portfolio moat test (records `portfolio-live-pop10`).
 - `RUNS.csv` — the accumulating results table.
