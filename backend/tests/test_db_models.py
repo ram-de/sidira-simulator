@@ -36,6 +36,8 @@ def test_models_import_and_register_with_metadata() -> None:
         # #46 — persisted, admin-managed experiment SOURCES + import-run history.
         "experiment_connections",
         "experiment_import_runs",
+        # #48 — append-only, per-org workspace audit log.
+        "audit_log",
     }
 
 

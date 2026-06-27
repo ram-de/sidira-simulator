@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sidira_simulator.adapters.postgres import database_configured, get_sessionmaker
 from sidira_simulator.adapters.r2 import ArtifactStore
 from sidira_simulator.adapters.repositories import (
+    AuditLogRepo,
     PersonaBuildRepo,
     PostgresFeatureStoreConnectionRepo,
     PostgresPersonaBuildRepo,
@@ -30,9 +31,12 @@ from sidira_simulator.adapters.repositories import (
 )
 from sidira_simulator.api.deps import (
     current_customer_id,
+    current_user_id,
     get_artifact_store,
+    get_audit_log_repo,
     get_persona_build_repo,
 )
+from sidira_simulator.services import audit
 from sidira_simulator.services.persona_builder import BuildConfig, PersonaBuilderService
 from sidira_simulator.services.run_state import RunStateStore
 from sidira_simulator.services.runtime_config import resolve_sidira_env
@@ -115,8 +119,10 @@ async def create_build(
     payload: BuildConfig,
     background_tasks: BackgroundTasks,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     build_repo: PersonaBuildRepo = Depends(get_persona_build_repo),
     store: ArtifactStore = Depends(get_artifact_store),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> BuildSummary:
     """Accept a build config. Returns 202 + build_id; the build runs after the
     response is sent. customer_id comes from the auth scope, never the body."""
@@ -145,6 +151,18 @@ async def create_build(
     mode = resolve_sidira_env("PERSONA_BUILD_MODE", "inprocess")
     if mode != "worker":
         background_tasks.add_task(_run_build, build_id, customer_id, payload, store)
+    # The TRIGGER is the auditable workspace event (the build row is now accepted/
+    # PENDING); the build's eventual outcome rides persona_build_runs, not here.
+    # NON-SECRET context only (the source connection id, not its credentials).
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.PERSONA_BUILD_TRIGGERED,
+        target_type=audit.PERSONA_BUILD,
+        target_id=build_id,
+        metadata={"connection_id": payload.connection_id},
+    )
     return _to_summary(row)
 
 

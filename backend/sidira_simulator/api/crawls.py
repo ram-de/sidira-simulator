@@ -25,6 +25,8 @@ from pydantic import BaseModel, ValidationError
 
 from sidira_simulator.api.deps import (
     current_customer_id,
+    current_user_id,
+    get_audit_log_repo,
     get_crawl_config_repo,
     get_crawl_dispatcher,
     get_crawl_run_repo,
@@ -41,6 +43,7 @@ from sidira_simulator.adapters.github_actions import (
 )
 from sidira_simulator.adapters.repositories import (
     DEFAULT_SETUP_ID,
+    AuditLogRepo,
     CrawlConfigRepo,
     CrawlRunRepo,
     CustomerRepo,
@@ -55,6 +58,7 @@ from sidira_simulator.schemas.crawl import (
     is_safe_setup_id,
     make_setup_id,
 )
+from sidira_simulator.services import audit
 from sidira_simulator.services.runtime_config import resolve_sidira_env
 
 log = structlog.get_logger(__name__)
@@ -188,14 +192,25 @@ def _build_stored_config(payload: CrawlSetupInput, customer_id: str) -> dict:
 async def save_crawl_setup(
     payload: CrawlSetupInput,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> CrawlSetupEnvelope:
     # Same signup-then-act guard as the simulation path: the customer row may
     # not exist yet when the first thing a tenant does is save a crawl setup.
     await customer_repo.ensure_exists(customer_id)
     stored = _build_stored_config(payload, customer_id)
     row = await repo.upsert(customer_id, stored)
+    # Singular endpoint upserts the reserved 'default' setup → record as updated.
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.CRAWL_CONFIG_UPDATED,
+        target_type=audit.CRAWL_CONFIG,
+        target_id=DEFAULT_SETUP_ID,
+    )
     return CrawlSetupEnvelope(
         customer_id=customer_id,
         setup=_rehydrate_setup(row),
@@ -254,8 +269,10 @@ async def list_crawl_setups(
 async def create_crawl_setup(
     payload: CrawlSetupCreateInput,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
     customer_repo: CustomerRepo = Depends(get_customer_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> CrawlSetupSummary:
     """Create a NEW crawl setup under a server-minted, url-safe setup_id.
 
@@ -269,6 +286,15 @@ async def create_crawl_setup(
     setup_id = make_setup_id(payload.name, existing)
     stored = _build_stored_config(payload, customer_id)
     row = await repo.upsert(customer_id, stored, setup_id=setup_id, name=payload.name)
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.CRAWL_CONFIG_CREATED,
+        target_type=audit.CRAWL_CONFIG,
+        target_id=setup_id,
+        metadata={"name": payload.name},
+    )
     return _setup_summary(row)
 
 
@@ -296,7 +322,9 @@ async def update_crawl_setup_by_id(
     payload: CrawlSetupInput,
     name: str | None = None,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> CrawlSetupSummary:
     """Update an existing setup's config (and optionally its ``?name=`` label).
 
@@ -308,6 +336,14 @@ async def update_crawl_setup_by_id(
         raise HTTPException(status_code=404, detail="crawl setup not found")
     stored = _build_stored_config(payload, customer_id)
     row = await repo.upsert(customer_id, stored, setup_id=setup_id, name=name)
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.CRAWL_CONFIG_UPDATED,
+        target_type=audit.CRAWL_CONFIG,
+        target_id=setup_id,
+    )
     return _setup_summary(row)
 
 
@@ -321,7 +357,9 @@ async def update_crawl_setup_by_id(
 async def delete_crawl_setup_by_id(
     setup_id: str,
     customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
     repo: CrawlConfigRepo = Depends(get_crawl_config_repo),
+    audit_repo: AuditLogRepo = Depends(get_audit_log_repo),
 ) -> None:
     """Delete a setup's CONFIG row only. 204 on success.
 
@@ -341,6 +379,14 @@ async def delete_crawl_setup_by_id(
     if await repo.get(customer_id, setup_id) is None:
         raise HTTPException(status_code=404, detail="crawl setup not found")
     await repo.delete(customer_id, setup_id)
+    await audit.record_audit(
+        audit_repo,
+        customer_id=customer_id,
+        actor_user_id=user_id,
+        action=audit.CRAWL_CONFIG_DELETED,
+        target_type=audit.CRAWL_CONFIG,
+        target_id=setup_id,
+    )
     return None
 
 
