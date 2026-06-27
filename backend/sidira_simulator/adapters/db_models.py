@@ -348,6 +348,16 @@ class Conversation(Base):
     customer_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("customers.id", ondelete="CASCADE"), index=True
     )
+    # Per-USER (private) scope (#42): the Clerk session `sub`, distinct from the
+    # org-level customer_id. Conversations are scoped by BOTH (customer_id is the
+    # outer tenant boundary; user_id is the inner private boundary), so a user can
+    # never see another user's thread even within the same org. NULLABLE only for
+    # back-compat with legacy rows created before #42 (a pre-#42 demo thread);
+    # every NEW row always stamps a concrete user_id. Legacy NULL-user rows are
+    # treated as ORG-VISIBLE (visible to any user in the owning tenant) so the
+    # pre-existing demo thread isn't orphaned — see ConversationRepo for the
+    # read/write predicate that encodes this.
+    user_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     # NULL until the first turn auto-titles it (or the user renames). The UI shows
     # a placeholder ("New conversation") for an untitled, empty thread.
     title: Mapped[str | None] = mapped_column(String(256), nullable=True)

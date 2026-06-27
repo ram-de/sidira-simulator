@@ -60,10 +60,15 @@ from sidira_simulator.services.simulation_orchestrator import (
 )
 
 DEFAULT_CUSTOMER_ID = "demo"
+# Dev / test fallback user (the Clerk session `sub` in prod). Mirrors the
+# DEFAULT_CUSTOMER_ID discipline: the env/fallback path only ever runs when the
+# Clerk gate is disabled (local dev, the test suite). In prod the gate sets a
+# concrete user_id on request.state and this fallback is never reached.
+DEFAULT_USER_ID = "demo-user"
 
 
 def current_customer_id(request: Request) -> str:
-    """Resolve the customer for the current request.
+    """Resolve the customer (tenant / Clerk org) for the current request.
 
     Prefers ``request.state.customer_id`` set by the Clerk auth gate from the
     session token. Falls back to the SIDIRA_CUSTOMER_ID env var (with legacy
@@ -76,6 +81,28 @@ def current_customer_id(request: Request) -> str:
     customer_id = resolve_sidira_env("CUSTOMER_ID", DEFAULT_CUSTOMER_ID)
     assert customer_id is not None
     return customer_id
+
+
+def current_user_id(request: Request) -> str:
+    """Resolve the END USER (Clerk session ``sub``) for the current request.
+
+    Distinct from ``current_customer_id``: the customer is the Clerk ORG (the
+    tenant boundary), while this is the individual user inside that org. Used to
+    scope conversations PRIVATELY per user (#42) — a user must never see another
+    user's threads even within the same tenant.
+
+    Prefers ``request.state.user_id`` set by the Clerk auth gate from the session
+    token (the `sub` claim). Falls back to the SIDIRA_USER_ID env var (then
+    "demo-user") for local dev and the test suite, mirroring
+    ``current_customer_id``'s env/fallback discipline so the no-auth path stays
+    deterministic.
+    """
+    from_session = getattr(request.state, "user_id", None)
+    if from_session:
+        return str(from_session)
+    user_id = resolve_sidira_env("USER_ID", DEFAULT_USER_ID)
+    assert user_id is not None
+    return user_id
 
 
 async def get_repository_session() -> AsyncIterator[AsyncSession | None]:

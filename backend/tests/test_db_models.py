@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKeyConstraint, UniqueConstraint
+from sqlalchemy import ForeignKeyConstraint, String, UniqueConstraint
 
 from sidira_simulator.adapters.db_models import (
     AgentFeedback,
@@ -100,6 +100,18 @@ def test_conversations_has_composite_unique_for_child_fk() -> None:
         and {col.name for col in c.columns} == {"id", "customer_id"}
     ]
     assert uniques, "conversations needs UNIQUE(id, customer_id)"
+
+
+def test_conversations_has_indexed_nullable_user_id() -> None:
+    """#42: conversations carries a per-USER (private) scope column. user_id is
+    String(64), NULLABLE (legacy rows / the pre-#42 demo thread need no backfill;
+    new rows always stamp it), and INDEXED (every conversation query now filters
+    on it alongside customer_id)."""
+    col = Conversation.__table__.columns["user_id"]
+    assert col.nullable is True
+    assert col.index is True
+    assert isinstance(col.type, String)
+    assert col.type.length == 64
 
 
 def test_conversation_turns_tenant_and_ordering_constraints() -> None:

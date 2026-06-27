@@ -1906,11 +1906,59 @@ a.v2-sims-row:hover{
   outline-offset:2px;
   border-radius:2px;
 }
+/* on-demand sources disclosure (#43): the citation source cards are collapsed by
+   default behind a quiet "Sources (N)" toggle so the answer reads clean; the
+   evidence stays one click away (or auto-opens when an inline citation link is
+   clicked). The wrapper carries the hairline divider that the always-open list
+   used to own, so the separation is consistent open OR closed. §7.4 / §8.2:
+   tokens only, no chip/pill/icon (§7.10). */
+.v2-mem-sources{
+  margin-top:var(--space-base);
+  padding-top:var(--space-base);
+  border-top:0.75px solid var(--console-line-50);
+}
+/* The toggle is a §7.7 quiet control: a mono designator that reads as a control
+   via a dotted underline (no fill / pill / icon), matching the citation-link
+   register. The +/– caret is a text glyph (§7.10 text-glyph register), not an
+   icon font. */
+.v2-mem-sources-toggle{
+  display:inline-flex;
+  align-items:baseline;
+  gap:var(--space-cozy);
+  font-size:11px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color:var(--text-mut);
+  background:transparent;
+  border:0;
+  padding:0;
+  margin:0;
+  cursor:pointer;
+  text-decoration:underline dotted var(--console-line-60);
+  text-underline-offset:3px;
+  transition:color 0.08s var(--ease-out),
+             text-decoration-color 0.08s var(--ease-out);
+}
+.v2-mem-sources-toggle:hover{
+  color:var(--text-hi);
+  text-decoration-color:var(--signal-dim);
+}
+.v2-mem-sources-toggle:focus-visible{
+  outline:1px solid var(--text-hi);
+  outline-offset:2px;
+  border-radius:2px;
+}
+.v2-mem-sources-caret{
+  font-size:12px;
+  line-height:1;
+  color:var(--text-mut);
+}
 .v2-mem-cites{
   list-style:none;
-  margin:var(--space-base) 0 0;
-  padding:var(--space-base) 0 0;
-  border-top:0.75px solid var(--console-line-50);
+  /* The disclosure wrapper now owns the top divider + leading space; nested in
+     the open disclosure the list just needs a small gap above its first card. */
+  margin:var(--space-cozy) 0 0;
+  padding:0;
   display:flex;
   flex-direction:column;
   gap:var(--space-snug);
