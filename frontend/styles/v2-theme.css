@@ -1736,6 +1736,36 @@ a.v2-sims-row:hover{
   text-transform:uppercase;
   color:var(--text-mut);
 }
+/* inline citation link (#40): the short id (sim-…/exp-…) inside the answer prose,
+   turned into a compact in-app anchor to its source card below — Glean/Perplexity
+   register, restrained for the dark Console (DESIGN.md §7.4 / §8.2). It is a
+   designator, so it reads mono; a dotted underline marks it linkable WITHOUT a
+   loud chip/pill or color carrying the state (§4.3 color-never-alone, §7.10
+   no-icons). Hover/focus lift to ink-hi + a solid edge; never a fill. */
+.v2-mem-citelink{
+  /* sit inline in the body prose without disturbing its line box */
+  font-size:0.92em;
+  letter-spacing:0.02em;
+  color:var(--text);
+  background:transparent;
+  border:0;
+  padding:0;
+  margin:0;
+  cursor:pointer;
+  text-decoration:underline dotted var(--console-line-60);
+  text-underline-offset:2px;
+  transition:color 0.08s var(--ease-out),
+             text-decoration-color 0.08s var(--ease-out);
+}
+.v2-mem-citelink:hover{
+  color:var(--text-hi);
+  text-decoration-color:var(--signal-dim);
+}
+.v2-mem-citelink:focus-visible{
+  outline:1px solid var(--text-hi);
+  outline-offset:2px;
+  border-radius:2px;
+}
 .v2-mem-cites{
   list-style:none;
   margin:var(--space-base) 0 0;
@@ -2132,6 +2162,40 @@ a.v2-sims-row:hover{
 .v2-mem-cite-res{
   white-space:normal;
   line-height:1.45;
+}
+/* citation-jump highlight (#40): when an inline citation link scrolls to its
+   source card, the card pulses a brief signal-tinted edge + recessed fill so the
+   eye lands on the evidence, then settles back. A scroll-margin keeps the card
+   off the very top edge when it anchors into view. Token-only, no new color. */
+.v2-mem-cite{
+  scroll-margin-top:var(--space-room);
+  border-radius:var(--r-well);
+}
+.v2-mem-cite--flash{
+  animation:v2-mem-cite-flash 1.4s var(--ease-out);
+}
+@keyframes v2-mem-cite-flash{
+  0%{
+    background:var(--console-700);
+    box-shadow:inset 0 0 0 1px var(--signal-dim);
+  }
+  70%{
+    background:var(--console-750);
+    box-shadow:inset 0 0 0 1px var(--console-line-60);
+  }
+  100%{
+    background:transparent;
+    box-shadow:inset 0 0 0 1px transparent;
+  }
+}
+/* reduced-motion: keep the affordance but drop the animated pulse — hold a quiet
+   static tint for the same window so the jump target is still visibly marked. */
+@media (prefers-reduced-motion: reduce){
+  .v2-mem-cite--flash{
+    animation:none;
+    background:var(--console-750);
+    box-shadow:inset 0 0 0 1px var(--console-line-60);
+  }
 }
 /* suggested follow-up chips (#32). Reuse the §7.7 quiet/row-action control
    anatomy: mono, rule border, radius 2 (var --r-well = 4 is the panel radius;
