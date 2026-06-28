@@ -61,6 +61,39 @@ lambrecht, anderson — all "real: control, pred: treatment, MISS"). That is a h
 **"the new thing wins" prior**. The council makes that prior explicit and plural and
 lets a router decide when to distrust it. Target to beat: **0.50**.
 
+## Phase C result — council-of-priors: a clean NEGATIVE
+
+Ran live (Groq llama-3.3-70b, blinded, temperature 0). Two case sets:
+
+**Same 14 cases the engine scored 0.50 on** (`PORTFOLIO_CASES_CONFIRM.json`, apples-to-apples):
+
+| predictor | directional acc (n=14) |
+|---|---|
+| naive single call | **0.64** (9/14) |
+| council, unrouted (equal-weight 4 priors) | 0.50 (7/14) |
+| council, routed (router-weighted) | 0.57 (8/14) |
+| full persona-sim engine (prior run) | 0.50 |
+
+**The council mechanism does not work.** Adding explicit prior-members (contrarian,
+base-rate-skeptic) *lowered* accuracy below a single naive call — they flip correct
+answers as often as wrong ones (diversity ≠ accuracy, measured). The router helps over
+the unrouted council (0.57 > 0.50) but cannot recover the naive baseline, and it
+under-fires `COUNTER_INTUITIVE` exactly on the cases that needed it.
+
+On the **other 8 product cases** (`PORTFOLIO_CASES.json`) all three variants tied at
+**0.75** — but that set is contamination-prone (famous case studies) and has no matched
+engine baseline, so it proves nothing on its own.
+
+**Provocative secondary signal (n=14, a lead not a finding):** the dead-simple single
+narrative call (0.64) edges out the full persona-simulation engine (0.50) on identical
+cases — the elaborate pipeline may be adding noise, not accuracy. Worth a clean,
+pre-registered, decontaminated head-to-head.
+
+**Verdict:** the council-of-priors as a generative mechanism is rejected. The only
+reusable piece is the *router as a confidence/abstention signal*, and making it
+trustworthy needs calibration against real outcomes — the same ground-truth wall the
+empirical route (Phase A) sidesteps for the feature-expressible slice.
+
 ## Status / next
 
 - [x] **Phase A** — synthetic-fixture proof (`uplift_spike.py`). Empirical route beats

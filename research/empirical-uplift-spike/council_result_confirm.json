@@ -1,0 +1,222 @@
+{
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "accuracy": {
+    "naive_only": 0.6428571428571429,
+    "council_unrouted": 0.5,
+    "council_routed": 0.5714285714285714
+  },
+  "baseline_single_agent": 0.5,
+  "results": [
+    {
+      "id": "ascarza_proactive_plan_recommendation",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "COUNTER_INTUITIVE",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "kanuri_andrews_service_recovery_incentive",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "algesheimer_ebay_community",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "lambrecht_tucker_dynamic_retargeting",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "anderson_simester_installment_billing",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "dholakia_simonson_reference_points",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "COUNTER_INTUITIVE",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "anderson_simester_sale_sign_saturation",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "office_help_widget",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "alibaba_recommender_set_size",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "COUNTER_INTUITIVE",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "control",
+        "contrarian": "treatment",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "low_default_charity_pledge",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "bing_antimalware_ad_removal",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "growthrock_add_star_rating",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "bionicgloves_remove_coupon_fields",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "COUNTER_INTUITIVE",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "control",
+        "contrarian": "treatment",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "blivakker_remove_three_reg_fields",
+      "real": "treatment",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "treatment",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "accuracy": {
+    "naive_only": 0.75,
+    "council_unrouted": 0.75,
+    "council_routed": 0.75
+  },
+  "baseline_single_agent": 0.5,
+  "results": [
+    {
+      "id": "cookiecats_gate_move",
+      "real": "control",
+      "counter_intuitive": "high",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "duolingo_weekend_amulet",
+      "real": "treatment",
+      "counter_intuitive": "high (a skip-day safety valve 'should' weaken the habit loop; it raised return)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "msn_realestate_widget",
+      "real": "treatment",
+      "counter_intuitive": "high (only 3/21 experts predicted the winner; richer designs were the prior)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "office_online_redesign",
+      "real": "control",
+      "counter_intuitive": "high (prettier, better-liked design lost decisively)",
+      "regime": "COUNTER_INTUITIVE",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "control",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "msn_homepage_extra_offers",
+      "real": "control",
+      "counter_intuitive": "med-high (marketing projected big gains; clutter cost net money)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "control",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "control"
+      },
+      "pred_naive_only": "control",
+      "pred_council_unrouted": "control",
+      "pred_council_routed": "control"
+    },
+    {
+      "id": "tinkoff_defer_passport",
+      "real": "treatment",
+      "counter_intuitive": "med (letting a required field be skipped feels risky)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "treatment",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "cxl_form_fields_9_to_6",
+      "real": "control",
+      "counter_intuitive": "high ('fewer fields always win' is near-universal)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "treatment",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    },
+    {
+      "id": "multistep_form_3_vs_6",
+      "real": "control",
+      "counter_intuitive": "high (fewer steps is the textbook answer; it lost)",
+      "regime": "MORE_BETTER",
+      "votes": {
+        "naive": "treatment",
+        "more_is_better": "treatment",
+        "contrarian": "control",
+        "base_rate_skeptic": "treatment"
+      },
+      "pred_naive_only": "treatment",
+      "pred_council_unrouted": "treatment",
+      "pred_council_routed": "treatment"
+    }
+  ]
+}

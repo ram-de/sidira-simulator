@@ -109,6 +109,25 @@ ROUTER_WEIGHTS = {
     "COUNTER_INTUITIVE": {"contrarian": 1.0, "base_rate_skeptic": 0.8, "naive": 0.4, "more_is_better": 0.2},
 }
 
+def load_cases(path: Path) -> list[dict]:
+    """Find the case array in a portfolio JSON: top-level list, a 'scored_cases'
+    key, or the first nested list of dicts carrying control/treatment/real_winner."""
+    d = json.loads(path.read_text())
+    if isinstance(d, list):
+        cand = d
+    elif isinstance(d, dict) and isinstance(d.get("scored_cases"), list):
+        cand = d["scored_cases"]
+    else:
+        cand = None
+        for v in (d.values() if isinstance(d, dict) else []):
+            if isinstance(v, list) and v and isinstance(v[0], dict) and "control" in v[0] and "real_winner" in v[0]:
+                cand = v
+                break
+    if not cand:
+        raise SystemExit(f"no case array with control/treatment/real_winner in {path}")
+    return [c for c in cand if c.get("control") and c.get("real_winner")]
+
+
 def blinded_case_text(c: dict) -> str:
     return (
         f"Domain: {c['domain']}\n"
@@ -196,9 +215,11 @@ def main():
     ap.add_argument("--provider", default=None, help="groq|anthropic (auto from env if unset)")
     ap.add_argument("--model", default=None)
     ap.add_argument("--dry-run", action="store_true", help="print prompts for case 1, no API calls")
+    ap.add_argument("--cases", default=str(CASES_PATH), help="path to a portfolio cases JSON")
+    ap.add_argument("--out", default=None, help="output JSON path (default: council_result.json)")
     args = ap.parse_args()
 
-    cases = json.loads(CASES_PATH.read_text())["scored_cases"]
+    cases = load_cases(Path(args.cases))
 
     if args.dry_run:
         c = cases[0]
@@ -233,7 +254,7 @@ def main():
     print("baseline: single-agent engine = 0.50 (portfolio_comparative_result.json); prior_accuracy = 0.286")
     print("NOTE: n=8, directional-only, contamination-prone — a SIGNAL, not a validation.")
 
-    out = Path(__file__).with_name("council_result.json")
+    out = Path(args.out) if args.out else Path(__file__).with_name("council_result.json")
     out.write_text(json.dumps({"provider": provider, "model": chat.model, "accuracy": acc,
                                "baseline_single_agent": 0.50, "results": results}, indent=2))
     print(f"\nwrote {out}")
