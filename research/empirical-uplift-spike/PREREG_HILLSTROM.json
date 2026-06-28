@@ -1,0 +1,35 @@
+{
+  "prereg_id": "realdata-hillstrom-confounding-v1",
+  "dataset": "Hillstrom MineThatData E-Mail (64000 rows). Arms: Womens/Mens/No E-Mail. 8 PRE-treatment features (recency, history_segment, history, mens, womens, zip_code, newbie, channel); outcomes visit/conversion/spend.",
+  "registered_before_running": true,
+  "contrast": "Womens E-Mail (T=1) vs No E-Mail (T=0); Mens arm dropped.",
+  "why_this_dataset": "The clean version of Cookie Cats: every covariate is measured BEFORE the email, so adjusting for them is valid with no mediator caveat. Also lets us run the real-data UNOBSERVED-confounder bound (adjust WITHOUT the variable we confounded on).",
+  "established_ground_truth_RCT": {
+    "note": "Full-RCT diff-in-means = measurement of a real randomized experiment (not prediction).",
+    "visit_ate_womens_minus_no_pp": 4.52,
+    "conversion_ate_pp": 0.31,
+    "winner": "treatment (email lifts visits/conversion)"
+  },
+  "design": {
+    "mechanism": "SELECTION, not reassignment. Every customer keeps real arm + real outcome; we choose who enters the analyzed sample with keep-prob depending on (arm, baseline spend).",
+    "confounder": "h = standardized log1p(history)  (history = prior 12-month spend, PRE-treatment)",
+    "keep_probability": "email arm: sigmoid(-beta*h)  [over-samples LOW spenders];  no-email arm: sigmoid(+beta*h)  [over-samples HIGH spenders]",
+    "beta": 1.5,
+    "seed": 20260628,
+    "intended_effect": "email arm skews to low-history customers (who visit less); no-email skews high-history (who visit more). Naive diff-in-means is biased DOWNWARD -> toward the WRONG (negative) sign, opposite the true +4.5pp."
+  },
+  "adjustment_sets": {
+    "full_includes_confounder": ["recency", "log_history", "mens", "womens", "newbie", "channel_onehot", "zip_onehot"],
+    "ablated_omits_confounder": ["recency", "mens", "womens", "newbie", "channel_onehot", "zip_onehot"]
+  },
+  "predictions_about_METHODS": {
+    "naive_diff_in_means_confounded": "SIGN WRONG (negative) or severely biased downward vs true +4.5pp.",
+    "causal_adjust_WITH_confounder": "SIGN RIGHT (positive) — recovers the true email lift.",
+    "causal_adjust_WITHOUT_confounder_unobserved": "WRONG / badly attenuated — omitting the variable we confounded on reproduces the spike's S2 bound on REAL data."
+  },
+  "honesty_caveats": {
+    "constructed_confounding": "Injected from real data — robustness demo on real outcomes + real PRE-treatment covariates, not a found observational set.",
+    "obvious_direction": "The true email->visit effect is obvious/positive (unlike Cookie Cats). The test is methodological (recover sign under confounding), not counter-intuitiveness.",
+    "power_vs_breadth": "64k customers but ONE A/B contrast. Depth, not a cross-experiment accuracy claim."
+  }
+}

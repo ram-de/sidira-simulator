@@ -1,0 +1,31 @@
+{
+  "prereg_id": "realdata-cookiecats-confounding-v1",
+  "dataset": "Cookie Cats (ryanschaub mirror, 90189 rows; userid, version, sum_gamerounds, retention_1, retention_7)",
+  "registered_before_running_part2": true,
+  "established_ground_truth_RCT": {
+    "note": "Part 1 (full-RCT diff-in-means) is MEASUREMENT of a real randomized experiment, not prediction. Stated here as the target the confounded-sample methods must recover.",
+    "primary_metric": "retention_7",
+    "ate_40_minus_30_pp": -0.82,
+    "winner": "gate_30 (control)",
+    "secondary_metric_retention_1_ate_pp": -0.59
+  },
+  "design": {
+    "what": "Take the real RCT, then INJECT selection bias so the analyzed sample is no longer balanced on engagement, then test whether causal adjustment recovers the true (negative) sign where naive averaging fails.",
+    "mechanism": "SELECTION, not reassignment: every user keeps their REAL arm and REAL outcome. We only choose WHICH users enter the analyzed sample, with a keep-probability depending on (arm, engagement).",
+    "covariate": "z = standardized log1p(sum_gamerounds)",
+    "keep_probability": "gate_40 (treatment): sigmoid(beta * z);  gate_30 (control): sigmoid(-beta * z)",
+    "beta": 1.5,
+    "seed": 20260627,
+    "intended_effect": "treatment arm over-samples HIGH-engagement users, control arm over-samples LOW-engagement users. Since engagement correlates ~0.54 with retention, the treatment arm's raw retention is inflated -> naive diff-in-means is biased UPWARD (toward 'treatment wins')."
+  },
+  "predictions_about_METHODS": {
+    "naive_diff_in_means_on_confounded_sample": "SIGN WRONG — predicts ATE >= 0 (gate_40 >= gate_30), opposite of the true negative, because selection inflates the treatment arm.",
+    "causal_adjustment_T_learner_standardization": "SIGN RIGHT — recovers ATE < 0 (gate_30 wins) by standardizing per-arm outcome models over a common engagement distribution.",
+    "causal_adjustment_IPW_selection": "SIGN RIGHT — recovers ATE < 0 by re-weighting to undo the selection."
+  },
+  "honesty_caveats": {
+    "constructed_confounding": "The confounding is INJECTED from real data — this demonstrates the method's robustness on real outcomes + a real covariate, NOT a found observational dataset.",
+    "covariate_is_post_treatment": "sum_gamerounds is plausibly POST-treatment (a mediator of gate placement), so this is a SELECTION-bias-correction demo using an observed covariate, NOT a claim that it is a clean pre-treatment confounder. Hillstrom (recency/history/channel measured PRE-email) supplies the clean pre-treatment version next.",
+    "power_vs_breadth": "90189 users but ONE A/B decision. Depth, not a powered cross-experiment accuracy claim."
+  }
+}

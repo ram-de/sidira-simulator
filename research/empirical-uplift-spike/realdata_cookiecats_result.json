@@ -1,0 +1,44 @@
+{
+  "dataset": "cookie_cats",
+  "n": 90189,
+  "beta": 1.5,
+  "seed": 20260627,
+  "results": [
+    {
+      "metric": "retention_7",
+      "true_ate_pp": -0.82,
+      "selected_n": 45037,
+      "eng_treat_vs_control": [
+        86.7,
+        16.8
+      ],
+      "naive_confounded_pp": 22.01,
+      "t_learner_pp": -0.815,
+      "ipw_selection_pp": -0.608,
+      "sign": {
+        "true": "control",
+        "naive": "WRONG",
+        "t_learner": "RIGHT",
+        "ipw_selection": "RIGHT"
+      }
+    },
+    {
+      "metric": "retention_1",
+      "true_ate_pp": -0.591,
+      "selected_n": 45037,
+      "eng_treat_vs_control": [
+        86.7,
+        16.8
+      ],
+      "naive_confounded_pp": 34.367,
+      "t_learner_pp": -0.402,
+      "ipw_selection_pp": -0.076,
+      "sign": {
+        "true": "control",
+        "naive": "WRONG",
+        "t_learner": "RIGHT",
+        "ipw_selection": "RIGHT"
+      }
+    }
+  ]
+}

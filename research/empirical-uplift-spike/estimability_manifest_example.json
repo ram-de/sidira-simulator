@@ -1,0 +1,136 @@
+{
+  "manifest_version": "1.0",
+  "customer_id": "acme",
+  "setup_id": "default",
+  "pack_version": "v_1",
+  "feature_store": "fixture://hillstrom",
+  "columns": [
+    {
+      "name": "womens_email",
+      "dtype": "number",
+      "role": "treatment_candidate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "visit",
+      "dtype": "number",
+      "role": "outcome_candidate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "conversion",
+      "dtype": "number",
+      "role": "outcome_candidate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "recency",
+      "dtype": "number",
+      "role": "covariate",
+      "distinct_count": 12,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "loghist",
+      "dtype": "number",
+      "role": "covariate",
+      "distinct_count": 26553,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "mens",
+      "dtype": "number",
+      "role": "covariate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "womens",
+      "dtype": "number",
+      "role": "covariate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    },
+    {
+      "name": "newbie",
+      "dtype": "number",
+      "role": "covariate",
+      "distinct_count": 2,
+      "null_fraction": 0.0,
+      "has_variation": true
+    }
+  ],
+  "capability_links": [
+    {
+      "capability_name": "Womens email campaign",
+      "surfaces": [
+        "email"
+      ],
+      "treatment_column": "womens_email",
+      "linked": true
+    },
+    {
+      "capability_name": "Live group-order video feed",
+      "surfaces": [
+        "home"
+      ],
+      "treatment_column": null,
+      "linked": false
+    }
+  ],
+  "candidate_effects": [
+    {
+      "treatment": "womens_email",
+      "outcome": "visit",
+      "covariates": [
+        "recency",
+        "loghist",
+        "mens",
+        "womens",
+        "newbie"
+      ],
+      "supportable": true,
+      "support_reasons": [],
+      "n_treat": 21387,
+      "n_control": 21306,
+      "naive_ate": 0.045233106587052985,
+      "t_learner_ate": 0.04536406257334139,
+      "ipw_ate": 0.045411751611775124,
+      "overlap_fraction": 1.0,
+      "naive_adjusted_gap": 0.00013095598628840716,
+      "sign_adjusted": "positive"
+    },
+    {
+      "treatment": "womens_email",
+      "outcome": "conversion",
+      "covariates": [
+        "recency",
+        "loghist",
+        "mens",
+        "womens",
+        "newbie"
+      ],
+      "supportable": true,
+      "support_reasons": [],
+      "n_treat": 21387,
+      "n_control": 21306,
+      "naive_ate": 0.003111057511085258,
+      "t_learner_ate": 0.0031010574188574747,
+      "ipw_ate": 0.0031179691694724343,
+      "overlap_fraction": 1.0,
+      "naive_adjusted_gap": 1.0000092227783162e-05,
+      "sign_adjusted": "positive"
+    }
+  ],
+  "built_at": null
+}
