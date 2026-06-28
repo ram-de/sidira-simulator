@@ -97,7 +97,7 @@ def client(tmp_path, monkeypatch):
     app.dependency_overrides.clear()
 
 
-def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
+def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3, estimability_manifest=None):
     def _fake(rows, column_mapping, config, customer_id, run_id):
         # Mirror the real binding: persona_pack is the PRODUCER wire dict
         # (company_id/created_at/overall_stability + per-persona weights), which
@@ -124,6 +124,7 @@ def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
             stability_score=stability,
             persona_count=persona_count,
             prompts={"P00": "# persona 0"},
+            estimability_manifest=estimability_manifest,
         )
 
     monkeypatch.setattr(pb_mod, "run_personas_pipeline", _fake)
@@ -167,6 +168,64 @@ def test_post_returns_202_and_drives_to_complete(client, monkeypatch):
     assert len(json.loads(raw)["personas"]) == 3
     # Manifest written too.
     client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_1/manifest.json")
+
+
+# ── estimability manifest (additive artifact, #estimability-port phase 3) ──
+
+
+def test_estimability_manifest_written_with_pack_version_overridden(client, monkeypatch):
+    """A valid estimability manifest is persisted beside the pack, with its
+    placeholder run_id pack_version overridden to the authoritative R2 v_N."""
+    manifest = {
+        "manifest_version": "1.0",
+        "pack_version": "run-xyz",  # library placeholder, must be overridden
+        "candidate_effects": [
+            {"name": "promo_uplift", "estimable": True},
+            {"name": "ad_aversion", "estimable": False},
+        ],
+    }
+    _patch_pipeline(monkeypatch, estimability_manifest=manifest)
+    client.post("/persona-builds", json=_CONFIG)
+
+    raw = client._store.read_text(
+        f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+    )
+    got = json.loads(raw)
+    assert got["pack_version"] == "v_1"  # overridden from "run-xyz"
+    assert got["manifest_version"] == "1.0"
+    assert [e["name"] for e in got["candidate_effects"]] == ["promo_uplift", "ad_aversion"]
+
+
+def test_estimability_manifest_nan_sanitized_to_null(client, monkeypatch):
+    """A NaN in the manifest is mapped to null so the written file is strict JSON."""
+    manifest = {
+        "manifest_version": "1.0",
+        "candidate_effects": [{"name": "all_degenerate", "score": float("nan")}],
+    }
+    _patch_pipeline(monkeypatch, estimability_manifest=manifest)
+    client.post("/persona-builds", json=_CONFIG)
+
+    raw = client._store.read_text(
+        f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+    )
+    # Strict JSON (json.loads rejects bare NaN) → must parse cleanly.
+    got = json.loads(raw)
+    assert got["candidate_effects"][0]["score"] is None
+
+
+def test_no_estimability_manifest_when_absent(client, monkeypatch):
+    """Default None → no estimability file written; the pack is still written
+    normally (additive — the money path is unaffected)."""
+    _patch_pipeline(monkeypatch)  # estimability_manifest defaults to None
+    client.post("/persona-builds", json=_CONFIG)
+
+    # Pack still written.
+    client._store.read_text(f"customers/{_CUSTOMER_ID}/personas/v_1/persona_pack.json")
+    # Estimability artifact absent.
+    with pytest.raises(FileNotFoundError):
+        client._store.read_text(
+            f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+        )
 
 
 def test_written_pack_validates_as_consumer_schema(client, monkeypatch):
