@@ -117,24 +117,52 @@ The one mechanism that genuinely worked is the **empirical/causal route (Phase A
 survives precisely because it learns from *data*, not narratives. That is the angle worth
 pursuing.
 
+## Phase B (real data) — Cookie Cats, 90,189 real players
+
+The synthetic spike, redone on **real human A/B outcomes** (`realdata_uplift.py`,
+design sealed in `PREREG_REALDATA.json`, sha256 `027aa4a8…`). True effect is the
+established RCT: gate_30 (control) wins (retention_7 ATE −0.82pp). We then INJECT
+selection bias on engagement (treatment arm pulled to 86.7 avg rounds vs control's
+16.8 — like a change rolled out to power users first) and test recovery:
+
+| retention_7 (true −0.82pp, control) | estimate | sign |
+|---|---|---|
+| naive diff-in-means (confounded) | **+22.01pp** | **WRONG** — confounding makes the loser look like a huge winner |
+| T-learner standardization (causal) | −0.81pp | **RIGHT** (recovers −0.82pp almost exactly) |
+| IPW selection-corrected (causal) | −0.61pp | **RIGHT** |
+
+(retention_1 same pattern: naive +34.4pp WRONG; causal −0.40 / −0.08pp RIGHT.) Exactly
+as pre-registered. The empirical route's S1 win is now demonstrated on real data at scale.
+
+**Honest caveats (registered):** the confounding is *injected* (real outcomes + real
+covariate, constructed selection), and `sum_gamerounds` is plausibly *post-treatment* —
+so this is a selection-bias-correction demo, not a clean pre-treatment-confounder claim.
+Recovery is near-exact partly because we adjust for the *same* variable we selected on
+(the favorable case); the unobserved-confounder case (spike S2) still defeats it. Next:
+**Hillstrom** (recency/history/channel measured *before* the email) for the clean
+pre-treatment version. Power: 90k users but ONE A/B decision — depth, not breadth.
+
 ## Status / next
 
 - [x] **Phase A** — synthetic-fixture proof (`uplift_spike.py`). Empirical route beats
       the obvious prior on the feature-expressible slice (S1); honest bound where an
       unobserved confounder defeats it (S2).
+- [x] **Phase B (real data)** — Cookie Cats 90k: causal adjustment recovers the true
+      counter-intuitive sign (−0.81pp vs −0.82pp truth) where naive averaging is
+      catastrophically wrong (+22pp). Pre-registered + sealed.
 - [x] **Phase C built** — `council_benchmark.py`: 4 explicit-prior members
       (naive / more-is-better / contrarian / base-rate-skeptic) + a regime router, with a
       **pre-registered** consolidation rule, blindness (members see only
       domain/control/treatment/metric), and 3 ablations (naive-only / council-unrouted /
       council-routed). Dry-run verified. **Needs an LLM key to execute** — `--dry-run`
       prints prompts without spend.
-- [ ] **Phase B** — live LLM-engine vs causal-ML head-to-head. Better run on the
-      *portfolio* (real product changes with a working harness) than on the synthetic
-      fixture (no natural persona representation). **Blocked on:** no LLM key in env +
-      empty `local-artifacts` (no persona packs).
-- [ ] **Run gate** — both LLM phases need a `GROQ_API_KEY` (cheap; llama-3.3-70b) or an
-      approved EC2-box run. Then: execute the council, compare to 0.50.
+- [x] **LLM head-to-head** — ran live (Groq llama-3.3-70b). Council rejected; comparative
+      vs roleplay vs naive all at/below chance; naive-beats-engine lead retracted (see above).
+- [ ] **Hillstrom** — repeat the real-data confounding test with clean *pre-treatment*
+      covariates (the methodologically tight version of Cookie Cats Phase B).
+- [ ] **Hillstrom/Upworthy LLM** — confirm "no-persona ≥ persona-roleplay" generalizes
+      beyond the 14-case set (less contamination than famous Cookie Cats).
 
-> Caveat: S1/S2 are constructed demonstrations, not measured outcomes — they prove the
-> *mechanism*, not a live accuracy number. The council result will be n=8, directional-
-> only, contamination-prone: a **signal**, not a validation.
+> Caveat: Phase A S1/S2 are constructed demonstrations; Phase B uses real outcomes but
+> *injected* confounding (favorable case — adjusts for the selected-on variable). The LLM
+> results are n≤14, directional-only, contamination-prone — signals, not validations.
