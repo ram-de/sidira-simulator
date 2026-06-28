@@ -92,9 +92,21 @@ persona-simulation engine has come back null. Find the one angle that actually w
       real Hillstrom sweep (max NC = recency ≈0.6). Upgraded `negative_control_guard()` to accept a
       control set + return per-control effects; self-test green.
 
+- [x] **iter5 — true-null guard (LEAD, held-out synthetic).** `iter5_truenull.py`, sealed
+      `PREREG_ITER5_TRUENULL.md` (sha256 a77c1996). Closes the last gap: trust the main sign only
+      if |main| > 1.5·|nc_residual| (the bias the control reveals), else abstain. P1 2/2 (both
+      true-nulls now abstain; old guard called both confident-wrong "treatment"), P2 3/3 (clear
+      real effects still trusted), P3 3/3 (sub-bias real effects honestly deferred to LLM, 0 wrong).
+      Recalibrated confounder to mostly-linear (sub-floor residuals) BEFORE commit/unseal so the
+      ratio rule — not the floor — was under test. Folded ratio into `negative_control_guard()`.
+- [x] **Founder readout written + (to be) merged to main:** `founder-readout/README.md` — plain-
+      language, road-readable, DoorDash + fridge-thermometer examples, the 6-experiment story,
+      honest limits. Per the "land campaign docs on main" preference.
+
 ## Campaign ledger (research/engine-strength-campaign/LEDGER.md)
 iter0 MECH-ONLY · iter1 NULL · iter2 LEAD (held-out synth) · iter3 LEAD (real Hillstrom + adv) ·
-iter4 LEAD (consensus, held-out synth). **Net: the negative-control guard — single + consensus —
+iter4 LEAD (consensus, held-out synth) · iter5 LEAD (true-null ratio). Guard now COMPLETE 3-part
+gate: floor (hidden conf) + consensus (robust to weak control) + ratio (true-null/sub-bias). **Net: the negative-control guard — single + consensus —
 is the campaign's validated win**, closing the iter0 calibration gap (overlap can't see hidden
 confounding). Validated across synthetic held-out + real RCT + adversarial; consolidated into
 `causal_estimator.py::negative_control_guard()`. Open gaps / next: (a) **true-null** false-positive
