@@ -51,15 +51,15 @@ trust per hypothesis) — one classifier unlocks both routes.
 
 Deterministic (seed 20260627). Deps: numpy, scikit-learn.
 
-## The baseline the council must beat (existing engine result)
+## The baseline the council aimed to beat
 
 `sessions/agent-behavior-spec/portfolio-benchmark/portfolio_comparative_result.json`:
-the **single-agent engine scores 0.50 directional accuracy** (7/14) — chance — and
-the errors are *systematic*: on high-counter-intuitive cases it predicts `treatment`
-almost every time the real winner was `control` (ascarza, kanuri, algesheimer,
-lambrecht, anderson — all "real: control, pred: treatment, MISS"). That is a hidden
-**"the new thing wins" prior**. The council makes that prior explicit and plural and
-lets a router decide when to distrust it. Target to beat: **0.50**.
+the *comparative-forecaster* (NOT the persona-sim engine — see the retraction below)
+scores **0.50 directional accuracy** (7/14) — chance — and its errors are *systematic*:
+on high-counter-intuitive cases it predicts `treatment` almost every time the real winner
+was `control` (ascarza, kanuri, algesheimer, lambrecht, anderson — all MISS). That hidden
+**"the new thing wins" prior** is what the council tried to correct by making the prior
+explicit and plural with a router to decide when to distrust it. Target: **0.50**.
 
 ## Phase C result — council-of-priors: a clean NEGATIVE
 
@@ -72,7 +72,8 @@ Ran live (Groq llama-3.3-70b, blinded, temperature 0). Two case sets:
 | naive single call | **0.64** (9/14) |
 | council, unrouted (equal-weight 4 priors) | 0.50 (7/14) |
 | council, routed (router-weighted) | 0.57 (8/14) |
-| full persona-sim engine (prior run) | 0.50 |
+| comparative-forecaster (prior baseline, sonnet) | 0.50 |
+| per-arm persona-roleplay (the simulation) | 0.286 |
 
 **The council mechanism does not work.** Adding explicit prior-members (contrarian,
 base-rate-skeptic) *lowered* accuracy below a single naive call — they flip correct
@@ -84,15 +85,37 @@ On the **other 8 product cases** (`PORTFOLIO_CASES.json`) all three variants tie
 **0.75** — but that set is contamination-prone (famous case studies) and has no matched
 engine baseline, so it proves nothing on its own.
 
-**Provocative secondary signal (n=14, a lead not a finding):** the dead-simple single
-narrative call (0.64) edges out the full persona-simulation engine (0.50) on identical
-cases — the elaborate pipeline may be adding noise, not accuracy. Worth a clean,
-pre-registered, decontaminated head-to-head.
+### A "naive beats the engine" lead — investigated, then RETRACTED
 
-**Verdict:** the council-of-priors as a generative mechanism is rejected. The only
-reusable piece is the *router as a confidence/abstention signal*, and making it
-trustworthy needs calibration against real outcomes — the same ground-truth wall the
-empirical route (Phase A) sidesteps for the feature-expressible slice.
+First read: the naive call (0.64) seemed to beat "the engine" (0.50). Checking
+`portfolio_comparative.py` killed it. The 0.50 baseline is **not** the persona-sim engine
+— it is the *comparative-forecaster* (show one expert both versions + the metric, ask
+which wins; k=4) on **claude-sonnet-4-6**, essentially the same method as my naive call.
+Re-running it on **my** model (llama-3.3-70b) scores **0.500 again**
+(`comparative_llama_result.json`) — nearly case-for-case identical. So the 0.64-vs-0.50
+gap was **model confound + n=14 noise** (a 2-case difference: ascarza, office_help), not
+a method win. *There is no naive-beats-engine effect.*
+
+What the baselines actually show (same 14 cases):
+
+| method | dir. acc | note |
+|---|---|---|
+| per-arm persona-roleplay (the "simulation") | **0.286** | below chance — more-is-better bias (known, #342) |
+| comparative narrative call (sonnet, k=4) | 0.50 | at chance |
+| comparative narrative call (llama, k=4) | 0.50 | at chance — model confound killed |
+| my naive call (llama, k=1) | 0.64 | 9/14, p≈0.4 vs chance — NOT significant |
+| council routed / unrouted | 0.57 / 0.50 | worse than naive |
+
+**Robust, sobering conclusion:** on this set, *no* LLM forecasting method — roleplay,
+comparative, council, or naive — reliably beats chance (0.50) at calling the directional
+winner. The simulation machinery is actively *worse* than a one-line comparison (0.286 vs
+0.50), as the team already found in #342. Consistent with the campaign's other nulls
+(Upworthy, Hillstrom).
+
+**Verdict:** council-of-priors rejected; the naive-beats-engine lead retracted as noise.
+The one mechanism that genuinely worked is the **empirical/causal route (Phase A)** — it
+survives precisely because it learns from *data*, not narratives. That is the angle worth
+pursuing.
 
 ## Status / next
 
