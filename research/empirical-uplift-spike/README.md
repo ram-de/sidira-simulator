@@ -142,6 +142,36 @@ Recovery is near-exact partly because we adjust for the *same* variable we selec
 **Hillstrom** (recency/history/channel measured *before* the email) for the clean
 pre-treatment version. Power: 90k users but ONE A/B decision — depth, not breadth.
 
+## Phase B (real data) — Hillstrom, 42,693 customers (clean pre-treatment covariates)
+
+The methodologically tight version (`realdata_hillstrom.py`, sealed in
+`PREREG_HILLSTROM.json`, sha256 `ffcb13d9…`). Womens E-Mail vs No E-Mail; true RCT =
+email lifts visits **+4.52pp** (treatment wins — opposite polarity to Cookie Cats). All 8
+covariates are measured *before* the email, so adjusting for them has no mediator caveat.
+Injected selection on baseline spend (email arm pulled to $123 avg history vs control's
+$358).
+
+| visit (true +4.52pp, treatment) | estimate | sign |
+|---|---|---|
+| naive diff-in-means (confounded) | +2.12pp | RIGHT (but halved) |
+| causal, adjust WITH confounder — T-learner / IPW | **+4.97 / +4.88pp** | **RIGHT** (recovers +4.52) |
+| causal, WITHOUT confounder (S2 attempt) — T-learner / IPW | +3.60 / +4.42pp | RIGHT |
+
+**Primary result — confirmed:** causal adjustment recovers the true effect on clean
+pre-treatment covariates → removes the one caveat Cookie Cats carried.
+
+**Two pre-registered sub-predictions REFUTED (reported honestly, not re-tuned):**
+1. Naive did *not* flip sign — only attenuated (+2.12 vs +4.52). The true effect is too
+   large for the injected confounding to overpower. (Cookie Cats flipped because its true
+   effect is tiny, −0.82pp.)
+2. The "unobserved confounder" ablation did *not* fail — dropping `history` still recovered
+   (+3.60pp), because the **other pre-treatment covariates proxy spend**. "Unobserved" only
+   bites with no observed proxy; Hillstrom's correlated covariates don't provide that.
+   Cookie Cats' synthetic S2 remains the clean bound illustration.
+
+Net: the empirical route's core mechanism holds on two real datasets of opposite polarity;
+its *dramatic* failure modes are condition-specific, now characterized.
+
 ## Status / next
 
 - [x] **Phase A** — synthetic-fixture proof (`uplift_spike.py`). Empirical route beats
@@ -158,10 +188,13 @@ pre-treatment version. Power: 90k users but ONE A/B decision — depth, not brea
       prints prompts without spend.
 - [x] **LLM head-to-head** — ran live (Groq llama-3.3-70b). Council rejected; comparative
       vs roleplay vs naive all at/below chance; naive-beats-engine lead retracted (see above).
-- [ ] **Hillstrom** — repeat the real-data confounding test with clean *pre-treatment*
-      covariates (the methodologically tight version of Cookie Cats Phase B).
-- [ ] **Hillstrom/Upworthy LLM** — confirm "no-persona ≥ persona-roleplay" generalizes
+- [x] **Hillstrom** — clean pre-treatment covariates: causal adjustment recovers the true
+      +4.52pp email lift (T-learner +4.97 / IPW +4.88). Two staged failure-modes (naive
+      flip, S2 ablation) pre-registered and REFUTED — reported honestly, not re-tuned.
+- [ ] **Upworthy LLM / no-persona generalization** — confirm "no-persona ≥ persona-roleplay"
       beyond the 14-case set (less contamination than famous Cookie Cats).
+- [ ] **Productize the survivor** — the feature-expressibility router: data-supported,
+      feature-expressible change → empirical engine; else → LLM. Socialize + scope a build.
 
 > Caveat: Phase A S1/S2 are constructed demonstrations; Phase B uses real outcomes but
 > *injected* confounding (favorable case — adjusts for the selected-on variable). The LLM

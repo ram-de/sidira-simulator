@@ -1,0 +1,46 @@
+{
+  "dataset": "hillstrom",
+  "n": 42693,
+  "beta": 1.5,
+  "seed": 20260628,
+  "results": [
+    {
+      "metric": "visit",
+      "true_ate_pp": 4.523,
+      "selected_n": 21343,
+      "hist_treat_vs_control": [
+        123.1,
+        358.1
+      ],
+      "naive_pp": 2.119,
+      "naive_sign": "RIGHT",
+      "tl_full_pp": 4.971,
+      "tl_full_sign": "RIGHT",
+      "ipw_full_pp": 4.876,
+      "ipw_full_sign": "RIGHT",
+      "tl_ablated_pp": 3.604,
+      "tl_ablated_sign": "RIGHT",
+      "ipw_ablated_pp": 4.418,
+      "ipw_ablated_sign": "RIGHT"
+    },
+    {
+      "metric": "conversion",
+      "true_ate_pp": 0.311,
+      "selected_n": 21343,
+      "hist_treat_vs_control": [
+        123.1,
+        358.1
+      ],
+      "naive_pp": 0.141,
+      "naive_sign": "RIGHT",
+      "tl_full_pp": 0.287,
+      "tl_full_sign": "RIGHT",
+      "ipw_full_pp": 0.269,
+      "ipw_full_sign": "RIGHT",
+      "tl_ablated_pp": 0.215,
+      "tl_ablated_sign": "RIGHT",
+      "ipw_ablated_pp": 0.217,
+      "ipw_ablated_sign": "RIGHT"
+    }
+  ]
+}
