@@ -1,0 +1,204 @@
+{
+  "datasets": [
+    {
+      "filename": "dataset_01.csv",
+      "n_rows": 23139,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "continuous",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_02.csv",
+      "n_rows": 14214,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_03.csv",
+      "n_rows": 21294,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_04.csv",
+      "n_rows": 14082,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "continuous",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_05.csv",
+      "n_rows": 22501,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_06.csv",
+      "n_rows": 17062,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "continuous",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_07.csv",
+      "n_rows": 28832,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_08.csv",
+      "n_rows": 22971,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_09.csv",
+      "n_rows": 11045,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    },
+    {
+      "filename": "dataset_10.csv",
+      "n_rows": 26389,
+      "treatment_col": "got_feature",
+      "outcome_col": "outcome",
+      "neg_control_col": "neg_control",
+      "outcome_type": "binary",
+      "covariate_cols": [
+        "tenure_days",
+        "plays_28d",
+        "watch_minutes_28d",
+        "avg_session_min",
+        "titles_started_28d",
+        "completion_rate",
+        "plan_tier",
+        "device_mobile",
+        "region_code",
+        "notifications_on"
+      ]
+    }
+  ]
+}
