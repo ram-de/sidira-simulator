@@ -1,0 +1,53 @@
+{
+  "datasets": [
+    {
+      "filename": "cset_01.csv",
+      "n_rows": 13394
+    },
+    {
+      "filename": "cset_02.csv",
+      "n_rows": 20348
+    },
+    {
+      "filename": "cset_03.csv",
+      "n_rows": 23728
+    },
+    {
+      "filename": "cset_04.csv",
+      "n_rows": 19914
+    },
+    {
+      "filename": "cset_05.csv",
+      "n_rows": 14002
+    },
+    {
+      "filename": "cset_06.csv",
+      "n_rows": 11030
+    },
+    {
+      "filename": "cset_07.csv",
+      "n_rows": 19974
+    },
+    {
+      "filename": "cset_08.csv",
+      "n_rows": 15726
+    }
+  ],
+  "covars": [
+    "x0",
+    "x1",
+    "x2",
+    "x3",
+    "x4",
+    "x5",
+    "x6",
+    "x7"
+  ],
+  "treat": "got_feature",
+  "outcome": "outcome",
+  "ncs": [
+    "nc_strong",
+    "nc_mid",
+    "nc_weak"
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "floor": 0.05,
+  "predictions": [
+    {
+      "filename": "cset_01.csv",
+      "main_ate": 0.101,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": -0.0075,
+        "nc_mid": 0.0038,
+        "nc_weak": -0.0313
+      },
+      "weak_trips": false,
+      "consensus_trips": false,
+      "consensus_max": 0.0313
+    },
+    {
+      "filename": "cset_02.csv",
+      "main_ate": 0.261,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": 0.2919,
+        "nc_mid": 0.1868,
+        "nc_weak": 0.0716
+      },
+      "weak_trips": true,
+      "consensus_trips": true,
+      "consensus_max": 0.2919
+    },
+    {
+      "filename": "cset_03.csv",
+      "main_ate": 0.0627,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": 0.1256,
+        "nc_mid": 0.0796,
+        "nc_weak": 0.03
+      },
+      "weak_trips": false,
+      "consensus_trips": true,
+      "consensus_max": 0.1256
+    },
+    {
+      "filename": "cset_04.csv",
+      "main_ate": 0.1381,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": 0.0012,
+        "nc_mid": 0.0018,
+        "nc_weak": 0.0002
+      },
+      "weak_trips": false,
+      "consensus_trips": false,
+      "consensus_max": 0.0018
+    },
+    {
+      "filename": "cset_05.csv",
+      "main_ate": 0.1078,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": -0.0018,
+        "nc_mid": -0.0019,
+        "nc_weak": -0.0153
+      },
+      "weak_trips": false,
+      "consensus_trips": false,
+      "consensus_max": 0.0153
+    },
+    {
+      "filename": "cset_06.csv",
+      "main_ate": 0.2445,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": 0.2906,
+        "nc_mid": 0.19,
+        "nc_weak": 0.0847
+      },
+      "weak_trips": true,
+      "consensus_trips": true,
+      "consensus_max": 0.2906
+    },
+    {
+      "filename": "cset_07.csv",
+      "main_ate": 0.1364,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": -0.0038,
+        "nc_mid": -0.0056,
+        "nc_weak": -0.0006
+      },
+      "weak_trips": false,
+      "consensus_trips": false,
+      "consensus_max": 0.0056
+    },
+    {
+      "filename": "cset_08.csv",
+      "main_ate": 0.0448,
+      "predicted_sign": "positive",
+      "nc_effects": {
+        "nc_strong": 0.1366,
+        "nc_mid": 0.0708,
+        "nc_weak": 0.0264
+      },
+      "weak_trips": false,
+      "consensus_trips": true,
+      "consensus_max": 0.1366
+    }
+  ]
+}
