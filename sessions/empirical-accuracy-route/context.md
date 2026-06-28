@@ -14,10 +14,13 @@ data, and a council-of-priors over the LLM — can crack directional accuracy wh
 persona-simulation engine has come back null. Find the one angle that actually works.
 
 ## In Progress
-- [ ] Productizing the ROUTER. Scope + foundation done (`SCOPE_ROUTER.md`,
-      `causal_estimator.py`). NEXT product PRs: (2) hypothesis→spec mapper, (3) router +
-      pre-flight surface extending answerability #309, (4) wire empirical output into the
-      #222 calibrator slot.
+- [ ] Productizing the ROUTER. Portable cores DONE in research/: `causal_estimator.py`
+      (model) + `manifest_builder.py` (build-time precompute join+grid). Architecture
+      decided: precompute an `estimability_manifest.json` at PACK BUILD (lives in
+      **sidira-persona-worker**, per founder), shipped beside persona_pack.json in R2;
+      runtime = match→retrieve→route in `SimulationOrchestrator.prepare`. NEXT = land the
+      two cores into sidira-persona-worker + R2 write (PR there), then orchestrator MAP +
+      router pre-flight (#309), then #222 calibrator wiring.
 
 ## Completed
 - [x] **Phase A — empirical/causal route (synthetic): MECHANISM WORKS.** `uplift_spike.py`.
@@ -52,16 +55,19 @@ persona-simulation engine has come back null. Find the one angle that actually w
 - [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched).
 
 ## Next Steps
-1. Router PR 2 — hypothesis→spec mapper: NL hypothesis + connected-data schema →
-   {treatment, contrast, outcome, covariates}. LLM as TRANSLATOR (not predictor),
-   user-confirmable. Reuses the existing chat client.
-2. Router PR 3 — router + pre-flight surface: glue map → support_check → route; extend
-   answerability pre-flight #309 with an "empirically estimable from your data?" branch +
-   a card showing route taken, why, confidence.
-3. Router PR 4 — wire empirical estimate into the result + the #222 calibrator (replace
-   the no-op IdentityCalibrator anchor).
-4. (optional) Upworthy / no-persona LLM generalization beyond the 14 cases.
-5. (optional) Land PR #508 to main once reviewed.
+1. **sidira-persona-worker PR** — port `manifest_builder.py` + `causal_estimator.py` in;
+   feed real `ColumnProfile`s + crawler `Capability` list + a Snowflake `load_frame`; write
+   `estimability_manifest.json` to R2 beside `persona_pack.json`; version it with the pack.
+   Replace rule-based linkage with the LLM MAP step (same output shape).
+2. **Orchestrator MAP + router** (backend) — in `SimulationOrchestrator.prepare`: load the
+   manifest, match `hypothesis.prose` → catalog entry, route match→retrieve (empirical) vs
+   unmatched→`SimulationRunner.run` (LLM, flagged).
+3. **Pre-flight surface** (backend+frontend) — extend answerability #309 with the
+   "estimable from your data?" branch + route/confidence card.
+4. **#222 calibrator wiring** — hang the empirical estimate on the `MetricCalibrator` seam
+   (replace `IdentityCalibrator` in `services/conversion_calibrator.py`).
+5. (optional) Upworthy / no-persona LLM generalization beyond the 14 cases.
+6. (optional) Land PR #508 to main once reviewed.
 
 ## Key Files
 - `research/empirical-uplift-spike/README.md` — full writeup (the canonical record).
