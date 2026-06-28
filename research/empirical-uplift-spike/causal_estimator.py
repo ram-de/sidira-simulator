@@ -41,6 +41,16 @@ class Estimate:
     sign_adjusted: str             # 'positive' | 'negative'
 
 
+@dataclass
+class GuardedEstimate:
+    estimate: Estimate             # the main treatment->outcome effect
+    neg_control_effect: float      # adjusted treatment->negative_control effect
+    floor: float                   # |neg_control_effect| above this => residual confounding
+    trips: bool                    # True => abstain (route to LLM), estimate not trustworthy
+    confidence: str                # 'high' (trust empirical) | 'low/abstain' (route to LLM)
+    reason: str
+
+
 def _Xmat(df: pd.DataFrame, X: list[str]) -> np.ndarray:
     return df[X].to_numpy(float)
 
@@ -92,6 +102,31 @@ def estimate(df, treatment, outcome, covariates) -> Estimate:
                     sign_adjusted="positive" if tl > 0 else "negative")
 
 
+def negative_control_guard(df, treatment, outcome, neg_control, covariates,
+                           floor=0.05) -> GuardedEstimate:
+    """Trust the empirical estimate only if a negative-control outcome shows no residual.
+
+    `neg_control` is a metric the treatment should NOT cause but which shares the confounding
+    (e.g. a pre-treatment behaviour). A non-zero adjusted treatment->neg_control effect reveals
+    confounding the overlap/positivity diagnostics cannot see (validated: campaign iter0-iter3 —
+    100% specificity, 75% sensitivity on the real Hillstrom RCT; 0.05 floor transferred from
+    synthetic to real). When it trips, the router must ABSTAIN and fall back to the LLM path.
+
+    NOTE (validated limit): the guard's power depends on a negative control STRONGLY coupled to
+    the confounding; a weak one under-trips. Picking it is a domain/LLM judgment. It also does
+    NOT catch a true-null estimator residual on purely *observed* confounding.
+    """
+    est = estimate(df, treatment, outcome, covariates)
+    nc = estimate(df, treatment, neg_control, covariates).t_learner_ate
+    trips = bool(abs(nc) > floor)
+    return GuardedEstimate(
+        estimate=est, neg_control_effect=float(nc), floor=floor, trips=trips,
+        confidence="low/abstain" if trips else "high",
+        reason=(f"negative control '{neg_control}' shows residual {nc:+.4f} (>|{floor}|): "
+                "confounding present, route to LLM" if trips else
+                f"negative control '{neg_control}' clean ({nc:+.4f}): empirical estimate trusted"))
+
+
 # --------------------------------------------------------------------------- #
 # Self-test: reproduce the validated real-data results through the generic API
 # --------------------------------------------------------------------------- #
@@ -132,6 +167,12 @@ def _selftest():
         sup = support_check(df, "T", "visit", X)
         est = estimate(df, "T", "visit", X)
         show("Hillstrom RCT visit", sup, est, "positive")          # email wins
+        # negative-control guard on the clean RCT: must NOT trip (treatment is randomized)
+        Xg = ["recency", "womens", "newbie"]                        # exclude hidden 'history' + NC 'mens'
+        g = negative_control_guard(df, "T", "visit", "mens", Xg)
+        ok = "OK " if not g.trips else "!! "
+        print(f"{ok}Hillstrom NC-guard (clean RCT): nc={g.neg_control_effect:+.4f} "
+              f"trips={g.trips} conf={g.confidence} (expect no trip)")
     else:
         print("(.data/hillstrom.csv absent — run realdata_hillstrom.py once to cache it)")
 
