@@ -131,6 +131,11 @@ when it was wrong. The fix that replicated held-out (iter2, LEAD):
 - **Trip → abstain → route to LLM when `|neg_control effect| > 0.05`.** On fresh held-out data
   this caught **both** unobserved-confounder errors with **zero** false alarms on the
   observed-confounding wins (including the sign-flip case the empirical core exists to win).
+- **Use a SET of candidate negative controls and trip on consensus (max |residual|).** A single
+  control is a gamble on coupling strength — a weakly-coupled one under-trips (iter3: real
+  Hillstrom `newbie` missed the bias). Consensus over several controls recovered full sensitivity
+  with no specificity loss (iter4 held-out 4/4 + 4/4; corroborated by the real Hillstrom sweep).
+  `negative_control_guard()` accepts the set and returns per-control effects.
 - **Known limit (pre-registered, confirmed):** a negative control does NOT catch a *true-null*
   estimator residual on *observed* confounding — that needs a separate guard. Negative controls
   are a necessary gate, not a full certificate.

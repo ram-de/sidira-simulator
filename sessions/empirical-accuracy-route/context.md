@@ -84,13 +84,24 @@ persona-simulation engine has come back null. Find the one angle that actually w
       confirmed). Honest finding: guard power needs a STRONGLY-coupled negative control →
       choosing it is an LLM/domain job. **LEAD not PROMOTED: confounding injected, n=1 dataset.**
 
+- [x] **iter4 — multi-NC CONSENSUS guard (LEAD, held-out synthetic).** `iter4_consensus.py`,
+      sealed `PREREG_ITER4_CONSENSUS.md` (sha256 bf203e85). Fixes iter3's weak-NC failure: trip on
+      the MAX |residual| over a SET of candidate negative controls. Held-out 8-set self-blind:
+      specificity 4/4 (3 NCs added ZERO false alarms) + sensitivity single-weak 2/4 → **consensus
+      4/4** (recovers the unobserved-with-proxy bias a weak control misses). Corroborated by iter3's
+      real Hillstrom sweep (max NC = recency ≈0.6). Upgraded `negative_control_guard()` to accept a
+      control set + return per-control effects; self-test green.
+
 ## Campaign ledger (research/engine-strength-campaign/LEDGER.md)
-iter0 MECH-ONLY · iter1 NULL · iter2 LEAD (held-out synthetic) · iter3 LEAD (real Hillstrom +
-adversarial). Net result so far: the **negative-control guard** is the one promotable idea —
-it closes the iter0 calibration gap (overlap can't see hidden confounding). Open gaps:
-(a) true-null false-positive still uncaught by a negative control (needs a separate guard,
-candidate iter4); (b) PROMOTED needs naturally-occurring confounding / a live deployment;
-(c) router must pick a strong negative control per hypothesis (LLM job).
+iter0 MECH-ONLY · iter1 NULL · iter2 LEAD (held-out synth) · iter3 LEAD (real Hillstrom + adv) ·
+iter4 LEAD (consensus, held-out synth). **Net: the negative-control guard — single + consensus —
+is the campaign's validated win**, closing the iter0 calibration gap (overlap can't see hidden
+confounding). Validated across synthetic held-out + real RCT + adversarial; consolidated into
+`causal_estimator.py::negative_control_guard()`. Open gaps / next: (a) **true-null** false-positive
+still uncaught by any negative control (needs a separate guard — likely an identification limit,
+worth one honest NULL-or-not iteration); (b) PROMOTED needs naturally-occurring confounding / a
+live deployment; (c) router must NOMINATE the negative-control set per hypothesis (LLM/domain job);
+(d) port `causal_estimator` + the guard into **sidira-persona-worker** (Snowflake load + R2 write).
 
 ## Next Steps
 1. **sidira-persona-worker PR** — port `manifest_builder.py` + `causal_estimator.py` in;
