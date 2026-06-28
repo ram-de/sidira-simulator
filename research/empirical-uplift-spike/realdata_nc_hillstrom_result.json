@@ -1,0 +1,133 @@
+{
+  "design_sha": "96a2e6e8",
+  "true_email_lift_pp_approx": 4.52,
+  "nc_band": 0.05,
+  "clean_rct": {
+    "condition": "clean_rct",
+    "n": 42693,
+    "history_treat_vs_control": [
+      242.5,
+      240.9
+    ],
+    "main_visit_ate_pp": 4.538,
+    "main_naive_pp": 4.523,
+    "neg_control_ate": -0.0015,
+    "neg_control_naive": -0.0043,
+    "nc_tripped": false
+  },
+  "injected_hidden": {
+    "condition": "injected_hidden",
+    "n": 21267,
+    "history_treat_vs_control": [
+      123.5,
+      356.9
+    ],
+    "main_visit_ate_pp": 3.178,
+    "main_naive_pp": 2.269,
+    "neg_control_ate": -0.0911,
+    "neg_control_naive": -0.0666,
+    "nc_tripped": true
+  },
+  "adversarial": {
+    "specificity_rate": 1.0,
+    "sensitivity_rate": 0.75,
+    "grid": [
+      {
+        "nc": "mens",
+        "seed": 20260629,
+        "clean": -0.0015,
+        "inj": -0.0911,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "mens",
+        "seed": 7,
+        "clean": -0.0015,
+        "inj": -0.0877,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "mens",
+        "seed": 99,
+        "clean": -0.0015,
+        "inj": -0.0904,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "newbie",
+        "seed": 20260629,
+        "clean": 0.0017,
+        "inj": -0.0156,
+        "spec": true,
+        "sens": false
+      },
+      {
+        "nc": "newbie",
+        "seed": 7,
+        "clean": 0.0017,
+        "inj": -0.0287,
+        "spec": true,
+        "sens": false
+      },
+      {
+        "nc": "newbie",
+        "seed": 99,
+        "clean": 0.0017,
+        "inj": -0.0253,
+        "spec": true,
+        "sens": false
+      },
+      {
+        "nc": "womens",
+        "seed": 20260629,
+        "clean": -0.0006,
+        "inj": -0.0869,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "womens",
+        "seed": 7,
+        "clean": -0.0006,
+        "inj": -0.0878,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "womens",
+        "seed": 99,
+        "clean": -0.0006,
+        "inj": -0.092,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "recency",
+        "seed": 20260629,
+        "clean": 0.0152,
+        "inj": 0.6132,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "recency",
+        "seed": 7,
+        "clean": 0.0152,
+        "inj": 0.6585,
+        "spec": true,
+        "sens": true
+      },
+      {
+        "nc": "recency",
+        "seed": 99,
+        "clean": 0.0152,
+        "inj": 0.5989,
+        "spec": true,
+        "sens": true
+      }
+    ]
+  }
+}
