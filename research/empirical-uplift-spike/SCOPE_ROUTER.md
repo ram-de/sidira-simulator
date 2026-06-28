@@ -89,6 +89,36 @@ already loads the persona pack + feature pack + capability and knows `hypothesis
 The manifest is a pack artifact, so it rebuilds on every data refresh and rides the existing
 pack version (v_1, v_2 by week). No new staleness class.
 
+## Lifecycle & refresh (decided)
+
+The persona pack and the manifest have DIFFERENT dependencies — only the manifest needs the
+crawl. Gate accordingly; don't over-mandate.
+
+- **Persona pack** = feature-store only (clusters users; doesn't read the crawl). **No
+  crawl gate** — build on feature-store connect (#212 starter fallback already assumes packs
+  exist independently). Onboarding *guides* the sequence; it doesn't hard-block.
+- **Estimability manifest** = feature-store × crawled capabilities. **Hard prerequisite: a
+  completed crawl** — it cannot link capabilities that don't exist. Mandate THIS step only.
+  Principle: *mandate hard data dependencies, guide soft sequencing.*
+
+- **Refresh cadence** — feature-store connection gets a configurable `cadence`
+  (`weekly`/`on_demand`, mirroring `CrawlSetup.cadence`). Each refresh rebuilds pack +
+  manifest as a NEW version; `latest` pointer flips atomically (same as v_1/v_2 today).
+  Feature-store cadence is INDEPENDENT of crawl cadence (data vs features drift differently);
+  the manifest rebuilds when EITHER moves. Customer-configurable — refreshes cost Snowflake
+  credits.
+
+- **New crawled feature → trigger (decided: notify + on-demand/cadence):**
+  1. *Auto + free:* update the manifest's capability↔column LINK map immediately (metadata
+     match against the cached column catalog — no feature-store query). The manifest always
+     knows what's pending.
+  2. *Deferred + paid:* the feature-store query + effect FIT runs on the next scheduled
+     refresh OR an explicit "refresh now". Pending features are flagged.
+  3. **Honesty rail:** a feature whose effect hasn't been extracted yet **routes to LLM** —
+     the manifest NEVER claims empirical coverage it hasn't actually computed. (This also
+     happens to be the safe default: auto-claiming coverage pre-extraction is the only
+     dangerous path.)
+
 ## Honesty rails
 - Empirical estimate ALWAYS ships with overlap/positivity diagnostics + the naive-vs-
   adjusted gap (big gap = strong confounding correction = read carefully).
