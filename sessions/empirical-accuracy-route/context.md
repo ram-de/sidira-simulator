@@ -52,7 +52,26 @@ persona-simulation engine has come back null. Find the one angle that actually w
       attenuated +2.12 — true effect too large); the unobserved-confounder ablation still
       recovered (+3.60 — other pre-treatment covariates proxy spend). Cookie Cats keeps the
       dramatic flip + clean S2; Hillstrom adds clean-covariate recovery.
-- [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched).
+- [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched). MERGED.
+- [x] **Engine-strength campaign launched** (`research/engine-strength-campaign/`): append-only
+      `runstore.py` → `runs.jsonl` + auto `LEDGER.md`; pre-register+seal every run; codex made
+      robust to flakiness via **self-blinding generation** (secret os.urandom seed, hidden
+      regime→file shuffle, sealed key OUTSIDE worktree, only sha256 committed) — no live codex
+      dependency. Verdict legend PROMOTED/LEAD/NULL/MECH-ONLY.
+- [x] **iter0 — empirical core blind on 10-regime synthetic Streamly (MECH-ONLY).** causal 7/8
+      vs naive 6/8 directional (the whole advantage = the sign-flip case). **KEY FINDING:**
+      overlap-based confidence flagged 0 of its 3 errors — overlap is necessary, NOT sufficient.
+- [x] **iter1 — negative-control guard (NULL by strict rule, mechanism confirmed).** A
+      negative-control outcome (shares confounding, true effect 0) DOES reveal unobserved
+      confounding overlap can't see (P1 2/2). But the pre-registered 0.02 band false-alarmed on
+      benign observed-confounding residual incl the sign-flip win (P2 fail). Did NOT re-tune.
+- [x] **iter2 — negative-control guard, floor 0.05, HELD-OUT (LEAD — first of campaign).**
+      Floor chosen on iter1's residual gap (observed ≤0.04 vs hidden ≥0.10), validated on a
+      FRESH independently-seeded v3 set. P1 2/2 + P2 7/7: catches both unobserved-confounder
+      errors with ZERO false alarms incl sign-flip. Residual error = true-null false-positive
+      (pre-registered limit a negative control structurally can't catch). Folded into
+      SCOPE_ROUTER.md as the empirical-trust confidence gate. Synthetic ⇒ ceiling LEAD; real
+      microdata replication still required before PROMOTED.
 
 ## Next Steps
 1. **sidira-persona-worker PR** — port `manifest_builder.py` + `causal_estimator.py` in;
