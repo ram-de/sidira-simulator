@@ -119,9 +119,28 @@ crawl. Gate accordingly; don't over-mandate.
      happens to be the safe default: auto-claiming coverage pre-extraction is the only
      dangerous path.)
 
+## Confidence gate — the negative-control guard (validated iter0→iter2)
+Overlap/positivity is necessary but **NOT sufficient**: in the iter0 self-blind challenge the
+overlap-based confidence signal flagged **0 of its 3 errors** — unobserved confounding leaves
+*observed*-covariate overlap looking healthy, so the estimator was confidently wrong exactly
+when it was wrong. The fix that replicated held-out (iter2, LEAD):
+
+- For each (T→Y) estimate, also estimate **T → a negative-control outcome** (a metric the
+  change should NOT cause but which shares the confounding). A non-zero effect there is residual
+  confounding the overlap diagnostic can't see.
+- **Trip → abstain → route to LLM when `|neg_control effect| > 0.05`.** On fresh held-out data
+  this caught **both** unobserved-confounder errors with **zero** false alarms on the
+  observed-confounding wins (including the sign-flip case the empirical core exists to win).
+- **Known limit (pre-registered, confirmed):** a negative control does NOT catch a *true-null*
+  estimator residual on *observed* confounding — that needs a separate guard. Negative controls
+  are a necessary gate, not a full certificate.
+- **Router job:** identifying *which* feature-store metric is a valid negative control for a
+  given hypothesis is a domain/LLM task (the LLM earns its keep here even on the empirical path).
+
 ## Honesty rails
 - Empirical estimate ALWAYS ships with overlap/positivity diagnostics + the naive-vs-
-  adjusted gap (big gap = strong confounding correction = read carefully).
+  adjusted gap (big gap = strong confounding correction = read carefully) **+ the negative-
+  control check above**.
 - Empirical only claims the slice it can support; everything else is LLM + low-confidence
   label. Never silently treat an LLM directional guess as if it were data.
 - Off-support / novel changes (spike S2): empirical must ABSTAIN, not extrapolate.
