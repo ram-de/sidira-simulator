@@ -14,8 +14,10 @@ data, and a council-of-priors over the LLM — can crack directional accuracy wh
 persona-simulation engine has come back null. Find the one angle that actually works.
 
 ## In Progress
-- (between phases — empirical route validated on 2 real datasets; next is productizing
-  the router or the Upworthy/no-persona LLM generalization)
+- [ ] Productizing the ROUTER. Scope + foundation done (`SCOPE_ROUTER.md`,
+      `causal_estimator.py`). NEXT product PRs: (2) hypothesis→spec mapper, (3) router +
+      pre-flight surface extending answerability #309, (4) wire empirical output into the
+      #222 calibrator slot.
 
 ## Completed
 - [x] **Phase A — empirical/causal route (synthetic): MECHANISM WORKS.** `uplift_spike.py`.
@@ -50,12 +52,16 @@ persona-simulation engine has come back null. Find the one angle that actually w
 - [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched).
 
 ## Next Steps
-1. Productize the survivor: scope the feature-expressibility ROUTER — data-supported +
-   feature-expressible change → empirical engine (provably accurate, no LLM); else → LLM
-   engine (broad, flagged). This is the sellable slice.
-2. (optional) Upworthy / no-persona LLM generalization — confirm "no-persona ≥ persona-
-   roleplay" beyond the 14 cases (less contamination than famous Cookie Cats).
-3. (optional) Land PR #508 to main once reviewed.
+1. Router PR 2 — hypothesis→spec mapper: NL hypothesis + connected-data schema →
+   {treatment, contrast, outcome, covariates}. LLM as TRANSLATOR (not predictor),
+   user-confirmable. Reuses the existing chat client.
+2. Router PR 3 — router + pre-flight surface: glue map → support_check → route; extend
+   answerability pre-flight #309 with an "empirically estimable from your data?" branch +
+   a card showing route taken, why, confidence.
+3. Router PR 4 — wire empirical estimate into the result + the #222 calibrator (replace
+   the no-op IdentityCalibrator anchor).
+4. (optional) Upworthy / no-persona LLM generalization beyond the 14 cases.
+5. (optional) Land PR #508 to main once reviewed.
 
 ## Key Files
 - `research/empirical-uplift-spike/README.md` — full writeup (the canonical record).
