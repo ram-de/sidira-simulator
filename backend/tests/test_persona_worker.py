@@ -11,6 +11,7 @@ keeping the Postgres claim/SKIP-LOCKED behavior untouched in production.
 
 from __future__ import annotations
 
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -70,7 +71,7 @@ def _seed_connection(repo: InMemoryFeatureStoreConnectionRepo) -> None:
     }
 
 
-def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
+def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3, estimability_manifest=None):
     def _fake(rows, column_mapping, config, customer_id, run_id):
         return PipelineOutput(
             persona_pack={
@@ -94,6 +95,7 @@ def _patch_pipeline(monkeypatch, *, stability=0.82, persona_count=3):
             stability_score=stability,
             persona_count=persona_count,
             prompts={"P00": "# persona 0"},
+            estimability_manifest=estimability_manifest,
         )
 
     monkeypatch.setattr(pb_mod, "run_personas_pipeline", _fake)
@@ -204,6 +206,34 @@ async def test_claim_and_run_once_drives_to_complete(worker_env, monkeypatch):
 
     # Nothing pending now → False.
     assert await persona_worker.claim_and_run_once(store) is False
+
+
+@pytest.mark.asyncio
+async def test_claim_and_run_once_writes_estimability_manifest(worker_env, monkeypatch):
+    """The worker path also persists the estimability manifest beside the pack
+    (additive, with pack_version stamped to the authoritative R2 v_N)."""
+    build_repo, store = worker_env
+    manifest = {
+        "manifest_version": "1.0",
+        "pack_version": "run-xyz",
+        "candidate_effects": [{"name": "promo_uplift", "estimable": True}],
+    }
+    _patch_pipeline(monkeypatch, estimability_manifest=manifest)
+    cfg = BuildConfig.model_validate(_CONFIG)
+    await build_repo.create(
+        build_id="b1",
+        customer_id=_CUSTOMER_ID,
+        connection_id=_CONNECTION_ID,
+        config_json=cfg.model_dump(mode="json"),
+    )
+
+    assert await persona_worker.claim_and_run_once(store) is True
+    raw = store.read_text(
+        f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+    )
+    got = json.loads(raw)
+    assert got["pack_version"] == "v_1"
+    assert got["candidate_effects"][0]["name"] == "promo_uplift"
 
 
 @pytest.mark.asyncio

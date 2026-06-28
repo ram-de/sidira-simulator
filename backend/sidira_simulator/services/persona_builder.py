@@ -10,6 +10,8 @@ the result to R2 + Postgres.
 from __future__ import annotations
 
 import json
+import logging
+import math
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Literal
@@ -23,6 +25,8 @@ from sidira_simulator.adapters.repositories import PersonaBuildRepo
 from sidira_simulator.services.column_mapper import FeatureGroup
 from sidira_simulator.services.persona_pack_translator import translate_producer_pack
 from sidira_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
+
+logger = logging.getLogger(__name__)
 
 
 class BuildConfig(BaseModel):
@@ -67,6 +71,11 @@ class PipelineOutput:
     stability_score: float
     persona_count: int
     prompts: dict[str, str] = field(default_factory=dict)
+    #: Optional estimability manifest emitted by the producer pipeline (the
+    #: causal-effect estimability guard). Additive + forward-compatible: the
+    #: currently vendored ``sidira_personas`` wheel pre-dates this, so it may be
+    #: ``None``. When present, ``_write_pack`` persists it beside the pack.
+    estimability_manifest: dict[str, Any] | None = None
 
 
 # ── pipeline-config assembly (pure Python, pandas-free so this module imports
@@ -277,6 +286,23 @@ def _build_pipeline_config(
     return cfg
 
 
+def _json_safe(obj: Any) -> Any:
+    """Recursively map non-finite floats (NaN, +/-Inf) to ``None``.
+
+    Strict JSON has no NaN/Infinity, but the estimability manifest can
+    legitimately carry ``float('nan')`` (e.g. the guard's all-degenerate abstain
+    path). Recurses through dicts/lists so the serialized artifact is strict-JSON
+    valid; everything else passes through untouched.
+    """
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
 def run_personas_pipeline(
     rows: list[dict[str, Any]],
     column_mapping: dict[str, FeatureGroup | None],
@@ -319,6 +345,9 @@ def run_personas_pipeline(
         stability_score=float(pack.overall_stability),
         persona_count=len(pack.personas),
         prompts=dict(result.prompts),
+        # Forward-compatible: the vendored wheel pre-dates this attribute, so
+        # default to None when absent (keeps both old + future wheels working).
+        estimability_manifest=getattr(result, "estimability_manifest", None),
     )
 
 
@@ -515,6 +544,28 @@ class PersonaBuilderService:
         self._store.write_text(f"{base}/manifest.json", json.dumps(manifest, indent=2))
         for name, prompt in output.prompts.items():
             self._store.write_text(f"{base}/prompts/{name}.md", prompt)
+
+        # Additive, forward-compatible artifact: when the producer pipeline
+        # emitted an estimability manifest, persist it beside the pack. This must
+        # NEVER fail the pack write (the money path) — guard + log-and-continue.
+        if output.estimability_manifest is not None:
+            try:
+                m = dict(output.estimability_manifest)
+                if "manifest_version" in m:
+                    # Stamp the authoritative R2 path version; the library wrote a
+                    # placeholder run_id, but v_N is the version of record.
+                    m["pack_version"] = pack_version
+                self._store.write_text(
+                    f"{base}/estimability_manifest.json",
+                    json.dumps(_json_safe(m), indent=2),
+                )
+            except Exception:  # noqa: BLE001 — additive artifact, never break the pack
+                logger.exception(
+                    "failed to write estimability_manifest for %s/%s; continuing",
+                    customer_id,
+                    pack_version,
+                )
+
         return pack_key
 
     def _next_version(self, customer_id: str) -> str:
