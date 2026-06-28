@@ -16,11 +16,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+SUF = os.environ.get("CHALLENGE_SUFFIX", "v2")     # iter1=v2; iter2 held-out=v3
 HERE = Path(__file__).resolve().parent
-OUTDIR = HERE / ".data" / "synthetic_streamly_v2"
-INDEX = HERE / "synthetic_streamly_v2_index.json"
-SHA = HERE / "SYNTHETIC_STREAMLY_V2_ANSWERS.sha256"
-SEALED = Path.home() / "streamly_challenge_v2_SEALED.json"
+OUTDIR = HERE / ".data" / f"synthetic_streamly_{SUF}"
+INDEX = HERE / f"synthetic_streamly_{SUF}_index.json"
+SHA = HERE / f"SYNTHETIC_STREAMLY_{SUF.upper()}_ANSWERS.sha256"
+SEALED = Path.home() / f"streamly_challenge_{SUF}_SEALED.json"
 
 COVARS = ["tenure_days", "plays_28d", "watch_minutes_28d", "avg_session_min",
           "titles_started_28d", "completion_rate", "plan_tier", "device_mobile",

@@ -6,14 +6,15 @@ Verifies sha256, then evaluates the sealed predictions of PREREG_ITER1_NEGCONTRO
  P3 (honest limit) guard need not catch true_null. Writes synthetic_streamly_v2_scorecard.md.
 """
 from __future__ import annotations
-import hashlib, json
+import hashlib, json, os
 from pathlib import Path
 
+SUF = os.environ.get("CHALLENGE_SUFFIX", "v2")
 HERE = Path(__file__).resolve().parent
-SEALED = Path.home() / "streamly_challenge_v2_SEALED.json"
-SHA = HERE / "SYNTHETIC_STREAMLY_V2_ANSWERS.sha256"
-PRED = HERE / "synthetic_streamly_v2_predictions.json"
-CARD = HERE / "synthetic_streamly_v2_scorecard.md"
+SEALED = Path.home() / f"streamly_challenge_{SUF}_SEALED.json"
+SHA = HERE / f"SYNTHETIC_STREAMLY_{SUF.upper()}_ANSWERS.sha256"
+PRED = HERE / f"synthetic_streamly_{SUF}_predictions.json"
+CARD = HERE / f"synthetic_streamly_{SUF}_scorecard.md"
 UNOBS = {"unobserved_no_proxy", "unobserved_with_proxy"}
 CLEAN_OBS = {"clean_rct_moderate", "clean_rct_small", "confounded_observed_moderate",
              "confounded_sign_flip", "confounded_strong_poor_overlap",
@@ -55,7 +56,7 @@ def main():
                if (p1 and p2) else
                "NULL — guard did not cleanly separate (see P1/P2 below).")
 
-    md = [f"# Negative-control guard — Scorecard (iter1)", "",
+    md = [f"# Negative-control guard — Scorecard ({SUF})", "",
           f"**Integrity:** sha256 `{digest[:16]}…` — {integ}", "",
           "> Self-generated seed-blind => MECH-ONLY. Real-data replication still required.", "",
           f"**P1 (guard trips on unobserved-confounder regimes):** {unobs_caught}/{unobs_tot} "

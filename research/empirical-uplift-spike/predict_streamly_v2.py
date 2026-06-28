@@ -9,19 +9,20 @@ negative control can see but overlap cannot).
   /opt/homebrew/bin/python3.11 research/empirical-uplift-spike/predict_streamly_v2.py
 """
 from __future__ import annotations
-import json, sys
+import json, os, sys
 from pathlib import Path
 import pandas as pd
 
+SUF = os.environ.get("CHALLENGE_SUFFIX", "v2")
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from causal_estimator import support_check, estimate  # noqa: E402
 
-INDEX = HERE / "synthetic_streamly_v2_index.json"
-DATA = HERE / ".data" / "synthetic_streamly_v2"
-OUT = HERE / "synthetic_streamly_v2_predictions.json"
+INDEX = HERE / f"synthetic_streamly_{SUF}_index.json"
+DATA = HERE / ".data" / f"synthetic_streamly_{SUF}"
+OUT = HERE / f"synthetic_streamly_{SUF}_predictions.json"
 NULL_BAND = {"binary": 0.005, "continuous": 0.05}
-NC_BAND = 0.02
+NC_BAND = float(os.environ.get("NC_BAND", "0.02"))
 
 
 def winner(ate, otype):
