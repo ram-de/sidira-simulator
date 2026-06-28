@@ -14,8 +14,8 @@ data, and a council-of-priors over the LLM — can crack directional accuracy wh
 persona-simulation engine has come back null. Find the one angle that actually works.
 
 ## In Progress
-- [ ] Hillstrom real-data confounding test (clean PRE-treatment covariates) — the
-      methodologically tight version of the Cookie Cats win.
+- (between phases — empirical route validated on 2 real datasets; next is productizing
+  the router or the Upworthy/no-persona LLM generalization)
 
 ## Completed
 - [x] **Phase A — empirical/causal route (synthetic): MECHANISM WORKS.** `uplift_spike.py`.
@@ -39,15 +39,23 @@ persona-simulation engine has come back null. Find the one angle that actually w
       engagement (treatment arm 86.7 vs control 16.8 avg rounds) → naive diff-in-means
       **+22.01pp (sign WRONG)**; T-learner standardization **−0.81pp** and IPW −0.61pp
       (both RIGHT; recovers true −0.82pp almost exactly). Exactly as pre-registered.
+- [x] **Phase B — Hillstrom (clean pre-treatment, 42,693 customers).**
+      `realdata_hillstrom.py`, sealed `PREREG_HILLSTROM.json` (sha256 ffcb13d9). True
+      email lift +4.52pp on visit (opposite polarity to Cookie Cats). Causal adjustment
+      recovers it: T-learner +4.97 / IPW +4.88. PRIMARY prediction confirmed. TWO sub-
+      predictions REFUTED + reported honestly (not re-tuned): naive didn't flip (only
+      attenuated +2.12 — true effect too large); the unobserved-confounder ablation still
+      recovered (+3.60 — other pre-treatment covariates proxy spend). Cookie Cats keeps the
+      dramatic flip + clean S2; Hillstrom adds clean-covariate recovery.
 - [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched).
 
 ## Next Steps
-1. Hillstrom: real-data confounding test with clean pre-treatment covariates (recency,
-   history, channel measured before the email). The tight external-validity version.
-2. Hillstrom/Upworthy LLM: confirm "no-persona ≥ persona-roleplay" generalizes beyond
-   the 14 cases (less contamination than famous Cookie Cats).
-3. Product implication to socialize: a ROUTER — feature-expressible + data-supported →
-   empirical engine (provably accurate, no LLM); else → LLM engine (broad, flagged).
+1. Productize the survivor: scope the feature-expressibility ROUTER — data-supported +
+   feature-expressible change → empirical engine (provably accurate, no LLM); else → LLM
+   engine (broad, flagged). This is the sellable slice.
+2. (optional) Upworthy / no-persona LLM generalization — confirm "no-persona ≥ persona-
+   roleplay" beyond the 14 cases (less contamination than famous Cookie Cats).
+3. (optional) Land PR #508 to main once reviewed.
 
 ## Key Files
 - `research/empirical-uplift-spike/README.md` — full writeup (the canonical record).
