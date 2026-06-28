@@ -41,6 +41,17 @@ class Estimate:
     sign_adjusted: str             # 'positive' | 'negative'
 
 
+@dataclass
+class GuardedEstimate:
+    estimate: Estimate             # the main treatment->outcome effect
+    neg_control_effect: float      # the decisive (max-|effect|) negative-control residual
+    neg_control_effects: dict      # {control_name: adjusted treatment->control effect}
+    floor: float                   # max |effect| above this => residual confounding
+    trips: bool                    # True => abstain (route to LLM), estimate not trustworthy
+    confidence: str                # 'high' (trust empirical) | 'low/abstain' (route to LLM)
+    reason: str
+
+
 def _Xmat(df: pd.DataFrame, X: list[str]) -> np.ndarray:
     return df[X].to_numpy(float)
 
@@ -92,6 +103,47 @@ def estimate(df, treatment, outcome, covariates) -> Estimate:
                     sign_adjusted="positive" if tl > 0 else "negative")
 
 
+def negative_control_guard(df, treatment, outcome, neg_controls, covariates,
+                           floor=0.05, ratio=1.5) -> GuardedEstimate:
+    """Trust the empirical estimate only if the negative-control outcome(s) show no residual.
+
+    `neg_controls` is one metric name, or a SET of them, that the treatment should NOT cause but
+    which share the confounding (e.g. pre-treatment behaviours). A non-zero adjusted
+    treatment->control effect reveals confounding the overlap/positivity diagnostics cannot see.
+    With a set, the guard trips on CONSENSUS — the max |residual| across controls — which recovers
+    the bias a single weak control misses (validated: campaign iter1-iter4 — synthetic held-out +
+    real Hillstrom RCT 100% specificity / 75% single-control sensitivity, lifted to full coverage
+    by consensus; 0.05 floor transferred synthetic->real). On trip, the router ABSTAINS -> LLM path.
+
+    Two ways to abstain (validated iter1-iter5): (1) HIDDEN confounding — any control's residual
+    exceeds `floor`; (2) INDISTINGUISHABLE — the main effect is not larger than `ratio`x the bias
+    the control reveals, so a true-null residual or a sub-bias real effect can't be told apart from
+    confounding (closes the true-null gap; the cost is honestly deferring effects smaller than the
+    bias to the LLM).
+
+    NOTE (validated limits): power depends on at least one control STRONGLY coupled to the
+    confounding (a weak set under-trips); nominating the controls is a domain/LLM judgment.
+    """
+    names = [neg_controls] if isinstance(neg_controls, str) else list(neg_controls)
+    est = estimate(df, treatment, outcome, covariates)
+    effects = {nc: float(estimate(df, treatment, nc, covariates).t_learner_ate) for nc in names}
+    decisive = max(effects.items(), key=lambda kv: abs(kv[1]))     # (name, effect) of max |effect|
+    nc_mag = abs(decisive[1])
+    main_mag = abs(est.t_learner_ate)
+    hidden = nc_mag > floor                                        # strong residual = hidden confounding
+    indistinct = main_mag <= ratio * nc_mag                       # effect not bigger than the bias (true-null/borderline)
+    trips = bool(hidden or indistinct)
+    reason = (f"negative control '{decisive[0]}' residual {decisive[1]:+.4f} > |{floor}|: hidden "
+              "confounding, route to LLM" if hidden else
+              f"main effect {est.t_learner_ate:+.4f} not > {ratio}x the bias the control reveals "
+              f"({decisive[1]:+.4f}): indistinguishable from confounding, route to LLM" if indistinct else
+              f"main effect {est.t_learner_ate:+.4f} clears the bias (control max {decisive[1]:+.4f}): "
+              "estimate trusted")
+    return GuardedEstimate(
+        estimate=est, neg_control_effect=decisive[1], neg_control_effects=effects,
+        floor=floor, trips=trips, confidence="low/abstain" if trips else "high", reason=reason)
+
+
 # --------------------------------------------------------------------------- #
 # Self-test: reproduce the validated real-data results through the generic API
 # --------------------------------------------------------------------------- #
@@ -132,6 +184,12 @@ def _selftest():
         sup = support_check(df, "T", "visit", X)
         est = estimate(df, "T", "visit", X)
         show("Hillstrom RCT visit", sup, est, "positive")          # email wins
+        # consensus negative-control guard on the clean RCT: must NOT trip (treatment randomized)
+        Xg = ["recency", "newbie"]                                  # exclude hidden 'history' + the NC set
+        g = negative_control_guard(df, "T", "visit", ["mens", "womens"], Xg)
+        ok = "OK " if not g.trips else "!! "
+        print(f"{ok}Hillstrom NC-guard (clean RCT, consensus): effects={g.neg_control_effects} "
+              f"trips={g.trips} conf={g.confidence} (expect no trip)")
     else:
         print("(.data/hillstrom.csv absent — run realdata_hillstrom.py once to cache it)")
 

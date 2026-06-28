@@ -52,7 +52,68 @@ persona-simulation engine has come back null. Find the one angle that actually w
       attenuated +2.12 — true effect too large); the unobserved-confounder ablation still
       recovered (+3.60 — other pre-treatment covariates proxy spend). Cookie Cats keeps the
       dramatic flip + clean S2; Hillstrom adds clean-covariate recovery.
-- [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched).
+- [x] PR **#508** opened (research/empirical-uplift-spike/, no prod code touched). MERGED.
+- [x] **Engine-strength campaign launched** (`research/engine-strength-campaign/`): append-only
+      `runstore.py` → `runs.jsonl` + auto `LEDGER.md`; pre-register+seal every run; codex made
+      robust to flakiness via **self-blinding generation** (secret os.urandom seed, hidden
+      regime→file shuffle, sealed key OUTSIDE worktree, only sha256 committed) — no live codex
+      dependency. Verdict legend PROMOTED/LEAD/NULL/MECH-ONLY.
+- [x] **iter0 — empirical core blind on 10-regime synthetic Streamly (MECH-ONLY).** causal 7/8
+      vs naive 6/8 directional (the whole advantage = the sign-flip case). **KEY FINDING:**
+      overlap-based confidence flagged 0 of its 3 errors — overlap is necessary, NOT sufficient.
+- [x] **iter1 — negative-control guard (NULL by strict rule, mechanism confirmed).** A
+      negative-control outcome (shares confounding, true effect 0) DOES reveal unobserved
+      confounding overlap can't see (P1 2/2). But the pre-registered 0.02 band false-alarmed on
+      benign observed-confounding residual incl the sign-flip win (P2 fail). Did NOT re-tune.
+- [x] **iter2 — negative-control guard, floor 0.05, HELD-OUT (LEAD — first of campaign).**
+      Floor chosen on iter1's residual gap (observed ≤0.04 vs hidden ≥0.10), validated on a
+      FRESH independently-seeded v3 set. P1 2/2 + P2 7/7: catches both unobserved-confounder
+      errors with ZERO false alarms incl sign-flip. Residual error = true-null false-positive
+      (pre-registered limit a negative control structurally can't catch). Folded into
+      SCOPE_ROUTER.md as the empirical-trust confidence gate. Synthetic ⇒ ceiling LEAD; real
+      microdata replication still required before PROMOTED.
+- [x] **iter3 — negative-control guard on REAL Hillstrom RCT + adversarial verification
+      (LEAD — real-data replication).** `realdata_nc_hillstrom.py`, sealed
+      `PREREG_ITER3_NCREAL.md` (sha256 96a2e6e8). Hide `history`, inject selection on it, use a
+      pre-treatment flag as the negative control. Pre-registered (mens): P1 specificity PASS
+      (clean RCT nc −0.0015, no false abstain — this half is the GENUINE RCT), P2/P3 sensitivity
+      PASS (hidden-confounder nc −0.091 > 0.05 trips; visit estimate degrades +4.54→+3.18pp).
+      The 0.05 floor learned on synthetic TRANSFERRED to real data. Adversarial sweep (4 NCs ×
+      3 seeds): **specificity 100% (12/12)**, sensitivity 75% (9/12) — mens/womens/recency
+      robust, **newbie under-trips** (weak coupling = pre-registered proxy-absorption risk,
+      confirmed). Honest finding: guard power needs a STRONGLY-coupled negative control →
+      choosing it is an LLM/domain job. **LEAD not PROMOTED: confounding injected, n=1 dataset.**
+
+- [x] **iter4 — multi-NC CONSENSUS guard (LEAD, held-out synthetic).** `iter4_consensus.py`,
+      sealed `PREREG_ITER4_CONSENSUS.md` (sha256 bf203e85). Fixes iter3's weak-NC failure: trip on
+      the MAX |residual| over a SET of candidate negative controls. Held-out 8-set self-blind:
+      specificity 4/4 (3 NCs added ZERO false alarms) + sensitivity single-weak 2/4 → **consensus
+      4/4** (recovers the unobserved-with-proxy bias a weak control misses). Corroborated by iter3's
+      real Hillstrom sweep (max NC = recency ≈0.6). Upgraded `negative_control_guard()` to accept a
+      control set + return per-control effects; self-test green.
+
+- [x] **iter5 — true-null guard (LEAD, held-out synthetic).** `iter5_truenull.py`, sealed
+      `PREREG_ITER5_TRUENULL.md` (sha256 a77c1996). Closes the last gap: trust the main sign only
+      if |main| > 1.5·|nc_residual| (the bias the control reveals), else abstain. P1 2/2 (both
+      true-nulls now abstain; old guard called both confident-wrong "treatment"), P2 3/3 (clear
+      real effects still trusted), P3 3/3 (sub-bias real effects honestly deferred to LLM, 0 wrong).
+      Recalibrated confounder to mostly-linear (sub-floor residuals) BEFORE commit/unseal so the
+      ratio rule — not the floor — was under test. Folded ratio into `negative_control_guard()`.
+- [x] **Founder readout written + (to be) merged to main:** `founder-readout/README.md` — plain-
+      language, road-readable, DoorDash + fridge-thermometer examples, the 6-experiment story,
+      honest limits. Per the "land campaign docs on main" preference.
+
+## Campaign ledger (research/engine-strength-campaign/LEDGER.md)
+iter0 MECH-ONLY · iter1 NULL · iter2 LEAD (held-out synth) · iter3 LEAD (real Hillstrom + adv) ·
+iter4 LEAD (consensus, held-out synth) · iter5 LEAD (true-null ratio). Guard now COMPLETE 3-part
+gate: floor (hidden conf) + consensus (robust to weak control) + ratio (true-null/sub-bias). **Net: the negative-control guard — single + consensus —
+is the campaign's validated win**, closing the iter0 calibration gap (overlap can't see hidden
+confounding). Validated across synthetic held-out + real RCT + adversarial; consolidated into
+`causal_estimator.py::negative_control_guard()`. Open gaps / next: (a) **true-null** false-positive
+still uncaught by any negative control (needs a separate guard — likely an identification limit,
+worth one honest NULL-or-not iteration); (b) PROMOTED needs naturally-occurring confounding / a
+live deployment; (c) router must NOMINATE the negative-control set per hypothesis (LLM/domain job);
+(d) port `causal_estimator` + the guard into **sidira-persona-worker** (Snowflake load + R2 write).
 
 ## Next Steps
 1. **sidira-persona-worker PR** — port `manifest_builder.py` + `causal_estimator.py` in;

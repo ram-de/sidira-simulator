@@ -1,0 +1,95 @@
+{
+  "ratio": 1.5,
+  "floor": 0.05,
+  "null_band": 0.005,
+  "predictions": [
+    {
+      "filename": "tn_01.csv",
+      "main_ate": 0.0231,
+      "nc_decisive": 0.0254,
+      "nc_effects": {
+        "nc_a": 0.0254,
+        "nc_b": 0.0164
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "abstain"
+    },
+    {
+      "filename": "tn_02.csv",
+      "main_ate": 0.1477,
+      "nc_decisive": 0.0196,
+      "nc_effects": {
+        "nc_a": 0.0196,
+        "nc_b": 0.0148
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "treatment"
+    },
+    {
+      "filename": "tn_03.csv",
+      "main_ate": 0.1288,
+      "nc_decisive": 0.0367,
+      "nc_effects": {
+        "nc_a": 0.0345,
+        "nc_b": 0.0367
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "treatment"
+    },
+    {
+      "filename": "tn_04.csv",
+      "main_ate": 0.0181,
+      "nc_decisive": 0.0366,
+      "nc_effects": {
+        "nc_a": 0.0366,
+        "nc_b": 0.0199
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "abstain"
+    },
+    {
+      "filename": "tn_05.csv",
+      "main_ate": 0.1222,
+      "nc_decisive": -0.0139,
+      "nc_effects": {
+        "nc_a": 0.0136,
+        "nc_b": -0.0139
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "treatment"
+    },
+    {
+      "filename": "tn_06.csv",
+      "main_ate": 0.0397,
+      "nc_decisive": 0.0318,
+      "nc_effects": {
+        "nc_a": 0.0318,
+        "nc_b": 0.0207
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "abstain"
+    },
+    {
+      "filename": "tn_07.csv",
+      "main_ate": 0.0209,
+      "nc_decisive": 0.025,
+      "nc_effects": {
+        "nc_a": 0.025,
+        "nc_b": 0.0229
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "abstain"
+    },
+    {
+      "filename": "tn_08.csv",
+      "main_ate": 0.0196,
+      "nc_decisive": 0.0305,
+      "nc_effects": {
+        "nc_a": 0.0257,
+        "nc_b": 0.0305
+      },
+      "baseline_label": "treatment",
+      "guarded_label": "abstain"
+    }
+  ]
+}

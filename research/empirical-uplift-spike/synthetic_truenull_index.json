@@ -1,0 +1,36 @@
+{
+  "datasets": [
+    {
+      "filename": "tn_01.csv",
+      "n_rows": 18572
+    },
+    {
+      "filename": "tn_02.csv",
+      "n_rows": 12530
+    },
+    {
+      "filename": "tn_03.csv",
+      "n_rows": 16964
+    },
+    {
+      "filename": "tn_04.csv",
+      "n_rows": 10133
+    },
+    {
+      "filename": "tn_05.csv",
+      "n_rows": 10327
+    },
+    {
+      "filename": "tn_06.csv",
+      "n_rows": 21393
+    },
+    {
+      "filename": "tn_07.csv",
+      "n_rows": 18514
+    },
+    {
+      "filename": "tn_08.csv",
+      "n_rows": 20100
+    }
+  ]
+}
