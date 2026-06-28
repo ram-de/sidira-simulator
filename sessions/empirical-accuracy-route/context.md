@@ -72,6 +72,25 @@ persona-simulation engine has come back null. Find the one angle that actually w
       (pre-registered limit a negative control structurally can't catch). Folded into
       SCOPE_ROUTER.md as the empirical-trust confidence gate. Synthetic ⇒ ceiling LEAD; real
       microdata replication still required before PROMOTED.
+- [x] **iter3 — negative-control guard on REAL Hillstrom RCT + adversarial verification
+      (LEAD — real-data replication).** `realdata_nc_hillstrom.py`, sealed
+      `PREREG_ITER3_NCREAL.md` (sha256 96a2e6e8). Hide `history`, inject selection on it, use a
+      pre-treatment flag as the negative control. Pre-registered (mens): P1 specificity PASS
+      (clean RCT nc −0.0015, no false abstain — this half is the GENUINE RCT), P2/P3 sensitivity
+      PASS (hidden-confounder nc −0.091 > 0.05 trips; visit estimate degrades +4.54→+3.18pp).
+      The 0.05 floor learned on synthetic TRANSFERRED to real data. Adversarial sweep (4 NCs ×
+      3 seeds): **specificity 100% (12/12)**, sensitivity 75% (9/12) — mens/womens/recency
+      robust, **newbie under-trips** (weak coupling = pre-registered proxy-absorption risk,
+      confirmed). Honest finding: guard power needs a STRONGLY-coupled negative control →
+      choosing it is an LLM/domain job. **LEAD not PROMOTED: confounding injected, n=1 dataset.**
+
+## Campaign ledger (research/engine-strength-campaign/LEDGER.md)
+iter0 MECH-ONLY · iter1 NULL · iter2 LEAD (held-out synthetic) · iter3 LEAD (real Hillstrom +
+adversarial). Net result so far: the **negative-control guard** is the one promotable idea —
+it closes the iter0 calibration gap (overlap can't see hidden confounding). Open gaps:
+(a) true-null false-positive still uncaught by a negative control (needs a separate guard,
+candidate iter4); (b) PROMOTED needs naturally-occurring confounding / a live deployment;
+(c) router must pick a strong negative control per hypothesis (LLM job).
 
 ## Next Steps
 1. **sidira-persona-worker PR** — port `manifest_builder.py` + `causal_estimator.py` in;
