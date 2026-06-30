@@ -1,0 +1,1573 @@
+{
+  "experiment": "iter2 -- M2 few-shot analogy robustness stress-test",
+  "prereg": "research/alt-method-spikes/PREREG_ITER2_M2_ROBUSTNESS.md",
+  "model": "llama-3.3-70b-versatile",
+  "provider": "groq",
+  "temperature": 0.0,
+  "cases_path": "/Users/ram/Projects/sidira-simulator/.claude/worktrees/empirical-uplift-spike/sessions/agent-behavior-spec/portfolio-benchmark/PORTFOLIO_CASES_CONFIRM.json",
+  "n_cases": 14,
+  "order_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "model_seeds": [
+    8000,
+    8001,
+    8002
+  ],
+  "n_runs": 15,
+  "started_utc": "2026-06-29T04:54:28.627617+00:00",
+  "finished_utc": "2026-06-29T04:55:33.740391+00:00",
+  "base_rate_only": {
+    "accuracy": 0.5714,
+    "correct": 8,
+    "n": 14,
+    "per_case": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      }
+    ]
+  },
+  "m2_runs": [
+    {
+      "order_seed": 0,
+      "model_seed": 8000,
+      "accuracy": 0.7143,
+      "correct": 10,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 0,
+      "model_seed": 8001,
+      "accuracy": 0.6429,
+      "correct": 9,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 0,
+      "model_seed": 8002,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 1,
+      "model_seed": 8000,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 1,
+      "model_seed": 8001,
+      "accuracy": 0.5,
+      "correct": 7,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 1,
+      "model_seed": 8002,
+      "accuracy": 0.5,
+      "correct": 7,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 2,
+      "model_seed": 8000,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 2,
+      "model_seed": 8001,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 2,
+      "model_seed": 8002,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 3,
+      "model_seed": 8000,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 3,
+      "model_seed": 8001,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 3,
+      "model_seed": 8002,
+      "accuracy": 0.5714,
+      "correct": 8,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 4,
+      "model_seed": 8000,
+      "accuracy": 0.7143,
+      "correct": 10,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 4,
+      "model_seed": 8001,
+      "accuracy": 0.7143,
+      "correct": 10,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    },
+    {
+      "order_seed": 4,
+      "model_seed": 8002,
+      "accuracy": 0.7143,
+      "correct": 10,
+      "scored": 14,
+      "dropped_count": 0,
+      "dropped_ids": []
+    }
+  ],
+  "m2_per_run_per_case": {
+    "order0_seed8000": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order0_seed8001": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order0_seed8002": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order1_seed8000": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order1_seed8001": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order1_seed8002": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order2_seed8000": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order2_seed8001": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order2_seed8002": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order3_seed8000": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order3_seed8001": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order3_seed8002": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order4_seed8000": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order4_seed8001": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ],
+    "order4_seed8002": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ]
+  },
+  "summary": {
+    "accuracies": [
+      0.7143,
+      0.6429,
+      0.5714,
+      0.5714,
+      0.5,
+      0.5,
+      0.5714,
+      0.5714,
+      0.5714,
+      0.5714,
+      0.5714,
+      0.5714,
+      0.7143,
+      0.7143,
+      0.7143
+    ],
+    "median": 0.5714,
+    "p10": 0.5286,
+    "min": 0.5,
+    "max": 0.7143,
+    "base_rate_only_accuracy": 0.5714,
+    "total_dropped_parse": 0,
+    "pass_criteria": "median >= 0.70 AND p10 >= 0.64",
+    "median_ge_0_70": false,
+    "p10_ge_0_64": false,
+    "verdict": "FAIL"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "missing_experiment_types": [
+    {
+      "name": "Acquisition / top-of-funnel / marketing-creative experiments (paid ad creative, SEO/landing pages, app-store listing, install attribution, logged-out/anonymous web)",
+      "why_missed": "All four lenses are in-product and user-keyed. None has an anonymous/pre-signup visitor entity, so the entire growth-marketing slice of a real roadmap (often 10-20% of experiments) is invisible. A feature store joined on user_id literally cannot represent the cold visitor the experiment targets."
+    },
+    {
+      "name": "Customer support / service / self-serve experiments (chatbot vs human, help-center deflection, refund automation, dispute flows)",
+      "why_missed": "Support is a large, continuously-experimented surface in any marketplace. Only touched obliquely (trust&safety). The OEC here (contact-rate, CSAT, deflection, refund cost) and its features (ticket history, contact propensity) appear in no lens."
+    },
+    {
+      "name": "Returns / refunds / cancellation-policy & post-purchase experiments (return window, refund friction, order-tracking UX, substitution/out-of-stock handling)",
+      "why_missed": "HCI names returns only as a distal-inversion risk, never as a first-class experiment type. Grocery/retail/food roadmaps test these constantly; the distal OEC (return rate, refund margin) is exactly where proximal friction signs invert."
+    },
+    {
+      "name": "Privacy / consent / compliance & account-management experiments (consent prompts, ATT, data-export/deletion, age/regulatory gating, dark-pattern remediation)",
+      "why_missed": "Regulatory-driven roadmap work (DPDP/GDPR/CMA) is real and recurring. Pricing lens flags regulatory backlash as a blind spot but no lens treats consent/compliance UX as an experiment type, and consent-state is never a feature."
+    },
+    {
+      "name": "Internationalization / localization / accessibility experiments (translation quality, RTL, currency/format, a11y modality)",
+      "why_missed": "HCI carries a11y/locale as context features but no lens has an i18n/a11y experiment type. Direction here is genuinely groundable (a11y reduces friction for affected segments) yet entirely absent."
+    },
+    {
+      "name": "Wallet / stored-value / gift-card / BNPL / payment-method experiments",
+      "why_missed": "Payment-instrument choice and stored value materially move conversion and retention; covered only as 'payment method count' inside checkout-friction, never as its own type with its own economics (float, breakage, default-instrument)."
+    },
+    {
+      "name": "Merchant/seller-as-product-user experiments (merchant dashboard UX, ads-manager, host onboarding funnel, self-serve menu tools)",
+      "why_missed": "Marketplace/PM lenses treat supply only as economics levers whose outcome lands on the consumer side. The supplier's OWN funnel/UI experiments (a whole B2B product surface) have no experiment type and no supplier-as-user friction/lifecycle features."
+    },
+    {
+      "name": "Content moderation / ranking-safety / integrity-policy experiments (filtering, demotion thresholds, fraud-decline friction)",
+      "why_missed": "Only verification friction is covered. Threshold experiments that trade false-positive friction against integrity are common and have a distinct OEC (fraud loss vs good-user friction) that none of the feature classes target."
+    }
+  ],
+  "missing_feature_classes": [
+    {
+      "class_name": "Anonymous / pre-login visitor & device-graph features",
+      "data_source": "telemetry",
+      "purpose": "First-touch acquisition channel, device fingerprint/graph, logged-out session behavior, attribution source. Required to ground any acquisition/landing/logged-out experiment. Every proposed store is user_id-keyed and structurally cannot hold these, leaving the entire top-of-funnel un-addressable."
+    },
+    {
+      "class_name": "Longitudinal / time-since-exposure response-curve features (novelty-decay instrumentation)",
+      "data_source": "derived",
+      "purpose": "All four lenses name novelty decay as a blind spot but none proposes the feature class that would mitigate it: per-user exposure age, response-over-time slope, habituation curves, day-1-vs-day-30 deltas. Without a trajectory feature the store is a static snapshot and the durable sign is unrecoverable for the very experiments the lenses admit are novelty-driven."
+    },
+    {
+      "class_name": "Long-horizon surrogate / proxy-metric features",
+      "data_source": "derived",
+      "purpose": "The standard mitigation for the universally-named LTV/retention blind spot is a validated surrogate index (short-term proxies calibrated against measured long-term outcomes, Netflix/proxy-metric practice). None proposes it, so 'short-run conversion up, LTV down' stays undetectable rather than partially proxied."
+    },
+    {
+      "class_name": "Creative / copy / image semantic-embedding features",
+      "data_source": "derived",
+      "purpose": "Every lens hands aesthetic/relevance/copy direction to 'an LLM layer' but none lists embeddings as a feature class. It is the concrete bridge feature (text/image embedding + LLM-judge score per variant) that would let the empirical store separate within-type creative quality instead of abstaining entirely. Deferring it is defensible; omitting it from the schema is the gap."
+    },
+    {
+      "class_name": "Consent / instrumentation-coverage / data-quality features",
+      "data_source": "derived",
+      "purpose": "PM lens names the ATT/consent instrumentation ceiling as a blind spot, but consent-state and per-user logging coverage are not encoded. They gate whether ALL telemetry-derived classes even exist for a user; without them the engine silently treats missing-because-unconsented as a real-zero and mis-signs the affected segment."
+    },
+    {
+      "class_name": "Network-structure / cluster-assignment / interference-exposure features",
+      "data_source": "derived",
+      "purpose": "The cross-side spillover class is a per-market aggregate; it cannot support switchback/cluster designs which need graph position, neighbor-treatment exposure, and cluster ids. Since interference is the named killer for the entire two-sided slice, the absence of true network-structure features means those experiment types are listed as 'unlocked' without the features that would actually identify their sign."
+    },
+    {
+      "class_name": "Cross-experiment concurrency / interaction features",
+      "data_source": "experiment-history",
+      "purpose": "PM lens flags that 1000s of concurrent tests interact, but no class encodes which co-running treatments a user is exposed to. Without it, every prior-treatment-response feature is confounded by un-modeled simultaneous arms."
+    },
+    {
+      "class_name": "Assignment-validity features (SRM, exposure-logging integrity, peeking guards)",
+      "data_source": "derived",
+      "purpose": "The negative-control class guards confounding but not sample-ratio-mismatch, broken exposure logging, or trigger-dilution \u2014 the most common reasons a measured sign is an artifact. These are distinct gates from neg-controls and appear nowhere."
+    }
+  ],
+  "hard_or_ungroundable": [
+    {
+      "item": "Experiment-history prior store / labeled past-experiment library (the dominant anchor in all four lenses)",
+      "why": "Treated as the single strongest ground for direction, yet it is the hardest asset to actually populate. (1) Company-level cold start: a startup or new surface has near-zero usable history \u2014 the very situation where direction help is most wanted. (2) The 'similar treatment on similar surface' match is an unsolved retrieval problem; surface taxonomies drift and metric definitions get redefined (Airbnb Minerva), so labels are not comparable across time. (3) Base rates make the labels noisy: ~1/3 of past experiments are FLAT and ~1/3 negative (Microsoft; Google/Bing only 10-20% positive), so most 'prior signs' are null or underpowered and carry little directional information. The lenses lean on an asset that is itself mostly empty or unreliable."
+    },
+    {
+      "item": "Per-user own-price/own-fee elasticity features and per-user CATE/'historical_HTE_decile' uplift features",
+      "why": "These imply quantities that are not identified from observational logs. Price/fee is set by policy, not randomized, so within-user price variation is scarce and confounded with geo/time/context (classic price endogeneity) \u2014 per-user elasticity is largely unestimable. Per-user treatment effect is fundamentally unobservable (you never see both potential outcomes for one user); what exists is a model-imputed segment effect, not a measured feature. Schematizing them as populated columns overstates identifiability."
+    },
+    {
+      "item": "Friction-telemetry \u2192 outcome direction for notification, checkout, and friction-removal types",
+      "why": "HCI grounds the PROXIMAL funnel step, but for exactly these types the proximal sign routinely inverts the OEC: one-click checkout lifts conversion and raises returns/regret; an extra push lifts opens and raises churn/unsub; removing a confirmation cuts effort and raises error/refund/chargeback. Counting these as 'covered' counts the wrong-signed proxy. HCI is honest about the inversion, but the experiment-type coverage table still claims them."
+    },
+    {
+      "item": "Two-sided / surge / dispatch / batching direction from market-state features",
+      "why": "All lenses list market-liquidity features as 'unlocking' surge/dispatch/supply-incentive experiment types, while simultaneously naming network interference as a hard blind spot. This is an internal contradiction: market-state features describe the conditioning state but cannot identify the treatment sign from per-user randomized data \u2014 that requires switchback/cluster designs the feature store does not provide. The sign is not groundable observationally regardless of how rich the market features are."
+    },
+    {
+      "item": "Negative-control guard as a correctness mechanism",
+      "why": "Marketplace lens is honest ('buys abstention, not correctness'), but the broader reliance assumes a negative control that is actually coupled to the latent confounder. The team's own work notes the guard 'needs strongly-coupled NC (LLM picks it)' and flagged 0/3 errors before the guard existed; NC coverage of the relevant confounder is not guaranteed, so abstention itself is only partial."
+    },
+    {
+      "item": "Latency 'near-monotone faster=better'",
+      "why": "Mostly true but overstated as universal: documented non-monotone cases exist (too-fast renders read as untrustworthy or skip perceived effort; faster surfacing can increase choice overload). Direction is high-confidence but not a free win, and magnitude/segment varies more than the 'best-grounded type' framing implies."
+    }
+  ],
+  "merges": [
+    "The four experiment-history assets are ONE store at different grains, not four classes: marketplace 'Experiment-history prior store' (surface\u00d7family\u00d7metric), PM 'Prior treatment-response meta-features' (segment\u00d7family), pricing 'Past-treatment-response priors' (user\u00d7family), HCI 'Labeled past-UI-experiment library' (experiment\u00d7arm\u00d7segment). Merge into a single multi-grain experiment-history store \u2014 the largest redundancy in the council.",
+    "RFM / engagement / habit / tenure appears in all four (marketplace 'User engagement state', PM 'Engagement frequency & recency', pricing 'Engagement/habit/RFM state', HCI 'User proficiency/tenure'). Collapse to one Lifecycle+RFM+habit class.",
+    "Price sensitivity is fragmented: pricing lens alone splits it into four (own-price elasticity, reference-price/anchoring, deal-proneness, WTP) while marketplace and PM each have a single 'elasticity' class. Consolidate to elasticity + anchoring/reference + deal-proneness, then dedup against the other two lenses.",
+    "Funnel/session/friction telemetry is duplicated four ways (marketplace 'Session funnel telemetry', PM 'Funnel step conversion', pricing 'Funnel friction & session', HCI 'Per-surface friction' + 'Funnel/flow step'). Merge into one friction/funnel telemetry family using HCI's more granular event schema.",
+    "Notification responsiveness & fatigue is near-identical in marketplace, PM, and pricing \u2014 merge to one channel-responsiveness+fatigue class.",
+    "Device/platform/context appears in marketplace, PM, and HCI \u2014 merge to one.",
+    "Market supply/demand balance appears in marketplace, PM, and pricing \u2014 merge to one market-state class.",
+    "Merchant/item quality is split inconsistently (item-grain vs merchant-grain vs 'surface-content') across all four \u2014 normalize to two entity classes: per-item and per-merchant.",
+    "Churn-risk/LTV/value-segment (marketplace 'User value & churn-risk') and lifecycle/churn (pricing) overlap with the RFM merge and with subscription-state (PM 'Loyalty/subscription' + pricing 'Subscription/membership') \u2014 consolidate value/churn/membership into one monetization-state class.",
+    "Trust/social-proof sensitivity (PM and pricing) and default-acceptance/cognitive-load (pricing 'Default-acceptance', PM 'Friction/cognitive-load') each appear twice \u2014 merge each pair.",
+    "Affinity/preference embeddings (marketplace + PM) overlap with pricing 'Substitution & choice-set' \u2014 merge into one preference/substitution class. Net: the ~67 listed classes across the four lenses reduce to ~22-25 distinct classes (~60% redundancy)."
+  ],
+  "roadmap_coverage_estimate": "Honest union coverage for DIRECTION prediction: ~35-45% of a real consumer-marketplace roadmap at usefully-better-than-chance, and only ~10-20% on the decision-relevant counter-intuitive subset. Derivation: (a) ~1/3 of experiments are statistically FLAT and another large share underpowered (Microsoft 1/3 positive / 1/3 flat / 1/3 negative; Google/Bing 10-20% positive) \u2014 for the flat/tiny third 'direction' is ill-posed, capping any predictor. (b) Of the genuinely-non-null remainder, the union grounds: UI/copy/flow/onboarding (~40-55% of roadmap volume) but only ~half of that is friction-expressible rather than aesthetic/relevance ties, and a slice of those have proximal\u2192distal inversion \u2192 net ~50-60% of UI work; pricing/promo (~15-20%) only where the lever historically varied and is not interference-dominated \u2192 ~50%; ranking/recs (~10-15%) reduced by relevance ties and offline-online gap \u2192 ~50%; notification/lifecycle (~5-10%) proximal-yes/distal-no \u2192 ~50%; supply-side/equilibrium/dispatch (~5-10%) \u2192 ~15% (needs switchback, not a feature store); net-new/brand (~5%) \u2192 ~0%. (c) Entirely-missing roadmap slices none of the lenses addressed \u2014 acquisition/marketing, support/service, returns/refunds, privacy/compliance, merchant-as-user \u2014 are ~10-15% of a real org's roadmap at 0% coverage. (d) The strongest anchor (experiment-history prior) is unpopulated at company cold-start, so for a NEW org real coverage drops toward the low end (~25-30%). Residual un-groundable ~55-65%, dominated by: aesthetic/relevance ties; proximal\u2192distal sign inversion; novelty decay and long-horizon retention (no longitudinal/surrogate features); two-sided interference (wrong experimental design, not a feature gap); cold-start net-new surfaces; the missing roadmap slices; and counter-intuitive cross-segment trade-down \u2014 the engine 'tracks intuition not truth' (the team's own blind tests: 0-for-1 on counter-intuitive cases), so coverage is LOWEST exactly where a direction-predictor would be most valuable. The average ~40% figure materially overstates decision-relevant value; the council should report the counter-intuitive-subset number (~10-20%) as the honest product ceiling and design for abstention + external-validity auditing rather than blanket prediction. This matches the existing internal finding that the causal/uplift route works only for the feature-expressible slice (a router, not an LLM replacement)."
+}

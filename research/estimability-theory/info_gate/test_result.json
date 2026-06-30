@@ -1,0 +1,93 @@
+{
+  "all_correct": true,
+  "failures": [],
+  "cases": [
+    {
+      "case": "sufficient",
+      "expect_pass": true,
+      "got_pass": true,
+      "expect_tier": null,
+      "got_tier": null,
+      "usable": [
+        "overload_sensitivity"
+      ],
+      "reason": "SUFFICIENT: ['overload_sensitivity'] recover proxy 'browse_abandon' (score=0.838 vs null 0.499, p=0.005)",
+      "l2": {
+        "score": 0.8381,
+        "null_mean": 0.4994,
+        "pvalue": 0.005,
+        "baseline": 0.5
+      },
+      "correct": true
+    },
+    {
+      "case": "absent",
+      "expect_pass": false,
+      "got_pass": false,
+      "expect_tier": "L0",
+      "got_tier": "L0",
+      "usable": [],
+      "reason": "no mechanism feature present in pack: ['overload_sensitivity']",
+      "l2": {},
+      "correct": true
+    },
+    {
+      "case": "degenerate",
+      "expect_pass": false,
+      "got_pass": false,
+      "expect_tier": "L1",
+      "got_tier": "L1",
+      "usable": [],
+      "reason": "mechanism feature(s) present but degenerate (no usable variance)",
+      "l2": {},
+      "correct": true
+    },
+    {
+      "case": "noise",
+      "expect_pass": false,
+      "got_pass": false,
+      "expect_tier": "L2",
+      "got_tier": "L2",
+      "usable": [
+        "overload_sensitivity"
+      ],
+      "reason": "present & varying but NOT discriminative for proxy (score=0.501 vs null=0.500, p=0.478)",
+      "l2": {
+        "score": 0.5013,
+        "null_mean": 0.5,
+        "pvalue": 0.4776,
+        "baseline": 0.5
+      },
+      "correct": true
+    },
+    {
+      "case": "partial_cov",
+      "expect_pass": true,
+      "got_pass": true,
+      "expect_tier": null,
+      "got_tier": null,
+      "usable": [
+        "price_sensitivity"
+      ],
+      "reason": "SUFFICIENT: ['price_sensitivity'] recover proxy 'cart_abandon' (score=0.832 vs null 0.499, p=0.005)",
+      "l2": {
+        "score": 0.8316,
+        "null_mean": 0.4986,
+        "pvalue": 0.005,
+        "baseline": 0.5
+      },
+      "correct": true
+    }
+  ],
+  "config": {
+    "spread_floor": 0.02,
+    "entropy_floor": 0.1,
+    "min_distinct": 2,
+    "l2_alpha": 0.05,
+    "l2_margin": 0.02,
+    "n_permutations": 200,
+    "cv_folds": 3,
+    "random_state": 12345,
+    "n_jobs": -1
+  }
+}

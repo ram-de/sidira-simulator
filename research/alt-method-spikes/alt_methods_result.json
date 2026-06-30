@@ -1,0 +1,603 @@
+{
+  "experiment": "alt-method battery (think-differently loop, iter 1)",
+  "prereg": "research/alt-method-spikes/PREREG_ALT_METHODS.md",
+  "model": "llama-3.3-70b-versatile",
+  "provider": "groq",
+  "cases_path": "/Users/ram/Projects/sidira-simulator/.claude/worktrees/empirical-uplift-spike/sessions/agent-behavior-spec/portfolio-benchmark/PORTFOLIO_CASES_CONFIRM.json",
+  "n_cases": 14,
+  "m0_seeds": [
+    6000,
+    6001,
+    6002,
+    6003,
+    6004
+  ],
+  "m0_temps": "seed 6000 -> temp 0.0; seeds 6001-6004 -> temp 0.4",
+  "m1_seed": 7000,
+  "m2_seed_base": 8000,
+  "started_utc": "2026-06-29T04:48:45.113097+00:00",
+  "finished_utc": "2026-06-29T04:49:09.615427+00:00",
+  "total_api_calls": 98,
+  "headline": {
+    "M0_accuracy": "7/14",
+    "M0_accuracy_frac": 0.5,
+    "M1_accuracy": "7/13",
+    "M1_accuracy_frac": 0.5385,
+    "M2_accuracy": "11/14",
+    "M2_accuracy_frac": 0.7857,
+    "M3": {
+      "full_set_n": 14,
+      "full_set_accuracy": 0.5,
+      "full_set_correct": 7,
+      "high_agreement_subset_threshold": "agreement >= 4/5",
+      "high_agreement_subset_n": 14,
+      "high_agreement_subset_accuracy": 0.5,
+      "high_agreement_subset_correct": 7,
+      "high_agreement_subset_ids": [
+        "ascarza_proactive_plan_recommendation",
+        "kanuri_andrews_service_recovery_incentive",
+        "algesheimer_ebay_community",
+        "lambrecht_tucker_dynamic_retargeting",
+        "anderson_simester_installment_billing",
+        "dholakia_simonson_reference_points",
+        "anderson_simester_sale_sign_saturation",
+        "office_help_widget",
+        "alibaba_recommender_set_size",
+        "low_default_charity_pledge",
+        "bing_antimalware_ad_removal",
+        "growthrock_add_star_rating",
+        "bionicgloves_remove_coupon_fields",
+        "blivakker_remove_three_reg_fields"
+      ],
+      "accuracy_coverage_curve": [
+        {
+          "top_n": 1,
+          "coverage_frac": 0.0714,
+          "accuracy": 0.0,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 2,
+          "coverage_frac": 0.1429,
+          "accuracy": 0.5,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 3,
+          "coverage_frac": 0.2143,
+          "accuracy": 0.3333,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 4,
+          "coverage_frac": 0.2857,
+          "accuracy": 0.5,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 5,
+          "coverage_frac": 0.3571,
+          "accuracy": 0.4,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 6,
+          "coverage_frac": 0.4286,
+          "accuracy": 0.5,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 7,
+          "coverage_frac": 0.5,
+          "accuracy": 0.5714,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 8,
+          "coverage_frac": 0.5714,
+          "accuracy": 0.625,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 9,
+          "coverage_frac": 0.6429,
+          "accuracy": 0.6667,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 10,
+          "coverage_frac": 0.7143,
+          "accuracy": 0.7,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 11,
+          "coverage_frac": 0.7857,
+          "accuracy": 0.6364,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 12,
+          "coverage_frac": 0.8571,
+          "accuracy": 0.5833,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 13,
+          "coverage_frac": 0.9286,
+          "accuracy": 0.5385,
+          "min_agreement_in_subset": 1.0
+        },
+        {
+          "top_n": 14,
+          "coverage_frac": 1.0,
+          "accuracy": 0.5,
+          "min_agreement_in_subset": 1.0
+        }
+      ]
+    }
+  },
+  "per_case": {
+    "M0": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true,
+        "vote_counts": {
+          "control": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true,
+        "vote_counts": {
+          "control": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false,
+        "vote_counts": {
+          "control": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "vote_counts": {
+          "treatment": 5
+        },
+        "agreement": 1.0
+      }
+    ],
+    "M1": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "s": -0.4999999999999999,
+        "metric_polarity": "lower_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.9,
+          "friction_add": 0.6,
+          "reactance_add": 0.4,
+          "overload_add": 0.7,
+          "loss_salience_add": 0.5
+        }
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "s": 1.0999999999999999,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.7,
+          "friction_add": 0.1,
+          "reactance_add": 0.2,
+          "overload_add": 0.1,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "s": 1.1,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.9,
+          "friction_add": 0.2,
+          "reactance_add": 0.3,
+          "overload_add": 0.1,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "s": 0.39999999999999997,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.6,
+          "friction_add": 0.2,
+          "reactance_add": 0.4,
+          "overload_add": 0.1,
+          "loss_salience_add": 0.3
+        }
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false,
+        "s": 0.4000000000000003,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.4,
+          "friction_add": 0.2,
+          "reactance_add": 0.1,
+          "overload_add": 0.3,
+          "loss_salience_add": 0.2
+        }
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true,
+        "s": -0.20000000000000012,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.6,
+          "friction_add": 0.4,
+          "reactance_add": 0.2,
+          "overload_add": 0.3,
+          "loss_salience_add": 0.7
+        }
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true,
+        "s": -0.39999999999999997,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.2,
+          "salience_gain": 0.8,
+          "friction_add": 0.1,
+          "reactance_add": 0.4,
+          "overload_add": 0.6,
+          "loss_salience_add": 0.3
+        }
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true,
+        "s": -0.20000000000000007,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.2,
+          "salience_gain": 0.8,
+          "friction_add": 0.8,
+          "reactance_add": 0.2,
+          "overload_add": 0.2,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false,
+        "s": 0.0,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.0,
+          "salience_gain": 0.5,
+          "friction_add": 0.0,
+          "reactance_add": 0.0,
+          "overload_add": 0.5,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "s": 0.8,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.5,
+          "salience_gain": 0.5,
+          "friction_add": 0.0,
+          "reactance_add": 0.2,
+          "overload_add": 0.0,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": null,
+        "hit": null,
+        "s": null,
+        "metric_polarity": "{'time-to-success': 'lower_better', 'revenue': 'higher_better'}",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.6,
+          "friction_add": 0.2,
+          "reactance_add": 0.1,
+          "overload_add": 0.3,
+          "loss_salience_add": 0.4
+        }
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "s": 1.4,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.8,
+          "salience_gain": 0.7,
+          "friction_add": 0.0,
+          "reactance_add": 0.0,
+          "overload_add": 0.1,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "s": 0.5,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.5,
+          "salience_gain": 0.0,
+          "friction_add": 0.0,
+          "reactance_add": 0.0,
+          "overload_add": 0.0,
+          "loss_salience_add": 0.0
+        }
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true,
+        "s": 0.7,
+        "metric_polarity": "higher_better",
+        "ratings": {
+          "relevance_gain": 0.5,
+          "salience_gain": 0.2,
+          "friction_add": 0.0,
+          "reactance_add": 0.0,
+          "overload_add": 0.0,
+          "loss_salience_add": 0.0
+        }
+      }
+    ],
+    "M2": [
+      {
+        "id": "ascarza_proactive_plan_recommendation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "kanuri_andrews_service_recovery_incentive",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "algesheimer_ebay_community",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "lambrecht_tucker_dynamic_retargeting",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_installment_billing",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "dholakia_simonson_reference_points",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "anderson_simester_sale_sign_saturation",
+        "real_winner": "control",
+        "predicted": "control",
+        "hit": true
+      },
+      {
+        "id": "office_help_widget",
+        "real_winner": "control",
+        "predicted": "treatment",
+        "hit": false
+      },
+      {
+        "id": "alibaba_recommender_set_size",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "low_default_charity_pledge",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bing_antimalware_ad_removal",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "growthrock_add_star_rating",
+        "real_winner": "treatment",
+        "predicted": "control",
+        "hit": false
+      },
+      {
+        "id": "bionicgloves_remove_coupon_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      },
+      {
+        "id": "blivakker_remove_three_reg_fields",
+        "real_winner": "treatment",
+        "predicted": "treatment",
+        "hit": true
+      }
+    ]
+  },
+  "dropped_parse_failures": {
+    "M0": [],
+    "M1": [
+      "bing_antimalware_ad_removal"
+    ],
+    "M2": []
+  }
+}

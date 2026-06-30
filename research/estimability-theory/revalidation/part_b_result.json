@@ -1,0 +1,190 @@
+{
+  "part": "B \u2014 corpus RCT breadth (PREREG_FIX_REVALIDATION.md)",
+  "prereg_sha256_file": "research/estimability-theory/PREREG_FIX_REVALIDATION.md.sha256",
+  "interpreter": "3.11.15",
+  "guard_rule": {
+    "collinear_drop_threshold": 0.8,
+    "floor": 0.05,
+    "ratio": 1.5,
+    "note": "FIXED guard: NC adjusted on covariates EXCEPT |corr(cov,NC)|>0.8"
+  },
+  "datasets_loaded": [
+    "hillstrom",
+    "gotv_ggl2008",
+    "karlan_list2007",
+    "orange_belgium_openml45580"
+  ],
+  "datasets_skipped": {
+    "information_r_insurance": "only available as R binary (.rda); pyreadr/pyreadstat not installed \u2014 per spec, skip R-binary-only sources.",
+    "bertrand2010": "optional/time-permitting; not attempted (target >=4 met with 4 loaded)."
+  },
+  "results": [
+    {
+      "source": "hillstrom",
+      "n": 42693,
+      "treatment": "T",
+      "outcome": "visit",
+      "covariates": [
+        "recency",
+        "log_history",
+        "newbie",
+        "womens",
+        "channel_Phone",
+        "channel_Web",
+        "zip_code_Surburban",
+        "zip_code_Urban"
+      ],
+      "neg_control": "mens",
+      "nc_continuous": false,
+      "nc_covariates_collinear_dropped": [
+        "womens"
+      ],
+      "max_cov_nc_corr": 0.818,
+      "naive_ate": 0.04523,
+      "naive_95ci": [
+        0.03889,
+        0.05157
+      ],
+      "adjusted_ate_tlearner": 0.04528,
+      "adjusted_ipw_ate": 0.04524,
+      "measured_sign": "positive",
+      "published_sign": "positive",
+      "sign_match": true,
+      "nc_residual": -0.00457,
+      "floor": 0.05,
+      "ratio": 1.5,
+      "hidden_confounding_flag": false,
+      "indistinct_flag": false,
+      "guard_trips": false,
+      "guard_reason": "main +0.0453 clears 1.5x NC bias (-0.0046): estimate trusted",
+      "notes": "Womens E-Mail vs No E-Mail; true RCT, email lifts visits ~+4.5pp. NC=mens (pre-treatment mens-merch buyer flag, email cannot cause it)."
+    },
+    {
+      "source": "gotv_ggl2008",
+      "n": 229444,
+      "treatment": "T",
+      "outcome": "primary2006",
+      "covariates": [
+        "male",
+        "age",
+        "hhsize"
+      ],
+      "neg_control": "primary2004",
+      "nc_continuous": false,
+      "nc_covariates_collinear_dropped": [],
+      "max_cov_nc_corr": 0.073,
+      "naive_ate": 0.08131,
+      "naive_95ci": [
+        0.07603,
+        0.08659
+      ],
+      "adjusted_ate_tlearner": 0.08116,
+      "adjusted_ipw_ate": 0.08121,
+      "measured_sign": "positive",
+      "published_sign": "positive",
+      "sign_match": true,
+      "nc_residual": 0.00642,
+      "floor": 0.05,
+      "ratio": 1.5,
+      "hidden_confounding_flag": false,
+      "indistinct_flag": false,
+      "guard_trips": false,
+      "guard_reason": "main +0.0812 clears 1.5x NC bias (+0.0064): estimate trusted",
+      "notes": "Gerber-Green-Larimer 2008 social-pressure GOTV; Neighbors mailer vs Control, published ~+8pp turnout. NC=primary2004 (voted in 2004 primary, BEFORE the 2006 mailer => mailer cannot cause it)."
+    },
+    {
+      "source": "karlan_list2007",
+      "n": 47122,
+      "treatment": "treatment",
+      "outcome": "gave",
+      "covariates": [
+        "freq",
+        "years",
+        "dormant",
+        "female",
+        "couple",
+        "pwhite",
+        "mrm2"
+      ],
+      "neg_control": "hpa",
+      "nc_continuous": true,
+      "nc_covariates_collinear_dropped": [],
+      "max_cov_nc_corr": 0.23,
+      "naive_ate": 0.00473,
+      "naive_95ci": [
+        0.0021,
+        0.00737
+      ],
+      "adjusted_ate_tlearner": 0.00471,
+      "adjusted_ipw_ate": 0.00466,
+      "measured_sign": "positive",
+      "published_sign": "positive",
+      "sign_match": true,
+      "nc_residual": 0.01059,
+      "floor": 0.05,
+      "ratio": 1.5,
+      "hidden_confounding_flag": false,
+      "indistinct_flag": true,
+      "guard_trips": true,
+      "guard_reason": "main +0.0047 not > 1.5x NC bias (+0.0106): indistinguishable from null (effect too small, NOT a false alarm)",
+      "notes": "Karlan-List 2007 charitable match (any match offer vs control); published small + on prob(gave) (~+0.4pp). NC=hpa (highest previous contribution $, fixed pre-experiment). dropna on used cols."
+    },
+    {
+      "source": "orange_belgium_openml45580",
+      "n": 11896,
+      "treatment": "t",
+      "outcome": "y",
+      "covariates": [
+        "PC1",
+        "PC2",
+        "PC3",
+        "PC4",
+        "PC5",
+        "PC6",
+        "PC7",
+        "PC8",
+        "PC9",
+        "PC10",
+        "PC11",
+        "PC12",
+        "PC13",
+        "PC14",
+        "PC15",
+        "PC16",
+        "PC17",
+        "PC18",
+        "PC19",
+        "PC20"
+      ],
+      "neg_control": "PC21",
+      "nc_continuous": true,
+      "nc_covariates_collinear_dropped": [],
+      "max_cov_nc_corr": 0.0,
+      "naive_ate": -0.00275,
+      "naive_95ci": [
+        -0.01053,
+        0.00503
+      ],
+      "adjusted_ate_tlearner": -0.00119,
+      "adjusted_ipw_ate": -0.00242,
+      "measured_sign": "negative",
+      "published_sign": null,
+      "sign_match": null,
+      "nc_residual": -0.09095,
+      "floor": 0.05,
+      "ratio": 1.5,
+      "hidden_confounding_flag": true,
+      "indistinct_flag": true,
+      "guard_trips": true,
+      "guard_reason": "NC 'PC21' residual -0.0910 > |0.05|: HIDDEN confounding (false alarm on a clean RCT)",
+      "notes": "Orange-Belgium telecom retention RCT (PCA-anonymized covariates). Documented BACKFIRE/null: retention outreach does not help (can raise churn). published_sign left None (counter-intuitive null/backfire) \u2014 report measured sign, do not force. NC=PC21 (an arbitrary pre-treatment PCA component, balanced by randomization)."
+    }
+  ],
+  "scorecard": {
+    "P4_sign_recovery": "3/3 clear-effect RCTs recover published sign",
+    "P4_verdict": "PASS",
+    "P5_no_false_alarm": "1/4 datasets HIDDEN-trip (false alarm)",
+    "P5_verdict": "FAIL \u2014 false alarm on a clean RCT",
+    "note": "indistinct-trips on genuine ~null RCTs (Orange backfire; Karlan tiny effect) are NOT specificity failures \u2014 only hidden_confounding_flag is the P5-relevant false alarm."
+  }
+}

@@ -14,13 +14,88 @@ data, and a council-of-priors over the LLM — can crack directional accuracy wh
 persona-simulation engine has come back null. Find the one angle that actually works.
 
 ## In Progress
-- [ ] Productizing the ROUTER. Portable cores DONE in research/: `causal_estimator.py`
-      (model) + `manifest_builder.py` (build-time precompute join+grid). Architecture
-      decided: precompute an `estimability_manifest.json` at PACK BUILD (lives in
-      **sidira-persona-worker**, per founder), shipped beside persona_pack.json in R2;
-      runtime = match→retrieve→route in `SimulationOrchestrator.prepare`. NEXT = land the
-      two cores into sidira-persona-worker + R2 write (PR there), then orchestrator MAP +
-      router pre-flight (#309), then #222 calibrator wiring.
+- [ ] **THEORY-OF-ESTIMABILITY ARC (2026-06-28, "Nobel-level research" prompt; Workflow multi-agent).**
+      `research/estimability-theory/`. Reframe: not "perfect simulator" (Fragile Families trap) but a
+      calibrated per-case test of WHICH change-directions are knowable-in-advance.
+      - **Charter wave** (8 agents) → `RESEARCH_CHARTER.md` WITH its own hostile review. Adversary
+        (accepted): ceiling=Salganik, guard=Lipsitch 2010, reframe=Hofman 2021; the one non-theater
+        condition = ~hundreds of real per-user A/B cases.
+      - **Corpus hunt** (5 agents) → `CORPUS_MANIFEST.md`: public ceiling ~8-12 experiments → hundreds
+        UNREACHABLE publicly → must MANUFACTURE (Senu factory). Found ~6 NEW turnkey real RCTs
+        (Karlan-List, Bertrand, Gerber-Green-Larimer, Orange-Belgium, Information-R + Hillstrom).
+      - **Proximal-CI experiment** (sealed sha 26d3b497) → `proximal/RESULT.md`, **LEAD**: COCA
+        recovers 95.8% sign on the EQUI abstain pile (win) but region-C 19.7% vs guard 2.3% in VIOLATED
+        (no free lunch). Deployable = COCA-correct INSIDE a guard. Runstore `proximal-coca`.
+      - **LaLonde PROMOTION capstone** (sealed 8673207a) → `lalonde/RESULT.md`: **MAJOR NEGATIVE** —
+        guard FAILED all 3 predictions on canonical real confounding; on PSID/CPS (-$15k/-$8.5k wrong
+        sign) it did NOT trip → would ship wrong sign. Mechanism: re75 (adj set) collinear with NC
+        re74 deflates the placebo. Synth→real FAILED (validates adversary c+e). Verdict NULL.
+      - **FIX diagnostic** (sealed da091a88): removing re75 from NC adjustment restores detection
+        (trips PSID/CPS, no false-trip RCT, prior small-n false-trip cleared) → failure WAS
+        collinearity; rule "don't adjust an NC on a covariate collinear with it" fixes LaLonde.
+        Candidate LEAD, NOT promotion (n=1; raises sensitivity globally).
+      - **FOUNDER-READOUT (on main) overstates the guard → needs the real-data-failure caveat
+        (flagged, awaiting user sign-off to edit).**
+      - Estimability tally: proximal-coca LEAD / lalonde-promotion NULL / lalonde-fix LEAD.
+      - NEXT (founder-gated): synthetic re-validation WITH NC-collinear covariates in the DGP; guard/
+        COCA on the ~6 corpus RCTs + IHDP/ACIC; new NC-nomination rule (no adj-set collinearity).
+      - Commits: 9a8f68c4→cda9e750 (charter 32c71c9d, corpus 13bbc652, proximal 19196925,
+        lalonde-NULL c46b1225, lalonde-fix cda9e750).
+
+- [ ] **DATA-WALL is the live frontier.** The "think-differently" loop (below) exhausted the
+      LLM-method angle on the 14-case set — every structurally-different method lands at chance.
+      The next genuinely-new work is on the DATA side, not the method side: grow a real,
+      representative, labeled A/B corpus (portfolio growth + the Senu BenchmarkCase factory +
+      #222 conversion calibrator) so the reference-class/analogy direction has something real to
+      grip, and find naturally-confounded real data to push the negative-control guard LEAD→PROMOTED.
+      Founder/ops-gated; no further method spikes until the data input changes.
+
+- [x] **"THINK-DIFFERENTLY" ALT-METHOD LOOP — COMPLETE 2026-06-28 (all NULL, data wall confirmed).**
+      A pre-registered loop testing whether a structurally-different USE of the LLM beats chance,
+      after the council/roleplay/comparative all came back null. `research/alt-method-spikes/`
+      (RESULTS.md + 2 sealed preregs + harness). Groq llama-3.3-70b, blinded, 14 cases.
+      - **M1 hypothesis-decomposition** (LLM rates 6 mechanisms → frozen sign-rule, never predicts
+        winner): 7/13 (0.54) ≈ holistic. **NULL** (H1 as predicted).
+      - **M3 selective-prediction** (abstain on low vote-agreement) — *my sealed PRIMARY bet*:
+        **FAILED**. Model votes 5/5 unanimous on all 14 even at temp 0.4 → no reliability gradient.
+        Internal self-consensus has no external anchor (unlike the negative-control guard). **NULL.**
+      - **M2 reference-class analogy** (leave-one-out few-shot, other 13 labeled cases in-context):
+        iter1 11/14 (0.79) — the only above-chance result, beat base-rate 0.57 by de-biasing the
+        change-wins prior. I bet AGAINST it (H2), so I stress-tested it (iter2, sha caca1969):
+        5 orderings × 3 seeds → **median 0.5714 = base-rate floor exactly**. The 0.79 was an
+        in-context-ORDERING ARTIFACT. **LEAD→NULL** by the sealed robustness gate.
+      - **Convergent finding:** holistic/decomposition/analogy/selective/council/naive ALL at chance.
+        Robust convergence → binding constraint is **validation DATA, not method**. Recorded in the
+        campaign run-store: `altmethod-decomposition`/`altmethod-selective`/`altmethod-analogy` (NULL).
+        Commits 9a8f68c4 (prereg), d23b6ab0 (iter2 prereg), d8330863 (results).
+
+- [x] **PERSONA-WORKER PORT (the productization loop, 2026-06-28).** Landing the validated
+      cores into the live persona-build path. Scope doc:
+      `research/engine-strength-campaign/SCOPE_PERSONA_WORKER_PORT.md`. 3 phases, each
+      built by a fresh agent in an isolated worktree, ruff+pytest + codex-reviewed:
+      - **Phase 1 — MERGED** `ram-de/sidira-personas` PR **#20** (`fec750d`): vendored
+        `causal_estimator.py` + `manifest_builder.py` into `sidira_personas/estimability/`;
+        guard attached per candidate effect via explicit `neg_control_map` (sibling-outcome
+        auto-NC removed — causally invalid, codex caught it); `build_manifest_from_frame`
+        (in-memory df slice). 84 tests; 3 codex rounds (empty-covar/per-arm-const/NaN/
+        degenerate-NC all hardened).
+      - **Phase 2 — MERGED** PR **#21** (`44b8608`): wired into `run_pipeline` as an
+        ADDITIVE, OFF-BY-DEFAULT (`estimability.enabled is True`) artifact on
+        `PipelineResult.estimability_manifest`; exception-wrapped (never breaks the pack);
+        bounded (grid cap + `max_rows=50k` sample); numeric-dtype allowlist + unhashable-col
+        safe. 94 tests; synthetic enabled-run = 6 supportable effects. codex LGTM.
+      - **Phase 3 — MERGED** sidira-simulator PR **#510** (`c7862e7f`): carry
+        `estimability_manifest` through `PipelineOutput` (`getattr` forward-compat with the
+        pre-field vendored wheel `0.1.0`) and write `estimability_manifest.json` beside the
+        pack in R2 in `_write_pack` (NaN→null sanitized via `_json_safe`, pack_version→
+        authoritative v_N, additive/guarded — never breaks the pack write). Worker mode has
+        no re-serialization boundary → survives. 30 backend tests; codex LGTM. **PORT DONE.**
+      - **GATES TO PROD (founder/ops, after Phase 3 merges):** rebuild+vendor the
+        sidira-personas wheel (current `0.1.0` pre-dates the field → manifest stays None until
+        then); set `estimability.enabled` in a build's config_json; manual backend redeploy
+        (touches backend/, but inert with the old wheel so non-urgent).
+      - NEXT after the port: orchestrator MAP (LLM nominates valid NCs + maps hypothesis→cols)
+        + router pre-flight (#309), then #222 calibrator wiring.
 
 ## Completed
 - [x] **Phase A — empirical/causal route (synthetic): MECHANISM WORKS.** `uplift_spike.py`.
@@ -100,7 +175,7 @@ persona-simulation engine has come back null. Find the one angle that actually w
       Recalibrated confounder to mostly-linear (sub-floor residuals) BEFORE commit/unseal so the
       ratio rule — not the floor — was under test. Folded ratio into `negative_control_guard()`.
 - [x] **Founder readout written + (to be) merged to main:** `founder-readout/README.md` — plain-
-      language, road-readable, DoorDash + fridge-thermometer examples, the 6-experiment story,
+      language, road-readable, marketplace + fridge-thermometer examples, the 6-experiment story,
       honest limits. Per the "land campaign docs on main" preference.
 
 ## Campaign ledger (research/engine-strength-campaign/LEDGER.md)
@@ -151,10 +226,113 @@ live deployment; (c) router must NOMINATE the negative-control set per hypothesi
 - Ties to [[project-empirical-uplift-and-council-spike]] (memory), the directional
   portfolio, and the #222 calibrator (the empty slot this route could eventually fill).
 
+## Estimability arc + fix re-validation + persona info-gate (2026-06-29)
+- **LaLonde covariate-drop fix REFUTED** (sealed 8fc805c7, `research/estimability-theory/
+  revalidation/RESULT.md`): Part A synthetic specificity FAILS (FIXED guard false-trips
+  0.517 / 1.000@collin.95 on benign nulls); Part B 1/4 real-RCT false-trip (Orange-Belgium,
+  likely a scale-units floor bug — binary-prob vs standardized-continuous NC). `lalonde-fix`
+  downgraded LEAD→NULL (runstore `fix-revalidation`). **Route = proximal/double-NC (MGT 2018)**,
+  not a covariate patch. Tally: 0 PROMOTED, 5 LEAD, 7 NULL, 1 MECH-ONLY.
+- **Persona information-sufficiency gate BUILT + self-validated** (`research/estimability-
+  theory/info_gate/`, commit b5c6cd36): L0 presence / L1 variance / L2 discriminability
+  (HistGBM vs permutation null on a PRE-TEST proxy — outcome-blind). PASS = necessary-not-
+  sufficient pre-filter; the persona-level twin of the empirical feature-expressibility gate.
+  Self-test: 5 synthetic packs (sufficient/absent/degenerate/noise/partial) all classified
+  right (sufficient AUC 0.838 p=0.005; noise AUC 0.501 p=0.478). Works today on any per-user
+  feature table.
+- **In-distribution experiment drafted** (`PREREG_INDISTRIBUTION_GATE_DRAFT.md`, NOT sealed):
+  the info-gate's PASS/FAIL is the pre-committed partition; engine must beat BASE-RATE on PASS
+  only (P1) + be at chance on FAIL (P2) + beat naive-intuition + counter-intuitive slice reported
+  separately. Sealed + run when a design partner's sealed A/B history lands. n=1 = LEAD not PROMOTE.
+
+## PRODUCTION BLIND TESTS w/ a design partner (2026-06-29 →, `research/estimability-theory/blind-tests/`)
+**NOTE: partner identity, raw readouts, magnitudes, and the specific experiment descriptions are
+CONFIDENTIAL and were scrubbed from the repo + git history (2026-06-30) at the partner's request.**
+Only the abstract method/learnings are retained here. Sealed blind tests (sha256 committed BEFORE
+reveal), engine on Groq llama-3.3-70b, scored once against pre-registered rules. Archetypes only:
+- **Case 1 — modest UI change (negative control):** engine gave a confident large INCREASE with N
+  identical personas giving the IDENTICAL reason (= one opinion ×N; L0 gate FAIL, ungrounded). Truth =
+  a *small* genuine win. Direction matched but UNINFORMATIVE (the naive/base-rate call); magnitude
+  overshot; confidence fake. → the ABSTAIN/capability-score case.
+- **Case 2 — price-transparency feature ("worked in market X → confident"):** gate said GROUNDABLE
+  (mechanism features present → L0+L1 PASS) and the engine showed real heterogeneity across segments.
+  **TRUTH = counter-intuitive NEGATIVE for high-value users** (a TRADE-DOWN ACCELERATOR: price salience
+  → high-value users defect to cheaper options → worse selection → disengage). Sign set by an
+  EFFECT-MODIFIER (position on the price ladder); the winning market was the LEAST-representative one
+  (downside structurally impossible there) → evidence-backed-but-non-generalizing failure.
+- **Case 3 — moving customers off a higher-value state onto a cheaper promo:** engine said "do MORE";
+  **TRUTH: the cheaper state LOST** on margin/profit (cannibalized a frequency-driving premium state).
+  Engine wrong; I also conceded "activity up" and was wrong. Got right: margin deterioration +
+  "underperforms the premium state" + "score on profit not count."
+- **Case 4 — a subsidy claiming INCREMENTAL volume:** unprimed per-persona engine gave maximal
+  fake-confidence ("100% incremental"). **TRUTH: ~flat net volume** — the subsidized channel rose while
+  a sibling channel fell ~the same → substitution, not growth. Engine wrong; **mechanism/incrementality
+  read called the cross-channel CANNIBALIZATION verbatim in the seal.** Honest miss: my incrementality
+  lean was the right side but under-extreme.
+- **Case 5 — a declutter/removal UI change claiming distal MAU/orders lift:** MIXED. Distal metrics
+  NOT establishable (null) → my **flat/null + ABSTAIN-on-distal** calls held; engine overreached on the
+  business metric. BUT the genuinely counter-intuitive proximal finding (removal *raised* engagement via
+  perceived relevance) went AGAINST my mechanism lean (I entertained engagement-down), and my selection
+  call was backwards. **Bounds the wedge: edge is gross-vs-net ECONOMICS + estimability/abstain, NOT
+  engagement psychology.**
+- **Pattern:** engine tracks INTUITION not truth — right when obvious is right (case 1), wrong on the
+  business metric of every counter-intuitive case (it always predicts business lift). The structured
+  economic/incrementality read wins on gross-vs-net/substitution cases; the **ABSTAIN** is the durable,
+  model-confound-free product behavior. Root cause: a volume framing conflates gross activity with
+  INCREMENTAL value; the engine simulates the demand side and is blind to the COUNTERFACTUAL
+  (substitution / unit economics), which lives in the data, not the persona.
+- **"engine" vs "me" (clarified for founder):** "engine" = the product's persona-SIMULATION; "me" =
+  my own out-of-engine economic/causal read (the wedge prototype). The read winning is NOT "Claude >
+  product" — it's that the WINNING METHOD (incrementality + unit-economics audit) is different in kind
+  from simulation and becomes a DATA COMPUTATION on the customer's own readout (no LLM opinion → no
+  model-strength confound). That data-computed audit is the product (#521); #530 validates it.
+- **PRODUCT WEDGE (the reframe):** the costly predictions are the evidence-backed-but-non-
+  generalizing ones ("worked in market X → roll out"). Sellable thing = **generalization /
+  external-validity AUDITING of existing test wins** — find the effect-modifiers + cannibalization/
+  trade-down signal in the customer's OWN test data (empirical route's heterogeneity + negative
+  controls, NOT simulation). These 2 cases = first entries for the #517 in-distribution harness.
+
+## Feature-store schema + capability score + telemetry/UI route (2026-06-29, later)
+- **Council-of-experts deliverable** (`research/estimability-theory/feature-store-spec/FEATURE_STORE_SPEC.md`,
+  5 lenses + adversarial critic + synthesis via Workflow, web-researched): the **33-class** feature-store
+  schema (A empirical-anchor, B user-state×10, C interaction-telemetry×5, D context, E entity, F market,
+  G acquisition/semantic, H guards, I longitudinal) that grounds empirical DIRECTION prediction for A/B
+  tests. HONEST coverage ~35–45% of a roadmap, **only ~10–20% counter-intuitive** (~25–30% cold-start);
+  12 documented abstain-only classes. Build priority: Wave0 guards → Wave1 spine (B1+A2+C1+A1) = bulk.
+- **Case-1 (UI) reopened** — was wrongly marked permanent-abstain; UI friction IS loggable as telemetry
+  (class C1). UI = ~40–55% of roadmap (founder), must be solved. Same 2-layer structure as pricing:
+  C1 exposure + a **UI-experiment library** (past UI changes' telemetry→outcome) as response. UNVALIDATED;
+  needs a real UI-experiment corpus; novel patterns abstain; empirical-route-fed-by-telemetry not role-play.
+- **Persona-pack capability score BUILT** (#518, `info_gate/{feature_taxonomy,pack_capability,test_pack_capability}.py`,
+  commit 402335c4): `score_pack(pack)->CapabilityProfile` = presence×variance×support per class → score N +
+  answerable/partial/abstain surface + gap_list + summary(). Reuses the gate's _l1_check. 8 tests pass, ruff
+  clean. Verified behavior = the thesis: thin order-history pack scores 8.7 + ABSTAINS on ui_friction_flow
+  (blind-test-1 reproduced); +C1 telemetry → ui_friction_flow partial + C1 validated (case-1 unlock).
+- **PRODUCT-AGNOSTIC refactor BUILT** (#523, commit 137466d9): 33 classes are domain-neutral CONCEPTS;
+  only patterns are vertical-specific. `feature_taxonomy.py` generic_patterns + ADAPTERS for marketplace/
+  saas/ecommerce/content_media/fintech; `score_pack(column_map=, vertical=)` precedence column_map (product
+  Map-step path, #271 reuse) > adapter > generic. PROOF verified: marketplace + saas packs w/ DIFFERENT
+  column names both validate SAME abstract C1 + both unlock ui_friction_flow; E2 two-sided supply correctly
+  ABSENT for single-sided saas. 13 tests pass, ruff clean. (Founder caught marketplace-specific bias — corrected.)
+- **SCOPE TRUTH:** everything this session = research/ only (zero backend/frontend; product engine imports
+  nothing from research/). The capability layer is a PROTOTYPE, not wired into the product.
+- **Tickets logged:** #518 capability score, #519 33-class schema+Wave0/1, #520 telemetry-UI route+library,
+  #521 generalization-audit wedge; 3 blind tests logged on #517; all under router epic #511.
+  **+ NEW data-plane epic #522** w/ 8 children: #523 product-agnostic taxonomy (BUILT), #524 telemetry(C1)
+  ingestion, #525 experiment-history(A1) store, #526 UI-experiment library, #527 backend persist/serve
+  capability profile, #528 frontend capability surface, #529 guards H2/H3, #530 real-corpus UI validation.
+  Build order: Wave0 #529 → Wave1 #523/#524/#525 → #527 → #526 → #528 → #530 gate.
+- **Competitive read** (`competitive/artificial-societies.md`): best-funded LLM-persona player validates only
+  on intuition-aligned engagement (R²=.78 LinkedIn), ducks false-positives → our counter-intuitive/causal/
+  generalization niche is vacated. Borrow: per-individual grounding + empirical readout-metric calibration.
+
 ## For my cofounder
 The big takeaway: no LLM-prompting trick (persona/council) beats a coin flip at predicting
-which A/B arm wins — but the **empirical/causal route does**, and I now have it working on
-real Cookie Cats data (recovers the true counter-intuitive winner under injected
-confounding where naive averaging is off by +22pp). Next is Hillstrom for the clean
-pre-treatment version. All in PR #508; nothing touches production. The council idea is a
-documented dead end — don't re-spin it.
+which A/B arm wins — but the **empirical/causal route does** (working on real Cookie Cats +
+Hillstrom). Since then: the negative-control guard FAILED on real confounded data (LaLonde),
+and the candidate fix is now REFUTED too — honest route is proximal/double-NC. New: a **persona
+information-sufficiency gate** (does the persona even encode what a hypothesis turns on?) is built
++ self-validated — it's the first gate and the partition the design-partner in-distribution
+experiment scores against. Product read: sellable as an honest TRIAGE/bias-catcher (NOT an accuracy
+oracle), gated on the guard becoming real-data-trustworthy; the moat is the gate + Senu data
+factory, not the predictor. The council idea remains a documented dead end — don't re-spin it.

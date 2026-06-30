@@ -1,0 +1,74 @@
+{
+  "benchmark": "LaLonde NSW (Dehejia-Wahba) \u2014 FIX diagnostic",
+  "change": "re75 removed from NC(re74) adjustment set only; main re78 model unchanged",
+  "interpreter": "3.11.15",
+  "main_covariates": [
+    "age",
+    "education",
+    "black",
+    "hispanic",
+    "married",
+    "nodegree",
+    "re75"
+  ],
+  "nc_covariates_fixed": [
+    "age",
+    "education",
+    "black",
+    "hispanic",
+    "married",
+    "nodegree"
+  ],
+  "guard_params": {
+    "floor": 0.05,
+    "ratio": 1.5
+  },
+  "conditions": {
+    "A_experimental": {
+      "n": 445,
+      "main_adjusted_re78_std": 0.24051773531672402,
+      "nc_residual_re74_std_re75_REMOVED": -0.03391802034528642,
+      "nc_residual_re74_dollars_re75_REMOVED": -224.92707037369956,
+      "raw_placebo_re74_std_NO_covariates": -0.0017270445823669434,
+      "raw_placebo_re74_dollars_NO_covariates": -11.452881812147098,
+      "floor": 0.05,
+      "hidden_confounding_flag": false,
+      "indistinct_flag": false,
+      "guard_trips": false,
+      "guard_reason": "main +0.2405 clears 1.5x NC bias (-0.0339): estimate trusted"
+    },
+    "B_psid_observational": {
+      "n": 2675,
+      "main_adjusted_re78_std": -0.571103387742924,
+      "nc_residual_re74_std_re75_REMOVED": -0.9788266677394721,
+      "nc_residual_re74_dollars_re75_REMOVED": -15301.527001145652,
+      "raw_placebo_re74_std_NO_covariates": -1.1087895631790161,
+      "raw_placebo_re74_dollars_NO_covariates": -17333.174502442125,
+      "floor": 0.05,
+      "hidden_confounding_flag": true,
+      "indistinct_flag": true,
+      "guard_trips": true,
+      "guard_reason": "NC re74 residual -0.9788 (re75-removed) > |0.05|: hidden confounding -> abstain"
+    },
+    "C_cps_observational": {
+      "n": 16177,
+      "main_adjusted_re78_std": -0.38187175175923366,
+      "nc_residual_re74_std_re75_REMOVED": -1.1260443733306904,
+      "nc_residual_re74_dollars_re75_REMOVED": -10889.970735870274,
+      "raw_placebo_re74_std_NO_covariates": -1.2326784133911133,
+      "raw_placebo_re74_dollars_NO_covariates": -11921.228120755404,
+      "floor": 0.05,
+      "hidden_confounding_flag": true,
+      "indistinct_flag": true,
+      "guard_trips": true,
+      "guard_reason": "NC re74 residual -1.1260 (re75-removed) > |0.05|: hidden confounding -> abstain"
+    }
+  },
+  "verdict": {
+    "P1_detection_restored_BC_PASS": true,
+    "P2_A_nc_residual_std": -0.03391802034528642,
+    "P2_A_trips_from_nc_hidden_mechanism": false,
+    "P2_A_guard_trips_overall": false,
+    "note": "P1 PASS => failure is the collinearity mechanism; principled NC-aware adjustment restores detection on LaLonde (candidate fix / LEAD, NOT promotion \u2014 needs synthetic re-validation with NC-collinear covariates + other real RCTs). Fix raises NC sensitivity globally (honest limit, prereg P3)."
+  }
+}
