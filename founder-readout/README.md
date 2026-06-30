@@ -45,18 +45,18 @@ If yes → use the empirical engine (trustworthy). If no → fall back to the LL
 
 ## 2. How the empirical engine works — a simple example
 
-Say **DoorDash** is the customer and they ask:
+Say **a food-delivery app** is the customer and they ask:
 
 > *"If we show customers a 'group order' button, will more of them place an order this week?"*
 
-The empirical engine doesn't ask an AI what it thinks. It looks at DoorDash's own data, where some
+The empirical engine doesn't ask an AI what it thinks. It looks at the customer's own data, where some
 users already saw the button and some didn't, and **compares them**. Each user is one row:
 *did they see the button? did they order? plus everything we know about them (how often they order,
 city, app version, etc.).*
 
 Sounds easy — just compare the two groups. **The catch is "confounding."** Here's the trap:
 
-> The users who saw the new button first were DoorDash's **power users** (the company rolled it out to
+> The users who saw the new button first were the app's **power users** (the company rolled it out to
 > their most active customers). Power users order a lot *anyway*. So if you just compare "saw button"
 > vs "didn't," the button looks amazing — but you're really just seeing that power users order more.
 > The button might have done nothing.
@@ -80,7 +80,7 @@ value: it turns a misleading raw comparison into an honest estimate.
 The correction in section 2 only works if **all the important confounders are in the data.** What if
 something we *can't see* drove who got the change?
 
-Example: imagine the real reason some DoorDash users saw the "group order" button wasn't power-user
+Example: imagine the real reason some users saw the "group order" button wasn't power-user
 status (which we can measure) but a hidden marketing campaign in certain neighborhoods that we have no
 record of. Our correction can only adjust for what it can see. The hidden cause sails right through,
 and the engine produces a **confident, wrong** answer.
@@ -108,7 +108,7 @@ Here's the idea, by analogy:
 The fridge thermometer is a **negative control**: a measurement that *should not move* if everything is
 clean. If it moves, you know there's a hidden influence messing with your real measurement.
 
-**For DoorDash:** to check the "group order" button result, we also measure its "effect" on something
+**For this example:** to check the "group order" button result, we also measure its "effect" on something
 the button *couldn't* have caused — say, **whether the user opened the billing/settings page**, which
 has nothing to do with group orders. If the button *also* appears to "boost" billing-page visits, then
 the group that saw the button was simply **more active overall** to begin with — so the retention boost
