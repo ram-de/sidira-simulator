@@ -204,6 +204,16 @@ live deployment; (c) router must NOMINATE the negative-control set per hypothesi
    (replace `IdentityCalibrator` in `services/conversion_calibrator.py`).
 5. (optional) Upworthy / no-persona LLM generalization beyond the 14 cases.
 6. (optional) Land PR #508 to main once reviewed.
+7. **#534** — Senu counter-intuitive taxonomy program, Phase 1 (lean ~50 designed tests) + learning-curve
+   gate (the ₹20-lakh/6-mo plan, top ~6–8 patterns, decision gate on curve+transfer). Links #478/#484/#50.
+8. **#535** — Experiment: triage fine-tune (Bridgewater-shaped) on public corpora — label worth-it/skip;
+   small ranker vs frontier-zero-shot + base-rate. The cheap, near-term Bridgewater play. Links #50.
+9. **#536** — Experiment: outcome-grounded micro-fine-tune feasibility on the synthetic factory — RL a
+   small model against measured AMBDOM/GNCE effects; vs the optimistic LLM on the counter-intuitive slice +
+   transfer to Cookie Cats/Hillstrom; answers "is the bottleneck model or data?" before the factory. Links #50.
+10. **#537** — Promote AMBDOM existence-proof: find naturally-ambiguous real data with a true dominance flip
+   (+ close the A4 resolution-curve gap — where grounded sim breaks as the margin shrinks). Links #521/#222.
+11. (doc) (optional) PR `founder-readout/finetuned-simulator-readout.md` to main so it's readable anywhere.
 
 ## Key Files
 - `research/empirical-uplift-spike/README.md` — full writeup (the canonical record).
@@ -325,6 +335,51 @@ reveal), engine on Groq llama-3.3-70b, scored once against pre-registered rules.
 - **Competitive read** (`competitive/artificial-societies.md`): best-funded LLM-persona player validates only
   on intuition-aligned engagement (R²=.78 LinkedIn), ducks false-positives → our counter-intuitive/causal/
   generalization niche is vacated. Borrow: per-individual grounding + empirical readout-metric calibration.
+
+## Simulation-engine reckoning + watchdog architecture + fine-tune readout (2026-06-30)
+Founder REASSERTED the simulate-novel-questions + talk-to-users USP (rejected the pure audit pivot).
+Two sealed experiments + an architecture reframe + a fine-tune strategy readout. All scratchpad-only
+(`scratchpad/method-bakeoff/`), zero repo/prod code; partner data untouched.
+- **GNCE** (grounded novel-counterfactual extrapolation, PREREG sha 434fd8f0): can a model fit WITHOUT
+  the treated outcome simulate a novel feature via an OBSERVED MEDIATOR (g-formula) and beat the LLM?
+  Real Groq. **A1 USP-claim REFUTED** — grounded sim 1.00 but a mechanism-aware LLM TIES it (battery
+  fixed magnitudes so the dominant sign stayed qualitatively guessable). Honest boundary P4 HELD
+  (abstains when mediator-proxy unobserved = swipe-delete). Hillstrom mechanism TRANSFERS = LEAD.
+- **AMBDOM** (ambiguous-dominance battery, PREREG sha 47d6f06e): the regime GNCE couldn't build — two
+  opposing mechanisms, net sign decided by MAGNITUDE words can't carry. **A1 HELD DECISIVELY: grounded
+  1.00 (12/12) vs LLM 0.00 on magnitude-driven flips.** Bigger unpredicted finding: **LLM is BELOW
+  chance (0.17) — answered UP 18/DOWN 0/UNSURE 18, NEVER predicts a decline** (structural optimism,
+  CONVERGES with the blind-test pattern). Cookie Cats REAL recovered the counter-intuitive negative
+  (LEAD). LIMIT: existence-proof only; B2 = 10 realistic datasets all one-sign → no real
+  population-dominance flip to promote on (the data wall). Both in [[project-empirical-uplift-and-council-spike]].
+- **Watchdog architecture** (founder's framing, adopted): run BOTH engines on every question — LLM is
+  the FRONT FACE (answers anything + the "why" chat), empirical is the WATCHDOG (validates/overrules/
+  flags). Precedence = trustworthy-empirical > LLM > untrustworthy-empirical(→abstain); the
+  negative-control guard is the gate. Three verdicts: CONFIRMS / **CONTRADICTS (the product — catches the
+  optimism-blind net-negatives)** / CAN'T-VALIDATE. Updated the product mock
+  (`scratchpad/insight-engine-flow.html`, Overview + Predict screens) to show it.
+- **Fine-tune strategy readout** (`founder-readout/finetuned-simulator-readout.md`): from the real
+  Thinking Machines × Bridgewater write-up. KEY REFRAME: their win = RL (GRPO 44.8→73.5; OPD added the
+  last points) against a VERIFIABLE REWARD that exists only because triage is a labelable classification
+  task. The dataset+cleaning pipeline was the moat, not the trick. **Our prediction task lacks a
+  verifiable reward at scale (each label = a full A/B, counterfactual) → no GRPO miracle → same data
+  wall.** Triage ("worth testing?") IS Bridgewater-shaped (cheap labels) → buildable. "Unlimited
+  resources" buys a DATA FACTORY first (Senu, over-sampling counter-intuitive), then an outcome-grounded
+  fine-tune (reward = measured truth), then keep the watchdog. Honest ceiling = Salganik (predictable
+  slice + calibrated abstention, not a crystal ball).
+- **Senu data-factory plan (founder endorsed 80/20):** ~80% of experiments ≈ a small FINITE taxonomy of
+  recurring failure modes (cannibalization, trade-down, substitution, novelty-decay, gross-vs-net,
+  mix-flip, declutter-paradox, friction-as-filter…), ~20% long tail we ABSTAIN on. Target = grow the
+  trustworthy CONFIDENT SUBSET + kill the optimism bias (NOT global accuracy — cost savings come from the
+  confident-skip/ship slice). **6-mo Phase-1 LEAN budget: ~50 designed tests × ~1,000 respondents avg @
+  ₹40 = ~₹20 lakh (~$24k)**, ~₹3.3 lakh/mo; covers top ~6–8 patterns + matched controls. Base ₹60 lakh
+  (100×1.5k), Aggressive ₹1.4 cr (175×2k). **DECISION GATE @ month ~4–5: the LEARNING CURVE bends (new
+  cases fall into seen structures) AND transfer holds (vs public RCTs) → scale; flat → stop, fall back to
+  watchdog-audit.** Bet on the curve, not faith. Customer experiment-exhaust = free labels (Senu only
+  manufactures the designed/counter-intuitive portion); chase heterogeneity only on mix-flip patterns
+  (the 2–3× cost multiplier).
+- **Tickets:** commented the fine-tune design-spike conclusions on #50; created the new experiment/program
+  tickets (see Next Steps 7–10). GNCE/AMBDOM/watchdog-mock/readout are DONE (research+doc artifacts).
 
 ## For my cofounder
 The big takeaway: no LLM-prompting trick (persona/council) beats a coin flip at predicting
