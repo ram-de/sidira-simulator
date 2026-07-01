@@ -42,7 +42,7 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [x] #539 LLM-as-translator (hypothesis → structured mechanism spec) — MERGED PR #551
   - [x] #540 grounded mediation sim (g-formula) as the predictor — MERGED PR #552
   - [x] #541 negative-control watchdog as the runtime trust gate — MERGED PR #553
-  - [ ] #542 runtime decision-flow orchestrator (the router; integrates #309/#511 lever pre-flight)
+  - [x] #542 runtime decision-flow orchestrator (the router) — MERGED PR #554
 - **Phase 2 — surfaces**
   - [ ] #543 3-model heterogeneous-bias council (abstain-siren / caution-dial)
   - [ ] #544 re-ground talk-to-users conversation on computed results
@@ -51,18 +51,14 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [ ] #546 model-robustness regression harness (sealed battery per new model)
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
 
-## In Progress
-- [ ] **Iteration 4 = #542** runtime decision-flow orchestrator (THE ROUTER). Wires the whole
-      chain into a live path: translate (#539) → grounded (#540) → watchdog (#541) → LLM
-      fallback. Precedence: trustworthy-empirical > LLM > untrustworthy-empirical (COVERED +
-      CANT_VALIDATE → ABSTAIN; NOT-covered → LLM). Integrates #309/#511 lever pre-flight
-      (lever-in-data check). Council (Step-2 calibrator) = INJECTED Protocol + NullCouncil default
-      (#543 fills the real 3-model council). Ship behind off-by-default env flag
-      (`SIDIRA_DECISION_FLOW_ENABLED`); prod behaviour unchanged when off, no response-shape change
-      (that's #545). **REDEPLOY CORRECTION: do NOT redeploy here** — off-by-default with no live
-      consumer = dead-but-available code; the single redeploy batches to the first live consumer
-      (#545 output surface / founder flip). Real-customer end-to-end run = founder-gated; note,
-      don't block the PR.
+## In Progress — PHASE 1 COMPLETE (#539–#542 merged). Now Phase 2.
+- [ ] **Iteration 5 = #543** 3-model heterogeneous-bias council. Fills the `Council` Protocol seam
+      the #542 router already exposes (`assess(hypothesis, spec) -> CouncilAssessment(agreement,
+      llm_direction, votes, rationale)`; NullCouncil default = agreement=True). Real council =
+      3 heterogeneous models; abstain-siren / caution-dial driven by DISAGREEMENT (never unanimity).
+      Council NEVER gates grounded — only calibrates the Step-2 LLM fallback. ML-free (LLM calls
+      via existing chat_client adapter). Ship additive; wire into decision_flow via the injection
+      point (default stays NullCouncil until flag-flip).
 
 ## Completed
 - [x] Reconciled: Epic #538 + #539-546 already exist, cleanly phased; no new tickets needed.
@@ -95,6 +91,20 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       alias robustness) — both fixed + tested. 11 tests, 29 in scope pass. ML-free, INERT.
       Independently verified (ruff/pytest/logic) before merge. Producer (sidira-personas
       manifest_builder) does NOT emit the NC fields yet → follow-up producer ticket needed.
+- [x] **#542 §5e decision-flow orchestrator — MERGED (PR #554). PHASE 1 DONE.** New
+      `services/decision_flow.py`: `decide()` (never raises) composes translate→grounded→watchdog→
+      council-calibrated LLM fallback; `DecisionResult` audit trail; `Council` Protocol + NullCouncil
+      default; `decision_flow_enabled()` (env `SIDIRA_DECISION_FLOW_ENABLED`, OFF default). Routing
+      matches §5e exactly (trustworthy→grounded/none; CONTRADICTS→"data overrides intuition";
+      abstain+disagree→hard/no-arrow; abstain+agree→moderate/unverified; exception→safe hard-caution).
+      Seam = `SimulationOrchestrator._maybe_log_decision_flow`, a LOG-ONLY shadow hook placed AFTER
+      `_run_with_id` sets terminal complete status (line 487) so it can't delay/false-fail the run;
+      guarded (never raises into the run's except); flag-off = cheap env read + return, run path
+      byte-identical. codex caught 3 P2s (blocking LLM on event loop→asyncio.to_thread; hook on
+      critical path→moved post-run+30s timeout; manifest reload sentinel) all fixed. Setup-mismatch
+      guard → abstain. 30 tests, 100 in-chain pass. Independently verified the seam + OFF path +
+      routing before merge. **NO redeploy** (off-by-default, no live consumer). Real-customer
+      end-to-end = founder-gated.
 
 ## Key Files
 - Engine runtime: backend/sidira_simulator/services/ (SimulationOrchestrator) — mapping in progress
