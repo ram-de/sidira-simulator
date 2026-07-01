@@ -171,6 +171,16 @@ def watchdog_classify(
 
         # 5. Guard clean (guard_trips is False) — trustworthy empirical.
         grounded = prediction.direction
+        # Defensive: a guard-clean, supportable candidate should carry a real sign,
+        # but the manifest defaults ``sign_adjusted`` to None — never certify a
+        # verdict we cannot surface a direction for. Abstain instead of raising.
+        if grounded not in ("positive", "negative"):
+            return _cant_validate(
+                "negative-control guard clear but grounded sign is missing/invalid — "
+                "cannot certify a trustworthy direction; router abstains on this lever",
+                grounded_direction=None,
+                llm_direction=llm_direction,
+            )
         if llm_direction is None:
             return WatchdogResult(
                 verdict="CONFIRMS",

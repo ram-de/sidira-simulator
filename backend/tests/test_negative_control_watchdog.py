@@ -139,6 +139,15 @@ def test_not_covered_cant_validate() -> None:
     assert res.llm_direction == "negative"
 
 
+def test_guard_clean_but_missing_sign_cant_validate() -> None:
+    """A guard-clean, supportable candidate with no grounded sign must abstain."""
+    pred = _covered(_candidate(guard_trips=False, sign=None), direction=None)
+    res = watchdog_classify(pred, llm_direction="positive")
+    assert res.verdict == "CANT_VALIDATE"
+    assert res.trustworthy is False
+    assert res.grounded_direction is None
+
+
 def test_defensive_covered_candidate_none_does_not_raise() -> None:
     """A covered+supportable pred with no candidate must degrade, not raise."""
     pred = GroundedPrediction(
