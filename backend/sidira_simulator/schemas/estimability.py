@@ -27,12 +27,16 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 # ``extra="ignore"``: this is an external artifact (produced by the worker, whose
 # manifest_version can run ahead of this reader). Tolerating unknown keys keeps a
 # newer manifest loadable instead of hard-failing an optional read path.
-_READ_CONFIG = ConfigDict(extra="ignore")
+# ``populate_by_name=True``: several NC-guard fields carry validation aliases (so
+# a producer that flattens the raw ``GuardedEstimate`` — ``floor`` / ``trips`` /
+# ``confidence`` / ``reason`` — parses too), but we must still accept the canonical
+# ``guard_*`` field names (what our own constructors / tests use).
+_READ_CONFIG = ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class ColumnEntry(BaseModel):
@@ -105,15 +109,27 @@ class CandidateEffect(BaseModel):
     # --- Negative-control guard (precomputed, optional). Mirrors GuardedEstimate.
     # Additive + forward-compatible: absent on pre-guard packs (all None/empty),
     # so ``guard_trips is None`` distinguishes "NC evidence absent" from a verdict.
+    # The ``guard_*`` fields also accept the raw ``GuardedEstimate`` key names
+    # (``floor`` / ``trips`` / ``confidence`` / ``reason``) via validation aliases,
+    # so the reader is robust whether the producer emits the canonical ``guard_*``
+    # names or flattens the dataclass verbatim.
     neg_control_effect: float | None = None  # decisive (max-|effect|) NC residual
     neg_control_effects: dict[str, float] = {}  # {control_name: residual}
-    guard_floor: float | None = None
+    guard_floor: float | None = Field(
+        default=None, validation_alias=AliasChoices("guard_floor", "floor")
+    )
     guard_ratio: float | None = None
     # True = untrustworthy (hidden confounding / effect indistinguishable from bias);
     # False = trustworthy empirical; None = NC evidence NOT precomputed.
-    guard_trips: bool | None = None
-    guard_confidence: Literal["high", "low/abstain"] | None = None
-    guard_reason: str | None = None
+    guard_trips: bool | None = Field(
+        default=None, validation_alias=AliasChoices("guard_trips", "trips")
+    )
+    guard_confidence: Literal["high", "low/abstain"] | None = Field(
+        default=None, validation_alias=AliasChoices("guard_confidence", "confidence")
+    )
+    guard_reason: str | None = Field(
+        default=None, validation_alias=AliasChoices("guard_reason", "reason")
+    )
 
 
 class EstimabilityManifest(BaseModel):

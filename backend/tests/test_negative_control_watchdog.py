@@ -139,6 +139,33 @@ def test_not_covered_cant_validate() -> None:
     assert res.llm_direction == "negative"
 
 
+def test_raw_guarded_estimate_key_aliases_parse() -> None:
+    """A producer that flattens the raw GuardedEstimate (floor/trips/confidence/
+    reason) parses into the canonical guard_* fields, so the watchdog can read it."""
+    raw = {
+        "treatment": "womens_email",
+        "outcome": "visit",
+        "supportable": True,
+        "sign_adjusted": "negative",
+        "neg_control_effect": 0.001,
+        "neg_control_effects": {"pre_visit": 0.001},
+        "floor": 0.05,
+        "trips": False,
+        "confidence": "high",
+        "reason": "main effect clears the bias: estimate trusted",
+    }
+    cand = CandidateEffect.model_validate(raw)
+    assert cand.guard_trips is False
+    assert cand.guard_floor == 0.05
+    assert cand.guard_confidence == "high"
+    assert cand.guard_reason == "main effect clears the bias: estimate trusted"
+
+    pred = _covered(cand, direction="negative")
+    res = watchdog_classify(pred, llm_direction="positive")
+    assert res.verdict == "CONTRADICTS"
+    assert res.trustworthy is True
+
+
 def test_guard_clean_but_missing_sign_cant_validate() -> None:
     """A guard-clean, supportable candidate with no grounded sign must abstain."""
     pred = _covered(_candidate(guard_trips=False, sign=None), direction=None)
