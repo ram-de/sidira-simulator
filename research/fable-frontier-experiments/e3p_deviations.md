@@ -30,3 +30,16 @@ file sealed and unread by the orchestrator (blind pipeline iteration).
    `e3p_predict.py` (z-test 1.96 with n; 1% relative rule without n; Simpson
    segment-weight perturbation guard; token-overlap arm identification with
    abstain-on-ambiguity).
+6. **Sealed truths contain one non-case meta-row** (codex review P3, noted
+   post-seal without modifying the sealed file): the GoodUI assembler added
+   `_meta_goodui_source_caveat`, so `e3p_truths.json` has 60 rows for 59
+   backlog cases. Inert for scoring — the scorer joins on backlog ids only —
+   and `e3p_truths.json` is left byte-identical to preserve the seal
+   (`3eb0bc5c…`). Future runs: `e3p_merge_seal.py` should enforce exact
+   backlog↔truth id equality, not just no-missing-truths.
+7. **Arm-B call rule is table-presence-driven** (codex review note): when
+   per-arm outcome tables exist, the calculator extracts regardless of the
+   translator's pre-launch composition classification — by design (E1
+   extraction regime), so Arm-B coverage on artifact-poor public sources is
+   a data-availability floor. Customer-side coverage is an ownership
+   argument, not an E3-P measurement (E3P_RESULTS.md Limits).
