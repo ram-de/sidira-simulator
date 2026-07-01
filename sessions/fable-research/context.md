@@ -12,7 +12,7 @@ owner: ram-de
 Research-grade analysis of Sidira's core accuracy problem: grounded simulation + watchdog depends on customers providing rich behavioral data beyond persona data, while the "easy" path (persona-seeded LLM agents) is refuted by our own benchmarks (LLM prior bias — llama optimism, Opus pessimism, magnitude-blindness). Run a council of research-scientist-grade perspectives ("if Anthropic built this to save A/B-test cost, how would a Karpathy-level council solve it?") and draft a research paper.
 
 ## In Progress
-- [ ] Founder review of PAPER.md; decide whether E1/E2 (₹0, days) run next
+- [ ] Founder review: PAPER.md v1.1 + DEBATE_CONCLUSION.md; next experiment = backlog-prevalence study (joint priority #1), then E5 proximal
 
 ## Completed
 - [x] Grounded in evidence base: founder-readout/simulation-engine-where-we-landed.md + finetuned-simulator-readout.md (from origin/main; extracted to scratchpad)
@@ -20,6 +20,12 @@ Research-grade analysis of Sidira's core accuracy problem: grounded simulation +
 - [x] Research council workflow (wf_4385dd55-493, 16 agents ~1.04M tokens): 6 lens-proposers → per-proposal red team (6/6 "revise", 0 kills) → 3-judge panel (top-pick split 2–1 Backtest Ladder vs Abstention Ledger) → chair synthesis
 - [x] PAPER.md drafted — "The Data-Efficiency Frontier for Trustworthy Pre-Test Prediction"
 - [x] Provenance saved: council-synthesis.md (chair) + council-dossiers.md (full proposals/critiques/scores)
+- [x] E1 RUN (worktree-fable-e1-e2, research/fable-frontier-experiments/): **PASS** — calc 12/12 flips + 12/12 one-sign; real Cookie Cats both signs from tier-1 moments alone (−0.8201/−0.5905pp = row-level truth); Opus-with-tables 23/24 (one silent arithmetic slip). Tier-1 verdict rung EXISTS on the composition slice; magnitude-blindness = information absence (words 0.00 → tables 1.00)
+- [x] E2 RUN: **KILL** — 86.7% same-tag opposite-sign ambiguity on 17 real cases (threshold 30%); mechanism-tag retrieval permanently banned from picking signs; rule R2 is now a measured result
+- [x] codex council round 1 (codex-council-r1.md): independent architecture converges on restructure-not-dissolve; 8 critiques adopted (validity-wording, estimand taxonomy, baselines, decision economics, certificate language, PFN deprioritized below tabular-supervised, in-span/novel labels, instrumentation preflight); Fable response with E1/E2 evidence in fable-response-r1.md
+- [x] codex round 2 (codex-council-r2.md): hostile audit of E1/E2 artifacts PASSED (hashes, blinding, leakage verified; Wilson CI on E2); all 5 original disagreements resolved/synthesized; 3 standing codex dissents recorded
+- [x] DEBATE_CONCLUSION.md: joint statement — proven engines = calculator + direct A/B estimate + g-formula, everything else an abstention test until it wins under seal on decision economics; audit is the wedge, selective pre-test prediction is the product
+- [x] PAPER.md → v1.1 (changelog + inline amendments: validity wording retired, estimand+evidence-class labels, tier-1.5 experimental flag, E1/E2 RUN markers, §9 dissent 2 resolved)
 
 ## Next Steps
 1. Founder reads PAPER.md (the deliverable) — §6 frontier table + §7 experiments are the decision surface
