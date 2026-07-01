@@ -2,6 +2,9 @@
 
 **2026-07-01 · Follow-up to BUYER_VERDICT.md** (joint finding: "the moat does not exist yet; it must be earned customer by customer"). This memo is the constructive answer: what to build so it exists, and what "buyable by Amazon" can realistically mean.
 
+> **FOUNDER DECISION 2026-07-01 (overrides parts of this memo — see addendum at bottom):**
+> Senu is an **internal data factory only — no customer-facing measurement SKU**. Sidira is **solely a product that helps design and prioritize hypotheses worth testing**. The founder runs studies internally to improve the model; **the moat = the paired corpus (hypothesis, panel-measured shift, real outcome), surfaced through a calibrated hypothesis-worth model** — never a sign oracle. Layer 2 below is amended from "measurement supply chain SKU" to "internal factory feeding layer 1"; tier-1.5 quote language in the paper is retired as a product concept.
+
 ## Part 1 — The four moat layers, ranked by defensibility
 
 The debate established that method is not a moat here (calculator ≈ 50 lines, shrinkage is published, abstention is a sprint). What compounds:
@@ -45,3 +48,22 @@ This door requires the certification brand (moat layer 3) to exist first; it is 
 4. Publish the whitepaper + open export schema + public certificate registry (moat 3+4).
 5. Start AWS Marketplace listing paperwork (door 1) — long lead time, zero strategic risk.
 6. Amazon ecosystem/BU doors: dormant until ≥5 certificates exist. Revisit at the first renewal.
+
+---
+
+## Addendum — Founder decision (2026-07-01) and the reshaped experiment queue
+
+**The decision.** No Senu SKU; no selling studies. Product identity: **hypothesis design + prioritization for experiments** ("which of your 100 ideas deserve your 12 tests' worth of traffic, and why"), with the audit retained as an entry artifact (it is the data grant and the source of loser/flat labels, not the identity). The moat, stated precisely: **the paired corpus is the moat; the model is its interface.** Paired records of (hypothesis, Senu-measured behavioral shift, real experiment outcome) are unpurchasable — platforms have outcomes without measurements, panel companies have measurements without outcomes. Studies run internally under the already-locked §11 calibration contract (Senu emits role-named arms; Sidira predicts blind; outcomes carry variance).
+
+**Model guardrails (binding, from the evidence base).** The model is a **calibrated hypothesis-worth scorer** — P(direction) with calibrated uncertainty, effect-size posterior, EVOI, power requirements, call/abstain — never an outcome oracle (six negative results; N5 trap: a model trained on public A/B lore learns publication bias and is confidently wrong exactly on the counter-intuitive slice). E2 ban carries into the learned pipeline: no mechanism-tag→sign pathways; tags remain uncertainty/coverage bookkeeping only. Zero-confident-wrong admission rule intact. **Ship gate: the model touches a customer only after beating the calculator + the six-baseline set under seal on decision economics** (false-ship/false-kill/regret at useful coverage), per debate resolution #4.
+
+**Known risks accepted with the decision:** slow corpus growth (dozens–hundreds of pairs in year one → hierarchical priors by change-type bucket, not deep learning; interim revenue stays on the deterministic layer); transport risk goes silent inside the model (so every internal study carries a sealed blind prediction vs measured outcome — E6 discipline internalized); selective labels (customers only test what they like → audit exhaust keeps feeding losers/flats).
+
+**Reshaped experiment queue (supersedes the DEBATE_CONCLUSION.md joint order, which is preserved as the historical record):**
+
+1. **Internal study cadence = the new E6 (starts as soon as Senu ops launch — still founder-gated on deploy/KYC/panel).** Every study: sealed blind prediction → measured outcome → paired triple into the corpus. The first studies ARE the transport validation; no customer-facing language is gated on it anymore — model feature admission is.
+2. **E5 — proximal double-NC** (unchanged): the audit wedge needs the watchdog working on naturally confounded exhaust.
+3. **E4 — abstention gate** (unchanged), now also the calibration layer for the hypothesis-worth scores.
+4. **E3-P follow-up — design-partner Arm-B coverage measurement** (unchanged; the demand-side number).
+5. **E7 — the hypothesis-worth model**, redefined per the guardrails above; trained on paired corpus + audit exhaust; runs only when the corpus clears a pre-registered n-floor per change-type bucket; evaluated under seal against calculator + six baselines on decision economics.
+6. **Product surface (buildable now, deterministic layer):** estimand labels, instrumentation/power preflight, EVOI ranking of the backlog, abstention ledger — the hypothesis-design console that the model later slots into.
