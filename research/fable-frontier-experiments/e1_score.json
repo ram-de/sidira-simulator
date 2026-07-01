@@ -1,0 +1,381 @@
+{
+ "prereg": "PREREG_E1_ARITHMETIC_SUFFICIENCY.md",
+ "answers_sha256_verified": "a535b997821f6d07b6af39227256e22086807ec50d6236c004c4d3dc6b2dab6e",
+ "CALC": {
+  "summary": {
+   "flip": {
+    "correct": 12,
+    "wrong": 0,
+    "abstain": 0
+   },
+   "onesign": {
+    "correct": 12,
+    "wrong": 0,
+    "abstain": 0
+   }
+  },
+  "rows": [
+   {
+    "id": "F1_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_3",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_3",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_3",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   }
+  ]
+ },
+ "LLM_TABLES": {
+  "summary": {
+   "flip": {
+    "correct": 12,
+    "wrong": 0,
+    "abstain": 0
+   },
+   "onesign": {
+    "correct": 11,
+    "wrong": 1,
+    "abstain": 0
+   }
+  },
+  "rows": [
+   {
+    "id": "F1_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_0",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_1",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_2",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_flip_3",
+    "bucket": "flip",
+    "pred": "down",
+    "truth": "-",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_0",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_1",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F2_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_2",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F1_onesign_3",
+    "bucket": "onesign",
+    "pred": "down",
+    "truth": "+",
+    "outcome": "WRONG"
+   },
+   {
+    "id": "F2_onesign_3",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   },
+   {
+    "id": "F3_onesign_3",
+    "bucket": "onesign",
+    "pred": "up",
+    "truth": "+",
+    "outcome": "correct"
+   }
+  ]
+ },
+ "cookiecats": {
+  "CALC_recovers_both_signs": true,
+  "LLM_TABLES_recovers_both_signs": true,
+  "CALC_deltas_pp": {
+   "retention_7": -0.8201,
+   "retention_1": -0.5905
+  }
+ },
+ "verdict": "PASS"
+}

@@ -1,0 +1,902 @@
+{
+  "experiment": "E2_TAG_SIGN_AMBIGUITY",
+  "prereg": "PREREG_E2_TAG_SIGN_AMBIGUITY.md",
+  "model": "claude-opus-4-8",
+  "temperature": "omitted \u2014 DEVIATION from prereg (temperature 0): claude-opus-4-8 API rejects the parameter as deprecated; 3-run majority rule (pre-registered) covers stability",
+  "runs_per_case": 3,
+  "system_prompt_verbatim": "You are a mechanism classifier for A/B test changes. Given a control description, a treatment description, and a metric name, classify the mechanism by which the treatment could move the metric.\n\nRespond with strict JSON only (no markdown, no prose):\n{\"family\": \"<one of: mix_shift, gross_vs_net, trade_down_cannibalization, friction_change, salience_attention, trust_signal, habit_loop, layout_navigation, personalization, other>\", \"mediator_role\": \"<the named behavioral lever, lowercase_snake_case>\"}\n\nDo not predict the direction or size of the effect. Do not mention any outcome.",
+  "construction_notes": [
+    "Hillstrom outcome 'visit' INCLUDED with truth '+': true_ate_pp=4.523, all estimator signs RIGHT in the sealed file.",
+    "Hillstrom outcome 'conversion' INCLUDED with truth '+': true_ate_pp=0.311, all estimator signs RIGHT in the sealed file.",
+    "Hillstrom outcome 'spend' EXCLUDED: not present in realdata_hillstrom_result.json (prereg notes spend ~0 / ambiguous)."
+  ],
+  "cases": [
+    {
+      "id": "cookiecats_gate_move",
+      "control": "The first forced progress gate is at level 30.",
+      "treatment": "The first forced progress gate is at level 40.",
+      "metric": "7-day retention",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The first forced progress gate is at level 30.\nTreatment: The first forced progress gate is at level 40.\nMetric: 7-day retention\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"progress_gate_timing\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "progress_gate_timing"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"progress_gate_timing\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "progress_gate_timing"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"progress_gate_timing\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "progress_gate_timing"
+          }
+        }
+      ],
+      "tag_family": "friction_change",
+      "tag_family_mediator": "friction_change::progress_gate_timing",
+      "stable_family": true,
+      "stable_family_mediator": true
+    },
+    {
+      "id": "duolingo_weekend_amulet",
+      "control": "Missing a day of practice ends the user's streak.",
+      "treatment": "An equippable 'Weekend Amulet' item keeps the streak active through one skipped weekend day.",
+      "metric": "week-later return rate",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: Missing a day of practice ends the user's streak.\nTreatment: An equippable 'Weekend Amulet' item keeps the streak active through one skipped weekend day.\nMetric: week-later return rate\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"habit_loop\", \"mediator_role\": \"streak_protection\"}",
+          "parsed": {
+            "family": "habit_loop",
+            "mediator_role": "streak_protection"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"habit_loop\", \"mediator_role\": \"streak_preservation\"}",
+          "parsed": {
+            "family": "habit_loop",
+            "mediator_role": "streak_preservation"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"habit_loop\", \"mediator_role\": \"streak_preservation\"}",
+          "parsed": {
+            "family": "habit_loop",
+            "mediator_role": "streak_preservation"
+          }
+        }
+      ],
+      "tag_family": "habit_loop",
+      "tag_family_mediator": "habit_loop::streak_preservation",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "msn_realestate_widget",
+      "control": "The incumbent 'Find a home' widget.",
+      "treatment": "A redesigned 'Find a home' widget with a search-box-style layout.",
+      "metric": "referral revenue",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The incumbent 'Find a home' widget.\nTreatment: A redesigned 'Find a home' widget with a search-box-style layout.\nMetric: referral revenue\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"search_input_engagement\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "search_input_engagement"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"search_initiation\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "search_initiation"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"search_input_engagement\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "search_input_engagement"
+          }
+        }
+      ],
+      "tag_family": "layout_navigation",
+      "tag_family_mediator": "layout_navigation::search_input_engagement",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "office_online_redesign",
+      "control": "The existing Buy page layout.",
+      "treatment": "A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.",
+      "metric": "Buy-button clickers",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The existing Buy page layout.\nTreatment: A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.\nMetric: Buy-button clickers\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_visibility\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_visibility"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_visibility\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_visibility"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_visibility\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_visibility"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "salience_attention::price_visibility",
+      "stable_family": true,
+      "stable_family_mediator": true
+    },
+    {
+      "id": "msn_homepage_extra_offers",
+      "control": "The MSN homepage as-is.",
+      "treatment": "The MSN homepage with 3 additional paid offers placed below the shopping module.",
+      "metric": "clicks and page-views per user-day",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The MSN homepage as-is.\nTreatment: The MSN homepage with 3 additional paid offers placed below the shopping module.\nMetric: clicks and page-views per user-day\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"additional_ad_slot_exposure\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "additional_ad_slot_exposure"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"offer_visibility\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "offer_visibility"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"additional_offer_exposure\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "additional_offer_exposure"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "unstable",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "tinkoff_defer_passport",
+      "control": "The card application requires passport details at step 2.",
+      "treatment": "The card application adds a 'Don't remember? Add later' checkbox that defers the passport field to a later step.",
+      "metric": "form conversion",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The card application requires passport details at step 2.\nTreatment: The card application adds a 'Don't remember? Add later' checkbox that defers the passport field to a later step.\nMetric: form conversion\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"deferred_field_completion\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "deferred_field_completion"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"deferred_field_completion\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "deferred_field_completion"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"field_deferral\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "field_deferral"
+          }
+        }
+      ],
+      "tag_family": "friction_change",
+      "tag_family_mediator": "friction_change::deferred_field_completion",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "cxl_form_fields_9_to_6",
+      "control": "A 9-field form.",
+      "treatment": "A 6-field form (three of the nine fields removed).",
+      "metric": "conversions",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: A 9-field form.\nTreatment: A 6-field form (three of the nine fields removed).\nMetric: conversions\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        }
+      ],
+      "tag_family": "friction_change",
+      "tag_family_mediator": "friction_change::form_completion_effort",
+      "stable_family": true,
+      "stable_family_mediator": true
+    },
+    {
+      "id": "multistep_form_3_vs_6",
+      "control": "A 6-step form.",
+      "treatment": "A 3-step form (the 6 steps condensed into 3).",
+      "metric": "lead conversion",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: A 6-step form.\nTreatment: A 3-step form (the 6 steps condensed into 3).\nMetric: lead conversion\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"form_completion_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "form_completion_effort"
+          }
+        }
+      ],
+      "tag_family": "friction_change",
+      "tag_family_mediator": "friction_change::form_completion_effort",
+      "stable_family": true,
+      "stable_family_mediator": true
+    },
+    {
+      "id": "price_com_hk_price_ranges",
+      "control": "On a category listing page, each product shows one price: the most recently offered price for that product.",
+      "treatment": "On a category listing page, each product shows a price stated as a low-to-high range across the prices currently offered for that product.",
+      "metric": "product click-throughs per listing-page view",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: On a category listing page, each product shows one price: the most recently offered price for that product.\nTreatment: On a category listing page, each product shows a price stated as a low-to-high range across the prices currently offered for that product.\nMetric: product click-throughs per listing-page view\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_perception\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_perception"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_range_perception\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_range_perception"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"price_range_perception\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "price_range_perception"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "salience_attention::price_range_perception",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "amazon_credit_card_offer_relocation",
+      "control": "The credit-card offer is placed in the top slot of the home page.",
+      "treatment": "The credit-card offer is placed on the shopping-cart page after an item is added, and states a dollar amount computed from the current cart contents.",
+      "metric": "expected profit per user",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The credit-card offer is placed in the top slot of the home page.\nTreatment: The credit-card offer is placed on the shopping-cart page after an item is added, and states a dollar amount computed from the current cart contents.\nMetric: expected profit per user\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"contextual_relevance_at_point_of_action\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "contextual_relevance_at_point_of_action"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"contextual_offer_relevance\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "contextual_offer_relevance"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"contextual_relevance_at_decision_point\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "contextual_relevance_at_decision_point"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "unstable",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "msn_hotmail_link_new_tab",
+      "control": "Clicking the mail link loads the mail destination in the current tab.",
+      "treatment": "Clicking the mail link loads the mail destination in a new tab.",
+      "metric": "clicks per user on the home page",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: Clicking the mail link loads the mail destination in the current tab.\nTreatment: Clicking the mail link loads the mail destination in a new tab.\nMetric: clicks per user on the home page\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"tab_context_retention\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "tab_context_retention"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"context_preservation\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "context_preservation"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"layout_navigation\", \"mediator_role\": \"tab_context_preservation\"}",
+          "parsed": {
+            "family": "layout_navigation",
+            "mediator_role": "tab_context_preservation"
+          }
+        }
+      ],
+      "tag_family": "layout_navigation",
+      "tag_family_mediator": "unstable",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "msn_support_personalized_answers",
+      "control": "The 'most common issues' box shows a single fixed list of answers.",
+      "treatment": "The 'most common issues' box shows a list of answers that varies by the visitor's browser and operating system.",
+      "metric": "click-through rate on the answers section",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The 'most common issues' box shows a single fixed list of answers.\nTreatment: The 'most common issues' box shows a list of answers that varies by the visitor's browser and operating system.\nMetric: click-through rate on the answers section\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"personalization\", \"mediator_role\": \"context_relevance_matching\"}",
+          "parsed": {
+            "family": "personalization",
+            "mediator_role": "context_relevance_matching"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"personalization\", \"mediator_role\": \"context_relevant_content_matching\"}",
+          "parsed": {
+            "family": "personalization",
+            "mediator_role": "context_relevant_content_matching"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"personalization\", \"mediator_role\": \"context_relevance_matching\"}",
+          "parsed": {
+            "family": "personalization",
+            "mediator_role": "context_relevance_matching"
+          }
+        }
+      ],
+      "tag_family": "personalization",
+      "tag_family_mediator": "personalization::context_relevance_matching",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "pinterest_signup_color_scheme",
+      "control": "The signup page uses black text on a white background.",
+      "treatment": "The signup page uses white text on a black background.",
+      "metric": "daily signups",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: The signup page uses black text on a white background.\nTreatment: The signup page uses white text on a black background.\nMetric: daily signups\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"visual_contrast\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "visual_contrast"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"visual_contrast\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "visual_contrast"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"visual_contrast\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "visual_contrast"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "salience_attention::visual_contrast",
+      "stable_family": true,
+      "stable_family_mediator": true
+    },
+    {
+      "id": "linkedin_volunteer_section_value_copy",
+      "control": "A profile-completion module prompts the member to add a volunteer-experience section.",
+      "treatment": "A profile-completion module prompts the member to add a volunteer-experience section and includes the line 'Add more color to your professional identity by showing what you care about.'",
+      "metric": "edits of the volunteer-experience section",
+      "truth": "+",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: A profile-completion module prompts the member to add a volunteer-experience section.\nTreatment: A profile-completion module prompts the member to add a volunteer-experience section and includes the line 'Add more color to your professional identity by showing what you care about.'\nMetric: edits of the volunteer-experience section\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"prompt_framing_motivation\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "prompt_framing_motivation"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"prompt_framing_motivation\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "prompt_framing_motivation"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"prompt_framing\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "prompt_framing"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "salience_attention::prompt_framing_motivation",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "etsy_infinite_scroll_search",
+      "control": "Search results are shown in numbered pages; the user clicks a page link to load more results.",
+      "treatment": "Search results load automatically as the user scrolls, with more results appended below and no page links.",
+      "metric": "search engagement (clicks, favorites, purchases-from-search)",
+      "truth": "-",
+      "source": "PORTFOLIO_CASES_V3.scored_cases",
+      "prompt_verbatim": "Control: Search results are shown in numbered pages; the user clicks a page link to load more results.\nTreatment: Search results load automatically as the user scrolls, with more results appended below and no page links.\nMetric: search engagement (clicks, favorites, purchases-from-search)\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"continuation_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "continuation_effort"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"result_loading_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "result_loading_effort"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"friction_change\", \"mediator_role\": \"result_loading_effort\"}",
+          "parsed": {
+            "family": "friction_change",
+            "mediator_role": "result_loading_effort"
+          }
+        }
+      ],
+      "tag_family": "friction_change",
+      "tag_family_mediator": "friction_change::result_loading_effort",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "hillstrom_mens_email_visit",
+      "control": "Customers on the retail mailing list receive no email campaign during the two-week test window.",
+      "treatment": "Customers on the retail mailing list are sent an email campaign featuring men's merchandise during the two-week test window.",
+      "metric": "website visit rate within two weeks",
+      "truth": "+",
+      "source": "realdata_hillstrom_result.json (constructed outcome-level case)",
+      "prompt_verbatim": "Control: Customers on the retail mailing list receive no email campaign during the two-week test window.\nTreatment: Customers on the retail mailing list are sent an email campaign featuring men's merchandise during the two-week test window.\nMetric: website visit rate within two weeks\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"email_prompted_visit\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "email_prompted_visit"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"email_prompt_recall\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "email_prompt_recall"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"email_prompted_visits\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "email_prompted_visits"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "unstable",
+      "stable_family": true,
+      "stable_family_mediator": false
+    },
+    {
+      "id": "hillstrom_mens_email_conversion",
+      "control": "Customers on the retail mailing list receive no email campaign during the two-week test window.",
+      "treatment": "Customers on the retail mailing list are sent an email campaign featuring men's merchandise during the two-week test window.",
+      "metric": "purchase conversion rate within two weeks",
+      "truth": "+",
+      "source": "realdata_hillstrom_result.json (constructed outcome-level case)",
+      "prompt_verbatim": "Control: Customers on the retail mailing list receive no email campaign during the two-week test window.\nTreatment: Customers on the retail mailing list are sent an email campaign featuring men's merchandise during the two-week test window.\nMetric: purchase conversion rate within two weeks\n",
+      "runs": [
+        {
+          "run": 1,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"email_prompt_recall\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "email_prompt_recall"
+          }
+        },
+        {
+          "run": 2,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"campaign_prompted_recall\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "campaign_prompted_recall"
+          }
+        },
+        {
+          "run": 3,
+          "raw_output": "{\"family\": \"salience_attention\", \"mediator_role\": \"email_prompted_recall\"}",
+          "parsed": {
+            "family": "salience_attention",
+            "mediator_role": "email_prompted_recall"
+          }
+        }
+      ],
+      "tag_family": "salience_attention",
+      "tag_family_mediator": "unstable",
+      "stable_family": true,
+      "stable_family_mediator": false
+    }
+  ],
+  "primary_metric_family_grain": {
+    "grain": "family",
+    "groups": {
+      "friction_change": {
+        "members": [
+          "cookiecats_gate_move",
+          "tinkoff_defer_passport",
+          "cxl_form_fields_9_to_6",
+          "multistep_form_3_vs_6",
+          "etsy_infinite_scroll_search"
+        ],
+        "signs": [
+          "-",
+          "+",
+          "-",
+          "-",
+          "-"
+        ],
+        "sign_ambiguous": true
+      },
+      "habit_loop": {
+        "members": [
+          "duolingo_weekend_amulet"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "layout_navigation": {
+        "members": [
+          "msn_realestate_widget",
+          "msn_hotmail_link_new_tab"
+        ],
+        "signs": [
+          "+",
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "personalization": {
+        "members": [
+          "msn_support_personalized_answers"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "salience_attention": {
+        "members": [
+          "office_online_redesign",
+          "msn_homepage_extra_offers",
+          "price_com_hk_price_ranges",
+          "amazon_credit_card_offer_relocation",
+          "pinterest_signup_color_scheme",
+          "linkedin_volunteer_section_value_copy",
+          "hillstrom_mens_email_visit",
+          "hillstrom_mens_email_conversion"
+        ],
+        "signs": [
+          "-",
+          "-",
+          "+",
+          "+",
+          "+",
+          "+",
+          "+",
+          "+"
+        ],
+        "sign_ambiguous": true
+      }
+    },
+    "n_cases_tagged": 17,
+    "n_unstable": 0,
+    "n_cases_in_ge2_groups": 15,
+    "n_cases_in_ambiguous_groups": 13,
+    "ambiguity": 0.8666666666666667
+  },
+  "secondary_metric_family_mediator_grain": {
+    "grain": "family_mediator",
+    "groups": {
+      "friction_change::deferred_field_completion": {
+        "members": [
+          "tinkoff_defer_passport"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "friction_change::form_completion_effort": {
+        "members": [
+          "cxl_form_fields_9_to_6",
+          "multistep_form_3_vs_6"
+        ],
+        "signs": [
+          "-",
+          "-"
+        ],
+        "sign_ambiguous": false
+      },
+      "friction_change::progress_gate_timing": {
+        "members": [
+          "cookiecats_gate_move"
+        ],
+        "signs": [
+          "-"
+        ],
+        "sign_ambiguous": false
+      },
+      "friction_change::result_loading_effort": {
+        "members": [
+          "etsy_infinite_scroll_search"
+        ],
+        "signs": [
+          "-"
+        ],
+        "sign_ambiguous": false
+      },
+      "habit_loop::streak_preservation": {
+        "members": [
+          "duolingo_weekend_amulet"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "layout_navigation::search_input_engagement": {
+        "members": [
+          "msn_realestate_widget"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "personalization::context_relevance_matching": {
+        "members": [
+          "msn_support_personalized_answers"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "salience_attention::price_range_perception": {
+        "members": [
+          "price_com_hk_price_ranges"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "salience_attention::price_visibility": {
+        "members": [
+          "office_online_redesign"
+        ],
+        "signs": [
+          "-"
+        ],
+        "sign_ambiguous": false
+      },
+      "salience_attention::prompt_framing_motivation": {
+        "members": [
+          "linkedin_volunteer_section_value_copy"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      },
+      "salience_attention::visual_contrast": {
+        "members": [
+          "pinterest_signup_color_scheme"
+        ],
+        "signs": [
+          "+"
+        ],
+        "sign_ambiguous": false
+      }
+    },
+    "n_cases_tagged": 12,
+    "n_unstable": 5,
+    "n_cases_in_ge2_groups": 2,
+    "n_cases_in_ambiguous_groups": 0,
+    "ambiguity": 0.0
+  },
+  "per_family_sign_base_rates": {
+    "friction_change": {
+      "+": 1,
+      "-": 4
+    },
+    "habit_loop": {
+      "+": 1,
+      "-": 0
+    },
+    "layout_navigation": {
+      "+": 2,
+      "-": 0
+    },
+    "salience_attention": {
+      "+": 6,
+      "-": 2
+    },
+    "personalization": {
+      "+": 1,
+      "-": 0
+    }
+  },
+  "tag_stability": {
+    "family_identical_across_3_runs": 17,
+    "family_mediator_identical_across_3_runs": 5,
+    "n_cases": 17
+  },
+  "verdict": "KILL",
+  "verdict_rationale": "AMBIGUITY 0.867 > 0.30 on the real arm; mechanism-tag retrieval banned from selecting a sign.",
+  "api_usage": {
+    "n_calls": 51,
+    "input_tokens": 14280,
+    "output_tokens": 1538
+  }
+}

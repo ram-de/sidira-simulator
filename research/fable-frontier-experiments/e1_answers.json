@@ -1,0 +1,129 @@
+{
+ "seed": 20260701,
+ "answers": [
+  {
+   "id": "F1_flip_0",
+   "true_sign": "-",
+   "true_delta": -1455.111502
+  },
+  {
+   "id": "F2_flip_0",
+   "true_sign": "-",
+   "true_delta": -23258.039229
+  },
+  {
+   "id": "F3_flip_0",
+   "true_sign": "-",
+   "true_delta": -47474.995862
+  },
+  {
+   "id": "F1_flip_1",
+   "true_sign": "-",
+   "true_delta": -680.754976
+  },
+  {
+   "id": "F2_flip_1",
+   "true_sign": "-",
+   "true_delta": -49814.480949
+  },
+  {
+   "id": "F3_flip_1",
+   "true_sign": "-",
+   "true_delta": -52179.434428
+  },
+  {
+   "id": "F1_flip_2",
+   "true_sign": "-",
+   "true_delta": -966.944742
+  },
+  {
+   "id": "F2_flip_2",
+   "true_sign": "-",
+   "true_delta": -19799.857196
+  },
+  {
+   "id": "F3_flip_2",
+   "true_sign": "-",
+   "true_delta": -87228.052354
+  },
+  {
+   "id": "F1_flip_3",
+   "true_sign": "-",
+   "true_delta": -832.54262
+  },
+  {
+   "id": "F2_flip_3",
+   "true_sign": "-",
+   "true_delta": -18746.998026
+  },
+  {
+   "id": "F3_flip_3",
+   "true_sign": "-",
+   "true_delta": -37796.495535
+  },
+  {
+   "id": "F1_onesign_0",
+   "true_sign": "+",
+   "true_delta": 1018.209003
+  },
+  {
+   "id": "F2_onesign_0",
+   "true_sign": "+",
+   "true_delta": 19174.297962
+  },
+  {
+   "id": "F3_onesign_0",
+   "true_sign": "+",
+   "true_delta": 27208.368492
+  },
+  {
+   "id": "F1_onesign_1",
+   "true_sign": "+",
+   "true_delta": 1344.588831
+  },
+  {
+   "id": "F2_onesign_1",
+   "true_sign": "+",
+   "true_delta": 22305.028265
+  },
+  {
+   "id": "F3_onesign_1",
+   "true_sign": "+",
+   "true_delta": 22223.026585
+  },
+  {
+   "id": "F1_onesign_2",
+   "true_sign": "+",
+   "true_delta": 1519.802987
+  },
+  {
+   "id": "F2_onesign_2",
+   "true_sign": "+",
+   "true_delta": 42909.991714
+  },
+  {
+   "id": "F3_onesign_2",
+   "true_sign": "+",
+   "true_delta": 57471.683817
+  },
+  {
+   "id": "F1_onesign_3",
+   "true_sign": "+",
+   "true_delta": 762.910573
+  },
+  {
+   "id": "F2_onesign_3",
+   "true_sign": "+",
+   "true_delta": 65991.276397
+  },
+  {
+   "id": "F3_onesign_3",
+   "true_sign": "+",
+   "true_delta": 52180.259095
+  }
+ ],
+ "generator_sanity": {
+  "flip_lean_violations": [],
+  "onesign_violations": []
+ }
+}
