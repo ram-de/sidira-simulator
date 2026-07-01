@@ -1,0 +1,37 @@
+{
+  "_note": "SYNTHETIC TEMPLATE — not a real result. status=VOID keeps it out of any real scoreboard. Copy, fill, set a real status. Do NOT `add` this verbatim.",
+  "case_id": "senu:S0000:split-the-loot.v2:accept_rate",
+  "study_id": "S0000",
+  "title": "Skip-cap removal — does removing the friction that was the conversion trigger net negative?",
+  "pattern": "paywall-nudge-removal",
+  "status": "VOID",
+  "data_type": "real",
+  "human_truth_sha": null,
+  "prereg_sha": null,
+  "engine_blind": {
+    "sign": "-",
+    "confidence": 0.71,
+    "guard": "CONTRADICTS",
+    "note": "PLACEHOLDER. Grounded sim would read the two opposing mediators (friction-removed engagement + lost-nudge conversion) from the feature store; net sign set by their measured magnitudes."
+  },
+  "measured": {
+    "sign": "-",
+    "effect": -0.031,
+    "ci": [-0.052, -0.010],
+    "n": 1116,
+    "metric": "accept_rate"
+  },
+  "score": {
+    "outcome": "PENDING",
+    "sign_correct": null,
+    "note": "PLACEHOLDER — a real case sets HIT/MISS/ABSTAIN only after both sealed artifacts exist."
+  },
+  "envelope_ref": "TODO: path/R2-key/hash of the senu.export.v1 envelope",
+  "benchmarkcase_ref": null,
+  "n": 1116,
+  "artifacts": [
+    "prereg/S0000/human_truth.json",
+    "prereg/S0000/engine_blind.json"
+  ],
+  "notes": "synthetic template row — safe to delete"
+}

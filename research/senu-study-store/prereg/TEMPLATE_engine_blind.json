@@ -1,0 +1,15 @@
+{
+  "_artifact": "engine_blind",
+  "_discipline": "The engine's BLIND prediction — produced WITHOUT the measured outcome, and NOT authored to match the human hypothesis. This is the ONLY artifact that scores a win (engine_blind vs measured). Seal BEFORE results land; store the sha as prereg_sha. See README §Scoring.",
+  "case_id": "senu:<studyId>:<behaviorSchema>:<groundTruthName>",
+  "run_at": "<YYYY-MM-DD, before measured outcome known>",
+  "engine_version": "<git sha / model id of the engine run blind>",
+  "method": "grounded-mediation-sim | roleplay | causal-estimator | <other>",
+  "inputs_ref": "<pointer to the crawled feature pack + feature store the blind run read>",
+  "prediction": {
+    "sign": "+ | - | abstain",
+    "confidence": 0.0,
+    "guard": "CONFIRMS | CONTRADICTS | CANT-VALIDATE",
+    "note": "<what the grounded sim computed; which mediator dominated; why it abstained if so>"
+  }
+}

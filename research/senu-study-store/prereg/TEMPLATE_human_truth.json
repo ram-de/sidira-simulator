@@ -1,0 +1,11 @@
+{
+  "_artifact": "human_truth",
+  "_discipline": "Sealed thoughtful-human hypothesis. Authored by a HUMAN, before any data. NEVER tuned to the engine's prediction or the measured outcome. Seal with `studystore.py seal --file <this>` and store the sha as human_truth_sha. See README §3-artifact discipline.",
+  "case_id": "senu:<studyId>:<behaviorSchema>:<groundTruthName>",
+  "authored_by": "<name/role>",
+  "authored_at": "<YYYY-MM-DD, before data>",
+  "counter_intuitive_lean": "<the direction we're betting AGAINST naive intuition; one genuine lean, not a hedge>",
+  "predicted_sign": "+ | - | ~0",
+  "rationale": "<the human's causal story: which mechanism dominates and why>",
+  "confidence": "<low | medium | high>"
+}
