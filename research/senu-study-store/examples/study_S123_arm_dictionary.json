@@ -1,0 +1,19 @@
+{
+  "_note": "EXAMPLE Sidira-side arm dictionary (ticket #547 part C). Synthetic — safe to copy. This is the ONE customer-specific artifact Senu can't hold; it decodes the generic role-named arms into this customer's product change.",
+  "study_id": "S123",
+  "behavior_schema": "split_the_loot.v1",
+  "arms": [
+    { "name": "cap_on",  "role": "baseline" },
+    { "name": "cap_off", "role": "manipulation" }
+  ],
+  "product_change": {
+    "summary": "remove the 6-skip/hour cap for free-tier users",
+    "current_state": "free tier is capped at 6 skips per hour before an upsell interstitial",
+    "proposed_state": "unlimited skips for free-tier users; upsell interstitial removed",
+    "not_changing": ["premium pricing", "catalog", "onboarding flow", "ad load"]
+  },
+  "feature_pack_ref": "r2://packs/customerX/v_3/feature_pack.json",
+  "expected_direction": "control_higher",
+  "authored_by": "sidira-experiment-designer",
+  "authored_at": "2026-07-01"
+}
