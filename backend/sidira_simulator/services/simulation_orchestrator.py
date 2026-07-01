@@ -267,6 +267,7 @@ class SimulationOrchestrator:
             # all prod) this is a single cheap env read that returns immediately:
             # no extra work, no extra imports, no thread offload.
             await self._maybe_log_decision_flow(
+                sim_id=sim_id,
                 customer_id=customer_id,
                 hypothesis=hypothesis,
                 pack_version=persona_pack.version,
@@ -287,6 +288,7 @@ class SimulationOrchestrator:
     async def _maybe_log_decision_flow(
         self,
         *,
+        sim_id: str,
         customer_id: str,
         hypothesis: Hypothesis,
         pack_version: str,
@@ -335,6 +337,7 @@ class SimulationOrchestrator:
             await asyncio.wait_for(
                 asyncio.to_thread(
                     self._run_decision_flow_sync,
+                    sim_id=sim_id,
                     customer_id=customer_id,
                     hypothesis=hypothesis,
                     pack_version=pack_version,
@@ -362,6 +365,7 @@ class SimulationOrchestrator:
     def _run_decision_flow_sync(
         self,
         *,
+        sim_id: str,
         customer_id: str,
         hypothesis: Hypothesis,
         pack_version: str,
@@ -381,7 +385,11 @@ class SimulationOrchestrator:
         abstains (Step 2) rather than deciding on the wrong setup's data.
         """
         try:
-            from sidira_simulator.services.decision_flow import decide
+            from sidira_simulator.services.decision_flow import (
+                decide,
+                verdict_from_decision,
+                write_decision_verdict,
+            )
             from sidira_simulator.services.grounded_predictor import (
                 load_estimability_manifest,
             )
@@ -436,6 +444,29 @@ class SimulationOrchestrator:
                 label=result.label,
                 watchdog_verdict=result.watchdog_verdict,
             )
+
+            # #545: persist the direction-only verdict as a SIDECAR artifact beside
+            # the run (NOT into result_json). The run's result_json was already
+            # persisted-complete before this hook ran (the #542 no-critical-path
+            # guarantee), so we write the verdict as its own R2 object rather than
+            # mutating the finished result. Best-effort: a store failure logs and
+            # continues — this shadow hook must never affect the run. The GET detail
+            # handler reads it back (also best-effort) to populate the additive
+            # `decision_verdict` field. Only reached when the flag is already on.
+            try:
+                from sidira_simulator.adapters.r2 import get_store
+
+                write_decision_verdict(
+                    get_store(), customer_id, sim_id, verdict_from_decision(result)
+                )
+            except Exception as exc:  # noqa: BLE001 — sidecar persist must never break a run.
+                log.warning(
+                    "simulation.decision_flow_verdict_persist_failed",
+                    sim_id=sim_id,
+                    customer_id=customer_id,
+                    error=str(exc),
+                    exc_type=type(exc).__name__,
+                )
         except Exception as exc:  # noqa: BLE001 — a shadow hook must never break a run.
             log.warning(
                 "simulation.decision_flow_hook_failed",

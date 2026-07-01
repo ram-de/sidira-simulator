@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Literal
 
@@ -30,13 +31,23 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     WeaknessCategoryDiff,
 )
+from sidira_simulator.schemas.verdict import DirectionVerdict
 from sidira_simulator.services.answerability import assess_answerability
+from sidira_simulator.services.decision_flow import (
+    decision_flow_enabled,
+    read_decision_verdict,
+)
 from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
 from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
+
+# #545: hard cap on the optional decision-verdict sidecar read on GET /simulations/{id}.
+# Short — the verdict is best-effort and the run result is already available, so a
+# slow R2 read is dropped rather than allowed to hang the detail response.
+_DECISION_VERDICT_READ_TIMEOUT_S = 2.0
 
 
 class CreateSimulationResponse(BaseModel):
@@ -588,6 +599,41 @@ async def get_simulation(
     # cycle-safe, customer-scoped). Empty for un-parented runs.
     lineage = await _walk_lineage(row, customer_id, orchestrator)
 
+    result = SimulationResult(**row["result_json"]) if row.get("result_json") else None
+
+    # #545: surface the direction-only decision verdict when its sidecar exists.
+    # ADDITIVE + off-by-default: only read the sidecar when the decision flow is
+    # enabled (the same flag that writes it), so a flag-off run does ZERO extra
+    # work here and the response is byte-identical to today — no R2 GET, field
+    # stays None. Best-effort: a missing/malformed sidecar → None (never a 500).
+    # The read (and R2 store construction) is a blocking network call, so it is
+    # offloaded to a worker thread to keep it off the event loop (codex P2, mirrors
+    # the orchestrator hook's asyncio.to_thread). read_decision_verdict never raises,
+    # but get_store() itself can (missing R2 config / boto3), so the whole thing is
+    # wrapped best-effort — a store-construction failure must not 500 the detail GET
+    # for an OPTIONAL sidecar (codex P2, mirrors the write path's guard).
+    if result is not None and decision_flow_enabled():
+
+        def _read_sidecar() -> DirectionVerdict | None:
+            try:
+                return read_decision_verdict(get_store(), customer_id, simulation_id)
+            except Exception:  # noqa: BLE001 — an optional sidecar read must never 500.
+                return None
+
+        # Bound the read: a slow/stalled R2 read must never hang the detail GET when
+        # the result is otherwise ready. On timeout the (optional) verdict is just
+        # omitted (codex P2, mirrors the write hook's asyncio.wait_for). The worker
+        # thread keeps running to completion in the pool; we stop waiting on it.
+        try:
+            verdict = await asyncio.wait_for(
+                asyncio.to_thread(_read_sidecar),
+                timeout=_DECISION_VERDICT_READ_TIMEOUT_S,
+            )
+        except TimeoutError:
+            verdict = None
+        if verdict is not None:
+            result.decision_verdict = verdict
+
     # Phase 4.6 #88: surface arm_split on GET so the frontend can branch
     # on "was this an A/B run" without inspecting result_json.
     arm_split = (
@@ -621,7 +667,7 @@ async def get_simulation(
         selected_personas=row.get("selected_personas"),
         model_id=row.get("model_id"),
         agent_instance_ids=row.get("agent_instance_ids", []),
-        result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
+        result=result,
     )
 
 
