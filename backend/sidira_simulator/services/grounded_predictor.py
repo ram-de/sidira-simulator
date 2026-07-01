@@ -147,51 +147,56 @@ def grounded_predict(spec: MechanismSpec, manifest: EstimabilityManifest) -> Gro
     )
 
 
-def estimability_manifest_key(customer_id: str, version: str, setup_id: str) -> str:
-    """R2 key for the estimability manifest — beside the Feature Pack manifest.
+def estimability_manifest_key(customer_id: str, version: str) -> str:
+    """R2 key for the estimability manifest — beside the PERSONA pack.
 
-    Mirrors ``feature_pack_loader``'s layout: the pack manifest lives at
-    ``{feature_pack_prefix}/{version}/manifest.json``; the estimability manifest
-    is its sibling, ``{feature_pack_prefix}/{version}/estimability_manifest.json``.
-    Routing through ``feature_pack_prefix`` inherits the DEFAULT-setup legacy path
-    and the path-traversal guard for named setups.
+    The build-time producer (``persona_builder``, #510) writes the manifest as a
+    sibling of the persona pack, NOT the feature pack:
+
+        customers/<customer_id>/personas/<version>/persona_pack.json
+        customers/<customer_id>/personas/<version>/estimability_manifest.json  ← here
+
+    So the read key mirrors ``PersonaPackLoader`` (``get_store`` layout,
+    ``customers/{id}/personas/{version}/...``), where ``version`` is the persona
+    pack version. It is NOT under ``featurepacks/`` and carries no ``setup_id`` —
+    the persona-pack path has neither. (This matched the feature-pack loader by
+    mistake before; the write path is authoritative.)
     """
-    # Imported lazily so this module carries no import-time dependency on the R2 /
-    # artifact adapters — keeps it trivially unit-testable and INERT.
-    from sidira_simulator.adapters.feature_pack_loader import feature_pack_prefix
-
-    return f"{feature_pack_prefix(customer_id, setup_id)}/{version}/estimability_manifest.json"
+    return f"customers/{customer_id}/personas/{version}/estimability_manifest.json"
 
 
 def load_estimability_manifest(
-    customer_id: str, pack_version: str, setup_id: str = "default"
+    customer_id: str, pack_version: str
 ) -> EstimabilityManifest | None:
-    """Load the manifest that sits beside a customer's Feature Pack, or None.
+    """Load the manifest that sits beside a customer's PERSONA pack, or None.
 
-    Thin R2 read that MIRRORS ``FeaturePackLoader`` (same
-    :func:`~sidira_simulator.adapters.r2.get_featurepack_store` read store, same
-    ``feature_pack_prefix`` layout). The manifest is OPTIONAL / off-by-default: a
-    customer whose pack predates the build-time precompute simply has no manifest,
-    so a missing key returns None (not an error) and the router falls back to the
-    LLM. A present-but-malformed manifest also degrades to None rather than
-    raising — this read is never allowed to break a request.
+    Thin R2 read that MIRRORS ``PersonaPackLoader`` — the SAME store
+    (:func:`~sidira_simulator.adapters.r2.get_store`) and the SAME
+    ``customers/{id}/personas/{version}/`` layout the build-time producer
+    (``persona_builder``) writes to. ``pack_version`` is the persona pack version
+    (resolve it via ``PersonaPackLoader.resolve_latest_version`` at the call site).
+
+    The manifest is OPTIONAL / off-by-default: a customer whose pack predates the
+    build-time precompute simply has no manifest, so a missing key returns None
+    (not an error) and the router falls back to the LLM. A present-but-malformed
+    manifest also degrades to None rather than raising — this read is never allowed
+    to break a request.
 
     The predictor itself (:func:`grounded_predict`) takes an already-parsed
     manifest, so it is fully unit-testable WITHOUT R2 or this loader.
     """
     from sidira_simulator.adapters.base import load_json_artifact
-    from sidira_simulator.adapters.r2 import get_featurepack_store
+    from sidira_simulator.adapters.r2 import get_store
 
-    key = estimability_manifest_key(customer_id, pack_version, setup_id)
+    key = estimability_manifest_key(customer_id, pack_version)
     try:
-        return load_json_artifact(get_featurepack_store(), key, EstimabilityManifest)
+        return load_json_artifact(get_store(), key, EstimabilityManifest)
     except FileNotFoundError:
         # Expected for packs built before the precompute shipped — optional artifact.
         log.info(
             "grounded_predictor.manifest_absent",
             customer_id=customer_id,
             pack_version=pack_version,
-            setup_id=setup_id,
         )
         return None
     except Exception as exc:  # noqa: BLE001 — a bad artifact degrades to LLM fallback, never raises
@@ -199,7 +204,6 @@ def load_estimability_manifest(
             "grounded_predictor.manifest_load_failed",
             customer_id=customer_id,
             pack_version=pack_version,
-            setup_id=setup_id,
             error=str(exc),
             exc_type=type(exc).__name__,
         )
