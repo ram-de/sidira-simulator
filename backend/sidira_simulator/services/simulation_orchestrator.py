@@ -399,12 +399,30 @@ class SimulationOrchestrator:
             available_columns = (
                 [c.name for c in manifest.columns] if manifest is not None else []
             )
+            # The real 3-model heterogeneous council (#543) plugs into the router's
+            # council seam. Building it validates bias diversity and may resolve
+            # provider clients lazily, so guard it: a diversity-assertion failure or
+            # a missing key degrades to the router's default NullCouncil (logged),
+            # never breaks this shadow hook. Only reached when the flag is already on.
+            council = None
+            try:
+                from sidira_simulator.services.council import build_default_council
+
+                council = build_default_council()
+            except Exception as exc:  # noqa: BLE001 — degrade to NullCouncil; never break the run
+                log.warning(
+                    "simulation.decision_flow_council_unavailable",
+                    customer_id=customer_id,
+                    error=str(exc),
+                    exc_type=type(exc).__name__,
+                )
             result = decide(
                 hypothesis,
                 available_columns,
                 customer_id,
                 pack_version,
                 model_id=model_id,
+                council=council,
                 manifest=manifest,
             )
             log.info(
