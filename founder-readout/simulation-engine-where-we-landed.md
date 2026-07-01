@@ -212,6 +212,42 @@ and re-ground the "talk-to-users" conversation on **computed results** instead o
 overlap; the *architecture* (who predicts, who translates, who guards) is different — and the default flow
 in production is still the disproven one. Not hiding that is part of the pitch.
 
+## 5e. The runtime decision flow (how it all fits at request time)
+
+This is the target flow for a single hypothesis. Order and trigger-polarity matter — both were easy to get
+backwards.
+
+**Step 1 — Grounded sim + watchdog (PRIMARY, always runs first):**
+1. **LLM translates** the plain-English hypothesis → a structured mechanism spec (mediator, sibling metric,
+   negative control(s), confounders, estimand). *Translation, not prediction.*
+2. **Grounded sim computes** on the customer's data (direct causal estimate if the change varied; g-formula
+   mediation sim if novel-but-mechanism-observed). Per-real-user counterfactual → aggregate → **direction**
+   (magnitude stays backstage).
+3. **Watchdog** (negative-control guard) validates it and stamps **CONFIRMS / CONTRADICTS / CAN'T-VALIDATE**.
+   If trusted, **this is the authoritative answer** — CONTRADICTS is the catch. Done. The council does *not*
+   gate this step.
+
+**Step 2 — Only if grounded ABSTAINS** (mechanism not in the data, or watchdog distrusts it): there is no
+data verdict, so fall back to the LLM's narrative answer — and the **council calibrates how much to trust
+that fallback**:
+- **Council agrees** → show the LLM direction as an **unverified hypothesis**, moderate caution ("plausible,
+  couldn't check against your data").
+- **Council disagrees** → **hard caution**, no confident arrow: "we can't call this — the signal isn't in
+  your data and our own models don't agree. Test it."
+
+**Trigger polarity (the part that inverts intuitively):** caution is driven by **disagreement**, never by
+unanimity. Model *agreement* is the confidently-wrong mode on the hard cases (measured 0/12 on flips), so
+agreement lowers caution and disagreement raises it — the opposite of "if they all say no, act on it."
+
+**Precedence:** trustworthy-empirical > LLM > untrustworthy-empirical (→ abstain). The data answers; the
+watchdog decides if we trust it; the council only speaks in the abstain branch, and only to say *how little*
+to trust the words. The kill/keep decision belongs to the grounded computation, never to a show of hands.
+
+**Honest guardrails on Step 2:** the council caution-dial is validated on tiny n and only works with a
+*genuinely bias-diverse* panel (three models sharing a prior agree-and-are-wrong together — measured). So
+every Step-2 surface is labeled *unverified — hypothesis, not verdict*, and for any consequential decision
+the honest output is "run the test," not a dressed-up guess.
+
 ## 6. The moat and the data factory
 
 Reading the Bridgewater × Thinking Machines result carefully: their win came from **a verifiable,
