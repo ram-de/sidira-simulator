@@ -230,8 +230,18 @@ class HeterogeneousCouncil:
         """
         assert_bias_diversity(panel)
         self._panel: tuple[str, ...] = tuple(panel)
-        self._client_factory = client_factory if client_factory is not None else get_chat_client
         self._per_model_timeout = per_model_timeout
+        # The DEFAULT factory bounds the underlying SDK HTTP call with a real
+        # request timeout so a hung provider call RAISES (and its worker thread
+        # terminates) rather than stranding the thread past the pool wait — the
+        # ThreadPoolExecutor wait only stops us *waiting*, it can't kill a blocked
+        # call. An injected factory (tests) is used verbatim.
+        if client_factory is not None:
+            self._client_factory = client_factory
+        else:
+            self._client_factory = lambda model_id: get_chat_client(
+                model_id, request_timeout=per_model_timeout
+            )
 
     def _query_model(self, model_id: str, hypothesis: str, spec: MechanismSpec) -> CouncilMemberResult:
         """Query ONE panelist for a directional vote. Never raises (returns a record).

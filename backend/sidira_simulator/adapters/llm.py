@@ -270,13 +270,18 @@ class ChatClient(Protocol):
 
 
 class GroqChat:
-    def __init__(self, model: str = "llama-3.3-70b-versatile") -> None:
+    def __init__(
+        self, model: str = "llama-3.3-70b-versatile", request_timeout: float | None = None
+    ) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(
-            api_key=os.environ["GROQ_API_KEY"],
-            base_url="https://api.groq.com/openai/v1",
-        )
+        kwargs: dict = {
+            "api_key": os.environ["GROQ_API_KEY"],
+            "base_url": "https://api.groq.com/openai/v1",
+        }
+        if request_timeout is not None:
+            kwargs["timeout"] = request_timeout
+        self._client = OpenAI(**kwargs)
         self._model = model
 
     def chat(
@@ -310,10 +315,15 @@ class GroqChat:
 
 
 class AnthropicChat:
-    def __init__(self, model: str = "claude-sonnet-4-6") -> None:
+    def __init__(
+        self, model: str = "claude-sonnet-4-6", request_timeout: float | None = None
+    ) -> None:
         from anthropic import Anthropic
 
-        self._client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        kwargs: dict = {"api_key": os.environ["ANTHROPIC_API_KEY"]}
+        if request_timeout is not None:
+            kwargs["timeout"] = request_timeout
+        self._client = Anthropic(**kwargs)
         self._model = model
 
     def chat(
@@ -351,10 +361,13 @@ class AnthropicChat:
 
 
 class OpenAIResponsesChat:
-    def __init__(self, model: str = "gpt-5.5") -> None:
+    def __init__(self, model: str = "gpt-5.5", request_timeout: float | None = None) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        kwargs: dict = {"api_key": os.environ["OPENAI_API_KEY"]}
+        if request_timeout is not None:
+            kwargs["timeout"] = request_timeout
+        self._client = OpenAI(**kwargs)
         self._model = model
 
     def chat(
@@ -404,19 +417,31 @@ def _extract_openai_response_text(resp) -> str:
     return "\n".join(parts)
 
 
-def get_chat_client(model_id: str | None = None) -> ChatClient:
+def get_chat_client(
+    model_id: str | None = None, *, request_timeout: float | None = None
+) -> ChatClient:
+    """Resolve a vendor-agnostic chat client for ``model_id``.
+
+    ``request_timeout`` (optional) bounds the underlying SDK HTTP call so a hung
+    provider call raises instead of blocking a worker thread indefinitely — used
+    by the fan-out council (#543). Default None preserves the prior no-timeout
+    behaviour for every existing caller.
+    """
     resolved = resolve_model_id(model_id, require_available=model_id is not None)
     spec = get_model_spec(resolved)
     if not provider_is_configured(spec.provider):
         raise RuntimeError(
             "Set GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY before running LLM calls."
         )
+    # Only forward the timeout when explicitly requested, so existing callers
+    # construct the client with the exact same signature as before.
+    extra = {} if request_timeout is None else {"request_timeout": request_timeout}
     if spec.provider == "groq":
-        return GroqChat(model=spec.id)
+        return GroqChat(model=spec.id, **extra)
     if spec.provider == "anthropic":
-        return AnthropicChat(model=spec.id)
+        return AnthropicChat(model=spec.id, **extra)
     if spec.provider == "openai":
-        return OpenAIResponsesChat(model=spec.id)
+        return OpenAIResponsesChat(model=spec.id, **extra)
     raise RuntimeError(f"Unsupported model provider {spec.provider!r}.")
 
 
