@@ -1,0 +1,118 @@
+"""Estimability manifest — the READ schema for the build-time precompute artifact.
+
+Epic #538, ticket #540 (Phase-1b of the engine rewire). The heavy causal
+compute (support checks + g-formula / T-learner / IPW estimation) runs ONCE at
+persona-pack build time in the separate ``sidira-persona-worker`` — see
+``research/empirical-uplift-spike/manifest_builder.py`` — which writes an
+``estimability_manifest.json`` beside ``manifest.json`` in R2. That producer
+depends on the heavy ML stack (dataframes + scikit-learn estimators).
+
+The Sidira API backend is deliberately **ML-FREE**. These models therefore
+mirror ONLY the *output shape* of the build-time dataclasses (``ColumnEntry``,
+``CapabilityLink``, ``CandidateEffect``, ``Manifest``) as a pure-stdlib +
+pydantic read schema. NONE of the build-time compute is ported here; the runtime
+grounded predictor (:mod:`sidira_simulator.services.grounded_predictor`) only
+MATCHES a :class:`~sidira_simulator.schemas.mechanism.MechanismSpec` against a
+precomputed :class:`CandidateEffect` and returns its sign. Direction-only.
+
+**Tolerance.** Unlike the strict, ``extra="forbid"`` internal schemas, these
+parse an EXTERNAL artifact produced by another codebase (the worker) whose
+manifest_version may drift ahead of the API. We use ``extra="ignore"`` so a
+newer manifest that adds fields still loads (forward compatibility) rather than
+crashing the reader — a manifest is optional/off-by-default, so a permissive
+read that can still find the (T, Y) sign is the safe posture.
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
+
+# ``extra="ignore"``: this is an external artifact (produced by the worker, whose
+# manifest_version can run ahead of this reader). Tolerating unknown keys keeps a
+# newer manifest loadable instead of hard-failing an optional read path.
+_READ_CONFIG = ConfigDict(extra="ignore")
+
+
+class ColumnEntry(BaseModel):
+    """One feature-store column as classified at build time (read mirror)."""
+
+    model_config = _READ_CONFIG
+
+    name: str
+    dtype: str
+    # treatment_candidate | outcome_candidate | covariate (kept as a str, not a
+    # Literal — the taxonomy is the worker's, and we never branch on it at runtime).
+    role: str
+    distinct_count: int | None = None
+    null_fraction: float = 0.0
+    has_variation: bool = True
+
+
+class CapabilityLink(BaseModel):
+    """A crawler capability linked (or not) to a treatment column (read mirror)."""
+
+    model_config = _READ_CONFIG
+
+    capability_name: str
+    surfaces: list[str] = []
+    # None → the capability is not represented as a lever in the data → LLM route.
+    treatment_column: str | None = None
+    linked: bool = False
+
+
+class CandidateEffect(BaseModel):
+    """One precomputed (treatment → outcome) effect (read mirror of the producer).
+
+    The grounded predictor consumes ``treatment`` / ``outcome`` to match a spec's
+    ``(treatment_column, outcome_column)``, then reads ``sign_adjusted`` as the
+    direction-only prediction and ``supportable`` as the caution flag. The point
+    estimates (``naive_ate`` / ``t_learner_ate`` / ``ipw_ate`` / …) are carried
+    ALONG for later calibration but are NEVER surfaced as the prediction.
+    """
+
+    model_config = _READ_CONFIG
+
+    treatment: str
+    outcome: str
+    covariates: list[str] = []
+    supportable: bool
+    support_reasons: list[str] = []
+    n_treat: int | None = None
+    n_control: int | None = None
+    # Point estimates are None on a not-supportable candidate (build-time skips
+    # estimation). Carried for calibration only — never the headline prediction.
+    naive_ate: float | None = None
+    t_learner_ate: float | None = None
+    ipw_ate: float | None = None
+    overlap_fraction: float | None = None
+    naive_adjusted_gap: float | None = None
+    # The direction-only verdict. None on a not-supportable candidate (no estimate
+    # was computed), else "positive" / "negative". The producer types this
+    # ``str | None`` (``manifest_builder.CandidateEffect``); we pin the taxonomy.
+    sign_adjusted: Literal["positive", "negative"] | None = None
+
+
+class EstimabilityManifest(BaseModel):
+    """The full build-time manifest, read-only (mirror of ``manifest_builder.Manifest``)."""
+
+    model_config = _READ_CONFIG
+
+    manifest_version: str
+    customer_id: str
+    setup_id: str
+    pack_version: str
+    feature_store: str
+    columns: list[ColumnEntry] = []
+    capability_links: list[CapabilityLink] = []
+    candidate_effects: list[CandidateEffect] = []
+    built_at: str | None = None
+
+
+__all__ = [
+    "ColumnEntry",
+    "CapabilityLink",
+    "CandidateEffect",
+    "EstimabilityManifest",
+]
