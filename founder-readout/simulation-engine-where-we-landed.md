@@ -53,6 +53,7 @@ fool ourselves.
 | **Grounded mediation simulation** (GNCE) | Ties the LLM when the mechanism is nameable; **abstains** honestly when the signal isn't in the data. |
 | **Ambiguous-dominance battery** (AMBDOM) | **Grounded sim 1.00 vs LLM 0.00 (llama) / 0.50 (Opus)** on magnitude-driven flips. No words-only predictor can beat chance here by construction; only the data-grounded sim recovers the flip. |
 | **Opus vs llama re-test** (frontier-model swap on AMBDOM/GNCE) | A stronger model **does not** fix the sim on the hard slice: Opus sits **at chance (0.50)** on magnitude flips, grounded stays 1.00. It *does* fix llama's optimism — see §3. The wedge is robust to model strength. |
+| **gpt-5.5 solo + gpt-5.5×Opus council** | Third frontier model, same wall: **gpt-5.5 = 0.00** on flips (below chance). Three models, three different priors, none beats the ceiling. **Council is *worse*, not better:** where Opus & gpt-5.5 agree on flips they're **0/12 correct** (shared blindness = confident-wrong), and the disagreement abstain-gate *lowered* accuracy (0.62 vs Opus-solo 0.68). Only a **3-model heterogeneous-bias panel** flags 100% of flips — useful as an **abstain siren**, never a predictor. |
 | **Design-partner production blind tests** | Engine tracks *intuition*, not truth — always predicts a business lift, wrong on the business metric of every counter-intuitive case. |
 
 ## 3. What died (say it plainly)
