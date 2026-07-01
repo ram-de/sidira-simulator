@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class GuardrailMetric(BaseModel):
@@ -86,6 +86,30 @@ class DirectionVerdict(BaseModel):
     watchdog_verdict: str | None = None
     unverified: bool = False
     guardrails: list[GuardrailMetric] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _enforce_confidence_derivation(self) -> DirectionVerdict:
+        """Reject a self-inconsistent verdict (e.g. a hand-corrupted sidecar).
+
+        ``confidence`` is DERIVED from ``caution`` — ``high`` iff ``caution`` is
+        ``none`` (a trustworthy grounded verdict), else ``low``. A trustworthy
+        verdict (``caution == "none"``) must also carry a direction — you cannot
+        "verify" a change with no sign. :func:`verdict_from_decision` always
+        satisfies both, so this only guards a corrupt persisted body (the GET
+        handler treats any model-valid sidecar as safe to surface — this makes
+        "model-valid" mean "internally consistent") — it never trips the builder.
+        """
+        expected = "high" if self.caution == "none" else "low"
+        if self.confidence != expected:
+            raise ValueError(
+                f"confidence={self.confidence!r} is inconsistent with "
+                f"caution={self.caution!r} (expected {expected!r})"
+            )
+        if self.caution == "none" and self.direction is None:
+            raise ValueError(
+                "a trustworthy verdict (caution='none') must carry a direction"
+            )
+        return self
 
 
 __all__ = ["GuardrailMetric", "DirectionVerdict"]

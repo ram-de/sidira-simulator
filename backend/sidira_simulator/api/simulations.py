@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Literal
 
@@ -599,8 +600,13 @@ async def get_simulation(
     # enabled (the same flag that writes it), so a flag-off run does ZERO extra
     # work here and the response is byte-identical to today — no R2 GET, field
     # stays None. Best-effort: a missing/malformed sidecar → None (never a 500).
+    # The read (and R2 store construction) is a blocking network call, so it is
+    # offloaded to a worker thread to keep it off the event loop (codex P2, mirrors
+    # the orchestrator hook's asyncio.to_thread). read_decision_verdict never raises.
     if result is not None and decision_flow_enabled():
-        verdict = read_decision_verdict(get_store(), customer_id, simulation_id)
+        verdict = await asyncio.to_thread(
+            lambda: read_decision_verdict(get_store(), customer_id, simulation_id)
+        )
         if verdict is not None:
             result.decision_verdict = verdict
 

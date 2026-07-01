@@ -53,6 +53,25 @@ def test_guardrail_metric_forbids_magnitude():
         GuardrailMetric(name="ad_impressions", role="sibling", magnitude=0.1)
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        # confidence inconsistent with caution
+        dict(direction="positive", caution="none", confidence="low",
+             label="x", source="grounded"),
+        dict(direction=None, caution="hard", confidence="high",
+             label="x", source="llm_fallback"),
+        # a trustworthy verdict with no direction
+        dict(direction=None, caution="none", confidence="high",
+             label="x", source="grounded"),
+    ],
+)
+def test_direction_verdict_rejects_inconsistent_invariants(kwargs):
+    """A hand-corrupted sidecar (bad confidence/caution or trustworthy-no-sign) is rejected."""
+    with pytest.raises(ValidationError):
+        DirectionVerdict(**kwargs)
+
+
 def test_direction_verdict_valid_construction():
     v = DirectionVerdict(
         direction=None,
