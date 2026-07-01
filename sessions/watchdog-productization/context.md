@@ -45,19 +45,23 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [x] #542 runtime decision-flow orchestrator (the router) — MERGED PR #554
 - **Phase 2 — surfaces**
   - [x] #543 3-model heterogeneous-bias council (abstain-siren / caution-dial) — MERGED PR #555
-  - [ ] #544 re-ground talk-to-users conversation on computed results
+  - [x] #544 re-ground talk-to-users conversation on computed results — MERGED PR #556
   - [ ] #545 direction-only output contract + triage + guardrail breadth + FRONTEND lever/verdict
 - **Phase 3 — discipline + loop-close**
   - [ ] #546 model-robustness regression harness (sealed battery per new model)
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
 
-## In Progress — PHASE 1 DONE (#539–#542). Phase 2: #543 DONE, now #544.
-- [ ] **Iteration 6 = #544** re-ground the talk-to-users conversation on the COMPUTED results.
-      The founder's simulate-novel-Qs + talk-to-users USP surface, but grounded in the decision-flow
-      output (DecisionResult) instead of free persona role-play: the conversation cites the grounded
-      verdict / watchdog stamp / council caution, labels unverified branches honestly, and abstains
-      where the router abstains. Find the existing conversation/chat surface; ship additive +
-      off-by-default (same flag family); no redeploy (batches to #545).
+## In Progress — PHASE 1 DONE (#539–#542). Phase 2: #543,#544 DONE, now #545 (the big one).
+- [ ] **Iteration 7 = #545** direction-only output contract + triage + guardrail breadth + FRONTEND
+      lever/verdict. THE surfacing PR: (1) PERSIST the DecisionResult beside the run (the seam #542
+      logged-only + #544 deferred); (2) thread it into the API response as a direction-only verdict
+      contract (source, direction, caution, label, watchdog stamp) — no magnitude surfaced; (3)
+      frontend lever + verdict surfacing on SimulationNewV2/SimulationDetailV2 (per DESIGN.md;
+      abstain branches labeled "unverified — hypothesis, not verdict"); (4) triage + guardrail
+      breadth. **This is the FIRST live consumer → the SINGLE backend redeploy lands HERE** (manual;
+      deploy/REDEPLOY.md; api.sidira.ai). Still gate the live behaviour behind the flag so the
+      response contract is additive/opt-in until founder flips it. Frontend auto-rebuilds on push
+      to main (Amplify). Read DESIGN.md before any UI.
 
 ## Completed
 - [x] Reconciled: Epic #538 + #539-546 already exist, cleanly phased; no new tickets needed.
@@ -115,6 +119,16 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       `request_timeout` to llm.py clients + get_chat_client (default None = every existing caller
       byte-identical — verified). 16 council tests, 143 in-chain pass. Off-by-default; NO redeploy.
       Real-model campaign reproduction = founder-gated/offline (unit tests reproduce aggregation).
+- [x] **#544 re-ground talk-to-users conversation — MERGED (PR #556).** New
+      `services/grounded_agent_chat.py` (agent_chat.py UNTOUCHED): `GroundedAgentChatService.send_message`
+      → spokesperson-for-the-numbers. `GroundedRecord.from_decision(DecisionResult)`; `classify_pm_message`
+      LLM-judge routes explain (grounded narration from record) vs new_whatif (recompute nudge +
+      `recompute_needed=True`, NO role-play guess); safe default = new_whatif on any failure (never
+      fabricates). Labels `LABEL_PER_SEGMENT` + `LABEL_CALIBRATED_FICTION` injected. Result wrapper
+      `GroundedChatResult(turn, recompute_needed, boundary)` (keeps AgentChatTurn schema clean).
+      Reuses `SIDIRA_DECISION_FLOW_ENABLED` (one switch); flag-off delegates to unchanged
+      `AgentChatService` (boundary="disabled"). Preserves codex-#52 persistence ordering. 123
+      in-chain tests pass, codex clean. Live record-source wiring deferred to #545. NO redeploy.
 
 ## Key Files
 - Engine runtime: backend/sidira_simulator/services/ (SimulationOrchestrator) — mapping in progress
