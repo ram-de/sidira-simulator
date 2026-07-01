@@ -12,7 +12,7 @@ owner: ram-de
 Research-grade analysis of Sidira's core accuracy problem: grounded simulation + watchdog depends on customers providing rich behavioral data beyond persona data, while the "easy" path (persona-seeded LLM agents) is refuted by our own benchmarks (LLM prior bias — llama optimism, Opus pessimism, magnitude-blindness). Run a council of research-scientist-grade perspectives ("if Anthropic built this to save A/B-test cost, how would a Karpathy-level council solve it?") and draft a research paper.
 
 ## In Progress
-- [ ] Founder review: PAPER.md v1.1 + DEBATE_CONCLUSION.md; next experiment = backlog-prevalence study (joint priority #1), then E5 proximal
+- [ ] Run E3-P per the sealed prereg (case assembly → sealed truths → two-arm pipeline → score)
 
 ## Completed
 - [x] Grounded in evidence base: founder-readout/simulation-engine-where-we-landed.md + finetuned-simulator-readout.md (from origin/main; extracted to scratchpad)
@@ -26,10 +26,11 @@ Research-grade analysis of Sidira's core accuracy problem: grounded simulation +
 - [x] codex round 2 (codex-council-r2.md): hostile audit of E1/E2 artifacts PASSED (hashes, blinding, leakage verified; Wilson CI on E2); all 5 original disagreements resolved/synthesized; 3 standing codex dissents recorded
 - [x] DEBATE_CONCLUSION.md: joint statement — proven engines = calculator + direct A/B estimate + g-formula, everything else an abstention test until it wins under seal on decision economics; audit is the wedge, selective pre-test prediction is the product
 - [x] PAPER.md → v1.1 (changelog + inline amendments: validity wording retired, estimand+evidence-class labels, tier-1.5 experimental flag, E1/E2 RUN markers, §9 dissent 2 resolved)
+- [x] E3-P prereg SEALED (PREREG_E3P_BACKLOG_PREVALENCE.md, sha256 `80f5625d…`) — backlog-prevalence study registered before any case assembly; LEDGER row 3 added; merged with PR #557 (founder-authorized)
 
 ## Next Steps
-1. Founder reads PAPER.md (the deliverable) — §6 frontier table + §7 experiments are the decision surface
-2. If endorsed: run E1 (arithmetic-sufficiency, 2 days ₹0) and E2 (same-tag opposite-sign audit, ₹0) as the next sealed experiments
+1. RUN E3-P (backlog-prevalence): assemble the realistic backlog per the sealed sourcing rules (N≥40 target, candidate/exclusion audit log), seal truths, run the two-arm pipeline, score
+2. Then E5 proximal double-NC → E4 abstention gate → E6 Senu transport pilot → E7 learned models (joint priority order)
 3. Decide the §9.1 go-to-market dissent (audit-led vs guarantee-led) — evidence can't make this call
 
 ## Key Files
