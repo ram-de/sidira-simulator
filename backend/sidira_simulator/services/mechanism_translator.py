@@ -162,7 +162,19 @@ def translate_hypothesis(
     """
     columns = [c for c in available_columns if isinstance(c, str) and c.strip()]
 
-    client = chat_client if chat_client is not None else get_chat_client(model_id)
+    # Resolve the client INSIDE the guard: lazy `get_chat_client` can raise for a
+    # missing API key or an unavailable configured provider, and this function's
+    # contract is to NEVER raise into the caller (a router decision, not an
+    # exception). A resolution failure degrades to a NOT-mappable spec.
+    try:
+        client = chat_client if chat_client is not None else get_chat_client(model_id)
+    except Exception as exc:  # noqa: BLE001 — degrade to fallback; never raise into caller
+        log.warning(
+            "mechanism_translator.client_unavailable",
+            error=str(exc),
+            exc_type=type(exc).__name__,
+        )
+        return _unmapped_spec(hypothesis, reason=f"translator client unavailable: {exc}")
 
     # 1) One translator call. A transport / JSON-repair failure degrades to a
     #    NOT-mappable spec — never hard-fails the (later) run.

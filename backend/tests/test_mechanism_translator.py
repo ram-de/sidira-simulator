@@ -205,5 +205,24 @@ def test_blank_columns_are_filtered_before_grounding() -> None:
     assert spec.mappable is True
 
 
+def test_client_resolution_failure_degrades_not_raises(monkeypatch) -> None:
+    """A missing API key / unavailable provider at lazy client resolution must
+    degrade to a NOT-mappable spec, never raise into the caller (the router's
+    fallback contract). Regression for the codex P2 on #539.
+    """
+
+    def _boom(_model_id=None):
+        raise RuntimeError("GROQ_API_KEY is not set")
+
+    # No injected chat_client → the translator resolves lazily via get_chat_client,
+    # which we force to raise. The function must catch it and return a fallback spec.
+    monkeypatch.setattr("sidira_simulator.services.mechanism_translator.get_chat_client", _boom)
+    spec = translate_hypothesis(_hyp(), _COLUMNS)
+
+    assert spec.mappable is False
+    assert spec.treatment_column is None and spec.outcome_column is None
+    assert "client unavailable" in (spec.unmapped_reason or "")
+
+
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
