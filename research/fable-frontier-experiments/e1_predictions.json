@@ -1,0 +1,293 @@
+{
+ "model": "claude-opus-4-8",
+ "predictions": [
+  {
+   "id": "F1_flip_0",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -1455.1213766294059
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Feed converts far lower (3.5%) than classic browse (15.7%); routing 26.8% of users to feed reduces total conversions despite feed's improvement."
+   }
+  },
+  {
+   "id": "F2_flip_0",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -23258.22058333212
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Revenue = units \u00d7 take: 0.898407 \u00d7 1.062756 = 0.9547, a ~4.5% net decline despite higher per-unit fee."
+   }
+  },
+  {
+   "id": "F3_flip_0",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -47475.61723215414
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Premium downgrade revenue loss (~$55k) far exceeds new Lite adoption from free users (~$8k)."
+   }
+  },
+  {
+   "id": "F1_flip_1",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -680.7625653738614
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Routing users from higher-converting classic (11.35%) to lower feed (5.31%) drops totals despite feed's improvement; blended conversions fall ~10877 to ~10197."
+   }
+  },
+  {
+   "id": "F2_flip_1",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -49814.64290377061
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Revenue = units\u00d7take: baseline 520,764 vs pilot 470,942; unit_ratio 0.824 \u00d7 take_ratio 1.098 = 0.904 < 1."
+   }
+  },
+  {
+   "id": "F3_flip_1",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -52179.91545389113
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Premium-to-Lite switching loses ~$57k, far exceeding ~$5k gained from free users adopting Lite; net revenue falls."
+   }
+  },
+  {
+   "id": "F1_flip_2",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -966.9720379072023
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Routing users from higher-converting classic browse (10.1%) to lower discovery feed (4.3%) reduces total conversions despite feed improvement."
+   }
+  },
+  {
+   "id": "F2_flip_2",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -19800.06194326392
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Revenue = units \u00d7 take: unit_ratio 0.8616 \u00d7 take_ratio 1.0936 = 0.9423, a ~5.8% net decline."
+   }
+  },
+  {
+   "id": "F3_flip_2",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -87227.55661329045
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Premium-to-Lite cannibalization loss (~9274 users \u00d7 $10.13 \u2248 $93.9k) far exceeds new Lite revenue from free users (~$6.7k)."
+   }
+  },
+  {
+   "id": "F1_flip_3",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -832.5437553000011
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Feed converts far lower (6.6%) than classic browse (11.3%); routing 35.8% of browse users into feed reduces total conversions despite feed's improvement."
+   }
+  },
+  {
+   "id": "F2_flip_3",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -18746.875884648704
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "unit_ratio 0.848 \u00d7 take_ratio 1.115 = 0.946, so net fee revenue falls about 5%."
+   }
+  },
+  {
+   "id": "F3_flip_3",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "down",
+    "delta_center": -37796.30949545221
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Premium switchers lose ~$5.97 each on 8134 users (-$48.5k); free adopters add ~$10.8k at $5.93. Net revenue falls."
+   }
+  },
+  {
+   "id": "F1_onesign_0",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 1018.2641169068065
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Both segments' rates rose; despite routing users to lower-converting feed, net total conversions increase (~11423 to ~12441)."
+   }
+  },
+  {
+   "id": "F2_onesign_0",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 19174.454409008293
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Revenue = units \u00d7 take. Ratio: 0.9777 \u00d7 1.1013 = 1.0768, a ~7.7% increase despite lower volume."
+   }
+  },
+  {
+   "id": "F3_onesign_0",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 27207.936703085776
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Free-to-Lite gain (~7751 users \u00d7 $4.41 = $34.2k) far exceeds Premium downgrade loss (~957 users \u00d7 $7.29 = $7k)."
+   }
+  },
+  {
+   "id": "F1_onesign_1",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 1344.5992620142388
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Both segments' rates rose and routing added users; total conversions rise from ~8211 to ~9555 despite feed's lower rate."
+   }
+  },
+  {
+   "id": "F2_onesign_1",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 22305.055488449638
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Take per unit rose 11.6% while units fell only 2.4%; net revenue = 0.976\u00d71.116 \u2248 1.089, a ~9% increase."
+   }
+  },
+  {
+   "id": "F3_onesign_1",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 22222.64202394049
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "New Lite revenue from free users (~$38.4k) exceeds revenue lost from Premium downgrades (~$16.1k)."
+   }
+  },
+  {
+   "id": "F1_onesign_2",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 1519.759151657816
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Both segments' conversion rates rose and routing moves users; recomputed totals increase from ~9449 to ~10968."
+   }
+  },
+  {
+   "id": "F2_onesign_2",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 42909.98542451969
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Revenue = units \u00d7 take. Unit ratio 0.9926 \u00d7 take ratio 1.1504 = 1.142, ~14% net increase despite volume dip."
+   }
+  },
+  {
+   "id": "F3_onesign_2",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 57472.35409350869
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "New Lite revenue from free users (~63.6k) far exceeds revenue lost from Premium downgrades (~6.2k)."
+   }
+  },
+  {
+   "id": "F1_onesign_3",
+   "translator_family": "mix_shift",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 762.9622463985743
+   },
+   "LLM_TABLES": {
+    "direction": "down",
+    "reason": "Routing users from higher-converting classic_browse (~13%) to lower-converting discovery_feed (~4.3%) reduces total conversions despite feed's own improvement."
+   }
+  },
+  {
+   "id": "F2_onesign_3",
+   "translator_family": "gross_vs_net",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 65991.27857757732
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Take per unit rose 15.6% while units fell only 1.3%; revenue product 1.156\u00d70.987\u22481.141, a net increase."
+   }
+  },
+  {
+   "id": "F3_onesign_3",
+   "translator_family": "trade_down_cannibalization",
+   "CALC": {
+    "direction": "up",
+    "delta_center": 52181.19857393688
+   },
+   "LLM_TABLES": {
+    "direction": "up",
+    "reason": "Free-user adoption revenue (~67k) far exceeds Premium-downgrade loss (~15k), yielding net positive revenue."
+   }
+  }
+ ]
+}

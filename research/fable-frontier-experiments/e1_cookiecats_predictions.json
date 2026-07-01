@@ -1,0 +1,21 @@
+{
+ "CALC": {
+  "retention_7": {
+   "direction": "down",
+   "gate_30_rate": 0.190201,
+   "gate_40_rate": 0.182,
+   "delta_pp": -0.8201
+  },
+  "retention_1": {
+   "direction": "down",
+   "gate_30_rate": 0.448188,
+   "gate_40_rate": 0.442283,
+   "delta_pp": -0.5905
+  }
+ },
+ "LLM_TABLES": {
+  "retention_7": "down",
+  "retention_1": "down",
+  "reason": "Weighted gate_40 retention_7 (0.182 vs 0.190) and retention_1 (0.442 vs 0.448) both fall below gate_30; mid-engagement bins worsen."
+ }
+}

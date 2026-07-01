@@ -1,0 +1,666 @@
+[
+ {
+  "id": "F1_flip_0",
+  "family": "mix_shift",
+  "flip": true,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 57074,
+     "baseline_conv_rate": 0.156582,
+     "pilot_conv_rate": 0.156582
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 80161,
+     "baseline_conv_rate": 0.030255,
+     "pilot_conv_rate": 0.035244
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.267867
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_flip_0",
+  "family": "gross_vs_net",
+  "flip": true,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 161652,
+     "baseline_take_per_unit": 3.182264,
+     "pilot_units": 145229,
+     "pilot_take_per_unit": 3.38197
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.898407,
+    "take_ratio": 1.062756
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_flip_0",
+  "family": "trade_down_cannibalization",
+  "flip": true,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 269461,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 37832,
+     "price": 11.668027
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.477552
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.006487,
+    "share_of_premium_switching_to_lite": 0.203295
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_flip_1",
+  "family": "mix_shift",
+  "flip": true,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 67474,
+     "baseline_conv_rate": 0.113545,
+     "pilot_conv_rate": 0.113545
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 72918,
+     "baseline_conv_rate": 0.044098,
+     "pilot_conv_rate": 0.053054
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.32679
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_flip_1",
+  "family": "gross_vs_net",
+  "flip": true,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 206544,
+     "baseline_take_per_unit": 2.521311,
+     "pilot_units": 170113,
+     "pilot_take_per_unit": 2.768429
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.823619,
+    "take_ratio": 1.098011
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_flip_1",
+  "family": "trade_down_cannibalization",
+  "flip": true,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 218882,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 29600,
+     "price": 14.088475
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.300742
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.005238,
+    "share_of_premium_switching_to_lite": 0.197126
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_flip_2",
+  "family": "mix_shift",
+  "flip": true,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 82438,
+     "baseline_conv_rate": 0.100552,
+     "pilot_conv_rate": 0.100552
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 82618,
+     "baseline_conv_rate": 0.03492,
+     "pilot_conv_rate": 0.042672
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.33688
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_flip_2",
+  "family": "gross_vs_net",
+  "flip": true,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 118525,
+     "baseline_take_per_unit": 2.894994,
+     "pilot_units": 102126,
+     "pilot_take_per_unit": 3.165972
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.861644,
+    "take_ratio": 1.093602
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_flip_2",
+  "family": "trade_down_cannibalization",
+  "flip": true,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 245774,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 39724,
+     "price": 14.310257
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.182968
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.006513,
+    "share_of_premium_switching_to_lite": 0.233468
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_flip_3",
+  "family": "mix_shift",
+  "flip": true,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 77739,
+     "baseline_conv_rate": 0.113126,
+     "pilot_conv_rate": 0.113126
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 52113,
+     "baseline_conv_rate": 0.057326,
+     "pilot_conv_rate": 0.066326
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.35775
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_flip_3",
+  "family": "gross_vs_net",
+  "flip": true,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 124152,
+     "baseline_take_per_unit": 2.786247,
+     "pilot_units": 105332,
+     "pilot_take_per_unit": 3.106094
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.848412,
+    "take_ratio": 1.114795
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_flip_3",
+  "family": "trade_down_cannibalization",
+  "flip": true,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 210516,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 44223,
+     "price": 11.899669
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 5.926872
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.008646,
+    "share_of_premium_switching_to_lite": 0.183936
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_onesign_0",
+  "family": "mix_shift",
+  "flip": false,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 69303,
+     "baseline_conv_rate": 0.122879,
+     "pilot_conv_rate": 0.129175
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 75743,
+     "baseline_conv_rate": 0.038377,
+     "pilot_conv_rate": 0.050683
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.064371
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_onesign_0",
+  "family": "gross_vs_net",
+  "flip": false,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 101871,
+     "baseline_take_per_unit": 2.450942,
+     "pilot_units": 99600,
+     "pilot_take_per_unit": 2.699329
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.977711,
+    "take_ratio": 1.101344
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_onesign_0",
+  "family": "trade_down_cannibalization",
+  "flip": false,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 294888,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 29921,
+     "price": 11.706383
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.411673
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.026283,
+    "share_of_premium_switching_to_lite": 0.032002
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_onesign_1",
+  "family": "mix_shift",
+  "flip": false,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 46328,
+     "baseline_conv_rate": 0.111769,
+     "pilot_conv_rate": 0.116895
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 66414,
+     "baseline_conv_rate": 0.045662,
+     "pilot_conv_rate": 0.06448
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.058748
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_onesign_1",
+  "family": "gross_vs_net",
+  "flip": false,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 122342,
+     "baseline_take_per_unit": 2.034173,
+     "pilot_units": 119409,
+     "pilot_take_per_unit": 2.270924
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.97603,
+    "take_ratio": 1.116387
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_onesign_1",
+  "family": "trade_down_cannibalization",
+  "flip": false,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 276585,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 43860,
+     "price": 14.89867
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.598433
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.030153,
+    "share_of_premium_switching_to_lite": 0.035699
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_onesign_2",
+  "family": "mix_shift",
+  "flip": false,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 49101,
+     "baseline_conv_rate": 0.12533,
+     "pilot_conv_rate": 0.131084
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 60754,
+     "baseline_conv_rate": 0.054232,
+     "pilot_conv_rate": 0.07626
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.037541
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_onesign_2",
+  "family": "gross_vs_net",
+  "flip": false,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 133665,
+     "baseline_take_per_unit": 2.262333,
+     "pilot_units": 132682,
+     "pilot_take_per_unit": 2.602494
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.992648,
+    "take_ratio": 1.150358
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_onesign_2",
+  "family": "trade_down_cannibalization",
+  "flip": false,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 315601,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 21125,
+     "price": 13.687076
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 5.919047
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.034061,
+    "share_of_premium_switching_to_lite": 0.037511
+   },
+   "metric": "total_subscription_revenue"
+  }
+ },
+ {
+  "id": "F1_onesign_3",
+  "family": "mix_shift",
+  "flip": false,
+  "prose": "We are redesigning the app home to route more users into the new discovery feed. In the pilot the feed's own conversion rate improved meaningfully after the redesign, and qualitative feedback was strong. The classic browse surface is unchanged. Should we expect total conversions to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "classic_browse",
+     "users": 77144,
+     "baseline_conv_rate": 0.126469,
+     "pilot_conv_rate": 0.129956
+    },
+    {
+     "segment": "discovery_feed",
+     "users": 76291,
+     "baseline_conv_rate": 0.031638,
+     "pilot_conv_rate": 0.04259
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "share of classic_browse users routed to discovery_feed",
+    "share_moved": 0.050681
+   },
+   "metric": "total_conversions"
+  }
+ },
+ {
+  "id": "F2_onesign_3",
+  "family": "gross_vs_net",
+  "flip": false,
+  "prose": "We want to raise the service fee on marketplace orders. A two-week pilot showed buyers largely accepted the new fee \u2014 repeat purchase sentiment was stable and support contacts did not spike \u2014 though order volume dipped somewhat. Should we expect net fee revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "all_orders",
+     "baseline_units": 149257,
+     "baseline_take_per_unit": 3.138942,
+     "pilot_units": 147313,
+     "pilot_take_per_unit": 3.628322
+    }
+   ],
+   "pilot_observed_shift": {
+    "description": "units and take per unit observed in the fee pilot",
+    "unit_ratio": 0.986978,
+    "take_ratio": 1.155906
+   },
+   "metric": "net_fee_revenue"
+  }
+ },
+ {
+  "id": "F3_onesign_3",
+  "family": "trade_down_cannibalization",
+  "flip": false,
+  "prose": "We are introducing a cheaper Lite subscription tier below Premium. In the pilot the Lite tier signed up a visible stream of previously free users, and some existing Premium subscribers switched down to Lite. Should we expect total subscription revenue to go up or down?",
+  "tier1_tables": {
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "segments": [
+    {
+     "segment": "free_users",
+     "users": 382689,
+     "price": 0.0
+    },
+    {
+     "segment": "premium_subscribers",
+     "users": 39757,
+     "price": 11.746189
+    }
+   ],
+   "new_option": {
+    "name": "lite_tier",
+    "price": 4.941444
+   },
+   "pilot_observed_shift": {
+    "description": "monthly adoption shares observed in the Lite pilot",
+    "share_of_free_users_adopting_lite": 0.035579,
+    "share_of_premium_switching_to_lite": 0.055815
+   },
+   "metric": "total_subscription_revenue"
+  }
+ }
+]

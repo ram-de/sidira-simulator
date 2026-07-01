@@ -1,0 +1,76 @@
+{
+ "schema": "tier1.segment_mediator_outcome.v1",
+ "description": "Cookie Cats A/B collapsed to engagement-bin cross-tabs per arm; no row-level data.",
+ "arms": {
+  "gate_30": {
+   "total_users": 44700,
+   "bins": [
+    {
+     "gamerounds_bin": "0",
+     "users": 1937,
+     "retention_7_rate": 0.00826,
+     "retention_1_rate": 0.021167
+    },
+    {
+     "gamerounds_bin": "1-10",
+     "users": 15736,
+     "retention_7_rate": 0.019319,
+     "retention_1_rate": 0.124809
+    },
+    {
+     "gamerounds_bin": "11-50",
+     "users": 15891,
+     "retention_7_rate": 0.120257,
+     "retention_1_rate": 0.530867
+    },
+    {
+     "gamerounds_bin": "51-200",
+     "users": 8531,
+     "retention_7_rate": 0.475794,
+     "retention_1_rate": 0.838354
+    },
+    {
+     "gamerounds_bin": "200+",
+     "users": 2605,
+     "retention_7_rate": 0.849136,
+     "retention_1_rate": 0.937044
+    }
+   ]
+  },
+  "gate_40": {
+   "total_users": 45489,
+   "bins": [
+    {
+     "gamerounds_bin": "0",
+     "users": 2057,
+     "retention_7_rate": 0.00632,
+     "retention_1_rate": 0.022363
+    },
+    {
+     "gamerounds_bin": "1-10",
+     "users": 16259,
+     "retention_7_rate": 0.019374,
+     "retention_1_rate": 0.124915
+    },
+    {
+     "gamerounds_bin": "11-50",
+     "users": 15497,
+     "retention_7_rate": 0.10815,
+     "retention_1_rate": 0.523069
+    },
+    {
+     "gamerounds_bin": "51-200",
+     "users": 9058,
+     "retention_7_rate": 0.447008,
+     "retention_1_rate": 0.827556
+    },
+    {
+     "gamerounds_bin": "200+",
+     "users": 2618,
+     "retention_7_rate": 0.850267,
+     "retention_1_rate": 0.932009
+    }
+   ]
+  }
+ }
+}
