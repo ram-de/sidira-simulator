@@ -21,7 +21,9 @@ After months of rigorous, sealed, pre-registered testing, here is the honest lan
      hypothesis generator.
 3. **The product is the watchdog architecture:** the LLM answers everything up front; the empirical
    engine **confirms, overrules, or flags** it. The killer feature is **CONTRADICTS** — catching the
-   confidently-wrong *net-negatives* that the LLM (and human intuition) never see.
+   confidently-wrong *net-negatives* that the LLM (and human intuition) never see. **Note this is the
+   *target*: the deployed engine today is still the disproven persona role-play (§5d) — the rewiring is the
+   roadmap, and being honest about that gap is part of the pitch.**
 4. **The moat is not the LLM.** It's honest calibration + a proprietary **data factory** (Senu) that
    manufactures the counter-intuitive labeled cases nobody else has.
 5. **The honest ceiling:** capture the predictable slice, abstain on the tail. Not a crystal ball —
@@ -142,6 +144,67 @@ standout is that our output is **richer than an arrow yet not a forecast**:
   they aren't, on the metrics they forgot, with an honest skip / test / this-one-loses — and the receipts
   to argue about it.* We out-breadth and out-honesty them; we don't out-precise them.
 
+## 5c. Where the "user simulation" went, and how you still talk to the users
+
+The USP is "simulate users and talk to them about *why*." That survives — but the *simulator* changed, and
+being precise about it is what keeps us honest.
+
+**The user simulation became statistical, not agentic.** In grounded mediation the g-formula, per **real**
+user: (1) takes their actual features + observed mediator, (2) applies the mechanism shift the change
+causes, (3) recomputes *their* outcome through a response surface **fit to real behavior**, (4) aggregates
+to the population effect. So we *are* simulating each user's counterfactual response — but via a model fit
+to real data, not an LLM pretending. The users are **real**; the reaction comes from **fitted real
+behavior**. That's exactly why it's trustworthy where role-play (an LLM-imagined persona reacting from the
+LLM's guess) was at/below chance.
+
+**You still talk to them — the number comes first, then a persona agent narrates it.** After the g-formula
+runs, each user/segment carries a record: real features + mechanism shift + computed counterfactual. You
+"talk to" that by handing the record to an LLM agent that **speaks for the numbers** — same
+translator-not-predictor principle, applied to the output ("numbers → a human *why*"). The agent explains
+the result and the features behind it; it does not decide the outcome.
+
+**The one rule that stops this collapsing back into the failed role-play:** does the question need an
+*explanation* of the existing result, or a *new prediction*?
+- Explanation / exploration ("why did this segment react? which feature drove it? who's most affected?") →
+  the agent answers, grounded. ✓
+- A *new outcome* ("what if we only lifted the cap for power users?") → that's a new counterfactual →
+  **route back to the g-formula**; the chat agent never improvises the number.
+
+**Talking to personas across both arms — still possible, with one honesty shift.** Three levels:
+- **Persona/segment across both arms** — fully supported and trustworthy (observed arm = real; other arm =
+  the segment-level counterfactual the sim is good at).
+- **An individual in their actual arm** — fully grounded, real behavior.
+- **The *same individual* across *both* arms** — this is the change. In role-play it was free because the
+  agent was fictional; a *real* person only lived in one arm, so their other-arm self is a **per-person
+  counterfactual: reliable in aggregate, a calibrated fiction per person.** Offer it, but label it
+  honestly. (If the treatment arm was *really* run, both arms hold real — but *different* — people; only
+  the cross-arm self is the estimate. For a genuinely novel change, everyone is control and the whole
+  treatment side is the computed layer.)
+
+The reframe: role-play's "same agent in both arms" felt powerful but was *doubly fictional* — a made-up
+person having a made-up both-arm experience. The statistical version anchors one side in real behavior,
+computes the other, and tells you which is which. We trade the *illusion* of per-person both-arm truth for
+honesty about observed-vs-estimated — and the thing you actually wanted (how a segment shifts across arms)
+gets *more* trustworthy.
+
+## 5d. Is the *current* engine this? No — and the gap is the roadmap
+
+Say this plainly: the **deployed** simulation engine today is the **LLM persona role-play** approach
+(persona pack → identity prompt with the treatment state-diff → agents "become" users and produce the
+outcome). That is the method the campaign **disproved**. Everything in §5–§5c is the **target** — validated
+in research (AMBDOM/GNCE) but **not yet wired into the product.**
+
+What already exists and is reusable:
+- the **crawl** (current-state grounding) — reusable as-is;
+- the **feature store** + persona builds — reusable as the numeric substrate;
+- `causal_estimator.py` + the **negative-control guard** — live in research, not yet in the product path.
+
+What the rewiring requires (the actual work): demote the LLM composer from *predictor* to *translator*,
+promote the g-formula to *predictor*, put the negative-control guard in front of the answer as the *gate*,
+and re-ground the "talk-to-users" conversation on **computed results** instead of role-play. Components
+overlap; the *architecture* (who predicts, who translates, who guards) is different — and the default flow
+in production is still the disproven one. Not hiding that is part of the pitch.
+
 ## 6. The moat and the data factory
 
 Reading the Bridgewater × Thinking Machines result carefully: their win came from **a verifiable,
@@ -156,6 +219,48 @@ trustworthy confident subset + a killed optimism bias**, because the cost saving
 skip/ship slice. Phase-1 is a lean ~₹20-lakh / 6-month program with a hard **month-4–5 decision gate**:
 does the learning curve bend (new cases fall into seen patterns) and does the structure transfer? Scale on
 evidence, not faith.
+
+## 6b. Can Senu data build an agentic simulator — and how would we use it?
+
+**Can it? Yes — Senu is precisely the data that makes an agentic *and trustworthy* simulator buildable.**
+Role-play failed not for lack of chat examples but because it was **optimistic and unanchored**. Senu
+attacks that directly: it manufactures **(population → change → measured outcome)** triples at ~₹40/
+respondent and over-samples the counter-intuitive tail. A model fit to those outcomes keeps the **agentic
+interface** (you talk to it, it behaves like a user) while the **trust** now comes from *"fit to real
+outcomes,"* not role-play magic. The genuinely new capability is **transfer**: unlike the per-customer
+g-formula (which needs the mechanism observed in *this* customer's data), a Senu-trained model carries
+learned behavioral physics *across* customers — it can simulate a change where a customer's own data is
+thin. Transfer is the upside *and* the external-validity risk (Senu respondents ≠ the customer's users), so
+it must be validated, not assumed.
+
+**How we'd use the data — the sequence (cheap → expensive, each gated on the last):**
+
+1. **Fit a supervised response model on the triples. No LLM training.** The data is tabular, so the honest
+   first build is plain ML (gradient-boosted trees / small net) mapping `(features, change-encoding,
+   mechanism) → outcome` — a **learned, transferable g-formula.** It directly answers the open question:
+   *does a model trained on Senu outcomes beat the plain per-customer g-formula?* Start here; if the signal
+   isn't in this, no LLM training rescues it.
+2. **Keep a frontier LLM *untrained* as translator + narrator.** It encodes the change (English/Figma →
+   mechanism + features — where world-knowledge enables transfer to *unseen* change-types) and narrates the
+   computed result in the conversation. No training needed.
+3. **Only then RL-fine-tune an open model against measured outcomes** (Bridgewater recipe: reward = match
+   to the real Senu outcome, on a Qwen-class model). This yields the single **agentic** model that both
+   encodes and predicts, de-biased by reality. Expensive — gate it on Step 1 showing learnable signal.
+
+**Why *not* "just SFT a base LLM on the datasets" (the natural instinct):** there's no signal in the text —
+SFT teaches it to *mimic the wording* of outcomes, not predict them, and can re-learn the optimism bias.
+Bridgewater's win was **RL against a verifiable reward**, not text fine-tuning. If you train an LLM at all,
+it must be RL-against-measured-outcome.
+
+**Discipline (all three steps):** general base (Senu physics) + per-customer head (their exhaust) = the
+flywheel; sealed held-out validation on the real RCTs, promote a checkpoint only when held-out accuracy
+improves; the negative-control **watchdog stays** — it adjudicates and forces abstain off-distribution.
+
+**Three caveats that decide if it's real:** (1) the calibrated-fiction ceiling doesn't move — trustworthy
+at segment level, fiction per person; (2) it *shrinks* the abstain zone, doesn't close it (off-taxonomy →
+abstain); (3) the whole bet rides on the 80/20 taxonomy being real — the **month-4–5 learning-curve gate**
+is the thing to measure, not assume. And it must *beat the plain g-formula* to justify its cost — an open,
+testable question, not a foregone win. (Full treatment in `founder-readout/finetuned-simulator-readout.md`.)
 
 ## 7. The honest limits (the part a serious buyer will respect)
 
