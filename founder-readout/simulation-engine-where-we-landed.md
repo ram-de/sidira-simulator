@@ -42,7 +42,7 @@ fool ourselves.
 
 | What we tried | Verdict |
 |---|---|
-| LLM persona **role-play** (agent "becomes" a user) | **0.29 — below chance.** The persona machinery actively *hurts* vs. a one-line comparison. |
+| LLM persona **role-play** as the *predictor* (agent "becomes" a user and guesses the outcome) | **0.29 — below chance.** As a source of the verdict, the persona machinery actively *hurts* vs. a one-line comparison. (It survives only as the conversational "why" surface — never as the answer.) |
 | LLM **comparative / naive** one-shot | ~0.50 — at chance. |
 | **Council of priors** (naive/contrarian/base-rate + router) | Rejected — made it *worse* (diversity ≠ accuracy). |
 | **Decomposition, selective-prediction, reference-class** analogy | All NULL — at chance. Pre-registration killed two of my own favored bets. |
@@ -71,8 +71,11 @@ fool ourselves.
    the net depends on *how much*, words can't resolve it — but a model fit to the data can. We proved this
    decisively (1.00 vs 0.00) and confirmed it on a real dataset (recovering a famous counter-intuitive
    result the intuitive story gets backwards).
-3. **The LLM front face.** It answers anything, decomposes a change into its mechanisms, and powers the
-   conversational "why." It's the product's surface and coverage — just not its source of truth.
+3. **The LLM as translator (not storyteller).** Its reliable job is to **translate** a plain-English
+   hypothesis into a *mechanism* — the observed lever the change moves, what it might cannibalize, the
+   negative control, the confounders — and to power the conversational "why." It does **not** predict the
+   outcome by role-playing users; that's the failed approach above. It sets up the computation; the data
+   runs it.
 
 ## 5. Where we landed — the product
 
@@ -90,6 +93,54 @@ final word alone; a low-trust data read never overrides with a worse guess.
 money — the net-negatives your intuition and every other AI tool are blind to — and we tell you honestly
 when we can't know.* This is **external-validity / generalization auditing of test wins**, powered by
 heterogeneity + negative controls in the customer's own data — not persona theater.
+
+## 5b. How the winning route actually works — four corrections worth pinning down
+
+These sharpen (and in places correct) how we've described the engine to ourselves.
+
+**(a) The LLM is a translator, not a predictor.** In the trustworthy route the LLM's only job is to turn
+the plain-English hypothesis into a *mechanism*: which observed lever the change moves (the mediator), what
+it might cannibalize (the sibling), what shouldn't move (the negative control), what to adjust for (the
+confounders). It never guesses the answer by role-playing users — that's the disproven approach. It tells
+the math what to compute; the data computes it. Persona role-play survives **only** as the conversational
+"why" surface, anchored to that computed result — never as the verdict.
+
+**(b) Two data objects, two jobs — don't conflate them.**
+- **The crawled feature pack** is the **reverse-engineered current state of the product** — a PRD/Figma
+  reconstructed from crawling the live app. Its job is to **ground the simulated agents in what the product
+  is and does today**, so a proposed change reads as a *delta from a real baseline* rather than a generic
+  one. It is read *by the agents as context*; it is **not** a regression table.
+- **The feature store** (per-user behavioral rows) is the **numeric substrate the empirical estimate runs
+  on** — mediators, confounders, segments for the causal computation and the negative-control guard.
+
+  One grounds the agents' *understanding of the product*; the other grounds the *math about the users*.
+  Earlier drafts blurred these; the crawl is current-state-for-agents, the feature store is
+  behavior-for-the-estimate.
+
+**(c) We compute magnitudes backstage; we ship *direction*.** The g-formula must weigh magnitudes to
+resolve which way a two-sided change nets — but the deliverable is the **sign + a confidence/abstain
+call**, never a calibrated point estimate. Our own data enforces this: on real Cookie Cats we recovered the
+counter-intuitive *loss* (right sign) with the magnitude off by ~40%. Right sign, wrong number — so we sell
+the sign and keep the number offstage. Claiming the number is the crystal ball we already disproved.
+
+**(d) So how do we beat the PM's own hypothesis — without selling numbers?** A bare directional arrow on
+the PM's *headline* metric does **not** beat a good PM; their hypothesis already is a directional bet. The
+standout is that our output is **richer than an arrow yet not a forecast**:
+- **Breadth they never modeled** — the reaction of the segments the PM isn't and can't intuit, and the
+  direction on the **guardrail metrics they weren't aiming at** ("upgrades up — *but* retention down in
+  casual, refunds up").
+- **The contrarian catch** — the PM's hypothesis is optimistic *by construction*; our value spikes at
+  **CONTRADICTS**, the grounded "this specific belief is the one that loses money, here's the segment and
+  mechanism." A tool that only agrees is worthless.
+- **Comparative + calibrated abstention** — across a 40-hypothesis backlog: *these* net-lose, *these* are
+  safe-to-ship, *this* one is too close → test it. Ordinal, honest, and it's the actual cost saving (which
+  tests to skip), with no calibrated magnitude claimed.
+- **Interrogable "why"** — a hypothesis is a static sentence; ours is a model of current-state + change you
+  can *talk to*, grounded in real reactions.
+
+  One line: *the PM brings a confident, optimistic bet on one metric; we bring the reaction of the users
+  they aren't, on the metrics they forgot, with an honest skip / test / this-one-loses — and the receipts
+  to argue about it.* We out-breadth and out-honesty them; we don't out-precise them.
 
 ## 6. The moat and the data factory
 
