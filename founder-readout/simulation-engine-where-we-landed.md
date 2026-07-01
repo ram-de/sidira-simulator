@@ -305,6 +305,36 @@ abstain); (3) the whole bet rides on the 80/20 taxonomy being real — the **mon
 is the thing to measure, not assume. And it must *beat the plain g-formula* to justify its cost — an open,
 testable question, not a foregone win. (Full treatment in `founder-readout/finetuned-simulator-readout.md`.)
 
+## 6c. How a Senu result actually reaches the engine (the plumbing — corrected 2026-07-01)
+
+A subtle-but-load-bearing point, because it decides what we build *where*. **Senu is
+multi-tenant** — it's a data-collection product for *any* buyer, not a Sidira-custom tool — so
+it stays deliberately **generic**. When we design a study we only pick a hand-vetted template,
+declare the field that carries the arm, and assign **role-named** arm values (`calm`/`urgent`,
+`cap_on`/`cap_off`). We never bake anything customer-specific into Senu.
+
+The happy surprise: Senu *already* carries, generically, everything an A/B test needs and
+exports it — each arm's **role** (`baseline` = control, `manipulation` = treatment; Senu even
+*forbids* naming an arm `control`/`treatment`), the frozen primary outcome, and a
+pre-registered expected direction. So **"which arm is the control" is not something we build —
+it's already in the export.**
+
+The **only** thing Senu can't hold (and mustn't, or it stops being multi-tenant) is the one
+customer-specific fact: *what the manipulation arm means in **this** customer's product* —
+"`cap_off` = we removed the skip-cap." That mapping is a tiny **Sidira-side** artifact (the
+"arm dictionary"), one per study. With it, a finished Senu export converts mechanically into
+the exact `(current-state, proposed-change, measured-outcome)` shape the engine already scores.
+**This is built and runs end-to-end today** (tickets #547–#549); what remains is operational —
+the data-sharing agreement and authoring one dictionary per real study.
+
+**Where the results live: git, not a database.** The high-volume raw responses stay in Senu's
+own store; what we keep on the Sidira side is the small **scoring layer** — one sealed record
+per case (the sealed prediction, the measured truth, hit/miss). We keep that in **git on
+purpose**: the requirement is *immutability and audit* (nobody can silently edit a measured
+outcome to make the engine look right — the history is the tamper-evident proof), not
+throughput. It graduates into a production database only if/when the live app needs to serve
+these predictions at request time.
+
 ## 7. The honest limits (the part a serious buyer will respect)
 
 - The watchdog's confounding-guard is a **LEAD, not promoted** — it failed a hard real benchmark; the
