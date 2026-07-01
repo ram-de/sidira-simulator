@@ -44,6 +44,11 @@ from sidira_simulator.services.simulation_orchestrator import SimulationOrchestr
 
 router = APIRouter(prefix="/simulations", tags=["simulations"])
 
+# #545: hard cap on the optional decision-verdict sidecar read on GET /simulations/{id}.
+# Short — the verdict is best-effort and the run result is already available, so a
+# slow R2 read is dropped rather than allowed to hang the detail response.
+_DECISION_VERDICT_READ_TIMEOUT_S = 2.0
+
 
 class CreateSimulationResponse(BaseModel):
     id: str
@@ -615,7 +620,17 @@ async def get_simulation(
             except Exception:  # noqa: BLE001 — an optional sidecar read must never 500.
                 return None
 
-        verdict = await asyncio.to_thread(_read_sidecar)
+        # Bound the read: a slow/stalled R2 read must never hang the detail GET when
+        # the result is otherwise ready. On timeout the (optional) verdict is just
+        # omitted (codex P2, mirrors the write hook's asyncio.wait_for). The worker
+        # thread keeps running to completion in the pool; we stop waiting on it.
+        try:
+            verdict = await asyncio.wait_for(
+                asyncio.to_thread(_read_sidecar),
+                timeout=_DECISION_VERDICT_READ_TIMEOUT_S,
+            )
+        except TimeoutError:
+            verdict = None
         if verdict is not None:
             result.decision_verdict = verdict
 
