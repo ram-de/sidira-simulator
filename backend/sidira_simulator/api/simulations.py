@@ -31,6 +31,10 @@ from sidira_simulator.schemas.simulation import (
     WeaknessCategoryDiff,
 )
 from sidira_simulator.services.answerability import assess_answerability
+from sidira_simulator.services.decision_flow import (
+    decision_flow_enabled,
+    read_decision_verdict,
+)
 from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
@@ -588,6 +592,18 @@ async def get_simulation(
     # cycle-safe, customer-scoped). Empty for un-parented runs.
     lineage = await _walk_lineage(row, customer_id, orchestrator)
 
+    result = SimulationResult(**row["result_json"]) if row.get("result_json") else None
+
+    # #545: surface the direction-only decision verdict when its sidecar exists.
+    # ADDITIVE + off-by-default: only read the sidecar when the decision flow is
+    # enabled (the same flag that writes it), so a flag-off run does ZERO extra
+    # work here and the response is byte-identical to today — no R2 GET, field
+    # stays None. Best-effort: a missing/malformed sidecar → None (never a 500).
+    if result is not None and decision_flow_enabled():
+        verdict = read_decision_verdict(get_store(), customer_id, simulation_id)
+        if verdict is not None:
+            result.decision_verdict = verdict
+
     # Phase 4.6 #88: surface arm_split on GET so the frontend can branch
     # on "was this an A/B run" without inspecting result_json.
     arm_split = (
@@ -621,7 +637,7 @@ async def get_simulation(
         selected_personas=row.get("selected_personas"),
         model_id=row.get("model_id"),
         agent_instance_ids=row.get("agent_instance_ids", []),
-        result=SimulationResult(**row["result_json"]) if row.get("result_json") else None,
+        result=result,
     )
 
 

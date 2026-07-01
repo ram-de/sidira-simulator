@@ -48,13 +48,17 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 
 import structlog
 
 from sidira_simulator.schemas.estimability import EstimabilityManifest
 from sidira_simulator.schemas.mechanism import MechanismSpec
 from sidira_simulator.schemas.simulation import Hypothesis
+from sidira_simulator.schemas.verdict import DirectionVerdict, GuardrailMetric
+
+if TYPE_CHECKING:
+    from sidira_simulator.adapters.r2 import ArtifactStore
 from sidira_simulator.services.grounded_predictor import (
     GroundedPrediction,
     grounded_predict,
@@ -337,6 +341,88 @@ def decide(
         )
 
 
+def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
+    """Map a :class:`DecisionResult` → the customer-facing :class:`DirectionVerdict`.
+
+    Direction-only by construction: ``direction`` / ``caution`` / ``label`` /
+    ``source`` / ``watchdog_verdict`` cross straight over; NO magnitude is read
+    from the decision's grounded ``candidate`` (it never reaches this contract).
+
+    - ``unverified`` = ``source == "llm_fallback"`` (a hypothesis, not a verdict).
+    - ``confidence`` = ``"high"`` iff ``caution == "none"`` (a trustworthy grounded
+      verdict), else ``"low"`` — the coarse two-level chip #545 documents.
+    - ``guardrails`` = the mechanism spec's ``sibling_metric`` (role ``sibling``)
+      + each ``negative_controls`` name (role ``negative_control``) — NAMES only.
+
+    Pure — never raises. The roles and confidence values it constructs are fixed
+    literals, so the ``DirectionVerdict`` / ``GuardrailMetric`` validators cannot
+    trip on well-formed :class:`DecisionResult` input (``decide`` always returns a
+    ``mechanism_spec``).
+    """
+    guardrails: list[GuardrailMetric] = []
+    spec = decision.mechanism_spec
+    if spec is not None:
+        if spec.sibling_metric:
+            guardrails.append(GuardrailMetric(name=spec.sibling_metric, role="sibling"))
+        for name in spec.negative_controls:
+            guardrails.append(GuardrailMetric(name=name, role="negative_control"))
+
+    return DirectionVerdict(
+        direction=decision.direction,
+        caution=decision.caution,
+        confidence="high" if decision.caution == "none" else "low",
+        label=decision.label,
+        source=decision.source,
+        watchdog_verdict=decision.watchdog_verdict,
+        unverified=decision.source == "llm_fallback",
+        guardrails=guardrails,
+    )
+
+
+# ── Sidecar persistence for the decision verdict (#545) ──────────────────────
+# The #542 hook runs AFTER the run's result_json is already persisted-complete (a
+# deliberate safety property — the shadow router must never delay or fail the run).
+# So we persist the verdict BESIDE the run as its own R2 artifact rather than
+# mutating the already-written result. The key matches the established per-sim
+# artifact convention (`customers/{customer_id}/simulations/{sim_id}/…`, cf.
+# services.run_state), so the verdict lives in the same prefix as state.json /
+# events.jsonl. The GET detail handler reads it back best-effort (#545 §4).
+
+
+def decision_verdict_key(customer_id: str, sim_id: str) -> str:
+    """R2 key for a sim's decision-verdict sidecar (per-sim artifact convention)."""
+    return f"customers/{customer_id}/simulations/{sim_id}/decision_verdict.json"
+
+
+def write_decision_verdict(
+    store: ArtifactStore, customer_id: str, sim_id: str, verdict: DirectionVerdict
+) -> None:
+    """Write the verdict sidecar. Raises on a store failure — the CALLER (the #542
+    hook) guards it so a write failure logs + continues, never breaking the run."""
+    store.write_text(
+        decision_verdict_key(customer_id, sim_id),
+        verdict.model_dump_json(indent=2),
+    )
+
+
+def read_decision_verdict(
+    store: ArtifactStore, customer_id: str, sim_id: str
+) -> DirectionVerdict | None:
+    """Best-effort read of the verdict sidecar. Returns None on a miss OR a
+    malformed body — NEVER raises — so the GET handler can populate the additive
+    field when present and leave it None otherwise (never a 500)."""
+    try:
+        raw = store.read_text(decision_verdict_key(customer_id, sim_id))
+    except FileNotFoundError:
+        return None
+    except Exception:  # noqa: BLE001 — a best-effort read must never break GET.
+        return None
+    try:
+        return DirectionVerdict.model_validate_json(raw)
+    except Exception:  # noqa: BLE001 — a malformed sidecar is treated as absent.
+        return None
+
+
 def decision_flow_enabled() -> bool:
     """True iff ``SIDIRA_DECISION_FLOW_ENABLED`` is a truthy string. Default OFF.
 
@@ -360,6 +446,10 @@ __all__ = [
     "NullCouncil",
     "DecisionResult",
     "decide",
+    "verdict_from_decision",
+    "decision_verdict_key",
+    "write_decision_verdict",
+    "read_decision_verdict",
     "decision_flow_enabled",
     "LABEL_VERIFIED",
     "LABEL_CONTRADICTS",

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from sidira_simulator.schemas.crawl import DEFAULT_SETUP_ID, is_safe_setup_id
 from sidira_simulator.schemas.feature_pack import ReverseFigma
+from sidira_simulator.schemas.verdict import DirectionVerdict
 
 # agent-behavior-spec §3a / #221: the curated fallback choice set for the
 # conversion question when the rendered screen doesn't enumerate the on-screen
@@ -656,6 +657,21 @@ class SimulationResult(BaseModel):
     # card (a follow-up can render it on the metric panel — no schema change
     # needed, the field is already here).
     metric_sentiment_disagreement_caveat: str | None = None
+
+    # ── Direction-only decision verdict (Epic #538, ticket #545) ──
+    # The customer-facing sign + confidence/abstain from the §5e decision router
+    # (#542), surfaced beside the run. STRUCTURALLY magnitude-free (DirectionVerdict
+    # is extra="forbid" with no float field) — our own Cookie Cats magnitude was
+    # ~40% off with the right sign, so only the sign ships. Populated on GET by a
+    # best-effort read of the R2 sidecar the #542 hook writes when
+    # SIDIRA_DECISION_FLOW_ENABLED is on; it is NOT written into result_json at
+    # score time (the sidecar preserves #542's no-critical-path guarantee — the
+    # verdict is computed AFTER the run is already persisted-complete). None on a
+    # flag-off run, an older run, or when no sidecar exists, so every older
+    # `result_json` row loads byte-identical and this is migration-free (additive,
+    # rides the result JSON blob, NOT a DB column — SimulationResult has no
+    # extra="forbid").
+    decision_verdict: DirectionVerdict | None = None
 
 
 class LineageEntry(BaseModel):
