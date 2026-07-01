@@ -171,6 +171,29 @@ def test_verdict_from_abstain():
     assert v.guardrails == []
 
 
+def test_verdict_from_moderate_no_direction_normalizes_to_abstain():
+    """Step-2 council-agreement with NO llm_direction (NullCouncil) → canonical abstain.
+
+    The router yields direction=None + caution='moderate' + the unverified label; the
+    builder must collapse that no-arrow result to a clean inconclusive hard abstain
+    rather than surface a directionless 'hypothesis' (codex #545).
+    """
+    v = verdict_from_decision(
+        _decision(
+            source="llm_fallback",
+            direction=None,
+            caution="moderate",
+            label="unverified — hypothesis, not verdict",
+            watchdog_verdict="CANT_VALIDATE",
+        )
+    )
+    assert v.direction is None
+    assert v.caution == "hard"
+    assert v.confidence == "low"
+    assert v.label == "inconclusive — test it"
+    assert v.unverified is True
+
+
 def test_verdict_from_unverified_moderate():
     v = verdict_from_decision(
         _decision(

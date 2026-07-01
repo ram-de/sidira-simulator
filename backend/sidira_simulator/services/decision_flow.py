@@ -354,10 +354,19 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
     - ``guardrails`` = the mechanism spec's ``sibling_metric`` (role ``sibling``)
       + each ``negative_controls`` name (role ``negative_control``) — NAMES only.
 
-    Pure — never raises. The roles and confidence values it constructs are fixed
-    literals, so the ``DirectionVerdict`` / ``GuardrailMetric`` validators cannot
-    trip on well-formed :class:`DecisionResult` input (``decide`` always returns a
-    ``mechanism_spec``).
+    **No-arrow normalization.** A verdict with NO direction is ALWAYS surfaced as
+    the canonical abstain (``caution="hard"``, ``LABEL_INCONCLUSIVE``). The Step-2
+    council-agreement branch can produce ``direction=None`` with ``caution="moderate"``
+    and the "unverified — hypothesis" label (e.g. the NullCouncil default agrees but
+    supplies no ``llm_direction``); surfacing a directionless "hypothesis" to the PM
+    contradicts the contract (abstain ⇔ no arrow + hard caution — an "unverified
+    hypothesis" needs an arrow to be one). So we collapse any no-direction result to
+    a clean inconclusive abstain (codex #545). A directioned unverified take
+    (council supplied an arrow) is kept as-is — that IS a legitimate hypothesis.
+
+    Pure — never raises. Every field it constructs is a fixed literal or normalized
+    to a contract-valid shape, so the ``DirectionVerdict`` validator cannot trip on
+    any :class:`DecisionResult` input (``decide`` always returns a ``mechanism_spec``).
     """
     guardrails: list[GuardrailMetric] = []
     spec = decision.mechanism_spec
@@ -367,6 +376,22 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
         for name in spec.negative_controls:
             guardrails.append(GuardrailMetric(name=name, role="negative_control"))
 
+    unverified = decision.source == "llm_fallback"
+
+    # No arrow → canonical abstain (hard caution, inconclusive), regardless of the
+    # internal caution the router carried. Keeps the customer-facing contract clean.
+    if decision.direction is None:
+        return DirectionVerdict(
+            direction=None,
+            caution="hard",
+            confidence="low",
+            label=LABEL_INCONCLUSIVE,
+            source=decision.source,
+            watchdog_verdict=decision.watchdog_verdict,
+            unverified=unverified,
+            guardrails=guardrails,
+        )
+
     return DirectionVerdict(
         direction=decision.direction,
         caution=decision.caution,
@@ -374,7 +399,7 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
         label=decision.label,
         source=decision.source,
         watchdog_verdict=decision.watchdog_verdict,
-        unverified=decision.source == "llm_fallback",
+        unverified=unverified,
         guardrails=guardrails,
     )
 

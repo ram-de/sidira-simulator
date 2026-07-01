@@ -109,6 +109,11 @@ class DirectionVerdict(BaseModel):
             raise ValueError(
                 "a trustworthy verdict (caution='none') must carry a direction"
             )
+        if self.direction is None and self.caution != "hard":
+            raise ValueError(
+                "a no-direction verdict is an abstain and must have caution='hard' "
+                f"(got caution={self.caution!r})"
+            )
         return self
 
 
