@@ -52,14 +52,24 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
 
 ## In Progress
-- [ ] **Iteration 1 = #539.** Explore agent (aa3fc5e5) mapping the engine runtime first so build
-      briefs are precise. Then fresh worktree agent builds #539.
+- [ ] **Iteration 2 = #540** grounded predictor. CONFIRMED architecture: API is ML-FREE (no
+      sklearn/pandas in backend/pyproject). Grounded COMPUTE runs at PACK BUILD (persona-worker,
+      already shipped via #20/#21/#510 → writes estimability_manifest.json beside the pack in R2).
+      So #540 RUNTIME piece = a manifest READER/matcher, NOT a re-port of sklearn. Match
+      MechanismSpec (treatment_column, outcome_column) → precomputed candidate_effect →
+      direction-only sign (`sign_adjusted`) + `supportable`; "not covered" → router falls to LLM.
 
 ## Completed
 - [x] Reconciled: Epic #538 + #539-546 already exist, cleanly phased; no new tickets needed.
       Integration points = router pre-flight #309/#511 (lever-in-data), calibrator #222.
 - [x] Study-store + adapter shipped this session (#547-#549, PRs #548/#549/#550) — the
       predicted-vs-actual sink #222 will read from.
+- [x] **#539 LLM-as-translator — MERGED (PR #551).** `schemas/mechanism.py` (MechanismSpec,
+      mappable DERIVED via referential-integrity validator) + `services/mechanism_translator.py`
+      (mirrors input_lint LLM-judge; never raises). codex P2 caught + fixed (client resolution
+      moved inside the guard) + regression test. 21 tests. Ships INERT (no runtime import).
+      Independently verified: 4 pre-existing suite failures are unrelated (route-resolution/
+      deploy-config/identity-seed subprocess), not caused by the change.
 
 ## Key Files
 - Engine runtime: backend/sidira_simulator/services/ (SimulationOrchestrator) — mapping in progress
