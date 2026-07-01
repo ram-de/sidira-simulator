@@ -35,6 +35,11 @@ log = structlog.get_logger()
 
 BackgroundOrchestratorFactory = Callable[[], AsyncContextManager["SimulationOrchestrator"]]
 
+# Upper bound (seconds) on the flag-gated §5e decision-flow shadow hook (#542). It
+# runs AFTER the sim is already persisted-complete, so this only bounds how long
+# the best-effort log may linger — the run itself is never affected.
+_DECISION_FLOW_HOOK_TIMEOUT_S = 30.0
+
 
 class SimulationOrchestrator:
     def __init__(
@@ -251,6 +256,24 @@ class SimulationOrchestrator:
                 input_lint=input_lint,
             )
 
+            # §5e decision-flow router (#542). ADDITIVE + OFF BY DEFAULT: when
+            # SIDIRA_DECISION_FLOW_ENABLED is set, compute a grounded-first
+            # DecisionResult and emit it as a structured decision log ALONGSIDE the
+            # existing run. Zero behaviour change — the result is not threaded into
+            # the sim, the runner, or the customer-facing response (that's #545).
+            # Deliberately run AFTER the sim is already persisted-complete and
+            # bounded by a timeout, so this shadow/log-only hook can NEVER delay the
+            # run or keep it 'running' (codex P2). When the flag is off (default,
+            # all prod) this is a single cheap env read that returns immediately:
+            # no extra work, no extra imports, no thread offload.
+            await self._maybe_log_decision_flow(
+                customer_id=customer_id,
+                hypothesis=hypothesis,
+                pack_version=persona_pack.version,
+                setup_id=setup_id,
+                model_id=model_id,
+            )
+
         except Exception as exc:
             log.exception("simulation.failed", sim_id=sim_id, error=str(exc))
             await self._simulations.update_status(
@@ -259,6 +282,148 @@ class SimulationOrchestrator:
                 "failed",
                 error=str(exc)[:1000],
                 completed_at=datetime.now(timezone.utc),
+            )
+
+    async def _maybe_log_decision_flow(
+        self,
+        *,
+        customer_id: str,
+        hypothesis: Hypothesis,
+        pack_version: str,
+        setup_id: str,
+        model_id: str | None,
+    ) -> None:
+        """Flag-gated §5e decision-flow hook (#542). Never affects the run.
+
+        Off by default (``SIDIRA_DECISION_FLOW_ENABLED``): a single env read then
+        an immediate return, so the run path is unchanged in prod. When on, load
+        the estimability manifest beside the persona pack, run the grounded-first
+        router (`decide`), and structlog the result. Deliberately additive: the
+        `DecisionResult` is only logged — it is NOT written to the sim row, passed
+        to the runner, or surfaced in the API response (response-shape wiring is
+        #545). Wrapped so any failure here can never break the simulation.
+
+        The synchronous work — a blocking R2 manifest read and the translator's
+        blocking LLM ``chat_json`` call inside ``decide`` — is offloaded via
+        ``asyncio.to_thread`` so it never stalls the event loop this coroutine runs
+        on (codex P2). When the flag is off nothing is offloaded: the env read and
+        return happen inline and cost nothing.
+        """
+        # Lazy import + cheap env read stay inline: return immediately when off so
+        # the default (prod) path imports nothing extra and touches no thread pool.
+        try:
+            from sidira_simulator.services.decision_flow import decision_flow_enabled
+
+            if not decision_flow_enabled():
+                return
+        except Exception as exc:  # noqa: BLE001 — a shadow hook must never break a run.
+            log.warning(
+                "simulation.decision_flow_hook_failed",
+                customer_id=customer_id,
+                error=str(exc),
+                exc_type=type(exc).__name__,
+            )
+            return
+
+        # Offload the blocking manifest read + LLM translate/decide to a worker
+        # thread (so the event loop is never stalled) AND bound it with a timeout
+        # (so a slow/hanging manifest read or LLM call can never keep this shadow
+        # hook — or the background job — alive indefinitely). codex P2.
+        import asyncio
+
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    self._run_decision_flow_sync,
+                    customer_id=customer_id,
+                    hypothesis=hypothesis,
+                    pack_version=pack_version,
+                    setup_id=setup_id,
+                    model_id=model_id,
+                ),
+                timeout=_DECISION_FLOW_HOOK_TIMEOUT_S,
+            )
+        except TimeoutError:
+            # The worker thread keeps running to completion in the pool; we simply
+            # stop waiting on it. A shadow log timing out never affects the run.
+            log.warning(
+                "simulation.decision_flow_hook_timeout",
+                customer_id=customer_id,
+                timeout_s=_DECISION_FLOW_HOOK_TIMEOUT_S,
+            )
+        except Exception as exc:  # noqa: BLE001 — a shadow hook must never break a run.
+            log.warning(
+                "simulation.decision_flow_hook_failed",
+                customer_id=customer_id,
+                error=str(exc),
+                exc_type=type(exc).__name__,
+            )
+
+    def _run_decision_flow_sync(
+        self,
+        *,
+        customer_id: str,
+        hypothesis: Hypothesis,
+        pack_version: str,
+        setup_id: str,
+        model_id: str | None,
+    ) -> None:
+        """Blocking body of the decision-flow hook (runs in a worker thread).
+
+        Never raises (mirrors ``decide``'s contract); the async wrapper also guards.
+
+        The estimability manifest is persona-pack-scoped (it sits beside the persona
+        pack in R2, keyed by ``pack_version`` — #540), but it records the crawl
+        ``setup_id`` it was BUILT from. This run may target a DIFFERENT setup whose
+        feature store has different columns/effects; logging a decision against a
+        wrong-setup manifest would be misleading. So we guard: on a setup mismatch
+        we treat the manifest as ABSENT (pass ``manifest=None``) → the router
+        abstains (Step 2) rather than deciding on the wrong setup's data.
+        """
+        try:
+            from sidira_simulator.services.decision_flow import decide
+            from sidira_simulator.services.grounded_predictor import (
+                load_estimability_manifest,
+            )
+
+            manifest = load_estimability_manifest(customer_id, pack_version)
+            if manifest is not None and manifest.setup_id != setup_id:
+                log.info(
+                    "simulation.decision_flow_setup_mismatch",
+                    customer_id=customer_id,
+                    pack_version=pack_version,
+                    run_setup_id=setup_id,
+                    manifest_setup_id=manifest.setup_id,
+                )
+                manifest = None  # abstain rather than decide on the wrong setup
+            available_columns = (
+                [c.name for c in manifest.columns] if manifest is not None else []
+            )
+            result = decide(
+                hypothesis,
+                available_columns,
+                customer_id,
+                pack_version,
+                model_id=model_id,
+                manifest=manifest,
+            )
+            log.info(
+                "simulation.decision_flow",
+                customer_id=customer_id,
+                pack_version=pack_version,
+                capability=hypothesis.capability_name,
+                source=result.source,
+                direction=result.direction,
+                caution=result.caution,
+                label=result.label,
+                watchdog_verdict=result.watchdog_verdict,
+            )
+        except Exception as exc:  # noqa: BLE001 — a shadow hook must never break a run.
+            log.warning(
+                "simulation.decision_flow_hook_failed",
+                customer_id=customer_id,
+                error=str(exc),
+                exc_type=type(exc).__name__,
             )
 
     async def _run_with_id(
