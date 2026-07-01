@@ -29,8 +29,10 @@ Research-grade analysis of Sidira's core accuracy problem: grounded simulation +
 - [x] E3-P prereg SEALED (PREREG_E3P_BACKLOG_PREVALENCE.md, sha256 `80f5625d…`) — backlog-prevalence study registered before any case assembly; LEDGER row 3 added; merged with PR #557 (founder-authorized)
 - [x] E3-P RUN (worktree-fable-e3p): **MARGINAL** — 59 cases (44 realistic + 15 curated; 299 candidates logged by 3 blind assemblers); PREVALENCE 2.3%; COVERAGE-A 0%, COVERAGE-B 13.6%; called set 4/6 exact + 2 conservative flat-calls, **0 confident-wrong/false-ship/false-kill**; 0/38 public write-ups publish per-arm aggregates (all 6 calls from self-built tables). Tier 1 = minor rung + data-quote surface; sales motion tier-2-first; abstain ledger = the priced ask. One blind pre-seal pipeline revision (e3p_deviations.md); PAPER §9.2 → v1.2 marker. Full readout: research/fable-frontier-experiments/E3P_RESULTS.md
 
+- [x] Buyer-viability debate (founder asked "would Amazon pay?"): Fable 6-lens council (wf_333bf71d-2fd) × independent codex council, converged in 1 round — **P(Amazon-class pays in 24mo) = 5%; wedge = founder-led $25–50k sealed Experiment Decision Audit for mid-market consumer growth cos (revenge-purchase bias), expand $75–175k/yr; demand risk ruled fatal-unless-disproven; customer-side Arm-B coverage ≥40% gates the subscription thesis**. Joint doc: BUYER_VERDICT.md (+ buyer-council-fable.md, buyer-codex-r1/r2.md)
+
 ## Next Steps
-1. Founder reads E3P_RESULTS.md; merge the E3-P PR
+1. Founder reads E3P_RESULTS.md + BUYER_VERDICT.md; merge the E3-P PR
 2. Then E5 proximal double-NC → E4 abstention gate → E6 Senu transport pilot → E7 learned models (joint priority order)
 3. Decide the §9.1 go-to-market dissent (audit-led vs guarantee-led) — evidence can't make this call
 
