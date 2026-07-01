@@ -119,14 +119,46 @@ See the module docstring in `studystore.py` for the authoritative field list. Th
 mirrors `runstore.py` so the two stores read the same way. `example_case.json` is a
 filled-in template (marked `VOID` / synthetic — it is **not** a real result).
 
+## Control vs treatment is NOT something we build in Senu
+
+Senu is **multi-tenant** — built to serve every customer, not just Sidira — so it is
+deliberately generic. When you design a Senu game you pick a hand-vetted template, declare
+the field that carries the arm, and assign **role-named** arm values (`calm`/`urgent`). Senu
+already knows, *generically*, everything an A/B test needs, and exports it:
+
+- each arm's experimental **role** — `baseline` (= control) or `manipulation` (= treatment),
+  enforced in `StudySpec` (an arm literally *cannot* be named `control`/`treatment`);
+- the frozen `primaryOutcome` + template `metric`;
+- a pre-registered `trueDirection` (`treatment_higher`/`control_higher`/`null`).
+
+So identifying control vs treatment needs **no custom Senu build** — it's the arm role Senu
+already emits. The **only** thing Senu can't hold (and mustn't, or it stops being
+multi-tenant) is the *customer-specific* fact: **what the manipulation arm means in this
+customer's product** ("`cap_off` = we removed the skip-cap"). That mapping is a small
+**Sidira-side** artifact — the arm dictionary — keyed by `study_id`.
+
 ## What's buildable now vs gated (ticket #547)
 
 - **A — this Sidira-side store: BUILDABLE NOW ✅** (this directory).
-- **B — the adapter** `senu.export.v1 → BenchmarkCase`: the mechanical `ground_truth` half
-  can be written now; the `capability` + `hypothesis` half needs the per-study **arm
-  dictionary**. Stub: `senu_export_to_benchmarkcase.py`.
-- **C — arm-dictionary storage on the Senu side**: gated on the written **Sidira–Senu data
-  agreement**. Until then the adapter's hypothesis half stays TODO.
+- **B — the adapter** `senu.export.v1 → BenchmarkCase` (`senu_export_to_benchmarkcase.py`):
+  **the mechanical `ground_truth` half WORKS NOW ✅** — it aggregates the envelope's
+  `ab_outcome` rows by arm and labels control/treatment from the arm **role** (no guessing).
+  The `capability`/`hypothesis` half is assembled from the Sidira-side arm dictionary. Both
+  halves run today against the `examples/` fixtures (`python3.11 test_adapter.py`).
+- **C — the arm dictionary is a SIDIRA-SIDE artifact ✅ built** (`arm_dictionary.py` +
+  `examples/study_S123_arm_dictionary.json`), **not** a Senu build. What remains **gated**
+  is only *operational*: the written **Sidira–Senu data agreement** that lets the Senu
+  export be shared with Sidira, and authoring one dictionary per real study. No Senu code
+  changes; nothing custom in the multi-tenant product.
+
+## Files (Sidira-side adapter + decoder)
+
+| File | What it is |
+|---|---|
+| `arm_dictionary.py` | The Sidira-side decoder: `study_id → (which manipulation = which product change)`. Schema + validator + loader. |
+| `senu_export_to_benchmarkcase.py` | The adapter. Mechanical `ground_truth` (works now) + `capability`/`hypothesis` from the arm dictionary. |
+| `examples/` | A synthetic arm dictionary + envelope so the whole chain runs end-to-end. |
+| `test_adapter.py` | Plain-python smoke test (`python3.11 test_adapter.py`). |
 
 ## Confidentiality
 

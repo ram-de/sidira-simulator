@@ -1,145 +1,201 @@
 """
-senu_export_to_benchmarkcase.py — ADAPTER STUB (ticket #547, part B).
+senu_export_to_benchmarkcase.py — Senu export -> BenchmarkCase adapter (ticket #547 part B).
 
 Turn a completed Senu study's `senu.export.v1` envelope into the SAME
-`(Capability, Hypothesis, GroundTruth)` `BenchmarkCase` shape the Sidira engine
-scores in production (`backend/sidira_simulator/schemas/benchmark.py`). Once this
-exists, a Senu result joins the engine's benchmark harness with zero special-casing
-and lands a real predicted-vs-actual pair in the #222 conversion_calibrator.
+`(Capability, Hypothesis, GroundTruth)` `BenchmarkCase` shape the Sidira engine scores
+in production (`backend/sidira_simulator/schemas/benchmark.py`). Once wired, a Senu
+result joins the engine's benchmark harness with zero special-casing and lands a real
+predicted-vs-actual pair in the #222 conversion_calibrator.
 
-WHY A STUB, NOT FINISHED CODE
------------------------------
-A `BenchmarkCase` has two halves, and only one is mechanically derivable from a
-Senu export today:
+WHAT'S MECHANICAL (buildable NOW) vs SEMANTIC (Sidira-side arm dictionary)
+--------------------------------------------------------------------------
+A `BenchmarkCase` has two halves:
 
-  1. GroundTruth  (metric_name, control_metric, treatment_metric, observed_lift,
-                   winner)  ..............................  MECHANICAL — buildable NOW.
-     The export carries per-arm outcome metrics; this is arithmetic + a sign.
+  1. GroundTruth  (control_metric, treatment_metric, observed_lift, winner)
+     MECHANICAL — built here, NOW. The envelope's `ab_outcome` rows carry the assigned
+     `arm` + the frozen primary `outcome`; we aggregate outcome BY arm, then use the arm
+     ROLE (baseline=control, manipulation=treatment) to label the sides. The role is
+     GENERIC Senu data — it comes from the StudySpec / our Sidira-side arm dictionary,
+     NOT a guess. (Earlier this file "refused to guess" control vs treatment; that was
+     over-cautious — the role already tells us.)
 
   2. Capability + Hypothesis  (current-state PRD/Figma + the proposed state-diff)
-                              ...........................  NEEDS THE ARM DICTIONARY.
-     A Senu game emits ROLE-named arms (`calm`/`urgent`, `headline-A`/`headline-B`)
-     with ZERO engine coupling (calibration contract §11). To render that as a
-     production `(Capability, Hypothesis)` we need a per-study **arm dictionary**:
-       - which role is CONTROL (current state) vs TREATMENT (proposed change),
-       - what product change the treatment expresses, in state-diff terms.
-     That dictionary lives on the Senu side and is GATED on the written
-     Sidira–Senu data agreement (ticket #547 part C). Until it exists, we can
-     produce the GroundTruth half and leave the case `capability/hypothesis` unset.
+     SEMANTIC — needs the SIDIRA-SIDE arm dictionary (`arm_dictionary.py`), because
+     "the manipulation arm = removed the skip-cap from THIS customer's product" is
+     customer-specific and cannot live in multi-tenant Senu. Given the arm dictionary
+     we assemble a capability/hypothesis dict here; final pydantic construction +
+     `render_state_diff` happen in the backend when wired.
 
-CONTRACT DOCS (authoritative, in the senu repo):
-  - senu/docs/EXPORT_ENVELOPE.md            (senu.export.v1 shape)
-  - senu/docs/SIDIRA_BENCHMARKCASE_ADAPTER.md (this adapter's spec, draft)
+This module stays infra-free (plain python, no backend import) so the research store
+runs anywhere. When promoted, move the finished pydantic construction into
+`backend/sidira_simulator/services/benchmark_adapter.py` beside the Upworthy adapter
+and keep this as the thin research-side caller.
 
-This file deliberately does NOT import from `backend/…` — the store stays infra-free
-and runnable with plain python. When part C lands, either wire the real pydantic
-models in here, or (cleaner) move the finished adapter into
-`backend/sidira_simulator/services/benchmark_adapter.py` beside the Upworthy one and
-keep this as the thin research-side caller.
+CONTRACT DOCS (authoritative, senu repo):
+  - senu/packages/core/src/exportEnvelope.ts  (AbOutcomeBlock — the real shape)
+  - senu/packages/core/src/studySpec.ts        (arm roles: baseline/manipulation)
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
+import arm_dictionary as armdict
 
-def ground_truth_from_export(envelope: dict, ground_truth_name: str) -> dict:
-    """MECHANICAL half — buildable now.
 
-    Pull the per-arm metric for `ground_truth_name` out of a senu.export.v1 envelope
-    and return a GroundTruth-shaped dict (control_metric, treatment_metric,
-    observed_lift = treatment - control, winner). Direction only downstream — the
-    magnitude is recorded but the engine is scored on sign (README §Scoring).
+# --------------------------------------------------------------------------- #
+# MECHANICAL half — aggregate the envelope's ab_outcome rows by arm.
+# --------------------------------------------------------------------------- #
+def _iter_ab_rows(envelope: dict, behavior_schema: str, primary_outcome: str | None):
+    """Yield every `ab_outcome` block matching the schema (and primaryOutcome, if given).
 
-    Requires the arm dictionary to know which role is control vs treatment; if the
-    envelope has exactly two arms and one is flagged `is_control`, we use that.
-    Otherwise we raise, rather than guess — a mislabeled control silently flips the
-    sign of every downstream score.
+    A senu.export.v1 envelope is a set of per-respondent records; each carries one or
+    more blocks with `kind: "ab_outcome"`. We accept a few plausible container shapes so
+    the adapter is robust to the exact top-level envelope framing (records[] / rows[] /
+    a flat list), and filter to the requested behavior schema.
     """
-    arms = envelope.get("arms") or envelope.get("outcomes") or []
-    if len(arms) != 2:
-        raise NotImplementedError(
-            f"ground_truth_from_export handles 2-arm studies only for now; "
-            f"got {len(arms)} arms. Multi-arm needs the arm dictionary (part C)."
+    records = (
+        envelope.get("records")
+        or envelope.get("rows")
+        or envelope.get("respondents")
+        or (envelope if isinstance(envelope, list) else [])
+    )
+    for rec in records:
+        blocks = rec.get("blocks", [rec]) if isinstance(rec, dict) else []
+        for b in blocks:
+            if not isinstance(b, dict) or b.get("kind") != "ab_outcome":
+                continue
+            if b.get("schema") not in (behavior_schema, None):
+                continue
+            if primary_outcome and b.get("primaryOutcome") not in (primary_outcome, None):
+                continue
+            yield b
+
+
+def aggregate_outcomes_by_arm(
+    envelope: dict, behavior_schema: str, primary_outcome: str | None = None
+) -> dict[str, dict]:
+    """Return {arm_name: {"mean": float, "n": int}} over the frozen primary outcome.
+
+    Binary outcomes (bool) average to a rate; continuous outcomes (number) average to a
+    mean. Rows with a null arm/outcome (sanitized away) are skipped and counted as
+    dropped — never silently folded into an arm.
+    """
+    acc: dict[str, list[float]] = {}
+    dropped = 0
+    for b in _iter_ab_rows(envelope, behavior_schema, primary_outcome):
+        arm, out = b.get("arm"), b.get("outcome")
+        if arm is None or out is None:
+            dropped += 1
+            continue
+        acc.setdefault(arm, []).append(float(out))
+    result = {arm: {"mean": sum(v) / len(v), "n": len(v)} for arm, v in acc.items()}
+    if dropped:
+        result["_dropped"] = {"mean": float("nan"), "n": dropped}  # visible, not hidden
+    return result
+
+
+def ground_truth_from_export(
+    envelope: dict, arm_dict: dict, ground_truth_name: str
+) -> dict:
+    """MECHANICAL half — buildable now. Uses arm ROLE to label control vs treatment.
+
+    `ground_truth_name` is the metric label we file this case under (e.g. "accept_rate").
+    The measured value is the frozen primary outcome from the envelope; control = the
+    baseline arm, treatment = the manipulation arm, both read from the arm dictionary's
+    roles (which mirror Senu's generic StudySpec roles).
+    """
+    armdict.validate(arm_dict)
+    by_arm = aggregate_outcomes_by_arm(envelope, arm_dict["behavior_schema"])
+    ctrl_name = armdict.baseline_name(arm_dict)
+    trt_name = armdict.manipulation_name(arm_dict)
+    if ctrl_name not in by_arm or trt_name not in by_arm:
+        raise SystemExit(
+            f"ground_truth_from_export: envelope has no rows for "
+            f"{'control ' + ctrl_name if ctrl_name not in by_arm else ''}"
+            f"{'treatment ' + trt_name if trt_name not in by_arm else ''}; "
+            f"saw arms {sorted(k for k in by_arm if not k.startswith('_'))}"
         )
-    control = next((a for a in arms if a.get("is_control")), None)
-    treatment = next((a for a in arms if not a.get("is_control")), None)
-    if control is None or treatment is None:
-        raise NotImplementedError(
-            "cannot identify control vs treatment from the envelope alone — this is "
-            "exactly what the per-study ARM DICTIONARY (ticket #547 part C) supplies. "
-            "Refusing to guess: a mislabeled control flips the sign of the score."
-        )
-    c = float(control["metrics"][ground_truth_name])
-    t = float(treatment["metrics"][ground_truth_name])
+    c = by_arm[ctrl_name]["mean"]
+    t = by_arm[trt_name]["mean"]
     lift = t - c
     winner = "treatment" if lift > 0 else "control" if lift < 0 else "tie"
     return {
         "metric_name": ground_truth_name,
         "control_metric": c,
         "treatment_metric": t,
-        "observed_lift": lift,
+        "observed_lift": lift,        # magnitude recorded; engine scored on SIGN downstream
         "winner": winner,
+        "n_control": by_arm[ctrl_name]["n"],
+        "n_treatment": by_arm[trt_name]["n"],
     }
 
 
-def capability_hypothesis_from_export(envelope: dict, arm_dictionary: dict) -> dict:
-    """GATED half — needs the arm dictionary (ticket #547 part C).
+# --------------------------------------------------------------------------- #
+# SEMANTIC half — assemble capability/hypothesis from the Sidira-side arm dictionary.
+# --------------------------------------------------------------------------- #
+def capability_hypothesis_from_arm_dictionary(arm_dict: dict) -> dict:
+    """Build the (capability, hypothesis) product-change halves from the arm dictionary.
 
-    Given the current-state grounding (reverse-engineered PRD/Figma, the crawled
-    feature pack) and the arm dictionary's control/treatment mapping + change
-    description, build the production `(Capability, Hypothesis)` pair so
-    `render_state_diff(capability, hypothesis)` yields the exact string the engine
-    reads. Left unimplemented until the data agreement defines the arm dictionary.
+    This is the customer-specific semantics Senu can't hold. We emit plain dicts shaped
+    for the backend `Capability`/`Hypothesis` builders; the current-state grounding is
+    the crawled feature pack (`feature_pack_ref`). Final pydantic construction + the
+    exact `render_state_diff` string are a backend concern (the production renderer),
+    kept out of this infra-free research module on purpose.
     """
-    raise NotImplementedError(
-        "capability/hypothesis synthesis is gated on the Sidira–Senu data agreement "
-        "and the per-study arm dictionary (ticket #547 part C). See "
-        "senu/docs/SIDIRA_BENCHMARKCASE_ADAPTER.md."
-    )
+    armdict.validate(arm_dict)
+    ch = arm_dict["product_change"]
+    return {
+        "capability": {
+            "feature_pack_ref": arm_dict.get("feature_pack_ref"),
+            "current_state": ch["current_state"],
+        },
+        "hypothesis": {
+            "summary": ch["summary"],
+            "proposed_state": ch["proposed_state"],
+            "not_changing": ch.get("not_changing", []),
+            "expected_direction": arm_dict.get("expected_direction"),
+        },
+    }
 
 
 def export_to_benchmarkcases(
     envelope: dict,
-    study_id: str,
-    behavior_schema: str,
+    arm_dict: dict,
     ground_truth_names: list[str],
-    arm_dictionary: dict | None = None,
 ) -> list[dict]:
-    """Emit one partial BenchmarkCase-shaped dict per named ground truth.
+    """Emit one BenchmarkCase-shaped dict per named ground truth.
 
-    Produces the GroundTruth half now and, when `arm_dictionary` is supplied,
-    attempts the capability/hypothesis half too. Keyed by the store's `case_id`
-    convention: `senu:<studyId>:<behaviorSchema>:<groundTruthName>`.
+    Keyed by the store convention `senu:<studyId>:<behaviorSchema>:<groundTruthName>`.
+    The GroundTruth half is always populated (mechanical); the capability/hypothesis
+    half is populated from the arm dictionary (the Sidira-side semantics).
     """
+    armdict.validate(arm_dict)
+    study_id = arm_dict["study_id"]
+    behavior_schema = arm_dict["behavior_schema"]
+    semantics = capability_hypothesis_from_arm_dictionary(arm_dict)
     cases: list[dict] = []
     for gt_name in ground_truth_names:
-        case_id = f"senu:{study_id}:{behavior_schema}:{gt_name}"
-        case: dict = {
-            "case_id": case_id,
+        cases.append({
+            "case_id": f"senu:{study_id}:{behavior_schema}:{gt_name}",
             "source": f"senu:{study_id}",
-            "ground_truth": ground_truth_from_export(envelope, gt_name),
-            "capability": None,
-            "hypothesis": None,
-        }
-        if arm_dictionary is not None:
-            case.update(capability_hypothesis_from_export(envelope, arm_dictionary))
-        cases.append(case)
+            "capability": semantics["capability"],
+            "hypothesis": semantics["hypothesis"],
+            "ground_truth": ground_truth_from_export(envelope, arm_dict, gt_name),
+        })
     return cases
 
 
 if __name__ == "__main__":
     import argparse
 
-    ap = argparse.ArgumentParser(description="senu.export.v1 -> BenchmarkCase[] (stub)")
+    ap = argparse.ArgumentParser(description="senu.export.v1 -> BenchmarkCase[]")
     ap.add_argument("--envelope", required=True, help="path to a senu.export.v1 json")
-    ap.add_argument("--study-id", required=True)
-    ap.add_argument("--behavior-schema", required=True)
+    ap.add_argument("--arm-dictionary", required=True, help="path to the Sidira-side arm dictionary")
     ap.add_argument("--ground-truths", required=True, help="comma-separated metric names")
     args = ap.parse_args()
 
     env = json.loads(Path(args.envelope).read_text())
-    out = export_to_benchmarkcases(
-        env, args.study_id, args.behavior_schema, args.ground_truths.split(",")
-    )
+    ad = armdict.load(args.arm_dictionary)
+    out = export_to_benchmarkcases(env, ad, args.ground_truths.split(","))
     print(json.dumps(out, indent=2))

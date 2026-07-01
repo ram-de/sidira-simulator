@@ -1,0 +1,15 @@
+{
+  "_note": "EXAMPLE senu.export.v1 envelope (trimmed, synthetic). Real envelopes carry a persona-profile block + full sanitized behavior values per respondent; here we keep only the ab_outcome blocks the adapter reads. 8 rows: baseline (cap_on) accepts more (upsell nudge intact); manipulation (cap_off) accepts less — the skip-cap was secretly the conversion trigger.",
+  "export_schema": "senu.export.v1",
+  "study_id": "S123",
+  "records": [
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_on",  "outcome": true } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_on",  "outcome": true } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_on",  "outcome": false } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_on",  "outcome": true } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_off", "outcome": false } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_off", "outcome": true } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_off", "outcome": false } ] },
+    { "blocks": [ { "kind": "ab_outcome", "schema": "split_the_loot.v1", "metric": "conversion", "primaryOutcome": "accepted", "arm": "cap_off", "outcome": null } ] }
+  ]
+}
