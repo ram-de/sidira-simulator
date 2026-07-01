@@ -98,6 +98,36 @@ persona-simulation engine has come back null. Find the one angle that actually w
         + router pre-flight (#309), then #222 calibrator wiring.
 
 ## Completed
+- [x] **PRODUCT-ARCHITECTURE RECONCILIATION + DELIVERABLES (2026-07-01).** Long founder Q&A
+      pinned down the target architecture (NOT the deployed engine, which is still the disproven
+      persona role-play): **LLM = translator** (hypothesis → mechanism spec), **grounded
+      g-formula = predictor**; direction-only output (magnitude backstage — Cookie Cats right-sign
+      /~40%-wrong-magnitude); **grounded sim is the FRONT door**, negative-control guard is the
+      watchdog (CONFIRMS/CONTRADICTS/CANT-VALIDATE), and the **3-model council is an
+      abstain-branch caution-dial, NOT a front gate** (consensus = confidently-wrong mode; only
+      heterogeneous-bias disagreement is a useful abstain siren). Crawled feature pack =
+      reverse-engineered current-state PRD/Figma grounding the agents (NOT the numeric substrate;
+      that's the feature store). Statistical user-sim = per-real-user counterfactual replay; the
+      "talk to users" convo = LLM narrates the computed record (explain ≠ new-prediction).
+      Model-robustness: llama optimist / Opus pessimist / gpt-5.5 balanced — NONE beats the
+      magnitude-flip ceiling (grounded 1.00); "structural optimism" is llama-specific; durable
+      claim = magnitude-blindness. Deliverables this turn:
+      - **Founder docs (PR #548 → main, docs-only):** `founder-readout/why-sidira-beats-pm-insight.md`
+        (four edges + receipts + 10-Q objection drill), updated `simulation-engine-where-we-landed.md`
+        (§5e runtime flow, Opus + gpt-5.5/council re-tests), `finetuned-simulator-readout.md`.
+      - **`/senu-study-designer` skill** (`.claude/skills/senu-study-designer/`): forward/generative
+        advisor complementary to `preFlightCheck` — reasons from engine gaps → pre-registered study
+        brief. Decides WHAT to run; the gate decides if it's well-formed.
+      - **Reproducible study-results store** (`research/senu-study-store/`, ticket **#547** part A):
+        `studystore.py` (runstore-pattern CLI, smoke-tested), keyed by
+        `case_id = senu:<studyId>:<behaviorSchema>:<groundTruthName>`, 3-artifact role-separation
+        (human_truth ≠ engine_blind ≠ measured; win = blind-vs-measured only), prereg templates,
+        adapter stub `senu.export.v1 → BenchmarkCase` (ground-truth half now; hypothesis half gated
+        on the arm dictionary + data agreement = #547 parts B/C). Feeds #222.
+      - **Watchdog epic #538 + sub-tickets #539–#546** created earlier this session.
+      - Commits: c15f5f1f (skill+store on branch); PR #548 = curated docs+scaffold off main.
+      - ⚠️ Standing: rotate the OpenAI key pasted in chat (in gitignored backend/.env, never
+        committed/echoed) once bake-off runs are done.
 - [x] **Phase A — empirical/causal route (synthetic): MECHANISM WORKS.** `uplift_spike.py`.
       On a feature-expressible change with the driver in the data, causal ML (IPW +
       T-learner) recovers the true SIGN where the "more-is-better" prior and naive
