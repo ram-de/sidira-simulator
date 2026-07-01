@@ -1,0 +1,1641 @@
+[
+ {
+  "id": "gui_01",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 19, 2021 \u2014 audit-log ref C01. URL withheld from this file because the slug contains outcome text; full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Thomasnet.com \u2014 leading B2B sourcing platform connecting industrial buyers and suppliers; high-traffic editorial article pages read by engineers and procurement professionals",
+  "control": "Article pages show the full article content to any visitor; no registration prompt interrupts reading.",
+  "treatment": "A registration wall limits most of the article content: the page shows only the opening portion and the visitor must register (sign up) to view the rest of the article.",
+  "primary_metric": "signups (registrations)",
+  "prose": "Thomasnet is a leading B2B platform where industrial buyers and suppliers find each other, and its editorial articles draw substantial traffic. The team wants more article readers to register as users. In the control, an article page shows its full content to any visitor. In the variation, most of the article content is held behind a registration wall, so a visitor must sign up to continue reading. The primary metric is signups (registrations). The team also tracks an engagement interaction \u2014 visits to company profile pages \u2014 because profile visits are the marketplace behavior that precedes buyer-supplier transactions.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have the baseline registration rate on article pages (the write-up characterizes it qualitatively as very low but publishes no number), article traffic volume, and the baseline rate of company-profile visits. The public write-up reports relative effect estimates for the two metrics in prose only \u2014 no per-arm tables, sample sizes, absolute rates, or confidence intervals are published."
+ },
+ {
+  "id": "gui_02",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Aug 19, 2019 \u2014 audit-log ref C02. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "KensingtonTours.com \u2014 high-end custom tour operator; trip landing pages receiving paid traffic",
+  "control": "Existing trip landing page: generic headline, trip options presented as content with a disconnected pull-down selection on the right, no per-tile action buttons, no 'Learn More' links, modest social proof, a request form that inline-expands additional fields on submit, left-aligned form labels with a gap to the fields, no sticky call to action, no canned response message.",
+  "treatment": "A single redesigned landing page bundling 12 pattern-based changes: an empowering verb headline ('Explore ...'); customer reviews and awards shown more visibly; a floating/sticky 'Request a Quote' button; trip selection exposed as the first, primary action (pull-down menus removed); an explicit 'Request a Quote' button on each trip tile; 'Learn More' links to detail pages with repeated calls to action; enlarged awards plus repeated customer ratings; appended customer testimonials; the request form broken into multiple steps (departure date, travelers, contact details on separate screens); traveler and room pull-downs exposed as clickable choices; top-aligned form labels; and a canned message summarizing the request and reassuring a response.",
+  "primary_metric": "completed leads (visitors who fully fill out the request form and reach the thank-you page)",
+  "prose": "Kensington Tours sells high-end custom trips and drives paid traffic to trip landing pages whose goal is a completed quote-request form. The team proposes replacing the current page with a redesigned version that bundles twelve changes at once, spanning headline copy, social proof placement, a sticky quote button, exposed trip and option choices instead of pull-down menus, per-tile action buttons, learn-more links, a multi-step request form with top-aligned labels, and a canned response message. The two pages would be compared as a split A/B test on paid traffic. The primary measure is successful leads, defined as completely filling out the form and reaching the thank-you page.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline lead conversion of the existing landing page, paid-traffic volume and mix, and form-step drop-off rates from analytics. The public write-up reports a single relative effect number in prose for the primary metric only \u2014 no per-arm rates, sample sizes, or significance detail are published."
+ },
+ {
+  "id": "gui_03",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Jul 26, 2019 \u2014 audit-log ref C03. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Thomasnet.com \u2014 B2B sourcing platform; the supplier-side signup page where businesses register to be listed",
+  "control": "Signup page with a generic headline about the volume of visitors to the site, call-to-action button(s) further down the page (possibly below the fold) labeled 'Get Started', no benefit bar, no supporting example content, no testimonials, and no repeated bottom call to action.",
+  "treatment": "Six combined changes: an empowering benefit headline ('Reach ...'); the call to action moved above the fold and relabeled 'List Your Business For Free'; a benefit bar addressing key objections and selling points high on the page; supporting content with examples of how a supplier could 'reach buyers'; testimonials from past clients; and a repeated call to action at the bottom of the (now longer) page.",
+  "primary_metric": "signups (supplier registrations)",
+  "prose": "Thomasnet wants more businesses to register as suppliers through its signup page. The current page leads with a generic statement about site visitor volume and places its 'Get Started' button low on the page, with little supporting persuasion content. The proposed variation combines six changes: a benefit-driven headline, an above-the-fold button relabeled 'List Your Business For Free', a benefit bar answering common objections, supporting examples, client testimonials, and a repeated bottom call to action. The redesigned page would be A/B tested against the current one, with signups as the primary metric.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have the baseline signup conversion rate of the existing page and its traffic volume. The public write-up gives one relative effect number (in the title) for the primary metric and no per-arm tables, sample sizes, or significance detail."
+ },
+ {
+  "id": "gui_04",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Oct 30, 2018 \u2014 audit-log ref C05. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Menufy.com \u2014 online restaurant ordering and delivery service; the checkout page, specifically its tip / additional-information section",
+  "control": "Checkout section labeled 'Other Info' containing tip amount choices with no cash option, a custom tip amount field on its own separate line, and a special-instructions text area adjacent to the tip options.",
+  "treatment": "Four combined changes to the same section: the label changed to 'Add Tip'; a cash tip option added as the default (postponing the tip decision to delivery time); the custom tip amount field aligned inline with the fixed tip amounts and joined by an 'or'; and the special-instructions text area moved downwards, separated from the tip options.",
+  "primary_metric": "sales (completed purchases, measured by thank-you page visits)",
+  "prose": "Menufy processes online food orders for restaurants, so checkout completion is the revenue step. The team plans a multiple-change A/B test on the checkout page's tip section. The control groups tipping under an ambiguous 'Other Info' label, has no cash-tip choice, places the custom amount on a separate line, and mixes the special-instructions box into the same section. The variation relabels the section 'Add Tip', defaults to a cash-at-delivery tip option, aligns the custom amount inline with the preset amounts with an 'or', and moves the instructions box down and apart. The primary metric is sales, measured as thank-you page visits.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline checkout completion rate, order volume, and tip-selection distribution from analytics. The public write-up reports a single relative effect number with a significance characterization in prose; no per-arm rates or sample sizes are published."
+ },
+ {
+  "id": "gui_05",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated May 10, 2018 \u2014 audit-log ref C06. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Bomgar.com \u2014 enterprise remote access and support software; a trial/account landing page",
+  "control": "Landing page with a prominent Bomgar logo on a high-contrast orange background strip, a signup form (not centered) including first name, last name and company fields, a button labeled 'Try Free', three benefit descriptions positioned higher on the page, and no clarifying product image.",
+  "treatment": "Six combined changes: the logo shrunk and its orange background strip removed (more subtle branding); the input form centered on the page; first name, last name and company fields removed; the button relabeled 'Create My Account'; an image added showing two desktop computers (illustrating remote access between machines); and the three benefit descriptions pushed further down the page.",
+  "primary_metric": "signups (measured by next-page visits)",
+  "prose": "Bomgar sells remote access and support software and uses landing pages to convert visitors into trial accounts. The team plans a multiple-change A/B test on one such landing page. The control features a bold orange-branded header, a left-positioned form asking for first name, last name, company and email, and a 'Try Free' button, with benefit copy near the top. The variation de-emphasizes the logo, centers the form, removes the name and company fields, relabels the button 'Create My Account', adds an image of two desktop computers to clarify the product, and shifts the benefit descriptions lower. The primary metric is signups, measured by visits to the next page.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline landing-page signup conversion and traffic volume. The public write-up reports one relative effect number in prose for the primary metric; no per-arm tables, sample sizes, or significance detail."
+ },
+ {
+  "id": "gui_06",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 12, 2018 \u2014 audit-log ref C07. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Reverb.com \u2014 online marketplace for used and new music gear; the product page's contact/offer form through which buyers message sellers or start negotiations",
+  "control": "Product page with a blank text area in the message/offer form.",
+  "treatment": "The same text area prefilled with 'canned response' default copy written in a friendly first-person voice with an expectation-setting statement about receiving an answer (the variation did not include a personalized reference to the specific product).",
+  "primary_metric": "sales (paid orders arising from offers or direct purchases)",
+  "prose": "Reverb is a marketplace for pre-owned music equipment where customers can buy directly or make offers to sellers that can lead to sales. The team is testing a change to the product-page message form: the control presents a blank text area, while the variation prefills it with default copy written in a friendly first-person voice that sets an expectation of a response. The experiment tracks two metrics along the funnel: a shallow metric of negotiations started (form submissions) and a deep metric of completed sales from offers or direct purchases, with the stated aim of increasing sales. Implementation would require additional work such as translation and mobile consistency, so the result needs to justify the rollout cost.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline form-submission (negotiation-start) rate on product pages, baseline order conversion, and traffic volume. The public write-up reports relative effect numbers and a p-value for the deep metric and a relative number for the shallow metric, all in prose; no per-arm tables or sample sizes are published."
+ },
+ {
+  "id": "gui_07",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 02, 2018 (referenced comparison test within that post) \u2014 audit-log ref C08. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Adoramapix.com \u2014 e-commerce photo printing service (prints, photo books); the checkout screen",
+  "control": "Checkout screen with a visible coupon/promo code field.",
+  "treatment": "The coupon field removed or made substantially less prominent on the checkout screen (pattern: 'No Coupon Fields' \u2014 the rationale being that a visible coupon field can send buyers away hunting for discount codes or make them feel others get better prices).",
+  "primary_metric": "sales (completed checkout conversions)",
+  "prose": "Adoramapix sells photo prints and books online, and its checkout carries a visible coupon code field. The concern is that shoppers who have no code may leave the checkout to search for discounts elsewhere, or feel penalized relative to customers who do have codes. The test compares the existing checkout against a variation in which the coupon field is removed or made much less prominent. The primary metric is sales, i.e., completed checkout conversions. The checkout's baseline conversion rate is around 70%.",
+  "arm_a_tables": {
+   "metric": "checkout completion rate (baseline, pre-test)",
+   "value_approx": 0.7,
+   "note": "The write-up states the checkout conversion baseline was 'around 70%'."
+  },
+  "arm_b_tables": null,
+  "availability_notes": "Baseline checkout conversion (~70%) is published and would exist at decision time, along with order volume and coupon-usage rates in the company's own analytics. The public write-up reports a single relative effect number for sales in prose; no per-arm rates or sample sizes. The exact visual rendering of the variation is not shown for this site (it is described at the pattern level)."
+ },
+ {
+  "id": "gui_08",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 02, 2018 \u2014 audit-log ref C09. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Normanrecords.com \u2014 UK independent e-commerce store selling vinyl records (LPs); the checkout screen",
+  "control": "Checkout screen with a visible coupon/voucher code entry field.",
+  "treatment": "The visible coupon field replaced by an 'add a voucher code' text link; only clicking the link reveals the coupon field. (A tweak of the 'No Coupon Fields' pattern: the field is hidden rather than removed.)",
+  "primary_metric": "sales (completed checkout conversions)",
+  "prose": "Norman Records is an online record store whose checkout includes a coupon field. The team is testing whether de-emphasizing that field changes purchase completion: in the variation, the field itself is hidden behind an 'add a voucher code' link and only appears when clicked, so customers with codes can still use them while others are not prompted to go hunt for discounts. The control keeps the always-visible coupon field. The primary metric is sales (completed checkouts), with revenue also tracked. The checkout's baseline conversion rate is around 70%.",
+  "arm_a_tables": {
+   "metric": "checkout completion rate (baseline, pre-test)",
+   "value_approx": 0.7,
+   "note": "The write-up states both this site and a comparable site had 'a similar conversion baseline of around 70%'."
+  },
+  "arm_b_tables": null,
+  "availability_notes": "Baseline checkout conversion (~70%) is published and would exist at decision time, along with voucher-redemption rates and order volume in the company's own analytics. The public write-up reports a single relative effect number for sales (with a comment that its confidence interval was slightly wider than a comparable test's) plus a qualitative mention of revenue; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_09",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Jan 03, 2018 \u2014 audit-log ref C17. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Examine.com \u2014 evidence-based nutrition and supplement research portal; the pricing screen offering its three paid reference products",
+  "control": "Pricing screen showing three products, each with a stock-style photo, audience-targeted labels ('For Enthusiasts', 'For Professionals', etc.), brief descriptions, and a money-back guarantee shown under only one product.",
+  "treatment": "Seven combined changes: the three photos removed (raising products higher on the page); benefit-led labels replacing the audience labels, with product names in smaller print; a distinct count of included items per product; a written description per product; example-usage suggestions for two products; bulleted last-minute reassurances ('Lifetime Updates', 'Educational Credits'); and the money-back guarantee shown consistently under all three products.",
+  "primary_metric": "sales (purchases of the paid products)",
+  "prose": "Examine.com monetizes its nutrition research portal through a pricing screen selling three paid reference products. The team was tasked with improving that screen and grouped seven changes into one variation: removing ambiguous lifestyle photos, rewriting the product labels benefit-first, adding per-product item counts, descriptions and example usage, adding bulleted reassurances, and displaying the money-back guarantee under every product instead of just one. Because the site has lower-to-mid traffic and conversion volume, the changes are tested together in a single A/B test rather than as seven separate experiments. The primary metric is sales.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline pricing-page conversion, traffic, and per-product sales mix from internal analytics. The public write-up reports one relative effect number for sales in prose; no per-arm tables, sample sizes, or significance detail."
+ },
+ {
+  "id": "gui_10",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Dec 06, 2017 (referenced prior test within that post) \u2014 audit-log ref C18. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Vivareal.com.br \u2014 top Brazilian real-estate and apartment rental directory; the listing contact (lead) form",
+  "control": "Listing contact form whose message text area does not contain the structured default inquiry copy.",
+  "treatment": "The message text area prefilled with 'canned response' default copy: a friendly first-person narrative referring to the specific listing context and ending with a response-expecting statement.",
+  "primary_metric": "leads (contact-form submissions to property listers)",
+  "prose": "Vivareal is a leading Brazilian real-estate directory where the key conversion is a lead: a visitor submitting the contact form on a property listing. The test concerns the message box in that form. In the control the text area lacks structured default copy, leaving the visitor to compose a message. In the variation the text area is prefilled with a friendly first-person default message that references the inquiry context and sets an expectation of a reply, so the visitor can submit immediately or edit lightly. The primary metric is leads (form submissions).",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline lead-form conversion per listing page and traffic volumes. The public write-up reports one relative effect number for leads in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_11",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Dec 06, 2017 \u2014 audit-log ref C19. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Glass.net \u2014 US automotive glass replacement service; the quote-request (lead generation) form",
+  "control": "Lead generation form with a large message text area without prefilled default copy.",
+  "treatment": "The same text area prefilled with 'canned response' default copy: friendly first-person narrative, a personalized reference to something already selected (e.g., the specific service/product), and a closing response-expecting statement.",
+  "primary_metric": "leads (completed quote-request form submissions)",
+  "prose": "Glass.net connects drivers needing auto glass replacement with providers, and its core conversion is a completed quote-request form. The test changes the form's message box: the control presents it without prefilled copy, while the variation prefills a friendly first-person default message that references the visitor's already-selected service and ends by expecting a response. The team selected this change from prior evidence for the underlying pattern on other sites. The primary metric is leads, i.e., form submissions.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline quote-form conversion and traffic, plus the pattern's prior test record (directional priors) from the consultancy's database. The public write-up reports one relative effect number for leads in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_12",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Oct 06, 2017 \u2014 audit-log ref C20. URL withheld from this file (outcome-bearing slug); full URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Vivareal.com.br \u2014 Brazilian real-estate directory; the property search results page with filters",
+  "control": "Changing a search filter does not refresh results until the user clicks an additional search/apply button.",
+  "treatment": "The search/apply button removed; search results update instantly after each filter change.",
+  "primary_metric": "leads (contact-form submissions downstream of search)",
+  "prose": "Vivareal's property search page lets visitors narrow listings with filters. Today, after adjusting filters, the user must click a search button for results to refresh. The proposed variation removes that button and updates the result list instantly on every filter change, on the theory that showing results sooner and reducing waiting helps visitors find suitable properties. The business metric for the A/B test is leads \u2014 contact-form submissions that follow from the search experience.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline search-to-lead funnel rates, filter-usage frequency, and page performance data. The public write-up reports one relative effect number with a margin of error, in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_13",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Mar 21, 2017 (Evidence Test #74, shared by Pierre Olivier Martel) \u2014 audit-log ref C22. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Poll-app.com \u2014 SaaS tool for publishing polls on Facebook; the homepage",
+  "control": "Homepage headline reads 'Ask Questions. Get Answers.'",
+  "treatment": "Homepage headline changed to 'Publish Engaging Polls On Facebook' (a single isolated copy change aiming at a clearer, stronger benefit).",
+  "primary_metric": "signups (measured as signup starts)",
+  "prose": "Poll-app lets creators publish polls to Facebook, and its homepage must convert visitors into signups. The test isolates a single element: the headline. The control reads 'Ask Questions. Get Answers.', a generic statement of the product's purpose. The variation reads 'Publish Engaging Polls On Facebook', naming the concrete action, the format, and the platform. Nothing else on the page changes. The primary metric is signups, measured as signup starts.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline homepage signup-start conversion and traffic. The public write-up reports one relative effect number with a strength qualifier in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_14",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Mar 21, 2017 (Evidence Test #75, referenced comparison within the same post) \u2014 audit-log ref C23. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Poll-app.com \u2014 SaaS tool for publishing polls on Facebook; the homepage",
+  "control": "Homepage headline reads 'Ask Questions. Get Answers.'",
+  "treatment": "Homepage headline changed to 'Polls For Your Facebook Page & Timeline' (a single isolated copy change aiming at greater descriptive clarity).",
+  "primary_metric": "signups (measured as signup starts)",
+  "prose": "In a companion test on the same Poll-app homepage, the same control headline 'Ask Questions. Get Answers.' is tested against a different rewrite: 'Polls For Your Facebook Page & Timeline'. This version describes what the product produces and where it appears, emphasizing descriptive clarity rather than a benefit claim. Nothing else on the page changes. The primary metric is signups, measured as signup starts.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Same availability as gui_13: baseline homepage signup-start rate and traffic would exist at decision time. The public write-up reports one relative effect number with a strength qualifier in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_15",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Mar 21, 2017 (Evidence Test #73, shared by Henry Dillon) \u2014 audit-log ref C24. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Theorytestpro.co.uk \u2014 UK online driving theory test preparation service; a logged-in student dashboard module promoting driving instructors",
+  "control": "Dashboard module with multiple benefits merged into a single paragraph of text, the commanding statement 'Make Sure You Pass First Time', and a button labeled 'Drive with [Instructor Name]'.",
+  "treatment": "The paragraph reorganized as a bulleted list of benefits; the statement rewritten as 'Study Smarter To Pass First Time'; and the button relabeled 'Introduce Yourself'.",
+  "primary_metric": "leads (visits to a driving instructor page)",
+  "prose": "Theory Test Pro helps UK learner drivers prepare for the theory exam and also refers students to driving instructors, measured as visits to an instructor's page from the student dashboard. The test restyles the dashboard module that makes this referral. The control packs several benefits into one dense paragraph, uses the commanding headline 'Make Sure You Pass First Time', and labels its button 'Drive with [Instructor Name]'. The variation breaks the benefits into scannable bullets, softens the headline to 'Study Smarter To Pass First Time', and relabels the button to the lower-commitment 'Introduce Yourself'. The primary metric is leads, defined as visits to a driving instructor page.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have the baseline instructor-page visit rate from the dashboard and active-student counts. The public write-up reports one relative effect number with a strength qualifier in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_16",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 12, 2017 (Evidence Test #72, shared by Daniel Bridges) \u2014 audit-log ref C25. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Findsomeone.co.nz \u2014 New Zealand dating site; the homepage signup funnel",
+  "control": "Homepage with four equally weighted content boxes related to signing up, a 'Join for free' call to action preceded by an explanation of a 3-step signup process, and no central passive-benefit message.",
+  "treatment": "Multiple combined changes: a central message 'Have Others Find You' (a passive benefit \u2014 others do the searching); a positive sub-headline 'Because You're Awesome'; the message unified into a single focused column instead of four boxes; the 3-step process explanation removed; and features/benefits listed as bullets directly under the call to action.",
+  "primary_metric": "signup intent (visits to step 2 of the signup process)",
+  "prose": "FindSomeone is a New Zealand dating site whose homepage must move visitors into the signup flow. The control presents four equally weighted content boxes, explains a three-step signup process, and offers a 'Join for free' button. The variation replaces this with one focused single-column message centered on 'Have Others Find You' \u2014 a passive benefit suggesting other members will do the work \u2014 supported by the sub-headline 'Because You're Awesome' and a bulleted feature list under the call to action, while dropping the step-by-step process explanation. The primary metric is signup intent, measured as visits to step 2 of the signup process.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline homepage-to-step-2 conversion and traffic. The public write-up reports one relative effect number in prose; no per-arm tables or sample sizes."
+ },
+ {
+  "id": "gui_17",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Feb 02, 2017 (Evidence Test #71, shared by Daniel Bridges) \u2014 audit-log ref C26. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Findsomeone.co.nz \u2014 New Zealand dating site; the homepage, for visitors who have not yet signed up",
+  "control": "Homepage without member profile photos.",
+  "treatment": "Homepage showing a set of general member profile photos as social proof.",
+  "primary_metric": "searches (profile searches initiated, an interim metric toward signups)",
+  "prose": "On the same New Zealand dating site, the team tests adding social proof to the homepage in the form of member profile photos. The reasoning is that seeing real member faces should draw visitors into browsing: if people search more, they should find interesting profiles and then have a reason to sign up, since signup is required to make contact. The control homepage shows no profile photos; the variation displays a grid of general member photos. The primary metric is searches initiated, treated as the interim step toward signups.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have baseline search-initiation rate from the homepage and the search-to-signup funnel from analytics. The public write-up reports one relative effect number with a strength qualifier in prose; no per-arm tables or sample sizes. (The write-up notes the test itself had been run about two years before publication.)"
+ },
+ {
+  "id": "gui_18",
+  "stratum": "realistic",
+  "source": "GoodUI blog (Jakub Linowski), post dated Jan 02, 2017 (Evidence Test #70, shared by Kuba Koziej) \u2014 audit-log ref C27. URL in e3p_candidates_goodui.md and e3p_truths_goodui.json.",
+  "company_context": "Uptowork.com \u2014 online resume builder SaaS (later renamed Zety); the pricing page offering three plans at different price points",
+  "control": "Pricing page listing the three plans ordered from least expensive first (left) to most expensive last (right).",
+  "treatment": "The same three plans reordered from most expensive first (left) to least expensive last (right).",
+  "primary_metric": "revenue (net revenue from plan purchases; premium-plan sales and overall sales tracked as components)",
+  "prose": "Uptowork sells its resume-builder through a three-plan pricing page. The experiment changes only the order in which the plans are displayed: the control lists them least-expensive first, while the variation leads with the most expensive plan on the left. The hypothesis space includes a recommendation effect (the first plan reads as the suggested choice) and a loss-aversion effect (features feel 'taken away' as the visitor scans toward cheaper plans), which could shift the mix of plans purchased. The decision quantity is net revenue, with sales of the premium (most expensive) plan and overall sales across all plans tracked as component metrics.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time the team would have the baseline plan-mix (share of purchases per plan), plan prices, pricing-page conversion, and traffic \u2014 the exact inputs a composition/mix-shift calculation needs \u2014 though the write-up publishes none of them. The public write-up reports relative effect numbers for the two component metrics and a qualitative statement about net revenue, all in prose; no per-arm tables, plan-level rates, or sample sizes."
+ },
+ {
+  "id": "ind_01",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb for Web Site Experimenters, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "MSN UK portal home page (Microsoft), general web audience, Aug 2008",
+  "control": "The Hotmail link on the MSN UK home page opens Hotmail in the same tab/window, navigating the user away from the home page.",
+  "treatment": "The Hotmail link opens Hotmail in a new tab (new window on older browsers); the MSN home page stays open behind it. A single line of code.",
+  "primary_metric": "Clicks per user on the MSN home page, computed over triggered users (those who click the Hotmail link)",
+  "prose": "MSN UK's home page carries a prominent link to Hotmail. Today, clicking it navigates the user away from the portal, ending their home-page session. The team proposes having the Hotmail link open in a new tab (or new window on older browsers), so the portal remains open behind the mail client. The change is one line of code. The experiment will run on roughly 900,000 UK users, and the decision metric is engagement measured as clicks per user on the home page among users who click the Hotmail link.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "At decision time MSN would have baseline home-page clicks/user, Hotmail-link CTR, browser mix (IE vs non-IE matters for both behavior and click-beacon instrumentation), and session-length distributions. The public write-up publishes no per-arm tables; prose-level summary only. Total exposure ~900k users."
+ },
+ {
+  "id": "ind_02",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "MSN US portal home page (Microsoft), very large general audience, April 2011",
+  "control": "Search results launched from the MSN home-page search box open in the same tab/window.",
+  "treatment": "Search results launched from the MSN home-page search box open in a new tab/window, leaving the MSN home page open.",
+  "primary_metric": "Clicks per user on the MSN home page",
+  "prose": "The MSN US home page includes a search box whose results currently replace the portal page in the same tab. The team proposes opening search results in a new tab or window instead, so users return to an intact home page after searching. This is a trivial coding change. The experiment will expose over 12 million US users, and the decision metric is user engagement measured as clicks per user on the home page.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Baselines available at decision time: home-page clicks/user, search-box usage rate, browser/tab-behavior mix, plus the earlier Hotmail-link new-tab experiment as an internal prior. No per-arm tables published; prose-level summary only. Total exposure 12M+ users."
+ },
+ {
+  "id": "ind_03",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine results page (Microsoft), 2013",
+  "control": "Existing SERP font colors: current shade of blue for result titles, current green for URLs/captions, current black for body snippet text.",
+  "treatment": "Slightly different shades of the same hues applied via CSS: an adjusted blue for titles, an adjusted green for URL/caption text, an adjusted black for snippet text. No layout or content changes.",
+  "primary_metric": "Time-to-success (Bing's key task-completion latency metric), with task success rate and revenue per user alongside",
+  "prose": "Bing's design team is evaluating a purely cosmetic change to the search results page: shifting several font colors to slightly different shades of the current hues \u2014 the blue of result titles, the green of displayed URLs and captions, and the black of snippet text. The change is a few lines in a CSS file and is nearly imperceptible when the two pages are shown side by side. Because Bing's SERP receives enormous traffic, even small shifts in behavior are measurable. The decision metrics are Bing's standard key metrics: whether users complete tasks, time-to-success, and monetization per user.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has baseline distributions for time-to-success, task success, CTR by page element, and revenue/user; color-perception segment mixes are not tracked. Tens of millions of users are available for allocation. No per-arm tables published; prose-level summary only. Limitation: the write-up describes a single concrete variant from a set of color experiments."
+ },
+ {
+  "id": "ind_04",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 (also Kohavi & Round, Front Line Internet Analytics at Amazon.com, 2004) \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Amazon.com retail site (2004); home page slots allocated by an internal auction/optimization system",
+  "control": "The Amazon credit-card offer occupies a top slot on the home page, shown broadly to visitors.",
+  "treatment": "The credit-card offer is removed from the home page and instead shown on the shopping-cart page after a user adds an item, accompanied by simple math showing the savings the card would apply to the current cart contents.",
+  "primary_metric": "Profit per user (Amazon's slot-allocation objective: expected value per impression)",
+  "prose": "Amazon's home page slots are automatically allocated to content that performs best on key metrics. The credit-card offer currently holds a top home-page slot: each acceptance is very valuable, but the offer draws few clicks relative to other home-page content. The proposal is to move the offer off the home page to the shopping-cart page, where a user who has just added an item sees the offer together with a concrete calculation of the savings the card would yield on the items in their cart. Users adding items to the cart have clear purchase intent, and the offer arrives in a purchase context rather than a browsing context. The decision metric is profit per user.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Amazon's slot system has baseline CTR and expected value per impression for the offer in its home-page slot, cart add-to-cart volume, and value per card acceptance \u2014 the inputs to a composition argument. These baseline aggregates are described qualitatively in the write-up but not published as numeric tables. No per-arm results tables published."
+ },
+ {
+  "id": "ind_05",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); the ~2% slice of users whose pages are modified client-side by third-party code (typically inadvertently installed freeware/malware that injects extra ads)",
+  "control": "Bing serves its normal SERP; third-party code on the user's machine freely modifies the rendered page's DOM, typically injecting additional ads.",
+  "treatment": "Bing overrides the basic routines that modify the DOM and limits which code can modify the page, blocking third-party client-side modifications for these users.",
+  "primary_metric": "Sessions per user (Bing's north-star engagement metric)",
+  "prose": "A slice of Bing users has freeware-bundled code on their machines that rewrites Bing's results page as it renders, injecting numerous extra ads; these users often do not realize the clutter is not Bing's. Engineering proposes overriding the basic DOM-modification routines and restricting who can modify the page, so affected users see the page as Bing served it. The work is relatively simple to code and would apply only to users where third-party DOM modification is detected \u2014 about 3.8 million triggered users in the experiment. The decision metrics are Bing's standard key metrics, led by sessions per user, along with task success, time metrics, and revenue per user.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing knows the prevalence of third-party DOM modification, baseline sessions/user and success metrics for the affected segment vs the general population, and page-load-time distributions. No per-arm tables published; prose-level summary only. Total exposure 3.8M triggered users."
+ },
+ {
+  "id": "ind_06",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014, citing Crook et al., Seven Pitfalls, KDD 2009 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Microsoft Office Online product/marketing page selling Office",
+  "control": "Existing Office Online page: current layout, no price shown, existing links toward purchase.",
+  "treatment": "Redesigned page with a strong call-to-action button and the product's price displayed prominently.",
+  "primary_metric": "Clicks per user on revenue-generating links (proxy for purchases, assuming revenue = clicks \u00d7 a stable click-to-purchase conversion rate)",
+  "prose": "The Office Online team wants to test a redesign of a product page: a stronger call-to-action button and the product's price shown directly on the page. What the team ultimately cares about is actual purchases, but tracking purchases requires hooking into the billing system, which is hard to do at the time. The team therefore adopts clicks on revenue-generating links as the experiment's key metric, reasoning that revenue equals clicks times the click-to-purchase conversion rate, and treating that conversion rate as stable across the two designs. The decision will be made on clicks per user on those revenue links.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, the team has baseline clicks/user on revenue links and historical click-to-purchase conversion; per-design conversion rates do not exist pre-test (and purchases are not instrumented). The proxy assumption itself is part of the decision framing. No per-arm tables published; prose-level summary only."
+ },
+ {
+  "id": "ind_07",
+  "stratum": "realistic",
+  "source": "Marissa Mayer (Google) Web 2.0 talk, as recounted by Greg Linden (https://glinden.blogspot.com/2006/11/marissa-mayer-at-web-20.html) and cited in Kohavi et al., Seven Rules of Thumb, KDD 2014 \u2014 SECONDHAND account of a first-party talk",
+  "company_context": "Google web search, mid-2000s",
+  "control": "Search engine results page shows 10 results per page.",
+  "treatment": "Search engine results page shows 30 results per page; the larger page takes longer to generate and deliver (on the order of half a second more).",
+  "primary_metric": "Traffic: searches per user in the experimental group (with revenue per user tracked alongside)",
+  "prose": "In user surveys, Google searchers say they would like more results per page. The team proposes increasing the results count on the search results page from ten to thirty, giving users three times as many results without another click. Generating and delivering the larger page takes noticeably longer \u2014 roughly half a second of additional latency. The experiment compares the standard ten-result page against the thirty-result page, with traffic (searches per user) and revenue from the experimental group as the decision metrics.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Google has baseline searches/user, click-position distributions (how often users go past result 10), page-generation latency for both page sizes, and prior latency-sensitivity measurements. SECONDHAND limitation: the account is a blog write-up of a conference talk; no per-arm tables, sample sizes, or run dates published. The latency difference is entangled with the content change by design."
+ },
+ {
+  "id": "ind_08",
+  "stratum": "realistic",
+  "source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, describing the slowdown experiment from Kohavi et al., Online Controlled Experiments at Large Scale, KDD 2013 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); deliberate performance-isolation experiment run in production for two weeks",
+  "control": "Bing serves responses at normal server latency.",
+  "treatment": "Bing artificially delays its server response: one arm adds 100 milliseconds, another adds 250 milliseconds, each for 10% of users, for two weeks. Nothing else about the page changes.",
+  "primary_metric": "Revenue per user",
+  "prose": "Bing wants to quantify how much server performance by itself is worth, independent of any feature. The proposal is a slowdown experiment: artificially delay the server response by 100 milliseconds for one group of users and by 250 milliseconds for another, each 10% of traffic, for two weeks, while a control group gets normal latency. Because only the delay differs, the experiment isolates the causal effect of speed on behavior. The decision metrics are revenue per user and the standard key engagement metrics, read as an effect per 100 milliseconds.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has full baseline latency distributions, revenue/user, and engagement baselines; prior latency experiments at Bing and at other companies exist as priors. No per-arm tables published; the write-up reports a per-100ms summary coefficient in prose only."
+ },
+ {
+  "id": "ind_09",
+  "stratum": "realistic",
+  "source": "Jake Brutlag \u2014 Speed Matters, Google Research blog, June 2009 \u2014 https://googleresearch.blogspot.com/2009/06/speed-matters.html (cited in Kohavi et al., KDD 2014)",
+  "company_context": "Google web search; server-side latency experiment run for several weeks",
+  "control": "Search results page delivered at normal latency.",
+  "treatment": "Search results page delivery artificially delayed by 100 to 400 milliseconds (varying delay arms), with no other change.",
+  "primary_metric": "Searches per user",
+  "prose": "Google wants to measure how sensitive search usage is to speed. The team proposes injecting an artificial server-side delay of between 100 and 400 milliseconds into the delivery of the search results page for randomized groups of users, over an experiment lasting four to six weeks. Nothing about the page content changes; only the time to deliver it. The decision metric is the number of searches per user, and the team also plans to observe behavior after the delay is removed.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Google has baseline searches/user and complete latency telemetry. First-party blog source. No per-arm tables published; effects stated in prose as percentage ranges by delay dose only."
+ },
+ {
+  "id": "ind_10",
+  "stratum": "realistic",
+  "source": "Greg Linden \u2014 Make Data Useful (talk/slides, 2006), cited in Kohavi et al., Seven Rules of Thumb, KDD 2014 \u2014 SECONDHAND retrospective by a former Amazon engineer \u2014 http://sites.google.com/site/glinden/Home/StanfordDataMining.2006-11-28.ppt",
+  "company_context": "Amazon.com retail site, mid-2000s",
+  "control": "Amazon pages delivered at normal latency.",
+  "treatment": "Amazon pages delivered with an additional 100 milliseconds of delay, with no other change.",
+  "primary_metric": "Sales per user",
+  "prose": "Amazon wants to know what page speed is worth in revenue terms. The proposal is an A/B test that artificially delays page delivery by 100 milliseconds for a randomized group of shoppers while a control group experiences normal latency. No content differs between the groups; only delivery time. The decision metric is sales per user during the experiment.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Amazon has baseline sales/user and latency distributions. SECONDHAND limitation: retrospective talk account by a former insider; no sample sizes, dates, or per-arm tables published; single summary sentence."
+ },
+ {
+  "id": "ind_11",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); right-pane 'snapshot' entity panel on the SERP",
+  "control": "Right-pane (snapshot) elements load at their normal time \u2014 already technically late, after the window.onload event.",
+  "treatment": "Right-pane element display is delayed by an additional 250 milliseconds; the main (left) results column is unaffected.",
+  "primary_metric": "Sessions per user (Bing key metric), with time-to-success alongside",
+  "prose": "Bing's SERP has a right pane (the 'snapshot' with entity information) whose elements already load after the main results, following the window.onload event. To learn whether right-pane timing matters to users the way overall page speed does, the team proposes a slowdown experiment confined to that region: delay the display of right-pane elements by a further 250 milliseconds while leaving the main results column untouched. The experiment will run on almost 20 million users. The decision metrics are Bing's standard key metrics, led by sessions per user.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has baseline engagement with right-pane elements (CTR by page region), render-timing telemetry, and the whole-page slowdown experiment (ind_08) as a calibration prior. No per-arm tables published; prose-level summary only. Total exposure ~20M users."
+ },
+ {
+  "id": "ind_12",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); related-searches block in the SERP right column",
+  "control": "For applicable queries (e.g., 'data mining'), the right column shows a related-searches block with query refinements such as 'Examples of Data Mining', 'Advantages of Data Mining', 'Definition of Data Mining'.",
+  "treatment": "The related-searches block is removed from the right column; the rest of the page is unchanged.",
+  "primary_metric": "SERP abandonment rate (share of users who leave the results page without clicking any link)",
+  "prose": "Bing's results page shows a block of related searches in the right column for many queries, offering refinements of the user's query. The team wants to measure what this block contributes to the page by removing it entirely for a randomized group \u2014 over 10 million users \u2014 while the control group keeps the current page. The key metric Bing watches in such experiments is the abandonment rate on the results page: the fraction of users who never click on any link. Click distribution across the remaining areas of the page will also be tracked.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has baseline abandonment rate, the related-searches block's own CTR, and click-share by page region \u2014 the aggregates a composition argument would want; they are described qualitatively but not published numerically. No per-arm tables published. Total exposure 10M+ users."
+ },
+ {
+  "id": "ind_13",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); inline related searches interleaved with algorithmic results",
+  "control": "Inline related searches are allowed to float higher on the page when their clickthrough-rate is better than the algorithmic results below them.",
+  "treatment": "Inline related searches are pinned to the bottom of the page, below the bottom ads, regardless of their clickthrough-rate.",
+  "primary_metric": "SERP abandonment rate",
+  "prose": "Bing shows related searches inline on the results page, and current logic lets them float above algorithmic results when their clickthrough-rate justifies it. The team proposes pinning these related searches to the bottom of the page, beneath the bottom ads, simplifying the layout and keeping algorithmic results and ads in the prime positions. The experiment will expose over 5 million users. As with other layout experiments, the key page-level metric is the abandonment rate on the results page, with clickthrough on the moved module and on other page regions tracked as feature metrics.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has baseline abandonment, the related-searches module's CTR by position, and position-CTR curves. No per-arm tables published; prose-level summary with significance statements only. Total exposure 5M+ users."
+ },
+ {
+  "id": "ind_14",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); navigational queries with a deep-links block (e.g., query 'ebay')",
+  "control": "For queries whose top result carries a deep-links block, the SERP shows the classical 10 algorithmic results.",
+  "treatment": "For those queries, the SERP is truncated to 4 algorithmic results; the page is shorter and faster to deliver.",
+  "primary_metric": "SERP abandonment rate",
+  "prose": "For navigational queries like 'ebay', the top of Bing's results page is a dominant block with deep links into the target site, and the click-through rate on that top block exceeds 75%. The team argues the remaining classical results add little for these queries and proposes truncating the page to four algorithmic results, which also makes the page lighter and faster. The experiment triggers only for users issuing at least one such deep-link query \u2014 about 8 million triggered users. The decision metric is the abandonment rate on these result pages, with page-load time tracked alongside.",
+  "arm_a_tables": {
+   "baseline_rates": [
+    {
+     "metric": "click-through rate on the top deep-links block, triggered navigational queries",
+     "value": "> 0.75",
+     "population": "queries with a deep-links block (e.g., 'ebay')"
+    }
+   ]
+  },
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has the top-block CTR (>75%, published), click distribution across positions 1\u201310 for these queries, and page-weight/latency baselines. Outcome reported in prose with a significance statement only; no per-arm tables. Total exposure ~8M triggered users."
+ },
+ {
+  "id": "ind_15",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); page-extension behavior when users return to the SERP",
+  "control": "When a user navigates away from the SERP and comes back (browser back button or reissuing the query), Bing extends the page to show more results \u2014 14 results.",
+  "treatment": "On return, the page is extended to 20 results and the related-searches module is removed.",
+  "primary_metric": "Revenue per user",
+  "prose": "When a Bing user leaves the results page and then returns to it \u2014 via the back button or by reissuing the query \u2014 Bing currently extends the page to 14 results, since the original set evidently did not settle the task. The team proposes extending further, to 20 results, and simultaneously removing the related-searches module to keep the longer page manageable. The experiment triggers for users exhibiting the return behavior, about 3 million triggered users. Decision metrics are revenue per user, page-load time, pagination usage, and abandonment rate.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has the frequency of back-button/reissue returns, baseline pagination rates, per-result incremental click curves, and page-weight/latency baselines. No per-arm tables published; prose-level deltas and significance statements only. Total exposure 3M+ triggered users."
+ },
+ {
+  "id": "ind_16",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "Bing search engine (Microsoft); background color of the ad blocks on the SERP; all major search engines experiment with this",
+  "control": "Ads on the SERP are displayed with the current background color.",
+  "treatment": "Ads on the SERP are displayed with a different background color (specific shades not disclosed in the write-up).",
+  "primary_metric": "Revenue per user",
+  "prose": "Like every major search engine, Bing periodically tests the background color that distinguishes ads from algorithmic results on the results page. The proposal is to change the ad background to a different color for a randomized group of over 10 million users while the control group keeps the current color. Because ad visibility mediates the balance between ad clicks and organic clicks, the decision metrics are revenue per user, click distribution across areas of the page, and the abandonment rate as the user-experience guardrail.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Bing has baseline ad CTR, organic CTR, revenue/user, and abandonment. Limitation: the treatment's specific color values are not disclosed, so salience direction is not inferable from the description \u2014 a candidate ambiguous-binding case. No per-arm tables published. Total exposure 10M+ users."
+ },
+ {
+  "id": "ind_17",
+  "stratum": "realistic",
+  "source": "Kohavi, Deng, Longbotham, Xu \u2014 Seven Rules of Thumb, KDD 2014 (LinkedIn Unified Search example, contributed by Ya Xu, LinkedIn) \u2014 https://exp-platform.com/Documents/2014%20experimentersRulesOfThumb.pdf",
+  "company_context": "LinkedIn search, 2013; professional network audience",
+  "control": "Existing LinkedIn search: the user selects a facet (People, Jobs, Companies) and searches within it; existing search landing page with current left-rail navigation, snippets, and action buttons.",
+  "treatment": "Unified search: one smart search box that infers query intent across product categories, launched together with new autocomplete and suggested-phrasing algorithms, and an overhaul of almost every component of the search landing page (left rail through snippets to action buttons) \u2014 all changes lumped into a single experiment.",
+  "primary_metric": "Clicks per user on search results (downstream engagement), with revenue per user alongside",
+  "prose": "LinkedIn's 2013 search upgrade bundles several changes: a unified search box that figures out whether the user means people, jobs, or companies without requiring a facet choice; new autocomplete and suggested-phrasing algorithms; and a redesign touching nearly every component of the search landing page from the left-rail navigation to snippets and action buttons. The team plans to launch all of this as one experiment comparing the full new experience against the current faceted search. Decision metrics are LinkedIn's key search-engagement metrics, led by result clicks per user, with downstream revenue tracked as well.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, LinkedIn has baseline search usage by facet, result CTR, and landing-page click distributions. Limitation: bundled multi-component treatment (noted in the source as a design lesson), so attribution within the bundle is not possible from the public account. No per-arm tables published; qualitative summary only."
+ },
+ {
+  "id": "ind_18",
+  "stratum": "realistic",
+  "source": "Netflix TechBlog \u2014 Decision Making at Netflix / What is an A/B Test? (Martin Tingley et al., 2021) \u2014 https://netflixtechblog.com/what-is-an-a-b-test-b08cc1b57962",
+  "company_context": "Netflix streaming service member homepage, ~2020, global member base",
+  "control": "The standard Netflix homepage: personalized recommendation rows without any list of the currently most-popular titles.",
+  "treatment": "The homepage includes a 'Top 10' row showing the most popular titles in the member's country, with distinctive numbered artwork; row placement is personalized like other rows.",
+  "primary_metric": "Member engagement with Netflix (viewing), treated as the primary decision metric and as a proxy correlated with long-term member retention",
+  "prose": "Netflix hypothesizes that surfacing what is popular right now in a member's country will help members find something great to watch. The proposal is a 'Top 10' row on the homepage listing the ten most popular titles in the country, with bold numbered artwork, tested against the standard homepage without such a row. The primary decision metric is member engagement \u2014 viewing \u2014 which Netflix treats as a proxy that correlates with long-term retention. Secondary metrics include title-level viewing of the listed titles and the fraction of viewing that originates from the row versus other parts of the UI, with customer-service contact volume as a guardrail against member confusion.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Netflix has baseline row-level take rates, homepage viewing-origination shares, title popularity distributions, and engagement baselines. The public write-up is methodology-focused: it names the metrics and design but publishes no per-arm tables, sample sizes, or effect sizes."
+ },
+ {
+  "id": "ind_19",
+  "stratum": "realistic",
+  "source": "First Round Review \u2014 The Tenets of A/B Testing from Duolingo's Master Growth Hacker (interview with Gina Gotthilf, VP of Growth, Duolingo) \u2014 https://review.firstround.com/the-tenets-of-a-b-testing-from-duolingos-master-growth-hacker/ (secondhand interview with first-party operator; concrete quotes verified)",
+  "company_context": "Duolingo language-learning mobile app, mid-2010s, large consumer user base",
+  "control": "The Duolingo app icon appears on the user's phone home screen with no badge or indicator.",
+  "treatment": "A red dot (badge-style indicator) appears on the Duolingo app icon, signaling something unresolved in the app. Roughly six lines of code.",
+  "primary_metric": "Daily active users (DAU)",
+  "prose": "Duolingo's growth team is looking for lightweight ways to prompt lapsed and infrequent learners to open the app without sending a push notification. The proposal borrows a convention users already understand: a red dot on the app icon itself, of the kind that badges unread messages, hinting that something in the app awaits attention. The change is about six lines of code. The experiment compares users whose icon shows the red dot against users with the standard icon, and the decision metric is daily active users.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Duolingo has baseline DAU, session frequency distributions, lapse-rate cohorts, and prior notification-response rates. SECONDHAND limitation: interview account; the article states the metric and result in prose with no per-arm tables, sample sizes, or dates."
+ },
+ {
+  "id": "ind_20",
+  "stratum": "realistic",
+  "source": "First Round Review \u2014 The Tenets of A/B Testing from Duolingo's Master Growth Hacker (interview with Gina Gotthilf, VP of Growth, Duolingo) \u2014 https://review.firstround.com/the-tenets-of-a-b-testing-from-duolingos-master-growth-hacker/ (secondhand interview with first-party operator; concrete quotes verified)",
+  "company_context": "Duolingo language-learning mobile app onboarding flow, mid-2010s",
+  "control": "New users must create an account (sign-up screen) before doing anything else in the app.",
+  "treatment": "The sign-up screen is moved several steps later: new users can start and complete lesson content first and are asked to sign up afterward (a 'soft wall'), with the option to defer presented as a subtle 'Later' rather than a prominent discard-style button.",
+  "primary_metric": "Daily active users (DAU)",
+  "prose": "Duolingo currently asks new users to create an account the moment they open the app, before they have experienced a single lesson. The growth team proposes delaying the sign-up wall by a few steps: let a new user pick a language and work through initial lesson content first, then present account creation once they have invested something, with the decline option worded softly ('Later') instead of as a prominent discard action. The hypothesis under debate is classic: does removing friction up front produce more engaged users, or does deferring commitment reduce accounts and follow-through? The decision metric is daily active users, with sign-up conversion tracked alongside.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Pre-launch, Duolingo has baseline funnel aggregates: first-open to sign-up conversion, first-lesson completion rates, and DAU baselines. SECONDHAND limitation: interview account; results stated in prose only, no per-arm tables; the published account also mixes the initial move with later wall-optimization iterations, which the truths file disambiguates."
+ },
+ {
+  "id": "hil_01",
+  "stratum": "realistic",
+  "source": "Hillstrom MineThatData e-mail analytics challenge dataset (.data/hillstrom.csv, 64,000 customers)",
+  "company_context": "Mid-sized catalog/online merchandiser; customer file of 64,000 people who purchased within the last twelve months; customers segmented by dollars spent in the past year (history_segment), recency, channel, and urban/suburban/rural zip class.",
+  "control": "No email is sent (holdout group).",
+  "treatment": "Customers receive an email campaign featuring men's-merchandise merchandise.",
+  "primary_metric": "visit_rate (two-week window)",
+  "prose": "A catalog and online merchandiser ran an email test on customers who had purchased within the last twelve months. Customers were randomized to one of three groups: an email campaign featuring men's merchandise, an email campaign featuring women's merchandise, or no email at all. This case compares the men's-merchandise email campaign against the no-email holdout. Outcomes were tracked for two weeks following the campaign delivery. The primary metric is the website visit rate over the two-week window.",
+  "arm_a_tables": {
+   "description": "Baseline-only aggregates available before launch: customer-file segment mix (pre-treatment covariate) and baseline outcome rates by history segment from the no-contact holdout population (proxy for historical baseline). Contains no treatment-arm information and no treatment contrast.",
+   "customer_file_segment_mix": {
+    "total_customers": 64000,
+    "segments": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 22970,
+      "share": 0.3589
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 14254,
+      "share": 0.2227
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 12289,
+      "share": 0.192
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 6409,
+      "share": 0.1001
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 4911,
+      "share": 0.0767
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 1859,
+      "share": 0.029
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 1308,
+      "share": 0.0204
+     }
+    ]
+   },
+   "baseline_rates_no_contact": {
+    "n": 21306,
+    "visit_rate_overall": 0.10617,
+    "conversion_rate_overall": 0.00573,
+    "by_history_segment": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 7612,
+      "visit_rate": 0.08487,
+      "conversion_rate": 0.0042
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 4836,
+      "visit_rate": 0.09098,
+      "conversion_rate": 0.00414
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 4044,
+      "visit_rate": 0.12636,
+      "conversion_rate": 0.00692
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 2124,
+      "visit_rate": 0.15019,
+      "conversion_rate": 0.0113
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 1652,
+      "visit_rate": 0.10956,
+      "conversion_rate": 0.00545
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 622,
+      "visit_rate": 0.15434,
+      "conversion_rate": 0.00482
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 416,
+      "visit_rate": 0.16587,
+      "conversion_rate": 0.01442
+     }
+    ]
+   }
+  },
+  "arm_b_tables": {
+   "description": "Pilot-only per-arm aggregates for metric 'visit_rate': a 20% random subsample of the customer file (seed 20260701), drawn deterministically and independently of any outcome. Per-arm n and rate, overall and by history segment.",
+   "regime": "post-pilot",
+   "pilot_fraction": 0.2,
+   "seed": 20260701,
+   "metric": "visit_rate",
+   "arms": {
+    "treatment_email": {
+     "n": 4314,
+     "rate_overall": 0.18521,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1562,
+       "rate": 0.15749
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 928,
+       "rate": 0.15517
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 818,
+       "rate": 0.2066
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 454,
+       "rate": 0.24229
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.22397
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 133,
+       "rate": 0.23308
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 102,
+       "rate": 0.27451
+      }
+     ]
+    },
+    "no_email_holdout": {
+     "n": 4228,
+     "rate_overall": 0.10501,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1516,
+       "rate": 0.08905
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 987,
+       "rate": 0.08409
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 814,
+       "rate": 0.12531
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 400,
+       "rate": 0.1675
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.07886
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 122,
+       "rate": 0.13934
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 72,
+       "rate": 0.20833
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "Honest post-pilot simulation: Arm B tables are aggregates from a deterministic 20% random pilot subsample (seed 20260701) of the customer file; the truth is computed on the FULL dataset, so the pilot is a genuine noisy preview, not a restatement of the truth. Arm A tables are baseline-only (segment mix + no-contact holdout baseline rates by segment) and encode no treatment contrast. The no-contact baseline is taken from the no-email arm as a proxy for historical baseline rates."
+ },
+ {
+  "id": "hil_02",
+  "stratum": "realistic",
+  "source": "Hillstrom MineThatData e-mail analytics challenge dataset (.data/hillstrom.csv, 64,000 customers)",
+  "company_context": "Mid-sized catalog/online merchandiser; customer file of 64,000 people who purchased within the last twelve months; customers segmented by dollars spent in the past year (history_segment), recency, channel, and urban/suburban/rural zip class.",
+  "control": "No email is sent (holdout group).",
+  "treatment": "Customers receive an email campaign featuring men's-merchandise merchandise.",
+  "primary_metric": "conversion_rate (two-week window)",
+  "prose": "A catalog and online merchandiser ran an email test on customers who had purchased within the last twelve months. Customers were randomized to one of three groups: an email campaign featuring men's merchandise, an email campaign featuring women's merchandise, or no email at all. This case compares the men's-merchandise email campaign against the no-email holdout. Outcomes were tracked for two weeks following the campaign delivery. The primary metric is the purchase conversion rate over the two-week window.",
+  "arm_a_tables": {
+   "description": "Baseline-only aggregates available before launch: customer-file segment mix (pre-treatment covariate) and baseline outcome rates by history segment from the no-contact holdout population (proxy for historical baseline). Contains no treatment-arm information and no treatment contrast.",
+   "customer_file_segment_mix": {
+    "total_customers": 64000,
+    "segments": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 22970,
+      "share": 0.3589
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 14254,
+      "share": 0.2227
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 12289,
+      "share": 0.192
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 6409,
+      "share": 0.1001
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 4911,
+      "share": 0.0767
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 1859,
+      "share": 0.029
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 1308,
+      "share": 0.0204
+     }
+    ]
+   },
+   "baseline_rates_no_contact": {
+    "n": 21306,
+    "visit_rate_overall": 0.10617,
+    "conversion_rate_overall": 0.00573,
+    "by_history_segment": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 7612,
+      "visit_rate": 0.08487,
+      "conversion_rate": 0.0042
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 4836,
+      "visit_rate": 0.09098,
+      "conversion_rate": 0.00414
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 4044,
+      "visit_rate": 0.12636,
+      "conversion_rate": 0.00692
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 2124,
+      "visit_rate": 0.15019,
+      "conversion_rate": 0.0113
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 1652,
+      "visit_rate": 0.10956,
+      "conversion_rate": 0.00545
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 622,
+      "visit_rate": 0.15434,
+      "conversion_rate": 0.00482
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 416,
+      "visit_rate": 0.16587,
+      "conversion_rate": 0.01442
+     }
+    ]
+   }
+  },
+  "arm_b_tables": {
+   "description": "Pilot-only per-arm aggregates for metric 'conversion_rate': a 20% random subsample of the customer file (seed 20260701), drawn deterministically and independently of any outcome. Per-arm n and rate, overall and by history segment.",
+   "regime": "post-pilot",
+   "pilot_fraction": 0.2,
+   "seed": 20260701,
+   "metric": "conversion_rate",
+   "arms": {
+    "treatment_email": {
+     "n": 4314,
+     "rate_overall": 0.01159,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1562,
+       "rate": 0.00832
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 928,
+       "rate": 0.00754
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 818,
+       "rate": 0.01589
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 454,
+       "rate": 0.01322
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.01577
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 133,
+       "rate": 0.02256
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 102,
+       "rate": 0.02941
+      }
+     ]
+    },
+    "no_email_holdout": {
+     "n": 4228,
+     "rate_overall": 0.00449,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1516,
+       "rate": 0.00528
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 987,
+       "rate": 0.00101
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 814,
+       "rate": 0.00246
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 400,
+       "rate": 0.015
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.00315
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 122,
+       "rate": 0.0
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 72,
+       "rate": 0.01389
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "Honest post-pilot simulation: Arm B tables are aggregates from a deterministic 20% random pilot subsample (seed 20260701) of the customer file; the truth is computed on the FULL dataset, so the pilot is a genuine noisy preview, not a restatement of the truth. Arm A tables are baseline-only (segment mix + no-contact holdout baseline rates by segment) and encode no treatment contrast. The no-contact baseline is taken from the no-email arm as a proxy for historical baseline rates."
+ },
+ {
+  "id": "hil_03",
+  "stratum": "realistic",
+  "source": "Hillstrom MineThatData e-mail analytics challenge dataset (.data/hillstrom.csv, 64,000 customers)",
+  "company_context": "Mid-sized catalog/online merchandiser; customer file of 64,000 people who purchased within the last twelve months; customers segmented by dollars spent in the past year (history_segment), recency, channel, and urban/suburban/rural zip class.",
+  "control": "No email is sent (holdout group).",
+  "treatment": "Customers receive an email campaign featuring women's-merchandise merchandise.",
+  "primary_metric": "visit_rate (two-week window)",
+  "prose": "A catalog and online merchandiser ran an email test on customers who had purchased within the last twelve months. Customers were randomized to one of three groups: an email campaign featuring men's merchandise, an email campaign featuring women's merchandise, or no email at all. This case compares the women's-merchandise email campaign against the no-email holdout. Outcomes were tracked for two weeks following the campaign delivery. The primary metric is the website visit rate over the two-week window.",
+  "arm_a_tables": {
+   "description": "Baseline-only aggregates available before launch: customer-file segment mix (pre-treatment covariate) and baseline outcome rates by history segment from the no-contact holdout population (proxy for historical baseline). Contains no treatment-arm information and no treatment contrast.",
+   "customer_file_segment_mix": {
+    "total_customers": 64000,
+    "segments": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 22970,
+      "share": 0.3589
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 14254,
+      "share": 0.2227
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 12289,
+      "share": 0.192
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 6409,
+      "share": 0.1001
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 4911,
+      "share": 0.0767
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 1859,
+      "share": 0.029
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 1308,
+      "share": 0.0204
+     }
+    ]
+   },
+   "baseline_rates_no_contact": {
+    "n": 21306,
+    "visit_rate_overall": 0.10617,
+    "conversion_rate_overall": 0.00573,
+    "by_history_segment": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 7612,
+      "visit_rate": 0.08487,
+      "conversion_rate": 0.0042
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 4836,
+      "visit_rate": 0.09098,
+      "conversion_rate": 0.00414
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 4044,
+      "visit_rate": 0.12636,
+      "conversion_rate": 0.00692
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 2124,
+      "visit_rate": 0.15019,
+      "conversion_rate": 0.0113
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 1652,
+      "visit_rate": 0.10956,
+      "conversion_rate": 0.00545
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 622,
+      "visit_rate": 0.15434,
+      "conversion_rate": 0.00482
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 416,
+      "visit_rate": 0.16587,
+      "conversion_rate": 0.01442
+     }
+    ]
+   }
+  },
+  "arm_b_tables": {
+   "description": "Pilot-only per-arm aggregates for metric 'visit_rate': a 20% random subsample of the customer file (seed 20260701), drawn deterministically and independently of any outcome. Per-arm n and rate, overall and by history segment.",
+   "regime": "post-pilot",
+   "pilot_fraction": 0.2,
+   "seed": 20260701,
+   "metric": "visit_rate",
+   "arms": {
+    "treatment_email": {
+     "n": 4258,
+     "rate_overall": 0.14678,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1555,
+       "rate": 0.13376
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 940,
+       "rate": 0.12553
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 852,
+       "rate": 0.15376
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 390,
+       "rate": 0.19744
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 319,
+       "rate": 0.13793
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 111,
+       "rate": 0.25225
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 91,
+       "rate": 0.20879
+      }
+     ]
+    },
+    "no_email_holdout": {
+     "n": 4228,
+     "rate_overall": 0.10501,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1516,
+       "rate": 0.08905
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 987,
+       "rate": 0.08409
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 814,
+       "rate": 0.12531
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 400,
+       "rate": 0.1675
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.07886
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 122,
+       "rate": 0.13934
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 72,
+       "rate": 0.20833
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "Honest post-pilot simulation: Arm B tables are aggregates from a deterministic 20% random pilot subsample (seed 20260701) of the customer file; the truth is computed on the FULL dataset, so the pilot is a genuine noisy preview, not a restatement of the truth. Arm A tables are baseline-only (segment mix + no-contact holdout baseline rates by segment) and encode no treatment contrast. The no-contact baseline is taken from the no-email arm as a proxy for historical baseline rates."
+ },
+ {
+  "id": "hil_04",
+  "stratum": "realistic",
+  "source": "Hillstrom MineThatData e-mail analytics challenge dataset (.data/hillstrom.csv, 64,000 customers)",
+  "company_context": "Mid-sized catalog/online merchandiser; customer file of 64,000 people who purchased within the last twelve months; customers segmented by dollars spent in the past year (history_segment), recency, channel, and urban/suburban/rural zip class.",
+  "control": "No email is sent (holdout group).",
+  "treatment": "Customers receive an email campaign featuring women's-merchandise merchandise.",
+  "primary_metric": "conversion_rate (two-week window)",
+  "prose": "A catalog and online merchandiser ran an email test on customers who had purchased within the last twelve months. Customers were randomized to one of three groups: an email campaign featuring men's merchandise, an email campaign featuring women's merchandise, or no email at all. This case compares the women's-merchandise email campaign against the no-email holdout. Outcomes were tracked for two weeks following the campaign delivery. The primary metric is the purchase conversion rate over the two-week window.",
+  "arm_a_tables": {
+   "description": "Baseline-only aggregates available before launch: customer-file segment mix (pre-treatment covariate) and baseline outcome rates by history segment from the no-contact holdout population (proxy for historical baseline). Contains no treatment-arm information and no treatment contrast.",
+   "customer_file_segment_mix": {
+    "total_customers": 64000,
+    "segments": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 22970,
+      "share": 0.3589
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 14254,
+      "share": 0.2227
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 12289,
+      "share": 0.192
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 6409,
+      "share": 0.1001
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 4911,
+      "share": 0.0767
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 1859,
+      "share": 0.029
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 1308,
+      "share": 0.0204
+     }
+    ]
+   },
+   "baseline_rates_no_contact": {
+    "n": 21306,
+    "visit_rate_overall": 0.10617,
+    "conversion_rate_overall": 0.00573,
+    "by_history_segment": [
+     {
+      "history_segment": "1) $0 - $100",
+      "n": 7612,
+      "visit_rate": 0.08487,
+      "conversion_rate": 0.0042
+     },
+     {
+      "history_segment": "2) $100 - $200",
+      "n": 4836,
+      "visit_rate": 0.09098,
+      "conversion_rate": 0.00414
+     },
+     {
+      "history_segment": "3) $200 - $350",
+      "n": 4044,
+      "visit_rate": 0.12636,
+      "conversion_rate": 0.00692
+     },
+     {
+      "history_segment": "4) $350 - $500",
+      "n": 2124,
+      "visit_rate": 0.15019,
+      "conversion_rate": 0.0113
+     },
+     {
+      "history_segment": "5) $500 - $750",
+      "n": 1652,
+      "visit_rate": 0.10956,
+      "conversion_rate": 0.00545
+     },
+     {
+      "history_segment": "6) $750 - $1,000",
+      "n": 622,
+      "visit_rate": 0.15434,
+      "conversion_rate": 0.00482
+     },
+     {
+      "history_segment": "7) $1,000 +",
+      "n": 416,
+      "visit_rate": 0.16587,
+      "conversion_rate": 0.01442
+     }
+    ]
+   }
+  },
+  "arm_b_tables": {
+   "description": "Pilot-only per-arm aggregates for metric 'conversion_rate': a 20% random subsample of the customer file (seed 20260701), drawn deterministically and independently of any outcome. Per-arm n and rate, overall and by history segment.",
+   "regime": "post-pilot",
+   "pilot_fraction": 0.2,
+   "seed": 20260701,
+   "metric": "conversion_rate",
+   "arms": {
+    "treatment_email": {
+     "n": 4258,
+     "rate_overall": 0.00705,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1555,
+       "rate": 0.009
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 940,
+       "rate": 0.00319
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 852,
+       "rate": 0.00587
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 390,
+       "rate": 0.00769
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 319,
+       "rate": 0.0094
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 111,
+       "rate": 0.00901
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 91,
+       "rate": 0.01099
+      }
+     ]
+    },
+    "no_email_holdout": {
+     "n": 4228,
+     "rate_overall": 0.00449,
+     "by_history_segment": [
+      {
+       "history_segment": "1) $0 - $100",
+       "n": 1516,
+       "rate": 0.00528
+      },
+      {
+       "history_segment": "2) $100 - $200",
+       "n": 987,
+       "rate": 0.00101
+      },
+      {
+       "history_segment": "3) $200 - $350",
+       "n": 814,
+       "rate": 0.00246
+      },
+      {
+       "history_segment": "4) $350 - $500",
+       "n": 400,
+       "rate": 0.015
+      },
+      {
+       "history_segment": "5) $500 - $750",
+       "n": 317,
+       "rate": 0.00315
+      },
+      {
+       "history_segment": "6) $750 - $1,000",
+       "n": 122,
+       "rate": 0.0
+      },
+      {
+       "history_segment": "7) $1,000 +",
+       "n": 72,
+       "rate": 0.01389
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "Honest post-pilot simulation: Arm B tables are aggregates from a deterministic 20% random pilot subsample (seed 20260701) of the customer file; the truth is computed on the FULL dataset, so the pilot is a genuine noisy preview, not a restatement of the truth. Arm A tables are baseline-only (segment mix + no-contact holdout baseline rates by segment) and encode no treatment contrast. The no-contact baseline is taken from the no-email arm as a proxy for historical baseline rates."
+ },
+ {
+  "id": "cc_01",
+  "stratum": "realistic",
+  "source": "Cookie Cats A/B test (public dataset mirror); per-arm engagement-bin cross-tabs from e1_cookiecats_tables.json",
+  "company_context": "Free-to-play mobile puzzle game (Cookie Cats, Tactile Games); roughly 90,000 new players in the test; monetization includes in-app purchases at forced progress gates.",
+  "control": "The first forced progress gate is placed at level 30.",
+  "treatment": "The first forced progress gate is placed at level 40.",
+  "primary_metric": "1-day retention (retention_1_rate)",
+  "prose": "A free-to-play mobile puzzle game places forced progress gates at fixed levels; when a player reaches a gate they must wait for a timer or make an in-app purchase to continue playing. In the control condition the first gate appears at level 30. In the treatment condition the first gate appears at level 40. New players were randomly assigned to one gate placement when they installed the game. The primary metric is 1-day retention: whether the player opens the game again one day after installing.",
+  "arm_a_tables": null,
+  "arm_b_tables": {
+   "description": "Per-arm cross-tabs of users and retention rate by engagement bin (game rounds played in the first 14 days). NOTE: these are FULL-experiment aggregates, not a pilot subsample.",
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "metric": "retention_1_rate",
+   "arms": {
+    "gate_30": {
+     "total_users": 44700,
+     "bins": [
+      {
+       "gamerounds_bin": "0",
+       "users": 1937,
+       "retention_1_rate": 0.021167
+      },
+      {
+       "gamerounds_bin": "1-10",
+       "users": 15736,
+       "retention_1_rate": 0.124809
+      },
+      {
+       "gamerounds_bin": "11-50",
+       "users": 15891,
+       "retention_1_rate": 0.530867
+      },
+      {
+       "gamerounds_bin": "51-200",
+       "users": 8531,
+       "retention_1_rate": 0.838354
+      },
+      {
+       "gamerounds_bin": "200+",
+       "users": 2605,
+       "retention_1_rate": 0.937044
+      }
+     ]
+    },
+    "gate_40": {
+     "total_users": 45489,
+     "bins": [
+      {
+       "gamerounds_bin": "0",
+       "users": 2057,
+       "retention_1_rate": 0.022363
+      },
+      {
+       "gamerounds_bin": "1-10",
+       "users": 16259,
+       "retention_1_rate": 0.124915
+      },
+      {
+       "gamerounds_bin": "11-50",
+       "users": 15497,
+       "retention_1_rate": 0.523069
+      },
+      {
+       "gamerounds_bin": "51-200",
+       "users": 9058,
+       "retention_1_rate": 0.827556
+      },
+      {
+       "gamerounds_bin": "200+",
+       "users": 2618,
+       "retention_1_rate": 0.932009
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "CIRCULARITY LIMITATION: the Arm B tables are FULL-experiment per-arm aggregates (the entire 90k-player test collapsed to engagement bins), NOT a pilot subsample - any Arm B call on this case is computed from the same data that defines the truth. No baseline-only tables are available, so Arm A tables are null (strict pre-launch arm must abstain or work from prose alone). Same underlying experiment as cur_01 in the curated stratum."
+ },
+ {
+  "id": "cc_02",
+  "stratum": "realistic",
+  "source": "Cookie Cats A/B test (public dataset mirror); per-arm engagement-bin cross-tabs from e1_cookiecats_tables.json",
+  "company_context": "Free-to-play mobile puzzle game (Cookie Cats, Tactile Games); roughly 90,000 new players in the test; monetization includes in-app purchases at forced progress gates.",
+  "control": "The first forced progress gate is placed at level 30.",
+  "treatment": "The first forced progress gate is placed at level 40.",
+  "primary_metric": "7-day retention (retention_7_rate)",
+  "prose": "A free-to-play mobile puzzle game places forced progress gates at fixed levels; when a player reaches a gate they must wait for a timer or make an in-app purchase to continue playing. In the control condition the first gate appears at level 30. In the treatment condition the first gate appears at level 40. New players were randomly assigned to one gate placement when they installed the game. The primary metric is 7-day retention: whether the player opens the game again seven days after installing.",
+  "arm_a_tables": null,
+  "arm_b_tables": {
+   "description": "Per-arm cross-tabs of users and retention rate by engagement bin (game rounds played in the first 14 days). NOTE: these are FULL-experiment aggregates, not a pilot subsample.",
+   "schema": "tier1.segment_mediator_outcome.v1",
+   "metric": "retention_7_rate",
+   "arms": {
+    "gate_30": {
+     "total_users": 44700,
+     "bins": [
+      {
+       "gamerounds_bin": "0",
+       "users": 1937,
+       "retention_7_rate": 0.00826
+      },
+      {
+       "gamerounds_bin": "1-10",
+       "users": 15736,
+       "retention_7_rate": 0.019319
+      },
+      {
+       "gamerounds_bin": "11-50",
+       "users": 15891,
+       "retention_7_rate": 0.120257
+      },
+      {
+       "gamerounds_bin": "51-200",
+       "users": 8531,
+       "retention_7_rate": 0.475794
+      },
+      {
+       "gamerounds_bin": "200+",
+       "users": 2605,
+       "retention_7_rate": 0.849136
+      }
+     ]
+    },
+    "gate_40": {
+     "total_users": 45489,
+     "bins": [
+      {
+       "gamerounds_bin": "0",
+       "users": 2057,
+       "retention_7_rate": 0.00632
+      },
+      {
+       "gamerounds_bin": "1-10",
+       "users": 16259,
+       "retention_7_rate": 0.019374
+      },
+      {
+       "gamerounds_bin": "11-50",
+       "users": 15497,
+       "retention_7_rate": 0.10815
+      },
+      {
+       "gamerounds_bin": "51-200",
+       "users": 9058,
+       "retention_7_rate": 0.447008
+      },
+      {
+       "gamerounds_bin": "200+",
+       "users": 2618,
+       "retention_7_rate": 0.850267
+      }
+     ]
+    }
+   }
+  },
+  "availability_notes": "CIRCULARITY LIMITATION: the Arm B tables are FULL-experiment per-arm aggregates (the entire 90k-player test collapsed to engagement bins), NOT a pilot subsample - any Arm B call on this case is computed from the same data that defines the truth. No baseline-only tables are available, so Arm A tables are null (strict pre-launch arm must abstain or work from prose alone). Same underlying experiment as cur_01 in the curated stratum."
+ },
+ {
+  "id": "cur_01",
+  "stratum": "curated",
+  "source": "Cookie Cats A/B; raw mirror ryanschaub/Mobile-Games-A-B-Testing-with-Cookie-Cats (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Free-to-play mobile puzzle game; roughly 90,000 new players; monetization includes in-app purchases at forced progress gates.",
+  "control": "The first forced progress gate is at level 30.",
+  "treatment": "The first forced progress gate is at level 40.",
+  "primary_metric": "7-day retention",
+  "prose": "A free-to-play mobile puzzle game places forced progress gates at fixed levels; at a gate the player must wait for a timer or make an in-app purchase to continue. In the control condition the first gate appears at level 30. In the treatment condition the first gate appears at level 40. New players were randomly assigned to one placement when they installed the game. The primary metric is 7-day retention: whether the player returns to the game seven days after installing.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published-case regime: no per-arm tables provided in this stratum entry (arm tables null). Raw data for this experiment exists publicly and appears in the realistic stratum as cc_01/cc_02 (same underlying experiment; overlap logged)."
+ },
+ {
+  "id": "cur_02",
+  "stratum": "curated",
+  "source": "Duolingo engineering/blog (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Consumer language-learning app with a daily-streak habit mechanic (consecutive days of practice).",
+  "control": "Missing a day of practice ends the user's streak.",
+  "treatment": "An equippable 'Weekend Amulet' item keeps the streak active through one skipped weekend day.",
+  "primary_metric": "week-later return rate",
+  "prose": "A language-learning app tracks a daily streak: the number of consecutive days a user has practiced. In the control condition, missing a day of practice ends the streak. In the treatment condition, users can equip an item called the Weekend Amulet that keeps the streak active through one skipped weekend day. Users were randomly assigned to one condition. The primary metric is the week-later return rate: whether the user returns to the app a week later.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_03",
+  "stratum": "curated",
+  "source": "Kohavi et al., Online Experimentation at Microsoft (DMCS 2009) (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Large web portal's real-estate page; a 'Find a home' widget refers visitors to partner sites for revenue.",
+  "control": "The incumbent 'Find a home' widget.",
+  "treatment": "A redesigned 'Find a home' widget with a search-box-style layout.",
+  "primary_metric": "referral revenue",
+  "prose": "A web portal's real-estate page includes a 'Find a home' widget that sends visitors to partner sites. In the control condition the incumbent widget design is shown. In the treatment condition a redesigned widget with a search-box-style layout is shown. Visitors were randomly assigned to one design. The primary metric is referral revenue generated from clicks out of the widget.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_04",
+  "stratum": "curated",
+  "source": "Kohavi et al., DMCS 2009 (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Office-software product's public website; a Buy page sells the product online.",
+  "control": "The existing Buy page layout.",
+  "treatment": "A redesigned Buy page with a reorganized layout; one element shown on the existing page (the price) is not shown.",
+  "primary_metric": "Buy-button clickers",
+  "prose": "An office-software product's public website includes a page where visitors can buy the product. The control condition shows the existing Buy page layout, which displays the price. The treatment condition shows a redesigned Buy page with a reorganized layout in which the price shown on the existing page is not displayed. Visitors were randomly assigned to one layout. The primary metric is the number of visitors who click the Buy button.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null). The source discusses metric-choice caveats for this experiment; that commentary is outcome-entangled and was stripped - score on the stated primary metric."
+ },
+ {
+  "id": "cur_05",
+  "stratum": "curated",
+  "source": "Kohavi et al., DMCS 2009 (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Large web portal home page mixing editorial content and commercial modules, including a shopping module.",
+  "control": "The MSN homepage as-is.",
+  "treatment": "The MSN homepage with 3 additional paid offers placed below the shopping module.",
+  "primary_metric": "clicks and page-views per user-day",
+  "prose": "A large web portal's home page contains editorial and commercial modules, including a shopping module. In the control condition the home page is unchanged. In the treatment condition three additional paid offers are placed below the shopping module. Visitors were randomly assigned to one version of the page. The primary metric is clicks and page-views per user-day.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_06",
+  "stratum": "curated",
+  "source": "VWO case-study showcase (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Bank's online credit-card application; multi-step onboarding form collecting applicant details (n=265k applicants).",
+  "control": "The card application requires passport details at step 2.",
+  "treatment": "The card application adds a 'Don't remember? Add later' checkbox that defers the passport field to a later step.",
+  "primary_metric": "form conversion",
+  "prose": "A bank's online credit-card application collects applicant details across several steps; step 2 asks for passport details. In the control condition the passport fields must be completed at step 2. In the treatment condition the form adds a 'Don't remember? Add later' checkbox that defers the passport fields to a later step. Applicants were randomly assigned to one version of the form. The primary metric is form conversion: the fraction of applicants who complete the application.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published vendor showcase; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_07",
+  "stratum": "curated",
+  "source": "CXL / Michael Aagaard (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Company collecting sign-ups/leads through a web form (client anonymized in the source).",
+  "control": "A 9-field form.",
+  "treatment": "A 6-field form (three of the nine fields removed).",
+  "primary_metric": "conversions",
+  "prose": "A company collects sign-ups through a web form. The control version of the form has nine fields. The treatment version has six fields: three of the nine fields are removed. Visitors were randomly assigned to one version. The primary metric is conversions: the fraction of visitors who complete and submit the form.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published practitioner case (client anonymized); no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_08",
+  "stratum": "curated",
+  "source": "Named CRO practitioner case (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Lead-generation site collecting prospect information through a multi-step form (client anonymized in the source).",
+  "control": "A 6-step form.",
+  "treatment": "A 3-step form (the 6 steps condensed into 3).",
+  "primary_metric": "lead conversion",
+  "prose": "A lead-generation site collects prospect information through a multi-step form. The control version spreads the questions across six steps. The treatment version condenses the same questions into three steps. Visitors were randomly assigned to one version. The primary metric is lead conversion: the fraction of visitors who complete the form.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published practitioner case (client anonymized, no percentages disclosed); no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_09",
+  "stratum": "curated",
+  "source": "Ng/Plant/Sheng, arXiv:1610.05562 field experiment (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Comparison-shopping site (Hong Kong); category listing pages show products with price information from participating sellers; ~2.5M page views in the test.",
+  "control": "On a category listing page, each product shows one price: the most recently offered price for that product.",
+  "treatment": "On a category listing page, each product shows a price stated as a low-to-high range across the prices currently offered for that product.",
+  "primary_metric": "product click-throughs per listing-page view",
+  "prose": "A comparison-shopping site lists products on category pages, with each product shown alongside price information drawn from participating sellers. In the control condition each product shows one price: the most recently offered price for that product. In the treatment condition each product shows a price stated as a low-to-high range across the prices currently offered for that product. Page views were randomly assigned to one presentation. The primary metric is product click-throughs per listing-page view.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Peer-reviewed field experiment; no per-arm aggregate tables reproduced in the case file (arm tables null)."
+ },
+ {
+  "id": "cur_10",
+  "stratum": "curated",
+  "source": "Kohavi et al., Seven Rules of Thumb, KDD 2014 (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Large e-commerce site cross-selling its own credit card to shoppers.",
+  "control": "The credit-card offer is placed in the top slot of the home page.",
+  "treatment": "The credit-card offer is placed on the shopping-cart page after an item is added, and states a dollar amount computed from the current cart contents.",
+  "primary_metric": "expected profit per user",
+  "prose": "An e-commerce site promotes its own credit card to shoppers. In the control condition the credit-card offer occupies the top slot of the home page. In the treatment condition the offer instead appears on the shopping-cart page after an item is added, and states a dollar amount computed from the current cart contents. Shoppers were randomly assigned to one placement. The primary metric is expected profit per user.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_11",
+  "stratum": "curated",
+  "source": "Kohavi et al., Seven Rules of Thumb, KDD 2014 (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Large web portal home page with a link to the portal's web-mail service; test replicated on millions of users.",
+  "control": "Clicking the mail link loads the mail destination in the current tab.",
+  "treatment": "Clicking the mail link loads the mail destination in a new tab.",
+  "primary_metric": "clicks per user on the home page",
+  "prose": "A web portal's home page includes a link to the portal's web-mail service. In the control condition, clicking the mail link loads the mail destination in the current tab. In the treatment condition, clicking the mail link loads the mail destination in a new tab. Visitors were randomly assigned to one behavior. The primary metric is clicks per user on the home page.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_12",
+  "stratum": "curated",
+  "source": "Kohavi et al., Online Experimentation at Microsoft, DMCS 2009 (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Software company's support site; a 'most common issues' box links to answer pages.",
+  "control": "The 'most common issues' box shows a single fixed list of answers.",
+  "treatment": "The 'most common issues' box shows a list of answers that varies by the visitor's browser and operating system.",
+  "primary_metric": "click-through rate on the answers section",
+  "prose": "A software company's support site shows a 'most common issues' box with links to answer pages. In the control condition the box shows a single fixed list of answers for all visitors. In the treatment condition the box shows a list of answers that varies by the visitor's browser and operating system. Visitors were randomly assigned to one condition. The primary metric is the click-through rate on the answers section.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "Published narrative case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_13",
+  "stratum": "curated",
+  "source": "Pinterest Engineering (Jean Yang), Medium (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Consumer web product (visual discovery/bookmarking); signup page for new visitors.",
+  "control": "The signup page uses black text on a white background.",
+  "treatment": "The signup page uses white text on a black background.",
+  "primary_metric": "daily signups",
+  "prose": "A consumer web product tests the visual scheme of its signup page. In the control condition the page uses black text on a white background. In the treatment condition the page uses white text on a black background. Visitors were randomly assigned to one scheme. The primary metric is daily signups.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "First-party engineering-blog case; no per-arm aggregate tables available (arm tables null)."
+ },
+ {
+  "id": "cur_14",
+  "stratum": "curated",
+  "source": "LinkedIn Engineering, XLNT platform (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Professional network; profile-completion module suggests sections for members to add to their profile.",
+  "control": "A profile-completion module prompts the member to add a volunteer-experience section.",
+  "treatment": "A profile-completion module prompts the member to add a volunteer-experience section and includes the line 'Add more color to your professional identity by showing what you care about.'",
+  "primary_metric": "edits of the volunteer-experience section",
+  "prose": "A professional network shows members a profile-completion module suggesting sections to add. In the control condition the module prompts the member to add a volunteer-experience section. In the treatment condition the module shows the same prompt and additionally includes the line 'Add more color to your professional identity by showing what you care about.' Members were randomly assigned to one version. The primary metric is edits of the volunteer-experience section.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "First-party engineering-blog case; no per-arm aggregate tables available (arm tables null). The treatment is inherently an added persuasive line; the portfolio's independent auditor ruled this an inherent-mechanic asymmetry, not an authoring leak."
+ },
+ {
+  "id": "cur_15",
+  "stratum": "curated",
+  "source": "Dan McKinley (Etsy), Design for Continuous Experimentation (via PORTFOLIO_CASES_V3.json)",
+  "company_context": "Handmade/vintage e-commerce marketplace; search results page for shoppers.",
+  "control": "Search results are shown in numbered pages; the user clicks a page link to load more results.",
+  "treatment": "Search results load automatically as the user scrolls, with more results appended below and no page links.",
+  "primary_metric": "search engagement (clicks, favorites, purchases-from-search)",
+  "prose": "An e-commerce marketplace displays search results to shoppers. In the control condition results are shown in numbered pages and the user clicks a page link to load more results. In the treatment condition results load automatically as the user scrolls, with more results appended below and no page links. Users were randomly assigned to one presentation. The primary metric is search engagement, measured as clicks, favorites, and purchases from search.",
+  "arm_a_tables": null,
+  "arm_b_tables": null,
+  "availability_notes": "First-party conference-talk case; no per-arm aggregate tables available (arm tables null)."
+ }
+]

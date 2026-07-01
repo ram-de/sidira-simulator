@@ -1,0 +1,113 @@
+{
+ "realistic": {
+  "n_cases": 44,
+  "prevalence_in_principle": 0.023,
+  "arm_A": {
+   "coverage": 0.0,
+   "called": 0,
+   "called_correct": 0,
+   "called_accuracy": null,
+   "confident_wrong": 0,
+   "confident_wrong_ids": [],
+   "false_ship": 0,
+   "false_kill": 0,
+   "flat_mismatch": 0,
+   "baseline_always_treatment_wins_on_called": null,
+   "baseline_always_treatment_wins_full": 0.614,
+   "abstain_reasons": {
+    "non_composition_mechanism": 43,
+    "missing_shift_quantity": 1
+   },
+   "abstain_by_estimand": {
+    "primary": {
+     "non_composition_mechanism": 42,
+     "missing_shift_quantity": 1
+    },
+    "net_business": {
+     "non_composition_mechanism": 1
+    }
+   }
+  },
+  "arm_B": {
+   "coverage": 0.136,
+   "called": 6,
+   "called_correct": 4,
+   "called_accuracy": 0.667,
+   "confident_wrong": 0,
+   "confident_wrong_ids": [],
+   "false_ship": 0,
+   "false_kill": 0,
+   "flat_mismatch": 2,
+   "baseline_always_treatment_wins_on_called": 0.667,
+   "baseline_always_treatment_wins_full": 0.614,
+   "abstain_reasons": {
+    "missing_response_quantity": 37,
+    "missing_shift_quantity": 1
+   },
+   "abstain_by_estimand": {
+    "primary": {
+     "missing_response_quantity": 36,
+     "missing_shift_quantity": 1
+    },
+    "net_business": {
+     "missing_response_quantity": 1
+    }
+   }
+  }
+ },
+ "curated": {
+  "n_cases": 15,
+  "prevalence_in_principle": 0.067,
+  "arm_A": {
+   "coverage": 0.0,
+   "called": 0,
+   "called_correct": 0,
+   "called_accuracy": null,
+   "confident_wrong": 0,
+   "confident_wrong_ids": [],
+   "false_ship": 0,
+   "false_kill": 0,
+   "flat_mismatch": 0,
+   "baseline_always_treatment_wins_on_called": null,
+   "baseline_always_treatment_wins_full": 0.6,
+   "abstain_reasons": {
+    "non_composition_mechanism": 14,
+    "missing_response_quantity": 1
+   },
+   "abstain_by_estimand": {
+    "primary": {
+     "non_composition_mechanism": 14,
+     "missing_response_quantity": 1
+    }
+   }
+  },
+  "arm_B": {
+   "coverage": 0.0,
+   "called": 0,
+   "called_correct": 0,
+   "called_accuracy": null,
+   "confident_wrong": 0,
+   "confident_wrong_ids": [],
+   "false_ship": 0,
+   "false_kill": 0,
+   "flat_mismatch": 0,
+   "baseline_always_treatment_wins_on_called": null,
+   "baseline_always_treatment_wins_full": 0.6,
+   "abstain_reasons": {
+    "missing_response_quantity": 15
+   },
+   "abstain_by_estimand": {
+    "primary": {
+     "missing_response_quantity": 15
+    }
+   }
+  }
+ },
+ "verdict": "MARGINAL",
+ "verdict_inputs": {
+  "coverage_B": 0.136,
+  "confident_wrong_total": 0,
+  "called_accuracy_B": 0.667,
+  "always_treatment_wins_on_called_B": 0.667
+ }
+}
