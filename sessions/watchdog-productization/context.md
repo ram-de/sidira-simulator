@@ -39,8 +39,8 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
 
 ## Phased plan (loop iterations, in dependency order)
 - **Phase 1 — core predictive path**
-  - [ ] #539 LLM-as-translator (hypothesis → structured mechanism spec) — front of pipeline
-  - [ ] #540 grounded mediation sim (g-formula) as the predictor
+  - [x] #539 LLM-as-translator (hypothesis → structured mechanism spec) — MERGED PR #551
+  - [x] #540 grounded mediation sim (g-formula) as the predictor — MERGED PR #552
   - [ ] #541 negative-control watchdog as the runtime trust gate
   - [ ] #542 runtime decision-flow orchestrator (the router; integrates #309/#511 lever pre-flight)
 - **Phase 2 — surfaces**
@@ -52,12 +52,11 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
 
 ## In Progress
-- [ ] **Iteration 2 = #540** grounded predictor. CONFIRMED architecture: API is ML-FREE (no
-      sklearn/pandas in backend/pyproject). Grounded COMPUTE runs at PACK BUILD (persona-worker,
-      already shipped via #20/#21/#510 → writes estimability_manifest.json beside the pack in R2).
-      So #540 RUNTIME piece = a manifest READER/matcher, NOT a re-port of sklearn. Match
-      MechanismSpec (treatment_column, outcome_column) → precomputed candidate_effect →
-      direction-only sign (`sign_adjusted`) + `supportable`; "not covered" → router falls to LLM.
+- [ ] **Iteration 3 = #541** negative-control watchdog as the runtime trust gate. Reads the
+      matched candidate's precomputed NC evidence from the manifest (the guard already ran at
+      pack-build via ported `negative_control_guard`); at runtime it CLASSIFIES the grounded
+      prediction as CONFIRMS / CONTRADICTS / CANT-VALIDATE. Pure stdlib + pydantic (ML-free),
+      never raises, ships INERT (router #542 wires it). CANT-VALIDATE → router abstains.
 
 ## Completed
 - [x] Reconciled: Epic #538 + #539-546 already exist, cleanly phased; no new tickets needed.
@@ -70,6 +69,17 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       moved inside the guard) + regression test. 21 tests. Ships INERT (no runtime import).
       Independently verified: 4 pre-existing suite failures are unrelated (route-resolution/
       deploy-config/identity-seed subprocess), not caused by the change.
+- [x] **#540 grounded predictor — MERGED (PR #552).** `schemas/estimability.py` (READ models,
+      extra=ignore, forward-compatible with the R2 artifact) + `services/grounded_predictor.py`
+      (`grounded_predict` matches MechanismSpec (T,Y) → precomputed candidate → direction-only
+      `sign_adjusted` + `supportable`; "not covered" → LLM fallback; never raises). ML-free,
+      INERT. **I found + fixed a codex-missed integration bug during review:** the manifest READ
+      key mirrored the feature-pack loader, but persona_builder WRITES it beside the PERSONA pack
+      (`customers/<id>/personas/<version>/estimability_manifest.json` via `get_store`) — keys
+      didn't match, runtime would never find it. Fixed `estimability_manifest_key` +
+      `load_estimability_manifest` to the persona-pack path (dropped setup_id). Verified producer
+      emits setup_id (example artifact) so the required field is correct. 19 tests, codex clean.
+      No redeploy (INERT; single redeploy batched to #542).
 
 ## Key Files
 - Engine runtime: backend/sidira_simulator/services/ (SimulationOrchestrator) — mapping in progress
