@@ -51,7 +51,8 @@ fool ourselves.
 | **Empirical causal adjustment** on real data (Cookie Cats, Hillstrom) | **Works** on the estimable slice — recovers the true effect where the naive comparison flips. |
 | **Negative-control guard** (catch hidden confounding) | LEAD on synthetic + one real RCT; **failed** on a hard real naturally-confounded benchmark → route forward is a stronger proximal method. Honest LEAD, not promoted. |
 | **Grounded mediation simulation** (GNCE) | Ties the LLM when the mechanism is nameable; **abstains** honestly when the signal isn't in the data. |
-| **Ambiguous-dominance battery** (AMBDOM) | **Grounded sim 1.00 vs LLM 0.00** on magnitude-driven flips. And the LLM scored **0.17 — it never once predicted a decline.** |
+| **Ambiguous-dominance battery** (AMBDOM) | **Grounded sim 1.00 vs LLM 0.00 (llama) / 0.50 (Opus)** on magnitude-driven flips. No words-only predictor can beat chance here by construction; only the data-grounded sim recovers the flip. |
+| **Opus vs llama re-test** (frontier-model swap on AMBDOM/GNCE) | A stronger model **does not** fix the sim on the hard slice: Opus sits **at chance (0.50)** on magnitude flips, grounded stays 1.00. It *does* fix llama's optimism — see §3. The wedge is robust to model strength. |
 | **Design-partner production blind tests** | Engine tracks *intuition*, not truth — always predicts a business lift, wrong on the business metric of every counter-intuitive case. |
 
 ## 3. What died (say it plainly)
@@ -60,9 +61,14 @@ fool ourselves.
   the hard cases. No prompting trick rescues it. The binding constraint is **data, not model** (the same
   signature as the famous Fragile Families study, where the entire ML arsenal converged on a trivial
   baseline).
-- **The LLM is structurally optimistic.** Given a change with both an upside and a downside, it reaches
-  for "up" and never confidently says "this loses." That's not a tuning bug; it's a prior. It's exactly
-  why it's dangerous as an oracle and exactly the gap our engine fills.
+- **The LLM substitutes a degenerate prior for magnitude reasoning on ambiguous cases — and the
+  *direction* of that prior is model-specific.** llama defaults to "up" (pro-feature optimism, never calls
+  a decline); Opus defaults to "down" on the same ambiguous prose (a mirror-image constant-pessimism). Both
+  land at/below chance on magnitude-driven flips because *neither is reading the magnitudes* — the
+  information isn't in the words. The durable claim is **magnitude-blindness on the hard slice, robust to
+  model strength**, not "always optimistic." (The production engine's *always-predicts-lift* behavior is a
+  separate, real finding about the deployed persona-sim on its own model — don't conflate the two.) This is
+  exactly why an LLM is dangerous as an oracle and exactly the gap the grounded sim fills.
 
 ## 4. What survived (the three real assets)
 
@@ -215,8 +221,8 @@ taxonomy (cannibalization, trade-down, substitution, novelty-decay, gross-vs-net
 
 Founder-endorsed **80/20:** ~80% of experiments fall into a small, finite, *recognizable* set of patterns;
 ~20% is an irreducible long tail we abstain on. The target is **not** global accuracy — it's a **growing,
-trustworthy confident subset + a killed optimism bias**, because the cost savings come from the confident
-skip/ship slice. Phase-1 is a lean ~₹20-lakh / 6-month program with a hard **month-4–5 decision gate**:
+trustworthy confident subset + a magnitude-blind spot closed** (the grounded sim resolves the trade-offs no
+LLM — optimistic *or* pessimistic — can), because the cost savings come from the confident skip/ship slice. Phase-1 is a lean ~₹20-lakh / 6-month program with a hard **month-4–5 decision gate**:
 does the learning curve bend (new cases fall into seen patterns) and does the structure transfer? Scale on
 evidence, not faith.
 
