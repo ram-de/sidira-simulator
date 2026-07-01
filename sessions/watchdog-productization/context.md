@@ -44,21 +44,20 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [x] #541 negative-control watchdog as the runtime trust gate — MERGED PR #553
   - [x] #542 runtime decision-flow orchestrator (the router) — MERGED PR #554
 - **Phase 2 — surfaces**
-  - [ ] #543 3-model heterogeneous-bias council (abstain-siren / caution-dial)
+  - [x] #543 3-model heterogeneous-bias council (abstain-siren / caution-dial) — MERGED PR #555
   - [ ] #544 re-ground talk-to-users conversation on computed results
   - [ ] #545 direction-only output contract + triage + guardrail breadth + FRONTEND lever/verdict
 - **Phase 3 — discipline + loop-close**
   - [ ] #546 model-robustness regression harness (sealed battery per new model)
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
 
-## In Progress — PHASE 1 COMPLETE (#539–#542 merged). Now Phase 2.
-- [ ] **Iteration 5 = #543** 3-model heterogeneous-bias council. Fills the `Council` Protocol seam
-      the #542 router already exposes (`assess(hypothesis, spec) -> CouncilAssessment(agreement,
-      llm_direction, votes, rationale)`; NullCouncil default = agreement=True). Real council =
-      3 heterogeneous models; abstain-siren / caution-dial driven by DISAGREEMENT (never unanimity).
-      Council NEVER gates grounded — only calibrates the Step-2 LLM fallback. ML-free (LLM calls
-      via existing chat_client adapter). Ship additive; wire into decision_flow via the injection
-      point (default stays NullCouncil until flag-flip).
+## In Progress — PHASE 1 DONE (#539–#542). Phase 2: #543 DONE, now #544.
+- [ ] **Iteration 6 = #544** re-ground the talk-to-users conversation on the COMPUTED results.
+      The founder's simulate-novel-Qs + talk-to-users USP surface, but grounded in the decision-flow
+      output (DecisionResult) instead of free persona role-play: the conversation cites the grounded
+      verdict / watchdog stamp / council caution, labels unverified branches honestly, and abstains
+      where the router abstains. Find the existing conversation/chat surface; ship additive +
+      off-by-default (same flag family); no redeploy (batches to #545).
 
 ## Completed
 - [x] Reconciled: Epic #538 + #539-546 already exist, cleanly phased; no new tickets needed.
@@ -105,6 +104,17 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       guard → abstain. 30 tests, 100 in-chain pass. Independently verified the seam + OFF path +
       routing before merge. **NO redeploy** (off-by-default, no live consumer). Real-customer
       end-to-end = founder-gated.
+- [x] **#543 3-model heterogeneous-bias council — MERGED (PR #555).** New `services/council.py`:
+      `HeterogeneousCouncil` implements the #542 `Council` Protocol; `DEFAULT_PANEL`
+      (llama-3.1-8b-instant=optimist · claude-opus-4-7=pessimist · gpt-5.5=balanced); `BIAS_PROFILE`
+      + `assert_bias_diversity` (≥2 distinct known profiles — degenerate all-same panel raises).
+      Fans out concurrently (ThreadPoolExecutor, per-model timeout), drops abstains/errors/unavailable,
+      aggregates abstain-siren: <2 usable directional OR split → agreement=False/hard; unanimous →
+      agreement=True + direction/moderate. NEVER raises. Wired into the #542 hook via
+      `build_default_council()` (guarded → NullCouncil on failure). codex P2: added additive opt-in
+      `request_timeout` to llm.py clients + get_chat_client (default None = every existing caller
+      byte-identical — verified). 16 council tests, 143 in-chain pass. Off-by-default; NO redeploy.
+      Real-model campaign reproduction = founder-gated/offline (unit tests reproduce aggregation).
 
 ## Key Files
 - Engine runtime: backend/sidira_simulator/services/ (SimulationOrchestrator) — mapping in progress
