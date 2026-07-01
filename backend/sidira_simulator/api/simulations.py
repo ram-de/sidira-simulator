@@ -31,6 +31,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     WeaknessCategoryDiff,
 )
+from sidira_simulator.schemas.verdict import DirectionVerdict
 from sidira_simulator.services.answerability import assess_answerability
 from sidira_simulator.services.decision_flow import (
     decision_flow_enabled,
@@ -602,11 +603,19 @@ async def get_simulation(
     # stays None. Best-effort: a missing/malformed sidecar → None (never a 500).
     # The read (and R2 store construction) is a blocking network call, so it is
     # offloaded to a worker thread to keep it off the event loop (codex P2, mirrors
-    # the orchestrator hook's asyncio.to_thread). read_decision_verdict never raises.
+    # the orchestrator hook's asyncio.to_thread). read_decision_verdict never raises,
+    # but get_store() itself can (missing R2 config / boto3), so the whole thing is
+    # wrapped best-effort — a store-construction failure must not 500 the detail GET
+    # for an OPTIONAL sidecar (codex P2, mirrors the write path's guard).
     if result is not None and decision_flow_enabled():
-        verdict = await asyncio.to_thread(
-            lambda: read_decision_verdict(get_store(), customer_id, simulation_id)
-        )
+
+        def _read_sidecar() -> DirectionVerdict | None:
+            try:
+                return read_decision_verdict(get_store(), customer_id, simulation_id)
+            except Exception:  # noqa: BLE001 — an optional sidecar read must never 500.
+                return None
+
+        verdict = await asyncio.to_thread(_read_sidecar)
         if verdict is not None:
             result.decision_verdict = verdict
 
