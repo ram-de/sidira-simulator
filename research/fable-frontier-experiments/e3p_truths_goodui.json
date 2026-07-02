@@ -1,0 +1,116 @@
+[
+ {
+  "id": "gui_01",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/why-did-thomasnet-reject-a-registration-wall-a-b-test-with-a-record-1135-to-signups/ — 'the effect was an astonishing +1135% relative increase' to signups.",
+  "notes": "Primary (signups): up, +1135% relative (baseline registration rate described as 'incredibly low', explaining the huge relative number). Guardrail engagement metric (visits to company profile pages): significant NEGATIVE, -18%. The Thomas team REJECTED the treatment because of the engagement loss despite the signup gain. Direction_primary follows the named primary metric (signups) per prereg; the guardrail reversal is the decision-relevant twist. Mapping rule used across this file: source's own strength language maps winner/'possible winner' -> up, 'possible loser' -> down, 'insignificant' -> flat."
+ },
+ {
+  "id": "gui_02",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/12-landing-page-patterns-for-42-more-leads-on-kensingtontours.com/ — 'The measured effect was a relative 42% increase to leads.'",
+  "notes": "12-change bundled redesign, split test on paid traffic. No per-arm data or significance published; single relative effect in prose."
+ },
+ {
+  "id": "gui_03",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/6-signup-form-ui-changes-with-17-more-signups-for-thomasnet/ — title: '+17% More Signups'; body: 'As predicted, the positive probability patterns combined together for a positive impact.'",
+  "notes": "Effect number appears only in the title; body confirms positive outcome. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_04",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/4-checkout-ui-changes-for-a-highly-significant-1-sales-on-menufy-com/ — 'The A/B test results showing a solid 1% increase to sales (measured by thank you page visits)'; title says 'Highly Significant +1%'.",
+  "notes": "Small but reported as highly significant. No per-arm data published."
+ },
+ {
+  "id": "gui_05",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/6-landing-page-changes-for-30-signups-on-bomgar-com/ — 'The A/B test results showing a 30% increase to signups (measured by next page visits)'.",
+  "notes": "6-change bundle. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_06",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/insignificant-significance-why-reverb-com-rejected-a-winning-a-b-test/ — 'a positive 4.3% increase to sales ... completed with a p-value of 0.04'.",
+  "notes": "Primary (sales): up, +4.3%, p=0.04. BUT the shallow funnel metric (negotiations started / form submissions) was only +0.1% insignificant, the mechanism explanation broke down, and Reverb REJECTED implementation as a suspected spurious result ('We saw no lift in form submissions and cannot explain the small lift ... in paid orders'). Direction_primary recorded as published/measured (up); treat as a low-confidence truth — the publisher itself doubts the causal reality of the measured direction."
+ },
+ {
+  "id": "gui_07",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/how-normanrecords-com-replicated-the-no-coupon-fields-pattern-successfully/ — 'a very similar test that ran on Adoramapix.com where it generated 2.6% more sales.'",
+  "notes": "Adoramapix checkout no-coupon-field test: +2.6% sales, baseline ~70% checkout conversion. Description is pattern-level (exact variation rendering not shown); logged as an inclusion limitation in the audit log."
+ },
+ {
+  "id": "gui_08",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/how-normanrecords-com-replicated-the-no-coupon-fields-pattern-successfully/ — 'Normanrecords.com detected a 2.4% increase (slight wider confidence interval). They decided to implement it from additional positive metrics aligning with this observed effect (ex: even greater revenue gains).'",
+  "notes": "Coupon field hidden behind 'add a voucher code' link: +2.4% sales, implemented; revenue reported as an even larger gain."
+ },
+ {
+  "id": "gui_09",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/7-pricing-screen-ui-changes-for-28-sales-on-examine-com/ — 'The A/B test results showing a 28% increase to sales'.",
+  "notes": "7-change bundled pricing-screen test. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_10",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/a-flawless-copy-paste-test-how-glass-net-replicated-the-canned-response-pattern/ — 'Vivareal.com.br recorded a 16% lead gain from their test' (also: 'using the effect data from this test (+16% more leads)').",
+  "notes": "Vivareal canned-response lead-form test: +16% leads. Reported within the Glass.net replication post."
+ },
+ {
+  "id": "gui_11",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/a-flawless-copy-paste-test-how-glass-net-replicated-the-canned-response-pattern/ — 'Glass.net measured a 17% lead increase (such a tight replication wasn't expected at all).'",
+  "notes": "+17% leads; described as a successful replication of the same pattern."
+ },
+ {
+  "id": "gui_12",
+  "direction_primary": "flat",
+  "truth_source": "https://goodui.org/blog/pattern-31-instant-results-increased-leads-for-vivareal-com-br/ — 'This change boosted Leads by 1.6% with a sizeable margin of error (+/-2.1%). That's not much at all...'",
+  "notes": "Point estimate +1.6% but margin of error ±2.1% spans zero; publisher frames it as a small possible effect, not a significant win. Recorded as flat per prereg ('reported no significant difference'); point estimate retained here for magnitude scoring."
+ },
+ {
+  "id": "gui_13",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-74-publish-engaging-polls/ — 'The result? A possible +4.3% increase to signups (measured with signup starts).'",
+  "notes": "Reported as a 'possible' (weak-significance) increase — GoodUI's possible-winner class. Direction up with reduced confidence."
+ },
+ {
+  "id": "gui_14",
+  "direction_primary": "flat",
+  "truth_source": "https://goodui.org/blog/evidence-74-publish-engaging-polls/ — 'Test #75 actually changed the same headline ... to \"Polls For Your Facebook Page & Timeline\" with an insignificant negative effect of -1.8%.'",
+  "notes": "Explicitly labeled 'insignificant' by the source -> flat per prereg mapping; point estimate -1.8% retained for magnitude scoring."
+ },
+ {
+  "id": "gui_15",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-73-list-of-benefits/ — 'The dashboard variation resulted with a possible +26% increase to leads (measured with visits to a driving instructor page).'",
+  "notes": "'Possible' strength qualifier — up with reduced confidence."
+ },
+ {
+  "id": "gui_16",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-72-passive-benefits/ — 'The homepage variation ended with a +20% increase to signup intent (measured with visits to step 2 of the signup process).'",
+  "notes": "Multi-change homepage variation; stated without a hedging qualifier."
+ },
+ {
+  "id": "gui_17",
+  "direction_primary": "down",
+  "truth_source": "https://goodui.org/blog/evidence-71-social-proof-that-didnt-work/ — 'The variation with the profile photos on the homepage showed a possible -6.6% decrease to searches.'",
+  "notes": "'Possible' (weak-significance) decrease — GoodUI's possible-loser class -> down with reduced confidence. Post title itself: 'Social Proof That Didn't Work'."
+ },
+ {
+  "id": "gui_18",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-70-least-or-most-expensive-plans-first/ — 'The variation showed a possible +14% increase to premium (most expensive plan) sales while suffering from a slight -1.1% decrease in overall sales. There was a net revenue gain from this change.'",
+  "notes": "Composition/mix-shift case: premium sales +14% (possible), overall sales -1.1% (slight), net revenue reported as a gain. Direction_primary = up on the declared primary (net revenue). If the pipeline's estimand binds to overall sales instead, the published direction for that component is down/slightly-negative — record this ambiguity at scoring time."
+ },
+ {
+  "id": "_meta_goodui_source_caveat",
+  "direction_primary": null,
+  "truth_source": "assembler note, not a case",
+  "notes": "SOURCE-LEVEL CAVEAT (do not read before predictions are sealed): GoodUI's blog write-ups are a consultancy publishing its own client results and are likely to over-represent wins relative to a company-internal backlog; the truth distribution of this stratum slice should be interpreted with that selection bias in mind. This caveat is placed here (truths file) rather than in the backlog or audit log so it cannot leak into the prediction context."
+ }
+]

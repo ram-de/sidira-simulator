@@ -1,0 +1,128 @@
+[
+ {
+  "id": "hil_01",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_02",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_03",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_04",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "cc_01",
+  "direction_primary": "down",
+  "truth_source": "Pooled per-arm rates computed from e1_cookiecats_tables.json (user-weighted across engagement bins; full experiment); 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = gate_40 (treatment) beats gate_30 (control) on the retention metric."
+ },
+ {
+  "id": "cc_02",
+  "direction_primary": "down",
+  "truth_source": "Pooled per-arm rates computed from e1_cookiecats_tables.json (user-weighted across engagement bins; full experiment); 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = gate_40 (treatment) beats gate_30 (control) on the retention metric."
+ },
+ {
+  "id": "cur_01",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'cookiecats_gate_move' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_02",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'duolingo_weekend_amulet' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_03",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_realestate_widget' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_04",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'office_online_redesign' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_05",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_homepage_extra_offers' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_06",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'tinkoff_defer_passport' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_07",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'cxl_form_fields_9_to_6' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_08",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'multistep_form_3_vs_6' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_09",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'price_com_hk_price_ranges' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_10",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'amazon_credit_card_offer_relocation' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_11",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_hotmail_link_new_tab' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_12",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_support_personalized_answers' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_13",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'pinterest_signup_color_scheme' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_14",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'linkedin_volunteer_section_value_copy' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_15",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'etsy_infinite_scroll_search' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ }
+]

@@ -12,7 +12,7 @@ owner: ram-de
 Research-grade analysis of Sidira's core accuracy problem: grounded simulation + watchdog depends on customers providing rich behavioral data beyond persona data, while the "easy" path (persona-seeded LLM agents) is refuted by our own benchmarks (LLM prior bias — llama optimism, Opus pessimism, magnitude-blindness). Run a council of research-scientist-grade perspectives ("if Anthropic built this to save A/B-test cost, how would a Karpathy-level council solve it?") and draft a research paper.
 
 ## In Progress
-- [ ] Run E3-P per the sealed prereg (case assembly → sealed truths → two-arm pipeline → score)
+- [ ] PR for the E3-P run (branch worktree-fable-e3p) — codex review, founder merge
 
 ## Completed
 - [x] Grounded in evidence base: founder-readout/simulation-engine-where-we-landed.md + finetuned-simulator-readout.md (from origin/main; extracted to scratchpad)
@@ -27,10 +27,14 @@ Research-grade analysis of Sidira's core accuracy problem: grounded simulation +
 - [x] DEBATE_CONCLUSION.md: joint statement — proven engines = calculator + direct A/B estimate + g-formula, everything else an abstention test until it wins under seal on decision economics; audit is the wedge, selective pre-test prediction is the product
 - [x] PAPER.md → v1.1 (changelog + inline amendments: validity wording retired, estimand+evidence-class labels, tier-1.5 experimental flag, E1/E2 RUN markers, §9 dissent 2 resolved)
 - [x] E3-P prereg SEALED (PREREG_E3P_BACKLOG_PREVALENCE.md, sha256 `80f5625d…`) — backlog-prevalence study registered before any case assembly; LEDGER row 3 added; merged with PR #557 (founder-authorized)
+- [x] E3-P RUN (worktree-fable-e3p): **MARGINAL** — 59 cases (44 realistic + 15 curated; 299 candidates logged by 3 blind assemblers); PREVALENCE 2.3%; COVERAGE-A 0%, COVERAGE-B 13.6%; called set 4/6 exact + 2 conservative flat-calls, **0 confident-wrong/false-ship/false-kill**; 0/38 public write-ups publish per-arm aggregates (all 6 calls from self-built tables). Tier 1 = minor rung + data-quote surface; sales motion tier-2-first; abstain ledger = the priced ask. One blind pre-seal pipeline revision (e3p_deviations.md); PAPER §9.2 → v1.2 marker. Full readout: research/fable-frontier-experiments/E3P_RESULTS.md
+
+- [x] Buyer-viability debate (founder asked "would Amazon pay?"): Fable 6-lens council (wf_333bf71d-2fd) × independent codex council, converged in 1 round — **P(Amazon-class pays in 24mo) = 5%; wedge = founder-led $25–50k sealed Experiment Decision Audit for mid-market consumer growth cos (revenge-purchase bias), expand $75–175k/yr; demand risk ruled fatal-unless-disproven; customer-side Arm-B coverage ≥40% gates the subscription thesis**. Joint doc: BUYER_VERDICT.md (+ buyer-council-fable.md, buyer-codex-r1/r2.md)
+- [x] **FOUNDER DECISION recorded (2026-07-01, MOAT_AND_AMAZON.md addendum): no Senu SKU — Senu = internal data factory only; Sidira = hypothesis design/prioritization product; moat = paired corpus (hypothesis, panel shift, real outcome) surfaced through a calibrated hypothesis-worth model (scorer, never sign oracle; ship gate = beats calculator + six baselines under seal on decision economics). Tier-1.5 quote language retired as a product concept. Experiment queue reshaped** (internal study cadence = new E6 → E5 → E4 → design-partner coverage → E7 model; deterministic design-console surface buildable now)
 
 ## Next Steps
-1. RUN E3-P (backlog-prevalence): assemble the realistic backlog per the sealed sourcing rules (N≥40 target, candidate/exclusion audit log), seal truths, run the two-arm pipeline, score
-2. Then E5 proximal double-NC → E4 abstention gate → E6 Senu transport pilot → E7 learned models (joint priority order)
+1. Founder reads E3P_RESULTS.md + BUYER_VERDICT.md + MOAT_AND_AMAZON.md (incl. decision addendum); merge the E3-P PR
+2. Reshaped queue: internal study cadence (gated on Senu ops launch) → E5 proximal double-NC → E4 abstention gate → design-partner Arm-B coverage → E7 hypothesis-worth model (corpus n-floor + sealed gate)
 3. Decide the §9.1 go-to-market dissent (audit-led vs guarantee-led) — evidence can't make this call
 
 ## Key Files

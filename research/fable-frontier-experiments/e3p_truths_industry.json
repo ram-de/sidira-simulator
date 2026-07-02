@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ind_01",
+    "direction_primary": "up",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: clicks/user on the MSN home page +8.9% for triggered users.",
+    "notes": "Caveat from Kohavi et al., Five Puzzling Outcomes, KDD 2012 §3.2: the majority of the measured effect for non-IE browsers was a click-beacon logging artifact (new-tab clicks were more likely to be recorded). The papers nonetheless report the long-term effect as positive and the feature shipped and remains live on the MSN home page. Direction retained as up per the published account, with reduced magnitude confidence."
+  },
+  {
+    "id": "ind_02",
+    "direction_primary": "up",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: clicks per user +5%, 12M+ users; described as one of MSN's best engagement features, implemented.",
+    "notes": "Same click-beacon artifact class as ind_01 potentially applies to some of the magnitude; feature shipped."
+  },
+  {
+    "id": "ind_03",
+    "direction_primary": "up",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: users more successful completing tasks, time-to-success improved, monetization up >$10M annually; replicated on 32M users and results held.",
+    "notes": "Treatment better on time-to-success (time decreased) and on companion metrics. The described variant is the deployed one (publication-bias limitation logged in audit file)."
+  },
+  {
+    "id": "ind_04",
+    "direction_primary": "up",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1 (also Kohavi & Round 2004): the cart-page placement with savings math was worth tens of millions of dollars in profit annually.",
+    "notes": "Treatment better on profit per user; shipped."
+  },
+  {
+    "id": "ind_05",
+    "direction_primary": "up",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: improvements to all of Bing's key metrics including sessions/user; users quicker to succeed; annual revenue up several million dollars; page load time faster by hundreds of milliseconds for triggered pages.",
+    "notes": "Treatment (blocking third-party DOM modification) better across the board; shipped."
+  },
+  {
+    "id": "ind_06",
+    "direction_primary": "down",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 2 (citing Crook et al., KDD 2009): 64% reduction in clicks per user on revenue-generating links for the treatment page.",
+    "notes": "Direction is on the named primary metric (clicks on revenue links). The papers report the treatment's fewer clickers were better qualified with a much higher click-to-purchase conversion rate — the stable-conversion proxy assumption was wrong; the effect on actual purchases is not published. Classic surrogate-metric lesson case."
+  },
+  {
+    "id": "ind_07",
+    "direction_primary": "down",
+    "truth_source": "Marissa Mayer, Web 2.0 talk (via Linden blog; cited in KDD 2014): traffic and revenue from the 30-result group dropped by 20%.",
+    "notes": "Secondhand. Latency confound: the 30-result page took ~0.5s longer to generate; Kohavi et al. argue (via Bing slowdown calibration) latency explains only a small part, attributing the rest to the ads/results ratio. Direction on the primary metric is unambiguous in the account: down."
+  },
+  {
+    "id": "ind_08",
+    "direction_primary": "down",
+    "truth_source": "Kohavi et al., KDD 2013 / KDD 2014 Rule 4: every 100ms of added delay decreased revenue ~0.6% (equivalently, 100ms speedup improves revenue 0.6%); highly significant.",
+    "notes": "Treatment = added delay, so treatment worse on revenue/user. Linear dose-response confirmed across slowdown amounts at Bing."
+  },
+  {
+    "id": "ind_09",
+    "direction_primary": "down",
+    "truth_source": "Brutlag, Speed Matters, Google Research blog, 2009: searches per user declined 0.2% to 0.6% depending on delay dose (100–400ms), with the effect growing over the experiment; persisted after delay removal.",
+    "notes": "Treatment (delay) worse on searches/user. First-party source."
+  },
+  {
+    "id": "ind_10",
+    "direction_primary": "down",
+    "truth_source": "Greg Linden, Make Data Useful (2006), cited in KDD 2014 Rule 4: +100ms delay decreased sales by ~1% at Amazon.",
+    "notes": "Secondhand retrospective; single summary figure; direction consistent with ind_08/ind_09."
+  },
+  {
+    "id": "ind_11",
+    "direction_primary": "flat",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 4: delaying right-pane elements by 250ms produced no detectable impact on key metrics, despite an experiment of almost 20 million users.",
+    "notes": "Reported as a well-powered null: right-pane timing, unlike whole-page latency, did not move key metrics."
+  },
+  {
+    "id": "ind_12",
+    "direction_primary": "flat",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.64); clicks shifted to other areas of the page.",
+    "notes": "Primary (abandonment) flat; local/feature metrics moved (click redistribution) — the rule-of-thumb's point."
+  },
+  {
+    "id": "ind_13",
+    "direction_primary": "flat",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.71).",
+    "notes": "Secondary feature metric: clickthrough-rate on the pinned related searches declined 17% (statistically significant). Primary page-level metric flat."
+  },
+  {
+    "id": "ind_14",
+    "direction_primary": "flat",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.92); pages faster; the truncated design was released.",
+    "notes": "Well-powered null on the primary metric with a positive speed side-benefit; shipped."
+  },
+  {
+    "id": "ind_15",
+    "direction_primary": "down",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: 1.8% reduction in revenue, 30ms page-load-time slowdown, 18% reduction in pagination; abandonment rate did not change (p=0.93). Change not released.",
+    "notes": "Treatment worse on the primary metric (revenue/user); killed."
+  },
+  {
+    "id": "ind_16",
+    "direction_primary": "down",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: the treatment ad background color caused a 12% decline in revenue (annualized loss of over $150M had it shipped); users shifted clicks to other areas; abandonment flat (p=0.83). Not released.",
+    "notes": "Treatment worse on revenue/user; killed."
+  },
+  {
+    "id": "ind_17",
+    "direction_primary": "down",
+    "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 6: the first experiment with all changes lumped together 'tanked' many key metrics (clicks and revenue down).",
+    "notes": "The bundle direction is down. Attribution postscript in the source: features removed from the landing page (not unified search itself) were responsible; after restoring them, unified search was positive and deployed to everyone. Truth recorded for the tested bundle as run."
+  },
+  {
+    "id": "ind_18",
+    "direction_primary": "up",
+    "truth_source": "Netflix TechBlog Decision Making at Netflix series (2021): the Top 10 test succeeded on the engagement decision metric and the row was rolled out to production for all members; Netflix launched the Top 10 row globally in 2020.",
+    "notes": "Direction from first-party series narrative plus global ship decision; no effect sizes published."
+  },
+  {
+    "id": "ind_19",
+    "direction_primary": "up",
+    "truth_source": "First Round Review interview with Gina Gotthilf (Duolingo VP Growth), quote verified verbatim: 'That led to a six percent increase in our DAUs. It was six lines of code.' A V2 of the dot added a further 1.6% DAU.",
+    "notes": "Secondhand interview but direct first-party quote; treatment better on DAU."
+  },
+  {
+    "id": "ind_20",
+    "direction_primary": "up",
+    "truth_source": "First Round Review interview with Gina Gotthilf, quote verified verbatim: 'Simply moving the sign-up screen back a few steps led to about a 20% increase in DAUs.' Subsequent hard/soft wall optimizations added a further 8.2% DAU.",
+    "notes": "Truth recorded for the initial delayed-sign-up move (the described treatment): up on DAU. The 'Later' button rewording is reported as improving conversions within the same program."
+  }
+]

@@ -1,0 +1,1615 @@
+[
+ {
+  "id": "gui_01",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "content_gating_registration_incentive",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_01",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "content_gating_registration_incentive",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_02",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_redesign_conversion_funnel",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_02",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_redesign_conversion_funnel",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_03",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "landing_page_persuasion_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_03",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "landing_page_persuasion_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_04",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "checkout_friction_and_ui_clarity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_04",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "checkout_friction_and_ui_clarity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_05",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_and_page_clarity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_05",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_and_page_clarity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_06",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "prefilled_message_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_06",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "prefilled_message_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_07",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "coupon_field_distraction_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_07",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "coupon_field_distraction_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_08",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "coupon_field_deemphasis_reduces_discount_seeking",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_08",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "coupon_field_deemphasis_reduces_discount_seeking",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_09",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_pricing_page_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_09",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_pricing_page_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_10",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_10",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_11",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "prefilled_form_default_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_11",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "prefilled_form_default_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_12",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "friction_reduction_in_filter_interaction",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_12",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "friction_reduction_in_filter_interaction",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_13",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "headline_message_specificity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_13",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "headline_message_specificity",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_14",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "headline_message_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_14",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "headline_message_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_15",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "framing_and_commitment_level",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_15",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "framing_and_commitment_level",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_16",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "value_proposition_framing",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_16",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "value_proposition_framing",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_17",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "social_proof_engagement",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_17",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "social_proof_engagement",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_18",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "display_order_choice_architecture",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "gui_18",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "display_order_choice_architecture",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_01",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "session_continuation_via_new_tab",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_01",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "session_continuation_via_new_tab",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_02",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "reduced_navigation_friction_via_new_tab",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_02",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "reduced_navigation_friction_via_new_tab",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_03",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "cosmetic_visual_perception_shift",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_03",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "cosmetic_visual_perception_shift",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_04",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "placement_context_intent_targeting",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_04",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "placement_context_intent_targeting",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_05",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "segment",
+  "mechanism_family": "third_party_dom_injection_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_05",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "segment",
+  "mechanism_family": "third_party_dom_injection_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_06",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "cta_salience_and_price_display",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_06",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "cta_salience_and_price_display",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_07",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_07",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_08",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_08",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_09",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_09",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_10",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_behavior_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_10",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_behavior_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_11",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_11",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "latency_induced_engagement_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_12",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "content_removal_click_reallocation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_12",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "content_removal_click_reallocation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_13",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "layout_reposition_module_visibility",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_13",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "layout_reposition_module_visibility",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_14",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "result_truncation_removes_low_value_links",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_14",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "result_truncation_removes_low_value_links",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_15",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "results_count_and_module_layout_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_15",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "results_count_and_module_layout_change",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_16",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "ad_visibility_click_reallocation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_16",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "ad_visibility_click_reallocation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_17",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_search_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_17",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "bundled_search_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_18",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "social_proof_content_discovery",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_18",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "social_proof_content_discovery",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_19",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "notification_badge_prompt",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_19",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "notification_badge_prompt",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_20",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "onboarding_friction_vs_commitment",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "ind_20",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "onboarding_friction_vs_commitment",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "hil_01",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_prompted_site_visitation",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity",
+  "missing": [
+   "per_arm_outcome_aggregates"
+  ]
+ },
+ {
+  "id": "hil_01",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_prompted_site_visitation",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity"
+ },
+ {
+  "id": "hil_02",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_marketing_activation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "hil_02",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_marketing_activation",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "hil_03",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_prompted_site_visits",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity",
+  "missing": [
+   "per_arm_outcome_aggregates"
+  ]
+ },
+ {
+  "id": "hil_03",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_prompted_site_visits",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity"
+ },
+ {
+  "id": "hil_04",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_promotion_uplift",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "hil_04",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "email_promotion_uplift",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cc_01",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "gate_placement_friction_timing",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity",
+  "missing": [
+   "per_arm_outcome_aggregates"
+  ]
+ },
+ {
+  "id": "cc_01",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "gate_placement_friction_timing",
+  "prevalence_flag": true,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "missing_response_quantity"
+ },
+ {
+  "id": "cc_02",
+  "arm": "A",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "gate_placement_progression_friction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cc_02",
+  "arm": "B",
+  "stratum": "realistic",
+  "estimand": "primary",
+  "mechanism_family": "gate_placement_progression_friction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_01",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "monetization_gate_placement_friction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_01",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "monetization_gate_placement_friction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_02",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "streak_preservation_retention",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_02",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "streak_preservation_retention",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_03",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "widget_layout_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_03",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "widget_layout_redesign",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_04",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "price_information_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_04",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "price_information_removal",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_05",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "added_content_modules",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_05",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "added_content_modules",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_06",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "friction_reduction_deferral",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_06",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "friction_reduction_deferral",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_07",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_07",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_08",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_08",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "form_friction_reduction",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_09",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "price_presentation_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_09",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "price_presentation_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_10",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "offer_placement_and_contextual_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_10",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "offer_placement_and_contextual_framing",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_11",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "tab_navigation_retention",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_11",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "tab_navigation_retention",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_12",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "personalized_content_relevance",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_12",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "personalized_content_relevance",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_13",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "visual_perception_and_readability",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_13",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "visual_perception_and_readability",
+  "prevalence_flag": false,
+  "required_quantities": [
+   "per_arm_outcome_aggregates"
+  ],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_14",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "motivational_framing_prompt",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_14",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "motivational_framing_prompt",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_15",
+  "arm": "A",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "results_presentation_pagination_vs_infinite_scroll",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ },
+ {
+  "id": "cur_15",
+  "arm": "B",
+  "stratum": "curated",
+  "estimand": "primary",
+  "mechanism_family": "results_presentation_pagination_vs_infinite_scroll",
+  "prevalence_flag": false,
+  "required_quantities": [],
+  "decision": "abstain",
+  "direction": null,
+  "abstain_reason": "non_composition_mechanism"
+ }
+]

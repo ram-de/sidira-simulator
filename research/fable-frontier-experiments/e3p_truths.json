@@ -1,0 +1,362 @@
+[
+ {
+  "id": "gui_01",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/why-did-thomasnet-reject-a-registration-wall-a-b-test-with-a-record-1135-to-signups/ \u2014 'the effect was an astonishing +1135% relative increase' to signups.",
+  "notes": "Primary (signups): up, +1135% relative (baseline registration rate described as 'incredibly low', explaining the huge relative number). Guardrail engagement metric (visits to company profile pages): significant NEGATIVE, -18%. The Thomas team REJECTED the treatment because of the engagement loss despite the signup gain. Direction_primary follows the named primary metric (signups) per prereg; the guardrail reversal is the decision-relevant twist. Mapping rule used across this file: source's own strength language maps winner/'possible winner' -> up, 'possible loser' -> down, 'insignificant' -> flat."
+ },
+ {
+  "id": "gui_02",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/12-landing-page-patterns-for-42-more-leads-on-kensingtontours.com/ \u2014 'The measured effect was a relative 42% increase to leads.'",
+  "notes": "12-change bundled redesign, split test on paid traffic. No per-arm data or significance published; single relative effect in prose."
+ },
+ {
+  "id": "gui_03",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/6-signup-form-ui-changes-with-17-more-signups-for-thomasnet/ \u2014 title: '+17% More Signups'; body: 'As predicted, the positive probability patterns combined together for a positive impact.'",
+  "notes": "Effect number appears only in the title; body confirms positive outcome. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_04",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/4-checkout-ui-changes-for-a-highly-significant-1-sales-on-menufy-com/ \u2014 'The A/B test results showing a solid 1% increase to sales (measured by thank you page visits)'; title says 'Highly Significant +1%'.",
+  "notes": "Small but reported as highly significant. No per-arm data published."
+ },
+ {
+  "id": "gui_05",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/6-landing-page-changes-for-30-signups-on-bomgar-com/ \u2014 'The A/B test results showing a 30% increase to signups (measured by next page visits)'.",
+  "notes": "6-change bundle. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_06",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/insignificant-significance-why-reverb-com-rejected-a-winning-a-b-test/ \u2014 'a positive 4.3% increase to sales ... completed with a p-value of 0.04'.",
+  "notes": "Primary (sales): up, +4.3%, p=0.04. BUT the shallow funnel metric (negotiations started / form submissions) was only +0.1% insignificant, the mechanism explanation broke down, and Reverb REJECTED implementation as a suspected spurious result ('We saw no lift in form submissions and cannot explain the small lift ... in paid orders'). Direction_primary recorded as published/measured (up); treat as a low-confidence truth \u2014 the publisher itself doubts the causal reality of the measured direction."
+ },
+ {
+  "id": "gui_07",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/how-normanrecords-com-replicated-the-no-coupon-fields-pattern-successfully/ \u2014 'a very similar test that ran on Adoramapix.com where it generated 2.6% more sales.'",
+  "notes": "Adoramapix checkout no-coupon-field test: +2.6% sales, baseline ~70% checkout conversion. Description is pattern-level (exact variation rendering not shown); logged as an inclusion limitation in the audit log."
+ },
+ {
+  "id": "gui_08",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/how-normanrecords-com-replicated-the-no-coupon-fields-pattern-successfully/ \u2014 'Normanrecords.com detected a 2.4% increase (slight wider confidence interval). They decided to implement it from additional positive metrics aligning with this observed effect (ex: even greater revenue gains).'",
+  "notes": "Coupon field hidden behind 'add a voucher code' link: +2.4% sales, implemented; revenue reported as an even larger gain."
+ },
+ {
+  "id": "gui_09",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/7-pricing-screen-ui-changes-for-28-sales-on-examine-com/ \u2014 'The A/B test results showing a 28% increase to sales'.",
+  "notes": "7-change bundled pricing-screen test. No per-arm data or significance published."
+ },
+ {
+  "id": "gui_10",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/a-flawless-copy-paste-test-how-glass-net-replicated-the-canned-response-pattern/ \u2014 'Vivareal.com.br recorded a 16% lead gain from their test' (also: 'using the effect data from this test (+16% more leads)').",
+  "notes": "Vivareal canned-response lead-form test: +16% leads. Reported within the Glass.net replication post."
+ },
+ {
+  "id": "gui_11",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/a-flawless-copy-paste-test-how-glass-net-replicated-the-canned-response-pattern/ \u2014 'Glass.net measured a 17% lead increase (such a tight replication wasn't expected at all).'",
+  "notes": "+17% leads; described as a successful replication of the same pattern."
+ },
+ {
+  "id": "gui_12",
+  "direction_primary": "flat",
+  "truth_source": "https://goodui.org/blog/pattern-31-instant-results-increased-leads-for-vivareal-com-br/ \u2014 'This change boosted Leads by 1.6% with a sizeable margin of error (+/-2.1%). That's not much at all...'",
+  "notes": "Point estimate +1.6% but margin of error \u00b12.1% spans zero; publisher frames it as a small possible effect, not a significant win. Recorded as flat per prereg ('reported no significant difference'); point estimate retained here for magnitude scoring."
+ },
+ {
+  "id": "gui_13",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-74-publish-engaging-polls/ \u2014 'The result? A possible +4.3% increase to signups (measured with signup starts).'",
+  "notes": "Reported as a 'possible' (weak-significance) increase \u2014 GoodUI's possible-winner class. Direction up with reduced confidence."
+ },
+ {
+  "id": "gui_14",
+  "direction_primary": "flat",
+  "truth_source": "https://goodui.org/blog/evidence-74-publish-engaging-polls/ \u2014 'Test #75 actually changed the same headline ... to \"Polls For Your Facebook Page & Timeline\" with an insignificant negative effect of -1.8%.'",
+  "notes": "Explicitly labeled 'insignificant' by the source -> flat per prereg mapping; point estimate -1.8% retained for magnitude scoring."
+ },
+ {
+  "id": "gui_15",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-73-list-of-benefits/ \u2014 'The dashboard variation resulted with a possible +26% increase to leads (measured with visits to a driving instructor page).'",
+  "notes": "'Possible' strength qualifier \u2014 up with reduced confidence."
+ },
+ {
+  "id": "gui_16",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-72-passive-benefits/ \u2014 'The homepage variation ended with a +20% increase to signup intent (measured with visits to step 2 of the signup process).'",
+  "notes": "Multi-change homepage variation; stated without a hedging qualifier."
+ },
+ {
+  "id": "gui_17",
+  "direction_primary": "down",
+  "truth_source": "https://goodui.org/blog/evidence-71-social-proof-that-didnt-work/ \u2014 'The variation with the profile photos on the homepage showed a possible -6.6% decrease to searches.'",
+  "notes": "'Possible' (weak-significance) decrease \u2014 GoodUI's possible-loser class -> down with reduced confidence. Post title itself: 'Social Proof That Didn't Work'."
+ },
+ {
+  "id": "gui_18",
+  "direction_primary": "up",
+  "truth_source": "https://goodui.org/blog/evidence-70-least-or-most-expensive-plans-first/ \u2014 'The variation showed a possible +14% increase to premium (most expensive plan) sales while suffering from a slight -1.1% decrease in overall sales. There was a net revenue gain from this change.'",
+  "notes": "Composition/mix-shift case: premium sales +14% (possible), overall sales -1.1% (slight), net revenue reported as a gain. Direction_primary = up on the declared primary (net revenue). If the pipeline's estimand binds to overall sales instead, the published direction for that component is down/slightly-negative \u2014 record this ambiguity at scoring time."
+ },
+ {
+  "id": "_meta_goodui_source_caveat",
+  "direction_primary": null,
+  "truth_source": "assembler note, not a case",
+  "notes": "SOURCE-LEVEL CAVEAT (do not read before predictions are sealed): GoodUI's blog write-ups are a consultancy publishing its own client results and are likely to over-represent wins relative to a company-internal backlog; the truth distribution of this stratum slice should be interpreted with that selection bias in mind. This caveat is placed here (truths file) rather than in the backlog or audit log so it cannot leak into the prediction context."
+ },
+ {
+  "id": "ind_01",
+  "direction_primary": "up",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: clicks/user on the MSN home page +8.9% for triggered users.",
+  "notes": "Caveat from Kohavi et al., Five Puzzling Outcomes, KDD 2012 \u00a73.2: the majority of the measured effect for non-IE browsers was a click-beacon logging artifact (new-tab clicks were more likely to be recorded). The papers nonetheless report the long-term effect as positive and the feature shipped and remains live on the MSN home page. Direction retained as up per the published account, with reduced magnitude confidence."
+ },
+ {
+  "id": "ind_02",
+  "direction_primary": "up",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: clicks per user +5%, 12M+ users; described as one of MSN's best engagement features, implemented.",
+  "notes": "Same click-beacon artifact class as ind_01 potentially applies to some of the magnitude; feature shipped."
+ },
+ {
+  "id": "ind_03",
+  "direction_primary": "up",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: users more successful completing tasks, time-to-success improved, monetization up >$10M annually; replicated on 32M users and results held.",
+  "notes": "Treatment better on time-to-success (time decreased) and on companion metrics. The described variant is the deployed one (publication-bias limitation logged in audit file)."
+ },
+ {
+  "id": "ind_04",
+  "direction_primary": "up",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1 (also Kohavi & Round 2004): the cart-page placement with savings math was worth tens of millions of dollars in profit annually.",
+  "notes": "Treatment better on profit per user; shipped."
+ },
+ {
+  "id": "ind_05",
+  "direction_primary": "up",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 1: improvements to all of Bing's key metrics including sessions/user; users quicker to succeed; annual revenue up several million dollars; page load time faster by hundreds of milliseconds for triggered pages.",
+  "notes": "Treatment (blocking third-party DOM modification) better across the board; shipped."
+ },
+ {
+  "id": "ind_06",
+  "direction_primary": "down",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 2 (citing Crook et al., KDD 2009): 64% reduction in clicks per user on revenue-generating links for the treatment page.",
+  "notes": "Direction is on the named primary metric (clicks on revenue links). The papers report the treatment's fewer clickers were better qualified with a much higher click-to-purchase conversion rate \u2014 the stable-conversion proxy assumption was wrong; the effect on actual purchases is not published. Classic surrogate-metric lesson case."
+ },
+ {
+  "id": "ind_07",
+  "direction_primary": "down",
+  "truth_source": "Marissa Mayer, Web 2.0 talk (via Linden blog; cited in KDD 2014): traffic and revenue from the 30-result group dropped by 20%.",
+  "notes": "Secondhand. Latency confound: the 30-result page took ~0.5s longer to generate; Kohavi et al. argue (via Bing slowdown calibration) latency explains only a small part, attributing the rest to the ads/results ratio. Direction on the primary metric is unambiguous in the account: down."
+ },
+ {
+  "id": "ind_08",
+  "direction_primary": "down",
+  "truth_source": "Kohavi et al., KDD 2013 / KDD 2014 Rule 4: every 100ms of added delay decreased revenue ~0.6% (equivalently, 100ms speedup improves revenue 0.6%); highly significant.",
+  "notes": "Treatment = added delay, so treatment worse on revenue/user. Linear dose-response confirmed across slowdown amounts at Bing."
+ },
+ {
+  "id": "ind_09",
+  "direction_primary": "down",
+  "truth_source": "Brutlag, Speed Matters, Google Research blog, 2009: searches per user declined 0.2% to 0.6% depending on delay dose (100\u2013400ms), with the effect growing over the experiment; persisted after delay removal.",
+  "notes": "Treatment (delay) worse on searches/user. First-party source."
+ },
+ {
+  "id": "ind_10",
+  "direction_primary": "down",
+  "truth_source": "Greg Linden, Make Data Useful (2006), cited in KDD 2014 Rule 4: +100ms delay decreased sales by ~1% at Amazon.",
+  "notes": "Secondhand retrospective; single summary figure; direction consistent with ind_08/ind_09."
+ },
+ {
+  "id": "ind_11",
+  "direction_primary": "flat",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 4: delaying right-pane elements by 250ms produced no detectable impact on key metrics, despite an experiment of almost 20 million users.",
+  "notes": "Reported as a well-powered null: right-pane timing, unlike whole-page latency, did not move key metrics."
+ },
+ {
+  "id": "ind_12",
+  "direction_primary": "flat",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.64); clicks shifted to other areas of the page.",
+  "notes": "Primary (abandonment) flat; local/feature metrics moved (click redistribution) \u2014 the rule-of-thumb's point."
+ },
+ {
+  "id": "ind_13",
+  "direction_primary": "flat",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.71).",
+  "notes": "Secondary feature metric: clickthrough-rate on the pinned related searches declined 17% (statistically significant). Primary page-level metric flat."
+ },
+ {
+  "id": "ind_14",
+  "direction_primary": "flat",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: abandonment rate did not change statistically significantly (p=0.92); pages faster; the truncated design was released.",
+  "notes": "Well-powered null on the primary metric with a positive speed side-benefit; shipped."
+ },
+ {
+  "id": "ind_15",
+  "direction_primary": "down",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: 1.8% reduction in revenue, 30ms page-load-time slowdown, 18% reduction in pagination; abandonment rate did not change (p=0.93). Change not released.",
+  "notes": "Treatment worse on the primary metric (revenue/user); killed."
+ },
+ {
+  "id": "ind_16",
+  "direction_primary": "down",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 5: the treatment ad background color caused a 12% decline in revenue (annualized loss of over $150M had it shipped); users shifted clicks to other areas; abandonment flat (p=0.83). Not released.",
+  "notes": "Treatment worse on revenue/user; killed."
+ },
+ {
+  "id": "ind_17",
+  "direction_primary": "down",
+  "truth_source": "Kohavi et al., Seven Rules of Thumb, KDD 2014, Rule 6: the first experiment with all changes lumped together 'tanked' many key metrics (clicks and revenue down).",
+  "notes": "The bundle direction is down. Attribution postscript in the source: features removed from the landing page (not unified search itself) were responsible; after restoring them, unified search was positive and deployed to everyone. Truth recorded for the tested bundle as run."
+ },
+ {
+  "id": "ind_18",
+  "direction_primary": "up",
+  "truth_source": "Netflix TechBlog Decision Making at Netflix series (2021): the Top 10 test succeeded on the engagement decision metric and the row was rolled out to production for all members; Netflix launched the Top 10 row globally in 2020.",
+  "notes": "Direction from first-party series narrative plus global ship decision; no effect sizes published."
+ },
+ {
+  "id": "ind_19",
+  "direction_primary": "up",
+  "truth_source": "First Round Review interview with Gina Gotthilf (Duolingo VP Growth), quote verified verbatim: 'That led to a six percent increase in our DAUs. It was six lines of code.' A V2 of the dot added a further 1.6% DAU.",
+  "notes": "Secondhand interview but direct first-party quote; treatment better on DAU."
+ },
+ {
+  "id": "ind_20",
+  "direction_primary": "up",
+  "truth_source": "First Round Review interview with Gina Gotthilf, quote verified verbatim: 'Simply moving the sign-up screen back a few steps led to about a 20% increase in DAUs.' Subsequent hard/soft wall optimizations added a further 8.2% DAU.",
+  "notes": "Truth recorded for the initial delayed-sign-up move (the described treatment): up on DAU. The 'Later' button rewording is reported as improving conversions within the same program."
+ },
+ {
+  "id": "hil_01",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_02",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_03",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "hil_04",
+  "direction_primary": "up",
+  "truth_source": "Full Hillstrom dataset (64,000 rows): email-arm rate minus no-email rate on the case metric; 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = email arm beats no-email holdout on the metric; pilot subsample NOT used for truth."
+ },
+ {
+  "id": "cc_01",
+  "direction_primary": "down",
+  "truth_source": "Pooled per-arm rates computed from e1_cookiecats_tables.json (user-weighted across engagement bins; full experiment); 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = gate_40 (treatment) beats gate_30 (control) on the retention metric."
+ },
+ {
+  "id": "cc_02",
+  "direction_primary": "down",
+  "truth_source": "Pooled per-arm rates computed from e1_cookiecats_tables.json (user-weighted across engagement bins; full experiment); 'flat' if absolute difference < 0.1 percentage points. Computed by e3p_hillstrom_build.py.",
+  "notes": "up = gate_40 (treatment) beats gate_30 (control) on the retention metric."
+ },
+ {
+  "id": "cur_01",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'cookiecats_gate_move' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_02",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'duolingo_weekend_amulet' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_03",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_realestate_widget' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_04",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'office_online_redesign' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_05",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_homepage_extra_offers' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_06",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'tinkoff_defer_passport' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_07",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'cxl_form_fields_9_to_6' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_08",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'multistep_form_3_vs_6' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_09",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'price_com_hk_price_ranges' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_10",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'amazon_credit_card_offer_relocation' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_11",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_hotmail_link_new_tab' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_12",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'msn_support_personalized_answers' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_13",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'pinterest_signup_color_scheme' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_14",
+  "direction_primary": "up",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'linkedin_volunteer_section_value_copy' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ },
+ {
+  "id": "cur_15",
+  "direction_primary": "down",
+  "truth_source": "PORTFOLIO_CASES_V3.json real_winner field for source case 'etsy_infinite_scroll_search' (primary-source-verified published winner).",
+  "notes": "up = treatment beats control on the (higher-is-better) primary metric; mapped by e3p_hillstrom_build.py."
+ }
+]
