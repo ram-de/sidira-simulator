@@ -89,6 +89,53 @@ We score **direction only** — sign + confidence/abstain. Magnitude stays backs
 Cookie Cats lesson: right sign, ~40% magnitude error). See
 `founder-readout/why-sidira-beats-pm-insight.md` §7.
 
+## Calibrator (the #222 slice)
+
+`calibrator.py` is the predicted-vs-measured **scorer** — "the empty slot #222 waits for."
+It reads the three artifacts and computes calibration over N paired cases. It is the
+**NARROW calibrator-wiring slice** of ticket #222, **NOT** the full Tier-0 benchmark harness
+(Upworthy 22k held-out headlines, Hewitt archive, Hillstrom/Criteo end-to-end, the
+150–200-experiment null-integrity + power suite) — that stays a separate, founder-gated,
+cross-repo epic. Wiring this slice does **not** close #222.
+
+**The WIN definition:** a win is `engine_blind` sign **vs** `measured` sign — and ONLY that.
+The sealed `human_truth` hypothesis is a third, separate artifact and is **never scored**
+(3-artifact role-separation). Neither side is ever authored to match the other; both are read
+verbatim. Per case:
+
+- measured `winner` → sign (`treatment` → `+`, `control` → `-`, `tie` → `0`); or, from a
+  studystore `measured` block, its `sign` (`~0` → `0`). Compared to the engine's blind sign.
+- **hit** (signs agree) · **miss** (both directional, disagree) · **abstain** (engine
+  declined → excluded from directional accuracy, counted separately — an abstain is honest,
+  not a miss) · **tie-excluded** (measured tie) · **unscorable** (malformed artifact — flagged,
+  never raises).
+
+**Outputs** (a `CALIBRATION_REPORT.md` + a machine-readable `.json`):
+
+- **Directional accuracy** = hits / (hits + misses) over non-abstain, non-tie cases (the WIN
+  metric), with the **abstain rate reported alongside**.
+- **Guard × correctness table** — for each guard verdict (`CONFIRMS` / `CONTRADICTS` /
+  `CANT-VALIDATE`) the hit/miss/abstain breakdown (the watchdog's real-world validation slot:
+  does `CONFIRMS` correlate with hits? does `CANT-VALIDATE` correctly abstain?).
+- **Null-integrity check** — cases flagged placebo/null (a `null_case: true` prereg marker, or
+  an A/A `groundTruthName`) must predict ≈ abstain/tie; a directional prediction on a null case
+  is a counted **violation** (the A/A honesty check, §222 item 3 in miniature).
+- **Power honesty** — N and a loud caveat baked into the report text: directional accuracy from
+  < ~150 cases is NOT a track-record claim (Kohavi's "always-flat scores 67–90%" /
+  20-experiment-pilot warning).
+
+**SCAFFOLD — dormant until real sealed pairs land.** No real engine_blind/measured pairs exist
+yet (Senu is founder-gated / not operationally producing results), so the scorer runs on the
+shipped `examples/` fixtures as a dry demo and is otherwise dormant. Pure stdlib + the
+study-store modules; no network, no LLM, no prod imports.
+
+```bash
+PY=/opt/homebrew/bin/python3.11
+$PY calibrator.py --from-examples            # dry demo on the shipped fixtures (no network)
+$PY calibrator.py --store studies.jsonl      # score the real store (latest line per case_id)
+# both write CALIBRATION_REPORT.md + CALIBRATION_REPORT.json (override with --out)
+```
+
 ## Usage
 
 ```bash
@@ -159,6 +206,8 @@ customer's product** ("`cap_off` = we removed the skip-cap"). That mapping is a 
 | `senu_export_to_benchmarkcase.py` | The adapter. Mechanical `ground_truth` (works now) + `capability`/`hypothesis` from the arm dictionary. |
 | `examples/` | A synthetic arm dictionary + envelope so the whole chain runs end-to-end. |
 | `test_adapter.py` | Plain-python smoke test (`python3.11 test_adapter.py`). |
+| `calibrator.py` | The #222-slice scorer: engine-blind vs measured directional accuracy + guard×correctness + null-integrity + power-honesty. `--from-examples` / `--store`. |
+| `test_calibrator.py` | pytest for the calibrator (hit/miss/abstain/tie/null/unscorable + power caveat). |
 
 ## Confidentiality
 
