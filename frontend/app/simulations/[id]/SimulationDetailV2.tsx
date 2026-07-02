@@ -38,6 +38,7 @@ import {
   getSimulationState,
   isTerminalStatus,
   listSimulationAgents,
+  type DirectionVerdict,
   type Hypothesis,
   type LineageEntry,
   type RunEvent,
@@ -183,6 +184,90 @@ function verdictFor(
   if (s >= 60) return { label: "DIRECTIONAL — BELOW SHIP THRESHOLD" };
   // Codex P3 (#166): a sub-60 score IS low agreement — say so.
   return { label: "LOW SIM AGREEMENT · DO NOT SHIP" };
+}
+
+// ── direction-only decision verdict (Epic #538, #545) ────────────────────────
+// The rewired watchdog pipeline's customer-facing verdict: a SIGN + a
+// confidence/abstain, structurally NEVER a magnitude (backend DirectionVerdict is
+// extra="forbid" with no float field). This surface is ADDITIVE and DORMANT: it
+// renders only when `result.decision_verdict` is present (backend deploy +
+// SIDIRA_DECISION_FLOW_ENABLED, both founder-gated). Null/absent → renders
+// nothing, so the page is byte-identical to today for every existing run.
+//
+// Honesty law (DESIGN.md §8.1 / §8.2): the verdict carries its policy (the
+// "why this verdict" line names the source + watchdog stamp + caution); the word
+// carries the polarity, color never carries state alone — so this reuses the same
+// hollow-glyph `.vchip` idiom as the legacy verdict, with NO ship-green /
+// hold-red fill. Direction sign is a glyph, not a magnitude.
+function DecisionVerdictPanel({ verdict }: { verdict: DirectionVerdict }) {
+  // Sign glyph — ↑ positive / ↓ negative / ◇ hollow (no arrow) on abstain.
+  const sign =
+    verdict.direction === "positive"
+      ? "↑"
+      : verdict.direction === "negative"
+        ? "↓"
+        : "◇";
+  // Trust register — the word carries the state (§4.3 / §8.2), no semantic fill.
+  // Rides beside the chip like the legacy `POLICY DR-1` designator.
+  const register =
+    verdict.caution === "none"
+      ? "GROUNDED"
+      : verdict.caution === "moderate"
+        ? "UNVERIFIED"
+        : "INCONCLUSIVE";
+  // "Why this verdict" (§8.1) — ties the verdict to its basis: the source
+  // (grounded/empirical vs LLM fallback), the watchdog stamp, and the caution.
+  const sourceWord =
+    verdict.source === "grounded" ? "GROUNDED (EMPIRICAL)" : "LLM FALLBACK";
+  const watchdogStamp = verdict.watchdog_verdict
+    ? ` · WATCHDOG ${verdict.watchdog_verdict}`
+    : "";
+  const whyLine = `WHY: ${sourceWord}${watchdogStamp} · CAUTION ${verdict.caution.toUpperCase()} · DIRECTION ONLY — NO MAGNITUDE`;
+  // Abstain / unverified labeling — never present an unverified take as settled.
+  // Abstain (direction null ⇒ caution hard) reads "inconclusive — test it";
+  // an unverified (LLM-fallback, moderate) take reads "hypothesis, not verdict".
+  const abstainHeader =
+    verdict.unverified || verdict.direction === null
+      ? verdict.direction === null || verdict.caution === "hard"
+        ? "INCONCLUSIVE — TEST IT"
+        : "UNVERIFIED — HYPOTHESIS, NOT VERDICT"
+      : null;
+  const guardrails = verdict.guardrails ?? [];
+  return (
+    <div className="decision-verdict">
+      <div className="verdicttag-row">
+        <span className="vchip">
+          <span className="vg">{sign}</span>
+          {verdict.label}
+        </span>
+        <span className="desig">{register}</span>
+      </div>
+      <div className="whyline">{whyLine}</div>
+      {abstainHeader != null && (
+        <div className="note">
+          <div className="nh">{abstainHeader}</div>
+        </div>
+      )}
+      {/* Guardrail-metric panel beside the headline (#545): sibling +
+          negative-control NAMES + roles only — the breadth of what was watched,
+          never a magnitude. Empty → renders nothing. */}
+      {guardrails.length > 0 && (
+        <div className="note">
+          <div className="nh">GUARDRAILS WATCHED</div>
+          <ul>
+            {guardrails.map((g, i) => (
+              <li key={`${g.name}-${i}`}>
+                <b>{g.name}</b>
+                {" — "}
+                {g.role === "negative_control" ? "NEGATIVE CONTROL" : "SIBLING"}
+                {g.note ? ` · ${g.note}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── number helpers (from ReadingConsoleResults) ──────────────────────────────
@@ -396,6 +481,11 @@ const RCONSOLE_CSS = `
 .rconsole .whyline{font-size:12px; letter-spacing:.02em; line-height:1.7;
   color:var(--text-mut); max-width:78ch;}
 .rconsole .whyline .em{color:var(--text);}
+/* direction-only decision verdict (#545) — additive block under the legacy
+   verdict; a hairline rule separates it. Its chip/why/note reuse the shared
+   .vchip/.whyline/.note idioms; no new colors. */
+.rconsole .decision-verdict{margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--console-line);}
 
 /* disclosure note (out_of_scope / input-lint / degraded A/B) — a data
    condition, NOT an alarm: hairline rule border, message in ink, no tint. */
@@ -1760,6 +1850,18 @@ export default function SimulationDetailV2() {
               </div>
 
               <div className="whyline">{whyLine}</div>
+
+              {/* Direction-only watchdog verdict (Epic #538, #545) — ADDITIVE,
+                  dormant until the backend deploy + SIDIRA_DECISION_FLOW_ENABLED
+                  flip. Null/absent → renders nothing (page byte-identical for
+                  every existing run). No magnitude — sign + confidence/abstain.
+                  Suppressed on out_of_scope runs: the §8.2 instrument-scope
+                  abstention is categorical and outranks the direction verdict —
+                  showing one under "NOT ANSWERABLE BY THIS INSTRUMENT" would be
+                  contradictory guidance. */}
+              {completeResult?.decision_verdict != null && !abstained && (
+                <DecisionVerdictPanel verdict={completeResult.decision_verdict} />
+              )}
 
               {/* #311 / T2 — instrument-scope abstention note. Inspectable named
                   reasons: the withheld verdict always carries WHY. A data

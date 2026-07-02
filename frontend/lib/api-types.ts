@@ -2638,6 +2638,60 @@ export interface components {
             metric_sentiment_disagreement: boolean;
             /** Metric Sentiment Disagreement Caveat */
             metric_sentiment_disagreement_caveat?: string | null;
+            /**
+             * Decision Verdict
+             * @description Direction-only watchdog verdict (Epic #538, #545). Additive; null on flag-off (SIDIRA_DECISION_FLOW_ENABLED) or runs that predate the rewire. Carries a sign + confidence/abstain, NEVER a magnitude.
+             */
+            decision_verdict?: components["schemas"]["DirectionVerdict"] | null;
+        };
+        /**
+         * GuardrailMetric
+         * @description One guardrail metric surfaced beside the headline (NAME + role, no number).
+         */
+        GuardrailMetric: {
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "sibling" | "negative_control";
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * DirectionVerdict
+         * @description The customer-facing verdict: sign + confidence/abstain, NEVER a magnitude (Epic #538, #545).
+         */
+        DirectionVerdict: {
+            /** Direction */
+            direction: "positive" | "negative" | null;
+            /**
+             * Caution
+             * @enum {string}
+             */
+            caution: "none" | "moderate" | "hard";
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "low";
+            /** Label */
+            label: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "grounded" | "llm_fallback";
+            /** Watchdog Verdict */
+            watchdog_verdict?: string | null;
+            /**
+             * Unverified
+             * @default false
+             */
+            unverified: boolean;
+            /** Guardrails */
+            guardrails?: components["schemas"]["GuardrailMetric"][];
         };
         /**
          * SimulationRunState

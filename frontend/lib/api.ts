@@ -239,6 +239,11 @@ export interface SimulationComparison {
 }
 export type SimulationResult = components["schemas"]["SimulationResult"];
 export type InputFlags = components["schemas"]["InputFlags"];
+// Direction-only watchdog verdict (Epic #538, #545) — sign + confidence/abstain,
+// never a magnitude. Additive on SimulationResult.decision_verdict (null on
+// flag-off / pre-rewire runs).
+export type DirectionVerdict = components["schemas"]["DirectionVerdict"];
+export type GuardrailMetric = components["schemas"]["GuardrailMetric"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type ModelInfo = components["schemas"]["ModelInfo"];
 export type ListModelsResponse = components["schemas"]["ListModelsResponse"];
