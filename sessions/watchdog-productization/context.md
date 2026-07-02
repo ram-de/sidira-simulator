@@ -48,8 +48,8 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
   - [x] #544 re-ground talk-to-users conversation on computed results — MERGED PR #556
   - [x] #545 direction-only output contract + triage + guardrail breadth — MERGED (backend PR #558 + frontend PR #560)
 - **Phase 3 — discipline + loop-close**
-  - [ ] #546 model-robustness regression harness (sealed battery per new model)
-  - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
+  - [x] #546 model-robustness regression harness (sealed battery per new model) — MERGED PR #561
+  - [x] #222 calibrator wiring SLICE (grounded-blind vs measured, via the study-store adapter) — MERGED PR #562 (slice only; full #222 epic stays open)
 
 ## In Progress — PHASE 1 DONE (#539–#542). Phase 2: #543,#544 DONE, now #545 (the big one).
 - [ ] **Iteration 7 = #545** direction-only output contract + triage + guardrail breadth + FRONTEND
@@ -160,12 +160,33 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       scorecards: Opus 0.68/flip-0.50-pessimist, gpt-5.5 flip-0.00, grounded flip-1.00). Research-only,
       no keys echoed, no partner material. NOTE: this build agent hit a transient 529 mid-run;
       RESUMED via SendMessage (work intact) → finished clean.
-- [ ] **#222 CALIBRATOR-WIRING SLICE (NOT the full epic) — launched.** Scorer reading study-store
-      3-artifacts: WIN = engine_blind.sign vs measured GroundTruth.winner ONLY (human_truth NOT
-      scored). Outputs directional-accuracy + abstain-rate + guard×correctness table + null-integrity
-      + power-honesty caveat. SCAFFOLD — 0 real pairs (Senu founder-gated), runs on fixtures. Does
-      NOT close #222 (full Tier-0 = Upworthy/Hewitt/Hillstrom/Criteo/power, separate founder-gated
+- [x] **#222 CALIBRATOR-WIRING SLICE (NOT the full epic) — MERGED (PR #562).** `calibrator.py` +
+      CLI (`--from-examples`/`--store`) + 20 tests + README §Calibrator. WIN = engine_blind.sign vs
+      measured GroundTruth.winner ONLY (human_truth NOT scored; both read verbatim). Directional acc
+      = hits/(hits+misses) over non-abstain/non-tie; abstain reported alongside (honest non-answer);
+      tie-excluded; null/placebo directional prediction → null-integrity VIOLATION; malformed →
+      unscorable (never raises); loud <150-case power caveat. codex P2 fixed (--store skips
+      RUNNING/PENDING/VOID). 24 tests pass, dry-run offline works. SCAFFOLD — 0 real pairs (Senu
+      founder-gated), runs on fixtures. Does NOT close #222 (full Tier-0 = separate founder-gated
       cross-repo epic). Research-only.
+
+## ✅ EPIC #538 CODE-COMPLETE (2026-07-02). All 7 sub-tickets + frontend + 2 research harnesses merged.
+Merged PRs: #551(539) #552(540) #553(541) #554(542) #555(543) #556(544) #558(545-be) #560(545-fe)
+#561(546) #562(222-slice). Each: fresh worktree agent → ruff+pytest → codex → independent verify →
+squash-merge → cleanup. All prod code ships behind `SIDIRA_DECISION_FLOW_ENABLED` (OFF) → prod
+behaviour UNCHANGED. One 529 crash on #546 recovered via resume.
+
+## REMAINING — THE ONE DEFERRED ACTION (founder)
+- [ ] **Epic-end backend deploy** (founder-gated, DEFERRED by choice 2026-07-01). Run codex
+      deploy/REDEPLOY.md: it does the staleness + migration diff; will carry the off-by-default
+      watchdog code + the 4 pending 018-021 migrations (conversations/conv_user_id/
+      experiment_connections/audit_log). Needs founder auth for SIDIRA_AUTO_MIGRATE SSM toggle
+      (0→1→0). Verify 018-021 applied + routes resolve in-container (401=exists, not bare curl).
+      Frontend already auto-deployed via Amplify on each merge (verdict panel dormant until flag).
+- [ ] **Then flag-flip per-build** (founder): SIDIRA_DECISION_FLOW_ENABLED to activate the chain on
+      a chosen customer/build; the watchdog guard is a LEAD not promoted — flip on where data warrants.
+- [ ] **Producer follow-on** (noted #541): sidira-personas manifest_builder does NOT emit the NC-guard
+      fields yet → until it does, guard_trips=None → watchdog CANT_VALIDATE (honest). Separate ticket.
 - [x] **#544 re-ground talk-to-users conversation — MERGED (PR #556).** New
       `services/grounded_agent_chat.py` (agent_chat.py UNTOUCHED): `GroundedAgentChatService.send_message`
       → spokesperson-for-the-numbers. `GroundedRecord.from_decision(DecisionResult)`; `classify_pm_message`
