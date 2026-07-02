@@ -46,7 +46,7 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
 - **Phase 2 — surfaces**
   - [x] #543 3-model heterogeneous-bias council (abstain-siren / caution-dial) — MERGED PR #555
   - [x] #544 re-ground talk-to-users conversation on computed results — MERGED PR #556
-  - [ ] #545 direction-only output contract + triage + guardrail breadth + FRONTEND lever/verdict
+  - [x] #545 direction-only output contract + triage + guardrail breadth — MERGED (backend PR #558 + frontend PR #560)
 - **Phase 3 — discipline + loop-close**
   - [ ] #546 model-robustness regression harness (sealed battery per new model)
   - [ ] #222 calibrator wiring (grounded-blind vs measured, via the study-store adapter)
@@ -137,6 +137,18 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       At epic end: run codex deploy/REDEPLOY.md (it does its own staleness + migration diff); founder
       auth needed for the migration toggle; verify 018-021 applied + routes resolve in-container.
       Loop continues on buildable code (#545-frontend, #546, #222) meanwhile.
+- [x] **#545 FRONTEND verdict + guardrail panel — MERGED (PR #560).** `SimulationDetailV2.tsx`
+      (the real page; page.tsx is an 8-line wrapper) `DecisionVerdictPanel`: direction-only sign
+      glyph (↑/↓/◇-no-arrow-on-abstain) + label + "why this verdict" line (source/watchdog/caution,
+      §8.1) + unverified/inconclusive labeling + guardrail panel (sibling/NC names only). Reads ONLY
+      string/enum fields (grep-confirmed NO magnitude). `api-types.ts`+`api.ts` DirectionVerdict type.
+      Gated `decision_verdict != null && !abstained` → null/older/flag-off/out-of-scope renders
+      NOTHING (page byte-identical). codex P2 fix: suppress on out_of_scope. typecheck + `next build`
+      pass (verified myself). Frontend-only. DESIGN.md §8.1/§8.2 clean (hollow-glyph register, word
+      carries state, no new colors). Amplify auto-deploys on merge but DORMANT until backend
+      deploy + flag flip.
+
+## PHASE 3 (final) — #546 model-robustness regression + #222 calibrator, then the epic-end deploy.
 - [x] **#544 re-ground talk-to-users conversation — MERGED (PR #556).** New
       `services/grounded_agent_chat.py` (agent_chat.py UNTOUCHED): `GroundedAgentChatService.send_message`
       → spokesperson-for-the-numbers. `GroundedRecord.from_decision(DecisionResult)`; `classify_pm_message`
