@@ -519,17 +519,35 @@ def example_pairs() -> list[tuple[dict, dict]]:
 # --------------------------------------------------------------------------- #
 # Store loading
 # --------------------------------------------------------------------------- #
-def load_store_pairs(store_path: Path) -> list[tuple[dict, dict, str]]:
+# Non-final store statuses whose records are not yet a sealed engine_blind/measured pair.
+_NON_FINAL_STATUS = {"RUNNING", "PENDING", "VOID"}
+
+
+def load_store_pairs(store_path: Path) -> tuple[list[tuple[dict, dict, str]], int]:
     """Read a studystore JSONL, keep the latest line per case_id, and return
-    (engine_blind, measured, case_id) triples ready to score."""
+    ``(pairs, skipped)`` where ``pairs`` is the (engine_blind, measured, case_id) triples
+    for the SCORABLE records only.
+
+    A studystore holds records at every lifecycle stage (RUNNING / PENDING / SCORED /
+    ABSTAINED / VOID), and `append_case` defaults an unfilled record to empty
+    engine_blind/measured blocks. Only records that are actually PAIRED — a non-empty
+    engine_blind AND a non-empty measured, and not VOID / still-running — are calibration
+    cases. Unpaired / non-final rows are SKIPPED (not counted as `unscorable`), so pending
+    or voided studies never make the report look noisier than it is."""
     from studystore import latest_by_id
 
     cases = [json.loads(ln) for ln in store_path.read_text().splitlines() if ln.strip()]
     pairs: list[tuple[dict, dict, str]] = []
+    skipped = 0
     for rec in latest_by_id(cases):
-        pairs.append((rec.get("engine_blind") or {}, rec.get("measured") or {},
-                      rec.get("case_id", "unknown")))
-    return pairs
+        engine_blind = rec.get("engine_blind") or {}
+        measured = rec.get("measured") or {}
+        status = (rec.get("status") or "").upper()
+        if status in _NON_FINAL_STATUS or not engine_blind or not measured:
+            skipped += 1
+            continue
+        pairs.append((engine_blind, measured, rec.get("case_id", "unknown")))
+    return pairs, skipped
 
 
 # --------------------------------------------------------------------------- #
@@ -548,14 +566,16 @@ def main() -> None:
                     help="markdown report path (a .json sibling is written too)")
     args = ap.parse_args()
 
+    skipped = 0
     if args.from_examples:
         source = "examples/ (dry demo — SYNTHETIC, not real results)"
         report = calibrate(example_pairs())
     else:
         store_path = Path(args.store)
+        pairs, skipped = load_store_pairs(store_path)
         source = str(store_path)
         report = CalibrationReport(cases=[
-            score_case(eb, me, case_id=cid) for eb, me, cid in load_store_pairs(store_path)
+            score_case(eb, me, case_id=cid) for eb, me, cid in pairs
         ])
 
     md = render_markdown(report, source)
@@ -565,7 +585,8 @@ def main() -> None:
     out_json.write_text(json.dumps(report.to_dict(), indent=2))
 
     da = report.directional_accuracy
-    print(f"calibrator: scored {report.n_total} case(s) from {source}")
+    print(f"calibrator: scored {report.n_total} paired case(s) from {source}"
+          + (f" ({skipped} unpaired/non-final record(s) skipped)" if skipped else ""))
     print(f"  directional accuracy: "
           f"{'—' if da is None else f'{report.hits}/{report.hits + report.misses} ({da * 100:.1f}%)'} "
           f"| abstains {report.abstains} | tie-excl {report.tie_excluded} "

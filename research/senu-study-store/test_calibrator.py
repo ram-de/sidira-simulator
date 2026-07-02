@@ -174,7 +174,40 @@ def test_null_violation_counted_in_report():
     assert r.null_cases == 2 and r.null_violations == 1
 
 
+# --- store loading skips unpaired / non-final rows -------------------------- #
+def test_load_store_pairs_skips_unpaired_and_nonfinal(tmp_path):
+    import json as _json
+
+    from calibrator import load_store_pairs
+
+    recs = [
+        # SCORED + paired → included
+        {"case_id": "senu:S1:sch.v1:m", "status": "SCORED",
+         "engine_blind": {"sign": "+", "guard": "CONFIRMS"}, "measured": {"sign": "+"}},
+        # PENDING (empty measured) → skipped
+        {"case_id": "senu:S2:sch.v1:m", "status": "PENDING",
+         "engine_blind": {}, "measured": {}},
+        # RUNNING → skipped
+        {"case_id": "senu:S3:sch.v1:m", "status": "RUNNING",
+         "engine_blind": {"sign": "+"}, "measured": {}},
+        # VOID (even if it has both blocks) → skipped
+        {"case_id": "senu:S4:sch.v1:m", "status": "VOID",
+         "engine_blind": {"sign": "+"}, "measured": {"sign": "+"}},
+        # ABSTAINED + paired → included
+        {"case_id": "senu:S5:sch.v1:m", "status": "ABSTAINED",
+         "engine_blind": {"sign": "abstain", "guard": "CANT-VALIDATE"}, "measured": {"sign": "-"}},
+    ]
+    store = tmp_path / "studies.jsonl"
+    store.write_text("\n".join(_json.dumps(r) for r in recs) + "\n")
+
+    pairs, skipped = load_store_pairs(store)
+    assert skipped == 3  # PENDING, RUNNING, VOID
+    ids = {cid for _, _, cid in pairs}
+    assert ids == {"senu:S1:sch.v1:m", "senu:S5:sch.v1:m"}
+
+
 if __name__ == "__main__":
     import sys
+
     import pytest
     sys.exit(pytest.main([__file__, "-q"]))
