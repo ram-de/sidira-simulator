@@ -119,6 +119,24 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       `request_timeout` to llm.py clients + get_chat_client (default None = every existing caller
       byte-identical — verified). 16 council tests, 143 in-chain pass. Off-by-default; NO redeploy.
       Real-model campaign reproduction = founder-gated/offline (unit tests reproduce aggregation).
+- [x] **#545 BACKEND direction-only output contract — MERGED (PR #558).** `schemas/verdict.py`
+      (`DirectionVerdict` extra="forbid" + NO float field → structurally magnitude-free; validator
+      enforces confidence⇐caution + abstain⇔direction-None+hard). Additive `decision_verdict` on
+      `SimulationResult` (rides result_json blob, migration-free, None for old rows). Sidecar persist
+      `customers/{cid}/simulations/{sid}/decision_verdict.json` in the #542 hook (best-effort, never
+      breaks run). GET read = flag-gated + thread-offloaded + 2s timeout + guarded (never 500/hang;
+      null when off/absent). `services/triage.py` `triage_backlog` ranker (skip/test/this-one-loses,
+      service-only, endpoint deferred). Guardrail names (sibling+NC). 40 new tests; full suite
+      1942 pass / same 4 pre-existing fails / 0 new. Independently verified contract+GET+sidecar
+      before merge. OFF-by-default → prod behaviour unchanged.
+- [ ] **[DEPLOY — DEFERRED by founder 2026-07-01]** DECISION: defer the backend redeploy; do ONE
+      migration-aware deploy at EPIC END (not mid-epic). Rationale: watchdog code is
+      off-by-default/dormant → zero prod urgency; a redeploy now would carry 4 UNRELATED pending DB
+      migrations (018-021, conversations/conv_user_id/experiment_connections/audit_log, landed
+      2026-06-26 AFTER last deploy ~06-23) needing SIDIRA_AUTO_MIGRATE SSM toggle + per-migration auth.
+      At epic end: run codex deploy/REDEPLOY.md (it does its own staleness + migration diff); founder
+      auth needed for the migration toggle; verify 018-021 applied + routes resolve in-container.
+      Loop continues on buildable code (#545-frontend, #546, #222) meanwhile.
 - [x] **#544 re-ground talk-to-users conversation — MERGED (PR #556).** New
       `services/grounded_agent_chat.py` (agent_chat.py UNTOUCHED): `GroundedAgentChatService.send_message`
       → spokesperson-for-the-numbers. `GroundedRecord.from_decision(DecisionResult)`; `classify_pm_message`
