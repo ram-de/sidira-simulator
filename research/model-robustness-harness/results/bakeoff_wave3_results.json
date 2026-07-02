@@ -1,0 +1,808 @@
+{
+  "config": {
+    "K": 8,
+    "nsub": 6000,
+    "ratio": 1.5,
+    "rf": {
+      "n_estimators": 80,
+      "min_samples_leaf": 120,
+      "random_state": 0,
+      "n_jobs": -1
+    }
+  },
+  "results": [
+    {
+      "n": 6000,
+      "cate_var_real": 1.230646,
+      "cate_var_ratio": 24.047,
+      "methods": {
+        "m1": {
+          "stat_real": 11.54128,
+          "floor95": 2.8147,
+          "ratio": 6.742,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 5,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.02517,
+          "floor95": 0.00361,
+          "ratio": 9.273,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 6,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.64946,
+          "floor95": 0.3872,
+          "ratio": 3.87,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 5,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v2/dataset_06",
+      "role": "hetero",
+      "outcome_type": "continuous",
+      "downstream": {
+        "m1": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.16871,
+          "low_sign": "positive",
+          "high_usage_cate": -0.24149,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        },
+        "m2": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.16871,
+          "low_sign": "positive",
+          "high_usage_cate": -0.24149,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        },
+        "m3": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.16871,
+          "low_sign": "positive",
+          "high_usage_cate": -0.24149,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        }
+      }
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 1.174647,
+      "cate_var_ratio": 18.356,
+      "methods": {
+        "m1": {
+          "stat_real": 11.47629,
+          "floor95": 7.07758,
+          "ratio": 3.342,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 8,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.01382,
+          "floor95": 0.00483,
+          "ratio": 5.973,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "titles_started_28d"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 6,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.6318,
+          "floor95": 0.63696,
+          "ratio": 1.174,
+          "discovered": false,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 5,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v3/dataset_09",
+      "role": "hetero",
+      "outcome_type": "continuous",
+      "downstream": {
+        "m1": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.15401,
+          "low_sign": "positive",
+          "high_usage_cate": -0.25615,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        },
+        "m2": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.15401,
+          "low_sign": "positive",
+          "high_usage_cate": -0.25615,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        },
+        "m3": {
+          "modifier": "plays_28d",
+          "median": 11.0,
+          "low_usage_cate": 1.15401,
+          "low_sign": "positive",
+          "high_usage_cate": -0.25615,
+          "high_sign": "negative",
+          "low_recovers_positive": true,
+          "high_recovers_negative": true,
+          "both_signs_recovered": true
+        }
+      }
+    },
+    {
+      "n": 3048,
+      "cate_var_real": 1.396744,
+      "cate_var_ratio": 14.869,
+      "methods": {
+        "m1": {
+          "stat_real": 9.1446,
+          "floor95": 7.78288,
+          "ratio": 2.97,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "tenure_days"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 7,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00759,
+          "floor95": 0.00691,
+          "ratio": 1.588,
+          "discovered": true,
+          "top_covariate": "watch_minutes_28d",
+          "top3": [
+            "watch_minutes_28d",
+            "avg_session_min",
+            "titles_started_28d"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 6,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.73824,
+          "floor95": 0.42347,
+          "ratio": 3.712,
+          "discovered": true,
+          "top_covariate": "plays_28d",
+          "top3": [
+            "plays_28d",
+            "watch_minutes_28d",
+            "tenure_days"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 5,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v2/dataset_06 [+confounding on tenure_days]",
+      "role": "hetero_stress",
+      "outcome_type": "continuous",
+      "injected_on": "tenure_days",
+      "downstream": {
+        "m1": {
+          "modifier": "plays_28d",
+          "median": 10.0,
+          "low_usage_cate": 1.37933,
+          "low_sign": "positive",
+          "high_usage_cate": 0.00369,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m2": {
+          "modifier": "watch_minutes_28d",
+          "median": 123.835,
+          "low_usage_cate": 1.27826,
+          "low_sign": "positive",
+          "high_usage_cate": 0.12643,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m3": {
+          "modifier": "plays_28d",
+          "median": 10.0,
+          "low_usage_cate": 1.37933,
+          "low_sign": "positive",
+          "high_usage_cate": 0.00369,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        }
+      }
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.001629,
+      "cate_var_ratio": 1.718,
+      "methods": {
+        "m1": {
+          "stat_real": 3.68205,
+          "floor95": 4.0026,
+          "ratio": 1.451,
+          "discovered": false,
+          "top_covariate": "watch_minutes_28d",
+          "top3": [
+            "watch_minutes_28d",
+            "plays_28d",
+            "completion_rate"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 9,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00592,
+          "floor95": 0.00316,
+          "ratio": 2.455,
+          "discovered": true,
+          "top_covariate": "watch_minutes_28d",
+          "top3": [
+            "watch_minutes_28d",
+            "plays_28d",
+            "completion_rate"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 6,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.34869,
+          "floor95": 0.80975,
+          "ratio": 0.86,
+          "discovered": false,
+          "top_covariate": "completion_rate",
+          "top3": [
+            "completion_rate",
+            "plays_28d",
+            "titles_started_28d"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 9,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v2/dataset_03",
+      "role": "constant_specificity",
+      "outcome_type": "binary",
+      "downstream": {
+        "m1": {
+          "modifier": "watch_minutes_28d",
+          "median": 132.5167,
+          "low_usage_cate": 0.11257,
+          "low_sign": "positive",
+          "high_usage_cate": 0.11369,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m2": {
+          "modifier": "watch_minutes_28d",
+          "median": 132.5167,
+          "low_usage_cate": 0.11257,
+          "low_sign": "positive",
+          "high_usage_cate": 0.11369,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m3": {
+          "modifier": "completion_rate",
+          "median": 0.4982,
+          "low_usage_cate": 0.12601,
+          "low_sign": "positive",
+          "high_usage_cate": 0.10025,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        }
+      }
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.000862,
+      "cate_var_ratio": 0.69,
+      "methods": {
+        "m1": {
+          "stat_real": 2.31421,
+          "floor95": 5.92903,
+          "ratio": 0.655,
+          "discovered": false,
+          "top_covariate": "watch_minutes_28d",
+          "top3": [
+            "watch_minutes_28d",
+            "plays_28d",
+            "avg_session_min"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 9,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00187,
+          "floor95": 0.00296,
+          "ratio": 1.031,
+          "discovered": false,
+          "top_covariate": "completion_rate",
+          "top3": [
+            "completion_rate",
+            "avg_session_min",
+            "region_code"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 7,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.24729,
+          "floor95": 0.63069,
+          "ratio": 0.506,
+          "discovered": false,
+          "top_covariate": "device_mobile",
+          "top3": [
+            "device_mobile",
+            "watch_minutes_28d",
+            "plays_28d"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": 9,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v2/dataset_08",
+      "role": "constant_specificity",
+      "outcome_type": "binary",
+      "downstream": {
+        "m1": {
+          "modifier": "watch_minutes_28d",
+          "median": 134.8997,
+          "low_usage_cate": 0.12674,
+          "low_sign": "positive",
+          "high_usage_cate": 0.10876,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m2": {
+          "modifier": "completion_rate",
+          "median": 0.4986,
+          "low_usage_cate": 0.12255,
+          "low_sign": "positive",
+          "high_usage_cate": 0.11295,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m3": {
+          "modifier": "device_mobile",
+          "median": 1.0,
+          "low_usage_cate": 0.11775,
+          "low_sign": "positive",
+          "high_usage_cate": NaN,
+          "high_sign": "zero",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        }
+      }
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.055704,
+      "cate_var_ratio": 0.664,
+      "methods": {
+        "m1": {
+          "stat_real": 3.6736,
+          "floor95": 4.3198,
+          "ratio": 1.413,
+          "discovered": false,
+          "top_covariate": "watch_minutes_28d",
+          "top3": [
+            "watch_minutes_28d",
+            "plays_28d",
+            "tenure_days"
+          ],
+          "top_is_usage": true,
+          "plan_tier_rank": 7,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.0023,
+          "floor95": 0.00342,
+          "ratio": 1.01,
+          "discovered": false,
+          "top_covariate": "tenure_days",
+          "top3": [
+            "tenure_days",
+            "watch_minutes_28d",
+            "plays_28d"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": 6,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.09104,
+          "floor95": 0.39604,
+          "ratio": 0.306,
+          "discovered": false,
+          "top_covariate": "tenure_days",
+          "top3": [
+            "tenure_days",
+            "plays_28d",
+            "region_code"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": 9,
+          "top_above_plan": true
+        }
+      },
+      "tag": "v2/dataset_01",
+      "role": "constant_specificity",
+      "outcome_type": "continuous",
+      "downstream": {
+        "m1": {
+          "modifier": "watch_minutes_28d",
+          "median": 131.9661,
+          "low_usage_cate": 0.34909,
+          "low_sign": "positive",
+          "high_usage_cate": 0.41043,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m2": {
+          "modifier": "tenure_days",
+          "median": 309.5537,
+          "low_usage_cate": 0.35846,
+          "low_sign": "positive",
+          "high_usage_cate": 0.40106,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        },
+        "m3": {
+          "modifier": "tenure_days",
+          "median": 309.5537,
+          "low_usage_cate": 0.35846,
+          "low_sign": "positive",
+          "high_usage_cate": 0.40106,
+          "high_sign": "positive",
+          "low_recovers_positive": true,
+          "high_recovers_negative": false,
+          "both_signs_recovered": false
+        }
+      }
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.001925,
+      "cate_var_ratio": 2.142,
+      "methods": {
+        "m1": {
+          "stat_real": 3.81806,
+          "floor95": 7.92064,
+          "ratio": 1.143,
+          "discovered": false,
+          "top_covariate": "x3",
+          "top3": [
+            "x3",
+            "x2",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00625,
+          "floor95": 0.00393,
+          "ratio": 2.527,
+          "discovered": true,
+          "top_covariate": "x3",
+          "top3": [
+            "x3",
+            "x1",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.4888,
+          "floor95": 0.59082,
+          "ratio": 1.023,
+          "discovered": false,
+          "top_covariate": "x2",
+          "top3": [
+            "x2",
+            "x3",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        }
+      },
+      "tag": "tn_01",
+      "role": "true_null",
+      "outcome_type": "binary",
+      "covs": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5"
+      ]
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.001665,
+      "cate_var_ratio": 1.454,
+      "methods": {
+        "m1": {
+          "stat_real": 5.58348,
+          "floor95": 4.25197,
+          "ratio": 1.71,
+          "discovered": true,
+          "top_covariate": "x0",
+          "top3": [
+            "x0",
+            "x2",
+            "x3"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00723,
+          "floor95": 0.00356,
+          "ratio": 2.74,
+          "discovered": true,
+          "top_covariate": "x3",
+          "top3": [
+            "x3",
+            "x4",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.48177,
+          "floor95": 0.61187,
+          "ratio": 1.02,
+          "discovered": false,
+          "top_covariate": "x0",
+          "top3": [
+            "x0",
+            "x2",
+            "x5"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        }
+      },
+      "tag": "tn_03",
+      "role": "true_null",
+      "outcome_type": "binary",
+      "covs": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5"
+      ]
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.001089,
+      "cate_var_ratio": 0.983,
+      "methods": {
+        "m1": {
+          "stat_real": 3.15166,
+          "floor95": 7.41732,
+          "ratio": 0.914,
+          "discovered": false,
+          "top_covariate": "x0",
+          "top3": [
+            "x0",
+            "x3",
+            "x5"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.00251,
+          "floor95": 0.00364,
+          "ratio": 0.904,
+          "discovered": false,
+          "top_covariate": "x0",
+          "top3": [
+            "x0",
+            "x4",
+            "x3"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.26069,
+          "floor95": 0.66148,
+          "ratio": 0.542,
+          "discovered": false,
+          "top_covariate": "x5",
+          "top3": [
+            "x5",
+            "x3",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        }
+      },
+      "tag": "tn_05",
+      "role": "true_null",
+      "outcome_type": "binary",
+      "covs": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5"
+      ]
+    },
+    {
+      "n": 6000,
+      "cate_var_real": 0.001579,
+      "cate_var_ratio": 1.152,
+      "methods": {
+        "m1": {
+          "stat_real": 2.77293,
+          "floor95": 12.7751,
+          "ratio": 0.767,
+          "discovered": false,
+          "top_covariate": "x3",
+          "top3": [
+            "x3",
+            "x0",
+            "x4"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m2": {
+          "stat_real": 0.01016,
+          "floor95": 0.00452,
+          "ratio": 3.935,
+          "discovered": true,
+          "top_covariate": "x3",
+          "top3": [
+            "x3",
+            "x2",
+            "x0"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        },
+        "m3": {
+          "stat_real": 0.33625,
+          "floor95": 0.6436,
+          "ratio": 0.71,
+          "discovered": false,
+          "top_covariate": "x0",
+          "top3": [
+            "x0",
+            "x4",
+            "x3"
+          ],
+          "top_is_usage": false,
+          "plan_tier_rank": null,
+          "top_above_plan": true
+        }
+      },
+      "tag": "tn_07",
+      "role": "true_null",
+      "outcome_type": "binary",
+      "covs": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5"
+      ]
+    }
+  ]
+}

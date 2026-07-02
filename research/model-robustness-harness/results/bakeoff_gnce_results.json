@@ -1,0 +1,917 @@
+{
+  "seeds": [
+    101,
+    202,
+    303
+  ],
+  "n_per_case": 8000,
+  "llm_mode": "REAL",
+  "arm_a": [
+    {
+      "archetype": "MED-FLIP+",
+      "seed": 101,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.197609375,
+        "abstain": false,
+        "dM": 0.9878010520411076
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.21712222916666668,
+        "dM": 0.9900664092819409
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.1162972140500063
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-FLIP+",
+      "seed": 202,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.20662374999999997,
+        "abstain": false,
+        "dM": 1.0103294281028592
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.23106124999999997,
+        "dM": 1.0114681580266536
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.12289026446243412
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-FLIP+",
+      "seed": 303,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.21126250000000002,
+        "abstain": false,
+        "dM": 0.9721575111098638
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.2275775,
+        "dM": 0.9599160292680403
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.12288313197215094
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-FLIP-",
+      "seed": 101,
+      "coefficients": {
+        "direct": 0.5,
+        "lam": 1.0,
+        "bM": -1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "-",
+      "grounded": {
+        "sign": "-",
+        "dY": -0.21105687499999998,
+        "abstain": false,
+        "dM": -1.0121989479588527
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.2253179375,
+        "dM": -1.0099335907180593
+      },
+      "oracle": {
+        "sign": "-",
+        "ate": -0.11267150737226936
+      },
+      "llm": {
+        "sign": "-",
+        "confidence": 0.8,
+        "mode": "REAL"
+      },
+      "truth_sign_int": -1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-FLIP-",
+      "seed": 202,
+      "coefficients": {
+        "direct": 0.5,
+        "lam": 1.0,
+        "bM": -1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "-",
+      "grounded": {
+        "sign": "-",
+        "dY": -0.2007475,
+        "abstain": false,
+        "dM": -0.9896705718970853
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.221175,
+        "dM": -0.9885318419733465
+      },
+      "oracle": {
+        "sign": "-",
+        "ate": -0.11946944685818701
+      },
+      "llm": {
+        "sign": "-",
+        "confidence": 0.8,
+        "mode": "REAL"
+      },
+      "truth_sign_int": -1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-FLIP-",
+      "seed": 303,
+      "coefficients": {
+        "direct": 0.5,
+        "lam": 1.0,
+        "bM": -1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "-",
+      "grounded": {
+        "sign": "-",
+        "dY": -0.20284375,
+        "abstain": false,
+        "dM": -1.027842488890133
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.233455,
+        "dM": -1.0400839707319596
+      },
+      "oracle": {
+        "sign": "-",
+        "ate": -0.1170642848931916
+      },
+      "llm": {
+        "sign": "-",
+        "confidence": 0.8,
+        "mode": "REAL"
+      },
+      "truth_sign_int": -1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "DIRECT-DOM",
+      "seed": 101,
+      "coefficients": {
+        "direct": 1.0,
+        "lam": 0.3,
+        "bM": 0.3,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.03209125,
+        "abstain": false,
+        "dM": 0.28780105204112144
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.045194822916666676,
+        "dM": 0.29006640928194083
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.3597713135487431
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.9,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "DIRECT-DOM",
+      "seed": 202,
+      "coefficients": {
+        "direct": 1.0,
+        "lam": 0.3,
+        "bM": 0.3,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.0303675,
+        "abstain": false,
+        "dM": 0.3103294281028788
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.04226625,
+        "dM": 0.3114681580266536
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.3857652354205875
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.9,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "DIRECT-DOM",
+      "seed": 303,
+      "coefficients": {
+        "direct": 1.0,
+        "lam": 0.3,
+        "bM": 0.3,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.027998750000000003,
+        "abstain": false,
+        "dM": 0.27215751110986514
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.03343000000000001,
+        "dM": 0.25991602926804036
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.3751744529922204
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.9,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "NULL",
+      "seed": 101,
+      "coefficients": {
+        "direct": 0.0,
+        "lam": 1.0,
+        "bM": 0.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "0",
+      "grounded": {
+        "sign": "0",
+        "dY": -0.00208375,
+        "abstain": false,
+        "dM": -0.012198947958872759
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.005519854166666666,
+        "dM": -0.009933590718059146
+      },
+      "oracle": {
+        "sign": "0",
+        "ate": 0.0017075867166154875
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.6,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 0,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 0,
+      "oracle_correct": 1,
+      "llm_correct": 0,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "NULL",
+      "seed": 202,
+      "coefficients": {
+        "direct": 0.0,
+        "lam": 1.0,
+        "bM": 0.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "0",
+      "grounded": {
+        "sign": "0",
+        "dY": 0.0027024999999999996,
+        "abstain": false,
+        "dM": 0.010329428102887018
+      },
+      "grounded_unadjusted": {
+        "sign": "0",
+        "dY": 0.002071875000000001,
+        "dM": 0.011468158026653606
+      },
+      "oracle": {
+        "sign": "0",
+        "ate": 0.003383341648714161
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.6,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 0,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 0,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "NULL",
+      "seed": 303,
+      "coefficients": {
+        "direct": 0.0,
+        "lam": 1.0,
+        "bM": 0.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": null,
+      "truth_sign": "0",
+      "grounded": {
+        "sign": "-",
+        "dY": -0.00844,
+        "abstain": false,
+        "dM": -0.02784248889013438
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.00597625,
+        "dM": -0.04008397073195956
+      },
+      "oracle": {
+        "sign": "0",
+        "ate": 5.941448653271457e-06
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.6,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 0,
+      "grounded_correct": 0,
+      "grounded_unadj_correct": 0,
+      "oracle_correct": 1,
+      "llm_correct": 0,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-HIDDEN+",
+      "seed": 101,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": false,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "0",
+        "dY": 0.0,
+        "abstain": true,
+        "dM": null
+      },
+      "grounded_unadjusted": null,
+      "oracle": {
+        "sign": "+",
+        "ate": 0.1162972140500063
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 0,
+      "grounded_unadj_correct": null,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": true
+    },
+    {
+      "archetype": "MED-HIDDEN+",
+      "seed": 202,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": false,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "0",
+        "dY": 0.0,
+        "abstain": true,
+        "dM": null
+      },
+      "grounded_unadjusted": null,
+      "oracle": {
+        "sign": "+",
+        "ate": 0.12289026446243412
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 0,
+      "grounded_unadj_correct": null,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": true
+    },
+    {
+      "archetype": "MED-HIDDEN+",
+      "seed": 303,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": false,
+      "confound": null,
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "0",
+        "dY": 0.0,
+        "abstain": true,
+        "dM": null
+      },
+      "grounded_unadjusted": null,
+      "oracle": {
+        "sign": "+",
+        "ate": 0.12288313197215094
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 0,
+      "grounded_unadj_correct": null,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": true
+    },
+    {
+      "archetype": "MED-CONF",
+      "seed": 101,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 1.0,
+        "dC": -3.0,
+        "a": 1.5,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": "C",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.129336875,
+        "abstain": false,
+        "dM": 1.0114201144220623
+      },
+      "grounded_unadjusted": {
+        "sign": "-",
+        "dY": -0.16768124999999998,
+        "dM": 2.0995903846929815
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.09436269827798441
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 0,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-CONF",
+      "seed": 202,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 1.0,
+        "dC": -3.0,
+        "a": 1.5,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": "C",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.16027875,
+        "abstain": false,
+        "dM": 0.9803013201798461
+      },
+      "grounded_unadjusted": {
+        "sign": "0",
+        "dY": 0.004683750000000001,
+        "dM": 2.0376508480999265
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.08486777541507075
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 0,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-CONF",
+      "seed": 303,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 1.0,
+        "dC": -3.0,
+        "a": 1.5,
+        "h": 0.0,
+        "hid": 0.0
+      },
+      "m_observed": true,
+      "confound": "C",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.16365437500000002,
+        "abstain": false,
+        "dM": 0.975612053836378
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.05498624999999999,
+        "dM": 2.026224030553842
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.08305898879619723
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-HIDCONF",
+      "seed": 101,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 1.5,
+        "hid": 1.5
+      },
+      "m_observed": true,
+      "confound": "U",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.16172625,
+        "abstain": false,
+        "dM": 1.0053384876853757
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.21213625,
+        "dM": 1.0157845156971026
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.3794911915253634
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-HIDCONF",
+      "seed": 202,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 1.5,
+        "hid": 1.5
+      },
+      "m_observed": true,
+      "confound": "U",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.1802025,
+        "abstain": false,
+        "dM": 0.9520637485342867
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.1960975,
+        "dM": 0.9408348523147732
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.37343290405506824
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    },
+    {
+      "archetype": "MED-HIDCONF",
+      "seed": 303,
+      "coefficients": {
+        "direct": -0.5,
+        "lam": 1.0,
+        "bM": 1.0,
+        "gM": 0.5,
+        "dC": 0.3,
+        "a": 0.0,
+        "h": 1.5,
+        "hid": 1.5
+      },
+      "m_observed": true,
+      "confound": "U",
+      "truth_sign": "+",
+      "grounded": {
+        "sign": "+",
+        "dY": 0.17756812500000002,
+        "abstain": false,
+        "dM": 0.9395441579253271
+      },
+      "grounded_unadjusted": {
+        "sign": "+",
+        "dY": 0.196596875,
+        "dM": 0.9518269435649547
+      },
+      "oracle": {
+        "sign": "+",
+        "ate": 0.3814167503042269
+      },
+      "llm": {
+        "sign": "+",
+        "confidence": 0.7,
+        "mode": "REAL"
+      },
+      "truth_sign_int": 1,
+      "grounded_correct": 1,
+      "grounded_unadj_correct": 1,
+      "oracle_correct": 1,
+      "llm_correct": 1,
+      "grounded_abstain": false
+    }
+  ],
+  "arm_b": {
+    "n": 64000,
+    "n_treat": 42694,
+    "n_control": 21306,
+    "pred_conv_lift": 0.002806530874972236,
+    "measured_naive": 0.004954571155268468,
+    "measured_adjusted": 0.004989873582453546,
+    "ratio_pred_over_measured": 0.5664528345683152,
+    "sign_pred": "+",
+    "sign_measured": "+",
+    "placebo_pred_lift": 0.0033010066475310904,
+    "placebo_measured_naive": -0.003287684555045911,
+    "placebo_measured_se": 0.0041710957373190275,
+    "placebo_within_1se": true
+  }
+}

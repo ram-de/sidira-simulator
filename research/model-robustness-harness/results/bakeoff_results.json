@@ -1,0 +1,899 @@
+{
+  "headline": {
+    "cookie_cats_retention_7": [
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "naive_diff_in_means",
+        "condition": "A",
+        "estimate": -0.008201,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "t_learner",
+        "condition": "A",
+        "estimate": -0.007693,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "ipw",
+        "condition": "A",
+        "estimate": -0.005651,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "x_learner",
+        "condition": "A",
+        "estimate": -0.00784,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "dr_aipw",
+        "condition": "A",
+        "estimate": -0.007692,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "survival_hazard",
+        "condition": "A",
+        "estimate": -0.003136,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "negative_control_guard",
+        "condition": "A",
+        "estimate": -0.007693,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "guard_trips": false,
+        "guard_confidence": "high",
+        "nc_decisive_residual": -0.004598,
+        "nc_effects": {
+          "nc_trait": -0.004598
+        },
+        "guard_reason": "main effect -0.0077 clears the bias (control max -0.0046): estimate trusted",
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "naive_diff_in_means",
+        "condition": "B_obs",
+        "estimate": 0.217562,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "t_learner",
+        "condition": "B_obs",
+        "estimate": -0.003092,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "ipw",
+        "condition": "B_obs",
+        "estimate": -0.001911,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "x_learner",
+        "condition": "B_obs",
+        "estimate": -0.006598,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "dr_aipw",
+        "condition": "B_obs",
+        "estimate": -0.005459,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "survival_hazard",
+        "condition": "B_obs",
+        "estimate": -0.00165,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "negative_control_guard",
+        "condition": "B_obs",
+        "estimate": -0.003092,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "guard_trips": false,
+        "guard_confidence": "high",
+        "nc_decisive_residual": -0.001801,
+        "nc_effects": {
+          "nc_trait": -0.001801
+        },
+        "guard_reason": "main effect -0.0031 clears the bias (control max -0.0018): estimate trusted",
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "naive_diff_in_means",
+        "condition": "B_hidden",
+        "estimate": 0.217562,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "t_learner",
+        "condition": "B_hidden",
+        "estimate": 0.217641,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "ipw",
+        "condition": "B_hidden",
+        "estimate": 0.217562,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "x_learner",
+        "condition": "B_hidden",
+        "estimate": 0.217901,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "dr_aipw",
+        "condition": "B_hidden",
+        "estimate": 0.217562,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "survival_hazard",
+        "condition": "B_hidden",
+        "estimate": 0.205124,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_7",
+        "method": "negative_control_guard",
+        "condition": "B_hidden",
+        "estimate": 0.217641,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": 0.228321,
+        "nc_effects": {
+          "nc_trait": 0.228321
+        },
+        "guard_reason": "negative control 'nc_trait' residual +0.2283 > |0.05|: hidden confounding, route to LLM",
+        "n": 45024
+      }
+    ],
+    "hillstrom_visit": [
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "naive_diff_in_means",
+        "condition": "A",
+        "estimate": 0.045233,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "t_learner",
+        "condition": "A",
+        "estimate": 0.045364,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "ipw",
+        "condition": "A",
+        "estimate": 0.045412,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "x_learner",
+        "condition": "A",
+        "estimate": 0.045415,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "dr_aipw",
+        "condition": "A",
+        "estimate": 0.045371,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "discrete_choice_logit",
+        "condition": "A",
+        "estimate": 0.045379,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "negative_control_guard",
+        "condition": "A",
+        "estimate": 0.045364,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": false,
+        "guard_confidence": "high",
+        "nc_decisive_residual": 9.8e-05,
+        "nc_effects": {
+          "nc_trait": 9.8e-05,
+          "mens": -1e-05,
+          "womens": -1e-06
+        },
+        "guard_reason": "main effect +0.0454 clears the bias (control max +0.0001): estimate trusted",
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "naive_diff_in_means",
+        "condition": "B_obs",
+        "estimate": 0.025886,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "t_learner",
+        "condition": "B_obs",
+        "estimate": 0.04878,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "ipw",
+        "condition": "B_obs",
+        "estimate": 0.048127,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "x_learner",
+        "condition": "B_obs",
+        "estimate": 0.047508,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "dr_aipw",
+        "condition": "B_obs",
+        "estimate": 0.047942,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "discrete_choice_logit",
+        "condition": "B_obs",
+        "estimate": 0.048289,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "negative_control_guard",
+        "condition": "B_obs",
+        "estimate": 0.04878,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": false,
+        "guard_confidence": "high",
+        "nc_decisive_residual": 0.002678,
+        "nc_effects": {
+          "nc_trait": 0.002678,
+          "mens": -0.000217,
+          "womens": -0.000114
+        },
+        "guard_reason": "main effect +0.0488 clears the bias (control max +0.0027): estimate trusted",
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "naive_diff_in_means",
+        "condition": "B_hidden",
+        "estimate": 0.025886,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "t_learner",
+        "condition": "B_hidden",
+        "estimate": 0.038312,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "ipw",
+        "condition": "B_hidden",
+        "estimate": 0.039504,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "x_learner",
+        "condition": "B_hidden",
+        "estimate": 0.039337,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "dr_aipw",
+        "condition": "B_hidden",
+        "estimate": 0.03851,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "discrete_choice_logit",
+        "condition": "B_hidden",
+        "estimate": 0.038242,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "visit",
+        "method": "negative_control_guard",
+        "condition": "B_hidden",
+        "estimate": 0.038312,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": -0.20642,
+        "nc_effects": {
+          "nc_trait": -0.20642,
+          "mens": -0.001488,
+          "womens": -0.001463
+        },
+        "guard_reason": "negative control 'nc_trait' residual -0.2064 > |0.05|: hidden confounding, route to LLM",
+        "n": 21370
+      }
+    ]
+  },
+  "supporting": {
+    "cookie_cats_retention_1": [
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "naive_diff_in_means",
+        "condition": "A",
+        "estimate": -0.005905,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "t_learner",
+        "condition": "A",
+        "estimate": -0.002097,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "ipw",
+        "condition": "A",
+        "estimate": -0.002215,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "x_learner",
+        "condition": "A",
+        "estimate": -0.001697,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "dr_aipw",
+        "condition": "A",
+        "estimate": -0.002111,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "negative_control_guard",
+        "condition": "A",
+        "estimate": -0.002097,
+        "est_sign": "negative",
+        "recovers_truth": true,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": -0.004598,
+        "nc_effects": {
+          "nc_trait": -0.004598
+        },
+        "guard_reason": "main effect -0.0021 not > 1.5x the bias the control reveals (-0.0046): indistinguishable from confounding, route to LLM",
+        "n": 90189
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "naive_diff_in_means",
+        "condition": "B_obs",
+        "estimate": 0.34074,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "t_learner",
+        "condition": "B_obs",
+        "estimate": 0.000902,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "ipw",
+        "condition": "B_obs",
+        "estimate": 0.005502,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "x_learner",
+        "condition": "B_obs",
+        "estimate": 0.001807,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "dr_aipw",
+        "condition": "B_obs",
+        "estimate": 0.001659,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "negative_control_guard",
+        "condition": "B_obs",
+        "estimate": 0.000902,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": -0.001801,
+        "nc_effects": {
+          "nc_trait": -0.001801
+        },
+        "guard_reason": "main effect +0.0009 not > 1.5x the bias the control reveals (-0.0018): indistinguishable from confounding, route to LLM",
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "naive_diff_in_means",
+        "condition": "B_hidden",
+        "estimate": 0.34074,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "t_learner",
+        "condition": "B_hidden",
+        "estimate": 0.340732,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "ipw",
+        "condition": "B_hidden",
+        "estimate": 0.34074,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "x_learner",
+        "condition": "B_hidden",
+        "estimate": 0.340856,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "dr_aipw",
+        "condition": "B_hidden",
+        "estimate": 0.34074,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "n": 45024
+      },
+      {
+        "dataset": "cookie_cats",
+        "outcome": "retention_1",
+        "method": "negative_control_guard",
+        "condition": "B_hidden",
+        "estimate": 0.340732,
+        "est_sign": "positive",
+        "recovers_truth": false,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": 0.228321,
+        "nc_effects": {
+          "nc_trait": 0.228321
+        },
+        "guard_reason": "negative control 'nc_trait' residual +0.2283 > |0.05|: hidden confounding, route to LLM",
+        "n": 45024
+      }
+    ],
+    "hillstrom_conversion": [
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "naive_diff_in_means",
+        "condition": "A",
+        "estimate": 0.003111,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "t_learner",
+        "condition": "A",
+        "estimate": 0.003101,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "ipw",
+        "condition": "A",
+        "estimate": 0.003118,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "x_learner",
+        "condition": "A",
+        "estimate": 0.003099,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "dr_aipw",
+        "condition": "A",
+        "estimate": 0.003112,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "negative_control_guard",
+        "condition": "A",
+        "estimate": 0.003101,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": false,
+        "guard_confidence": "high",
+        "nc_decisive_residual": 9.8e-05,
+        "nc_effects": {
+          "nc_trait": 9.8e-05,
+          "mens": -1e-05,
+          "womens": -1e-06
+        },
+        "guard_reason": "main effect +0.0031 clears the bias (control max +0.0001): estimate trusted",
+        "n": 42693
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "naive_diff_in_means",
+        "condition": "B_obs",
+        "estimate": 0.001418,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "t_learner",
+        "condition": "B_obs",
+        "estimate": 0.001998,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "ipw",
+        "condition": "B_obs",
+        "estimate": 0.001424,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "x_learner",
+        "condition": "B_obs",
+        "estimate": 0.001625,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "dr_aipw",
+        "condition": "B_obs",
+        "estimate": 0.001418,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "negative_control_guard",
+        "condition": "B_obs",
+        "estimate": 0.001998,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": 0.002678,
+        "nc_effects": {
+          "nc_trait": 0.002678,
+          "mens": -0.000217,
+          "womens": -0.000114
+        },
+        "guard_reason": "main effect +0.0020 not > 1.5x the bias the control reveals (+0.0027): indistinguishable from confounding, route to LLM",
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "naive_diff_in_means",
+        "condition": "B_hidden",
+        "estimate": 0.001418,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "t_learner",
+        "condition": "B_hidden",
+        "estimate": 0.001995,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "ipw",
+        "condition": "B_hidden",
+        "estimate": 0.002032,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "x_learner",
+        "condition": "B_hidden",
+        "estimate": 0.002066,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "dr_aipw",
+        "condition": "B_hidden",
+        "estimate": 0.002016,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "n": 21370
+      },
+      {
+        "dataset": "hillstrom",
+        "outcome": "conversion",
+        "method": "negative_control_guard",
+        "condition": "B_hidden",
+        "estimate": 0.001995,
+        "est_sign": "positive",
+        "recovers_truth": true,
+        "guard_trips": true,
+        "guard_confidence": "low/abstain",
+        "nc_decisive_residual": -0.20642,
+        "nc_effects": {
+          "nc_trait": -0.20642,
+          "mens": -0.001488,
+          "womens": -0.001463
+        },
+        "guard_reason": "negative control 'nc_trait' residual -0.2064 > |0.05|: hidden confounding, route to LLM",
+        "n": 21370
+      }
+    ]
+  },
+  "ground_truth": {
+    "cookie_cats_retention_7": "negative",
+    "hillstrom_visit": "positive"
+  },
+  "params": {
+    "beta": 1.5,
+    "sel_seed": 20260630,
+    "nc_seed": 12345
+  }
+}
