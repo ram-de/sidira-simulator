@@ -149,6 +149,23 @@ Direction-only output; magnitude backstage. Council = abstain-siren ONLY (never 
       deploy + flag flip.
 
 ## PHASE 3 (final) — #546 model-robustness regression + #222 calibrator, then the epic-end deploy.
+- [x] **#546 model-robustness harness — MERGED (PR #561).** Promoted the sealed AMBDOM/GNCE+Wave
+      battery from the ephemeral scratchpad into committed `research/model-robustness-harness/` (43
+      files: sealed preregs+seals, 7 historical scorecards, results+LLM logs, 10 runners). New
+      `run_battery.py` one-command per-model runner (`--model <id> [--arm]`) + `scorecard.py` (3
+      gates: calibration + optimism/pessimism direction + flip-ceiling) + README (narrator-may-upgrade
+      / predictor-stays-grounded discipline + already-run arms table). codex P2 fixed (partial log
+      cfn<12 → verdict N/A/REVIEW, not false PASS). AMBDOM/GNCE seals VERIFIED; WAVE seals point at
+      absent .json (documented). NO paid LLM run (offline --score-only regenerates historical
+      scorecards: Opus 0.68/flip-0.50-pessimist, gpt-5.5 flip-0.00, grounded flip-1.00). Research-only,
+      no keys echoed, no partner material. NOTE: this build agent hit a transient 529 mid-run;
+      RESUMED via SendMessage (work intact) → finished clean.
+- [ ] **#222 CALIBRATOR-WIRING SLICE (NOT the full epic) — launched.** Scorer reading study-store
+      3-artifacts: WIN = engine_blind.sign vs measured GroundTruth.winner ONLY (human_truth NOT
+      scored). Outputs directional-accuracy + abstain-rate + guard×correctness table + null-integrity
+      + power-honesty caveat. SCAFFOLD — 0 real pairs (Senu founder-gated), runs on fixtures. Does
+      NOT close #222 (full Tier-0 = Upworthy/Hewitt/Hillstrom/Criteo/power, separate founder-gated
+      cross-repo epic). Research-only.
 - [x] **#544 re-ground talk-to-users conversation — MERGED (PR #556).** New
       `services/grounded_agent_chat.py` (agent_chat.py UNTOUCHED): `GroundedAgentChatService.send_message`
       → spokesperson-for-the-numbers. `GroundedRecord.from_decision(DecisionResult)`; `classify_pm_message`
