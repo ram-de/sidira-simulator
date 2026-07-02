@@ -176,13 +176,24 @@ Merged PRs: #551(539) #552(540) #553(541) #554(542) #555(543) #556(544) #558(545
 squash-merge → cleanup. All prod code ships behind `SIDIRA_DECISION_FLOW_ENABLED` (OFF) → prod
 behaviour UNCHANGED. One 529 crash on #546 recovered via resume.
 
-## REMAINING — THE ONE DEFERRED ACTION (founder)
-- [ ] **Epic-end backend deploy** (founder-gated, DEFERRED by choice 2026-07-01). Run codex
-      deploy/REDEPLOY.md: it does the staleness + migration diff; will carry the off-by-default
-      watchdog code + the 4 pending 018-021 migrations (conversations/conv_user_id/
-      experiment_connections/audit_log). Needs founder auth for SIDIRA_AUTO_MIGRATE SSM toggle
-      (0→1→0). Verify 018-021 applied + routes resolve in-container (401=exists, not bare curl).
-      Frontend already auto-deployed via Amplify on each merge (verdict panel dormant until flag).
+## ✅ EPIC-END BACKEND DEPLOY DONE (2026-07-01, founder said "proceed, flag off")
+- Deployed origin/main SHA **21f31d4** to api.sidira.ai (prod instance i-04b155fafcc90042b) via SSM
+  ec2-api-deploy.sh. **CODE-ONLY** redeploy — the migration concern was STALE: recon showed the DB
+  already at Alembic head **021** and prior deploy SHA 42ee2a7 (#506, ~4 days prior) had already
+  applied 018-021. `git diff 42ee2a7..origin/main -- backend/alembic/versions/` = EMPTY → zero new
+  migrations → SIDIRA_AUTO_MIGRATE left at 0 (never toggled). No deploy-script change → single run.
+- VERIFIED in-container: SHA=21f31d4; api+caddy+worker all Up; watchdog modules (decision_flow,
+  negative_control_watchdog, grounded_predictor, council, verdict) import cleanly;
+  `decision_flow_enabled()` → **False** (flag OFF, prod behaviour unchanged); DirectionVerdict
+  `decision_verdict` field present on SimulationResult (rides result_json, migration-free); alembic
+  head still 021; external /health {"status":"ok"}. Frontend already auto-deployed via Amplify.
+- FLAG DECISION: founder chose to keep SIDIRA_DECISION_FLOW_ENABLED **OFF**. NOTE for the future flip:
+  the flag is NOT wired into ec2-api-deploy.sh env-build (grep DECISION_FLOW = not found) → setting the
+  SSM param alone is a NO-OP; flipping it on requires a small deploy-script change (add to the
+  optional-env loop) + a re-deploy (self-modifying-script → run twice). Deferred — little payoff until
+  the producer emits NC-guard fields (below).
+
+## REMAINING (founder-gated)
 - [ ] **Then flag-flip per-build** (founder): SIDIRA_DECISION_FLOW_ENABLED to activate the chain on
       a chosen customer/build; the watchdog guard is a LEAD not promoted — flip on where data warrants.
 - [ ] **Producer follow-on** (noted #541): sidira-personas manifest_builder does NOT emit the NC-guard
