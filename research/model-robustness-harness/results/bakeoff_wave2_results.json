@@ -1,0 +1,980 @@
+{
+  "gotv": [
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "naive_diff_in_means",
+      "condition": "A",
+      "estimate": 0.08146,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "t_learner",
+      "condition": "A",
+      "estimate": 0.08089,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "ipw",
+      "condition": "A",
+      "estimate": 0.080876,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "x_learner",
+      "condition": "A",
+      "estimate": 0.079499,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "dr_aipw",
+      "condition": "A",
+      "estimate": 0.080853,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "negative_control_guard",
+      "condition": "A",
+      "estimate": 0.08089,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "guard_trips": false,
+      "guard_confidence": "high",
+      "nc_decisive_residual": 0.013986,
+      "nc_effects": {
+        "primary2004": 0.013322,
+        "nc_z": 0.013986
+      },
+      "guard_reason": "main effect +0.0809 clears the bias (control max +0.0140): estimate trusted",
+      "n": 50000
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "naive_diff_in_means",
+      "condition": "B_obs",
+      "estimate": 0.148094,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "t_learner",
+      "condition": "B_obs",
+      "estimate": 0.108848,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "ipw",
+      "condition": "B_obs",
+      "estimate": 0.082319,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "x_learner",
+      "condition": "B_obs",
+      "estimate": 0.098298,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "dr_aipw",
+      "condition": "B_obs",
+      "estimate": 0.097275,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "negative_control_guard",
+      "condition": "B_obs",
+      "estimate": 0.108848,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "guard_trips": false,
+      "guard_confidence": "high",
+      "nc_decisive_residual": 0.028106,
+      "nc_effects": {
+        "primary2004": 0.028106,
+        "nc_z": 0.019039
+      },
+      "guard_reason": "main effect +0.1088 clears the bias (control max +0.0281): estimate trusted",
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "naive_diff_in_means",
+      "condition": "B_hidden",
+      "estimate": 0.148094,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "t_learner",
+      "condition": "B_hidden",
+      "estimate": 0.148722,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "ipw",
+      "condition": "B_hidden",
+      "estimate": 0.147842,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "x_learner",
+      "condition": "B_hidden",
+      "estimate": 0.149247,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "dr_aipw",
+      "condition": "B_hidden",
+      "estimate": 0.148424,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 25036
+    },
+    {
+      "dataset": "gotv",
+      "outcome": "primary2006",
+      "method": "negative_control_guard",
+      "condition": "B_hidden",
+      "estimate": 0.148722,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": 0.235141,
+      "nc_effects": {
+        "primary2004": 0.02431,
+        "nc_z": 0.235141
+      },
+      "guard_reason": "negative control 'nc_z' residual +0.2351 > |0.05|: hidden confounding, route to LLM",
+      "n": 25036
+    }
+  ],
+  "karlan": [
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "naive_diff_in_means",
+      "condition": "A",
+      "estimate": 0.00418,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "t_learner",
+      "condition": "A",
+      "estimate": 0.004138,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "ipw",
+      "condition": "A",
+      "estimate": 0.004119,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "x_learner",
+      "condition": "A",
+      "estimate": 0.004003,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "dr_aipw",
+      "condition": "A",
+      "estimate": 0.004179,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "negative_control_guard",
+      "condition": "A",
+      "estimate": 0.004138,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": 0.00483,
+      "nc_effects": {
+        "hpa_hi": 0.00483,
+        "nc_z": 0.000988
+      },
+      "guard_reason": "main effect +0.0041 not > 1.5x the bias the control reveals (+0.0048): indistinguishable from confounding, route to LLM",
+      "n": 50083
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "naive_diff_in_means",
+      "condition": "B_obs",
+      "estimate": 0.012871,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "t_learner",
+      "condition": "B_obs",
+      "estimate": -0.007985,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "ipw",
+      "condition": "B_obs",
+      "estimate": 0.005051,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "x_learner",
+      "condition": "B_obs",
+      "estimate": 0.000811,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "dr_aipw",
+      "condition": "B_obs",
+      "estimate": -0.008522,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "negative_control_guard",
+      "condition": "B_obs",
+      "estimate": -0.007985,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": -0.011019,
+      "nc_effects": {
+        "hpa_hi": -0.011019,
+        "nc_z": -0.00375
+      },
+      "guard_reason": "main effect -0.0080 not > 1.5x the bias the control reveals (-0.0110): indistinguishable from confounding, route to LLM",
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "naive_diff_in_means",
+      "condition": "B_hidden",
+      "estimate": 0.012871,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "t_learner",
+      "condition": "B_hidden",
+      "estimate": -0.008428,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "ipw",
+      "condition": "B_hidden",
+      "estimate": 0.005044,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "x_learner",
+      "condition": "B_hidden",
+      "estimate": 0.000792,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "dr_aipw",
+      "condition": "B_hidden",
+      "estimate": -0.008907,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 24504
+    },
+    {
+      "dataset": "karlan",
+      "outcome": "gave",
+      "method": "negative_control_guard",
+      "condition": "B_hidden",
+      "estimate": -0.008428,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": -0.011137,
+      "nc_effects": {
+        "hpa_hi": -0.011137,
+        "nc_z": -0.003747
+      },
+      "guard_reason": "main effect -0.0084 not > 1.5x the bias the control reveals (-0.0111): indistinguishable from confounding, route to LLM",
+      "n": 24504
+    }
+  ],
+  "orange": [
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "naive_diff_in_means",
+      "condition": "A",
+      "estimate": -0.002753,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "t_learner",
+      "condition": "A",
+      "estimate": -0.002421,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "ipw",
+      "condition": "A",
+      "estimate": -0.002317,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "x_learner",
+      "condition": "A",
+      "estimate": -0.002371,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "dr_aipw",
+      "condition": "A",
+      "estimate": -0.002475,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "negative_control_guard",
+      "condition": "A",
+      "estimate": -0.002421,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": 0.002604,
+      "nc_effects": {
+        "nc_z": 0.002604
+      },
+      "guard_reason": "main effect -0.0024 not > 1.5x the bias the control reveals (+0.0026): indistinguishable from confounding, route to LLM",
+      "n": 11896
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "naive_diff_in_means",
+      "condition": "B_obs",
+      "estimate": 0.000612,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "t_learner",
+      "condition": "B_obs",
+      "estimate": -0.022535,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "ipw",
+      "condition": "B_obs",
+      "estimate": -0.009279,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "x_learner",
+      "condition": "B_obs",
+      "estimate": -0.012978,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "dr_aipw",
+      "condition": "B_obs",
+      "estimate": -0.024972,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "negative_control_guard",
+      "condition": "B_obs",
+      "estimate": -0.022535,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": -0.026416,
+      "nc_effects": {
+        "nc_z": -0.026416
+      },
+      "guard_reason": "main effect -0.0225 not > 1.5x the bias the control reveals (-0.0264): indistinguishable from confounding, route to LLM",
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "naive_diff_in_means",
+      "condition": "B_hidden",
+      "estimate": 0.000612,
+      "est_sign": "positive",
+      "recovers_truth": true,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "t_learner",
+      "condition": "B_hidden",
+      "estimate": -0.022743,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "ipw",
+      "condition": "B_hidden",
+      "estimate": -0.008881,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "x_learner",
+      "condition": "B_hidden",
+      "estimate": -0.013073,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "dr_aipw",
+      "condition": "B_hidden",
+      "estimate": -0.024775,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "n": 6064
+    },
+    {
+      "dataset": "orange",
+      "outcome": "y",
+      "method": "negative_control_guard",
+      "condition": "B_hidden",
+      "estimate": -0.022743,
+      "est_sign": "negative",
+      "recovers_truth": false,
+      "guard_trips": true,
+      "guard_confidence": "low/abstain",
+      "nc_decisive_residual": -0.026393,
+      "nc_effects": {
+        "nc_z": -0.026393
+      },
+      "guard_reason": "main effect -0.0227 not > 1.5x the bias the control reveals (-0.0264): indistinguishable from confounding, route to LLM",
+      "n": 6064
+    }
+  ],
+  "karlan_match_ratio": {
+    "band": 0.005,
+    "rows": [
+      {
+        "method": "naive_diff_in_means",
+        "estimate": 0.001984,
+        "calls_null": true,
+        "n": 22262,
+        "n_1to1": 11133,
+        "n_3to1": 11129
+      },
+      {
+        "method": "t_learner",
+        "estimate": 0.002079,
+        "calls_null": true,
+        "n": 22262,
+        "n_1to1": 11133,
+        "n_3to1": 11129
+      },
+      {
+        "method": "ipw",
+        "estimate": 0.001997,
+        "calls_null": true,
+        "n": 22262,
+        "n_1to1": 11133,
+        "n_3to1": 11129
+      },
+      {
+        "method": "x_learner",
+        "estimate": 0.002227,
+        "calls_null": true,
+        "n": 22262,
+        "n_1to1": 11133,
+        "n_3to1": 11129
+      },
+      {
+        "method": "dr_aipw",
+        "estimate": 0.002141,
+        "calls_null": true,
+        "n": 22262,
+        "n_1to1": 11133,
+        "n_3to1": 11129
+      }
+    ]
+  },
+  "hetero": [
+    {
+      "tag": "v2/dataset_06",
+      "outcome_type": "continuous",
+      "global_naive_ate": 5.94786,
+      "segments": [
+        {
+          "segment": "casual_low_usage",
+          "n": 8700,
+          "true_sign": "positive",
+          "plain_global_ate": 5.94786,
+          "plain_global_sign": "positive",
+          "naive_within": 3.09359,
+          "naive_within_sign": "positive",
+          "naive_within_recovers": true,
+          "x_learner_cate": 1.01943,
+          "x_learner_sign": "positive",
+          "x_learner_recovers": true,
+          "t_learner_cate": 2.43596,
+          "t_learner_sign": "positive",
+          "t_learner_recovers": true,
+          "plain_ate_recovers": true
+        },
+        {
+          "segment": "power_high_usage",
+          "n": 8362,
+          "true_sign": "negative",
+          "plain_global_ate": 5.94786,
+          "plain_global_sign": "positive",
+          "naive_within": 2.16262,
+          "naive_within_sign": "positive",
+          "naive_within_recovers": false,
+          "x_learner_cate": -0.15954,
+          "x_learner_sign": "negative",
+          "x_learner_recovers": true,
+          "t_learner_cate": -0.39237,
+          "t_learner_sign": "negative",
+          "t_learner_recovers": true,
+          "plain_ate_recovers": false
+        }
+      ],
+      "plan_tier_control": [
+        {
+          "plan_tier": 0,
+          "n": 5575,
+          "x_learner_cate": 0.40286,
+          "x_learner_sign": "positive"
+        },
+        {
+          "plan_tier": 1,
+          "n": 5785,
+          "x_learner_cate": 0.46378,
+          "x_learner_sign": "positive"
+        },
+        {
+          "plan_tier": 2,
+          "n": 5702,
+          "x_learner_cate": 0.45704,
+          "x_learner_sign": "positive"
+        }
+      ],
+      "guard": {
+        "trips": false,
+        "confidence": "high",
+        "nc_residual": 0.01956,
+        "reason": "main effect +1.0498 clears the bias (control max +0.0196): estimate trusted"
+      }
+    },
+    {
+      "tag": "v3/dataset_09",
+      "outcome_type": "continuous",
+      "global_naive_ate": 5.91885,
+      "segments": [
+        {
+          "segment": "casual_low_usage",
+          "n": 7839,
+          "true_sign": "positive",
+          "plain_global_ate": 5.91885,
+          "plain_global_sign": "positive",
+          "naive_within": 2.96889,
+          "naive_within_sign": "positive",
+          "naive_within_recovers": true,
+          "x_learner_cate": 1.01078,
+          "x_learner_sign": "positive",
+          "x_learner_recovers": true,
+          "t_learner_cate": 2.36162,
+          "t_learner_sign": "positive",
+          "t_learner_recovers": true,
+          "plain_ate_recovers": true
+        },
+        {
+          "segment": "power_high_usage",
+          "n": 7740,
+          "true_sign": "negative",
+          "plain_global_ate": 5.91885,
+          "plain_global_sign": "positive",
+          "naive_within": 1.89326,
+          "naive_within_sign": "positive",
+          "naive_within_recovers": false,
+          "x_learner_cate": -0.17198,
+          "x_learner_sign": "negative",
+          "x_learner_recovers": true,
+          "t_learner_cate": -0.39014,
+          "t_learner_sign": "negative",
+          "t_learner_recovers": true,
+          "plain_ate_recovers": false
+        }
+      ],
+      "plan_tier_control": [
+        {
+          "plan_tier": 0,
+          "n": 5265,
+          "x_learner_cate": 0.43273,
+          "x_learner_sign": "positive"
+        },
+        {
+          "plan_tier": 1,
+          "n": 5166,
+          "x_learner_cate": 0.37798,
+          "x_learner_sign": "positive"
+        },
+        {
+          "plan_tier": 2,
+          "n": 5148,
+          "x_learner_cate": 0.45871,
+          "x_learner_sign": "positive"
+        }
+      ],
+      "guard": {
+        "trips": false,
+        "confidence": "high",
+        "nc_residual": 0.018231,
+        "reason": "main effect +0.9945 clears the bias (control max +0.0182): estimate trusted"
+      }
+    }
+  ],
+  "streaming_guard_sweep": [
+    {
+      "version": "v2",
+      "file": "dataset_01.csv",
+      "regime": "clean_rct_small",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": -0.003466
+    },
+    {
+      "version": "v2",
+      "file": "dataset_02.csv",
+      "regime": "unobserved_no_proxy",
+      "nc_unobserved": true,
+      "true_sign": "negative",
+      "guard_abstains": true,
+      "nc_residual": 0.300041
+    },
+    {
+      "version": "v2",
+      "file": "dataset_03.csv",
+      "regime": "confounded_observed_moderate",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.021253
+    },
+    {
+      "version": "v2",
+      "file": "dataset_04.csv",
+      "regime": "confounded_nonlinear",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.009936
+    },
+    {
+      "version": "v2",
+      "file": "dataset_05.csv",
+      "regime": "confounded_strong_poor_overlap",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.03659
+    },
+    {
+      "version": "v2",
+      "file": "dataset_06.csv",
+      "regime": "heterogeneous_net_positive",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.01956
+    },
+    {
+      "version": "v2",
+      "file": "dataset_07.csv",
+      "regime": "true_null_confounded",
+      "nc_unobserved": false,
+      "true_sign": "null",
+      "guard_abstains": true,
+      "nc_residual": 0.017972
+    },
+    {
+      "version": "v2",
+      "file": "dataset_08.csv",
+      "regime": "clean_rct_moderate",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": -0.001225
+    },
+    {
+      "version": "v2",
+      "file": "dataset_09.csv",
+      "regime": "unobserved_with_proxy",
+      "nc_unobserved": true,
+      "true_sign": "negative",
+      "guard_abstains": true,
+      "nc_residual": 0.104524
+    },
+    {
+      "version": "v2",
+      "file": "dataset_10.csv",
+      "regime": "confounded_sign_flip",
+      "nc_unobserved": false,
+      "true_sign": "negative",
+      "guard_abstains": true,
+      "nc_residual": 0.034344
+    },
+    {
+      "version": "v3",
+      "file": "dataset_01.csv",
+      "regime": "unobserved_no_proxy",
+      "nc_unobserved": true,
+      "true_sign": "negative",
+      "guard_abstains": true,
+      "nc_residual": 0.286087
+    },
+    {
+      "version": "v3",
+      "file": "dataset_02.csv",
+      "regime": "unobserved_with_proxy",
+      "nc_unobserved": true,
+      "true_sign": "negative",
+      "guard_abstains": true,
+      "nc_residual": 0.097121
+    },
+    {
+      "version": "v3",
+      "file": "dataset_03.csv",
+      "regime": "true_null_confounded",
+      "nc_unobserved": false,
+      "true_sign": "null",
+      "guard_abstains": true,
+      "nc_residual": 0.027088
+    },
+    {
+      "version": "v3",
+      "file": "dataset_04.csv",
+      "regime": "confounded_observed_moderate",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.027199
+    },
+    {
+      "version": "v3",
+      "file": "dataset_05.csv",
+      "regime": "confounded_nonlinear",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.018714
+    },
+    {
+      "version": "v3",
+      "file": "dataset_06.csv",
+      "regime": "confounded_strong_poor_overlap",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.040524
+    },
+    {
+      "version": "v3",
+      "file": "dataset_07.csv",
+      "regime": "clean_rct_small",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": -0.00738
+    },
+    {
+      "version": "v3",
+      "file": "dataset_08.csv",
+      "regime": "clean_rct_moderate",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.000517
+    },
+    {
+      "version": "v3",
+      "file": "dataset_09.csv",
+      "regime": "heterogeneous_net_positive",
+      "nc_unobserved": false,
+      "true_sign": "positive",
+      "guard_abstains": false,
+      "nc_residual": 0.018231
+    },
+    {
+      "version": "v3",
+      "file": "dataset_10.csv",
+      "regime": "confounded_sign_flip",
+      "nc_unobserved": false,
+      "true_sign": "negative",
+      "guard_abstains": false,
+      "nc_residual": 0.013728
+    }
+  ]
+}
