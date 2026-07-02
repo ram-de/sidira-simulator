@@ -1854,8 +1854,12 @@ export default function SimulationDetailV2() {
               {/* Direction-only watchdog verdict (Epic #538, #545) — ADDITIVE,
                   dormant until the backend deploy + SIDIRA_DECISION_FLOW_ENABLED
                   flip. Null/absent → renders nothing (page byte-identical for
-                  every existing run). No magnitude — sign + confidence/abstain. */}
-              {completeResult?.decision_verdict != null && (
+                  every existing run). No magnitude — sign + confidence/abstain.
+                  Suppressed on out_of_scope runs: the §8.2 instrument-scope
+                  abstention is categorical and outranks the direction verdict —
+                  showing one under "NOT ANSWERABLE BY THIS INSTRUMENT" would be
+                  contradictory guidance. */}
+              {completeResult?.decision_verdict != null && !abstained && (
                 <DecisionVerdictPanel verdict={completeResult.decision_verdict} />
               )}
 
