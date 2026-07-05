@@ -226,7 +226,7 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
 | 9 | Negative-control watchdog | ✅ inert | #541 |
 | 10 | Council fallback / abstain | ✅ inert | #542 router, #543 council |
 | 11 | DirectionVerdict output + API + frontend panel | ✅ inert | #545 |
-| 12 | **Per-persona grounded sim + aggregation** | ⬜ absent | related #514/#515; **core loop NOT ticketed** |
+| 12 | **Per-persona grounded sim + aggregation** | ⬜ absent | **#563 (core loop)**; related #514/#515 |
 | 13 | Senu calibration feeder | ✅ scaffold, 0 real pairs | #547, #478, #546 |
 | 14 | Prediction→outcome calibration loop (#222) | 🟡 seam only | #222; harness #517; answerability #314 |
 
@@ -239,11 +239,11 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
 1. **[#513/#512] The producer.** Port `manifest_builder` + `causal_estimator` from `research/` into
    `sidira-persona-worker` so pack builds **emit the estimability manifest with NC-guard fields**.
    Until this, every grounded call → `CANT_VALIDATE`. *(This is "step (a)" from the prior conversation.)*
-2. **[not ticketed] Coverage / grounding-completeness manifest** (§4) — so structurally-missing levers
+2. **[#564] Coverage / grounding-completeness manifest** (§4) — so structurally-missing levers
    route to LLM honestly instead of silent zero-impute.
-3. **[not ticketed] Per-persona grounded loop + sign-dispersion aggregation** (§5) — the heterogeneity
+3. **[#563] Per-persona grounded loop + sign-dispersion aggregation** (§5) — the heterogeneity
    differentiator; #514/#515 only cover an info-sufficiency gate, not the loop.
-4. **[not ticketed] NC/confounder auto-nomination as a reviewable step** (§3) — the LLM MAP (#512) must
+4. **[#565] NC/confounder auto-nomination as a reviewable step** (§3) — the LLM MAP (#512) must
    emit candidate NCs + confounders for human review, and we must track which NCs actually catch bias.
 5. **[#520/#526] Causal transfer from the experiment portfolio** — decide a *novel* hypothesis from a
    *set* of past experiments (meta-analytic), not just exact-match retrieval.
@@ -251,12 +251,12 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
    calibrate the guard beyond one RCT.
 7. **[founder-gated] Flag wiring + flip** + OpenAI key (council's gpt-5.5 arm) or drop it from the panel.
 
-### Not-yet-ticketed summary (candidates to file)
+### Filed 2026-07-05 (were not-yet-ticketed)
 
-- Per-persona grounded prediction + aggregation loop (§5).
-- Coverage/grounding-completeness manifest + per-lever grounding check (§4).
-- NC/confounder auto-nomination + a reviewable "lever card" surface (§3).
-- A frontend "grounding sources / observable levers" view (the thing that prompted this whole thread —
+- **#563** — Per-persona grounded prediction + sign-dispersion aggregation loop (§5).
+- **#564** — Coverage manifest + per-lever grounding-completeness check (§4).
+- **#565** — LLM negative-control/confounder nomination + reviewable lever card (§3).
+- **#566** — Frontend grounding-sources / observable-levers view (the thing that prompted this thread —
   today no UI surfaces which levers are grounded vs guessed).
 
 ---
