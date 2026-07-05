@@ -21,6 +21,18 @@ built — not current live behaviour.
 A **lever** is the *join* of the two: a crawler **capability** (e.g. "recommendation carousel") mapped
 to a **treatment column** in the warehouse. No treatment column → the capability isn't grounded → LLM route.
 
+**Lever data often lives in a *different table* than the persona feature store (#568).** Persona
+onboarding today ingests **one** per-user table. But the treatment/exposure column for a capability
+(who saw/used the carousel) usually sits in a separate events / feature-usage / flag-assignment table.
+Onboarding must therefore bring the treatment column to **per-user grain on the persona key**:
+- **v1 (cheap):** a customer-defined **VIEW/query** that pre-joins their tables into one wide per-user
+  table (persona features + candidate lever/exposure columns + outcomes). Works with the single-table
+  reader; the customer owns the join SQL.
+- **v2 (durable):** a lightweight **multi-source entity model** — a `user` entity keyed by `user_id`
+  with the feature store + lever/outcome tables as sources joined on the key.
+Either way the treatment must have **organic variation** (some users exposed, some not) to be groundable
+observationally; shown-to-everyone → no contrast → **route to the experiment path**, not this one.
+
 ---
 
 ## 1. Target-state flow
@@ -124,6 +136,16 @@ that nominated set at build time. **Nomination quality is itself something to ca
 outcomes tell us which NCs actually caught bias). Do not present auto-nominated NCs as authoritative —
 surface them for review.
 
+**Where the review happens — the Lever Catalog, NOT persona onboarding (#565).** Confirming/updating a
+lever's treatment→outcome mapping + its NCs/confounders requires the **product feature** (the crawled
+capability), so it cannot live in persona onboarding (which only knows the warehouse side). It is a
+**distinct surface** — a "Lever Catalog / Estimability Workbench" — gated on BOTH a ready persona pack
+AND a ready feature pack (crawl). Flow: LLM proposes per capability `{treatment col, outcome, covariates,
+candidate NCs}` → product owner confirms/edits/rejects → on confirm the `manifest_builder` computes the
+guard → the lever gets a status (`grounded` / `not-supportable` / `needs-experiment`). It is a **living
+catalog**: each weekly crawl surfaces new capabilities to map, and levers are re-confirmed as the product
+and our understanding evolve. Human-in-the-loop, LLM-proposes.
+
 ---
 
 ## 4. Feature completeness — the "7 categories," is it enough?
@@ -163,27 +185,41 @@ config edit (a new feature *type*/normalizer is a code branch in `adapter.py`). 
 
 ---
 
-## 5. Per-persona grounded sim + aggregation → ship / no-ship / test
+## 5. Grounded verdict — population-primary, per-persona as a heterogeneity overlay (#563)
 
-**Current state: ABSENT.** The grounded route matches a MechanismSpec against **pack-level**
-(population) precomputed candidate effects. There is **no per-persona loop**.
+**Current state: population-level only** (grounded route matches a MechanismSpec against pack-level
+precomputed candidate effects; no per-persona loop).
 
-**Target design (what you described):**
-1. Run the grounded estimate **conditioned on each persona segment** (a conditional average treatment
-   effect, CATE, per persona) — the g-formula supports stratification.
-2. Each persona yields a per-segment direction (+ magnitude, held backstage).
-3. **Aggregate**, weighted by persona size, to a population call — AND inspect the *distribution* of
-   signs across personas.
-4. **Output:**
-   - all personas agree, guard clean → **SHIP** (positive) / **NO-SHIP** (negative / CONTRADICTS)
-   - personas **disagree in sign** (heterogeneous), or guard trips, or council disagrees →
-     **CAN'T CALL — TEST IT** (optionally: a *segmented* recommendation "ship for A, not for B")
-   - This maps onto `DirectionVerdict.caution` = `none` (ship/no-ship) / `moderate` (unverified) /
-     `hard` (inconclusive), which is already the output contract.
+**Recommendation (revised 2026-07-05): do NOT ground per-persona-then-aggregate. Ground overall for the
+verdict; use per-persona only as a *powered heterogeneity overlay*.**
 
-Heterogeneity is *the* differentiator (resolving good-vs-bad magnitude trade-offs intuition/LLM miss).
-Related tickets: **#514/#515** (persona info-sufficiency gate). The per-persona grounded loop + sign-
-dispersion aggregation is **not ticketed yet** — see §7.
+- **Tier 1 (headline, always):** grounded ATE estimated on the **overall population** + watchdog →
+  SHIP / NO-SHIP / CAN'T-CALL. Directly estimated. The trustworthy call.
+- **Tier 2 (overlay, only when powered):** test for treatment×effect-modifier **heterogeneity**, with the
+  guard passing for the segment. Escalate to a *segmented* recommendation ("ship for A, hold for B") only
+  when the evidence is strong; else the population verdict stands ("no reliable heterogeneity").
+- Maps onto `DirectionVerdict.caution` = `none` (ship/no-ship) / `moderate` (unverified) / `hard`
+  (inconclusive) — the existing output contract.
+
+**Why not naive per-persona aggregation:**
+1. **Power is the moat.** The NC guard needs power; per-persona splitting thins each estimate → weaker
+   overlap, wider CIs, guard trips more → more abstains. Slicing thin sacrifices the trust the guard gives.
+2. **Aggregating segment signs is statistically wrong** — size-weighting per-persona signs is lossy and
+   can disagree with the directly-estimated population ATE (Simpson's paradox). Estimate population directly.
+3. **Personas may not be the effect-modifier axis** — they're built for *description*, not chosen as the
+   dimension the effect varies along; the real modifier may be a single covariate (tenure, usage intensity).
+
+**Mechanics:** prefer a **single model with treatment×segment interactions** (borrows strength) over N
+independent per-segment g-formulas (underpowered). Precompute population effect + a heterogeneity flag at
+build time (ML-free runtime).
+
+**Personas are NOT redundant under an overall verdict.** They remain (a) the **covariates** the grounded
+model adjusts on; (b) the **audience** for the per-persona "talk-to-users" chat, which stays per-persona
+(the grounded number it's anchored to is the overall verdict by default, or the segment-specific one when
+Tier 2 is powered); (c) the **heterogeneity lens** for Tier 2. The grounded *causal number* is overall
+for power; personas do the audience, adjustment, and heterogeneity work.
+
+Related: **#514/#515** (persona info-sufficiency gate). Reframed in **#563**.
 
 ---
 
@@ -216,7 +252,7 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
 | # | Stage | State | Tickets (remaining) |
 |---|---|---|---|
 | 1 | Persona-pack build from warehouse (worker) | ✅ | #268 done; scaling #291/#292/#293 open |
-| 2 | Feature-store connection onboarding (connect/map/health) | ✅ | Snowflake-only → #255; per-column override UI #271 |
+| 2 | Feature-store connection onboarding (connect/map/health) | ✅ single-table | Snowflake-only → #255; per-column override UI #271; **multi-source lever data #568** |
 | 3 | Crawler → Feature Pack (capabilities, reverse-PRD/Figma) | ✅ | multi-setup #474; mobile #216 |
 | 4 | Experiment connections — import PAST experiments | ✅ | #46/#19 done; sql/statsig/csv connectors live |
 | 5 | Empirical route: decide from past experiments | 🟡 retrieval only | #28/#29, #38 gate; **causal transfer from a portfolio → #520/#526** |
@@ -226,7 +262,7 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
 | 9 | Negative-control watchdog | ✅ inert | #541 |
 | 10 | Council fallback / abstain | ✅ inert | #542 router, #543 council |
 | 11 | DirectionVerdict output + API + frontend panel | ✅ inert | #545 |
-| 12 | **Per-persona grounded sim + aggregation** | ⬜ absent | **#563 (core loop)**; related #514/#515 |
+| 12 | **Grounded verdict: population-primary + heterogeneity overlay** | 🟡 population-only | **#563** (add powered heterogeneity overlay; NOT naive per-persona aggregation); related #514/#515 |
 | 13 | Senu calibration feeder | ✅ scaffold, 0 real pairs | #547, #478, #546 |
 | 14 | Prediction→outcome calibration loop (#222) | 🟡 seam only | #222; harness #517; answerability #314 |
 
@@ -241,23 +277,26 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
    Until this, every grounded call → `CANT_VALIDATE`. *(This is "step (a)" from the prior conversation.)*
 2. **[#564] Coverage / grounding-completeness manifest** (§4) — so structurally-missing levers
    route to LLM honestly instead of silent zero-impute.
-3. **[#563] Per-persona grounded loop + sign-dispersion aggregation** (§5) — the heterogeneity
-   differentiator; #514/#515 only cover an info-sufficiency gate, not the loop.
-4. **[#565] NC/confounder auto-nomination as a reviewable step** (§3) — the LLM MAP (#512) must
-   emit candidate NCs + confounders for human review, and we must track which NCs actually catch bias.
+3. **[#563] Population-primary grounded verdict + powered heterogeneity overlay** (§5) — NOT naive
+   per-persona aggregation; per-persona is a powered overlay, population is the trustworthy headline.
+4. **[#565] NC/confounder nomination in the Lever Catalog** (§3) — the LLM MAP (#512) emits candidate
+   NCs + confounders for human review in a dedicated Lever Catalog (gated on crawl, not onboarding).
+   **[#568] Multi-source lever onboarding** (§0) — bring treatment data from a table other than the
+   persona feature store (v1 join-view → v2 entity model).
 5. **[#520/#526] Causal transfer from the experiment portfolio** — decide a *novel* hypothesis from a
    *set* of past experiments (meta-analytic), not just exact-match retrieval.
 6. **[founder-gated] Real outcome data** — Senu pairs (#547/#478) + shipped-prediction pairs (#222) to
    calibrate the guard beyond one RCT.
 7. **[founder-gated] Flag wiring + flip** + OpenAI key (council's gpt-5.5 arm) or drop it from the panel.
 
-### Filed 2026-07-05 (were not-yet-ticketed)
+### Filed 2026-07-05
 
-- **#563** — Per-persona grounded prediction + sign-dispersion aggregation loop (§5).
+- **#563** — Grounded verdict: population-primary + powered heterogeneity overlay (§5). *(Reframed from
+  "per-persona loop + aggregate" — see the recommendation in §5.)*
 - **#564** — Coverage manifest + per-lever grounding-completeness check (§4).
-- **#565** — LLM negative-control/confounder nomination + reviewable lever card (§3).
-- **#566** — Frontend grounding-sources / observable-levers view (the thing that prompted this thread —
-  today no UI surfaces which levers are grounded vs guessed).
+- **#565** — LLM negative-control/confounder nomination + reviewable lever card, in the Lever Catalog (§3).
+- **#566** — Frontend grounding-sources / observable-levers view (§7).
+- **#568** — Multi-source lever onboarding — treatment data outside the persona feature store (§0).
 
 ---
 
@@ -267,7 +306,8 @@ Legend: **✅ built** · **🟡 partial** · **⬜ absent**. "Inert" = built but
    whole chain from architecture into something measurable, and empirically shows **how many levers are
    groundable from warehouse data alone** (expect: few → which is the argument for experiment data).
 2. **Coverage manifest + grounding-completeness** — so "few" is honest, not silent.
-3. **Per-persona loop + aggregation** — the differentiated output.
+3. **Grounded verdict at population level + heterogeneity overlay (#563)** — trustworthy headline first,
+   segmented story only where powered.
 4. **Wire + flip the flag** on Streamly; add the grounding-sources UI.
 5. **Feed real outcomes** (Senu #547/#478, then shipped predictions #222) to calibrate.
 
