@@ -9,8 +9,12 @@ from __future__ import annotations
 
 import json
 
+import pytest
+from pydantic import ValidationError
+
 from sidira_simulator.services.persona_builder import (
     BuildConfig,
+    EstimabilityBuildConfig,
     _build_pipeline_config,
     _infer_adapter_type,
 )
@@ -192,3 +196,76 @@ def test_stability_threshold_propagates_into_cluster_cfg():
         _rows(), _mapping(), _cfg(stability_threshold=0.7), "cust1"
     )
     assert cfg["cluster"]["stability_threshold"] == 0.7
+
+
+# ── estimability block (#568) ────────────────────────────────────────────────
+
+
+def test_absent_estimability_omits_the_key_entirely():
+    """No estimability block ⇒ no ``estimability`` key in cfg ⇒ pipeline builds
+    no manifest (today's exact behavior; the config is byte-identical)."""
+    cfg = _build_pipeline_config(_rows(), _mapping(), _cfg(), "cust1")
+    assert "estimability" not in cfg
+
+
+def test_populated_estimability_threads_and_excludes_none():
+    est = EstimabilityBuildConfig(
+        enabled=True,
+        treatments=["reminder_email_sent"],
+        outcomes=["reactivated_30d"],
+        nc_diagnostics=True,
+    )
+    cfg = _build_pipeline_config(_rows(), _mapping(), _cfg(estimability=est), "cust1")
+    block = cfg["estimability"]
+    assert block["enabled"] is True
+    assert block["treatments"] == ["reminder_email_sent"]
+    assert block["outcomes"] == ["reactivated_30d"]
+    assert block["nc_diagnostics"] is True
+    # exclude_none drops the unset optional knobs (they fall through to the
+    # pipeline's own documented defaults).
+    assert "auto_neg_controls" not in block
+    assert "max_treatments" not in block
+    assert "max_outcomes" not in block
+    assert "max_rows" not in block
+    assert "neg_control_map" not in block
+    assert "extra_outcome_hints" not in block
+
+
+def test_estimability_enabled_false_survives_exclude_none():
+    """A caller can pass the block but opt out — ``enabled`` is a real bool, so
+    ``enabled=False`` is threaded (not dropped by exclude_none)."""
+    est = EstimabilityBuildConfig(enabled=False)
+    cfg = _build_pipeline_config(_rows(), _mapping(), _cfg(estimability=est), "cust1")
+    assert cfg["estimability"] == {"enabled": False, "nc_diagnostics": False}
+
+
+def test_estimability_round_trips_through_config_json():
+    """The worker reconstructs the job via BuildConfig.model_validate(config_json);
+    a new pydantic field round-trips automatically (worker fidelity)."""
+    payload = _cfg(
+        estimability=EstimabilityBuildConfig(
+            treatments=["t"],
+            outcomes=["y"],
+            neg_control_map={"t": ["nc1", "nc2"]},
+            nc_diagnostics=True,
+        )
+    )
+    restored = BuildConfig.model_validate(payload.model_dump(mode="json"))
+    assert restored.estimability is not None
+    assert restored.estimability.treatments == ["t"]
+    assert restored.estimability.outcomes == ["y"]
+    assert restored.estimability.neg_control_map == {"t": ["nc1", "nc2"]}
+    assert restored.estimability.nc_diagnostics is True
+    # And it threads identically after reconstruction.
+    cfg = _build_pipeline_config(_rows(), _mapping(), restored, "cust1")
+    assert cfg["estimability"]["neg_control_map"] == {"t": ["nc1", "nc2"]}
+
+
+def test_estimability_absent_round_trips_as_none():
+    restored = BuildConfig.model_validate(_cfg().model_dump(mode="json"))
+    assert restored.estimability is None
+
+
+def test_estimability_forbids_unknown_keys():
+    with pytest.raises(ValidationError):
+        EstimabilityBuildConfig(bogus_key=1)
