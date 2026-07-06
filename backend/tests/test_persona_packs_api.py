@@ -301,6 +301,147 @@ def test_promote_version_beyond_recent_page_resolves_metadata(packs_client) -> N
     assert promoted["persona_count"] == 5
 
 
+# ── estimability lever cards (#565) ───────────────────────────────────────
+
+
+def _write_manifest(store: LocalArtifactStore, version: str, candidates: list[dict]) -> None:
+    """Write an estimability_manifest.json beside the pack at `version`."""
+    manifest = {
+        "manifest_version": "1",
+        "customer_id": _CUSTOMER_ID,
+        "setup_id": "default",
+        "pack_version": version,
+        "feature_store": "STREAMLY.SYNTHETIC.USERS_FEATURE_STORE",
+        "columns": [],
+        "capability_links": [],
+        "candidate_effects": candidates,
+        "built_at": "2026-07-01T00:00:00Z",
+    }
+    key = f"customers/{_CUSTOMER_ID}/personas/{version}/estimability_manifest.json"
+    store.write_text(key, json.dumps(manifest))
+
+
+def test_estimability_returns_lever_cards(packs_client) -> None:
+    """A seeded manifest projects to review cards: direction + guard tri-state."""
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [
+            {
+                "treatment": "autoplay_enabled",
+                "outcome": "completion_rate",
+                "covariates": ["weekly_sessions", "genre_concentration"],
+                "supportable": True,
+                "support_reasons": ["overlap ok"],
+                "n_treat": 900,
+                "n_control": 1100,
+                "overlap_fraction": 0.82,
+                # Magnitudes present in the artifact — must be stripped from the view.
+                "naive_ate": 0.13,
+                "t_learner_ate": 0.11,
+                "ipw_ate": 0.12,
+                "sign_adjusted": "positive",
+                "guard_trips": False,
+                "guard_floor": 0.05,
+                "guard_ratio": 1.5,
+                "guard_confidence": "high",
+                "guard_reason": "no NC exceeds floor",
+                "neg_control_effect": 0.01,
+                "neg_control_effects": {"age": 0.01, "household_size": 0.004},
+            },
+            {
+                # A candidate with NC evidence NOT precomputed → not-validated card.
+                "treatment": "ad_supported_flag",
+                "outcome": "plan_upgrade_propensity",
+                "supportable": True,
+                "sign_adjusted": "negative",
+                "guard_trips": None,
+            },
+        ],
+    )
+    resp = packs_client.get("/persona-packs/v_1/estimability")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["pack_version"] == "v_1"
+    assert body["feature_store"].startswith("STREAMLY")
+    assert len(body["levers"]) == 2
+
+    first, second = body["levers"]
+    assert first["treatment"] == "autoplay_enabled"
+    assert first["direction"] == "positive"
+    assert first["guard_trips"] is False
+    assert first["guard_floor"] == 0.05 and first["guard_ratio"] == 1.5
+    assert first["neg_control_effects"] == {"age": 0.01, "household_size": 0.004}
+    # The tri-state None survives round-trip as the honest "not validated" state.
+    assert second["guard_trips"] is None
+    assert second["direction"] == "negative"
+
+
+def test_estimability_omits_effect_magnitudes(packs_client) -> None:
+    """The view is direction-only: no treatment→outcome ATE ever reaches the client."""
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [
+            {
+                "treatment": "autoplay_enabled",
+                "outcome": "completion_rate",
+                "supportable": True,
+                "naive_ate": 0.13,
+                "t_learner_ate": 0.11,
+                "ipw_ate": 0.12,
+                "naive_adjusted_gap": 0.09,
+                "sign_adjusted": "positive",
+            }
+        ],
+    )
+    lever = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    for banned in ("naive_ate", "t_learner_ate", "ipw_ate", "naive_adjusted_gap"):
+        assert banned not in lever, f"{banned} leaked into the lever card view"
+    # But the direction and NC-guard evidence ARE present.
+    assert lever["direction"] == "positive"
+    assert "guard_trips" in lever and "neg_control_effects" in lever
+
+
+def test_estimability_latest_resolves_pointer(packs_client) -> None:
+    """`latest` reads the manifest of the version the pointer resolves to."""
+    _write_pack(packs_client._store, "v_1")
+    _seed_build(
+        build_id="b1",
+        status="complete",
+        pack_version="v_1",
+        created_at=datetime(2026, 6, 15, tzinfo=timezone.utc),
+    )
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [{"treatment": "t", "outcome": "y", "supportable": True, "sign_adjusted": "positive"}],
+    )
+    packs_client.post("/persona-packs/v_1/promote")
+
+    resp = packs_client.get("/persona-packs/latest/estimability")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["pack_version"] == "v_1"
+
+
+def test_estimability_absent_manifest_404(packs_client) -> None:
+    """A pack with no manifest (pre-precompute) is a real 404 empty-state, not 500."""
+    _write_pack(packs_client._store, "v_1")
+    assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
+
+
+def test_estimability_latest_empty_tenant_404(packs_client) -> None:
+    """No `latest` pointer → 404 (no pack, so no lever data)."""
+    assert packs_client.get("/persona-packs/latest/estimability").status_code == 404
+
+
+def test_estimability_malformed_manifest_404(packs_client) -> None:
+    """A corrupt manifest degrades to 404 rather than 500-ing the detail page."""
+    key = f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+    packs_client._store.write_text(key, "{ not valid json ]")
+    assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
+
+
 def test_get_by_pack_version_ignores_incomplete_and_other_customers() -> None:
     """Unit coverage for the new repo method: only this customer's COMPLETE build
     with the exact version is returned."""
