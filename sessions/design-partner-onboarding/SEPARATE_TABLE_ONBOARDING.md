@@ -92,6 +92,15 @@ Notes:
   `exclude_none`, so only what you set is sent.
 - Omit the whole `estimability` block and the build behaves exactly as before:
   no manifest, the grounded-decision chain stays dormant.
+- **Spell the top-level key exactly `estimability`.** It is an optional field and
+  unknown top-level keys on the build request are silently dropped (the parent
+  `BuildConfig` is intentionally permissive for wire forward-compat), so a typo
+  like `estimablity` produces **no error and no manifest**. After a white-glove
+  build, confirm the manifest was actually written
+  (`.../estimability_manifest.json` beside the pack, or the `[estimability] N
+  candidate effect(s)` build log line) rather than assuming the block took. Keys
+  *inside* the block are typo-protected (`extra="forbid"` → a bad nested key
+  raises).
 
 ## 3. The organic-variation constraint
 
