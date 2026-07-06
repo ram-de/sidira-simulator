@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sidira_simulator.adapters import credentials
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
@@ -27,6 +27,36 @@ from sidira_simulator.services.persona_pack_translator import translate_producer
 from sidira_simulator.services.run_state import RunPhase, RunStateStore, SimulationRunState
 
 logger = logging.getLogger(__name__)
+
+
+class EstimabilityBuildConfig(BaseModel):
+    """Declares the causal-effect estimability manifest for an onboarded pack.
+
+    The *presence* of this block on a :class:`BuildConfig` is the intent to enable
+    the manifest — it is threaded verbatim into the ``sidira_personas`` pipeline's
+    ``cfg["estimability"]`` contract (which builds the manifest only when
+    ``enabled is True``). The white-glove onboarding names the treatment/exposure
+    column(s) (``treatments``) and outcome column(s) (``outcomes``) that live in
+    the joined source VIEW alongside the persona features; see
+    ``sessions/design-partner-onboarding/SEPARATE_TABLE_ONBOARDING.md``.
+
+    All fields but ``enabled`` are optional; ``_build_pipeline_config`` serializes
+    with ``exclude_none`` so unset knobs fall through to the pipeline's own
+    documented defaults (``auto_neg_controls=True``, ``max_*`` caps, etc.).
+    """
+
+    model_config = ConfigDict(extra="forbid")  # typo protection on the wire
+
+    enabled: bool = True
+    treatments: list[str] | None = None
+    outcomes: list[str] | None = None
+    extra_outcome_hints: list[str] | None = None
+    neg_control_map: dict[str, list[str]] | None = None
+    auto_neg_controls: bool | None = None
+    nc_diagnostics: bool = False
+    max_treatments: int | None = None
+    max_outcomes: int | None = None
+    max_rows: int | None = None
 
 
 class BuildConfig(BaseModel):
@@ -41,6 +71,12 @@ class BuildConfig(BaseModel):
     weight_schemes: list[Literal["head_count", "order_weighted", "revenue_weighted"]] = Field(
         default_factory=lambda: ["head_count"]
     )
+    #: Optional causal-effect estimability declaration. Absent ⇒ no
+    #: ``estimability`` key reaches the pipeline ⇒ no manifest is built (today's
+    #: exact behavior). Present ⇒ threaded verbatim into the producer pipeline's
+    #: ``cfg["estimability"]`` contract. White-glove / API-driven for now (the
+    #: wizard role-declaration UI is deferred to #565).
+    estimability: EstimabilityBuildConfig | None = None
 
 
 @dataclass
@@ -283,6 +319,16 @@ def _build_pipeline_config(
     }
     if snapshot_col:
         cfg["snapshot_date_column"] = snapshot_col
+
+    # Estimability manifest declaration (#568). Absent ⇒ no ``estimability`` key,
+    # so the producer pipeline builds no manifest (today's exact behavior).
+    # Present ⇒ threaded verbatim into the pipeline's ``cfg["estimability"]``
+    # contract. ``exclude_none`` drops unset optional knobs so the pipeline's own
+    # documented defaults apply; ``enabled`` is a real bool default True, so it
+    # survives ``exclude_none`` and the manifest is built.
+    if config.estimability is not None:
+        cfg["estimability"] = config.estimability.model_dump(exclude_none=True)
+
     return cfg
 
 
