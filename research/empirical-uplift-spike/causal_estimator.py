@@ -125,6 +125,14 @@ def negative_control_guard(df, treatment, outcome, neg_controls, covariates,
     confounding (a weak set under-trips); nominating the controls is a domain/LLM judgment.
     """
     names = [neg_controls] if isinstance(neg_controls, str) else list(neg_controls)
+    # A negative control must NOT also be in the adjustment set: regressing the control on the
+    # treatment WHILE controlling for the control itself collapses its residual to ~0, so the guard
+    # sees "no confounding" and FALSELY passes a confounded estimate. Strip the controls from the
+    # covariates so each is tested as a genuine outcome-side control. No-op when the sets are
+    # disjoint (the campaign iter1-iter5 runs), so validated behavior is unchanged. Mirrors the
+    # sidira-personas fix (the vendored production copy).
+    _ncset = set(names)
+    covariates = [c for c in covariates if c not in _ncset]
     est = estimate(df, treatment, outcome, covariates)
     effects = {nc: float(estimate(df, treatment, nc, covariates).t_learner_ate) for nc in names}
     decisive = max(effects.items(), key=lambda kv: abs(kv[1]))     # (name, effect) of max |effect|
