@@ -144,6 +144,42 @@ export type PersonaPackDetail = {
   weight_schemes: WeightSchemeView[];
   personas: PersonaProfileView[];
 };
+
+// #565: reviewable "lever cards" — the build-time estimability manifest projected
+// for human review. Hand-mirrored (this route postdates the checked-in
+// api-types.ts, same codegen caveat as PersonaPackDetail). The API deliberately
+// strips the treatment→outcome effect MAGNITUDES (direction-only product); only
+// the direction verdict + negative-control guard evidence reach the client.
+export type LeverCard = {
+  treatment: string;
+  outcome: string;
+  covariates: string[];
+  supportable: boolean;
+  support_reasons: string[];
+  n_treat: number | null;
+  n_control: number | null;
+  overlap_fraction: number | null;
+  // Direction-only verdict; null when the candidate is not supportable.
+  direction: "positive" | "negative" | null;
+  // NC-guard tri-state: false = trustworthy, true = untrustworthy (effect
+  // indistinguishable from confounding bias), null = NC evidence not precomputed
+  // ("not validated" — the honest empty-state, never dressed up as trust).
+  guard_trips: boolean | null;
+  guard_floor: number | null;
+  guard_ratio: number | null;
+  guard_confidence: string | null;
+  guard_reason: string | null;
+  neg_control_effect: number | null;
+  neg_control_effects: Record<string, number>;
+};
+export type LeverCardManifest = {
+  manifest_version: string;
+  pack_version: string;
+  feature_store: string;
+  built_at: string | null;
+  levers: LeverCard[];
+};
+
 export type Hypothesis = components["schemas"]["Hypothesis"];
 // #215/#245 PR 3a/3b: the backend Simulation + SimulationRequest now carry a
 // `setup_id` (which crawl setup's Feature Pack the sim resolves against), but
@@ -398,6 +434,15 @@ export const getPersonaPack = (id: string) =>
 // `latest`/starter/404 semantics as getPersonaPack.
 export const getPersonaPackDetail = (id: string) =>
   apiGet<PersonaPackDetail>(`/persona-packs/${encodeURIComponent(id)}/detail`);
+
+// #565: reviewable lever cards for a pack — the estimability manifest projected
+// to direction + NC-guard evidence. Same `latest`/version addressing as the
+// detail view; a pack built before the estimability precompute has no manifest
+// and 404s (the caller renders that as the "no lever data yet" empty-state).
+export const getPersonaPackEstimability = (id: string) =>
+  apiGet<LeverCardManifest>(
+    `/persona-packs/${encodeURIComponent(id)}/estimability`,
+  );
 
 // Sample-workspace seeding (sessions/sample-workspace): clone the Streamly
 // sample persona + feature packs into the caller's own tenant. Backend 409s

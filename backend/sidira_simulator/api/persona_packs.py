@@ -5,22 +5,37 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from sidira_simulator.adapters.base import ArtifactNotFound
+from sidira_simulator.adapters.base import (
+    ArtifactNotFound,
+    ArtifactSchemaError,
+    load_json_artifact,
+)
 from sidira_simulator.adapters.persona_loader import PersonaPackLoader
+from sidira_simulator.adapters.r2 import ArtifactStore
 from sidira_simulator.adapters.repositories import PersonaBuildRepo
 from sidira_simulator.api.deps import (
     current_customer_id,
+    get_artifact_store,
     get_persona_build_repo,
     get_persona_loader,
 )
+from sidira_simulator.schemas.estimability import EstimabilityManifest
 from sidira_simulator.schemas.persona import PersonaPack
+from sidira_simulator.services.grounded_predictor import estimability_manifest_key
+from sidira_simulator.services.lever_card_view import (
+    LeverCardManifest,
+    build_lever_card_view,
+)
 from sidira_simulator.services.persona_pack_view import (
     PersonaPackDetail,
     build_persona_pack_detail,
 )
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/persona-packs", tags=["persona-packs"])
 
@@ -158,6 +173,93 @@ async def get_pack_detail(
     raw `GET /{pack_id}`.
     """
     return build_persona_pack_detail(_load_pack(loader, customer_id, pack_id))
+
+
+@router.get("/{pack_id}/estimability", response_model=LeverCardManifest)
+async def get_pack_estimability(
+    pack_id: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+    store: ArtifactStore = Depends(get_artifact_store),
+) -> LeverCardManifest:
+    """Reviewable "lever cards" for a pack — the estimability manifest, projected (#565).
+
+    Surfaces the build-time estimability manifest (written beside the persona pack
+    in R2 by the worker) as a list of per-(treatment→outcome) review cards: the
+    direction-only verdict plus the negative-control guard evidence a human uses
+    to sanity-check what the engine will and won't trust. The treatment's own
+    effect MAGNITUDES are stripped in the view (direction-only product); the NC
+    residuals are carried through as trust diagnostics.
+
+    Version resolution mirrors the other pack routes: ``latest`` resolves via the
+    pointer (404 when no pack exists yet), an explicit version reads that exact
+    snapshot's manifest. The manifest is OPTIONAL — a pack built before the
+    precompute shipped simply has none, which is a real 404 ("no lever data yet",
+    the frontend's honest empty-state), not an error. A present-but-malformed
+    manifest also degrades to 404 (logged) rather than 500-ing the page: this read
+    is never allowed to break the detail surface.
+    """
+    if pack_id == LATEST:
+        version = _resolve_latest_version(loader, customer_id)
+        if version is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No persona pack for customer {customer_id!r}.",
+            )
+    else:
+        version = pack_id
+
+    # Enforce the sibling routes' existence semantics: the pack VERSION must exist
+    # (a manifest without its pack is an orphan we must not serve, and an unknown
+    # explicit version is a real 404, not a stray-manifest 200). `latest` already
+    # resolved to a concrete existing version above, but re-checking keeps one path.
+    try:
+        loader.load_at_version(customer_id, version)
+    except ArtifactNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No persona pack version {version!r} for customer {customer_id!r}.",
+        ) from exc
+
+    key = estimability_manifest_key(customer_id, version)
+    try:
+        manifest = load_json_artifact(store, key, EstimabilityManifest)
+    except ArtifactNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No estimability manifest for pack {version!r} (customer {customer_id!r}).",
+        ) from exc
+    except ArtifactSchemaError as exc:
+        # A corrupt/incompatible artifact must not 500 the detail page — degrade
+        # to the same empty-state as "absent", but log loudly so it's caught.
+        log.warning(
+            "persona_packs.estimability_manifest_malformed",
+            customer_id=customer_id,
+            pack_version=version,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Estimability manifest for pack {version!r} is unreadable.",
+        ) from exc
+
+    # Integrity guard: the manifest must describe THIS customer's THIS version. A
+    # misplaced/stale artifact whose own ``customer_id`` / ``pack_version`` disagree
+    # with the resolved key would otherwise return another pack's metadata — 404 it.
+    if manifest.customer_id != customer_id or manifest.pack_version != version:
+        log.warning(
+            "persona_packs.estimability_manifest_mismatch",
+            customer_id=customer_id,
+            pack_version=version,
+            manifest_customer_id=manifest.customer_id,
+            manifest_pack_version=manifest.pack_version,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Estimability manifest for pack {version!r} does not match the pack.",
+        )
+
+    return build_lever_card_view(manifest)
 
 
 @router.post("/{pack_id}/promote", response_model=PackSummary)

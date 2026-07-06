@@ -32,6 +32,9 @@ import AppShellV2 from "@/components/v2/AppShellV2";
 import {
   ApiError,
   getPersonaPackDetail,
+  getPersonaPackEstimability,
+  type LeverCard,
+  type LeverCardManifest,
   type PersonaPackDetail,
   type PersonaProfileView,
   type ProfileBlockView,
@@ -212,6 +215,34 @@ const RSHEET_CSS = `
   margin:14px 0 0;}
 .rsheet .cmp .note{font-size:12px; line-height:1.5; color:var(--sheet-mut);
   margin:14px 0 0; border-top:.75px solid var(--sheet-line); padding-top:11px;}
+
+/* ── reviewable lever cards (#565) — records on the same Sheet, no glass ──── */
+.rsheet .lever-io{font-family:var(--font-mono); font-size:15px; letter-spacing:-.01em;
+  color:var(--sheet-ink); font-weight:500; display:inline-flex; align-items:baseline;
+  flex-wrap:wrap;}
+.rsheet .io-arr{color:var(--sheet-mut); margin:0 7px;}
+/* verdict + its policy are ONE block so a verdict can never render without the
+   decision rule that produced it (DESIGN.md §8.1). */
+.rsheet .verdict-wrap{display:flex; flex-direction:column; gap:6px; margin-top:15px;}
+.rsheet .verdict{align-self:flex-start; display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; border:.75px solid var(--sheet-line);
+  border-radius:var(--r-well); padding:5px 10px; color:var(--sheet-ink);
+  background:var(--sheet-raised);}
+.rsheet .verdict.trust{box-shadow:inset 2px 0 0 var(--sheet-signal); color:var(--sheet-signal);}
+.rsheet .verdict.flag{box-shadow:inset 2px 0 0 var(--sheet-spread); color:var(--sheet-spread);}
+.rsheet .verdict.none{border-style:dashed; color:var(--sheet-mut);}
+.rsheet .verdict .gl{font-size:11px; line-height:1;}
+.rsheet .policy{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.03em;
+  color:var(--sheet-mut); line-height:1.55; max-width:64ch;}
+.rsheet .lever-note{font-family:var(--font-sans); font-size:13.5px; line-height:1.55;
+  color:var(--sheet-mut); max-width:64ch; margin:18px 0 0;}
+.rsheet .lever-note strong{color:var(--sheet-ink); font-weight:500;}
+/* NC-residual register — reuses the .snap grid; the decisive residual is inked. */
+.rsheet .nc{margin:22px 0 0;}
+.rsheet .snap dd.dec{color:var(--sheet-spread); font-weight:500;}
+.rsheet .snap dd .tag{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--sheet-mut); margin-left:8px;}
 
 /* quiet states (loading / missing / error) */
 .rsheet .quiet{max-width:1140px; margin:0 auto; padding:64px 56px 96px;}
@@ -432,6 +463,8 @@ export default function PersonaPackDetailV2({ params }: { params: { id: string }
             />
           ))}
 
+          <LeversSection id={id} />
+
           <footer className="recfoot">
             <span className="l">
               RECORD · {data.version.toUpperCase()} ·{" "}
@@ -550,6 +583,210 @@ function ComparisonBlock({ block }: { block: ProfileBlockView }) {
   );
 }
 
+// ── reviewable lever cards (#565) ─────────────────────────────────────────
+//
+// The build-time estimability manifest, read for HUMAN review: one record per
+// precomputed (treatment → outcome) candidate. Direction-only — the API strips
+// the effect magnitudes — plus the negative-control guard verdict a reviewer
+// uses to decide whether the engine may trust each lever.
+//
+// HONESTY: the manifest is optional. A pack built before the estimability
+// precompute simply has none (404) → this surface renders NOTHING, rather than a
+// fake empty section on every legacy pack. When a manifest IS present but yields
+// no supportable candidates, THAT absence is shown (a manifest exists; it just
+// found nothing). Every guard verdict renders bound to its decision policy
+// (floor / ratio) — a verdict never appears without the rule that produced it
+// (§8.1). The `null` guard state is shown as an explicit "not validated", never
+// dressed up as trust.
+
+function LeversSection({ id }: { id: string }) {
+  const [levers, setLevers] = useState<Fetchable<LeverCardManifest>>({ state: "loading" });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getPersonaPackEstimability(id);
+        if (!cancelled) setLevers({ state: "ready", data });
+      } catch (e) {
+        if (cancelled) return;
+        // 404 = no manifest for this pack (pre-precompute). Not an error — the
+        // lever surface simply doesn't exist here, so render nothing.
+        if (e instanceof ApiError && e.status === 404) setLevers({ state: "missing" });
+        else setLevers({ state: "error", message: e instanceof Error ? e.message : "Unknown error" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // No manifest, or still loading → this pack has no lever surface; stay silent.
+  if (levers.state === "loading" || levers.state === "missing") return null;
+
+  if (levers.state === "error") {
+    return (
+      <>
+        <div className="sec-head">
+          <h2>Reviewable levers</h2>
+          <span className="spacerline" />
+        </div>
+        <p className="lever-note">
+          The estimability manifest could not be loaded: {levers.message}
+        </p>
+      </>
+    );
+  }
+
+  const { levers: cards } = levers.data;
+
+  return (
+    <>
+      <div className="sec-head">
+        <h2>Reviewable levers</h2>
+        <span className="spacerline" />
+        <span className="count">
+          {cards.length} candidate{cards.length === 1 ? "" : "s"} · direction-only
+        </span>
+      </div>
+
+      <p className="honesty">
+        Each record is a precomputed (treatment&nbsp;→&nbsp;outcome) estimate from the
+        observational feature store — a <strong>predicted direction</strong>, never a magnitude. The{" "}
+        <strong>negative-control guard</strong> flags whether that direction is trustworthy or is
+        indistinguishable from hidden confounding. These are for review: an unvalidated or flagged
+        lever is not a verdict to act on.
+      </p>
+
+      {cards.length === 0 ? (
+        <p className="lever-note">
+          The manifest is present but found <strong>no supportable levers</strong> — no
+          (treatment&nbsp;→&nbsp;outcome) pair in this pack cleared the support checks. Nothing to review yet.
+        </p>
+      ) : (
+        cards.map((lever, i) => <LeverRecord key={`${lever.treatment}->${lever.outcome}-${i}`} lever={lever} />)
+      )}
+    </>
+  );
+}
+
+function LeverRecord({ lever }: { lever: LeverCard }) {
+  const direction =
+    lever.direction === "positive"
+      ? "DIRECTION ↑ HIGHER"
+      : lever.direction === "negative"
+        ? "DIRECTION ↓ LOWER"
+        : "NO DIRECTIONAL READING";
+
+  // A trust/untrust verdict may render ONLY WITH its real decision policy (§8.1).
+  // If the floor/ratio thresholds are missing, we cannot honestly present trust —
+  // the lever degrades to the explicit "not validated" state rather than showing a
+  // verdict with a hollow "ratio —" policy.
+  const hasPolicy = lever.guard_floor != null && lever.guard_ratio != null;
+  const validated = lever.guard_trips !== null && hasPolicy;
+
+  const verdict = !validated
+    ? { cls: "none", label: "NOT VALIDATED", glyph: "◇" }
+    : lever.guard_trips === false
+      ? { cls: "trust", label: "EMPIRICAL · TRUSTWORTHY", glyph: null }
+      : { cls: "flag", label: "CONFOUNDED · UNTRUSTWORTHY", glyph: null };
+
+  // §8.1 — the decision rule that produced (or withheld) the verdict, always shown
+  // bound to it. A validated verdict carries its real floor/ratio; the unvalidated
+  // states say WHY trust was withheld (no evidence vs. incomplete thresholds).
+  const policy = validated
+    ? `Negative-control guard · floor ${fmtNum(lever.guard_floor)} · ratio ${fmtNum(lever.guard_ratio)}`
+    : lever.guard_trips === null
+      ? "No negative-control evidence was precomputed for this lever, so trust cannot be certified."
+      : "Negative-control evidence is incomplete (floor/ratio not recorded), so trust cannot be certified.";
+
+  const support: string[] = [
+    lever.supportable ? "SUPPORTABLE" : "NOT SUPPORTABLE",
+  ];
+  if (lever.n_treat != null && lever.n_control != null) {
+    support.push(`n ${lever.n_treat}/${lever.n_control}`);
+  }
+  if (lever.overlap_fraction != null) {
+    support.push(`OVERLAP ${(lever.overlap_fraction * 100).toFixed(0)}%`);
+  }
+
+  // NC residuals, largest |effect| first; the decisive one (max |effect|) is inked.
+  const ncEntries = Object.entries(lever.neg_control_effects).sort(
+    (a, b) => Math.abs(b[1]) - Math.abs(a[1]),
+  );
+  const decisiveKey = ncEntries.length > 0 ? ncEntries[0][0] : null;
+
+  return (
+    <section className="persona">
+      <div className="persona-head">
+        <div className="persona-name">
+          <span className="lever-io">
+            {lever.treatment}
+            <span className="io-arr">→</span>
+            {lever.outcome}
+          </span>
+        </div>
+        <div className="share-row">
+          <span className="desig">{direction}</span>
+        </div>
+        <div className="verdict-wrap">
+          <span className={`verdict ${verdict.cls}`}>
+            {verdict.glyph && <span className="gl">{verdict.glyph}</span>}
+            {verdict.label}
+          </span>
+          <span className="policy">{policy}</span>
+        </div>
+      </div>
+
+      <div className="persona-body">
+        <div className="share-row">
+          {support.map((s) => (
+            <span key={s} className="desig">
+              {s}
+            </span>
+          ))}
+        </div>
+
+        {lever.support_reasons.length > 0 && (
+          <p className="lever-note">{lever.support_reasons.join(" · ")}</p>
+        )}
+
+        {lever.guard_reason && lever.guard_trips !== null && (
+          <p className="lever-note">
+            <strong>Guard:</strong> {lever.guard_reason}
+          </p>
+        )}
+
+        {/* NC-residual register — the reviewable evidence: how much the lever
+            appears to "move" a variable it cannot cause (pure confounding). Only
+            when NC evidence was precomputed. */}
+        {lever.guard_trips !== null && (
+          <div className="nc">
+            <span className="subhead">Negative-control residuals</span>
+            {ncEntries.length > 0 ? (
+              <dl className="snap">
+                {ncEntries.map(([name, val], i) => (
+                  <div key={name} className="pair" style={{ display: "contents" }}>
+                    <dt>{name}</dt>
+                    <dd className={name === decisiveKey ? "dec" : undefined}>
+                      {fmtSigned(val)}
+                      {name === decisiveKey && ncEntries.length > 1 && (
+                        <span className="tag">decisive</span>
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="lever-note">No per-control residuals were recorded.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ── shared bits ───────────────────────────────────────────────────────────
 
 function RecordNote({ children, alert = false }: { children: React.ReactNode; alert?: boolean }) {
@@ -584,4 +821,14 @@ function formatCapture(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toISOString().slice(0, 10);
+}
+
+// Lever-card number formatting: policy thresholds render bare (null → em dash so
+// the policy line never reads a stray "null"); NC residuals render signed to 3dp.
+function fmtNum(v: number | null): string {
+  return v == null ? "—" : String(v);
+}
+
+function fmtSigned(v: number): string {
+  return `${v >= 0 ? "+" : ""}${v.toFixed(3)}`;
 }
