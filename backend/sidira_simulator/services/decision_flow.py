@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 import structlog
 
 from sidira_simulator.schemas.estimability import EstimabilityManifest
+from sidira_simulator.schemas.lever_review import LeverReviewLog
 from sidira_simulator.schemas.mechanism import MechanismSpec
 from sidira_simulator.schemas.simulation import Hypothesis
 from sidira_simulator.schemas.verdict import DirectionVerdict, GuardrailMetric
@@ -65,7 +66,10 @@ from sidira_simulator.services.grounded_predictor import (
     load_estimability_manifest,
 )
 from sidira_simulator.services.mechanism_translator import translate_hypothesis
-from sidira_simulator.services.negative_control_watchdog import watchdog_classify
+from sidira_simulator.services.negative_control_watchdog import (
+    apply_lever_review_override,
+    watchdog_classify,
+)
 
 log = structlog.get_logger()
 
@@ -198,6 +202,7 @@ def decide(
     model_id: str | None = None,
     council: Council | None = None,
     manifest: EstimabilityManifest | None | _Unset = _UNSET,
+    lever_reviews: LeverReviewLog | None = None,
 ) -> DecisionResult:
     """Run the §5e two-step decision flow for one hypothesis. NEVER raises.
 
@@ -216,6 +221,8 @@ def decide(
             Pass ``manifest=None`` to assert it is KNOWN-ABSENT — a caller that
             already checked R2 and found nothing passes None so this does NOT read
             R2 a second time. Either way, an absent manifest → not-covered → Step 2.
+        lever_reviews: human vouch/override sidecar; a 'rejected' review
+            force-abstains its lever. Injectable so tests skip R2.
 
     Returns:
         A :class:`DecisionResult` audit trail. Any unexpected failure degrades to a
@@ -252,6 +259,11 @@ def decide(
 
         # 4) Watchdog-validate the grounded sign against the LLM take.
         watchdog = watchdog_classify(prediction, llm_direction=assessment.llm_direction)
+
+        # Fold in any human review of this lever — a 'rejected' review force-abstains
+        # (even over a trustworthy guard); a 'vouched' review never upgrades. Placed
+        # before the trace so the audit string reflects the overridden verdict.
+        watchdog = apply_lever_review_override(watchdog, prediction.candidate, lever_reviews)
 
         trace = (
             f"translate[mappable={spec.mappable}] → "
