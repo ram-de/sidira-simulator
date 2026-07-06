@@ -219,6 +219,17 @@ We abstain and say "test it." That honesty is the point — and it's why you can
 Speed, scale, and a product: real-time over a whole backlog, a reusable engine calibrated to *their* users
 that gets better the longer they use it, and the conversational "why." Not a one-off report.
 
+**"Why doesn't a company like DoorDash just build this themselves?"**
+For the raw estimator, they can — and shouldn't. See §11: the engine is the 5%; the buy is the integration
+surface, the trust engineering, the maintenance-forever, and the cross-customer calibration they can't get
+from their data alone. And the right buyer isn't DoorDash's causal team — it's the 10,000 orgs that don't
+have one, and the PMs inside big orgs who can't get DS time.
+
+**"Isn't this just LLM+RAG on their own data?"**
+No — RAG retrieves what's written down; the answer here has to be *computed* from raw behavior with a
+confounding guard, and the deciding information (magnitudes) is provably *not* in any text (§8, §9). A RAG
+demo is a weekend; a trustworthy, maintained, warehouse-wired decision engine is a team-forever.
+
 **"What's the moat if the method is known?"**
 Two things: honest calibration (knowing where it holds — the hard, un-sexy negative work nobody else does),
 and a proprietary **data factory** (Senu) that manufactures the counter-intuitive labeled cases to keep
@@ -226,6 +237,68 @@ extending where the engine is trustworthy. The model isn't the moat; the calibra
 
 ---
 
+## 11. Build vs. buy — why they don't just build it themselves
+
+The sharpest version of the DIY objection isn't "our PM can do the analysis" (§10) — it's *"our
+engineers can build the whole **product**: an LLM+RAG on our own data plus an internal causal
+platform."* Answer it honestly, because a hand-wave here loses the room.
+
+**First, concede the premise — pick the right fight.** A company with a world-class experimentation
+org (DoorDash publishes theirs, "Curie") *can* build the raw g-formula + negative-control layer, and
+probably should. If our pitch is "we infer causal effects from your data," the build-vs-buy logic is
+**weakest exactly at the top of the market.** Don't sell the engine there, and never anchor
+defensibility on "they can't do causal inference." They can. The convincing case is about everything
+*around* the estimator.
+
+**The four reasons sophisticated companies buy what they could build:**
+
+1. **It isn't their core advantage.** DoorDash's edge is logistics, not a feature-decision tool. Every
+   eng-hour on a generic decision system is an hour off the thing that wins their market. *Could build ≠
+   should build.*
+2. **TCO is a team-forever, not a project.** The prototype is a weekend; the product is a permanent
+   3–8 person team maintaining warehouse connectors, the product crawler, the capability→lever catalog,
+   the persona pipeline, stats correctness, and UI as everything underneath drifts. Buying converts
+   standing headcount into a line item.
+3. **Trust/correctness engineering is specialized and rare.** Doing causal inference *right* — overlap
+   diagnostics, negative controls, honest abstention — and stopping it from lying is exactly the skill
+   most teams lack and can't retain. The hard part isn't the estimate; it's the discipline that keeps it
+   from being confidently wrong (§7).
+4. **Cross-customer data they can't get alone.** One company calibrates only on *its own* experiments.
+   Across many customers + a ground-truth factory (Senu), we build a calibrated prior about which
+   mechanisms transfer and which negative controls actually catch bias. That's a data network effect no
+   single customer can replicate — *the bet we're proving, not yet a proven fact* (transfer across
+   companies is the open question; if it holds we have a benchmark moat, if not we're a very good
+   single-tenant tool — still a business).
+
+**The Glean test (the objection, verbatim).** "DoorDash can just throw RAG on their docs" is *precisely*
+the objection Glean faces and wins anyway: the RAG is ~5% of the product; the 95% is 100+ maintained
+connectors, permission/ACL mirroring, freshness, ranking across heterogeneous sources, and continuous
+upkeep as every API drifts. A RAG *demo* is a weekend; a company-wide RAG *system* rots in three months
+without a dedicated team — on something that isn't the company's differentiator. The transferable lesson:
+**the moat is almost never the model — it's the integration surface, the trust engineering, the
+maintenance burden, and (best case) the cross-customer data.** That maps onto us cleanly: the causal
+engine is our "RAG," and the real product is the maintained system around it.
+
+**The tighter comp than Glean: Eppo / Statsig.** Warehouse-native experimentation products that companies
+*with* data teams still buy — because building and *maintaining* a rigorous, trustworthy stats layer
+(CUPED, sequential testing, guardrails) is a specialized, never-finished job that isn't their core. We're
+the pre-experiment / decision-audit sibling of that category. (Amplitude/Mixpanel is the softer comp:
+you *can* rebuild analytics on dbt+Looker — many do — but buy the productized workflow and speed.)
+
+**The sharp version, in three lines:**
+- **Buyer:** not DoorDash's causal team — the orgs that have data but *no* causal team, and the PMs
+  inside big orgs who can't get DS time. Horizontal decision-support, not a DS-team replacement.
+- **Un-buildable-alone part:** the cross-customer calibrated benchmark (Senu ground truth + accumulated
+  predicted-vs-actual pairs).
+- **The bet / risk:** that calibration *transfers* across companies. State it as the thesis, not a fact.
+
+And the deepest reason of all: the durable product isn't a crystal ball — it's the disciplined,
+calibrated, honestly-abstaining decision **audit** layer (§7). Most teams won't build *that*; it's
+unglamorous and it says "I don't know." That's exactly what makes the answer trustworthy enough to act on.
+
+---
+
 *Ties to: `founder-readout/simulation-engine-where-we-landed.md` (the full state-of-play + runtime flow),
-the campaign memory `[[project-empirical-uplift-and-council-spike]]`, and the watchdog-architecture epic
-(#538 and its sub-tickets #539–#546).*
+`sessions/watchdog-productization/GROUNDED_DECISION_ARCHITECTURE.md` (the build spec — this is its
+positioning companion), the campaign memory `[[project-empirical-uplift-and-council-spike]]`, and the
+watchdog-architecture epic (#538 and its sub-tickets #539–#546).*
