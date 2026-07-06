@@ -424,6 +424,25 @@ class SimulationOrchestrator:
                     error=str(exc),
                     exc_type=type(exc).__name__,
                 )
+            # Best-effort read of the human lever-review sidecar (beside the pack in
+            # R2, same store as the verdict write below). A 'rejected' review
+            # force-abstains its lever inside `decide`; a 'vouched' one never
+            # upgrades. Guarded so a sidecar read failure NEVER breaks the run.
+            reviews = None
+            try:
+                from sidira_simulator.adapters.r2 import get_store
+                from sidira_simulator.services.lever_review_store import (
+                    read_lever_reviews,
+                )
+
+                reviews = read_lever_reviews(get_store(), customer_id, pack_version)
+            except Exception as exc:  # noqa: BLE001 — an optional read must never break the run.
+                log.warning(
+                    "simulation.lever_reviews_read_failed",
+                    customer_id=customer_id,
+                    pack_version=pack_version,
+                    error=str(exc),
+                )
             result = decide(
                 hypothesis,
                 available_columns,
@@ -432,6 +451,7 @@ class SimulationOrchestrator:
                 model_id=model_id,
                 council=council,
                 manifest=manifest,
+                lever_reviews=reviews,
             )
             log.info(
                 "simulation.decision_flow",

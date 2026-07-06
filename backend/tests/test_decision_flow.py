@@ -15,6 +15,7 @@ from typing import Literal
 import pytest
 
 from sidira_simulator.schemas.estimability import CandidateEffect, EstimabilityManifest
+from sidira_simulator.schemas.lever_review import LeverReview, LeverReviewLog
 from sidira_simulator.schemas.mechanism import MechanismSpec
 from sidira_simulator.schemas.simulation import Hypothesis
 from sidira_simulator.services.decision_flow import (
@@ -23,6 +24,10 @@ from sidira_simulator.services.decision_flow import (
     NullCouncil,
     decide,
     decision_flow_enabled,
+)
+from sidira_simulator.services.negative_control_watchdog import (
+    WatchdogResult,
+    apply_lever_review_override,
 )
 
 TREATMENT = "gate_level"
@@ -363,3 +368,115 @@ def test_flag_on_for_truthy_strings(monkeypatch, val):
 def test_flag_off_for_other_strings(monkeypatch, val):
     monkeypatch.setenv("SIDIRA_DECISION_FLOW_ENABLED", val)
     assert decision_flow_enabled() is False
+
+
+# ── human lever-review override (the honesty asymmetry) ───────────────────────
+
+
+def _review(
+    *,
+    treatment: str = TREATMENT,
+    outcome: str = OUTCOME,
+    decision: Literal["vouched", "rejected"],
+    note: str | None = None,
+) -> LeverReview:
+    return LeverReview(
+        treatment=treatment,
+        outcome=outcome,
+        decision=decision,
+        note=note,
+        reviewer="user_abc",
+        reviewed_at="2026-07-06T00:00:00Z",
+    )
+
+
+def _review_log(*reviews: LeverReview) -> LeverReviewLog:
+    return LeverReviewLog(pack_version="v_1", reviews=list(reviews))
+
+
+def _decide_reviews(*, manifest, council, reviews, chat=None) -> DecisionResult:
+    return decide(
+        _hypothesis(),
+        AVAILABLE,
+        "cust_1",
+        "v_1",
+        chat_client=chat if chat is not None else _FakeChat(),
+        council=council,
+        manifest=manifest,
+        lever_reviews=reviews,
+    )
+
+
+def test_lever_review_rejected_forces_abstain():
+    """A human 'rejected' review force-abstains a guard-CLEAN (trustworthy) lever."""
+    manifest = _manifest([_candidate(sign="positive", guard_trips=False)])
+    result = _decide_reviews(
+        manifest=manifest,
+        council=NullCouncil(),
+        reviews=_review_log(_review(decision="rejected", note="confounded by promo")),
+    )
+    assert result.source == "llm_fallback"
+    assert result.watchdog_verdict == "CANT_VALIDATE"
+    assert "human reviewer REJECTED" in result.reason
+    assert "confounded by promo" in result.reason
+
+
+def test_lever_review_vouched_is_noop():
+    """A 'vouched' review leaves a guard-CLEAN CONFIRMS verdict UNCHANGED."""
+    manifest = _manifest([_candidate(sign="positive", guard_trips=False)])
+    result = _decide_reviews(
+        manifest=manifest,
+        council=NullCouncil(),
+        reviews=_review_log(_review(decision="vouched")),
+    )
+    assert result.source == "grounded"
+    assert result.direction == "positive"
+    assert result.caution == "none"
+    assert result.watchdog_verdict == "CONFIRMS"
+
+
+def test_lever_review_vouched_does_not_upgrade_abstain():
+    """A 'vouched' review NEVER upgrades a guard-TRIPPED CANT_VALIDATE into trust."""
+    manifest = _manifest(
+        [_candidate(guard_trips=True, guard_reason="hidden confounding")]
+    )
+    result = _decide_reviews(
+        manifest=manifest,
+        council=_FakeCouncil(agreement=True, llm_direction="positive"),
+        reviews=_review_log(_review(decision="vouched")),
+    )
+    assert result.watchdog_verdict == "CANT_VALIDATE"
+    assert result.source == "llm_fallback"
+
+
+def test_lever_review_nonmatching_ignored():
+    """A review for a DIFFERENT (treatment, outcome) leaves the verdict unchanged."""
+    manifest = _manifest([_candidate(sign="positive", guard_trips=False)])
+    result = _decide_reviews(
+        manifest=manifest,
+        council=NullCouncil(),
+        reviews=_review_log(
+            _review(treatment="other_t", outcome="other_y", decision="rejected")
+        ),
+    )
+    assert result.source == "grounded"
+    assert result.watchdog_verdict == "CONFIRMS"
+
+
+def test_apply_lever_review_override_noop_paths():
+    """Direct unit test: None-candidate / None-reviews / empty-reviews are all no-ops."""
+    wd = WatchdogResult(
+        verdict="CONFIRMS",
+        trustworthy=True,
+        grounded_direction="positive",
+        llm_direction=None,
+        reason="guard clear",
+    )
+    cand = _candidate(sign="positive", guard_trips=False)
+
+    # No candidate → untouched.
+    assert apply_lever_review_override(wd, None, _review_log(_review(decision="rejected"))) is wd
+    # No reviews object → untouched.
+    assert apply_lever_review_override(wd, cand, None) is wd
+    # Empty review list → untouched.
+    assert apply_lever_review_override(wd, cand, _review_log()) is wd

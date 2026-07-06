@@ -45,6 +45,8 @@ from typing import Literal
 
 import structlog
 
+from sidira_simulator.schemas.estimability import CandidateEffect
+from sidira_simulator.schemas.lever_review import LeverReviewLog
 from sidira_simulator.services.grounded_predictor import GroundedPrediction
 
 log = structlog.get_logger()
@@ -91,6 +93,37 @@ def _cant_validate(
         llm_direction=llm_direction,
         reason=reason,
     )
+
+
+def apply_lever_review_override(
+    watchdog: WatchdogResult,
+    candidate: CandidateEffect | None,
+    reviews: LeverReviewLog | None,
+) -> WatchdogResult:
+    """Fold a human lever review over the machine watchdog verdict.
+
+    A human ``rejected`` review force-abstains the lever (→ CANT_VALIDATE) even when
+    the guard called it trustworthy — the conservative override for confounding the
+    guard missed. A ``vouched`` review is a NO-OP: it never upgrades an abstained or
+    flagged lever into trust (the honesty asymmetry). No matching review, or no
+    covered candidate, leaves the verdict untouched.
+    """
+    if candidate is None or reviews is None or not reviews.reviews:
+        return watchdog
+    for r in reviews.reviews:
+        if r.treatment == candidate.treatment and r.outcome == candidate.outcome:
+            if r.decision == "rejected":
+                note = (r.note or "").strip()
+                suffix = f" (reviewer note: {note})" if note else ""
+                return _cant_validate(
+                    f"human reviewer REJECTED this lever{suffix}; router abstains "
+                    f"despite the machine verdict [{watchdog.verdict}: {watchdog.reason}]",
+                    grounded_direction=watchdog.grounded_direction,
+                    llm_direction=watchdog.llm_direction,
+                )
+            # "vouched" → no-op (never upgrades). First matching review wins.
+            return watchdog
+    return watchdog
 
 
 def watchdog_classify(
@@ -233,4 +266,5 @@ __all__ = [
     "WatchdogVerdict",
     "WatchdogResult",
     "watchdog_classify",
+    "apply_lever_review_override",
 ]
