@@ -153,3 +153,44 @@ def test_example_manifest_round_trips() -> None:
     result = grounded_predict(_spec("womens_email", "visit"), manifest)
     assert result.covered is True
     assert result.direction == "positive"
+
+
+def test_producer_unverified_guard_confidence_parses() -> None:
+    """(f) Contract regression: the producer emits ``guard_confidence="unverified"``
+    on its no-vouched-NC path (a value NOT in the old ``Literal["high","low/abstain"]``).
+
+    Since the loader degrades a malformed manifest to None, a strict Literal here
+    would let a SINGLE such candidate silently discard the ENTIRE manifest and route
+    everything to the LLM. The field is ``str | None`` so it must parse cleanly, and
+    ``guard_trips=None`` remains the sentinel the watchdog reads for CANT_VALIDATE.
+    """
+    manifest = EstimabilityManifest.model_validate(
+        {
+            "manifest_version": "1.0",
+            "customer_id": "acme",
+            "setup_id": "default",
+            "pack_version": "v_1",
+            "feature_store": "fixture://nc",
+            "candidate_effects": [
+                {
+                    "treatment": "womens_email",
+                    "outcome": "visit",
+                    "covariates": ["recency"],
+                    "supportable": True,
+                    "support_reasons": [],
+                    "n_treat": 21387,
+                    "n_control": 21306,
+                    "t_learner_ate": 0.045,
+                    "sign_adjusted": "positive",
+                    # no vouched negative control → producer's honest "unverified" path
+                    "guard_trips": None,
+                    "guard_confidence": "unverified",
+                    "guard_reason": "no vouched negative control",
+                }
+            ],
+        }
+    )
+
+    cand = manifest.candidate_effects[0]
+    assert cand.guard_confidence == "unverified"
+    assert cand.guard_trips is None  # sentinel the watchdog reads → CANT_VALIDATE

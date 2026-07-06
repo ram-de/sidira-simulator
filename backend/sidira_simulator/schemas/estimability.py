@@ -124,7 +124,14 @@ class CandidateEffect(BaseModel):
     guard_trips: bool | None = Field(
         default=None, validation_alias=AliasChoices("guard_trips", "trips")
     )
-    guard_confidence: Literal["high", "low/abstain"] | None = Field(
+    # Producer-supplied tag; informational only (the watchdog gates on ``guard_trips``,
+    # never on this value). Known values today: "high" / "low/abstain" (mirroring
+    # GuardedEstimate.confidence) and "unverified" (producer's no-vouched-NC path).
+    # Kept ``str | None`` — NOT a strict Literal — precisely because this is an
+    # external, independently-versioned artifact: a Literal here would reject an
+    # unmodeled value and, since the loader degrades a malformed manifest to None,
+    # a SINGLE such candidate would silently discard the ENTIRE manifest.
+    guard_confidence: str | None = Field(
         default=None, validation_alias=AliasChoices("guard_confidence", "confidence")
     )
     guard_reason: str | None = Field(
