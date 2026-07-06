@@ -33,8 +33,10 @@ import {
   ApiError,
   getPersonaPackDetail,
   getPersonaPackEstimability,
+  postLeverReview,
   type LeverCard,
   type LeverCardManifest,
+  type LeverReview,
   type PersonaPackDetail,
   type PersonaProfileView,
   type ProfileBlockView,
@@ -243,6 +245,34 @@ const RSHEET_CSS = `
 .rsheet .snap dd.dec{color:var(--sheet-spread); font-weight:500;}
 .rsheet .snap dd .tag{font-family:var(--font-mono); font-size:9.5px; letter-spacing:.05em;
   text-transform:uppercase; color:var(--sheet-mut); margin-left:8px;}
+
+/* human review (#565 parts 2 & 3) — the vouch/override layer on the same Sheet.
+   The reviewer verdict reuses .verdict so the human decision reads in the same
+   visual grammar as the machine one; .rev distinguishes it with a leading mark. */
+.rsheet .verdict.rev{margin-top:2px;}
+.rsheet .verdict.rev::before{content:"◈"; font-size:10px; margin-right:2px;}
+.rsheet .review{margin:26px 0 0; padding-top:22px;
+  border-top:.75px solid var(--sheet-line);}
+.rsheet .rev-quote{font-style:italic; color:var(--sheet-ink);}
+.rsheet .rev-note{display:block; width:100%; max-width:560px; margin:14px 0 0;
+  font-family:var(--font-sans); font-size:13.5px; line-height:1.5;
+  color:var(--sheet-ink); background:var(--sheet-raised);
+  border:.75px solid var(--sheet-line); border-radius:var(--r-well);
+  padding:9px 11px; resize:vertical;}
+.rsheet .rev-note:focus{outline:none; border-color:var(--sheet-mut);}
+.rsheet .rev-note::placeholder{color:var(--sheet-mut);}
+.rsheet .rev-actions{display:flex; gap:9px; flex-wrap:wrap; margin:13px 0 0;}
+.rsheet .rev-btn{font-family:var(--font-mono); font-size:11px; letter-spacing:.04em;
+  text-transform:uppercase; cursor:pointer; padding:7px 13px;
+  border:.75px solid var(--sheet-line); border-radius:var(--r-well);
+  background:var(--sheet-raised); color:var(--sheet-ink);
+  transition:border-color 80ms ease-out, color 80ms ease-out;}
+.rsheet .rev-btn:hover:not(:disabled){border-color:var(--sheet-ink);}
+.rsheet .rev-btn:disabled{opacity:.5; cursor:default;}
+.rsheet .rev-btn.vouch:hover:not(:disabled){box-shadow:inset 2px 0 0 var(--sheet-signal);
+  color:var(--sheet-signal); border-color:var(--sheet-signal);}
+.rsheet .rev-btn.reject:hover:not(:disabled){box-shadow:inset 2px 0 0 var(--sheet-spread);
+  color:var(--sheet-spread); border-color:var(--sheet-spread);}
 
 /* quiet states (loading / missing / error) */
 .rsheet .quiet{max-width:1140px; margin:0 auto; padding:64px 56px 96px;}
@@ -640,6 +670,23 @@ function LeversSection({ id }: { id: string }) {
 
   const { levers: cards } = levers.data;
 
+  // Fold a completed review back into the in-memory manifest so the card
+  // re-renders with the new decision (or none, on clear) without a full refetch.
+  const applyReview = (treatment: string, outcome: string, review: LeverReview | null) =>
+    setLevers((prev) =>
+      prev.state === "ready"
+        ? {
+            state: "ready",
+            data: {
+              ...prev.data,
+              levers: prev.data.levers.map((l) =>
+                l.treatment === treatment && l.outcome === outcome ? { ...l, review } : l,
+              ),
+            },
+          }
+        : prev,
+    );
+
   return (
     <>
       <div className="sec-head">
@@ -664,13 +711,28 @@ function LeversSection({ id }: { id: string }) {
           (treatment&nbsp;→&nbsp;outcome) pair in this pack cleared the support checks. Nothing to review yet.
         </p>
       ) : (
-        cards.map((lever, i) => <LeverRecord key={`${lever.treatment}->${lever.outcome}-${i}`} lever={lever} />)
+        cards.map((lever, i) => (
+          <LeverRecord
+            key={`${lever.treatment}->${lever.outcome}-${i}`}
+            packId={id}
+            lever={lever}
+            onReviewed={applyReview}
+          />
+        ))
       )}
     </>
   );
 }
 
-function LeverRecord({ lever }: { lever: LeverCard }) {
+function LeverRecord({
+  packId,
+  lever,
+  onReviewed,
+}: {
+  packId: string;
+  lever: LeverCard;
+  onReviewed: (treatment: string, outcome: string, review: LeverReview | null) => void;
+}) {
   const direction =
     lever.direction === "positive"
       ? "DIRECTION ↑ HIGHER"
@@ -685,11 +747,28 @@ function LeverRecord({ lever }: { lever: LeverCard }) {
   const hasPolicy = lever.guard_floor != null && lever.guard_ratio != null;
   const validated = lever.guard_trips !== null && hasPolicy;
 
-  const verdict = !validated
-    ? { cls: "none", label: "NOT VALIDATED", glyph: "◇" }
-    : lever.guard_trips === false
-      ? { cls: "trust", label: "EMPIRICAL · TRUSTWORTHY", glyph: null }
-      : { cls: "flag", label: "CONFOUNDED · UNTRUSTWORTHY", glyph: null };
+  // Does the MACHINE actually trust this lever? Only a validated guard that did
+  // NOT trip, on a supportable lever with a direction. `validated` alone is not
+  // enough — a confounded (guard_trips === true) lever is also "validated". A
+  // vouch may only render as trust when the machine already trusts (the asymmetry:
+  // a vouch confirms, it never upgrades an abstained/flagged lever into trust).
+  const machineTrusts =
+    validated &&
+    lever.guard_trips === false &&
+    lever.supportable &&
+    lever.direction !== null;
+
+  // The machine verdict uses the SAME trust bar as the reviewer chip
+  // (`machineTrusts`): "EMPIRICAL · TRUSTWORTHY" requires a validated, non-tripped
+  // guard on a supportable lever with a direction — never trust the guard didn't
+  // earn. A tripped guard is CONFOUNDED; anything else (no policy, no NC evidence,
+  // or an inconsistent guard_trips=false on an unsupportable/directionless lever)
+  // degrades to the honest NOT VALIDATED, not a hollow trust badge.
+  const verdict = machineTrusts
+    ? { cls: "trust", label: "EMPIRICAL · TRUSTWORTHY", glyph: null }
+    : validated && lever.guard_trips === true
+      ? { cls: "flag", label: "CONFOUNDED · UNTRUSTWORTHY", glyph: null }
+      : { cls: "none", label: "NOT VALIDATED", glyph: "◇" };
 
   // §8.1 — the decision rule that produced (or withheld) the verdict, always shown
   // bound to it. A validated verdict carries its real floor/ratio; the unvalidated
@@ -735,6 +814,9 @@ function LeverRecord({ lever }: { lever: LeverCard }) {
             {verdict.label}
           </span>
           <span className="policy">{policy}</span>
+          {lever.review && (
+            <ReviewerVerdict review={lever.review} machineTrusted={machineTrusts} />
+          )}
         </div>
       </div>
 
@@ -782,8 +864,157 @@ function LeverRecord({ lever }: { lever: LeverCard }) {
             )}
           </div>
         )}
+
+        <LeverReviewControl
+          packId={packId}
+          lever={lever}
+          decisiveKey={decisiveKey}
+          onReviewed={onReviewed}
+        />
       </div>
     </section>
+  );
+}
+
+// The human decision as it reads next to the machine verdict. The asymmetry is
+// the whole point (#565): a REJECT force-abstains a lever the guard trusted (the
+// conservative override); a VOUCH agrees with the reading but NEVER manufactures
+// trust the data withholds — so a vouch on an unvalidated/flagged lever is shown
+// as "does not certify trust", not as an upgrade.
+function ReviewerVerdict({
+  review,
+  machineTrusted,
+}: {
+  review: LeverReview;
+  machineTrusted: boolean;
+}) {
+  if (review.decision === "rejected") {
+    return (
+      <span className="verdict flag rev">
+        REVIEWER OVERRIDE · ABSTAIN — not to be acted on
+      </span>
+    );
+  }
+  // vouched — may read as trust ONLY when the machine already trusts. On an
+  // abstained/flagged lever the vouch confirms the reading but does NOT certify
+  // trust the data withholds (the honesty asymmetry).
+  return (
+    <span className={`verdict rev ${machineTrusted ? "trust" : "none"}`}>
+      REVIEWER VOUCHED
+      {!machineTrusted && " — agrees with the reading; does not certify trust"}
+    </span>
+  );
+}
+
+// The vouch/override control (#565 parts 2 & 3). Records a human decision on the
+// lever via POST, then hands the stored review (or null, on clear) back up so the
+// card re-renders. The note is optional and bounded (backend caps at 2000 chars).
+function LeverReviewControl({
+  packId,
+  lever,
+  decisiveKey,
+  onReviewed,
+}: {
+  packId: string;
+  lever: LeverCard;
+  decisiveKey: string | null;
+  onReviewed: (treatment: string, outcome: string, review: LeverReview | null) => void;
+}) {
+  const review = lever.review;
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState<"vouched" | "rejected" | "cleared" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (decision: "vouched" | "rejected" | "cleared") => {
+    setBusy(decision);
+    setError(null);
+    try {
+      const trimmed = note.trim();
+      const { review: stored } = await postLeverReview(packId, {
+        treatment: lever.treatment,
+        outcome: lever.outcome,
+        decision,
+        note: decision === "cleared" ? null : trimmed ? trimmed : null,
+        // Snapshot what the reviewer is looking at, for the later calibration join.
+        guard_trips_at_review: lever.guard_trips,
+        decisive_nc_at_review: decisiveKey,
+      });
+      onReviewed(lever.treatment, lever.outcome, stored);
+      if (decision !== "cleared") setNote("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not record the review.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="review">
+      <span className="subhead">Human review</span>
+
+      {review ? (
+        <p className="lever-note">
+          <strong>{review.decision === "rejected" ? "Rejected" : "Vouched"}</strong> by{" "}
+          {review.reviewer} · {formatCapture(review.reviewed_at)}
+          {review.note && (
+            <>
+              {" "}
+              — <span className="rev-quote">{review.note}</span>
+            </>
+          )}
+        </p>
+      ) : (
+        <p className="lever-note">
+          No human review recorded. A <strong>reject</strong> force-abstains this lever even
+          if the guard trusts it; a <strong>vouch</strong> records agreement but never
+          certifies trust the data withholds.
+        </p>
+      )}
+
+      <textarea
+        className="rev-note"
+        placeholder="Optional note — what you saw that the guard did or didn't catch"
+        value={note}
+        maxLength={2000}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+      />
+
+      <div className="rev-actions">
+        <button
+          type="button"
+          className="rev-btn vouch"
+          disabled={busy !== null}
+          onClick={() => submit("vouched")}
+        >
+          {busy === "vouched" ? "Saving…" : "Vouch"}
+        </button>
+        <button
+          type="button"
+          className="rev-btn reject"
+          disabled={busy !== null}
+          onClick={() => submit("rejected")}
+        >
+          {busy === "rejected" ? "Saving…" : "Reject → abstain"}
+        </button>
+        {review && (
+          <button
+            type="button"
+            className="rev-btn clear"
+            disabled={busy !== null}
+            onClick={() => submit("cleared")}
+          >
+            {busy === "cleared" ? "Clearing…" : "Clear"}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="lever-note" role="alert">
+          <strong>Could not save:</strong> {error}
+        </p>
+      )}
+    </div>
   );
 }
 

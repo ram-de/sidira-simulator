@@ -7,7 +7,7 @@ from enum import Enum
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from sidira_simulator.adapters.base import (
     ArtifactNotFound,
@@ -19,16 +19,22 @@ from sidira_simulator.adapters.r2 import ArtifactStore
 from sidira_simulator.adapters.repositories import PersonaBuildRepo
 from sidira_simulator.api.deps import (
     current_customer_id,
+    current_user_id,
     get_artifact_store,
     get_persona_build_repo,
     get_persona_loader,
 )
 from sidira_simulator.schemas.estimability import EstimabilityManifest
+from sidira_simulator.schemas.lever_review import LeverReview, LeverReviewRequest
 from sidira_simulator.schemas.persona import PersonaPack
 from sidira_simulator.services.grounded_predictor import estimability_manifest_key
 from sidira_simulator.services.lever_card_view import (
     LeverCardManifest,
     build_lever_card_view,
+)
+from sidira_simulator.services.lever_review_store import (
+    apply_lever_review,
+    read_lever_reviews,
 )
 from sidira_simulator.services.persona_pack_view import (
     PersonaPackDetail,
@@ -175,29 +181,20 @@ async def get_pack_detail(
     return build_persona_pack_detail(_load_pack(loader, customer_id, pack_id))
 
 
-@router.get("/{pack_id}/estimability", response_model=LeverCardManifest)
-async def get_pack_estimability(
+def _resolve_manifest(
     pack_id: str,
-    customer_id: str = Depends(current_customer_id),
-    loader: PersonaPackLoader = Depends(get_persona_loader),
-    store: ArtifactStore = Depends(get_artifact_store),
-) -> LeverCardManifest:
-    """Reviewable "lever cards" for a pack — the estimability manifest, projected (#565).
+    customer_id: str,
+    loader: PersonaPackLoader,
+    store: ArtifactStore,
+) -> tuple[str, EstimabilityManifest]:
+    """Resolve a pack id to its (version, estimability manifest), or raise 404.
 
-    Surfaces the build-time estimability manifest (written beside the persona pack
-    in R2 by the worker) as a list of per-(treatment→outcome) review cards: the
-    direction-only verdict plus the negative-control guard evidence a human uses
-    to sanity-check what the engine will and won't trust. The treatment's own
-    effect MAGNITUDES are stripped in the view (direction-only product); the NC
-    residuals are carried through as trust diagnostics.
-
-    Version resolution mirrors the other pack routes: ``latest`` resolves via the
-    pointer (404 when no pack exists yet), an explicit version reads that exact
-    snapshot's manifest. The manifest is OPTIONAL — a pack built before the
-    precompute shipped simply has none, which is a real 404 ("no lever data yet",
-    the frontend's honest empty-state), not an error. A present-but-malformed
-    manifest also degrades to 404 (logged) rather than 500-ing the page: this read
-    is never allowed to break the detail surface.
+    Shared by the estimability GET (read the cards) and the lever-review POST
+    (validate the lever being reviewed exists): both need the exact same version
+    resolution, pack-existence, manifest-load, and integrity checks, so the honest
+    empty-state / orphan-rejection rules stay identical on both paths. Every failure
+    mode (unset ``latest``, missing pack version, absent manifest, malformed
+    manifest, mismatched manifest) degrades to 404 — this read never 500s a page.
     """
     if pack_id == LATEST:
         version = _resolve_latest_version(loader, customer_id)
@@ -259,7 +256,105 @@ async def get_pack_estimability(
             detail=f"Estimability manifest for pack {version!r} does not match the pack.",
         )
 
-    return build_lever_card_view(manifest)
+    return version, manifest
+
+
+@router.get("/{pack_id}/estimability", response_model=LeverCardManifest)
+async def get_pack_estimability(
+    pack_id: str,
+    customer_id: str = Depends(current_customer_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+    store: ArtifactStore = Depends(get_artifact_store),
+) -> LeverCardManifest:
+    """Reviewable "lever cards" for a pack — the estimability manifest, projected (#565).
+
+    Surfaces the build-time estimability manifest (written beside the persona pack
+    in R2 by the worker) as a list of per-(treatment→outcome) review cards: the
+    direction-only verdict plus the negative-control guard evidence a human uses
+    to sanity-check what the engine will and won't trust. The treatment's own
+    effect MAGNITUDES are stripped in the view (direction-only product); the NC
+    residuals are carried through as trust diagnostics.
+
+    Version resolution mirrors the other pack routes: ``latest`` resolves via the
+    pointer (404 when no pack exists yet), an explicit version reads that exact
+    snapshot's manifest. The manifest is OPTIONAL — a pack built before the
+    precompute shipped simply has none, which is a real 404 ("no lever data yet",
+    the frontend's honest empty-state), not an error. A present-but-malformed
+    manifest also degrades to 404 (logged) rather than 500-ing the page: this read
+    is never allowed to break the detail surface.
+    """
+    version, manifest = _resolve_manifest(pack_id, customer_id, loader, store)
+    # Fold in the human review sidecar (best-effort — a missing/malformed review
+    # log degrades to "no reviews", never breaking the card read).
+    reviews = read_lever_reviews(store, customer_id, version)
+    return build_lever_card_view(manifest, reviews=reviews)
+
+
+class LeverReviewResponse(BaseModel):
+    """Result of a lever-review write — the stored review, or None when cleared."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    review: LeverReview | None = None
+
+
+@router.post("/{pack_id}/lever-review", response_model=LeverReviewResponse)
+async def review_lever(
+    pack_id: str,
+    request: LeverReviewRequest,
+    customer_id: str = Depends(current_customer_id),
+    user_id: str = Depends(current_user_id),
+    loader: PersonaPackLoader = Depends(get_persona_loader),
+    store: ArtifactStore = Depends(get_artifact_store),
+) -> LeverReviewResponse:
+    """Record / replace / clear a human review of one lever (#565 parts 2 & 3).
+
+    The vouch/override layer over the auto-guard: a reviewer looking at a lever
+    card's negative-control evidence records whether they **vouch** the reading or
+    **reject** it (or **clear** a prior decision). Persisted in an R2 sidecar beside
+    the pack, keyed by version, and shown back on the card via the estimability GET.
+
+    The honesty asymmetry lives in how the frontend renders the stored decision — a
+    ``rejected`` review force-abstains a lever the guard trusted; a ``vouched`` review
+    never upgrades a guard-abstained lever into trust — so this route only persists
+    the decision, it does not mutate the machine verdict. Each review snapshots the
+    guard state the reviewer saw (``guard_trips_at_review`` / ``decisive_nc_at_review``)
+    for a later calibration join.
+
+    The lever being reviewed MUST exist in this pack's manifest — reusing the GET's
+    version/pack/manifest resolution (same 404 rules), then checking the
+    (treatment, outcome) pair is a real candidate. Reviewing a lever that isn't
+    there is a 404, not a silently-orphaned sidecar entry.
+    """
+    version, manifest = _resolve_manifest(pack_id, customer_id, loader, store)
+
+    known_levers = {(e.treatment, e.outcome) for e in manifest.candidate_effects}
+    if (request.treatment, request.outcome) not in known_levers:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No lever {request.treatment!r}→{request.outcome!r} in pack "
+                f"{version!r} (customer {customer_id!r})."
+            ),
+        )
+
+    stored = apply_lever_review(
+        store,
+        customer_id,
+        version,
+        request,
+        reviewer=user_id,
+        reviewed_at=datetime.now(timezone.utc).isoformat(),
+    )
+    log.info(
+        "persona_packs.lever_reviewed",
+        customer_id=customer_id,
+        pack_version=version,
+        treatment=request.treatment,
+        outcome=request.outcome,
+        decision=request.decision,
+    )
+    return LeverReviewResponse(review=stored)
 
 
 @router.post("/{pack_id}/promote", response_model=PackSummary)

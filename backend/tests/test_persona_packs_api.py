@@ -479,6 +479,204 @@ def test_estimability_mismatched_manifest_404(packs_client) -> None:
     assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
 
 
+# ── lever review: vouch / override / clear (#565 parts 2 & 3) ─────────────
+
+_LEVER = {
+    "treatment": "autoplay_enabled",
+    "outcome": "completion_rate",
+    "supportable": True,
+    "sign_adjusted": "positive",
+    "guard_trips": False,
+    "guard_floor": 0.05,
+    "guard_ratio": 1.5,
+}
+
+
+def _seed_reviewable_pack(client, version: str = "v_1") -> None:
+    """A pack + manifest with one known lever, ready to be reviewed."""
+    _write_pack(client._store, version)
+    _write_manifest(client._store, version, [dict(_LEVER)])
+
+
+def test_lever_review_vouch_records_and_shows_on_card(packs_client) -> None:
+    """A vouch persists and folds back onto the lever card via the GET."""
+    _seed_reviewable_pack(packs_client)
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "vouched",
+            "note": "matches the launch readout",
+            "guard_trips_at_review": False,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    stored = resp.json()["review"]
+    assert stored["decision"] == "vouched"
+    assert stored["reviewer"] == "demo-user"  # current_user_id fallback
+    assert stored["reviewed_at"]  # ISO timestamp stamped server-side
+    assert stored["guard_trips_at_review"] is False
+
+    # The card now carries the review.
+    card = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    assert card["review"]["decision"] == "vouched"
+    assert card["review"]["note"] == "matches the launch readout"
+
+
+def test_lever_review_reject_records_override(packs_client) -> None:
+    """A reject is stored verbatim — the frontend renders the force-abstain."""
+    _seed_reviewable_pack(packs_client)
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "rejected",
+            "note": "confounded by tenure — guard missed it",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["review"]["decision"] == "rejected"
+    card = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    # The machine verdict is untouched; only the human layer is added.
+    assert card["guard_trips"] is False
+    assert card["review"]["decision"] == "rejected"
+
+
+def test_lever_review_upsert_replaces_prior_decision(packs_client) -> None:
+    """Re-reviewing the same lever replaces, never duplicates."""
+    _seed_reviewable_pack(packs_client)
+    base = {"treatment": "autoplay_enabled", "outcome": "completion_rate"}
+    packs_client.post("/persona-packs/v_1/lever-review", json={**base, "decision": "vouched"})
+    packs_client.post("/persona-packs/v_1/lever-review", json={**base, "decision": "rejected"})
+    card = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    assert card["review"]["decision"] == "rejected"
+
+
+def test_lever_review_clear_removes_review(packs_client) -> None:
+    """`cleared` deletes the stored decision; the card returns to unreviewed."""
+    _seed_reviewable_pack(packs_client)
+    base = {"treatment": "autoplay_enabled", "outcome": "completion_rate"}
+    packs_client.post("/persona-packs/v_1/lever-review", json={**base, "decision": "vouched"})
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review", json={**base, "decision": "cleared"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["review"] is None
+    card = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    assert card["review"] is None
+
+
+def test_lever_review_snapshot_persisted(packs_client) -> None:
+    """The guard state the reviewer saw is snapshotted for a later calibration join."""
+    _seed_reviewable_pack(packs_client)
+    packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "rejected",
+            "guard_trips_at_review": False,
+            "decisive_nc_at_review": "household_size",
+        },
+    )
+    card = packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0]
+    assert card["review"]["guard_trips_at_review"] is False
+    assert card["review"]["decisive_nc_at_review"] == "household_size"
+
+
+def test_lever_review_unknown_lever_404(packs_client) -> None:
+    """Reviewing a (treatment, outcome) not in the manifest is a 404, not an orphan."""
+    _seed_reviewable_pack(packs_client)
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={"treatment": "nope", "outcome": "nope", "decision": "vouched"},
+    )
+    assert resp.status_code == 404, resp.text
+    # And nothing was written for it.
+    assert packs_client.get("/persona-packs/v_1/estimability").json()["levers"][0][
+        "review"
+    ] is None
+
+
+def test_lever_review_unknown_pack_404(packs_client) -> None:
+    """Reviewing a lever on a nonexistent pack version 404s (no orphan sidecar)."""
+    resp = packs_client.post(
+        "/persona-packs/v_999/lever-review",
+        json={"treatment": "t", "outcome": "y", "decision": "vouched"},
+    )
+    assert resp.status_code == 404, resp.text
+
+
+def test_lever_review_absent_manifest_404(packs_client) -> None:
+    """A pack with no manifest has no levers to review → 404, not a 500."""
+    _write_pack(packs_client._store, "v_1")
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={"treatment": "t", "outcome": "y", "decision": "vouched"},
+    )
+    assert resp.status_code == 404, resp.text
+
+
+def test_lever_review_note_too_long_422(packs_client) -> None:
+    """The note is bounded (max 2000 chars) — an overlong note is a 422."""
+    _seed_reviewable_pack(packs_client)
+    resp = packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "vouched",
+            "note": "x" * 2001,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_lever_review_latest_resolves_pointer(packs_client) -> None:
+    """`latest` reviews the lever on the version the pointer resolves to."""
+    _seed_reviewable_pack(packs_client)
+    _seed_build(
+        build_id="b1",
+        status="complete",
+        pack_version="v_1",
+        created_at=datetime(2026, 6, 15, tzinfo=timezone.utc),
+    )
+    packs_client.post("/persona-packs/v_1/promote")
+    resp = packs_client.post(
+        "/persona-packs/latest/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "vouched",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    card = packs_client.get("/persona-packs/latest/estimability").json()["levers"][0]
+    assert card["review"]["decision"] == "vouched"
+
+
+def test_lever_review_written_to_sidecar_key(packs_client) -> None:
+    """The review lands in the pack-versioned sidecar, beside the manifest."""
+    _seed_reviewable_pack(packs_client)
+    packs_client.post(
+        "/persona-packs/v_1/lever-review",
+        json={
+            "treatment": "autoplay_enabled",
+            "outcome": "completion_rate",
+            "decision": "vouched",
+        },
+    )
+    raw = packs_client._store.read_text(
+        f"customers/{_CUSTOMER_ID}/personas/v_1/lever_review.json"
+    )
+    doc = json.loads(raw)
+    assert doc["pack_version"] == "v_1"
+    assert len(doc["reviews"]) == 1
+    assert doc["reviews"][0]["treatment"] == "autoplay_enabled"
+
+
 def test_get_by_pack_version_ignores_incomplete_and_other_customers() -> None:
     """Unit coverage for the new repo method: only this customer's COMPLETE build
     with the exact version is returned."""

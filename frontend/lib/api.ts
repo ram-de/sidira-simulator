@@ -171,6 +171,24 @@ export type LeverCard = {
   guard_reason: string | null;
   neg_control_effect: number | null;
   neg_control_effects: Record<string, number>;
+  // #565 parts 2 & 3: the human review of this lever, or null if unreviewed. A
+  // "rejected" review force-abstains a lever the guard trusted; a "vouched" review
+  // confirms but never upgrades a guard-abstained lever into trust (rendered in the
+  // detail page — the API only stores the decision, it does not mutate the verdict).
+  review: LeverReview | null;
+};
+// #565 parts 2 & 3: one human vouch/override of a lever, persisted per pack.
+export type LeverDecision = "vouched" | "rejected";
+export type LeverReview = {
+  treatment: string;
+  outcome: string;
+  decision: LeverDecision;
+  note: string | null;
+  reviewer: string;
+  reviewed_at: string;
+  // The guard state the reviewer saw, snapshotted for a later calibration join.
+  guard_trips_at_review: boolean | null;
+  decisive_nc_at_review: string | null;
 };
 export type LeverCardManifest = {
   manifest_version: string;
@@ -442,6 +460,23 @@ export const getPersonaPackDetail = (id: string) =>
 export const getPersonaPackEstimability = (id: string) =>
   apiGet<LeverCardManifest>(
     `/persona-packs/${encodeURIComponent(id)}/estimability`,
+  );
+
+// #565 parts 2 & 3: record / replace / clear a human review of one lever. The
+// pack + lever must exist (404 otherwise). `decision: "cleared"` deletes any
+// prior review (response.review is then null); "vouched"/"rejected" upsert it.
+export type LeverReviewInput = {
+  treatment: string;
+  outcome: string;
+  decision: LeverDecision | "cleared";
+  note?: string | null;
+  guard_trips_at_review?: boolean | null;
+  decisive_nc_at_review?: string | null;
+};
+export const postLeverReview = (id: string, input: LeverReviewInput) =>
+  apiPost<LeverReviewInput, { review: LeverReview | null }>(
+    `/persona-packs/${encodeURIComponent(id)}/lever-review`,
+    input,
   );
 
 // Sample-workspace seeding (sessions/sample-workspace): clone the Streamly

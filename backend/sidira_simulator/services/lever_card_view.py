@@ -36,6 +36,7 @@ from sidira_simulator.schemas.estimability import (
     CandidateEffect,
     EstimabilityManifest,
 )
+from sidira_simulator.schemas.lever_review import LeverReview, LeverReviewLog
 
 
 class LeverCard(BaseModel):
@@ -75,6 +76,12 @@ class LeverCard(BaseModel):
     # Diagnostics about confounding, not a prediction of the lever's own effect.
     neg_control_effect: float | None = None
     neg_control_effects: dict[str, float] = {}
+    # The human review of THIS lever (#565 parts 2 & 3), or None if unreviewed.
+    # The auto-guard fields above stay the raw machine verdict; the review is the
+    # human layer over them. Display rule (frontend): a "rejected" review overrides
+    # the lever to abstain; a "vouched" review confirms but never upgrades a
+    # guard-abstained lever into trust.
+    review: LeverReview | None = None
 
 
 class LeverCardManifest(BaseModel):
@@ -89,7 +96,9 @@ class LeverCardManifest(BaseModel):
     levers: list[LeverCard] = []
 
 
-def _card_from_candidate(effect: CandidateEffect) -> LeverCard:
+def _card_from_candidate(
+    effect: CandidateEffect, review: LeverReview | None
+) -> LeverCard:
     """Project one manifest candidate onto its review card, dropping ATE magnitudes."""
     return LeverCard(
         treatment=effect.treatment,
@@ -108,22 +117,37 @@ def _card_from_candidate(effect: CandidateEffect) -> LeverCard:
         guard_reason=effect.guard_reason,
         neg_control_effect=effect.neg_control_effect,
         neg_control_effects=dict(effect.neg_control_effects),
+        review=review,
     )
 
 
-def build_lever_card_view(manifest: EstimabilityManifest) -> LeverCardManifest:
+def build_lever_card_view(
+    manifest: EstimabilityManifest, reviews: LeverReviewLog | None = None
+) -> LeverCardManifest:
     """Assemble the human-facing lever-card view from an estimability manifest.
 
     Pure transform: every candidate becomes a card in manifest order, with the
     treatment→outcome point estimates stripped and the NC-guard evidence carried
-    through. The frontend renders these as a register of reviewable records.
+    through. When a ``reviews`` log is supplied, each card is matched to its human
+    review by (treatment, outcome) — an unreviewed lever keeps ``review=None``.
+    The frontend renders these as a register of reviewable records.
     """
+    by_lever: dict[tuple[str, str], LeverReview] = {}
+    if reviews is not None:
+        # Latest-per-lever already (the store dedupes on write); if a malformed
+        # log somehow carried duplicates, last-wins is a safe, deterministic pick.
+        for r in reviews.reviews:
+            by_lever[(r.treatment, r.outcome)] = r
+
     return LeverCardManifest(
         manifest_version=manifest.manifest_version,
         pack_version=manifest.pack_version,
         feature_store=manifest.feature_store,
         built_at=manifest.built_at,
-        levers=[_card_from_candidate(e) for e in manifest.candidate_effects],
+        levers=[
+            _card_from_candidate(e, by_lever.get((e.treatment, e.outcome)))
+            for e in manifest.candidate_effects
+        ],
     )
 
 
