@@ -9,6 +9,10 @@ council → verdict) ships **inert behind `SIDIRA_DECISION_FLOW_ENABLED`** (defa
 unchanged today. This doc describes the target when it's on AND the producer + per-persona pieces are
 built — not current live behaviour.
 
+**Positioning companion.** This is the *build spec* — how it works. For *why a customer buys this
+instead of building it* (the build-vs-buy case, the Glean/Eppo analogy, the moat), see
+`founder-readout/why-sidira-beats-pm-insight.md` §11.
+
 ---
 
 ## 0. The two data feeds (don't merge them)
