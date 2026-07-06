@@ -678,19 +678,27 @@ function LeverRecord({ lever }: { lever: LeverCard }) {
         ? "DIRECTION ↓ LOWER"
         : "NO DIRECTIONAL READING";
 
-  // The guard tri-state → verdict chip class + label. Bound to its policy below.
-  const verdict =
-    lever.guard_trips === false
-      ? { cls: "trust", label: "EMPIRICAL · TRUSTWORTHY", glyph: null }
-      : lever.guard_trips === true
-        ? { cls: "flag", label: "CONFOUNDED · UNTRUSTWORTHY", glyph: null }
-        : { cls: "none", label: "NOT VALIDATED", glyph: "◇" };
+  // A trust/untrust verdict may render ONLY WITH its real decision policy (§8.1).
+  // If the floor/ratio thresholds are missing, we cannot honestly present trust —
+  // the lever degrades to the explicit "not validated" state rather than showing a
+  // verdict with a hollow "ratio —" policy.
+  const hasPolicy = lever.guard_floor != null && lever.guard_ratio != null;
+  const validated = lever.guard_trips !== null && hasPolicy;
 
-  // §8.1 — the decision rule that produced (or withheld) the verdict, always shown.
-  const policy =
-    lever.guard_trips === null
+  const verdict = !validated
+    ? { cls: "none", label: "NOT VALIDATED", glyph: "◇" }
+    : lever.guard_trips === false
+      ? { cls: "trust", label: "EMPIRICAL · TRUSTWORTHY", glyph: null }
+      : { cls: "flag", label: "CONFOUNDED · UNTRUSTWORTHY", glyph: null };
+
+  // §8.1 — the decision rule that produced (or withheld) the verdict, always shown
+  // bound to it. A validated verdict carries its real floor/ratio; the unvalidated
+  // states say WHY trust was withheld (no evidence vs. incomplete thresholds).
+  const policy = validated
+    ? `Negative-control guard · floor ${fmtNum(lever.guard_floor)} · ratio ${fmtNum(lever.guard_ratio)}`
+    : lever.guard_trips === null
       ? "No negative-control evidence was precomputed for this lever, so trust cannot be certified."
-      : `Negative-control guard · floor ${fmtNum(lever.guard_floor)} · ratio ${fmtNum(lever.guard_ratio)}`;
+      : "Negative-control evidence is incomplete (floor/ratio not recorded), so trust cannot be certified.";
 
   const support: string[] = [
     lever.supportable ? "SUPPORTABLE" : "NOT SUPPORTABLE",

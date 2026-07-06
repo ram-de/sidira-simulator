@@ -323,6 +323,7 @@ def _write_manifest(store: LocalArtifactStore, version: str, candidates: list[di
 
 def test_estimability_returns_lever_cards(packs_client) -> None:
     """A seeded manifest projects to review cards: direction + guard tri-state."""
+    _write_pack(packs_client._store, "v_1")
     _write_manifest(
         packs_client._store,
         "v_1",
@@ -379,6 +380,7 @@ def test_estimability_returns_lever_cards(packs_client) -> None:
 
 def test_estimability_omits_effect_magnitudes(packs_client) -> None:
     """The view is direction-only: no treatment→outcome ATE ever reaches the client."""
+    _write_pack(packs_client._store, "v_1")
     _write_manifest(
         packs_client._store,
         "v_1",
@@ -437,8 +439,43 @@ def test_estimability_latest_empty_tenant_404(packs_client) -> None:
 
 def test_estimability_malformed_manifest_404(packs_client) -> None:
     """A corrupt manifest degrades to 404 rather than 500-ing the detail page."""
+    _write_pack(packs_client._store, "v_1")
     key = f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
     packs_client._store.write_text(key, "{ not valid json ]")
+    assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
+
+
+def test_estimability_orphan_manifest_without_pack_404(packs_client) -> None:
+    """A manifest whose pack version does not exist is an orphan → 404, not a 200.
+
+    Mirrors the sibling routes' existence semantics: an unknown version is a real
+    not-found even if a stray manifest happens to sit at that key.
+    """
+    _write_manifest(
+        packs_client._store,
+        "v_ghost",
+        [{"treatment": "t", "outcome": "y", "supportable": True}],
+    )
+    assert packs_client.get("/persona-packs/v_ghost/estimability").status_code == 404
+
+
+def test_estimability_mismatched_manifest_404(packs_client) -> None:
+    """A manifest whose own customer_id/pack_version disagree with the key → 404.
+
+    A misplaced/stale artifact must not return another pack's metadata; the
+    integrity guard rejects it rather than serving a mismatched pack_version.
+    """
+    _write_pack(packs_client._store, "v_1")
+    key = f"customers/{_CUSTOMER_ID}/personas/v_1/estimability_manifest.json"
+    manifest = {
+        "manifest_version": "1",
+        "customer_id": _CUSTOMER_ID,
+        "setup_id": "default",
+        "pack_version": "v_somewhere_else",  # disagrees with the v_1 key
+        "feature_store": "FS",
+        "candidate_effects": [{"treatment": "t", "outcome": "y", "supportable": True}],
+    }
+    packs_client._store.write_text(key, json.dumps(manifest))
     assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
 
 
