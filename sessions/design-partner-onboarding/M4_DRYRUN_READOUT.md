@@ -11,10 +11,11 @@ evidence; nothing here feeds the accuracy scorecard.
 The white-glove chain works end-to-end on real prod infrastructure — separate
 table → join view → build-time manifest → lever cards → promote → sim →
 watchdog verdict sidecar — and every customer-facing verdict it produced was
-**honest** (abstains, never a false CONFIRMS). Three prereg expectations held;
-one deviated for a diagnosable product reason (a real bug the dry-run exists
-to catch), and the run surfaced two more prerequisites the runbook was silent
-about. Findings filed as #586, #587, #588; runbook updated in this PR.
+**honest** (abstains, never a false CONFIRMS). Of the four preregistered
+expectations, three held — one of them (Exp 3) only after a declared-block
+correction disclosed as D1 below — and one (Exp 2) deviated for a diagnosable
+product reason (a real bug the dry-run exists to catch). The run surfaced two
+more prerequisites the runbook was silent about. Findings filed as #586, #587, #588; runbook updated in this PR.
 
 ## Prereg scorecard
 
