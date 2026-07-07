@@ -178,13 +178,15 @@ else
 fi
 write_env SIDIRA_PERSONA_BUILD_MODE "$(default_value "$persona_build_mode" "$persona_build_mode_default")"
 
-# #565 / decision-flow (watchdog) gate. OFF by default: when the SSM param is
-# unset, write_env skips it, the container never sees SIDIRA_DECISION_FLOW_ENABLED,
-# and decision_flow_enabled() reads "" -> False, so prod behavior is unchanged.
-# Flip it on by setting ${PARAM_PREFIX}/SIDIRA_DECISION_FLOW_ENABLED to a truthy
-# value (1/true/yes/on) and redeploying — this line is what makes that SSM knob
-# actually reach the API/worker env (previously an SSM-only value was a no-op).
-# Note: turning this ON is only meaningful once persona packs carry NC-guard
+# #565 / decision-flow (watchdog) gate. ON by default: the grounded decision flow
+# IS the product, and pre-launch (no live users) we run it on every simulation.
+# When the SSM param is unset, write_env skips it, the container never sees
+# SIDIRA_DECISION_FLOW_ENABLED, and decision_flow_enabled() reads "" -> True.
+# This line is the emergency KILL-SWITCH plumbing: set
+# ${PARAM_PREFIX}/SIDIRA_DECISION_FLOW_ENABLED to an off-token (0/false/no/off)
+# and redeploy to disable the flow in prod (an SSM-only value was previously a
+# no-op — write_env is what actually reaches the API/worker env).
+# Note: the flow only produces trust verdicts once persona packs carry NC-guard
 # fields with a vouched neg_control_map; without them every lever abstains
 # (CANT_VALIDATE) and the router falls back to the LLM path regardless.
 write_env SIDIRA_DECISION_FLOW_ENABLED "$decision_flow_enabled"

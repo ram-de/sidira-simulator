@@ -143,8 +143,11 @@ def _seed_agent(store: _FakeArtifactStore, metadata: AgentInstanceMetadata) -> A
 
 @pytest.fixture(autouse=True)
 def _flag_off(monkeypatch):
-    """Default the flag OFF; individual tests opt in."""
-    monkeypatch.delenv(FLAG, raising=False)
+    """Default the flag OFF for this file; individual tests opt in with "1".
+
+    The flag now defaults ON in prod, so isolating these gate tests to a known-OFF
+    baseline requires setting the explicit off-token — an unset var reads as ON."""
+    monkeypatch.setenv(FLAG, "0")
 
 
 # ── tests ────────────────────────────────────────────────────────────────────────
@@ -243,8 +246,10 @@ def test_explain_llm_failure_persists_nothing(monkeypatch):
 
 
 def test_flag_off_uses_unchanged_roleplay_path(monkeypatch):
-    """Flag OFF → delegates to AgentChatService; record ignored; no grounding supplement."""
-    monkeypatch.delenv(FLAG, raising=False)
+    """Flag OFF → delegates to AgentChatService; record ignored; no grounding supplement.
+
+    Explicit off-token (not delenv): an unset var now reads as ON by default."""
+    monkeypatch.setenv(FLAG, "0")
     store = _FakeArtifactStore()
     metadata = _metadata()
     _seed_agent(store, metadata)

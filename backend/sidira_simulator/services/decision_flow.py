@@ -461,16 +461,19 @@ def read_decision_verdict(
 
 
 def decision_flow_enabled() -> bool:
-    """True iff ``SIDIRA_DECISION_FLOW_ENABLED`` is a truthy string. Default OFF.
+    """True unless ``SIDIRA_DECISION_FLOW_ENABLED`` is explicitly set to an off value.
 
-    Plain-env read (the repo convention — no central Settings). Off by default so
-    prod behaviour is unchanged until a live consumer (#545 / founder) flips it.
+    Default ON: the grounded decision flow IS the product, and pre-launch (no live
+    users) we run it everywhere so it's exercised on every simulation. Plain-env
+    read (the repo convention — no central Settings). Set the var to
+    ``0`` / ``false`` / ``no`` / ``off`` to disable — a local-dev toggle, and, via
+    the SSM param plumbed by ``ec2-api-deploy.sh``, an emergency prod kill-switch.
     """
-    return os.environ.get("SIDIRA_DECISION_FLOW_ENABLED", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
+    return os.environ.get("SIDIRA_DECISION_FLOW_ENABLED", "").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
     }
 
 
