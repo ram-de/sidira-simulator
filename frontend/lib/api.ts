@@ -171,6 +171,21 @@ export type LeverCard = {
   guard_reason: string | null;
   neg_control_effect: number | null;
   neg_control_effects: Record<string, number>;
+  // #564/#566: per-lever grounding-completeness verdict. Tri-state:
+  //   true  = the empirical route has everything it needs (treatment + outcome
+  //           columns, adjustment covariates, a vouched negative control, no
+  //           structurally-missing referenced column);
+  //   false = incomplete — `grounding_gaps` names the failures from the
+  //           producer's FIXED token vocabulary (`no_treatment_column` /
+  //           `no_outcome_column` / `insufficient_covariates` /
+  //           `no_vouched_negative_control` / `structurally_missing_column`);
+  //   null  = legacy manifest (pre-#564 producer) → render "not assessed",
+  //           NEVER as complete.
+  // Optional (`?`) because a pre-#564 BACKEND (prod until the next redeploy)
+  // omits the fields entirely — an absent field must parse and degrade exactly
+  // like the legacy-null case. Orthogonal to `supportable`.
+  grounding_complete?: boolean | null;
+  grounding_gaps?: string[];
   // #565 parts 2 & 3: the human review of this lever, or null if unreviewed. A
   // "rejected" review force-abstains a lever the guard trusted; a "vouched" review
   // confirms but never upgrades a guard-abstained lever into trust (rendered in the
@@ -190,12 +205,33 @@ export type LeverReview = {
   guard_trips_at_review: boolean | null;
   decisive_nc_at_review: string | null;
 };
+// #564/#566: pack-level data-coverage summary — bounded counts + capped name
+// lists (backend caps at 50 per class and records the overflow as an explicit
+// truncation count, never silently dropping names). Mirrors the backend
+// `CoverageSummary` (services/lever_card_view.py).
+export type CoverageSummary = {
+  total_columns: number;
+  present_count: number;
+  behavioural_count: number;
+  structural_count: number;
+  // Config-expected columns absent from the source entirely — a subset of the
+  // structural count: "declared but never tracked".
+  expected_absent_count: number;
+  structural_columns: string[];
+  behavioural_columns: string[];
+  structural_truncated: number;
+  behavioural_truncated: number;
+};
 export type LeverCardManifest = {
   manifest_version: string;
   pack_version: string;
   feature_store: string;
   built_at: string | null;
   levers: LeverCard[];
+  // #564/#566: null ⇔ legacy manifest with no per-column coverage list (the
+  // honest "unknown", distinct from a real all-present summary). Optional for
+  // the same pre-redeploy-backend reason as `grounding_complete` above.
+  coverage?: CoverageSummary | null;
 };
 
 export type Hypothesis = components["schemas"]["Hypothesis"];
@@ -296,7 +332,16 @@ export type InputFlags = components["schemas"]["InputFlags"];
 // Direction-only watchdog verdict (Epic #538, #545) — sign + confidence/abstain,
 // never a magnitude. Additive on SimulationResult.decision_verdict (null on
 // flag-off / pre-rewire runs).
-export type DirectionVerdict = components["schemas"]["DirectionVerdict"];
+// #564/#566 hand-augment (api-types.ts predates it, same stale-generated caveat
+// as Simulation.setup_id): `grounding_gap_reason` is the "why" for a
+// grounding-incomplete CANT_VALIDATE — e.g. "grounding-incomplete:
+// no_vouched_negative_control, structurally_missing_column". Built exclusively
+// from the producer's fixed gap-token allowlist backend-side (structurally not
+// a magnitude channel); null on every other path and on legacy verdicts.
+// Collapse to the bare generated type once api-types.ts is regenerated.
+export type DirectionVerdict = components["schemas"]["DirectionVerdict"] & {
+  grounding_gap_reason?: string | null;
+};
 export type GuardrailMetric = components["schemas"]["GuardrailMetric"];
 export type SimulationStatus = components["schemas"]["SimulationStatus"];
 export type ModelInfo = components["schemas"]["ModelInfo"];
