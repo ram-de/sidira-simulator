@@ -34,12 +34,16 @@ import {
 } from "react";
 import {
   ApiError,
+  getPersonaPackEstimability,
   getSimulation,
   getSimulationState,
   isTerminalStatus,
   listSimulationAgents,
+  type CoverageSummary,
   type DirectionVerdict,
   type Hypothesis,
+  type LeverCard,
+  type LeverCardManifest,
   type LineageEntry,
   type RunEvent,
   type Simulation,
@@ -243,6 +247,17 @@ function DecisionVerdictPanel({ verdict }: { verdict: DirectionVerdict }) {
         <span className="desig">{register}</span>
       </div>
       <div className="whyline">{whyLine}</div>
+      {/* #564/#566 — the grounding-gap "why" beside the WHY line. Present ONLY
+          on the grounding-incomplete CANT_VALIDATE path; the raw reason string
+          is built backend-side from the fixed gap-token allowlist, so it stays
+          greppable verbatim here (§8.2: a withheld verdict carries its
+          inspectable named reasons). Null/absent (legacy) → renders nothing. */}
+      {verdict.grounding_gap_reason != null && (
+        <div className="whyline">
+          <span className="em">GROUNDING GAP:</span>{" "}
+          {verdict.grounding_gap_reason}
+        </div>
+      )}
       {abstainHeader != null && (
         <div className="note">
           <div className="nh">{abstainHeader}</div>
@@ -266,6 +281,390 @@ function DecisionVerdictPanel({ verdict }: { verdict: DirectionVerdict }) {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── grounding-sources / observable-levers register (#566) ────────────────────
+// Which levers the engine can GROUND in the customer's warehouse vs. what it
+// can only guess at (unverified LLM) — the transparency that motivated the
+// whole design. Reads the pack's build-time estimability manifest (the sim's
+// pinned persona_pack_version IS the pack id — /personas/[id] addresses packs
+// by the same version string). ADDITIVE + DORMANT: no manifest (404) → renders
+// NOTHING (no fake empty section on legacy packs); a manifest from a pre-#564
+// producer/backend (fields absent or null) degrades every new field to its
+// honest "not assessed" state, never to "complete".
+//
+// Honesty laws: direction-only (the API already strips ATE magnitudes — the
+// only numerals here are the guard's floor·ratio POLICY thresholds, §8.1);
+// a trust/confounded verdict never renders without that policy beside it
+// (degrades to the explicit not-validated state when floor/ratio are absent —
+// the codex P1 on #577, now law); withheld verdicts carry their inspectable
+// named reasons (the fixed gap tokens, §8.2); a human VOUCH never upgrades an
+// abstained/flagged lever while a REJECT force-abstains a trusted one (the
+// #578/#579 asymmetry); the WORD carries every state — color is border-accent
+// only, co-signaled by wording (§4.3), glyphs are text (◇ ◆ ↑ ↓ →), no icons.
+
+// The producer's FIXED gap-token vocabulary (#564), rendered human-legible.
+// The raw token stays visible as a mono designator so it remains greppable
+// against the manifest / sidecar / backend logs.
+const GROUNDING_GAP_LEGEND: Record<string, string> = {
+  no_treatment_column: "no warehouse column captures this treatment",
+  no_outcome_column: "no warehouse column captures this outcome",
+  insufficient_covariates:
+    "not enough adjustment covariates to control for confounding",
+  no_vouched_negative_control:
+    "no vouched negative-control column to test for hidden confounding",
+  structurally_missing_column:
+    "a referenced column is never tracked by the warehouse",
+};
+
+type GroundingFetch =
+  | { state: "loading" }
+  | { state: "missing" }
+  | { state: "error"; message: string }
+  | { state: "ready"; data: LeverCardManifest };
+
+function GroundingSourcesPanel({ packVersion }: { packVersion: string }) {
+  const [manifest, setManifest] = useState<GroundingFetch>({
+    state: "loading",
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!packVersion) {
+      setManifest({ state: "missing" });
+      return;
+    }
+    setManifest({ state: "loading" });
+    (async () => {
+      try {
+        const data = await getPersonaPackEstimability(packVersion);
+        if (!cancelled) setManifest({ state: "ready", data });
+      } catch (e) {
+        if (cancelled) return;
+        // 404 = no estimability manifest for this pack (pre-precompute build).
+        // Not an error — the grounding surface simply doesn't exist here.
+        if (e instanceof ApiError && e.status === 404) {
+          setManifest({ state: "missing" });
+        } else {
+          setManifest({
+            state: "error",
+            message: e instanceof Error ? e.message : "Unknown error",
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [packVersion]);
+
+  // No manifest / still loading → this run has no grounding surface; silent.
+  if (manifest.state === "loading" || manifest.state === "missing") return null;
+
+  if (manifest.state === "error") {
+    return (
+      <div className="grounding">
+        <div className="ghead">
+          <span className="nh">GROUNDING SOURCES — OBSERVABLE LEVERS</span>
+        </div>
+        <p className="gnote">
+          The pack&apos;s estimability manifest could not be loaded:{" "}
+          {manifest.message}
+        </p>
+      </div>
+    );
+  }
+
+  return <GroundingSourcesBody m={manifest.data} />;
+}
+
+// The presentational register, split from the fetch so every state is a pure
+// function of the manifest payload.
+function GroundingSourcesBody({ m }: { m: LeverCardManifest }) {
+  return (
+    <div className="grounding">
+      <div className="ghead">
+        <span className="nh">GROUNDING SOURCES — OBSERVABLE LEVERS</span>
+        <span className="desig desig-sm">
+          {m.levers.length} LEVER{m.levers.length === 1 ? "" : "S"} · PACK{" "}
+          {m.pack_version} · STORE {m.feature_store} · DIRECTION ONLY
+        </span>
+      </div>
+      <GroundingCoverageLine coverage={m.coverage ?? null} />
+      {m.levers.length === 0 ? (
+        // A manifest exists but carries no levers — that absence is shown (a
+        // real reading of the warehouse), distinct from the no-manifest case.
+        <p className="gnote">
+          The estimability manifest is present but carries{" "}
+          <b>no (treatment → outcome) levers</b> — nothing in this pack&apos;s
+          warehouse reached the estimability grid. Any engine take on this
+          hypothesis is unverified LLM, labeled as such on the verdict.
+        </p>
+      ) : (
+        <>
+          {m.levers.map((lever, i) => (
+            <GroundingLeverRecord
+              key={`${lever.treatment}->${lever.outcome}-${i}`}
+              lever={lever}
+            />
+          ))}
+          <p className="gnote">
+            A lever absent from this register has no empirical route in the
+            warehouse — any engine take on it is <b>unverified LLM</b>, labeled
+            as such on the verdict above.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Compact pack-level coverage line (#564): counts only, bounded by design
+// (the backend caps the name lists and reports truncation explicitly).
+// coverage == null ⇔ legacy manifest → the honest "not assessed", never a
+// fabricated all-present summary.
+function GroundingCoverageLine({
+  coverage,
+}: {
+  coverage: CoverageSummary | null;
+}) {
+  if (coverage == null) {
+    return (
+      <div className="gcover">
+        DATA COVERAGE · NOT ASSESSED — MANIFEST PREDATES COVERAGE PROFILING
+      </div>
+    );
+  }
+  const truncated = coverage.structural_truncated + coverage.behavioural_truncated;
+  return (
+    <div className="gcover">
+      DATA COVERAGE · {coverage.total_columns} COLUMN
+      {coverage.total_columns === 1 ? "" : "S"} — {coverage.present_count}{" "}
+      PRESENT · {coverage.behavioural_count} BEHAVIOURAL (EXISTS, SPARSELY
+      POPULATED) · {coverage.structural_count} STRUCTURAL (NEVER TRACKED) ·{" "}
+      {coverage.expected_absent_count} DECLARED BUT ABSENT
+      {truncated > 0 && (
+        <>
+          {" "}
+          · NAME LISTS CAPPED (+{coverage.structural_truncated} STRUCTURAL / +
+          {coverage.behavioural_truncated} BEHAVIOURAL NOT SHOWN)
+        </>
+      )}
+    </div>
+  );
+}
+
+// One lever record: identity → grounding tri-state (+ gap tokens) → watchdog
+// verdict WITH its bound policy (§8.1) → grounded-vs-abstain routing.
+function GroundingLeverRecord({ lever }: { lever: LeverCard }) {
+  const gaps = lever.grounding_gaps ?? [];
+
+  const direction =
+    lever.direction === "positive"
+      ? "DIRECTION ↑ HIGHER"
+      : lever.direction === "negative"
+        ? "DIRECTION ↓ LOWER"
+        : "NO DIRECTIONAL READING";
+
+  // §8.1 (the codex P1 on #577, now law): a trust/confounded verdict may render
+  // ONLY WITH its real floor·ratio policy. Missing thresholds degrade to the
+  // explicit not-validated state — never a verdict with a hollow "ratio —".
+  const hasPolicy = lever.guard_floor != null && lever.guard_ratio != null;
+  const validated = lever.guard_trips != null && hasPolicy;
+  const machineTrusts =
+    validated &&
+    lever.guard_trips === false &&
+    lever.supportable &&
+    lever.direction != null;
+
+  // #564 watchdog precedence: DECLARED grounding gaps force CANT_VALIDATE even
+  // over a clean guard; a legacy null/absent verdict skips the gate entirely
+  // (pre-#564 behavior byte-identical) — but is still rendered "not assessed".
+  const groundingBlocks = lever.grounding_complete === false;
+  // #578/#579 honesty asymmetry: a human REJECT force-abstains a lever the
+  // guard trusted; a VOUCH never upgrades an abstained/flagged lever.
+  const humanRejected = lever.review?.decision === "rejected";
+
+  // Grounding tri-state chip — ◆ assessed-complete, ◇ not assessed; incomplete
+  // carries the warn border accent, co-signaled by the word (§4.3).
+  const groundingChip =
+    lever.grounding_complete === true
+      ? { cls: "", glyph: "◆", label: "GROUNDING COMPLETE" }
+      : lever.grounding_complete === false
+        ? { cls: "warnb", glyph: null, label: "GROUNDING INCOMPLETE" }
+        : { cls: "none", glyph: "◇", label: "GROUNDING NOT ASSESSED" };
+
+  // Watchdog verdict tri-state — mirrors services/negative_control_watchdog
+  // branch order (gaps → supportability → NC evidence → policy → guard trip →
+  // trustworthy; no LLM take at read time, so the trustworthy branch reads
+  // CONFIRMS). Each verdict carries its policy line beside it (§8.1).
+  const guardPolicy = `Negative-control guard · floor ${lever.guard_floor} · ratio ${lever.guard_ratio}`;
+  let verdict: { cls: string; glyph: string | null; label: string };
+  let policy: string;
+  if (groundingBlocks) {
+    verdict = {
+      cls: "none",
+      glyph: "◇",
+      label: "WATCHDOG CANT_VALIDATE — GROUNDING INCOMPLETE",
+    };
+    policy =
+      "Grounding gate: an empirical route needs treatment + outcome columns, adjustment covariates and a vouched negative control, none structurally missing. The named gaps below withheld this lever.";
+  } else if (!lever.supportable) {
+    verdict = {
+      cls: "none",
+      glyph: "◇",
+      label: "WATCHDOG CANT_VALIDATE — NOT SUPPORTABLE",
+    };
+    policy =
+      "Build-time could not support an estimate on this pair (thin arms / weak overlap), so trust cannot be certified.";
+  } else if (lever.guard_trips == null) {
+    verdict = {
+      cls: "none",
+      glyph: "◇",
+      label: "WATCHDOG CANT_VALIDATE — NOT VALIDATED",
+    };
+    policy =
+      "No negative-control evidence was precomputed for this lever, so trust cannot be certified.";
+  } else if (!hasPolicy) {
+    verdict = {
+      cls: "none",
+      glyph: "◇",
+      label: "WATCHDOG CANT_VALIDATE — NOT VALIDATED",
+    };
+    policy =
+      "Negative-control evidence is incomplete (floor/ratio not recorded), so trust cannot be certified.";
+  } else if (lever.guard_trips === true) {
+    verdict = {
+      cls: "flag",
+      glyph: null,
+      label: "WATCHDOG CANT_VALIDATE — CONFOUNDED · UNTRUSTWORTHY",
+    };
+    policy = guardPolicy;
+  } else if (lever.direction == null) {
+    verdict = {
+      cls: "none",
+      glyph: "◇",
+      label: "WATCHDOG CANT_VALIDATE — NO DIRECTIONAL READING",
+    };
+    policy = `${guardPolicy} — guard clean, but no direction was computed, so there is nothing to certify.`;
+  } else {
+    verdict = {
+      cls: "trust",
+      glyph: null,
+      label: "WATCHDOG CONFIRMS — EMPIRICAL · TRUSTWORTHY",
+    };
+    policy = guardPolicy;
+  }
+
+  // The reviewer override outranks the machine verdict (conservative direction
+  // only): the policy line keeps BOTH the override rule and the machine rule.
+  if (humanRejected) {
+    verdict = {
+      cls: "flag",
+      glyph: null,
+      label: "WATCHDOG CANT_VALIDATE — REVIEWER REJECTED",
+    };
+    policy = `Reviewer override: a human rejected this lever, so the router abstains regardless of the machine verdict. Machine rule: ${policy}`;
+  }
+
+  // Routing: trustworthy empirical → the engine reads the warehouse; anything
+  // else on a COVERED lever → the router ABSTAINS (it never launders an
+  // unverified LLM guess through a lever our own data can't certify).
+  const routesGrounded = machineTrusts && !groundingBlocks && !humanRejected;
+
+  return (
+    <div className="glever">
+      <div className="ghd">
+        <span className="gio">
+          {lever.treatment}
+          <span className="arr">→</span>
+          {lever.outcome}
+        </span>
+        <span className="desig desig-sm">{direction}</span>
+      </div>
+
+      <div className="grow">
+        <span className={`gchip ${groundingChip.cls}`}>
+          {groundingChip.glyph && (
+            <span className="gl">{groundingChip.glyph}</span>
+          )}
+          {groundingChip.label}
+        </span>
+        <span className={`gchip ${verdict.cls}`}>
+          {verdict.glyph && <span className="gl">{verdict.glyph}</span>}
+          {verdict.label}
+        </span>
+        <span className={`gchip ${routesGrounded ? "" : "none"}`}>
+          {routesGrounded ? (
+            <>ROUTE · GROUNDED — EMPIRICAL</>
+          ) : (
+            <>
+              <span className="gl">◇</span>ROUTE · ABSTAIN
+            </>
+          )}
+        </span>
+      </div>
+
+      {/* §8.1 — the decision rule bound to the verdict, always rendered. */}
+      <div className="gpolicy">{policy}</div>
+
+      {/* The warehouse columns the lever grounds on. Neutral labels — the
+          identity of the lever, not a claim of completeness (the chips and
+          gaps above/below carry that). */}
+      <div className="gcols">
+        <span className="gk">TREATMENT COLUMN</span>
+        <span className="gv">{lever.treatment}</span>
+        <span className="gk">OUTCOME COLUMN</span>
+        <span className="gv">{lever.outcome}</span>
+        <span className="gk">ADJUSTED FOR</span>
+        <span className="gv">
+          {lever.covariates.length > 0
+            ? lever.covariates.join(" · ")
+            : "— no adjustment covariates —"}
+        </span>
+      </div>
+
+      {/* §8.2 — the withheld route's inspectable named reasons: the fixed gap
+          tokens, raw (greppable) + human-legible. Unknown future tokens are
+          shown raw and marked unrecognized, never hidden. */}
+      {groundingBlocks && (
+        <ul className="gaps">
+          {(gaps.length > 0 ? gaps : ["(no gap tokens recorded)"]).map(
+            (g, i) => (
+              <li key={`${g}-${i}`}>
+                <span className="tok">{g}</span>
+                {" — "}
+                {GROUNDING_GAP_LEGEND[g] ?? "unrecognized gap token"}
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+
+      {/* The guard's own precomputed reason, when NC evidence exists. */}
+      {lever.guard_reason && lever.guard_trips != null && (
+        <p className="gnote">
+          <b>Guard:</b> {lever.guard_reason}
+        </p>
+      )}
+
+      {/* A vouch is recorded agreement — it NEVER upgrades a lever the machine
+          abstained on or flagged (rejections are folded into the verdict chip
+          above). */}
+      {lever.review?.decision === "vouched" && (
+        <p className="gnote">
+          <b>Reviewer vouched</b> — agrees with the reading
+          {!machineTrusts && "; does not certify trust the data withholds"}.
+        </p>
+      )}
+
+      <p className="gnote">
+        {routesGrounded
+          ? "The engine's call on this lever reads the warehouse (grounded, empirical) — not the LLM."
+          : "Covered by the manifest but not certified: the router abstains on this lever rather than launder an unverified LLM guess through it."}
+      </p>
     </div>
   );
 }
@@ -486,6 +885,53 @@ const RCONSOLE_CSS = `
    .vchip/.whyline/.note idioms; no new colors. */
 .rconsole .decision-verdict{margin-top:14px; padding-top:14px;
   border-top:1px solid var(--console-line);}
+
+/* grounding-sources register (#566) — per-lever observable-lever records under
+   the decision verdict. Same hairline/no-tint posture as .decision-verdict +
+   .note: the WORD carries every state; color is a border accent only (§4.3),
+   always co-signaled by wording; glyphs are text (◇ ◆ ↑ ↓ →), never icons; no
+   signal lime (the page's §4.1 budget is already spoken for). */
+.rconsole .grounding{margin-top:14px; padding-top:14px;
+  border-top:1px solid var(--console-line);}
+.rconsole .grounding .ghead{display:flex; align-items:baseline; gap:10px;
+  flex-wrap:wrap;}
+.rconsole .grounding .ghead .nh{font-size:10px; font-weight:500;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text-mut);}
+.rconsole .grounding .gcover{margin-top:8px; font-size:10.5px;
+  letter-spacing:.05em; text-transform:uppercase; color:var(--text-mut);
+  line-height:1.7;}
+.rconsole .grounding .gnote{margin:10px 0 0; color:var(--text-mut);
+  font-size:12px; line-height:1.6; max-width:78ch;}
+.rconsole .grounding .gnote b{color:var(--text); font-weight:550;}
+.rconsole .glever{margin-top:12px; border:1px solid var(--console-line);
+  border-radius:var(--r-well); padding:10px 12px; background:rgba(11,18,32,.4);}
+.rconsole .glever .ghd{display:flex; align-items:baseline; gap:12px;
+  flex-wrap:wrap;}
+.rconsole .glever .gio{font-size:13.5px; color:var(--text-hi); font-weight:500;
+  overflow-wrap:anywhere;}
+.rconsole .glever .gio .arr{color:var(--spread-dim); padding:0 7px;}
+.rconsole .glever .grow{display:flex; align-items:center; gap:8px;
+  flex-wrap:wrap; margin-top:8px;}
+.rconsole .glever .gchip{display:inline-flex; align-items:center; gap:7px;
+  font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+  border:1px solid var(--console-line); border-radius:var(--r-well);
+  padding:3px 9px; color:var(--text-hi);}
+.rconsole .glever .gchip .gl{color:var(--spread-dim);}
+.rconsole .glever .gchip.flag{border-color:rgba(240,104,60,.5);}
+.rconsole .glever .gchip.warnb{border-color:rgba(201,162,39,.5);}
+.rconsole .glever .gchip.none{border-style:dashed; color:var(--text-mut);}
+.rconsole .glever .gpolicy{margin-top:8px; font-size:11px; letter-spacing:.03em;
+  color:var(--text-mut); line-height:1.6; max-width:78ch;}
+.rconsole .glever .gcols{display:grid; grid-template-columns:max-content 1fr;
+  gap:4px 14px; margin-top:10px;}
+.rconsole .glever .gcols .gk{font-size:10px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--text-mut); padding-top:1px;}
+.rconsole .glever .gcols .gv{font-size:12.5px; color:var(--text);
+  overflow-wrap:anywhere;}
+.rconsole .glever .gaps{margin:10px 0 0; padding-left:18px; color:var(--text);
+  font-size:12.5px; line-height:1.6;}
+.rconsole .glever .gaps li{margin-bottom:4px;}
+.rconsole .glever .gaps .tok{color:var(--text-hi);}
 
 /* disclosure note (out_of_scope / input-lint / degraded A/B) — a data
    condition, NOT an alarm: hairline rule border, message in ink, no tint. */
@@ -1862,6 +2308,16 @@ export default function SimulationDetailV2() {
               {completeResult?.decision_verdict != null && !abstained && (
                 <DecisionVerdictPanel verdict={completeResult.decision_verdict} />
               )}
+
+              {/* Grounding-sources / observable-levers register (#566) —
+                  which levers the engine can ground in the warehouse vs. what
+                  it can only guess at. Pack-level (reads the pinned
+                  persona_pack_version's estimability manifest), so it renders
+                  independently of the decision verdict / flag state. ADDITIVE
+                  + DORMANT: packs without a manifest (404) render nothing —
+                  the page stays byte-identical for every legacy run. */}
+              <GroundingSourcesPanel packVersion={sim.persona_pack_version} />
+
 
               {/* #311 / T2 — instrument-scope abstention note. Inspectable named
                   reasons: the withheld verdict always carries WHY. A data
