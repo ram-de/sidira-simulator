@@ -50,8 +50,9 @@ Add an `estimability` block to the build payload naming the treatment column(s)
 (`treatments`) and outcome column(s) (`outcomes`) that now live in the view.
 The *presence* of the block is the intent to enable — it is threaded verbatim
 into the producer pipeline's `cfg["estimability"]` contract, which builds the
-manifest when `enabled is True`. Optional: `neg_control_map` (explicit negative
-controls per treatment) and `nc_diagnostics: true` (the reviewable per-lever
+manifest when `enabled is True`. Optional: `neg_control_map` (explicit vouched
+negative controls, **keyed by OUTCOME column** — `{Y column: [NC columns]}`,
+see the warning below) and `nc_diagnostics: true` (the reviewable per-lever
 diagnostics that back the lever-card surface, #565).
 
 ```json
@@ -74,7 +75,7 @@ diagnostics that back the lever-card surface, #565).
     "enabled": true,
     "treatments": ["reminder_email_sent"],
     "outcomes": ["reactivated_30d"],
-    "neg_control_map": { "reminder_email_sent": ["region", "signup_date"] },
+    "neg_control_map": { "reactivated_30d": ["pre_orders_30d", "pre_active_rate_30d"] },
     "nc_diagnostics": true
   }
 }
@@ -101,6 +102,37 @@ Notes:
   candidate effect(s)` build log line) rather than assuming the block took. Keys
   *inside* the block are typo-protected (`extra="forbid"` → a bad nested key
   raises).
+- **`neg_control_map` is keyed by OUTCOME (Y) column, not by treatment** —
+  `{"reactivated_30d": ["region"]}`, never `{"reminder_email_sent": [...]}`.
+  The producer consumes `nc_map.get(outcome)`; a treatment-keyed map matches
+  nothing and **silently** ships every lever as `guard_confidence: "unverified"`
+  with `grounding_gaps: ["no_vouched_negative_control"]` (no error — hit
+  verbatim in the M4 dry-run, #587). After the build, check a lever card shows
+  the vouched NC before proceeding.
+- NCs must be **numeric/boolean** columns (they are estimated as outcome-side
+  effects — `support_check` skips categorical/date columns as unsupported, and
+  with no usable NC the lever silently ships unverified). Pre-treatment
+  *metrics* (`pre_orders_30d`, a pre-period rate), not attributes (`region`,
+  `signup_date`).
+- Prefer NCs on **~unit-scale columns** (rates, shares, 0–1 flags) for now:
+  the guard's `floor=0.05` compares the NC residual in **raw outcome units**,
+  so on a raw-count/minutes-scale NC the floor is effectively zero and every
+  lever over-abstains (#586).
+
+After the manifest checks out, two more steps before simulations see any of it
+(both learned the hard way in the M4 dry-run):
+
+1. **Promote the pack.** A completed build does NOT advance the customer's
+   `latest` pointer — that is a deliberate human gate. Until
+   `POST /persona-packs/{version}/promote` is called (after the lever-card
+   review), sims keep resolving the OLD pack and the decision flow logs
+   `manifest_absent` for it.
+2. **Pick a crawled capability for the hypothesis.** `hypothesis.capability_name`
+   must name a capability that exists in the customer's crawled feature pack
+   (`.../capabilities/{name}/reverse-prd.md`) or the sim fails with
+   `Missing reverse-PRD`. A warehouse-rollout lever usually has no crawled UI
+   surface of its own — run it under the nearest real capability and name the
+   lever in the prose (the translator grounds on prose, not capability name).
 
 ## 3. The organic-variation constraint
 
