@@ -31,6 +31,20 @@ def test_ec2_deploy_exports_database_runtime_settings() -> None:
     assert 'write_env SIDIRA_AUTO_MIGRATE "$auto_migrate"' in deploy
 
 
+def test_ec2_deploy_wires_decision_flow_flag() -> None:
+    """The SIDIRA_DECISION_FLOW_ENABLED gate must be read from SSM and written to
+    the container env, else flipping the SSM param alone is a no-op. Default-off is
+    preserved by write_env skipping an empty/None value (asserted via the comment
+    documenting the semantics, so the intent can't silently regress)."""
+    deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
+
+    assert 'decision_flow_enabled="$(ssm_value SIDIRA_DECISION_FLOW_ENABLED)"' in deploy
+    assert 'write_env SIDIRA_DECISION_FLOW_ENABLED "$decision_flow_enabled"' in deploy
+    # OFF-by-default is load-bearing: it must be documented at the write site so a
+    # future edit doesn't turn it into an always-on default.
+    assert "OFF by default" in deploy
+
+
 def test_ec2_deploy_writes_compose_safe_env_file() -> None:
     deploy = (REPO_ROOT / "deploy" / "ec2-api-deploy.sh").read_text()
 

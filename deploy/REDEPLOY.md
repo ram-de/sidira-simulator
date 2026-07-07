@@ -193,6 +193,31 @@ Known additions:
   builder-cache prune after `up -d` (the ML image fills the 8GB root disk
   otherwise). Remember migration `013` must run this deploy (see step 2).
 
+- **#565 grounded decision-flow gate** — `SIDIRA_DECISION_FLOW_ENABLED` turns on
+  the watchdog/decision-flow path (grounded SHIP/NO-SHIP verdicts + human
+  lever-review overrides). **OFF by default and safe to leave unset** — when the
+  SSM param is absent the deploy script writes nothing, the container never sees
+  the var, and `decision_flow_enabled()` reads `""` → `False`, so prod behavior is
+  unchanged. `ec2-api-deploy.sh` now reads and writes it (previously an SSM-only
+  value was a no-op — the script never plumbed it into the env). To turn it on:
+
+  ```bash
+  aws ssm put-parameter --region us-east-1 \
+    --name /sidira/prod/SIDIRA_DECISION_FLOW_ENABLED \
+    --type String --value 1 --overwrite
+  ```
+
+  then redeploy. **Because this deploy edits `ec2-api-deploy.sh` itself, run the
+  deploy TWICE** (the self-modifying-script gotcha in step 3): the first run lands
+  the new script, the second executes it and plumbs the flag. Verify in step 4
+  that the container env carries it.
+
+  > **Turning it ON is only meaningful once persona packs carry NC-guard fields
+  > with a vouched `neg_control_map`.** Without them every lever's guard is
+  > `None`/tripped → the watchdog returns `CANT_VALIDATE` and the router falls
+  > back to the LLM path regardless, so flipping the flag on an un-vouched pack
+  > only exercises plumbing. Sequence the personas-side manifest work first.
+
 ### 3. Run the deploy on the EC2 instance
 
 The instance is the one whose Elastic IP `api.sidira.ai` resolves to
@@ -281,6 +306,15 @@ asyncio.run(main())
 
 # The dispatch token is wired (prints True, never the secret itself)
 sudo docker exec sidira-api python -c "from sidira_simulator.adapters.github_actions import dispatch_configured; print('dispatch_configured:', dispatch_configured())"
+```
+
+For a deploy that flips `SIDIRA_DECISION_FLOW_ENABLED`, confirm the gate is
+actually live in the container (prints `True` only when the flag reached the env
+— if it prints `False` after you set the SSM param, that's the self-modifying
+script gotcha; re-run the deploy):
+
+```bash
+sudo docker exec sidira-api python -c "from sidira_simulator.services.decision_flow import decision_flow_enabled; print('decision_flow_enabled:', decision_flow_enabled())"
 ```
 
 (The route check imports the app in-process and calls `app.openapi()` instead
