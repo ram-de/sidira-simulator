@@ -137,16 +137,25 @@ def watchdog_classify(
 
     1. ``not prediction.covered`` → **CANT_VALIDATE** — nothing grounded to certify;
        the router falls back to the LLM.
-    2. covered but ``not prediction.supportable`` → **CANT_VALIDATE** — the pair was
+    2. covered but ``candidate.grounding_complete is False`` → **CANT_VALIDATE** —
+       the producer's per-lever grounding-completeness check (#564) found gaps
+       (missing treatment/outcome column, insufficient covariates, no vouched
+       negative control, structurally-missing column). The reason NAMES the gap
+       tokens so the router/frontend can show *why*. Checked BEFORE supportability
+       so the specific gaps win over the generic "not supportable" wording — the
+       producer's ungroundable STUB rows are both. ``grounding_complete is None``
+       (legacy manifest, pre-#564 producer) skips this step entirely: legacy
+       behavior is byte-identical.
+    3. covered but ``not prediction.supportable`` → **CANT_VALIDATE** — the pair was
        in the grid but build-time couldn't support an estimate (weak overlap / thin
        arms).
-    3. covered + supportable but ``candidate.guard_trips is None`` → **CANT_VALIDATE**
+    4. covered + supportable but ``candidate.guard_trips is None`` → **CANT_VALIDATE**
        — no NC evidence was precomputed (pack predates the guard producer). We
        cannot certify trust, so we abstain honestly rather than assume clean.
-    4. covered + supportable + ``guard_trips is True`` → **CANT_VALIDATE** — the guard
+    5. covered + supportable + ``guard_trips is True`` → **CANT_VALIDATE** — the guard
        tripped (hidden confounding / effect indistinguishable from bias). Carry the
        precomputed ``guard_reason`` through.
-    5. covered + supportable + ``guard_trips is False`` (trustworthy empirical):
+    6. covered + supportable + ``guard_trips is False`` (trustworthy empirical):
        - ``llm_direction is None`` → **CONFIRMS** (no claim to contradict).
        - ``llm_direction == prediction.direction`` → **CONFIRMS**.
        - ``llm_direction != prediction.direction`` → **CONTRADICTS** (flagship).
@@ -163,7 +172,23 @@ def watchdog_classify(
                 llm_direction=llm_direction,
             )
 
-        # 2. Covered but not supportable — build-time couldn't support an estimate.
+        # 2. Grounding-incomplete (#564) — the producer named concrete gaps in this
+        #    lever's grounding (missing columns / covariates / vouched NC). NEVER a
+        #    clean grounded verdict, whatever the guard evidence says. Checked before
+        #    supportability so the gap tokens (the actionable "why") win the reason
+        #    over the generic "not supportable" — the producer's ungroundable stub
+        #    rows are both. ``None`` = legacy manifest → skip (byte-identical).
+        candidate = prediction.candidate
+        if candidate is not None and candidate.grounding_complete is False:
+            gaps = ", ".join(candidate.grounding_gaps) or "(no gaps listed by producer)"
+            return _cant_validate(
+                f"grounding-incomplete: {gaps} — the lever's empirical grounding "
+                "has declared gaps; router abstains on this lever",
+                grounded_direction=prediction.direction,
+                llm_direction=llm_direction,
+            )
+
+        # 3. Covered but not supportable — build-time couldn't support an estimate.
         if not prediction.supportable:
             return _cant_validate(
                 f"covered but not supportable — build-time could not support an estimate "
@@ -172,7 +197,6 @@ def watchdog_classify(
                 llm_direction=llm_direction,
             )
 
-        candidate = prediction.candidate
         # Defensive: a covered+supportable prediction should always carry a candidate;
         # if it somehow doesn't, we cannot read NC evidence — abstain, never raise.
         if candidate is None:  # pragma: no cover — defensive
@@ -183,7 +207,7 @@ def watchdog_classify(
                 llm_direction=llm_direction,
             )
 
-        # 3. No NC evidence precomputed — cannot certify trust (honest default).
+        # 4. No NC evidence precomputed — cannot certify trust (honest default).
         if candidate.guard_trips is None:
             return _cant_validate(
                 "no negative-control evidence precomputed (pack predates the guard "
@@ -192,7 +216,7 @@ def watchdog_classify(
                 llm_direction=llm_direction,
             )
 
-        # 4. Guard tripped — untrustworthy empirical (hidden confounding / indistinct).
+        # 5. Guard tripped — untrustworthy empirical (hidden confounding / indistinct).
         if candidate.guard_trips is True:
             detail = candidate.guard_reason or "hidden confounding or effect indistinguishable from bias"
             return _cant_validate(
@@ -202,7 +226,7 @@ def watchdog_classify(
                 llm_direction=llm_direction,
             )
 
-        # 5. Guard clean (guard_trips is False) — trustworthy empirical.
+        # 6. Guard clean (guard_trips is False) — trustworthy empirical.
         grounded = prediction.direction
         # Defensive: a guard-clean, supportable candidate should carry a real sign,
         # but the manifest defaults ``sign_adjusted`` to None — never certify a

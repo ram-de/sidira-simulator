@@ -158,6 +158,10 @@ class DecisionResult:
     - ``label``: the customer-facing framing string.
     - ``watchdog_verdict``: CONFIRMS / CONTRADICTS / CANT_VALIDATE, or None if the
       watchdog never ran (defensive error path).
+    - ``watchdog_reason``: the watchdog's human-readable justification (post any
+      human lever-review override) — the per-hypothesis "why" the sidecar carries
+      so the frontend can show e.g. the #564 grounding-gap tokens. None when the
+      watchdog never ran (defensive error path).
     - ``mechanism_spec``: the translator's decomposition (always present).
     - ``grounded``: the grounded prediction, or None when no manifest / defensive.
     - ``reason``: the full trace — translate → grounded → watchdog → council.
@@ -171,6 +175,7 @@ class DecisionResult:
     mechanism_spec: MechanismSpec
     grounded: GroundedPrediction | None
     reason: str
+    watchdog_reason: str | None = None
 
 
 # Customer-facing framing strings — kept as named constants so #545 (the response
@@ -290,6 +295,7 @@ def decide(
                 caution="none",
                 label=label,
                 watchdog_verdict=watchdog.verdict,
+                watchdog_reason=watchdog.reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -302,6 +308,7 @@ def decide(
                 caution="hard",
                 label=LABEL_INCONCLUSIVE,
                 watchdog_verdict=watchdog.verdict,
+                watchdog_reason=watchdog.reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -315,6 +322,7 @@ def decide(
                 caution="moderate",
                 label=LABEL_UNVERIFIED,
                 watchdog_verdict=watchdog.verdict,
+                watchdog_reason=watchdog.reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -359,7 +367,9 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
     """Map a :class:`DecisionResult` → the customer-facing :class:`DirectionVerdict`.
 
     Direction-only by construction: ``direction`` / ``caution`` / ``label`` /
-    ``source`` / ``watchdog_verdict`` cross straight over; NO magnitude is read
+    ``source`` / ``watchdog_verdict`` / ``watchdog_reason`` cross straight over
+    (the reason is the per-hypothesis "why" — e.g. the #564 grounding-gap tokens —
+    the sidecar persists for the frontend); NO magnitude is read
     from the decision's grounded ``candidate`` (it never reaches this contract).
 
     - ``unverified`` = ``source == "llm_fallback"`` (a hypothesis, not a verdict).
@@ -402,6 +412,7 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
             label=LABEL_INCONCLUSIVE,
             source=decision.source,
             watchdog_verdict=decision.watchdog_verdict,
+            watchdog_reason=decision.watchdog_reason,
             unverified=unverified,
             guardrails=guardrails,
         )
@@ -413,6 +424,7 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
         label=decision.label,
         source=decision.source,
         watchdog_verdict=decision.watchdog_verdict,
+        watchdog_reason=decision.watchdog_reason,
         unverified=unverified,
         guardrails=guardrails,
     )

@@ -68,6 +68,11 @@ class DirectionVerdict(BaseModel):
       - ``source``: ``grounded`` (authoritative empirical) or ``llm_fallback``.
       - ``watchdog_verdict``: CONFIRMS / CONTRADICTS / CANT_VALIDATE, or None when
         the watchdog never ran (defensive path).
+      - ``watchdog_reason``: the watchdog's human-readable "why" for the verdict
+        (e.g. the #564 grounding-gap tokens on a grounding-incomplete lever, or
+        the NC-guard trip detail). Prose + fixed reason tokens only — NEVER a
+        magnitude channel. None when the watchdog never ran, and on sidecars
+        persisted before the field existed (legacy parses unchanged).
       - ``unverified``: True on the ``llm_fallback`` branch (hypothesis, not
         verdict).
       - ``guardrails``: sibling + negative-control metric NAMES + roles (breadth).
@@ -84,6 +89,7 @@ class DirectionVerdict(BaseModel):
     label: str
     source: Literal["grounded", "llm_fallback"]
     watchdog_verdict: str | None = None
+    watchdog_reason: str | None = None
     unverified: bool = False
     guardrails: list[GuardrailMetric] = Field(default_factory=list)
 
