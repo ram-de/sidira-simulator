@@ -4562,4 +4562,3 @@ function WeaknessCategoryInfo({ category }: { category: string }) {
     </span>
   );
 }
-
