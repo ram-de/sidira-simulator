@@ -25,11 +25,12 @@ the persona becomes a **spokesperson for that record, not a role-play predictor*
   fiction — labelled** as unverified. And every persona surface is true *on average
   / per-segment, not literally per-person*.
 
-**Off by default.** The grounded mode is gated by the SAME flag as the decision
+**On by default.** The grounded mode is gated by the SAME flag as the decision
 flow — :func:`~sidira_simulator.services.decision_flow.decision_flow_enabled`
 (``SIDIRA_DECISION_FLOW_ENABLED``) — so the whole engine rewire flips on one
-coherent switch. With the flag OFF, :meth:`GroundedAgentChatService.send_message`
-delegates to the UNCHANGED :class:`AgentChatService` role-play path (byte-identical).
+coherent switch (default ON pre-launch). Set the flag to an off-token to disable;
+then :meth:`GroundedAgentChatService.send_message` delegates to the UNCHANGED
+:class:`AgentChatService` role-play path (byte-identical).
 
 **Scope boundary (#545).** WHERE the :class:`GroundedRecord` comes from at live
 chat time — persisting the ``DecisionResult`` beside the run and threading it into
@@ -370,9 +371,10 @@ class GroundedAgentChatService:
     ) -> GroundedChatResult:
         """Answer a PM follow-up as a spokesperson for ``record`` (or nudge a recompute).
 
-        Flag OFF (``SIDIRA_DECISION_FLOW_ENABLED`` unset) → delegate to the
-        UNCHANGED :class:`AgentChatService.send_message` role-play path; the record
-        is ignored and ``boundary="disabled"``.
+        Flag OFF (``SIDIRA_DECISION_FLOW_ENABLED`` set to an off-token; the var
+        defaults ON when unset) → delegate to the UNCHANGED
+        :class:`AgentChatService.send_message` role-play path; the record is ignored
+        and ``boundary="disabled"``.
 
         Flag ON → classify the follow-up:
           - ``"explain"``: build the replay stack + the grounding supplement and

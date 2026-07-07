@@ -35,10 +35,12 @@ moderate-caution unverified-hypothesis with no arrow. The real 3-model council i
 ticket **#543**, which plugs into this EXACT seam (pass ``council=...`` to
 :func:`decide`); nothing else in this module changes.
 
-**Off by default.** Reading the router into a live request path is gated by
-``SIDIRA_DECISION_FLOW_ENABLED`` (see :func:`decision_flow_enabled`), default OFF.
-With the flag off the orchestrator does zero extra work and the customer-facing
-response shape is untouched (the response-shape change is #545).
+**On by default.** Reading the router into a live request path is gated by
+``SIDIRA_DECISION_FLOW_ENABLED`` (see :func:`decision_flow_enabled`), default ON —
+pre-launch (no live users) the grounded flow runs on every simulation. Set the
+var to an off-token (``0``/``false``/``no``/``off``) as an emergency kill-switch;
+with the flow off the orchestrator does zero extra work and the customer-facing
+response shape is untouched.
 
 :func:`decide` NEVER raises: any unexpected failure degrades to a safe
 hard-caution "inconclusive — test it" result carrying the trace.

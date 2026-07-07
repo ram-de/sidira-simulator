@@ -256,16 +256,16 @@ class SimulationOrchestrator:
                 input_lint=input_lint,
             )
 
-            # §5e decision-flow router (#542). ADDITIVE + OFF BY DEFAULT: when
-            # SIDIRA_DECISION_FLOW_ENABLED is set, compute a grounded-first
-            # DecisionResult and emit it as a structured decision log ALONGSIDE the
-            # existing run. Zero behaviour change — the result is not threaded into
-            # the sim, the runner, or the customer-facing response (that's #545).
-            # Deliberately run AFTER the sim is already persisted-complete and
-            # bounded by a timeout, so this shadow/log-only hook can NEVER delay the
-            # run or keep it 'running' (codex P2). When the flag is off (default,
-            # all prod) this is a single cheap env read that returns immediately:
-            # no extra work, no extra imports, no thread offload.
+            # §5e decision-flow router (#542). ADDITIVE + ON BY DEFAULT: unless
+            # SIDIRA_DECISION_FLOW_ENABLED is set to an off-token, compute a
+            # grounded-first DecisionResult and emit it as a structured decision log
+            # ALONGSIDE the existing run. The result is not threaded into the sim or
+            # the runner; it is surfaced only as the read-side decision_verdict
+            # sidecar (#545). Deliberately run AFTER the sim is already
+            # persisted-complete and bounded by a timeout, so this log-only hook can
+            # NEVER delay the run or keep it 'running' (codex P2). When the flag is
+            # disabled (kill-switch) this is a single cheap env read that returns
+            # immediately: no extra work, no extra imports, no thread offload.
             await self._maybe_log_decision_flow(
                 sim_id=sim_id,
                 customer_id=customer_id,
@@ -297,10 +297,10 @@ class SimulationOrchestrator:
     ) -> None:
         """Flag-gated §5e decision-flow hook (#542). Never affects the run.
 
-        Off by default (``SIDIRA_DECISION_FLOW_ENABLED``): a single env read then
-        an immediate return, so the run path is unchanged in prod. When on, load
-        the estimability manifest beside the persona pack, run the grounded-first
-        router (`decide`), and structlog the result. Deliberately additive: the
+        On by default (``SIDIRA_DECISION_FLOW_ENABLED``); an off-token disables it,
+        making this a single env read then an immediate return. When on (default),
+        load the estimability manifest beside the persona pack, run the
+        grounded-first router (`decide`), and structlog the result. Deliberately additive: the
         `DecisionResult` is only logged — it is NOT written to the sim row, passed
         to the runner, or surfaced in the API response (response-shape wiring is
         #545). Wrapped so any failure here can never break the simulation.
