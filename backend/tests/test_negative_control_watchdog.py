@@ -22,9 +22,13 @@ def _candidate(
     sign: Literal["positive", "negative"] | None = "positive",
     guard_trips: bool | None,
     guard_reason: str | None = None,
+    grounding_complete: bool | None = None,
+    grounding_gaps: list[str] | None = None,
 ) -> CandidateEffect:
     """A CandidateEffect carrying a chosen NC-guard verdict."""
     return CandidateEffect(
+        grounding_complete=grounding_complete,
+        grounding_gaps=grounding_gaps or [],
         treatment="womens_email",
         outcome="visit",
         covariates=["recency", "loghist"],
@@ -187,3 +191,122 @@ def test_defensive_covered_candidate_none_does_not_raise() -> None:
     res = watchdog_classify(pred, llm_direction="positive")
     assert res.verdict == "CANT_VALIDATE"
     assert res.trustworthy is False
+
+# ── grounding-completeness (#564) ─────────────────────────────────────────────
+
+
+def test_grounding_incomplete_cant_validate_names_gap_tokens() -> None:
+    """A grounding-incomplete lever must NEVER get a clean grounded verdict —
+    even with a clean NC guard — and the reason must name the producer's gap
+    tokens so the frontend can show *why*."""
+    pred = _covered(
+        _candidate(
+            guard_trips=False,
+            sign="positive",
+            grounding_complete=False,
+            grounding_gaps=["no_vouched_negative_control", "structurally_missing_column"],
+        ),
+        direction="positive",
+    )
+    res = watchdog_classify(pred, llm_direction="positive")
+    assert res.verdict == "CANT_VALIDATE"
+    assert res.trustworthy is False
+    assert "grounding-incomplete" in res.reason
+    assert "no_vouched_negative_control" in res.reason
+    assert "structurally_missing_column" in res.reason
+
+
+def test_grounding_incomplete_stub_row_gaps_win_over_not_supportable() -> None:
+    """The producer's ungroundable STUB rows (supportable=False, zero arms) must
+    surface the gap tokens, not the generic 'not supportable' wording."""
+    stub = CandidateEffect(
+        treatment="womens_email",
+        outcome="visit",
+        supportable=False,
+        support_reasons=[],
+        n_treat=0,
+        n_control=0,
+        guard_confidence="unverified",
+        grounding_complete=False,
+        grounding_gaps=["no_treatment_column", "structurally_missing_column"],
+    )
+    pred = _covered(stub, supportable=False, direction=None)
+    res = watchdog_classify(pred, llm_direction="positive")
+    assert res.verdict == "CANT_VALIDATE"
+    assert "grounding-incomplete" in res.reason
+    assert "no_treatment_column" in res.reason
+    assert "not supportable" not in res.reason
+
+
+def test_grounding_complete_true_clean_guard_still_confirms() -> None:
+    """grounding_complete=True changes nothing on the trustworthy path."""
+    pred = _covered(
+        _candidate(guard_trips=False, sign="positive", grounding_complete=True),
+        direction="positive",
+    )
+    res = watchdog_classify(pred, llm_direction="positive")
+    assert res.verdict == "CONFIRMS"
+    assert res.trustworthy is True
+
+
+def test_grounding_incomplete_empty_gaps_still_abstains() -> None:
+    """Inconsistent producer (complete=False, no gaps listed) still abstains."""
+    pred = _covered(
+        _candidate(guard_trips=False, sign="positive", grounding_complete=False),
+        direction="positive",
+    )
+    res = watchdog_classify(pred)
+    assert res.verdict == "CANT_VALIDATE"
+    assert "grounding-incomplete" in res.reason
+
+
+def test_grounding_none_legacy_reason_byte_identical() -> None:
+    """A legacy candidate (grounding_complete=None) gets the EXACT pre-#564
+    verdict + reason strings — the legacy path is byte-identical."""
+    # Legacy trustworthy path: clean guard, no LLM take.
+    pred = _covered(_candidate(guard_trips=False, sign="positive"), direction="positive")
+    res = watchdog_classify(pred)
+    assert res.verdict == "CONFIRMS"
+    assert res.reason == (
+        "negative-control guard clear — trustworthy empirical 'positive'; "
+        "no LLM take to contradict"
+    )
+    # Legacy no-NC-evidence path.
+    pred = _covered(_candidate(guard_trips=None, sign="positive"), direction="positive")
+    res = watchdog_classify(pred)
+    assert res.reason == (
+        "no negative-control evidence precomputed (pack predates the guard "
+        "producer) — cannot certify trust; router abstains on this lever"
+    )
+
+
+def test_stub_row_parses_from_raw_producer_dict() -> None:
+    """The producer's explicit ungroundable stub row (raw JSON shape) parses."""
+    raw = {
+        "treatment": "loyalty_tier_upgrade",
+        "outcome": "visit",
+        "covariates": [],
+        "supportable": False,
+        "support_reasons": ["ungroundable: structurally missing column(s)"],
+        "n_treat": 0,
+        "n_control": 0,
+        "naive_ate": None,
+        "t_learner_ate": None,
+        "ipw_ate": None,
+        "overlap_fraction": None,
+        "naive_adjusted_gap": None,
+        "sign_adjusted": None,
+        "neg_controls": [],
+        "neg_control_effect": None,
+        "guard_trips": None,
+        "guard_confidence": "unverified",
+        "guard_reason": None,
+        "grounding_complete": False,
+        "grounding_gaps": ["no_treatment_column", "structurally_missing_column"],
+    }
+    cand = CandidateEffect.model_validate(raw)
+    assert cand.supportable is False
+    assert cand.n_treat == 0 and cand.n_control == 0
+    assert cand.guard_trips is None
+    assert cand.grounding_complete is False
+    assert cand.grounding_gaps == ["no_treatment_column", "structurally_missing_column"]

@@ -38,6 +38,12 @@ from sidira_simulator.schemas.estimability import (
 )
 from sidira_simulator.schemas.lever_review import LeverReview, LeverReviewLog
 
+# Cap on the structural/behavioural column-name lists in the coverage summary —
+# the summary must stay a bounded payload however wide the feature store is
+# (500-column stores exist). Overflow is recorded as an explicit truncation
+# count, never silently dropped.
+COVERAGE_NAME_CAP = 50
+
 
 class LeverCard(BaseModel):
     """One reviewable (treatment → outcome) lever — direction + NC-guard verdict.
@@ -76,12 +82,51 @@ class LeverCard(BaseModel):
     # Diagnostics about confounding, not a prediction of the lever's own effect.
     neg_control_effect: float | None = None
     neg_control_effects: dict[str, float] = {}
+    # --- Per-lever grounding-completeness (#564): the producer's verdict on
+    # whether this lever's empirical route has everything it needs (treatment +
+    # outcome columns, adjustment covariates, a vouched negative control, no
+    # structurally-missing referenced column). ``grounding_gaps`` names the
+    # failures with the producer's fixed tokens (``no_treatment_column`` /
+    # ``no_outcome_column`` / ``insufficient_covariates`` /
+    # ``no_vouched_negative_control`` / ``structurally_missing_column``); empty
+    # iff complete. Tri-state: ``None`` = legacy manifest (pre-#564 producer) —
+    # the honest "unknown", never dressed up as complete. Orthogonal to
+    # ``supportable``.
+    grounding_complete: bool | None = None
+    grounding_gaps: list[str] = []
     # The human review of THIS lever (#565 parts 2 & 3), or None if unreviewed.
     # The auto-guard fields above stay the raw machine verdict; the review is the
     # human layer over them. Display rule (frontend): a "rejected" review overrides
     # the lever to abstain; a "vouched" review confirms but never upgrades a
     # guard-abstained lever into trust.
     review: LeverReview | None = None
+
+
+class CoverageSummary(BaseModel):
+    """Pack-level data-coverage summary (#564) — bounded, counts + capped names.
+
+    A deliberate SUMMARY of the manifest's per-column coverage list, not the list
+    itself: a 500-column store must not turn the card payload into a dump. Counts
+    are complete; only the *name lists* are capped (at ``COVERAGE_NAME_CAP``) with
+    an explicit truncation count for the overflow. "Present" columns are counted
+    but never enumerated — the interesting review evidence is what's missing.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_columns: int
+    present_count: int
+    behavioural_count: int
+    structural_count: int
+    # Config-expected columns absent from the source entirely (observed=False) —
+    # a subset of the structural count: "declared but never tracked".
+    expected_absent_count: int
+    # Capped name lists for the two missing classes (review evidence).
+    structural_columns: list[str] = []
+    behavioural_columns: list[str] = []
+    # How many names the caps cut (0 = the lists above are complete).
+    structural_truncated: int = 0
+    behavioural_truncated: int = 0
 
 
 class LeverCardManifest(BaseModel):
@@ -94,6 +139,10 @@ class LeverCardManifest(BaseModel):
     feature_store: str
     built_at: str | None = None
     levers: list[LeverCard] = []
+    # Pack-level coverage summary (#564). None ⇔ the manifest carries no coverage
+    # list (legacy, pre-#564 producer) — the honest "unknown", distinct from a
+    # real all-present summary.
+    coverage: CoverageSummary | None = None
 
 
 def _card_from_candidate(
@@ -117,7 +166,34 @@ def _card_from_candidate(
         guard_reason=effect.guard_reason,
         neg_control_effect=effect.neg_control_effect,
         neg_control_effects=dict(effect.neg_control_effects),
+        grounding_complete=effect.grounding_complete,
+        grounding_gaps=list(effect.grounding_gaps),
         review=review,
+    )
+
+
+def _coverage_summary(manifest: EstimabilityManifest) -> CoverageSummary | None:
+    """Fold the manifest's per-column coverage list into the bounded summary.
+
+    Returns None when the manifest carries no coverage list — a legacy (pre-#564)
+    producer artifact, surfaced as the honest "unknown" rather than a fabricated
+    all-present summary. Counts are exact; name lists are capped at
+    ``COVERAGE_NAME_CAP`` with the overflow recorded, never silently dropped.
+    """
+    if not manifest.coverage:
+        return None
+    structural = [c.name for c in manifest.coverage if c.missingness == "structural"]
+    behavioural = [c.name for c in manifest.coverage if c.missingness == "behavioural"]
+    return CoverageSummary(
+        total_columns=len(manifest.coverage),
+        present_count=sum(1 for c in manifest.coverage if c.missingness == "present"),
+        behavioural_count=len(behavioural),
+        structural_count=len(structural),
+        expected_absent_count=sum(1 for c in manifest.coverage if not c.observed),
+        structural_columns=structural[:COVERAGE_NAME_CAP],
+        behavioural_columns=behavioural[:COVERAGE_NAME_CAP],
+        structural_truncated=max(0, len(structural) - COVERAGE_NAME_CAP),
+        behavioural_truncated=max(0, len(behavioural) - COVERAGE_NAME_CAP),
     )
 
 
@@ -148,7 +224,14 @@ def build_lever_card_view(
             _card_from_candidate(e, by_lever.get((e.treatment, e.outcome)))
             for e in manifest.candidate_effects
         ],
+        coverage=_coverage_summary(manifest),
     )
 
 
-__all__ = ["LeverCard", "LeverCardManifest", "build_lever_card_view"]
+__all__ = [
+    "LeverCard",
+    "LeverCardManifest",
+    "CoverageSummary",
+    "COVERAGE_NAME_CAP",
+    "build_lever_card_view",
+]

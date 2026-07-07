@@ -334,3 +334,48 @@ def test_run_decision_flow_sync_persist_failure_never_raises(tmp_path, monkeypat
         setup_id="default",
         model_id=None,
     )
+
+
+# ── grounding_gap_reason: the per-hypothesis #564 "why" on the sidecar ────────
+
+
+def test_grounding_gap_reason_crosses_into_verdict_and_roundtrips(tmp_path):
+    """The decision's token-gated grounding_gap_reason lands on the
+    DirectionVerdict and survives the sidecar persist/read round-trip."""
+    reason = (
+        "grounding-incomplete: no_vouched_negative_control, "
+        "structurally_missing_column"
+    )
+    decision = _decision(
+        source="llm_fallback",
+        direction=None,
+        caution="hard",
+        label="inconclusive — test it",
+        watchdog_verdict="CANT_VALIDATE",
+        grounding_gap_reason=reason,
+    )
+    v = verdict_from_decision(decision)
+    assert v.grounding_gap_reason == reason
+
+    store = LocalArtifactStore(tmp_path)
+    write_decision_verdict(store, "cust_1", "sim_1", v)
+    reloaded = read_decision_verdict(store, "cust_1", "sim_1")
+    assert reloaded is not None
+    assert reloaded.grounding_gap_reason == reason
+    assert "no_vouched_negative_control" in reloaded.grounding_gap_reason
+
+
+def test_legacy_sidecar_without_gap_reason_parses():
+    """A sidecar persisted BEFORE the field existed parses with reason=None."""
+    legacy = {
+        "direction": "positive",
+        "caution": "none",
+        "confidence": "high",
+        "label": "verified verdict",
+        "source": "grounded",
+        "watchdog_verdict": "CONFIRMS",
+        "unverified": False,
+        "guardrails": [],
+    }
+    v = DirectionVerdict.model_validate(legacy)
+    assert v.grounding_gap_reason is None

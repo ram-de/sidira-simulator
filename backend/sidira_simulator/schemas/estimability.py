@@ -66,6 +66,35 @@ class CapabilityLink(BaseModel):
     linked: bool = False
 
 
+class CoverageEntry(BaseModel):
+    """One row of the pack-level coverage manifest (#564, read mirror).
+
+    The producer (``manifest_builder._build_coverage``) emits one entry per
+    profiled column PLUS one per config-expected-but-absent column, each with a
+    three-way missingness verdict:
+
+    - ``"present"``:     the column exists and is populated.
+    - ``"behavioural"``: the column exists but is sparsely populated (null_fraction
+      at/above the producer's threshold) — users just didn't do the thing.
+    - ``"structural"``:  the company doesn't track it — absent from the source
+      entirely, or present but 100% null.
+
+    ``missingness`` is kept a plain ``str`` (NOT a strict Literal) on purpose:
+    this is an external, independently-versioned artifact, and the loader degrades
+    a malformed manifest to None — a single unmodeled value in one coverage row
+    must never discard the ENTIRE manifest (same posture as ``guard_confidence``).
+    ``observed=False`` marks an expected-but-absent column, whose ``null_fraction``
+    is then unknown (None).
+    """
+
+    model_config = _READ_CONFIG
+
+    name: str
+    missingness: str               # "present" | "behavioural" | "structural"
+    null_fraction: float | None = None
+    observed: bool = True
+
+
 class CandidateEffect(BaseModel):
     """One precomputed (treatment → outcome) effect (read mirror of the producer).
 
@@ -137,6 +166,20 @@ class CandidateEffect(BaseModel):
     guard_reason: str | None = Field(
         default=None, validation_alias=AliasChoices("guard_reason", "reason")
     )
+    # --- Per-lever grounding-completeness verdict (#564, additive). The producer
+    # stamps ``grounding_complete`` iff the lever has a treatment column, an
+    # outcome column, enough adjustment covariates AND a vouched negative control,
+    # with none of the referenced columns structurally missing. ``grounding_gaps``
+    # names the failures from the producer's FIXED token vocabulary
+    # (``no_treatment_column`` / ``no_outcome_column`` / ``insufficient_covariates``
+    # / ``no_vouched_negative_control`` / ``structurally_missing_column``) and is
+    # empty iff complete. Kept ``list[str]`` (not a Literal enum) — an unmodeled
+    # future token must never nuke the whole manifest via the degrade-to-None
+    # loader. ``grounding_complete is None`` = LEGACY manifest (producer predates
+    # #564) → the watchdog leaves its verdict logic byte-identical. ORTHOGONAL to
+    # ``supportable`` (statistical estimability): the router requires BOTH.
+    grounding_complete: bool | None = None
+    grounding_gaps: list[str] = []
 
 
 class EstimabilityManifest(BaseModel):
@@ -153,11 +196,16 @@ class EstimabilityManifest(BaseModel):
     capability_links: list[CapabilityLink] = []
     candidate_effects: list[CandidateEffect] = []
     built_at: str | None = None
+    # Pack-level coverage manifest (#564, additive): every profiled column plus
+    # every config-expected-but-absent column with its missingness verdict. Empty
+    # on a legacy manifest (producer predates #564).
+    coverage: list[CoverageEntry] = []
 
 
 __all__ = [
     "ColumnEntry",
     "CapabilityLink",
+    "CoverageEntry",
     "CandidateEffect",
     "EstimabilityManifest",
 ]

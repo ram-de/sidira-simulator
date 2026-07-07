@@ -70,6 +70,7 @@ from sidira_simulator.services.grounded_predictor import (
 from sidira_simulator.services.mechanism_translator import translate_hypothesis
 from sidira_simulator.services.negative_control_watchdog import (
     apply_lever_review_override,
+    grounding_gap_reason,
     watchdog_classify,
 )
 
@@ -158,6 +159,12 @@ class DecisionResult:
     - ``label``: the customer-facing framing string.
     - ``watchdog_verdict``: CONFIRMS / CONTRADICTS / CANT_VALIDATE, or None if the
       watchdog never ran (defensive error path).
+    - ``grounding_gap_reason``: the token-gated #564 "why" for a
+      grounding-incomplete lever (built ONLY from the fixed gap-token vocabulary —
+      see :func:`~sidira_simulator.services.negative_control_watchdog.grounding_gap_reason`),
+      persisted on the sidecar so the frontend can show it per hypothesis. None on
+      every other path (legacy manifests / complete levers / defensive), keeping
+      pre-#564 sidecar content unchanged.
     - ``mechanism_spec``: the translator's decomposition (always present).
     - ``grounded``: the grounded prediction, or None when no manifest / defensive.
     - ``reason``: the full trace — translate → grounded → watchdog → council.
@@ -171,6 +178,7 @@ class DecisionResult:
     mechanism_spec: MechanismSpec
     grounded: GroundedPrediction | None
     reason: str
+    grounding_gap_reason: str | None = None
 
 
 # Customer-facing framing strings — kept as named constants so #545 (the response
@@ -276,6 +284,11 @@ def decide(
             f"llm_direction={assessment.llm_direction}: {assessment.rationale}]"
         )
 
+        # The #564 sidecar-safe gap reason: non-None ONLY for a grounding-
+        # incomplete candidate, and built purely from the fixed token vocabulary
+        # (never producer free text) — safe for the customer-facing verdict.
+        gap_reason = grounding_gap_reason(prediction.candidate)
+
         # 5) Decide. trustworthy-empirical > LLM > untrustworthy-empirical.
         if watchdog.trustworthy:
             # Step-1 authoritative grounded verdict — NEVER gated by the council.
@@ -290,6 +303,7 @@ def decide(
                 caution="none",
                 label=label,
                 watchdog_verdict=watchdog.verdict,
+                grounding_gap_reason=gap_reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -302,6 +316,7 @@ def decide(
                 caution="hard",
                 label=LABEL_INCONCLUSIVE,
                 watchdog_verdict=watchdog.verdict,
+                grounding_gap_reason=gap_reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -315,6 +330,7 @@ def decide(
                 caution="moderate",
                 label=LABEL_UNVERIFIED,
                 watchdog_verdict=watchdog.verdict,
+                grounding_gap_reason=gap_reason,
                 mechanism_spec=spec,
                 grounded=prediction,
                 reason=trace,
@@ -359,7 +375,10 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
     """Map a :class:`DecisionResult` → the customer-facing :class:`DirectionVerdict`.
 
     Direction-only by construction: ``direction`` / ``caution`` / ``label`` /
-    ``source`` / ``watchdog_verdict`` cross straight over; NO magnitude is read
+    ``source`` / ``watchdog_verdict`` / ``grounding_gap_reason`` cross straight
+    over (the gap reason is the token-gated #564 "why" the sidecar persists for
+    the frontend — fixed vocabulary only, never producer free text); NO magnitude
+    is read
     from the decision's grounded ``candidate`` (it never reaches this contract).
 
     - ``unverified`` = ``source == "llm_fallback"`` (a hypothesis, not a verdict).
@@ -402,6 +421,7 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
             label=LABEL_INCONCLUSIVE,
             source=decision.source,
             watchdog_verdict=decision.watchdog_verdict,
+            grounding_gap_reason=decision.grounding_gap_reason,
             unverified=unverified,
             guardrails=guardrails,
         )
@@ -413,6 +433,7 @@ def verdict_from_decision(decision: DecisionResult) -> DirectionVerdict:
         label=decision.label,
         source=decision.source,
         watchdog_verdict=decision.watchdog_verdict,
+        grounding_gap_reason=decision.grounding_gap_reason,
         unverified=unverified,
         guardrails=guardrails,
     )

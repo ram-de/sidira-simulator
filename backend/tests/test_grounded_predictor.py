@@ -194,3 +194,81 @@ def test_producer_unverified_guard_confidence_parses() -> None:
     cand = manifest.candidate_effects[0]
     assert cand.guard_confidence == "unverified"
     assert cand.guard_trips is None  # sentinel the watchdog reads → CANT_VALIDATE
+
+
+# ── coverage manifest + grounding fields (#564, read schema) ──────────────────
+
+
+def _base_manifest_dict(**over) -> dict:
+    base = {
+        "manifest_version": "1.0",
+        "customer_id": "acme",
+        "setup_id": "default",
+        "pack_version": "v_1",
+        "feature_store": "fixture://cov",
+        "candidate_effects": [],
+    }
+    base.update(over)
+    return base
+
+
+def test_legacy_manifest_without_564_fields_parses_with_defaults() -> None:
+    """Backward-compat: a pre-#564 manifest parses exactly as before — coverage
+    empty, grounding_complete=None (legacy/unknown), grounding_gaps empty."""
+    manifest = EstimabilityManifest.model_validate(
+        _base_manifest_dict(
+            candidate_effects=[
+                {
+                    "treatment": "womens_email",
+                    "outcome": "visit",
+                    "supportable": True,
+                    "sign_adjusted": "positive",
+                }
+            ]
+        )
+    )
+    assert manifest.coverage == []
+    cand = manifest.candidate_effects[0]
+    assert cand.grounding_complete is None
+    assert cand.grounding_gaps == []
+    # And the predictor still matches it (behavior unchanged).
+    result = grounded_predict(_spec("womens_email", "visit"), manifest)
+    assert result.covered is True and result.direction == "positive"
+
+
+def test_coverage_entries_parse_including_null_fraction_none() -> None:
+    """The producer's 4-key coverage rows parse — incl. an expected-but-absent
+    column whose null_fraction is unknown (null) and observed=False."""
+    manifest = EstimabilityManifest.model_validate(
+        _base_manifest_dict(
+            coverage=[
+                {"name": "recency", "missingness": "present", "null_fraction": 0.0, "observed": True},
+                {"name": "sparse_col", "missingness": "behavioural", "null_fraction": 0.6, "observed": True},
+                {"name": "dead_col", "missingness": "structural", "null_fraction": 1.0, "observed": True},
+                {"name": "declared_but_untracked", "missingness": "structural", "null_fraction": None, "observed": False},
+            ]
+        )
+    )
+    assert [c.missingness for c in manifest.coverage] == [
+        "present",
+        "behavioural",
+        "structural",
+        "structural",
+    ]
+    absent = manifest.coverage[3]
+    assert absent.null_fraction is None
+    assert absent.observed is False
+    assert manifest.coverage[1].null_fraction == 0.6
+
+
+def test_unmodeled_missingness_value_does_not_nuke_manifest() -> None:
+    """A future producer missingness value must parse (str, not Literal) — the
+    degrade-to-None loader must never discard a whole manifest over one row."""
+    manifest = EstimabilityManifest.model_validate(
+        _base_manifest_dict(
+            coverage=[
+                {"name": "x", "missingness": "some_future_class", "null_fraction": 0.1, "observed": True}
+            ]
+        )
+    )
+    assert manifest.coverage[0].missingness == "some_future_class"

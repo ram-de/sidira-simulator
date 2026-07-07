@@ -304,8 +304,17 @@ def test_promote_version_beyond_recent_page_resolves_metadata(packs_client) -> N
 # ── estimability lever cards (#565) ───────────────────────────────────────
 
 
-def _write_manifest(store: LocalArtifactStore, version: str, candidates: list[dict]) -> None:
-    """Write an estimability_manifest.json beside the pack at `version`."""
+def _write_manifest(
+    store: LocalArtifactStore,
+    version: str,
+    candidates: list[dict],
+    coverage: list[dict] | None = None,
+) -> None:
+    """Write an estimability_manifest.json beside the pack at `version`.
+
+    ``coverage=None`` omits the key entirely — the LEGACY (pre-#564) artifact
+    shape, which the view must surface as coverage-unknown, not all-present.
+    """
     manifest = {
         "manifest_version": "1",
         "customer_id": _CUSTOMER_ID,
@@ -317,6 +326,8 @@ def _write_manifest(store: LocalArtifactStore, version: str, candidates: list[di
         "candidate_effects": candidates,
         "built_at": "2026-07-01T00:00:00Z",
     }
+    if coverage is not None:
+        manifest["coverage"] = coverage
     key = f"customers/{_CUSTOMER_ID}/personas/{version}/estimability_manifest.json"
     store.write_text(key, json.dumps(manifest))
 
@@ -477,6 +488,163 @@ def test_estimability_mismatched_manifest_404(packs_client) -> None:
     }
     packs_client._store.write_text(key, json.dumps(manifest))
     assert packs_client.get("/persona-packs/v_1/estimability").status_code == 404
+
+
+# ── grounding-completeness + coverage summary (#564) ──────────────────────
+
+
+def test_estimability_carries_grounding_and_coverage_summary(packs_client) -> None:
+    """Lever cards carry grounding_complete/grounding_gaps; the pack-level
+    coverage list is folded into a bounded summary (counts + missing names)."""
+    _write_pack(packs_client._store, "v_1")
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [
+            {
+                "treatment": "autoplay_enabled",
+                "outcome": "completion_rate",
+                "supportable": True,
+                "sign_adjusted": "positive",
+                "guard_trips": False,
+                "grounding_complete": True,
+                "grounding_gaps": [],
+            },
+            {
+                # Producer's ungroundable STUB row: declared lever whose column
+                # is structurally missing (#564).
+                "treatment": "loyalty_tier_upgrade",
+                "outcome": "completion_rate",
+                "supportable": False,
+                "n_treat": 0,
+                "n_control": 0,
+                "guard_trips": None,
+                "guard_confidence": "unverified",
+                "grounding_complete": False,
+                "grounding_gaps": [
+                    "no_treatment_column",
+                    "structurally_missing_column",
+                ],
+            },
+        ],
+        coverage=[
+            {"name": "weekly_sessions", "missingness": "present", "null_fraction": 0.0, "observed": True},
+            {"name": "completion_rate", "missingness": "present", "null_fraction": 0.02, "observed": True},
+            {"name": "watch_party_uses", "missingness": "behavioural", "null_fraction": 0.71, "observed": True},
+            {"name": "dead_metric", "missingness": "structural", "null_fraction": 1.0, "observed": True},
+            {"name": "loyalty_tier_upgrade", "missingness": "structural", "null_fraction": None, "observed": False},
+        ],
+    )
+    body = packs_client.get("/persona-packs/v_1/estimability").json()
+
+    complete, stub = body["levers"]
+    assert complete["grounding_complete"] is True
+    assert complete["grounding_gaps"] == []
+    assert stub["grounding_complete"] is False
+    assert stub["grounding_gaps"] == [
+        "no_treatment_column",
+        "structurally_missing_column",
+    ]
+    assert stub["supportable"] is False
+
+    cov = body["coverage"]
+    assert cov["total_columns"] == 5
+    assert cov["present_count"] == 2
+    assert cov["behavioural_count"] == 1
+    assert cov["structural_count"] == 2
+    assert cov["expected_absent_count"] == 1
+    assert cov["structural_columns"] == ["dead_metric", "loyalty_tier_upgrade"]
+    assert cov["behavioural_columns"] == ["watch_party_uses"]
+    assert cov["structural_truncated"] == 0
+    assert cov["behavioural_truncated"] == 0
+
+
+def test_estimability_legacy_manifest_grounding_unknown_coverage_none(packs_client) -> None:
+    """A pre-#564 manifest surfaces the honest unknowns: grounding_complete=None
+    per lever and coverage=None at the pack level (never a fabricated summary)."""
+    _write_pack(packs_client._store, "v_1")
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [
+            {
+                "treatment": "autoplay_enabled",
+                "outcome": "completion_rate",
+                "supportable": True,
+                "sign_adjusted": "positive",
+            }
+        ],
+    )
+    body = packs_client.get("/persona-packs/v_1/estimability").json()
+    assert body["coverage"] is None
+    lever = body["levers"][0]
+    assert lever["grounding_complete"] is None
+    assert lever["grounding_gaps"] == []
+
+
+def test_estimability_coverage_name_lists_are_capped(packs_client) -> None:
+    """A very wide store must not dump unbounded name lists: caps + explicit
+    truncation counts."""
+    from sidira_simulator.services.lever_card_view import COVERAGE_NAME_CAP
+
+    n_structural = COVERAGE_NAME_CAP + 10
+    coverage = [
+        {"name": f"untracked_{i:03d}", "missingness": "structural", "null_fraction": None, "observed": False}
+        for i in range(n_structural)
+    ] + [
+        {"name": "weekly_sessions", "missingness": "present", "null_fraction": 0.0, "observed": True}
+    ]
+    _write_pack(packs_client._store, "v_1")
+    _write_manifest(packs_client._store, "v_1", [], coverage=coverage)
+
+    cov = packs_client.get("/persona-packs/v_1/estimability").json()["coverage"]
+    assert cov["structural_count"] == n_structural
+    assert len(cov["structural_columns"]) == COVERAGE_NAME_CAP
+    assert cov["structural_truncated"] == 10
+    assert cov["total_columns"] == n_structural + 1
+
+
+def test_estimability_564_fields_leak_no_magnitudes(packs_client) -> None:
+    """Direction-only law: the new grounding/coverage surface still never carries
+    a treatment→outcome ATE."""
+    _write_pack(packs_client._store, "v_1")
+    _write_manifest(
+        packs_client._store,
+        "v_1",
+        [
+            {
+                "treatment": "autoplay_enabled",
+                "outcome": "completion_rate",
+                "supportable": True,
+                "naive_ate": 0.13,
+                "t_learner_ate": 0.11,
+                "ipw_ate": 0.12,
+                "naive_adjusted_gap": 0.09,
+                "sign_adjusted": "positive",
+                "grounding_complete": True,
+                "grounding_gaps": [],
+            }
+        ],
+        coverage=[
+            {"name": "weekly_sessions", "missingness": "present", "null_fraction": 0.0, "observed": True}
+        ],
+    )
+    body = packs_client.get("/persona-packs/v_1/estimability").json()
+    lever = body["levers"][0]
+    for banned in ("naive_ate", "t_learner_ate", "ipw_ate", "naive_adjusted_gap"):
+        assert banned not in lever, f"{banned} leaked into the lever card view"
+    # Coverage summary is counts + names only — no per-column magnitudes either.
+    assert set(body["coverage"].keys()) == {
+        "total_columns",
+        "present_count",
+        "behavioural_count",
+        "structural_count",
+        "expected_absent_count",
+        "structural_columns",
+        "behavioural_columns",
+        "structural_truncated",
+        "behavioural_truncated",
+    }
 
 
 # ── lever review: vouch / override / clear (#565 parts 2 & 3) ─────────────
