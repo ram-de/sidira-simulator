@@ -35,10 +35,12 @@ moderate-caution unverified-hypothesis with no arrow. The real 3-model council i
 ticket **#543**, which plugs into this EXACT seam (pass ``council=...`` to
 :func:`decide`); nothing else in this module changes.
 
-**Off by default.** Reading the router into a live request path is gated by
-``SIDIRA_DECISION_FLOW_ENABLED`` (see :func:`decision_flow_enabled`), default OFF.
-With the flag off the orchestrator does zero extra work and the customer-facing
-response shape is untouched (the response-shape change is #545).
+**On by default.** Reading the router into a live request path is gated by
+``SIDIRA_DECISION_FLOW_ENABLED`` (see :func:`decision_flow_enabled`), default ON —
+pre-launch (no live users) the grounded flow runs on every simulation. Set the
+var to an off-token (``0``/``false``/``no``/``off``) as an emergency kill-switch;
+with the flow off the orchestrator does zero extra work and the customer-facing
+response shape is untouched.
 
 :func:`decide` NEVER raises: any unexpected failure degrades to a safe
 hard-caution "inconclusive — test it" result carrying the trace.
@@ -461,16 +463,19 @@ def read_decision_verdict(
 
 
 def decision_flow_enabled() -> bool:
-    """True iff ``SIDIRA_DECISION_FLOW_ENABLED`` is a truthy string. Default OFF.
+    """True unless ``SIDIRA_DECISION_FLOW_ENABLED`` is explicitly set to an off value.
 
-    Plain-env read (the repo convention — no central Settings). Off by default so
-    prod behaviour is unchanged until a live consumer (#545 / founder) flips it.
+    Default ON: the grounded decision flow IS the product, and pre-launch (no live
+    users) we run it everywhere so it's exercised on every simulation. Plain-env
+    read (the repo convention — no central Settings). Set the var to
+    ``0`` / ``false`` / ``no`` / ``off`` to disable — a local-dev toggle, and, via
+    the SSM param plumbed by ``ec2-api-deploy.sh``, an emergency prod kill-switch.
     """
-    return os.environ.get("SIDIRA_DECISION_FLOW_ENABLED", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
+    return os.environ.get("SIDIRA_DECISION_FLOW_ENABLED", "").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
     }
 
 

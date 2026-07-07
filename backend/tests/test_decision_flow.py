@@ -353,19 +353,25 @@ def test_omitted_manifest_loads_from_r2():
 # ── flag helper ───────────────────────────────────────────────────────────────
 
 
-def test_flag_off_by_default(monkeypatch):
+def test_flag_on_by_default(monkeypatch):
+    """Default ON — pre-launch the grounded flow runs everywhere (no live users)."""
     monkeypatch.delenv("SIDIRA_DECISION_FLOW_ENABLED", raising=False)
-    assert decision_flow_enabled() is False
+    assert decision_flow_enabled() is True
 
 
-@pytest.mark.parametrize("val", ["1", "true", "TRUE", "yes", "on", " On ", "Yes"])
-def test_flag_on_for_truthy_strings(monkeypatch, val):
+# On unless explicitly disabled: truthy tokens, unknown values, and an empty
+# string all leave it ON. Only the explicit off-tokens (next test) disable it.
+@pytest.mark.parametrize(
+    "val", ["1", "true", "TRUE", "yes", "on", " On ", "Yes", "", "maybe", "2"]
+)
+def test_flag_on_unless_explicitly_disabled(monkeypatch, val):
     monkeypatch.setenv("SIDIRA_DECISION_FLOW_ENABLED", val)
     assert decision_flow_enabled() is True
 
 
-@pytest.mark.parametrize("val", ["", "0", "false", "no", "off", "maybe", "2"])
-def test_flag_off_for_other_strings(monkeypatch, val):
+@pytest.mark.parametrize("val", ["0", "false", "FALSE", "no", "off", " Off "])
+def test_flag_off_for_explicit_off_tokens(monkeypatch, val):
+    """The kill-switch: only these explicit off-tokens disable the flow."""
     monkeypatch.setenv("SIDIRA_DECISION_FLOW_ENABLED", val)
     assert decision_flow_enabled() is False
 
