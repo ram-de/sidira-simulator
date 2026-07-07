@@ -336,16 +336,15 @@ def test_run_decision_flow_sync_persist_failure_never_raises(tmp_path, monkeypat
     )
 
 
-# ── watchdog_reason: the per-hypothesis "why" on the sidecar (#564) ───────────
+# ── grounding_gap_reason: the per-hypothesis #564 "why" on the sidecar ────────
 
 
-def test_watchdog_reason_crosses_into_verdict_and_roundtrips(tmp_path):
-    """The decision's watchdog_reason (e.g. #564 grounding-gap tokens) lands on
-    the DirectionVerdict and survives the sidecar persist/read round-trip."""
+def test_grounding_gap_reason_crosses_into_verdict_and_roundtrips(tmp_path):
+    """The decision's token-gated grounding_gap_reason lands on the
+    DirectionVerdict and survives the sidecar persist/read round-trip."""
     reason = (
         "grounding-incomplete: no_vouched_negative_control, "
-        "structurally_missing_column — the lever's empirical grounding "
-        "has declared gaps; router abstains on this lever"
+        "structurally_missing_column"
     )
     decision = _decision(
         source="llm_fallback",
@@ -353,20 +352,20 @@ def test_watchdog_reason_crosses_into_verdict_and_roundtrips(tmp_path):
         caution="hard",
         label="inconclusive — test it",
         watchdog_verdict="CANT_VALIDATE",
-        watchdog_reason=reason,
+        grounding_gap_reason=reason,
     )
     v = verdict_from_decision(decision)
-    assert v.watchdog_reason == reason
+    assert v.grounding_gap_reason == reason
 
     store = LocalArtifactStore(tmp_path)
     write_decision_verdict(store, "cust_1", "sim_1", v)
     reloaded = read_decision_verdict(store, "cust_1", "sim_1")
     assert reloaded is not None
-    assert reloaded.watchdog_reason == reason
-    assert "no_vouched_negative_control" in reloaded.watchdog_reason
+    assert reloaded.grounding_gap_reason == reason
+    assert "no_vouched_negative_control" in reloaded.grounding_gap_reason
 
 
-def test_legacy_sidecar_without_watchdog_reason_parses():
+def test_legacy_sidecar_without_gap_reason_parses():
     """A sidecar persisted BEFORE the field existed parses with reason=None."""
     legacy = {
         "direction": "positive",
@@ -379,4 +378,4 @@ def test_legacy_sidecar_without_watchdog_reason_parses():
         "guardrails": [],
     }
     v = DirectionVerdict.model_validate(legacy)
-    assert v.watchdog_reason is None
+    assert v.grounding_gap_reason is None

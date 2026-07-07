@@ -53,6 +53,39 @@ log = structlog.get_logger()
 
 WatchdogVerdict = Literal["CONFIRMS", "CONTRADICTS", "CANT_VALIDATE"]
 
+# The producer's FIXED grounding-gap vocabulary (#564), mirrored verbatim from
+# ``sidira_personas.estimability.manifest_builder.GROUNDING_GAP_TOKENS``. Used as
+# an ALLOWLIST when building the customer-facing gap reason: only these exact
+# tokens may cross into the verdict sidecar, so producer-artifact free text (which
+# could carry a magnitude) structurally cannot. Canonical order preserved.
+GROUNDING_GAP_TOKENS = (
+    "no_treatment_column",
+    "no_outcome_column",
+    "insufficient_covariates",
+    "no_vouched_negative_control",
+    "structurally_missing_column",
+)
+
+
+def grounding_gap_reason(candidate: CandidateEffect | None) -> str | None:
+    """The sidecar-safe "why" for a grounding-incomplete lever (#564), or None.
+
+    Returns a reason string ONLY when ``candidate.grounding_complete is False``
+    (the new producer verdict); a legacy candidate (``None``) or a complete one
+    yields None, so legacy sidecar output is unchanged. The string is built
+    EXCLUSIVELY from the fixed ``GROUNDING_GAP_TOKENS`` allowlist — an unmodeled
+    producer gap value is counted, never echoed — which is what keeps this field
+    safe to persist on the magnitude-free customer-facing verdict.
+    """
+    if candidate is None or candidate.grounding_complete is not False:
+        return None
+    known = [g for g in candidate.grounding_gaps if g in GROUNDING_GAP_TOKENS]
+    unknown = len(candidate.grounding_gaps) - len(known)
+    gaps = ", ".join(known) if known else "(no recognized gap tokens)"
+    if unknown:
+        gaps += f" (+{unknown} unrecognized)"
+    return f"grounding-incomplete: {gaps}"
+
 
 @dataclass(frozen=True)
 class WatchdogResult:
@@ -179,11 +212,11 @@ def watchdog_classify(
         #    over the generic "not supportable" — the producer's ungroundable stub
         #    rows are both. ``None`` = legacy manifest → skip (byte-identical).
         candidate = prediction.candidate
-        if candidate is not None and candidate.grounding_complete is False:
-            gaps = ", ".join(candidate.grounding_gaps) or "(no gaps listed by producer)"
+        gap_reason = grounding_gap_reason(candidate)
+        if gap_reason is not None:
             return _cant_validate(
-                f"grounding-incomplete: {gaps} — the lever's empirical grounding "
-                "has declared gaps; router abstains on this lever",
+                f"{gap_reason} — the lever's empirical grounding has declared "
+                "gaps; router abstains on this lever",
                 grounded_direction=prediction.direction,
                 llm_direction=llm_direction,
             )
@@ -289,6 +322,8 @@ def watchdog_classify(
 __all__ = [
     "WatchdogVerdict",
     "WatchdogResult",
+    "GROUNDING_GAP_TOKENS",
+    "grounding_gap_reason",
     "watchdog_classify",
     "apply_lever_review_override",
 ]

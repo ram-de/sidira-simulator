@@ -497,7 +497,7 @@ def test_apply_lever_review_override_noop_paths():
 
 def test_grounding_incomplete_routes_to_step2_with_gap_reason():
     """A grounding-incomplete lever (even guard-CLEAN) abstains to Step 2, and the
-    watchdog_reason carried for the sidecar names the gap tokens."""
+    grounding_gap_reason carried for the sidecar names the gap tokens."""
     manifest = _manifest(
         [
             _candidate(
@@ -514,16 +514,16 @@ def test_grounding_incomplete_routes_to_step2_with_gap_reason():
     )
     assert result.source == "llm_fallback"  # never a clean grounded verdict
     assert result.watchdog_verdict == "CANT_VALIDATE"
-    assert result.watchdog_reason is not None
-    assert "grounding-incomplete" in result.watchdog_reason
-    assert "no_vouched_negative_control" in result.watchdog_reason
+    assert result.grounding_gap_reason == (
+        "grounding-incomplete: no_vouched_negative_control"
+    )
     # The full trace also carries it (audit trail).
     assert "no_vouched_negative_control" in result.reason
 
 
 def test_grounding_gap_reason_lands_in_verdict_sidecar():
-    """verdict_from_decision threads watchdog_reason into the DirectionVerdict —
-    the sidecar field the #566 frontend reads for the per-hypothesis 'why'."""
+    """verdict_from_decision threads grounding_gap_reason into the DirectionVerdict
+    — the sidecar field the #566 frontend reads for the per-hypothesis 'why'."""
     from sidira_simulator.services.decision_flow import verdict_from_decision
 
     manifest = _manifest(
@@ -539,10 +539,9 @@ def test_grounding_gap_reason_lands_in_verdict_sidecar():
     result = _decide(manifest=manifest, council=NullCouncil())
     verdict = verdict_from_decision(result)
     assert verdict.watchdog_verdict == "CANT_VALIDATE"
-    assert verdict.watchdog_reason is not None
-    assert "grounding-incomplete" in verdict.watchdog_reason
-    assert "insufficient_covariates" in verdict.watchdog_reason
-    assert "structurally_missing_column" in verdict.watchdog_reason
+    assert verdict.grounding_gap_reason == (
+        "grounding-incomplete: insufficient_covariates, structurally_missing_column"
+    )
 
 
 def test_grounding_complete_lever_still_gets_grounded_verdict():
@@ -576,18 +575,39 @@ def test_lever_review_vouched_does_not_upgrade_grounding_incomplete():
     )
     assert result.source == "llm_fallback"
     assert result.watchdog_verdict == "CANT_VALIDATE"
-    assert result.watchdog_reason is not None
-    assert "grounding-incomplete" in result.watchdog_reason
+    assert result.grounding_gap_reason is not None
+    assert "grounding-incomplete" in result.grounding_gap_reason
 
 
-def test_legacy_manifest_watchdog_reason_still_populated_and_verdict_unchanged():
-    """A legacy manifest (no grounding fields) drives the EXACT pre-#564 verdict;
-    watchdog_reason simply carries the watchdog's existing reason string."""
+def test_legacy_manifest_gap_reason_none_and_verdict_unchanged():
+    """A legacy manifest (no grounding fields) drives the EXACT pre-#564 verdict,
+    and the sidecar gap reason stays None — legacy sidecar content unchanged."""
     manifest = _manifest([_candidate(sign="positive", guard_trips=False)])
     result = _decide(manifest=manifest, council=NullCouncil())
     assert result.source == "grounded"
     assert result.watchdog_verdict == "CONFIRMS"
-    assert result.watchdog_reason == (
-        "negative-control guard clear — trustworthy empirical 'positive'; "
-        "no LLM take to contradict"
+    assert result.grounding_gap_reason is None
+    from sidira_simulator.services.decision_flow import verdict_from_decision
+
+    assert verdict_from_decision(result).grounding_gap_reason is None
+
+
+def test_unrecognized_gap_tokens_never_reach_the_sidecar():
+    """Honesty law: the sidecar gap reason is built ONLY from the fixed token
+    allowlist — producer free text (which could smuggle a magnitude) is counted,
+    never echoed."""
+    manifest = _manifest(
+        [
+            _candidate(
+                sign="positive",
+                guard_trips=False,
+                grounding_complete=False,
+                grounding_gaps=["no_treatment_column", "ATE=0.13 leaked prose"],
+            )
+        ]
     )
+    result = _decide(manifest=manifest, council=NullCouncil())
+    assert result.grounding_gap_reason == (
+        "grounding-incomplete: no_treatment_column (+1 unrecognized)"
+    )
+    assert "ATE" not in result.grounding_gap_reason
