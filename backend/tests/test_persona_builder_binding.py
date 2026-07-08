@@ -15,6 +15,8 @@ from pydantic import ValidationError
 from sidira_simulator.services.persona_builder import (
     BuildConfig,
     EstimabilityBuildConfig,
+    LeverRegistryEntry,
+    MetricRegistryEntry,
     _build_pipeline_config,
     _infer_adapter_type,
 )
@@ -269,3 +271,199 @@ def test_estimability_absent_round_trips_as_none():
 def test_estimability_forbids_unknown_keys():
     with pytest.raises(ValidationError):
         EstimabilityBuildConfig(bogus_key=1)
+
+
+# ── metric/lever registry compilation (#596/#597) ────────────────────────────
+
+
+def test_registry_only_config_compiles_into_pipeline_keys():
+    """A registry-only declaration compiles into the plain outcomes/treatments/
+    neg_control_map keys the producer consumes."""
+    est = EstimabilityBuildConfig(
+        metric_registry=[
+            MetricRegistryEntry(
+                column="reactivated_30d",
+                semantic_type="rate",
+                pre_period_column="reactivated_30d_pre",
+            ),
+            MetricRegistryEntry(column="orders_90d", semantic_type="count"),
+        ],
+        lever_registry=[LeverRegistryEntry(column="reminder_email_sent")],
+    )
+    compiled = est.compiled()
+    assert compiled["outcomes"] == ["reactivated_30d", "orders_90d"]
+    assert compiled["treatments"] == ["reminder_email_sent"]
+    assert compiled["neg_control_map"] == {"reactivated_30d": ["reactivated_30d_pre"]}
+    # The registries ride along verbatim (producer ignores unknown keys; they
+    # persist in config_json for audit).
+    assert compiled["metric_registry"][0]["column"] == "reactivated_30d"
+    assert compiled["lever_registry"][0]["column"] == "reminder_email_sent"
+
+
+def test_explicit_neg_control_map_wins_over_pre_period_link():
+    """An explicit neg_control_map key beats the registry-derived pre-period
+    link for the same column; non-conflicting links still merge in."""
+    est = EstimabilityBuildConfig(
+        neg_control_map={"y1": ["explicit_nc"]},
+        metric_registry=[
+            MetricRegistryEntry(column="y1", pre_period_column="y1_pre"),  # conflict
+            MetricRegistryEntry(column="y2", pre_period_column="y2_pre"),  # merges
+        ],
+    )
+    compiled = est.compiled()
+    assert compiled["neg_control_map"] == {"y1": ["explicit_nc"], "y2": ["y2_pre"]}
+
+
+def test_explicit_order_preserved_and_registry_columns_appended_deduped():
+    est = EstimabilityBuildConfig(
+        outcomes=["y_first", "y_second"],
+        treatments=["t_first"],
+        metric_registry=[
+            MetricRegistryEntry(column="y_second"),  # already declared → deduped
+            MetricRegistryEntry(column="y_third"),
+        ],
+        lever_registry=[
+            LeverRegistryEntry(column="t_first"),  # already declared → deduped
+            LeverRegistryEntry(column="t_second"),
+        ],
+    )
+    compiled = est.compiled()
+    assert compiled["outcomes"] == ["y_first", "y_second", "y_third"]
+    assert compiled["treatments"] == ["t_first", "t_second"]
+
+
+def test_no_registry_compiled_equals_plain_model_dump():
+    """Backward compatibility: without registries, compiled() must be exactly
+    the old model_dump(exclude_none=True) — byte-identical pipeline config."""
+    est = EstimabilityBuildConfig(
+        enabled=True,
+        treatments=["t"],
+        outcomes=["y"],
+        neg_control_map={"t": ["nc1"]},
+        nc_diagnostics=True,
+        max_rows=5000,
+    )
+    assert est.compiled() == est.model_dump(exclude_none=True)
+
+
+def test_empty_registries_compile_identically_to_absent_registries():
+    """metric_registry=[] / lever_registry=[] (a plausible wizard default) is a
+    non-declaration: the compiled dict must be byte-identical to a config that
+    never mentioned the registries."""
+    with_empty = EstimabilityBuildConfig(
+        enabled=True,
+        treatments=["t"],
+        outcomes=["y"],
+        metric_registry=[],
+        lever_registry=[],
+    )
+    without = EstimabilityBuildConfig(enabled=True, treatments=["t"], outcomes=["y"])
+    assert with_empty.compiled() == without.compiled()
+    assert "metric_registry" not in with_empty.compiled()
+    assert "lever_registry" not in with_empty.compiled()
+
+
+def test_compiled_dict_is_isolated_from_model_fields():
+    """Mutating compiled() output must never write back into the model (each
+    call recompiles from the declared fields)."""
+    est = EstimabilityBuildConfig(
+        outcomes=["y"],
+        neg_control_map={"y": ["nc1"]},
+        metric_registry=[MetricRegistryEntry(column="y2", pre_period_column="y2_pre")],
+        lever_registry=[LeverRegistryEntry(column="t1")],
+    )
+    first = est.compiled()
+    first["outcomes"].append("mutated")
+    first["treatments"].append("mutated")
+    first["neg_control_map"]["y"].append("mutated")
+    first["neg_control_map"]["y2"].append("mutated")
+    assert est.outcomes == ["y"]
+    assert est.neg_control_map == {"y": ["nc1"]}
+    second = est.compiled()
+    assert second["outcomes"] == ["y", "y2"]
+    assert second["treatments"] == ["t1"]
+    assert second["neg_control_map"] == {"y": ["nc1"], "y2": ["y2_pre"]}
+
+
+def test_duplicate_metric_registry_column_rejected_naming_it():
+    with pytest.raises(ValidationError, match="duplicate column 'y1' in metric_registry"):
+        EstimabilityBuildConfig(
+            metric_registry=[
+                MetricRegistryEntry(column="y1"),
+                MetricRegistryEntry(column="y1"),
+            ]
+        )
+
+
+def test_duplicate_lever_registry_column_rejected_naming_it():
+    with pytest.raises(ValidationError, match="duplicate column 't1' in lever_registry"):
+        EstimabilityBuildConfig(
+            lever_registry=[
+                LeverRegistryEntry(column="t1"),
+                LeverRegistryEntry(column="t1"),
+            ]
+        )
+
+
+def test_pre_period_column_equal_to_column_rejected():
+    with pytest.raises(ValidationError, match="'y1'.*pre_period_column"):
+        EstimabilityBuildConfig(
+            metric_registry=[MetricRegistryEntry(column="y1", pre_period_column="y1")]
+        )
+
+
+def test_registry_typo_rejected_at_build_config_parse():
+    """extra='forbid' still protects the wire: a typo'd registry key fails at
+    BuildConfig parse (422 at the API boundary)."""
+    with pytest.raises(ValidationError):
+        BuildConfig(
+            connection_id="c1",
+            source_query="SELECT * FROM users",
+            column_mapping=_mapping(),
+            estimability={"metric_registryy": [{"column": "y"}]},
+        )
+    # Entry-level typos are forbidden too.
+    with pytest.raises(ValidationError):
+        MetricRegistryEntry(column="y", pre_period_col="y_pre")
+    with pytest.raises(ValidationError):
+        LeverRegistryEntry(column="t", displayname="T")
+
+
+def test_registry_round_trips_through_config_json():
+    """The worker reconstructs the job via BuildConfig.model_validate(config_json);
+    the registry must survive that persistence path intact."""
+    payload = _cfg(
+        estimability=EstimabilityBuildConfig(
+            metric_registry=[
+                MetricRegistryEntry(
+                    column="reactivated_30d",
+                    display_name="Reactivated (30d)",
+                    semantic_type="rate",
+                    description="Share of lapsed users active again within 30 days",
+                    synonyms=["winback_30d"],
+                    pre_period_column="reactivated_30d_pre",
+                )
+            ],
+            lever_registry=[
+                LeverRegistryEntry(column="reminder_email_sent", display_name="Reminder email")
+            ],
+        )
+    ).model_dump(mode="json")
+    restored = BuildConfig.model_validate(payload)
+    assert restored.model_dump(mode="json") == payload
+    est = restored.estimability
+    assert est is not None
+    entry = est.metric_registry[0]
+    assert entry.column == "reactivated_30d"
+    assert entry.semantic_type == "rate"
+    assert entry.synonyms == ["winback_30d"]
+    assert entry.pre_period_column == "reactivated_30d_pre"
+    assert est.lever_registry[0].column == "reminder_email_sent"
+    # And it compiles identically after reconstruction, all the way through
+    # _build_pipeline_config.
+    cfg = _build_pipeline_config(_rows(), _mapping(), restored, "cust1")
+    assert cfg["estimability"]["outcomes"] == ["reactivated_30d"]
+    assert cfg["estimability"]["treatments"] == ["reminder_email_sent"]
+    assert cfg["estimability"]["neg_control_map"] == {
+        "reactivated_30d": ["reactivated_30d_pre"]
+    }
