@@ -346,6 +346,45 @@ def test_no_registry_compiled_equals_plain_model_dump():
     assert est.compiled() == est.model_dump(exclude_none=True)
 
 
+def test_empty_registries_compile_identically_to_absent_registries():
+    """metric_registry=[] / lever_registry=[] (a plausible wizard default) is a
+    non-declaration: the compiled dict must be byte-identical to a config that
+    never mentioned the registries."""
+    with_empty = EstimabilityBuildConfig(
+        enabled=True,
+        treatments=["t"],
+        outcomes=["y"],
+        metric_registry=[],
+        lever_registry=[],
+    )
+    without = EstimabilityBuildConfig(enabled=True, treatments=["t"], outcomes=["y"])
+    assert with_empty.compiled() == without.compiled()
+    assert "metric_registry" not in with_empty.compiled()
+    assert "lever_registry" not in with_empty.compiled()
+
+
+def test_compiled_dict_is_isolated_from_model_fields():
+    """Mutating compiled() output must never write back into the model (each
+    call recompiles from the declared fields)."""
+    est = EstimabilityBuildConfig(
+        outcomes=["y"],
+        neg_control_map={"y": ["nc1"]},
+        metric_registry=[MetricRegistryEntry(column="y2", pre_period_column="y2_pre")],
+        lever_registry=[LeverRegistryEntry(column="t1")],
+    )
+    first = est.compiled()
+    first["outcomes"].append("mutated")
+    first["treatments"].append("mutated")
+    first["neg_control_map"]["y"].append("mutated")
+    first["neg_control_map"]["y2"].append("mutated")
+    assert est.outcomes == ["y"]
+    assert est.neg_control_map == {"y": ["nc1"]}
+    second = est.compiled()
+    assert second["outcomes"] == ["y", "y2"]
+    assert second["treatments"] == ["t1"]
+    assert second["neg_control_map"] == {"y": ["nc1"], "y2": ["y2_pre"]}
+
+
 def test_duplicate_metric_registry_column_rejected_naming_it():
     with pytest.raises(ValidationError, match="duplicate column 'y1' in metric_registry"):
         EstimabilityBuildConfig(

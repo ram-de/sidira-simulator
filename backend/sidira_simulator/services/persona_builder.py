@@ -151,6 +151,12 @@ class EstimabilityBuildConfig(BaseModel):
         audit and future consumers.
         """
         cfg = self.model_dump(exclude_none=True)
+        # An empty registry is a non-declaration: drop it so the compiled dict
+        # stays byte-identical to a registry-less config (wizard defaults may
+        # send []).
+        for key in ("metric_registry", "lever_registry"):
+            if cfg.get(key) == []:
+                del cfg[key]
 
         if self.metric_registry:
             outcomes = list(self.outcomes or [])
