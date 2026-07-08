@@ -361,6 +361,33 @@ This is not a failure of the campaign; it's the campaign working. The whole poin
 prereg/blind-audit/replication discipline is to find this out *in private* instead of
 discovering it after a customer does.
 
+### 6.6 Kill-rate backtest v0 — power kills are prescriptive, not selective (2026-07-08)
+
+New question (the buyer thesis, #602): forget predicting *winners* — can grounded triage
+kill the 70–92% of experiments that will *fail*, before they run? v0 tested the cheapest
+kill (statistical power) on public corpora, prereg sealed first
+(`killrate-backtest/PREREG_KILLRATE_V0.md`).
+
+- **Portfolio 8: coverage 1/8.** Published narratives carry no traffic/baseline numbers,
+  so grounded kills can't even be computed. The corpus that certified 6.5 cannot feed
+  #602 — the deciding version needs a design partner's real experiment log.
+- **Upworthy (n=4,869, raw): the binary power-kill is REFUTED as a selective predictor.**
+  Upworthy gave every test the same-size slot, so ex-ante power predicts a conclusive
+  result at AUC ≈ 0.55 — a coin flip. The pre-registered rule degenerately killed 100% of
+  everything. Lesson: **when designs don't vary, power carries no selective signal**; what
+  separates winners from wasted slots is effect size, knowable ex ante only via priors.
+- **Hillstrom: one correct RUN, one instructive false KILL** — the conversion-metric kill
+  assumed product-tweak-sized effects (≤10% rel) but email-vs-nothing moved conversion
+  +118%. **Priors must be conditioned on mechanism class** (#525).
+
+**Plain terms:** the power kill's honest product form is the *pre-design sheet* (#594) —
+"this design has 17% power; resize or skip," issued *before* traffic is allocated — not an
+ex-post failure predictor. Selective kill power (the actual bread) must come from
+**effect-size priors**, i.e. the experiment corpus (#525 + Senu pairs + cross-customer
+catalog). v0 confirms the corpus-moat thesis from the negative direction: without priors,
+grounded triage can only say "underpowered," never "not worth running." Full readout:
+`killrate-backtest/KILLRATE_V0_READOUT.md`.
+
 ---
 
 ## Part 7 — How to read a typical status update from me
