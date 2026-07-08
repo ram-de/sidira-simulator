@@ -1011,6 +1011,35 @@ export type BuildK = number | "auto";
 export type LlmProvider = "groq" | "anthropic";
 export type WeightScheme = "head_count" | "order_weighted" | "revenue_weighted";
 
+// ── estimability grounding (#596/#597) — opt-in build-time declaration ──────
+// Mirrors the backend contract exactly. One outcome metric the customer wants
+// grounded predictions for; `pre_period_column` links the pre-exposure reading
+// used to compile a negative control (a metric without one builds UNGUARDED).
+export interface MetricRegistryEntry {
+  column: string;
+  display_name?: string | null;
+  semantic_type?: "rate" | "duration" | "cumulative" | "count" | null;
+  description?: string | null;
+  synonyms?: string[] | null;
+  pre_period_column?: string | null;
+}
+
+// One binary exposure flag (1 = the user had the feature) declared as a lever.
+export interface LeverRegistryEntry {
+  column: string;
+  display_name?: string | null;
+  description?: string | null;
+}
+
+// The wizard's estimability block on BuildConfig. Omitted entirely when the
+// customer skips grounding — the build then behaves exactly as before.
+export interface EstimabilityBuildConfig {
+  enabled: boolean;
+  metric_registry?: MetricRegistryEntry[];
+  lever_registry?: LeverRegistryEntry[];
+  nc_diagnostics?: boolean;
+}
+
 export interface BuildConfig {
   connection_id: string;
   source_query: string;
@@ -1019,6 +1048,7 @@ export interface BuildConfig {
   stability_threshold?: number;
   llm_provider?: LlmProvider;
   weight_schemes?: WeightScheme[];
+  estimability?: EstimabilityBuildConfig | null;
 }
 
 export type BuildStatus = "pending" | "running" | "complete" | "failed";
