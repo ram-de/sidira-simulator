@@ -1207,7 +1207,7 @@ export default function NewPersonaPackV2() {
   // is being configured (step 3) and while the build that would carry it is
   // configured/watched (step 4, feature-store path only — the documents path
   // has no build for a declaration to ride).
-  const showGroundRail = step === 3 || (step === 4 && sourceKind === "feature_store");
+  const showGroundRail = (step === 3 || step === 4) && sourceKind === "feature_store";
 
   return (
     <AppShellV2 activeNav="personas" title="New persona pack" surface="console">
@@ -1326,6 +1326,7 @@ export default function NewPersonaPackV2() {
 
             {step === 3 && (
               <StepGround
+                sourceKind={sourceKind}
                 columns={columns}
                 enabled={groundEnabled}
                 onEnabled={setGroundEnabled}
@@ -2853,6 +2854,7 @@ const groundNoteStyle: React.CSSProperties = {
 };
 
 function StepGround({
+  sourceKind,
   columns,
   enabled,
   onEnabled,
@@ -2866,6 +2868,7 @@ function StepGround({
   selectedLeverCols,
   unguardedMetricCount,
 }: {
+  sourceKind: SourceKind;
   columns: ColumnProfile[] | null;
   enabled: boolean;
   onEnabled: (v: boolean) => void;
@@ -2879,6 +2882,20 @@ function StepGround({
   selectedLeverCols: ColumnProfile[];
   unguardedMetricCount: number;
 }) {
+  // Documents packs are preview-only — there is no build for a declaration to
+  // ride. Say so and let Next pass (Ground stays off for this source kind).
+  if (sourceKind === "documents") {
+    return (
+      <div style={{ maxWidth: 680 }}>
+        <div style={sectionLabelStyle}>Grounding</div>
+        <div style={{ ...groundNoteStyle, marginTop: 12 }}>
+          Grounding applies to warehouse builds only. Documents packs are
+          preview-only — there is no build for a metric or lever declaration to
+          ride. Continue to the extraction summary.
+        </div>
+      </div>
+    );
+  }
   if (!columns || columns.length === 0) {
     return (
       <div style={{ ...statusLineStyle, color: C.textMut }}>
@@ -2904,7 +2921,7 @@ function StepGround({
               borderColor: enabled ? C.textMut : C.line,
             }}
           >
-            Declare levers for grounding (optional)
+            Declare metrics &amp; levers for grounding
           </button>
           <span style={{ ...statusLineStyle, color: enabled ? C.textHi : C.textMut }}>
             {enabled ? "ON" : "OFF — BUILD RUNS UNGROUNDED"}
