@@ -56,10 +56,13 @@ import {
   type ColumnProfile,
   type ConnectionSummary,
   type EntityDocument,
+  type EstimabilityBuildConfig,
   type ExtractionField,
   type FeatureGroup,
+  type LeverRegistryEntry,
   type LlmProvider,
   type MappingSuggestion,
+  type MetricRegistryEntry,
   type MetricType,
   type PackSummary,
   type PersonaPackDetail,
@@ -129,6 +132,15 @@ const RCONSOLE_CSS = `
 
 /* body column */
 .rconsole .bodywrap{padding:24px 28px 96px;}
+
+/* Ground step: form column + compact manifest rail (§7.4 wizard posture).
+   Collapses to one stacked column at the §7.9 rail threshold (§7.5). */
+.rconsole .groundgrid{display:grid; grid-template-columns:minmax(0,1fr) 240px;
+  gap:28px; max-width:1048px; align-items:start;}
+@media (max-width:1023px){
+  .rconsole .groundgrid{grid-template-columns:minmax(0,1fr); max-width:760px;}
+  .rconsole .groundrail{position:static;}
+}
 
 /* focus rings */
 .rconsole a:focus-visible, .rconsole button:focus-visible,
@@ -348,9 +360,10 @@ const statusLineStyle: React.CSSProperties = {
 const STEPS = [
   { id: 1, label: "Connect" },
   { id: 2, label: "Map" },
-  { id: 3, label: "Build" },
-  { id: 4, label: "Evaluate" },
-  { id: 5, label: "Promote" },
+  { id: 3, label: "Ground" },
+  { id: 4, label: "Build" },
+  { id: 5, label: "Evaluate" },
+  { id: 6, label: "Promote" },
 ] as const;
 const LAST_STEP = STEPS.length;
 
@@ -391,6 +404,85 @@ const METRIC_TYPE_HINTS: Record<MetricType, string> = {
 
 const emptyDraftField = (): DraftField => ({ name: "", type: "", description: "" });
 const emptyDocEntity = (): EntityDocument => ({ entity_id: "", text: "" });
+
+// ── Step 3 · Ground (#596/#597) — estimability declaration drafts ───────────
+// Draft state per column, keyed by column name. Optional fields ride the
+// payload only when non-empty; a draft with selected=false never rides at all.
+interface MetricDraft {
+  selected: boolean;
+  displayName: string;
+  semanticType: "" | NonNullable<MetricRegistryEntry["semantic_type"]>;
+  description: string;
+  synonyms: string; // comma-separated in the form → string[] in the payload
+  prePeriodColumn: string; // "" = none declared → the metric builds UNGUARDED
+}
+
+interface LeverDraft {
+  selected: boolean;
+  displayName: string;
+  description: string;
+}
+
+const emptyMetricDraft = (): MetricDraft => ({
+  selected: false,
+  displayName: "",
+  semanticType: "",
+  description: "",
+  synonyms: "",
+  prePeriodColumn: "",
+});
+
+const emptyLeverDraft = (): LeverDraft => ({
+  selected: false,
+  displayName: "",
+  description: "",
+});
+
+const SEMANTIC_TYPES: {
+  id: NonNullable<MetricRegistryEntry["semantic_type"]>;
+  label: string;
+}[] = [
+  { id: "rate", label: "Rate" },
+  { id: "duration", label: "Duration" },
+  { id: "cumulative", label: "Cumulative" },
+  { id: "count", label: "Count" },
+];
+
+// dtype strings come from two producers: the Snowflake preview derives them
+// from the sampled Python values (`type(v).__name__` → "int" / "float" /
+// "bool" / "Decimal" / "str" / "unknown"), and the documents extractor reports
+// the declared metric type ("count" / "score" / "ratio" / "flag" /
+// "tenure_days" / "categorical" / …). Numeric-ish = anything that could carry
+// an outcome metric reading.
+const NUMERIC_METRIC_DTYPES = new Set(["count", "score", "ratio", "flag", "tenure_days"]);
+const isNumericDtype = (dtype: string): boolean => {
+  const d = dtype.toLowerCase();
+  return (
+    d.includes("int") ||
+    d.includes("float") ||
+    d.includes("number") ||
+    d.includes("numeric") ||
+    d.includes("decimal") ||
+    d.includes("double") ||
+    d.includes("real") ||
+    d.includes("bool") ||
+    NUMERIC_METRIC_DTYPES.has(d)
+  );
+};
+
+// A lever candidate is a binary exposure flag: bool-typed, or ≤ 2 distinct
+// values in the sample (distinct_count is null when the values are unhashable).
+const isLeverCandidate = (c: ColumnProfile): boolean => {
+  const d = c.dtype.toLowerCase();
+  if (d.includes("bool") || d === "flag") return true;
+  return c.distinct_count != null && c.distinct_count <= 2;
+};
+
+const splitSynonyms = (raw: string): string[] =>
+  raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 interface ConnForm {
   name: string;
@@ -536,25 +628,30 @@ export default function NewPersonaPackV2() {
   const [mapPhase, setMapPhase] = useState<"idle" | "profiling" | "suggesting" | "ready" | "error">("idle");
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // ── Step 3 · Build config (#28) ─────────────────────────────────────────
+  // ── Step 3 · Ground (#596/#597) — opt-in estimability declaration ───────
+  const [groundEnabled, setGroundEnabled] = useState(false);
+  const [metricDrafts, setMetricDrafts] = useState<Record<string, MetricDraft>>({});
+  const [leverDrafts, setLeverDrafts] = useState<Record<string, LeverDraft>>({});
+
+  // ── Step 4 · Build config (#28) ─────────────────────────────────────────
   const [k, setK] = useState<BuildK>("auto");
   const [stabilityThreshold, setStabilityThreshold] = useState(0.65);
   const [llmProvider, setLlmProvider] = useState<LlmProvider>("groq");
   const [weightSchemes] = useState<WeightScheme[]>(["head_count"]);
 
-  // ── Step 3 · Build watch (#28) ──────────────────────────────────────────
+  // ── Step 4 · Build watch (#28) ──────────────────────────────────────────
   const [build, setBuild] = useState<BuildSummary | null>(null);
   const [events, setEvents] = useState<BuildEvent[]>([]);
   const [triggering, setTriggering] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
-  // ── Step 4 · Evaluate (NEW) ─────────────────────────────────────────────
+  // ── Step 5 · Evaluate (NEW) ─────────────────────────────────────────────
   const [evalPack, setEvalPack] = useState<PersonaPackDetail | null>(null);
   const [evalPhase, setEvalPhase] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [evalError, setEvalError] = useState<string | null>(null);
   const evalReqRef = useRef<string | null>(null);
 
-  // ── Step 5 · Promote (#28) ──────────────────────────────────────────────
+  // ── Step 6 · Promote (#28) ──────────────────────────────────────────────
   const [promoting, setPromoting] = useState(false);
   const [promoted, setPromoted] = useState<PackSummary | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
@@ -643,6 +740,11 @@ export default function NewPersonaPackV2() {
     setSuggestion(null);
     setMapping({});
     setMapPhase("idle");
+    // Ground declarations name columns of THIS source — a new source resets
+    // them to the default (off), so no stale declaration ever rides a build.
+    setGroundEnabled(false);
+    setMetricDrafts({});
+    setLeverDrafts({});
     clearBuild();
   };
 
@@ -892,7 +994,35 @@ export default function NewPersonaPackV2() {
   const allResolved =
     columns !== null && columns.length > 0 && columns.every((c) => mapping[c.name] && mapping[c.name] !== "");
 
-  // ── Step 3 · start build (#28) ───────────────────────────────────────────
+  // ── Step 3 · Ground derived state (#596/#597) ────────────────────────────
+  const metricCandidateCols = useMemo(
+    () => (columns ?? []).filter((c) => isNumericDtype(c.dtype)),
+    [columns],
+  );
+  const leverCandidateCols = useMemo(
+    () => (columns ?? []).filter((c) => isLeverCandidate(c)),
+    [columns],
+  );
+  // Selections are read THROUGH the candidate lists, so a draft for a column
+  // that no longer exists (or no longer qualifies) can never ride the payload.
+  const selectedMetricCols = metricCandidateCols.filter((c) => metricDrafts[c.name]?.selected);
+  const selectedLeverCols = leverCandidateCols.filter((c) => leverDrafts[c.name]?.selected);
+  const unguardedMetricCount = selectedMetricCols.filter(
+    (c) => !(metricDrafts[c.name]?.prePeriodColumn ?? "").trim(),
+  ).length;
+
+  const onMetricDraft = (col: string, patch: Partial<MetricDraft>) =>
+    setMetricDrafts((prev) => ({
+      ...prev,
+      [col]: { ...(prev[col] ?? emptyMetricDraft()), ...patch },
+    }));
+  const onLeverDraft = (col: string, patch: Partial<LeverDraft>) =>
+    setLeverDrafts((prev) => ({
+      ...prev,
+      [col]: { ...(prev[col] ?? emptyLeverDraft()), ...patch },
+    }));
+
+  // ── Step 4 · start build (#28) ───────────────────────────────────────────
   const handleStartBuild = async () => {
     if (!connection) return;
     setTriggerError(null);
@@ -916,6 +1046,38 @@ export default function NewPersonaPackV2() {
         llm_provider: llmProvider,
         weight_schemes: weightSchemes,
       };
+      // #596/#597 — the Ground step's declaration rides the build only when the
+      // customer opted in; with the toggle off the payload is byte-identical to
+      // the pre-Ground wizard (no estimability key at all).
+      if (groundEnabled) {
+        const metric_registry: MetricRegistryEntry[] = selectedMetricCols.map((c) => {
+          const d = metricDrafts[c.name] ?? emptyMetricDraft();
+          const synonyms = splitSynonyms(d.synonyms);
+          return {
+            column: c.name,
+            ...(d.displayName.trim() ? { display_name: d.displayName.trim() } : {}),
+            ...(d.semanticType ? { semantic_type: d.semanticType } : {}),
+            ...(d.description.trim() ? { description: d.description.trim() } : {}),
+            ...(synonyms.length > 0 ? { synonyms } : {}),
+            ...(d.prePeriodColumn.trim() ? { pre_period_column: d.prePeriodColumn.trim() } : {}),
+          };
+        });
+        const lever_registry: LeverRegistryEntry[] = selectedLeverCols.map((c) => {
+          const d = leverDrafts[c.name] ?? emptyLeverDraft();
+          return {
+            column: c.name,
+            ...(d.displayName.trim() ? { display_name: d.displayName.trim() } : {}),
+            ...(d.description.trim() ? { description: d.description.trim() } : {}),
+          };
+        });
+        const estimability: EstimabilityBuildConfig = {
+          enabled: true,
+          ...(metric_registry.length > 0 ? { metric_registry } : {}),
+          ...(lever_registry.length > 0 ? { lever_registry } : {}),
+          nc_diagnostics: true,
+        };
+        config.estimability = estimability;
+      }
       const summary = await createPersonaBuild(config);
       setBuild(summary);
       setEvents([]);
@@ -932,7 +1094,7 @@ export default function NewPersonaPackV2() {
     }
   };
 
-  // ── Step 3 · watch poll (#28) ────────────────────────────────────────────
+  // ── Step 4 · watch poll (#28) ────────────────────────────────────────────
   const watchId = build && !isBuildTerminal(build.status) ? build.id : null;
   const buildIdRef = useRef<string | null>(null);
   buildIdRef.current = build?.id ?? null;
@@ -960,7 +1122,7 @@ export default function NewPersonaPackV2() {
     };
   }, [watchId]);
 
-  // ── Step 4 · load the unpromoted pack for evaluation (NEW) ───────────────
+  // ── Step 5 · load the unpromoted pack for evaluation (NEW) ───────────────
   const loadEvaluation = useCallback(async (version: string) => {
     evalReqRef.current = version;
     setEvalError(null);
@@ -980,7 +1142,7 @@ export default function NewPersonaPackV2() {
   const packVersion = build?.pack_version ?? null;
   useEffect(() => {
     if (
-      step === 4 &&
+      step === 5 &&
       build?.status === "complete" &&
       packVersion &&
       evalPhase === "idle"
@@ -989,7 +1151,7 @@ export default function NewPersonaPackV2() {
     }
   }, [step, build?.status, packVersion, evalPhase, loadEvaluation]);
 
-  // ── Step 5 · promote (#28) ───────────────────────────────────────────────
+  // ── Step 6 · promote (#28) ───────────────────────────────────────────────
   const handlePromote = async () => {
     if (!build?.pack_version) return;
     setPromoteError(null);
@@ -1013,10 +1175,15 @@ export default function NewPersonaPackV2() {
       case 2:
         return allResolved; // every column assigned or explicitly ignored
       case 3:
-        return build?.status === "complete"; // Continue→Evaluate only when done
+        // Ground is opt-in: skipping is always allowed. Opted-in, a declaration
+        // needs at least one metric AND one lever — UNGUARDED metrics may pass
+        // (the guard review shows that state honestly; it never blocks).
+        return !groundEnabled || (selectedMetricCols.length > 0 && selectedLeverCols.length > 0);
       case 4:
-        return evalPhase === "ready" && !!evalPack && evalPack.version === build?.pack_version;
+        return build?.status === "complete"; // Continue→Evaluate only when done
       case 5:
+        return evalPhase === "ready" && !!evalPack && evalPack.version === build?.pack_version;
+      case 6:
         return false; // terminal — Promote has no Next
       default:
         return false;
@@ -1028,13 +1195,19 @@ export default function NewPersonaPackV2() {
     if (canContinue()) setStep((s) => Math.min(LAST_STEP, s + 1));
   };
 
-  // Documents are preview-only: step 3 (extraction + mapping summary) is the
+  // Documents are preview-only: step 4 (extraction + mapping summary) is the
   // terminal state. There's no build to complete, so don't offer a dead Next.
-  const documentsTerminal = sourceKind === "documents" && step === 3;
+  const documentsTerminal = sourceKind === "documents" && step === 4;
   const showNext = step !== LAST_STEP && !documentsTerminal;
 
   const nextLabel =
-    step === 3 ? "Continue → Evaluate" : step === 4 ? "These look right → Promote" : "Next →";
+    step === 4 ? "Continue → Evaluate" : step === 5 ? "These look right → Promote" : "Next →";
+
+  // The compact Ground manifest block rides a right-hand rail while grounding
+  // is being configured (step 3) and while the build that would carry it is
+  // configured/watched (step 4, feature-store path only — the documents path
+  // has no build for a declaration to ride).
+  const showGroundRail = (step === 3 || step === 4) && sourceKind === "feature_store";
 
   return (
     <AppShellV2 activeNav="personas" title="New persona pack" surface="console">
@@ -1056,8 +1229,12 @@ export default function NewPersonaPackV2() {
 
           <Stepper current={step} />
 
-          {/* Step body. Each step renders inside the form zone. */}
-          <div className="bodywrap" style={{ maxWidth: 760 }}>
+          {/* Step body. Each step renders inside the form zone. On the Ground
+              step (and the Build step that carries its declaration) the form
+              column pairs with a compact manifest rail (§7.4 wizard posture). */}
+          <div className="bodywrap">
+            <div className={showGroundRail ? "groundgrid" : undefined} style={showGroundRail ? undefined : { maxWidth: 760 }}>
+            <div style={{ minWidth: 0, maxWidth: 760 }}>
             {step === 1 && (
               <>
                 <SourceKindToggle kind={sourceKind} onKind={onSourceKind} />
@@ -1148,6 +1325,24 @@ export default function NewPersonaPackV2() {
             )}
 
             {step === 3 && (
+              <StepGround
+                sourceKind={sourceKind}
+                columns={columns}
+                enabled={groundEnabled}
+                onEnabled={setGroundEnabled}
+                metricCandidates={metricCandidateCols}
+                leverCandidates={leverCandidateCols}
+                metricDrafts={metricDrafts}
+                leverDrafts={leverDrafts}
+                onMetricDraft={onMetricDraft}
+                onLeverDraft={onLeverDraft}
+                selectedMetricCols={selectedMetricCols}
+                selectedLeverCols={selectedLeverCols}
+                unguardedMetricCount={unguardedMetricCount}
+              />
+            )}
+
+            {step === 4 && (
               <StepBuild
                 connection={connection}
                 sourceKind={sourceKind}
@@ -1174,7 +1369,7 @@ export default function NewPersonaPackV2() {
               />
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <StepEvaluate
                 build={build}
                 phase={evalPhase}
@@ -1182,7 +1377,7 @@ export default function NewPersonaPackV2() {
                 pack={evalPack}
                 onRerun={() => {
                   clearBuild();
-                  setStep(3);
+                  setStep(4);
                 }}
                 onRetry={() => {
                   setEvalPhase("idle");
@@ -1190,7 +1385,7 @@ export default function NewPersonaPackV2() {
               />
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <StepPromote
                 build={build}
                 promoting={promoting}
@@ -1236,6 +1431,17 @@ export default function NewPersonaPackV2() {
                   {nextLabel}
                 </button>
               )}
+            </div>
+            </div>
+
+            {showGroundRail && (
+              <GroundRail
+                enabled={groundEnabled}
+                metricCount={selectedMetricCols.length}
+                leverCount={selectedLeverCols.length}
+                unguardedCount={unguardedMetricCount}
+              />
+            )}
             </div>
           </div>
         </main>
@@ -2617,7 +2823,571 @@ function ColumnRow({
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Step 3 · Build (#28) — config + live watch on ONE fire-and-watch step.
+// Step 3 · Ground (#596/#597) — opt-in estimability declaration.
+// Metrics first (deliberately before levers), then levers, then a read-only
+// guard review. Toggle off (the default) = the build behaves exactly as today.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Quiet mono row-action toggle (§7.7 register — matches REMOVE / + ADD ENTITY).
+const groundRowActionStyle: React.CSSProperties = {
+  ...secondaryBtnStyle,
+  fontFamily: FONT_MONO,
+  fontSize: 10,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  padding: "4px 9px",
+  color: C.textMut,
+  whiteSpace: "nowrap",
+};
+
+// The §7.7 note anatomy in the dark-console register: hairline rule border,
+// recessed fill, message in ink — no icon, no pill, no semantic color.
+const groundNoteStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  background: C.panelRecessed,
+  border: `1px solid ${C.line}`,
+  borderRadius: 4,
+  color: C.text,
+  fontSize: 12.5,
+  lineHeight: 1.5,
+  overflowWrap: "break-word",
+};
+
+function StepGround({
+  sourceKind,
+  columns,
+  enabled,
+  onEnabled,
+  metricCandidates,
+  leverCandidates,
+  metricDrafts,
+  leverDrafts,
+  onMetricDraft,
+  onLeverDraft,
+  selectedMetricCols,
+  selectedLeverCols,
+  unguardedMetricCount,
+}: {
+  sourceKind: SourceKind;
+  columns: ColumnProfile[] | null;
+  enabled: boolean;
+  onEnabled: (v: boolean) => void;
+  metricCandidates: ColumnProfile[];
+  leverCandidates: ColumnProfile[];
+  metricDrafts: Record<string, MetricDraft>;
+  leverDrafts: Record<string, LeverDraft>;
+  onMetricDraft: (col: string, patch: Partial<MetricDraft>) => void;
+  onLeverDraft: (col: string, patch: Partial<LeverDraft>) => void;
+  selectedMetricCols: ColumnProfile[];
+  selectedLeverCols: ColumnProfile[];
+  unguardedMetricCount: number;
+}) {
+  // Documents packs are preview-only — there is no build for a declaration to
+  // ride. Say so and let Next pass (Ground stays off for this source kind).
+  if (sourceKind === "documents") {
+    return (
+      <div style={{ maxWidth: 680 }}>
+        <div style={sectionLabelStyle}>Grounding</div>
+        <div style={{ ...groundNoteStyle, marginTop: 12 }}>
+          Grounding applies to warehouse builds only. Documents packs are
+          preview-only — there is no build for a metric or lever declaration to
+          ride. Continue to the extraction summary.
+        </div>
+      </div>
+    );
+  }
+  if (!columns || columns.length === 0) {
+    return (
+      <div style={{ ...statusLineStyle, color: C.textMut }}>
+        NO COLUMNS PROFILED — GO BACK TO MAP.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 680 }}>
+      {/* ── master toggle — opt-in, off by default ───────────────────────── */}
+      <section>
+        <div style={sectionLabelStyle}>Grounding (optional)</div>
+        <div style={{ ...fieldStyle, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            aria-pressed={enabled}
+            onClick={() => onEnabled(!enabled)}
+            style={{
+              ...secondaryBtnStyle,
+              background: enabled ? C.panelRaised : "transparent",
+              color: enabled ? C.textHi : C.text,
+              borderColor: enabled ? C.textMut : C.line,
+            }}
+          >
+            Declare metrics &amp; levers for grounding
+          </button>
+          <span style={{ ...statusLineStyle, color: enabled ? C.textHi : C.textMut }}>
+            {enabled ? "ON" : "OFF — BUILD RUNS UNGROUNDED"}
+          </span>
+        </div>
+        <div style={hintStyle}>
+          Off by default — skip straight to Build and it behaves exactly as
+          today. Opt in to declare the outcome metrics you care about and the
+          binary exposure levers that might move them; the build then
+          precomputes grounded, guard-checked effect candidates for the lever
+          cards.
+        </div>
+      </section>
+
+      {enabled && (
+        <>
+          {/* ── 01 · Outcome metrics — deliberately before levers ─────────── */}
+          <section style={sectionStyle}>
+            <div style={sectionLabelStyle}>01 · Outcome metrics</div>
+            <div style={hintStyle}>
+              Which numeric columns are outcomes worth predicting? Declare a
+              pre-period column (the same reading captured before exposure)
+              wherever one exists — it compiles into a negative control that
+              guards the estimate.
+            </div>
+            {metricCandidates.length === 0 ? (
+              <div style={{ ...statusLineStyle, color: C.textMut, marginTop: 12 }}>
+                NO NUMERIC COLUMNS IN THIS SOURCE — NOTHING TO DECLARE AS A METRIC.
+              </div>
+            ) : (
+              metricCandidates.map((col, i) => (
+                <MetricGroundRow
+                  key={col.name}
+                  idx={i}
+                  col={col}
+                  draft={metricDrafts[col.name] ?? emptyMetricDraft()}
+                  prePeriodOptions={metricCandidates.filter((c) => c.name !== col.name)}
+                  onDraft={(patch) => onMetricDraft(col.name, patch)}
+                />
+              ))
+            )}
+          </section>
+
+          {/* ── 02 · Levers ───────────────────────────────────────────────── */}
+          <section style={sectionStyle}>
+            <div style={sectionLabelStyle}>02 · Levers</div>
+            <div style={hintStyle}>
+              Levers must be binary exposure flags — 1 = the user had the
+              feature, 0 = they did not. Only bool or two-valued columns
+              qualify.
+            </div>
+            {leverCandidates.length === 0 ? (
+              <div style={{ ...statusLineStyle, color: C.textMut, marginTop: 12 }}>
+                NO BINARY COLUMNS IN THIS SOURCE — NOTHING TO DECLARE AS A LEVER.
+              </div>
+            ) : (
+              leverCandidates.map((col, i) => (
+                <LeverGroundRow
+                  key={col.name}
+                  idx={i}
+                  col={col}
+                  draft={leverDrafts[col.name] ?? emptyLeverDraft()}
+                  onDraft={(patch) => onLeverDraft(col.name, patch)}
+                />
+              ))
+            )}
+          </section>
+
+          {/* ── 03 · Guard review — read-only summary ─────────────────────── */}
+          <section style={sectionStyle}>
+            <div style={sectionLabelStyle}>03 · Guard review</div>
+            {selectedMetricCols.length === 0 && selectedLeverCols.length === 0 ? (
+              <div style={{ ...statusLineStyle, color: C.textMut, marginTop: 12 }}>
+                NOTHING DECLARED YET — SELECT AT LEAST ONE METRIC AND ONE LEVER.
+              </div>
+            ) : (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {selectedMetricCols.map((col) => {
+                  const pre = (metricDrafts[col.name]?.prePeriodColumn ?? "").trim();
+                  return (
+                    <GuardReviewRow
+                      key={`m-${col.name}`}
+                      word={pre ? "GUARDED" : "UNGUARDED"}
+                      glyph={pre ? "✓" : "·"}
+                      glyphColor={pre ? C.success : C.textMut}
+                      textColor={pre ? C.text : C.textMut}
+                    >
+                      <span style={{ fontFamily: FONT_MONO, color: C.textHi }}>{col.name}</span>{" "}
+                      {pre
+                        ? `— pre-period: ${pre}`
+                        : "— will build unverified — no negative control declared"}
+                    </GuardReviewRow>
+                  );
+                })}
+                {selectedLeverCols.map((col) => (
+                  <GuardReviewRow
+                    key={`l-${col.name}`}
+                    word="DECLARED"
+                    glyph="✓"
+                    glyphColor={C.success}
+                    textColor={C.text}
+                  >
+                    <span style={{ fontFamily: FONT_MONO, color: C.textHi }}>{col.name}</span>
+                    {(leverDrafts[col.name]?.displayName ?? "").trim()
+                      ? ` — ${leverDrafts[col.name]!.displayName.trim()}`
+                      : ""}
+                  </GuardReviewRow>
+                ))}
+              </div>
+            )}
+            {unguardedMetricCount > 0 && (
+              <div style={{ ...railCaptionStyle, marginTop: 10, textTransform: "uppercase" }}>
+                {unguardedMetricCount} METRIC{unguardedMetricCount === 1 ? "" : "S"} UNGUARDED —
+                ALLOWED, BUT THE ESTIMATES CARRY NO NEGATIVE CONTROL.
+              </div>
+            )}
+            <div style={{ ...groundNoteStyle, marginTop: 14 }}>
+              Negative controls are compiled from pre-period links; explicit
+              review happens on the lever card after the build.
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+// One read-only guard-review row: mono word first (the PRESENT/MISSING idiom —
+// the wording + glyph carry the state, never color alone, §4.3/§7.8).
+function GuardReviewRow({
+  word,
+  glyph,
+  glyphColor,
+  textColor,
+  children,
+}: {
+  word: string;
+  glyph: string;
+  glyphColor: string;
+  textColor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+      <span aria-hidden="true" style={{ fontFamily: FONT_MONO, fontSize: 12, color: glyphColor, width: 10, flexShrink: 0, textAlign: "center" }}>
+        {glyph}
+      </span>
+      <span
+        style={{
+          fontFamily: FONT_MONO,
+          fontSize: 11,
+          letterSpacing: "0.06em",
+          color: C.textHi,
+          width: 92,
+          flexShrink: 0,
+          ...TNUM,
+        }}
+      >
+        {word}
+      </span>
+      <span style={{ fontSize: 12.5, lineHeight: 1.45, color: textColor, minWidth: 0, overflowWrap: "break-word" }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+// ── 01 · one metric candidate row ───────────────────────────────────────────
+function MetricGroundRow({
+  idx,
+  col,
+  draft,
+  prePeriodOptions,
+  onDraft,
+}: {
+  idx: number;
+  col: ColumnProfile;
+  draft: MetricDraft;
+  prePeriodOptions: ColumnProfile[];
+  onDraft: (patch: Partial<MetricDraft>) => void;
+}) {
+  const id = (suffix: string) => `ground-metric-${idx}-${suffix}`;
+  return (
+    <div
+      style={{
+        ...fieldStyle,
+        border: `1px solid ${C.line}`,
+        borderRadius: 4,
+        padding: "10px 12px",
+        background: draft.selected ? C.panel : "transparent",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.textHi }}>{col.name}</span>
+        <Chip>{col.dtype}</Chip>
+        {draft.selected && <Chip>OUTCOME METRIC</Chip>}
+        <span style={{ marginLeft: "auto" }}>
+          <button
+            type="button"
+            aria-pressed={draft.selected}
+            aria-label={`${draft.selected ? "Remove" : "Mark"} ${col.name} as an outcome metric`}
+            onClick={() => onDraft({ selected: !draft.selected })}
+            style={groundRowActionStyle}
+          >
+            {draft.selected ? "REMOVE" : "+ MARK AS METRIC"}
+          </button>
+        </span>
+      </div>
+
+      {draft.selected && (
+        <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+          <div style={fieldRowStyle}>
+            <div>
+              <label htmlFor={id("dname")} style={sublabelStyle}>
+                Display name
+              </label>
+              <input
+                id={id("dname")}
+                value={draft.displayName}
+                onChange={(e) => onDraft({ displayName: e.target.value })}
+                placeholder="e.g. Weekly watch hours"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label htmlFor={id("stype")} style={sublabelStyle}>
+                Semantic type
+              </label>
+              <select
+                id={id("stype")}
+                value={draft.semanticType}
+                onChange={(e) =>
+                  onDraft({ semanticType: e.target.value as MetricDraft["semanticType"] })
+                }
+                style={selectStyle}
+              >
+                <option value="">— choose —</option>
+                {SEMANTIC_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label htmlFor={id("desc")} style={sublabelStyle}>
+              Description
+            </label>
+            <input
+              id={id("desc")}
+              value={draft.description}
+              onChange={(e) => onDraft({ description: e.target.value })}
+              placeholder="what this metric measures (optional)"
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldRowStyle}>
+            <div>
+              <label htmlFor={id("syn")} style={sublabelStyle}>
+                Synonyms (comma separated)
+              </label>
+              <input
+                id={id("syn")}
+                value={draft.synonyms}
+                onChange={(e) => onDraft({ synonyms: e.target.value })}
+                placeholder="engagement, watch time"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label htmlFor={id("pre")} style={sublabelStyle}>
+                Pre-period column
+              </label>
+              <select
+                id={id("pre")}
+                value={draft.prePeriodColumn}
+                onChange={(e) => onDraft({ prePeriodColumn: e.target.value })}
+                style={selectStyle}
+              >
+                <option value="">— none —</option>
+                {prePeriodOptions.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 02 · one lever candidate row ────────────────────────────────────────────
+function LeverGroundRow({
+  idx,
+  col,
+  draft,
+  onDraft,
+}: {
+  idx: number;
+  col: ColumnProfile;
+  draft: LeverDraft;
+  onDraft: (patch: Partial<LeverDraft>) => void;
+}) {
+  const id = (suffix: string) => `ground-lever-${idx}-${suffix}`;
+  const sample =
+    col.sample_values && col.sample_values.length > 0
+      ? col.sample_values.slice(0, 2).map(String).join(" / ")
+      : null;
+  return (
+    <div
+      style={{
+        ...fieldStyle,
+        border: `1px solid ${C.line}`,
+        borderRadius: 4,
+        padding: "10px 12px",
+        background: draft.selected ? C.panel : "transparent",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.textHi }}>{col.name}</span>
+        <Chip>{col.dtype}</Chip>
+        {col.distinct_count != null && <Chip>{col.distinct_count} DISTINCT</Chip>}
+        {draft.selected && <Chip>LEVER</Chip>}
+        <span style={{ marginLeft: "auto" }}>
+          <button
+            type="button"
+            aria-pressed={draft.selected}
+            aria-label={`${draft.selected ? "Remove" : "Mark"} ${col.name} as a lever`}
+            onClick={() => onDraft({ selected: !draft.selected })}
+            style={groundRowActionStyle}
+          >
+            {draft.selected ? "REMOVE" : "+ MARK AS LEVER"}
+          </button>
+        </span>
+      </div>
+      {sample !== null && (
+        <div style={{ ...railCaptionStyle, marginTop: 3 }}>e.g. {sample}</div>
+      )}
+
+      {draft.selected && (
+        <div style={{ marginTop: 12, ...fieldRowStyle }}>
+          <div>
+            <label htmlFor={id("dname")} style={sublabelStyle}>
+              Display name
+            </label>
+            <input
+              id={id("dname")}
+              value={draft.displayName}
+              onChange={(e) => onDraft({ displayName: e.target.value })}
+              placeholder="e.g. Offline downloads"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label htmlFor={id("desc")} style={sublabelStyle}>
+              Description
+            </label>
+            <input
+              id={id("desc")}
+              value={draft.description}
+              onChange={(e) => onDraft({ description: e.target.value })}
+              placeholder="what exposure this flag records (optional)"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── compact Ground manifest block — right-hand rail (§8.2 chip idiom) ────────
+function GroundRail({
+  enabled,
+  metricCount,
+  leverCount,
+  unguardedCount,
+}: {
+  enabled: boolean;
+  metricCount: number;
+  leverCount: number;
+  unguardedCount: number;
+}) {
+  const rows: [string, string][] = enabled
+    ? [
+        ["METRICS", String(metricCount)],
+        ["LEVERS", String(leverCount)],
+        ["UNGUARDED", String(unguardedCount)],
+      ]
+    : [];
+  return (
+    <aside
+      className="groundrail"
+      aria-label="Grounding manifest"
+      style={{ position: "sticky", top: 24, alignSelf: "start" }}
+    >
+      <div
+        style={{
+          background: C.panel,
+          border: `1px solid ${C.line}`,
+          borderRadius: 8,
+          padding: "12px 14px",
+        }}
+      >
+        <div style={{ ...sublabelStyle, marginBottom: 8 }}>Ground</div>
+        {/* Panel-verdict-chip register: mono, recessed fill, rule border — a
+            surface tone, never a semantic fill (§8.2). The words carry state. */}
+        <span
+          style={{
+            display: "inline-block",
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.06em",
+            color: C.textHi,
+            background: C.panelRecessed,
+            border: `1px solid ${C.line}`,
+            borderRadius: 4,
+            padding: "3px 8px",
+            ...TNUM,
+          }}
+        >
+          {enabled
+            ? `${metricCount} METRIC${metricCount === 1 ? "" : "S"} · ${leverCount} LEVER${leverCount === 1 ? "" : "S"}`
+            : "OFF"}
+        </span>
+        {enabled ? (
+          <dl
+            style={{
+              margin: 0,
+              marginTop: 10,
+              display: "grid",
+              gridTemplateColumns: "auto 1fr",
+              gap: "4px 12px",
+            }}
+          >
+            {rows.map(([dt, dd]) => (
+              <Fragment key={dt}>
+                <dt style={railCaptionStyle}>{dt}</dt>
+                <dd style={{ margin: 0, fontFamily: FONT_MONO, fontSize: 11, color: C.textHi, textAlign: "right", ...TNUM }}>
+                  {dd}
+                </dd>
+              </Fragment>
+            ))}
+          </dl>
+        ) : (
+          <div style={{ ...railCaptionStyle, marginTop: 10 }}>
+            NOT DECLARED — THE BUILD RUNS UNGROUNDED (DEFAULT).
+          </div>
+        )}
+        {enabled && unguardedCount > 0 && (
+          <div style={{ ...railCaptionStyle, marginTop: 8 }}>
+            UNGUARDED METRICS BUILD UNVERIFIED — NO NEGATIVE CONTROL.
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Step 4 · Build (#28) — config + live watch on ONE fire-and-watch step.
 // ════════════════════════════════════════════════════════════════════════════
 
 function buildStatusLine(b: BuildSummary): string {
@@ -3026,7 +3796,7 @@ function BuildWatch({
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Step 4 · Evaluate (NEW) — read before you promote (#27/#28).
+// Step 5 · Evaluate (NEW) — read before you promote (#27/#28).
 // ════════════════════════════════════════════════════════════════════════════
 
 function distinctivenessLine(block: ProfileBlockView | null | undefined): string {
@@ -3198,7 +3968,7 @@ function Designator({ children }: { children: React.ReactNode }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Step 5 · Promote (#28) — terminal. Folds in the old Done content.
+// Step 6 · Promote (#28) — terminal. Folds in the old Done content.
 // ════════════════════════════════════════════════════════════════════════════
 function StepPromote({
   build,
