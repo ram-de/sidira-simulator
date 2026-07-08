@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from sidira_simulator.adapters import credentials
 from sidira_simulator.adapters.feature_stores.snowflake import SnowflakeCreds, SnowflakeStore
@@ -29,19 +29,64 @@ from sidira_simulator.services.run_state import RunPhase, RunStateStore, Simulat
 logger = logging.getLogger(__name__)
 
 
+class MetricRegistryEntry(BaseModel):
+    """One outcome metric declared by the wizard's metric registry (#596/#597).
+
+    The registry is the wizard's *declaration surface*: instead of hand-writing
+    the pipeline's ``outcomes``/``neg_control_map`` keys, an onboarding names
+    each metric column once — with optional display/semantic metadata for UI and
+    audit — and :meth:`EstimabilityBuildConfig.compiled` folds it into the
+    pipeline declaration. ``pre_period_column`` links the metric to its
+    pre-treatment counterpart, which compiles into a negative-control entry
+    (unless an explicit ``neg_control_map`` key for the column already exists —
+    explicit always wins).
+    """
+
+    model_config = ConfigDict(extra="forbid")  # typo protection on the wire
+
+    column: str
+    display_name: str | None = None
+    semantic_type: Literal["rate", "duration", "cumulative", "count"] | None = None
+    description: str | None = None
+    synonyms: list[str] | None = None
+    pre_period_column: str | None = None
+
+
+class LeverRegistryEntry(BaseModel):
+    """One treatment/exposure lever declared by the wizard's lever registry.
+
+    Compiled counterpart of :class:`MetricRegistryEntry` for the pipeline's
+    ``treatments`` key; ``display_name``/``description`` are UI/audit metadata
+    the producer ignores today.
+    """
+
+    model_config = ConfigDict(extra="forbid")  # typo protection on the wire
+
+    column: str
+    display_name: str | None = None
+    description: str | None = None
+
+
 class EstimabilityBuildConfig(BaseModel):
     """Declares the causal-effect estimability manifest for an onboarded pack.
 
     The *presence* of this block on a :class:`BuildConfig` is the intent to enable
-    the manifest — it is threaded verbatim into the ``sidira_personas`` pipeline's
-    ``cfg["estimability"]`` contract (which builds the manifest only when
-    ``enabled is True``). The white-glove onboarding names the treatment/exposure
-    column(s) (``treatments``) and outcome column(s) (``outcomes``) that live in
-    the joined source VIEW alongside the persona features; see
-    ``sessions/design-partner-onboarding/SEPARATE_TABLE_ONBOARDING.md``.
+    the manifest — it is compiled (see :meth:`compiled`) into the
+    ``sidira_personas`` pipeline's ``cfg["estimability"]`` contract (which builds
+    the manifest only when ``enabled is True``). The white-glove onboarding names
+    the treatment/exposure column(s) (``treatments``) and outcome column(s)
+    (``outcomes``) that live in the joined source VIEW alongside the persona
+    features; see ``sessions/design-partner-onboarding/SEPARATE_TABLE_ONBOARDING.md``.
 
-    All fields but ``enabled`` are optional; ``_build_pipeline_config`` serializes
-    with ``exclude_none`` so unset knobs fall through to the pipeline's own
+    ``metric_registry``/``lever_registry`` (#596/#597) are the wizard's richer
+    declaration surface: per-column metadata that :meth:`compiled` folds into
+    the plain ``outcomes``/``treatments``/``neg_control_map`` keys — the only
+    keys the producer consumes today (it silently ignores unknown keys, so the
+    registries also ride along verbatim for audit and future consumers).
+    Explicit declarations always win over registry-derived ones.
+
+    All fields but ``enabled`` are optional; :meth:`compiled` serializes with
+    ``exclude_none`` so unset knobs fall through to the pipeline's own
     documented defaults (``auto_neg_controls=True``, ``max_*`` caps, etc.).
     """
 
@@ -57,6 +102,80 @@ class EstimabilityBuildConfig(BaseModel):
     max_treatments: int | None = None
     max_outcomes: int | None = None
     max_rows: int | None = None
+    metric_registry: list[MetricRegistryEntry] | None = None
+    lever_registry: list[LeverRegistryEntry] | None = None
+
+    @model_validator(mode="after")
+    def _validate_registries(self) -> "EstimabilityBuildConfig":
+        """Reject ambiguous registries at the API boundary (422 via FastAPI).
+
+        Column names must be unique within each registry, and a metric's
+        ``pre_period_column`` must not be the metric column itself (a metric
+        cannot be its own negative control).
+        """
+        for label, registry in (
+            ("metric_registry", self.metric_registry),
+            ("lever_registry", self.lever_registry),
+        ):
+            seen: set[str] = set()
+            for entry in registry or []:
+                if entry.column in seen:
+                    raise ValueError(f"duplicate column '{entry.column}' in {label}")
+                seen.add(entry.column)
+        for entry in self.metric_registry or []:
+            if entry.pre_period_column == entry.column:
+                raise ValueError(
+                    f"metric_registry entry '{entry.column}': pre_period_column "
+                    "must differ from column"
+                )
+        return self
+
+    def compiled(self) -> dict[str, Any]:
+        """Compile the declaration into the pipeline's ``cfg["estimability"]`` dict.
+
+        Starts from ``model_dump(exclude_none=True)`` — a registry-less config
+        therefore compiles to *exactly* what it always did — then folds the
+        registries into the keys the producer actually consumes:
+
+        - ``outcomes``: declared ``outcomes`` first (order preserved), then
+          ``metric_registry`` columns not already present.
+        - ``treatments``: declared ``treatments`` first, then ``lever_registry``
+          columns not already present.
+        - ``neg_control_map``: explicit entries always win; each metric with a
+          ``pre_period_column`` whose column has no explicit key contributes
+          ``{column: [pre_period_column]}``.
+
+        These keys are only emitted when non-empty (preserving the
+        ``exclude_none`` semantics). The registries themselves stay in the dict:
+        the producer ignores unknown keys, and they ride ``config_json`` for
+        audit and future consumers.
+        """
+        cfg = self.model_dump(exclude_none=True)
+
+        if self.metric_registry:
+            outcomes = list(self.outcomes or [])
+            for entry in self.metric_registry:
+                if entry.column not in outcomes:
+                    outcomes.append(entry.column)
+            if outcomes:
+                cfg["outcomes"] = outcomes
+
+            nc_map = {k: list(v) for k, v in (self.neg_control_map or {}).items()}
+            for entry in self.metric_registry:
+                if entry.pre_period_column and entry.column not in nc_map:
+                    nc_map[entry.column] = [entry.pre_period_column]
+            if nc_map:
+                cfg["neg_control_map"] = nc_map
+
+        if self.lever_registry:
+            treatments = list(self.treatments or [])
+            for entry in self.lever_registry:
+                if entry.column not in treatments:
+                    treatments.append(entry.column)
+            if treatments:
+                cfg["treatments"] = treatments
+
+        return cfg
 
 
 class BuildConfig(BaseModel):
@@ -322,12 +441,15 @@ def _build_pipeline_config(
 
     # Estimability manifest declaration (#568). Absent ⇒ no ``estimability`` key,
     # so the producer pipeline builds no manifest (today's exact behavior).
-    # Present ⇒ threaded verbatim into the pipeline's ``cfg["estimability"]``
-    # contract. ``exclude_none`` drops unset optional knobs so the pipeline's own
-    # documented defaults apply; ``enabled`` is a real bool default True, so it
-    # survives ``exclude_none`` and the manifest is built.
+    # Present ⇒ compiled into the pipeline's ``cfg["estimability"]`` contract:
+    # ``compiled()`` folds the wizard's metric/lever registries (#596/#597) into
+    # the ``outcomes``/``treatments``/``neg_control_map`` keys the producer
+    # consumes (explicit declarations win), and is a plain
+    # ``model_dump(exclude_none=True)`` when no registry is declared — unset
+    # knobs fall through to the pipeline's own documented defaults; ``enabled``
+    # is a real bool default True, so it survives and the manifest is built.
     if config.estimability is not None:
-        cfg["estimability"] = config.estimability.model_dump(exclude_none=True)
+        cfg["estimability"] = config.estimability.compiled()
 
     return cfg
 
