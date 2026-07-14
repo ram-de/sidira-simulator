@@ -31,7 +31,52 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+# ── The screening action (pivot contract) ────────────────────────────────
+# The customer's only actionable output: should they spend a test slot on this?
+# KILL = don't run it (we're confident it won't produce a ship-worthy win).
+# PASS = run the real A/B (a predicted winner, or a not-confident-enough loser).
+# ABSTAIN = we couldn't confidently judge — run the real A/B.
+# Only KILL saves a test; PASS and ABSTAIN both route to "run it". The split is
+# informational (judged-not-killed vs could-not-judge).
+ScreenAction = Literal["KILL", "PASS", "ABSTAIN"]
+
+
+def screen_action_from_verdict(verdict: DirectionVerdict) -> ScreenAction:
+    """Map the direction-only verdict onto the KILL / PASS / ABSTAIN screen action.
+
+    Safety-first, per the northstar (FN ceiling before coverage): we KILL ONLY on
+    a *grounded, high-confidence* negative sign. Raw/low-confidence signal never
+    kills — the campaign proved raw LLM confidence unusable, so we would rather
+    ABSTAIN/PASS (send it to a real A/B) than risk killing a winner.
+
+    - ``ABSTAIN`` ⇔ ``direction is None`` — no confident sign (the canonical
+      inconclusive shape; ``caution`` is ``hard`` by the model invariant).
+    - ``KILL`` ⇔ ``direction == "negative"`` AND ``caution == "none"`` AND
+      ``source == "grounded"`` — a trustworthy grounded loser, i.e. confident the
+      treatment will NOT win. The explicit ``source`` guard is defense-in-depth:
+      a hand-corrupted/model-valid sidecar could carry ``llm_fallback`` +
+      ``caution == "none"`` (the validator does not forbid that pairing), and we
+      must NOT kill on an ungrounded verdict (FN ceiling before coverage).
+    - ``PASS`` otherwise — a predicted winner (``positive``), or a negative sign
+      that is not grounded-confident (``caution`` moderate). Run the real test.
+
+    NOTE (follow-up): the "obvious no-op / flat" half of the KILL definition
+    ("won't produce a win" = losers OR no-ops) is not yet expressible — the
+    verdict has no ``flat`` direction. A confident no-op therefore PASSes today;
+    a ``flat`` sign from the grounded predictor is the enhancement that lets it
+    KILL. Tracked as a Track-2 follow-up.
+    """
+    if verdict.direction is None:
+        return "ABSTAIN"
+    if (
+        verdict.direction == "negative"
+        and verdict.caution == "none"
+        and verdict.source == "grounded"
+    ):
+        return "KILL"
+    return "PASS"
 
 
 class GuardrailMetric(BaseModel):
@@ -94,6 +139,20 @@ class DirectionVerdict(BaseModel):
     unverified: bool = False
     guardrails: list[GuardrailMetric] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_derived_screen_action(cls, data: object) -> object:
+        """Tolerate the derived ``screen_action`` on input so the contract
+        round-trips (``model_dump`` → ``model_validate``) without weakening
+        ``extra="forbid"``. ``screen_action`` is an output-only computed field;
+        a serialized sidecar/result carries it, but it is RECOMPUTED on load, so
+        we drop it from the input dict. Every OTHER unexpected key (e.g. a stray
+        ``magnitude``) still fails loudly — the point-estimate guard is intact.
+        """
+        if isinstance(data, dict) and "screen_action" in data:
+            return {k: v for k, v in data.items() if k != "screen_action"}
+        return data
+
     @model_validator(mode="after")
     def _enforce_confidence_derivation(self) -> DirectionVerdict:
         """Reject a self-inconsistent verdict (e.g. a hand-corrupted sidecar).
@@ -123,5 +182,21 @@ class DirectionVerdict(BaseModel):
             )
         return self
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def screen_action(self) -> ScreenAction:
+        """KILL / PASS / ABSTAIN — the customer's screening action.
 
-__all__ = ["GuardrailMetric", "DirectionVerdict"]
+        Derived from ``direction`` + ``caution`` and serialized on the contract
+        so the card and the frontend read ONE field instead of re-deriving the
+        mapping. See :func:`screen_action_from_verdict` for the rule.
+        """
+        return screen_action_from_verdict(self)
+
+
+__all__ = [
+    "GuardrailMetric",
+    "DirectionVerdict",
+    "ScreenAction",
+    "screen_action_from_verdict",
+]
