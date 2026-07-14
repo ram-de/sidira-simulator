@@ -54,11 +54,13 @@ def screen_action_from_verdict(verdict: DirectionVerdict) -> ScreenAction:
     - ``ABSTAIN`` ⇔ ``direction is None`` — no confident sign (the canonical
       inconclusive shape; ``caution`` is ``hard`` by the model invariant).
     - ``KILL`` ⇔ ``direction == "negative"`` AND ``caution == "none"`` AND
-      ``source == "grounded"`` — a trustworthy grounded loser, i.e. confident the
-      treatment will NOT win. The explicit ``source`` guard is defense-in-depth:
-      a hand-corrupted/model-valid sidecar could carry ``llm_fallback`` +
+      ``source in {"grounded", "calibrated"}`` — a trustworthy loser (confident the
+      treatment will NOT win). ``calibrated`` is the pivot's live source (the A/B
+      panel's sign gated by a fitted calibrator); ``grounded`` is the legacy source,
+      retained harmlessly. The explicit ``source`` guard is defense-in-depth: a
+      hand-corrupted/model-valid sidecar could carry ``llm_fallback`` +
       ``caution == "none"`` (the validator does not forbid that pairing), and we
-      must NOT kill on an ungrounded verdict (FN ceiling before coverage).
+      must NOT kill on an ungrounded/uncalibrated verdict (FN ceiling before coverage).
     - ``PASS`` otherwise — a predicted winner (``positive``), or a negative sign
       that is not grounded-confident (``caution`` moderate). Run the real test.
 
@@ -73,7 +75,7 @@ def screen_action_from_verdict(verdict: DirectionVerdict) -> ScreenAction:
     if (
         verdict.direction == "negative"
         and verdict.caution == "none"
-        and verdict.source == "grounded"
+        and verdict.source in ("grounded", "calibrated")
     ):
         return "KILL"
     return "PASS"
@@ -133,7 +135,7 @@ class DirectionVerdict(BaseModel):
     caution: Literal["none", "moderate", "hard"]
     confidence: Literal["high", "low"]
     label: str
-    source: Literal["grounded", "llm_fallback"]
+    source: Literal["grounded", "calibrated", "llm_fallback"]
     watchdog_verdict: str | None = None
     grounding_gap_reason: str | None = None
     unverified: bool = False
