@@ -79,6 +79,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/simulations/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare Simulations
+         * @description Structured old→new diff for the refinement loop (Phase 8 #42).
+         *
+         *     Both sims must be owned by the requesting customer AND completed, else 404
+         *     (we never disclose whether a foreign id exists). The diff is purely
+         *     descriptive — score delta + weakness-category diff (appeared / disappeared /
+         *     changed) + refinement-suggestion deltas + an optional sentiment shift — built
+         *     from the two persisted results. Nothing is re-run and no new score computed.
+         *
+         *     Registered BEFORE `/{simulation_id}` so "compare" is matched as this route,
+         *     not captured as a simulation_id path param.
+         */
+        get: operations["compare_simulations_simulations_compare_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/simulations/{simulation_id}": {
         parameters: {
             query?: never;
@@ -343,6 +372,17 @@ export interface paths {
         /**
          * List Capabilities
          * @description Return the latest Feature Pack manifest for the authenticated customer.
+         *
+         *     ``?setup_id=`` selects which crawl setup's packs to list (#215/#245). It
+         *     defaults to ``"default"`` so an unparameterized call is byte-identical to
+         *     pre-#215 prod — same R2 prefix, same pointer.
+         *
+         *     By default the Library hides any version the customer ARCHIVED (#214): if the
+         *     latest pack is archived, this 404s exactly as an empty tenant would, so the
+         *     Library shows the empty-pack state rather than a version the PM chose to retire.
+         *     Pass ``?include_archived=true`` to see it anyway (the Library's "Show archived"
+         *     toggle). Archiving never deletes the pack: a historical simulation that froze
+         *     this version still resolves it (FeaturePackLoader never consults this marker).
          */
         get: operations["list_capabilities_capabilities_get"];
         put?: never;
@@ -441,6 +481,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/featurepacks/{version}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Feature Pack
+         * @description Archive (hide from the Library) one Feature Pack version (#214).
+         *
+         *     ``?setup_id=`` selects which setup's pack to existence-check (#215/#245),
+         *     defaulting to ``"default"`` so an unparameterized call is byte-identical to
+         *     today. The existence probe reads through the per-setup R2 prefix.
+         *
+         *     A SOFT-DELETE: the version is hidden from the Library's pack listing, but its
+         *     R2 artifacts are untouched and it STAYS resolvable for any historical
+         *     simulation that froze it — ``FeaturePackLoader`` never reads this marker, so a
+         *     past run still replays. This is distinct from the forbidden hand-edit /
+         *     hard-delete (both corrupt the control arm). Idempotent: re-archiving an
+         *     already-archived version is a no-op.
+         *
+         *     KNOWN LIMITATION (#215/#245, deferred to PR 3): the archive marker table is
+         *     keyed ``(customer_id, pack_version)`` — NOT setup-aware (adding setup_id to
+         *     its PK is a migration, out of this PR's scope). So if two setups of one org
+         *     happen to share a version string, archiving one hides the other in the
+         *     Library. This is a VISIBILITY edge case only — the loader never consults this
+         *     marker, so pack RESOLUTION and the integrity invariant are unaffected. PR 3
+         *     re-keys the marker by setup. (codex P2)
+         */
+        post: operations["archive_feature_pack_featurepacks__version__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/featurepacks/{version}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unarchive Feature Pack
+         * @description Unarchive (un-hide) a Feature Pack version (#214). Idempotent — unarchiving
+         *     a version that was never archived returns ``archived=false`` without error.
+         *
+         *     ``?setup_id=`` selects which setup's pack to existence-check, default
+         *     ``"default"`` (byte-identical to today).
+         */
+        post: operations["unarchive_feature_pack_featurepacks__version__unarchive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/crawl-setup": {
         parameters: {
             query?: never;
@@ -454,6 +557,83 @@ export interface paths {
         put: operations["save_crawl_setup_crawl_setup_put"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/crawl-setups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Crawl Setups
+         * @description List every crawl setup for the caller's org, newest-anchor first.
+         *
+         *     Secret-free: each row carries identity + label + the non-secret config
+         *     fields only. Passwords never leave the encrypted blob; the authenticated CI
+         *     pull is the sole reader.
+         */
+        get: operations["list_crawl_setups_crawl_setups_get"];
+        put?: never;
+        /**
+         * Create Crawl Setup
+         * @description Create a NEW crawl setup under a server-minted, url-safe setup_id.
+         *
+         *     The client supplies a human ``name``; the server slugifies it and adds a
+         *     uniqueness suffix (the client never picks the raw id). Minting can never
+         *     collide with the reserved ``"default"`` anchor — :func:`make_setup_id`
+         *     treats it as taken. Credentials follow the #206 pull model: re-entered on
+         *     create, encrypted at rest, never returned. The response carries no secrets.
+         */
+        post: operations["create_crawl_setup_crawl_setups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/crawl-setups/{setup_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Crawl Setup By Id
+         * @description One setup by id, secret-free. 404 when it does not exist for this org
+         *     (the same 404 a cross-tenant id gets — scope is enforced by customer_id).
+         */
+        get: operations["get_crawl_setup_by_id_crawl_setups__setup_id__get"];
+        /**
+         * Update Crawl Setup By Id
+         * @description Update an existing setup's config (and optionally its ``?name=`` label).
+         *
+         *     404 if the setup_id does not already exist for this org — PUT here updates,
+         *     it does not create (creation is POST, which mints the id). Credentials follow
+         *     the #206 pull model: re-entered on each save, encrypted at rest, never
+         *     returned. The response carries no secrets.
+         */
+        put: operations["update_crawl_setup_by_id_crawl_setups__setup_id__put"];
+        post?: never;
+        /**
+         * Delete Crawl Setup By Id
+         * @description Delete a setup's CONFIG row only. 204 on success.
+         *
+         *     CONFIG-ONLY by design — this NEVER touches R2: the setup's Feature-Pack
+         *     objects stay in place, so any historical simulation that froze a pack from
+         *     this setup still resolves (mirrors #214's integrity invariant; the
+         *     FeaturePackLoader reads R2 by path and never consults this row).
+         *
+         *     Refuses to delete the reserved ``"default"`` setup (409): it is the legacy
+         *     anchor and the target of the singular /crawl-setup endpoints + the legacy R2
+         *     prefix. 404 if the setup_id does not exist for this org.
+         */
+        delete: operations["delete_crawl_setup_by_id_crawl_setups__setup_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -499,6 +679,503 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/experiments/search-similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Search Similar
+         * @description Submit-time ADVISORY dedup gate for a NEW hypothesis (#38).
+         *
+         *     TENANT-SCOPED (#38a): ranks the caller's OWN prior Sidira PREDICTIONS — the
+         *     same completed simulations the ``/simulations`` Hypotheses tab lists, loaded
+         *     via the orchestrator and scoped to ``customer_id`` — NOT the shared demo seed.
+         *     Falls back to the synthetic seed ONLY when the tenant has no simulations at all
+         *     (a fresh workspace / the keyless local demo), mirroring ``post_conversation``.
+         *
+         *     SOURCE-AWARE / HONEST (#38b): a match is a ``GateMatch`` (a prior PREDICTION),
+         *     never the measured-``Experiment`` shape. Every figure is uncalibrated
+         *     simulated-agent agreement, never a measured winner/effect (DESIGN.md §8.3).
+         *     Re-runs of the same hypothesis are grouped with their agreement spread.
+         *
+         *     Trust-ordered verdict, ADVISORY only — the run is NEVER blocked on it:
+         *
+         *     - ``already_tested`` — Sidira has effectively predicted this before; show the
+         *       prior prediction(s) + agreement spread.
+         *     - ``similar`` — an analogical prior prediction only; ``caveat`` carries the
+         *       "a prediction is not a measurement" honesty label.
+         *     - ``novel`` — no prior prediction to lean on; ``matches`` is empty.
+         *
+         *     This runs BEFORE the new run starts and never calls the simulation engine.
+         */
+        post: operations["post_search_similar_experiments_search_similar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiments/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Chat
+         * @description Grounded RAG answer over the experiment archive (#28).
+         *
+         *     The answer is built only from retrieved past experiments and cites them.
+         *     With an LLM provider key configured the model composes the prose; without
+         *     one it degrades to a grounded extractive answer (``used_llm=false``).
+         */
+        post: operations["post_chat_experiments_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiments/conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Conversation
+         * @description Multi-turn, fused conversation over the customer's simulations (#31, #32, #33).
+         *
+         *     Extends the single-shot ``/chat`` in two ways, without touching it:
+         *
+         *     - FUSION (#31): retrieval draws on BOTH a MEASURED experiment side and the
+         *       Sidira PREDICTED simulation side. When a simulation and an experiment tested
+         *       the same change, the answer tells the predicted-vs-measured story; every
+         *       citation is labeled MEASURED or PREDICTED.
+         *     - MULTI-TURN (#32): the request carries prior turns so a follow-up resolves
+         *       against the prior turn's subject. Suggested follow-up chips are returned.
+         *
+         *     TENANT SCOPING (#33): the PREDICTED side is the CUSTOMER'S OWN completed
+         *     simulations — the same source the ``/simulations`` Hypotheses tab lists, loaded
+         *     via the orchestrator and scoped to ``customer_id`` — not the synthetic demo
+         *     seed. This is why a hypothesis that exists on the Hypotheses tab (e.g. a
+         *     "Continue Watching" change) is now retrievable here. We hold no MEASURED
+         *     experiment archive for a real tenant yet (that arrives with connector
+         *     ingestion, #19/#20), so the measured side is empty rather than mixing in
+         *     unrelated demo experiments. When the tenant has NO completed simulations (a
+         *     fresh workspace or the offline/keyless demo), we fall back to the synthetic
+         *     seed so the fused predicted-vs-measured story still demonstrates.
+         *
+         *     Grounded/extractive-fallback behavior is preserved: with an LLM key the model
+         *     composes the prose; without one it degrades to a grounded extractive fused
+         *     answer (``used_llm=false``).
+         */
+        post: operations["post_conversation_experiments_conversation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Conversations
+         * @description The current user's OWN threads, newest-touched first (the switcher list).
+         *     Another user's threads in the same org never appear here (#42).
+         */
+        get: operations["list_conversations_conversations_get"];
+        put?: never;
+        /**
+         * Create Conversation
+         * @description Open a new (empty) thread, owned PRIVATELY by the current user (#42).
+         *     Title is optional — it auto-derives from the first appended turn when unset.
+         */
+        post: operations["create_conversation_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Conversation
+         * @description One thread with its full ordered turn history. 404 when the id is unknown,
+         *     belongs to another tenant, OR belongs to another user (#42) — existence never
+         *     leaks across users or tenants.
+         */
+        get: operations["get_conversation_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Conversation
+         * @description Delete a thread (its turns cascade). 404 when unknown / cross-tenant /
+         *     cross-user (#42).
+         */
+        delete: operations["delete_conversation_conversations__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename Conversation
+         * @description Rename a thread (PATCH title). 404 when unknown / cross-tenant /
+         *     cross-user (#42).
+         */
+        patch: operations["rename_conversation_conversations__conversation_id__patch"];
+        trace?: never;
+    };
+    "/conversations/{conversation_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append Turn
+         * @description Ask one turn IN a persistent thread (#41).
+         *
+         *     Replays the thread's PERSISTED turns as conversation context (so a follow-up
+         *     resolves against what was discussed even after a reload), generates the fused
+         *     answer through the SAME tenant-scoped path as ``POST
+         *     /experiments/conversation``, then persists Q + A + citations to the thread and
+         *     auto-titles it from the first question when still untitled. 404 when the
+         *     thread is unknown / cross-tenant / cross-user (#42) — never generates for a
+         *     thread the caller doesn't own.
+         */
+        post: operations["append_turn_conversations__conversation_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Connectors
+         * @description List every registered connector and whether it can run right now.
+         *
+         *     CSV is ``active``; Statsig and SQL are ``needs_credentials`` until the
+         *     customer supplies their own credentials (the UI renders an honest picker).
+         */
+        get: operations["list_connectors_connectors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/csv/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Csv Template
+         * @description Download the header-only CSV template (the expected column shape).
+         */
+        get: operations["csv_template_connectors_csv_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/csv/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Csv Sample
+         * @description Download a filled-in sample CSV so the CSV path is demoable with no data.
+         */
+        get: operations["csv_sample_connectors_csv_sample_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/csv/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Csv Preview
+         * @description Parse an uploaded CSV → columns + suggested mapping + a verifiable preview.
+         *
+         *     Does NOT import — it lets the customer confirm the column mapping before
+         *     committing. Per-row errors in the previewed rows are shown, never hidden.
+         */
+        post: operations["csv_preview_connectors_csv_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/{kind}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate
+         * @description Validate/configure a connector — honest about what credentials are missing.
+         */
+        post: operations["validate_connectors__kind__validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/{kind}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Connector Import
+         * @description Dry-run a credentialed import: pull + map the first rows, persist NOTHING.
+         *
+         *     The honest "see it before you commit" path for Statsig/SQL — it fetches from
+         *     the customer's source with their credentials and shows the mapped result, but
+         *     NEVER writes to the archive. The customer reviews the preview, then calls
+         *     ``/import`` to actually persist (MAJOR 5). No store dependency: a preview can
+         *     never touch the customer's archive.
+         */
+        post: operations["preview_connector_import_connectors__kind__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/{kind}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Connector Import
+         * @description Run an import and write the mapped records into the customer's archive.
+         *
+         *     A credentialed connector with no credentials returns a ``needs_credentials``
+         *     result with zero imported rows — never a fabricated import.
+         */
+        post: operations["run_connector_import_connectors__kind__import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connectors/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Imports
+         * @description Past imports for this customer + the total size of the ingested archive.
+         */
+        get: operations["list_imports_connectors_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiment-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sources
+         * @description List the customer's saved sources. Member-readable: existence / status /
+         *     last-import are visible to everyone in the org; secrets are NEVER returned.
+         */
+        get: operations["list_sources_experiment_sources_get"];
+        put?: never;
+        /**
+         * Create Source
+         * @description Connect a persisted experiment source: encrypt the credentials at rest
+         *     (AAD-bound to ``customer_id:id``) and persist a sanitized row. Admin-only —
+         *     it creates persistent, credential-bearing workspace state.
+         */
+        post: operations["create_source_experiment_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiment-sources/{connection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Source
+         * @description Metadata only — secrets never echoed (``credentials_set`` flag + non-secret
+         *     ``display_config``). Cross-tenant id → 404 (existence never leaks).
+         */
+        get: operations["get_source_experiment_sources__connection_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Source
+         * @description Delete a saved source. Customer-scoped: unknown id OR another tenant's id
+         *     both → 404 (existence never leaks). The cred blob is a column on the deleted
+         *     row (gone with it) and the import-run history cascades via the FK.
+         */
+        delete: operations["delete_source_experiment_sources__connection_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiment-sources/{connection_id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Imports
+         * @description Import-run history for one source (member-readable). Cross-tenant → 404.
+         */
+        get: operations["list_imports_experiment_sources__connection_id__imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiment-sources/{connection_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Source
+         * @description Validate the stored config can run (shape + credential presence). 204 on
+         *     ready; 400 with a customer-safe message when the source needs credentials /
+         *     config. Decrypts the stored blob to validate, never echoing it.
+         */
+        post: operations["test_source_experiment_sources__connection_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/experiment-sources/{connection_id}/reimport": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reimport Source
+         * @description RE-IMPORT on demand: pull the source again using the STORED credentials and
+         *     materialize the mapped experiments into the customer's archive.
+         *
+         *     EXECUTION, so member-OK (council: refresh = execution = member). It runs the
+         *     existing one-shot import pipeline (services/experiment_ingest.run_import) with
+         *     the decrypted stored creds + saved mapping — there is NO live per-query path;
+         *     a re-import is a fresh full pull each time the admin/member asks for one.
+         *
+         *     Records an ``ExperimentImportRun`` (started → finished) and stamps the
+         *     connection's ``last_import_at``. The import result's message is customer-safe
+         *     (#488); a connector that needs credentials / fails returns the run with
+         *     status='failed' and a safe error, never a raw driver string.
+         */
+        post: operations["reimport_source_experiment_sources__connection_id__reimport_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/crawl-credentials/{customer}": {
         parameters: {
             query?: never;
@@ -508,11 +1185,16 @@ export interface paths {
         };
         /**
          * Get Crawl Credentials
-         * @description Return decrypted role→{username,password} for one customer.
+         * @description Return decrypted role→{username,password} for one customer's crawl setup.
          *
-         *     404 when the customer has no saved setup or no stored credentials. The
-         *     usernames come from the password-free CrawlSetup; the passwords are
-         *     decrypted from the at-rest blob and joined by role.
+         *     ``?setup_id=`` selects which of the customer's setups to pull (#215/#245),
+         *     defaulting to ``"default"`` so a setup_id-less pull is byte-identical to
+         *     pre-#215 prod (the legacy single setup). The crawl dispatch carries the
+         *     chosen setup_id so CI pulls the matching setup's credentials.
+         *
+         *     404 when the customer has no saved setup (for that setup_id) or no stored
+         *     credentials. The usernames come from the password-free CrawlSetup; the
+         *     passwords are decrypted from the at-rest blob and joined by role.
          */
         get: operations["get_crawl_credentials_internal_crawl_credentials__customer__get"];
         put?: never;
@@ -638,6 +1320,58 @@ export interface paths {
          *     Returns 502 if the upstream LLM call fails.
          */
         post: operations["suggest_mapping_feature_stores__connection_id__suggest_mapping_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/feature-stores/suggest-mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Mapping For Columns
+         * @description Connection-agnostic column mapping — same stateless suggestion as the
+         *     ``/{connection_id}/suggest-mapping`` route, but for columns that don't come
+         *     from a saved connection (the #3 document feeder, where the documents ARE the
+         *     source). The suggestion never touched the connection anyway. Runs the blocking
+         *     LLM call off the event loop. Returns 502 if the upstream LLM call fails.
+         */
+        post: operations["suggest_mapping_for_columns_feature_stores_suggest_mapping_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/feature-stores/extract-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extract Documents
+         * @description #3 doc feeder: extract a bounded, fixed-schema feature row per entity from
+         *     its documents, then profile the columns into the same shape the Snowflake
+         *     preview emits — so doc-fed columns flow straight into the wizard's Map step.
+         *
+         *     Connection-agnostic (like suggest-mapping); the documents ARE the source.
+         *     The extraction is closed to ``extraction_schema`` (no model-invented columns)
+         *     and extractive (absence ⇒ null). 400 on a malformed schema (caller error);
+         *     502 if the upstream extraction LLM fails; 413 if the request exceeds the
+         *     document-count / total-text guard rails.
+         */
+        post: operations["extract_documents_feature_stores_extract_documents_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -786,6 +1520,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/persona-packs/{pack_id}/estimability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pack Estimability
+         * @description Reviewable "lever cards" for a pack — the estimability manifest, projected (#565).
+         *
+         *     Surfaces the build-time estimability manifest (written beside the persona pack
+         *     in R2 by the worker) as a list of per-(treatment→outcome) review cards: the
+         *     direction-only verdict plus the negative-control guard evidence a human uses
+         *     to sanity-check what the engine will and won't trust. The treatment's own
+         *     effect MAGNITUDES are stripped in the view (direction-only product); the NC
+         *     residuals are carried through as trust diagnostics.
+         *
+         *     Version resolution mirrors the other pack routes: ``latest`` resolves via the
+         *     pointer (404 when no pack exists yet), an explicit version reads that exact
+         *     snapshot's manifest. The manifest is OPTIONAL — a pack built before the
+         *     precompute shipped simply has none, which is a real 404 ("no lever data yet",
+         *     the frontend's honest empty-state), not an error. A present-but-malformed
+         *     manifest also degrades to 404 (logged) rather than 500-ing the page: this read
+         *     is never allowed to break the detail surface.
+         */
+        get: operations["get_pack_estimability_persona_packs__pack_id__estimability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/persona-packs/{pack_id}/lever-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Lever
+         * @description Record / replace / clear a human review of one lever (#565 parts 2 & 3).
+         *
+         *     The vouch/override layer over the auto-guard: a reviewer looking at a lever
+         *     card's negative-control evidence records whether they **vouch** the reading or
+         *     **reject** it (or **clear** a prior decision). Persisted in an R2 sidecar beside
+         *     the pack, keyed by version, and shown back on the card via the estimability GET.
+         *
+         *     The honesty asymmetry lives in how the frontend renders the stored decision — a
+         *     ``rejected`` review force-abstains a lever the guard trusted; a ``vouched`` review
+         *     never upgrades a guard-abstained lever into trust — so this route only persists
+         *     the decision, it does not mutate the machine verdict. Each review snapshots the
+         *     guard state the reviewer saw (``guard_trips_at_review`` / ``decisive_nc_at_review``)
+         *     for a later calibration join.
+         *
+         *     The lever being reviewed MUST exist in this pack's manifest — reusing the GET's
+         *     version/pack/manifest resolution (same 404 rules), then checking the
+         *     (treatment, outcome) pair is a real candidate. Reviewing a lever that isn't
+         *     there is a 404, not a silently-orphaned sidecar entry.
+         */
+        post: operations["review_lever_persona_packs__pack_id__lever_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/persona-packs/{pack_id}/promote": {
         parameters: {
             query?: never;
@@ -884,6 +1690,56 @@ export interface paths {
          *     — including for event types we don't act on, so Clerk stops retrying.
          */
         post: operations["clerk_webhook_webhooks_clerk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Console Summary
+         * @description Aggregate the workspace's current pipe-state into one read. Admin-only,
+         *     customer-scoped, secret-free. Every repo call below is read-only and already
+         *     customer-scoped; we only COUNT and pick the newest timestamp — no secret
+         *     column is ever touched.
+         */
+        get: operations["get_console_summary_admin_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit
+         * @description The workspace's append-only audit trail (#48), newest-first, paginated.
+         *
+         *     Admin-only (the trail is an admin surface, like the rest of the console) and
+         *     customer-scoped: a tenant only ever reads its OWN events — a cross-tenant
+         *     customer_id reads an empty list (the repo filters by customer_id; existence
+         *     never leaks). The data is RETRIEVABLE here from day one; a richer in-console
+         *     viewer is a deferred follow-up. Secret-free by construction — the table only
+         *     ever stored non-secret context.
+         */
+        get: operations["list_audit_admin_audit_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1080,6 +1936,61 @@ export interface components {
             arm?: ("treatment" | "control") | null;
         };
         /**
+         * AppendTurnRequest
+         * @description Ask one turn IN a persistent thread (#41).
+         *
+         *     Same shape as ``ConversationRequest`` minus ``history`` — the server replays
+         *     the thread's persisted turns as context, so the client need only send the
+         *     new message. The fused answer is generated by the SAME path as
+         *     ``POST /experiments/conversation``, then persisted to the thread.
+         */
+        AppendTurnRequest: {
+            /**
+             * Message
+             * @description The latest question.
+             */
+            message: string;
+            /**
+             * Top K
+             * @default 6
+             */
+            top_k: number;
+        };
+        /**
+         * AppendTurnResponse
+         * @description The just-generated + persisted turn, plus the updated thread metadata.
+         *
+         *     ``follow_ups``/``grounded`` ride alongside the persisted turn so the live UI
+         *     renders chips immediately without a re-fetch; ``conversation`` carries the
+         *     (possibly newly auto-titled) thread metadata so the switcher updates in
+         *     place.
+         */
+        AppendTurnResponse: {
+            turn: components["schemas"]["PersistedTurn"];
+            /** Follow Ups */
+            follow_ups?: string[];
+            /** Grounded */
+            grounded: boolean;
+            conversation: components["schemas"]["ConversationSummary"];
+        };
+        /**
+         * ArchiveState
+         * @description The archive (hide-from-Library) state of one Feature Pack version (#214).
+         *
+         *     Returned by the archive/unarchive endpoints. ``archived`` is the soft-delete
+         *     flag: True hides the version from the Library while it STAYS resolvable for any
+         *     historical simulation that froze it. Archiving never edits or deletes pack
+         *     content — it is distinct from the forbidden hand-edit / hard-delete.
+         */
+        ArchiveState: {
+            /** Customer Id */
+            customer_id: string;
+            /** Pack Version */
+            pack_version: string;
+            /** Archived */
+            archived: boolean;
+        };
+        /**
          * ArmSplit
          * @description A/B experiment-mode configuration (Phase 4.6 #88).
          *
@@ -1106,6 +2017,32 @@ export interface components {
             treatment_fraction: number;
         };
         /**
+         * AuditEntry
+         * @description One workspace audit event (#48). ``metadata`` is OPTIONAL non-secret
+         *     context only (a label / name / count) — never a credential.
+         */
+        AuditEntry: {
+            /** Id */
+            id: string;
+            /** Actor User Id */
+            actor_user_id?: string | null;
+            /** Action */
+            action: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Id */
+            target_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * BehavioralSeedSchema
          * @description Per-persona pools that identity_seed draws from (sidira-personas v1.1).
          *
@@ -1124,6 +2061,16 @@ export interface components {
             current_state_pool?: string[];
             /** Recent Gripe Pool */
             recent_gripe_pool?: string[];
+        };
+        /** Body_csv_preview_connectors_csv_preview_post */
+        Body_csv_preview_connectors_csv_preview_post: {
+            /** File */
+            file: string;
+            /**
+             * Variant Delimiter
+             * @default |
+             */
+            variant_delimiter: string;
         };
         /**
          * BuildConfig
@@ -1159,6 +2106,7 @@ export interface components {
             llm_provider: "groq" | "anthropic";
             /** Weight Schemes */
             weight_schemes?: ("head_count" | "order_weighted" | "revenue_weighted")[];
+            estimability?: components["schemas"]["EstimabilityBuildConfig"] | null;
         };
         /**
          * BuildStatus
@@ -1247,6 +2195,33 @@ export interface components {
             domain?: string | null;
         };
         /**
+         * ChatCitation
+         * @description A past experiment cited in a chat answer.
+         */
+        ChatCitation: {
+            /** Id */
+            id: string;
+            /** Change Description */
+            change_description: string;
+            result: components["schemas"]["ExperimentResult"];
+            /** Effect Size Pct */
+            effect_size_pct: number;
+            /** Primary Metric */
+            primary_metric: string;
+        };
+        /**
+         * CitationSource
+         * @description Which evidence kind a fused citation came from (#31).
+         *
+         *     The load-bearing distinction of the fusion: a MEASURED figure is a real
+         *     recorded A/B outcome; a PREDICTED figure is uncalibrated Sidira-simulation
+         *     agreement (DESIGN.md §8.3). The UI renders the source word verbatim beside
+         *     every figure so a prediction is never mistaken for a measurement (DESIGN.md
+         *     §8.2 PREDICTED/MEASURED citation lexicon — color never carries the state).
+         * @enum {string}
+         */
+        CitationSource: "measured" | "predicted";
+        /**
          * ColumnAssignment
          * @description A single column placed into a group, with the model's confidence.
          */
@@ -1269,7 +2244,7 @@ export interface components {
          * ColumnProfile
          * @description Lightweight column-level summary returned by `profile()`.
          */
-        ColumnProfile: {
+        "ColumnProfile-Input": {
             /** Name */
             name: string;
             /** Dtype */
@@ -1349,6 +2324,232 @@ export interface components {
             last_error_message?: string | null;
         };
         /**
+         * ConnectorDescriptor
+         * @description A connector advertised by the registry — what the UI renders in its picker.
+         *
+         *     ``state`` is honest: ``needs_credentials`` connectors are shown but cannot run
+         *     until the customer authenticates. ``credential_fields`` lists what the
+         *     customer must supply (never pre-filled, never faked).
+         */
+        ConnectorDescriptor: {
+            kind: components["schemas"]["ConnectorKind"];
+            /**
+             * Name
+             * @description Customer-facing connector name.
+             */
+            name: string;
+            /**
+             * Summary
+             * @description One sentence: what this connector ingests.
+             */
+            summary: string;
+            state: components["schemas"]["ConnectorState"];
+            /**
+             * Credential Fields
+             * @description Names of credentials the customer must supply for this connector to run (empty for CSV). The customer provides these — never hardcoded.
+             */
+            credential_fields?: string[];
+            /**
+             * Needs Message
+             * @description For needs_credentials connectors: the clear 'what to supply' message. None for active connectors.
+             */
+            needs_message?: string | null;
+        };
+        /**
+         * ConnectorKind
+         * @description The external source an import was pulled from.
+         * @enum {string}
+         */
+        ConnectorKind: "csv" | "statsig" | "sql";
+        /**
+         * ConnectorState
+         * @description Whether a registered connector can run right now.
+         *
+         *     - ``ACTIVE``: works end-to-end with no extra setup (CSV — the customer
+         *       uploads a file; nothing to authenticate).
+         *     - ``NEEDS_CREDENTIALS``: a real connector that is registered but inactive
+         *       until the customer supplies their own credentials (Statsig API key, SQL
+         *       connection string). It NEVER returns fabricated results in this state.
+         * @enum {string}
+         */
+        ConnectorState: "active" | "needs_credentials";
+        /**
+         * ConsoleSummary
+         * @description The admin-console landing aggregate. Counts / status / metadata only —
+         *     no secrets, no per-user conversation data.
+         */
+        ConsoleSummary: {
+            /** Customer Id */
+            customer_id: string;
+            experiment_sources: components["schemas"]["ExperimentSourcesSummary"];
+            feature_stores: components["schemas"]["FeatureStoresSummary"];
+            crawl: components["schemas"]["sidira_simulator__api__admin__CrawlSummary"];
+            personas: components["schemas"]["PersonasSummary"];
+        };
+        /**
+         * ConversationDetail
+         * @description A thread with its full ordered turn history (the open-thread payload).
+         */
+        ConversationDetail: {
+            /** Id */
+            id: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Turns */
+            turns?: components["schemas"]["PersistedTurn"][];
+        };
+        /** ConversationListResponse */
+        ConversationListResponse: {
+            /** Conversations */
+            conversations: components["schemas"]["ConversationSummary"][];
+        };
+        /**
+         * ConversationRequest
+         * @description A multi-turn conversation request over the fused archive (#32).
+         */
+        ConversationRequest: {
+            /**
+             * Message
+             * @description The latest question.
+             */
+            message: string;
+            /**
+             * History
+             * @description Prior turns, oldest first. Carried so a follow-up resolves against the prior turn's subject. Empty for the first turn.
+             */
+            history?: components["schemas"]["ConversationTurn"][];
+            /**
+             * Top K
+             * @default 6
+             */
+            top_k: number;
+        };
+        /**
+         * ConversationResponse
+         * @description A grounded, fused answer to one conversation turn (#32 + #31).
+         *
+         *     ``citations`` distinguishes MEASURED vs PREDICTED per item (#31).
+         *     ``follow_ups`` are suggested next questions the frontend renders as chips
+         *     (alongside its free-text box). Grounded/extractive-fallback behavior is
+         *     preserved from the single-shot chat.
+         */
+        ConversationResponse: {
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations: components["schemas"]["FusedCitation"][];
+            /**
+             * Follow Ups
+             * @description Suggested next questions (rendered as chips).
+             */
+            follow_ups?: string[];
+            /**
+             * Grounded
+             * @description True when produced from retrieved archive evidence (always).
+             */
+            grounded: boolean;
+            /**
+             * Used Llm
+             * @description True if an LLM composed the prose; False for the offline extractive fallback.
+             */
+            used_llm: boolean;
+        };
+        /**
+         * ConversationSummary
+         * @description One thread in the customer's thread list (newest first).
+         *
+         *     No turns — the list is the switcher; turns load on open via
+         *     ``GET /conversations/{id}``. ``title`` is None until the first turn auto-
+         *     derives a Claude-style default (the UI shows a "New conversation"
+         *     placeholder).
+         */
+        ConversationSummary: {
+            /** Id */
+            id: string;
+            /**
+             * Title
+             * @description Auto-derived from the first question, editable. None when untitled.
+             */
+            title?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConversationTurn
+         * @description One prior (question, answer) exchange carried back as context (#32).
+         *
+         *     The frontend holds the full thread and replays the prior turns on each new
+         *     question so a follow-up ("why did that one lose?") resolves against what was
+         *     just discussed. Only the text is carried — citations are recomputed per turn
+         *     so provenance stays grounded in fresh retrieval, never stale.
+         */
+        ConversationTurn: {
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+        };
+        /**
+         * CoverageSummary
+         * @description Pack-level data-coverage summary (#564) — bounded, counts + capped names.
+         *
+         *     A deliberate SUMMARY of the manifest's per-column coverage list, not the list
+         *     itself: a 500-column store must not turn the card payload into a dump. Counts
+         *     are complete; only the *name lists* are capped (at ``COVERAGE_NAME_CAP``) with
+         *     an explicit truncation count for the overflow. "Present" columns are counted
+         *     but never enumerated — the interesting review evidence is what's missing.
+         */
+        CoverageSummary: {
+            /** Total Columns */
+            total_columns: number;
+            /** Present Count */
+            present_count: number;
+            /** Behavioural Count */
+            behavioural_count: number;
+            /** Structural Count */
+            structural_count: number;
+            /** Expected Absent Count */
+            expected_absent_count: number;
+            /**
+             * Structural Columns
+             * @default []
+             */
+            structural_columns: string[];
+            /**
+             * Behavioural Columns
+             * @default []
+             */
+            behavioural_columns: string[];
+            /**
+             * Structural Truncated
+             * @default 0
+             */
+            structural_truncated: number;
+            /**
+             * Behavioural Truncated
+             * @default 0
+             */
+            behavioural_truncated: number;
+        };
+        /**
          * CrawlCapability
          * @description One priority capability the walker documents (reverse-PRD + reverse-Figma).
          */
@@ -1368,6 +2569,8 @@ export interface components {
         CrawlCredentialsResponse: {
             /** Customer Id */
             customer_id: string;
+            /** Setup Id */
+            setup_id: string;
             /** Logins */
             logins: components["schemas"]["CrawlRoleLogin"][];
         };
@@ -1453,6 +2656,45 @@ export interface components {
             walk_depth: number;
         };
         /**
+         * CrawlSetupCreateInput
+         * @description ``POST /crawl-setups`` body: a full crawl setup (with passwords, like the
+         *     PUT body) plus a human ``name`` the server slugifies into the setup_id.
+         */
+        CrawlSetupCreateInput: {
+            /** Capabilities */
+            capabilities: components["schemas"]["CrawlCapability"][];
+            /**
+             * Sandbox Url
+             * @description Staging/sandbox tenant — the walker never touches production
+             */
+            sandbox_url: string;
+            /** Test Users */
+            test_users: components["schemas"]["CrawlRoleCredentialInput"][];
+            /**
+             * Ip Allowlist Note
+             * @description Where/how the walker's egress IPs were allowlisted
+             * @default
+             */
+            ip_allowlist_note: string;
+            /**
+             * Cadence
+             * @default weekly
+             * @enum {string}
+             */
+            cadence: "weekly" | "on_demand";
+            /**
+             * Walk Depth
+             * @description Hops from a capability's entry URL the walker explores before it stops. Applied crawler-side as every capability's max_hops (#227). The default 6 matches the crawler's CapabilityConfig.max_hops and sits above the deepest real flow (checkout, refunds, subscription management run 5–6+ hops), so depth is a safety ceiling, not the binding constraint.
+             * @default 6
+             */
+            walk_depth: number;
+            /**
+             * Name
+             * @description Human label for this setup
+             */
+            name: string;
+        };
+        /**
          * CrawlSetupEnvelope
          * @description GET/PUT response: the saved setup (None when never saved) + provenance.
          */
@@ -1503,34 +2745,66 @@ export interface components {
             walk_depth: number;
         };
         /**
+         * CrawlSetupListItem
+         * @description A lighter row for the list view: identity + label + provenance, no full
+         *     config body. Still secret-free by construction.
+         */
+        CrawlSetupListItem: {
+            /** Setup Id */
+            setup_id: string;
+            /** Name */
+            name?: string | null;
+            /** Sandbox Url */
+            sandbox_url: string;
+            /** Capability Count */
+            capability_count: number;
+            /** Cadence */
+            cadence: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * CrawlSetupSummary
+         * @description One setup as the list/detail views show it: identity + label + the
+         *     password-free, non-secret config. NEVER carries credentials (the
+         *     role→password map stays encrypted at rest under CREDENTIALS_ENC_KEY and is
+         *     delivered only over the authenticated CI pull).
+         */
+        CrawlSetupSummary: {
+            /** Setup Id */
+            setup_id: string;
+            /** Name */
+            name?: string | null;
+            setup: components["schemas"]["CrawlSetup"];
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
          * CrawlStatus
          * @enum {string}
          */
         CrawlStatus: "pending" | "running" | "complete" | "failed";
-        /** CrawlSummary */
-        CrawlSummary: {
-            /** Id */
-            id: string;
-            /** Customer Id */
-            customer_id: string;
-            status: components["schemas"]["CrawlStatus"];
-            /** Phase */
-            phase?: string | null;
-            /** Snapshot Version */
-            snapshot_version?: string | null;
-            /** Capabilities Walked */
-            capabilities_walked?: string[] | null;
-            /** Run Url */
-            run_url?: string | null;
+        /**
+         * CrawlTriggerInput
+         * @description Optional ``POST /crawls`` body. ``setup_id`` selects which saved crawl
+         *     setup the run uses (#215/#245); it defaults to ``"default"`` so an empty
+         *     body (or no body) is byte-identical to today's single-setup dispatch.
+         */
+        CrawlTriggerInput: {
             /**
-             * Created At
-             * Format: date-time
+             * Setup Id
+             * @default default
              */
-            created_at: string;
-            /** Completed At */
-            completed_at?: string | null;
-            /** Error */
-            error?: string | null;
+            setup_id: string;
+        };
+        /**
+         * CreateConversationRequest
+         * @description Open a new (empty) thread. Title is optional — it auto-derives from the
+         *     first appended turn's question when left unset.
+         */
+        CreateConversationRequest: {
+            /** Title */
+            title?: string | null;
         };
         /** CreateSimulationResponse */
         CreateSimulationResponse: {
@@ -1539,6 +2813,61 @@ export interface components {
             status: components["schemas"]["SimulationStatus"];
             /** Poll Url */
             poll_url: string;
+        };
+        /**
+         * CreateSourceRequest
+         * @description Connect a persisted experiment source.
+         *
+         *     ``config`` carries the connector's full configuration; the SECRET keys
+         *     (``api_key`` for Statsig, ``connection_string`` for SQL) are encrypted at
+         *     rest and never returned. The remaining keys are non-secret display config.
+         *     ``mapping`` is the confirmed field mapping the re-import re-applies to every
+         *     pulled row (the firewall rename — see schemas/connector.py).
+         */
+        CreateSourceRequest: {
+            /**
+             * Name
+             * @description Customer-facing label for this source.
+             */
+            name: string;
+            kind: components["schemas"]["ConnectorKind"];
+            /**
+             * Config
+             * @description Connector config; secret keys are encrypted, the rest displayed.
+             */
+            config?: {
+                [key: string]: string;
+            };
+            /** @description Confirmed column→Experiment-field mapping for re-imports. */
+            mapping?: components["schemas"]["FieldMapping"];
+        };
+        /**
+         * CsvPreviewResponse
+         * @description What the customer sees after uploading a CSV, before importing.
+         *
+         *     Carries the detected columns (for mapping), a suggested mapping (best-effort
+         *     header match — the customer confirms/edits it), and a small parsed preview so
+         *     the customer can verify the mapping is right before committing the import.
+         */
+        CsvPreviewResponse: {
+            /** Columns */
+            columns: components["schemas"]["sidira_simulator__schemas__connector__ColumnProfile"][];
+            suggested_mapping: components["schemas"]["FieldMapping"];
+            /**
+             * Row Count
+             * @description Total data rows detected (excludes header).
+             */
+            row_count: number;
+            /**
+             * Preview
+             * @description Up to a handful of successfully-mapped rows, for verification.
+             */
+            preview: components["schemas"]["Experiment"][];
+            /**
+             * Errors
+             * @description Per-row errors in the previewed rows — shown, never hidden.
+             */
+            errors?: components["schemas"]["RowError"][];
         };
         /**
          * DeltaView
@@ -1560,6 +2889,149 @@ export interface components {
              * @enum {string}
              */
             magnitude: "somewhat" | "much" | "dramatically";
+        };
+        /**
+         * DirectionVerdict
+         * @description The customer-facing verdict: sign + confidence/abstain, NEVER a magnitude.
+         *
+         *     ``extra="forbid"`` + the deliberate ABSENCE of any float/magnitude field is
+         *     the structural guarantee: a caller cannot smuggle a point-estimate through
+         *     this contract (``DirectionVerdict(magnitude=0.4)`` raises ``ValidationError``).
+         *
+         *     Fields:
+         *       - ``direction``: ``positive`` / ``negative``, or None = no arrow / abstain.
+         *       - ``caution``: authoritative ordinal — ``none`` (trustworthy grounded),
+         *         ``moderate`` (unverified LLM take), ``hard`` (inconclusive / abstain).
+         *       - ``confidence``: coarse two-level chip derived from ``caution`` — ``high``
+         *         iff ``caution == "none"``, else ``low``.
+         *       - ``label``: the customer-facing framing string (from the decision router).
+         *       - ``source``: ``grounded`` (authoritative empirical) or ``llm_fallback``.
+         *       - ``watchdog_verdict``: CONFIRMS / CONTRADICTS / CANT_VALIDATE, or None when
+         *         the watchdog never ran (defensive path).
+         *       - ``grounding_gap_reason``: the #564 "why" for a grounding-incomplete
+         *         lever — e.g. ``"grounding-incomplete: no_vouched_negative_control"``.
+         *         Built EXCLUSIVELY from the producer's fixed gap-token vocabulary (the
+         *         builder allowlists tokens; producer free text never crosses), so it is
+         *         structurally not a magnitude channel. None on every non-#564 path and on
+         *         sidecars persisted before the field existed (legacy parses unchanged).
+         *       - ``unverified``: True on the ``llm_fallback`` branch (hypothesis, not
+         *         verdict).
+         *       - ``guardrails``: sibling + negative-control metric NAMES + roles (breadth).
+         *
+         *     Abstain ⇔ ``direction is None`` AND ``caution == "hard"`` (and ``confidence``
+         *     is then ``low``).
+         */
+        DirectionVerdict: {
+            /** Direction */
+            direction: ("positive" | "negative") | null;
+            /**
+             * Caution
+             * @enum {string}
+             */
+            caution: "none" | "moderate" | "hard";
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "low";
+            /** Label */
+            label: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "grounded" | "calibrated" | "llm_fallback";
+            /** Watchdog Verdict */
+            watchdog_verdict?: string | null;
+            /** Grounding Gap Reason */
+            grounding_gap_reason?: string | null;
+            /**
+             * Unverified
+             * @default false
+             */
+            unverified: boolean;
+            /** Guardrails */
+            guardrails?: components["schemas"]["GuardrailMetric"][];
+            /**
+             * Screen Action
+             * @description KILL / PASS / ABSTAIN — the customer's screening action.
+             *
+             *     Derived from ``direction`` + ``caution`` and serialized on the contract
+             *     so the card and the frontend read ONE field instead of re-deriving the
+             *     mapping. See :func:`screen_action_from_verdict` for the rule.
+             * @enum {string}
+             */
+            readonly screen_action: "KILL" | "PASS" | "ABSTAIN";
+        };
+        /**
+         * EntityDocument
+         * @description All document text for a single entity (one persona-pipeline row).
+         */
+        EntityDocument: {
+            /** Entity Id */
+            entity_id: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * EstimabilityBuildConfig
+         * @description Declares the causal-effect estimability manifest for an onboarded pack.
+         *
+         *     The *presence* of this block on a :class:`BuildConfig` is the intent to enable
+         *     the manifest — it is compiled (see :meth:`compiled`) into the
+         *     ``sidira_personas`` pipeline's ``cfg["estimability"]`` contract (which builds
+         *     the manifest only when ``enabled is True``). The white-glove onboarding names
+         *     the treatment/exposure column(s) (``treatments``) and outcome column(s)
+         *     (``outcomes``) that live in the joined source VIEW alongside the persona
+         *     features; see ``sessions/design-partner-onboarding/SEPARATE_TABLE_ONBOARDING.md``.
+         *
+         *     ``metric_registry``/``lever_registry`` (#596/#597) are the wizard's richer
+         *     declaration surface: per-column metadata that :meth:`compiled` folds into
+         *     the plain ``outcomes``/``treatments``/``neg_control_map`` keys — the only
+         *     keys the producer consumes today (it silently ignores unknown keys, so the
+         *     registries also ride along verbatim for audit and future consumers).
+         *     Explicit declarations always win over registry-derived ones.
+         *
+         *     All fields but ``enabled`` are optional; :meth:`compiled` serializes with
+         *     ``exclude_none`` so unset knobs fall through to the pipeline's own
+         *     documented defaults (``auto_neg_controls=True``, ``max_*`` caps, etc.).
+         */
+        EstimabilityBuildConfig: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Treatments */
+            treatments?: string[] | null;
+            /** Outcomes */
+            outcomes?: string[] | null;
+            /** Extra Outcome Hints */
+            extra_outcome_hints?: string[] | null;
+            /** Neg Control Map */
+            neg_control_map?: {
+                [key: string]: string[];
+            } | null;
+            /** Auto Neg Controls */
+            auto_neg_controls?: boolean | null;
+            /**
+             * Nc Diagnostics
+             * @default false
+             */
+            nc_diagnostics: boolean;
+            /** Max Treatments */
+            max_treatments?: number | null;
+            /** Max Outcomes */
+            max_outcomes?: number | null;
+            /** Max Rows */
+            max_rows?: number | null;
+            /** Metric Registry */
+            metric_registry?: components["schemas"]["MetricRegistryEntry"][] | null;
+            /** Lever Registry */
+            lever_registry?: components["schemas"]["LeverRegistryEntry"][] | null;
         };
         /**
          * EvidenceEdge
@@ -1629,6 +3101,178 @@ export interface components {
             /** Detail */
             detail?: string | null;
         };
+        /**
+         * Experiment
+         * @description One resolved past A/B experiment in the archive.
+         *
+         *     INPUT side (drives retrieval): id, change_description, variants,
+         *     primary_metric, category.
+         *     OUTCOME side (attached after ranking, never ranks): winner, result,
+         *     effect_size_pct, n, date.
+         */
+        Experiment: {
+            /** Id */
+            id: string;
+            /**
+             * Change Description
+             * @description What the experiment changed — the testable hypothesis, input side.
+             */
+            change_description: string;
+            /**
+             * Variants
+             * @description The arms tested; index 0 is the control by convention.
+             */
+            variants: string[];
+            /**
+             * Primary Metric
+             * @description The metric the experiment was decided on.
+             */
+            primary_metric: string;
+            category: components["schemas"]["ExperimentCategory"];
+            /**
+             * Winner
+             * @description Which variant won, or 'control' / 'no winner'.
+             */
+            winner: string;
+            result: components["schemas"]["ExperimentResult"];
+            /**
+             * Effect Size Pct
+             * @description Relative effect of the treatment on the primary metric, in percent. Positive = treatment beat control. Real recorded number, not a prediction.
+             */
+            effect_size_pct: number;
+            /**
+             * N
+             * @description Total sample size across arms.
+             */
+            n: number;
+            /**
+             * Date
+             * @description ISO date the experiment concluded (YYYY-MM-DD).
+             */
+            date: string;
+        };
+        /**
+         * ExperimentCategory
+         * @description The kind of product change an experiment tested.
+         * @enum {string}
+         */
+        ExperimentCategory: "copy" | "pricing" | "ui" | "flow";
+        /** ExperimentChatRequest */
+        ExperimentChatRequest: {
+            /**
+             * Message
+             * @description A question about the experiment archive.
+             */
+            message: string;
+            /**
+             * Top K
+             * @default 6
+             */
+            top_k: number;
+        };
+        /**
+         * ExperimentChatResponse
+         * @description A grounded answer over the archive plus the experiments it cited.
+         */
+        ExperimentChatResponse: {
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations: components["schemas"]["ChatCitation"][];
+            /**
+             * Grounded
+             * @description True when the answer was produced from retrieved archive experiments (always — the feature never answers ungrounded). The flag is kept so the UI can show provenance and a future ungrounded path stays honest.
+             */
+            grounded: boolean;
+            /**
+             * Used Llm
+             * @description True if an LLM composed the prose; False for the offline extractive fallback.
+             */
+            used_llm: boolean;
+        };
+        /**
+         * ExperimentResult
+         * @description The recorded outcome of a resolved experiment.
+         *
+         *     ``WIN``/``LOSS`` are relative to the treatment (the proposed change): a
+         *     treatment that beat control on the primary metric is a WIN, one that lost is
+         *     a LOSS, and one whose effect was not distinguishable from zero is ``FLAT``.
+         * @enum {string}
+         */
+        ExperimentResult: "win" | "loss" | "flat";
+        /**
+         * ExperimentSourcesSummary
+         * @description Counts + last-import status across the workspace's saved experiment
+         *     sources (#46). No name → no credential, just aggregate health.
+         */
+        ExperimentSourcesSummary: {
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Connected
+             * @default 0
+             */
+            connected: number;
+            /**
+             * Error
+             * @default 0
+             */
+            error: number;
+            /** Last Import At */
+            last_import_at?: string | null;
+        };
+        /** ExtractDocumentsRequest */
+        ExtractDocumentsRequest: {
+            /** Documents */
+            documents: components["schemas"]["EntityDocument"][];
+            extraction_schema: components["schemas"]["ExtractionSchema"];
+        };
+        /** ExtractDocumentsResponse */
+        ExtractDocumentsResponse: {
+            /** Row Count */
+            row_count: number;
+            /** Columns */
+            columns: components["schemas"]["sidira_simulator__adapters__feature_stores__ColumnProfile"][];
+            /** Rows */
+            rows: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * ExtractionField
+         * @description One bounded column to pull from each entity's documents.
+         *
+         *     ``type`` must be one of :data:`METRIC_TYPES` so the column re-enters the
+         *     existing adapter. ``description`` is the extraction instruction shown to the
+         *     model (what evidence to look for); it never widens the field set.
+         */
+        ExtractionField: {
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /**
+         * ExtractionSchema
+         * @description The CLOSED set of fields extraction may emit. Anything else is dropped.
+         */
+        ExtractionSchema: {
+            /** Fields */
+            fields?: components["schemas"]["ExtractionField"][];
+            /**
+             * Entity Key
+             * @default entity_id
+             */
+            entity_key: string;
+        };
         /** FeaturePackManifest */
         FeaturePackManifest: {
             /** Customer Id */
@@ -1656,6 +3300,11 @@ export interface components {
             crawl_metadata?: {
                 [key: string]: string;
             };
+            /**
+             * Archived
+             * @default false
+             */
+            archived: boolean;
         };
         /**
          * FeaturePackSummary
@@ -1683,6 +3332,35 @@ export interface components {
             schema_version: "1.0";
             /** Capabilities */
             capabilities: components["schemas"]["CapabilitySummary"][];
+        };
+        /**
+         * FeatureStoresSummary
+         * @description Counts + last-test health across saved feature-store connections.
+         *     Health words are the same sanitized fields the list route returns.
+         */
+        FeatureStoresSummary: {
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Ok
+             * @default 0
+             */
+            ok: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Untested
+             * @default 0
+             */
+            untested: number;
+            /** Last Tested At */
+            last_tested_at?: string | null;
         };
         /**
          * FeedbackRequest
@@ -1726,6 +3404,125 @@ export interface components {
          * @enum {string}
          */
         FeedbackTargetKind: "agent" | "persona_group";
+        /**
+         * FieldMapping
+         * @description Maps source column names onto Experiment fields (the firewall boundary).
+         *
+         *     A pure, deterministic rename: ``{Experiment field -> source column name}``.
+         *     ``variants`` may map to a single delimited column (split on
+         *     :attr:`variant_delimiter`). Only INPUT/OUTCOME target keys are honored; any
+         *     other key is ignored. Required fields missing from the mapping surface as
+         *     honest per-row errors at parse time rather than silently fabricating values.
+         */
+        FieldMapping: {
+            /**
+             * Columns
+             * @description Experiment field name -> source column name.
+             */
+            columns: {
+                [key: string]: string;
+            };
+            /**
+             * Variant Delimiter
+             * @description Delimiter used to split the variants column into arms.
+             * @default |
+             */
+            variant_delimiter: string;
+        };
+        /**
+         * FusedCitation
+         * @description One cited item in a fused answer — measured OR predicted.
+         *
+         *     A union-ish shape: ``source`` discriminates, ``effect_label`` is the already
+         *     formatted, source-appropriate figure (a measured ``+18.5%`` vs a predicted
+         *     ``UP · agreement 69/100`` line) so the frontend never has to know how to
+         *     format each source's native unit. ``id``/``change_description``/``metric``
+         *     are common across both.
+         */
+        FusedCitation: {
+            /** Id */
+            id: string;
+            source: components["schemas"]["CitationSource"];
+            /** Change Description */
+            change_description: string;
+            /** Metric */
+            metric: string;
+            /** Effect Label */
+            effect_label: string;
+        };
+        /**
+         * GateMatch
+         * @description A prior SIDIRA PREDICTION surfaced for a new hypothesis at submit (#38).
+         *
+         *     Source-aware (DESIGN.md §8.2/§8.3): every field is a PREDICTED, UNCALIBRATED
+         *     figure, never a measured outcome. ``agreements`` holds one or more agreement
+         *     scores because the SAME hypothesis may have been simulated multiple times —
+         *     the gate groups those runs and shows the spread (e.g. "predicted 3×: agreement
+         *     65 / 78 / 82") rather than listing near-duplicates as separate priors.
+         */
+        GateMatch: {
+            /**
+             * Id
+             * @description Short prior-run designator; never a raw UUID.
+             */
+            id: string;
+            /**
+             * Change Description
+             * @description The hypothesis this prior PREDICTED on — the input side.
+             */
+            change_description: string;
+            /**
+             * Primary Metric
+             * @description The OEC the prediction was expressed on.
+             */
+            primary_metric: string;
+            /**
+             * Similarity
+             * @description Cosine similarity of the new hypothesis to this prior.
+             */
+            similarity: number;
+            /**
+             * Predicted Direction
+             * @description up / down / flat — the direction the prior prediction leaned.
+             */
+            predicted_direction: string;
+            /**
+             * Agreements
+             * @description One agreement score per prior run of this hypothesis (0-100, uncalibrated). Multiple entries when the same change was simulated more than once — render the spread, not a single figure.
+             */
+            agreements: number[];
+            /**
+             * Run Count
+             * @description How many prior runs were grouped into this match.
+             */
+            run_count: number;
+            /**
+             * Last Sim Date
+             * @description Date of the most recent grouped run (YYYY-MM-DD).
+             */
+            last_sim_date: string;
+        };
+        /**
+         * GuardrailMetric
+         * @description One guardrail metric surfaced beside the headline (NAME + role, no number).
+         *
+         *     ``role`` distinguishes a ``sibling`` / cannibalization metric (a co-moving
+         *     outcome to watch for a lift that merely shifts volume) from a
+         *     ``negative_control`` (an outcome the treatment should NOT cause but which
+         *     shares the confounding — the watchdog's evidence). Carries no magnitude:
+         *     ``extra="forbid"`` so a stray numeric field fails loudly.
+         */
+        GuardrailMetric: {
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "sibling" | "negative_control";
+            /** Note */
+            note?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1773,6 +3570,104 @@ export interface components {
             prose?: string | null;
         };
         /**
+         * ImportRequest
+         * @description Run an import. The CSV path carries the raw rows; Statsig/SQL carry config.
+         *
+         *     For CSV, ``rows`` is the parsed source (list of column->value dicts) plus the
+         *     confirmed ``mapping``. For Statsig/SQL, ``config`` carries the customer's
+         *     credentials and the mapping is applied to the rows the connector pulls. If
+         *     the credentials are absent the import returns a needs_credentials result
+         *     rather than inventing data.
+         */
+        ImportRequest: {
+            mapping: components["schemas"]["FieldMapping"];
+            /**
+             * Rows
+             * @description Source rows for the CSV path (column -> value).
+             */
+            rows?: {
+                [key: string]: string;
+            }[];
+            /**
+             * Config
+             * @description Credentials / config for the Statsig and SQL paths.
+             */
+            config?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * ImportResult
+         * @description The honest outcome of an import — never silently partial.
+         *
+         *     ``imported`` counts records written to the archive; ``failed`` rows are
+         *     reported individually so the customer can fix and re-import. When a connector
+         *     ``needs_credentials``, ``state`` says so and ``imported`` is 0 (no fabricated
+         *     rows).
+         */
+        ImportResult: {
+            kind: components["schemas"]["ConnectorKind"];
+            state: components["schemas"]["ConnectorState"];
+            /** Imported */
+            imported: number;
+            /** Failed */
+            failed: number;
+            /** Errors */
+            errors?: components["schemas"]["RowError"][];
+            /**
+             * Experiments
+             * @description The records written to the archive by this import.
+             */
+            experiments?: components["schemas"]["Experiment"][];
+            /** Message */
+            message: string;
+        };
+        /** ImportRunSummary */
+        ImportRunSummary: {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "succeeded" | "failed";
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Imported Count
+             * @default 0
+             */
+            imported_count: number;
+            /**
+             * Failed Count
+             * @default 0
+             */
+            failed_count: number;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * ImportSummary
+         * @description A past import, for the 'what have I brought in' list.
+         */
+        ImportSummary: {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["ConnectorKind"];
+            /** Imported */
+            imported: number;
+            /**
+             * At
+             * @description ISO-8601 timestamp the import completed.
+             */
+            at: string;
+        };
+        /**
          * InputFlags
          * @description Pre-flight ordinal input-lint result, stamped on an amber/red/abstain run
          *     (epic #309, T3 / #312).
@@ -1809,6 +3704,196 @@ export interface components {
              */
             paraphrase_unstable: boolean;
         };
+        /**
+         * LeverCard
+         * @description One reviewable (treatment → outcome) lever — direction + NC-guard verdict.
+         *
+         *     A record for human review, not the raw candidate: the treatment's own effect
+         *     magnitudes are intentionally absent (direction-only product). ``guard_trips``
+         *     is the tri-state the card renders — ``True`` untrustworthy (effect
+         *     indistinguishable from confounding bias), ``False`` trustworthy empirical,
+         *     ``None`` NC evidence not precomputed (→ "not validated", the honest
+         *     empty-state; never dressed up as trust).
+         */
+        LeverCard: {
+            /** Treatment */
+            treatment: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Covariates
+             * @default []
+             */
+            covariates: string[];
+            /** Supportable */
+            supportable: boolean;
+            /**
+             * Support Reasons
+             * @default []
+             */
+            support_reasons: string[];
+            /** N Treat */
+            n_treat?: number | null;
+            /** N Control */
+            n_control?: number | null;
+            /** Overlap Fraction */
+            overlap_fraction?: number | null;
+            /** Direction */
+            direction?: ("positive" | "negative") | null;
+            /** Guard Trips */
+            guard_trips?: boolean | null;
+            /** Guard Floor */
+            guard_floor?: number | null;
+            /** Guard Ratio */
+            guard_ratio?: number | null;
+            /** Guard Confidence */
+            guard_confidence?: string | null;
+            /** Guard Reason */
+            guard_reason?: string | null;
+            /** Neg Control Effect */
+            neg_control_effect?: number | null;
+            /**
+             * Neg Control Effects
+             * @default {}
+             */
+            neg_control_effects: {
+                [key: string]: number;
+            };
+            /** Grounding Complete */
+            grounding_complete?: boolean | null;
+            /**
+             * Grounding Gaps
+             * @default []
+             */
+            grounding_gaps: string[];
+            review?: components["schemas"]["LeverReview"] | null;
+        };
+        /**
+         * LeverCardManifest
+         * @description The lever cards for one persona pack, plus manifest provenance.
+         */
+        LeverCardManifest: {
+            /** Manifest Version */
+            manifest_version: string;
+            /** Pack Version */
+            pack_version: string;
+            /** Feature Store */
+            feature_store: string;
+            /** Built At */
+            built_at?: string | null;
+            /**
+             * Levers
+             * @default []
+             */
+            levers: components["schemas"]["LeverCard"][];
+            coverage?: components["schemas"]["CoverageSummary"] | null;
+        };
+        /**
+         * LeverRegistryEntry
+         * @description One treatment/exposure lever declared by the wizard's lever registry.
+         *
+         *     Compiled counterpart of :class:`MetricRegistryEntry` for the pipeline's
+         *     ``treatments`` key; ``display_name``/``description`` are UI/audit metadata
+         *     the producer ignores today.
+         */
+        LeverRegistryEntry: {
+            /** Column */
+            column: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * LeverReview
+         * @description One human review of a (treatment → outcome) lever, persisted per pack.
+         */
+        LeverReview: {
+            /** Treatment */
+            treatment: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "vouched" | "rejected";
+            /** Note */
+            note?: string | null;
+            /** Reviewer */
+            reviewer: string;
+            /** Reviewed At */
+            reviewed_at: string;
+            /** Guard Trips At Review */
+            guard_trips_at_review?: boolean | null;
+            /** Decisive Nc At Review */
+            decisive_nc_at_review?: string | null;
+        };
+        /**
+         * LeverReviewRequest
+         * @description POST body to record/replace/clear a reviewer's decision on one lever.
+         */
+        LeverReviewRequest: {
+            /** Treatment */
+            treatment: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "vouched" | "rejected" | "cleared";
+            /** Note */
+            note?: string | null;
+            /** Guard Trips At Review */
+            guard_trips_at_review?: boolean | null;
+            /** Decisive Nc At Review */
+            decisive_nc_at_review?: string | null;
+        };
+        /**
+         * LeverReviewResponse
+         * @description Result of a lever-review write — the stored review, or None when cleared.
+         */
+        LeverReviewResponse: {
+            review?: components["schemas"]["LeverReview"] | null;
+        };
+        /**
+         * LineageEntry
+         * @description One ancestor in a simulation's refinement-loop lineage (Phase 8 #43).
+         *
+         *     Compact projection used by the `lineage` chain on GET /simulations/{id}:
+         *     just enough for a frontend timeline to render each prior iteration as a
+         *     clickable node (id + status + headline score + a short hypothesis label)
+         *     without N follow-up fetches. The chain is ordered nearest-ancestor-first
+         *     (the run's direct parent at index 0), customer-scoped, depth-capped at 10,
+         *     and cycle-safe — see `_walk_lineage` in the simulations router.
+         */
+        LineageEntry: {
+            /** Id */
+            id: string;
+            /** Parent Simulation Id */
+            parent_simulation_id?: string | null;
+            status: components["schemas"]["SimulationStatus"];
+            /** Confidence Score */
+            confidence_score?: number | null;
+            /** Hypothesis Label */
+            hypothesis_label?: string | null;
+        };
+        /** ListConnectorsResponse */
+        ListConnectorsResponse: {
+            /** Connectors */
+            connectors: components["schemas"]["ConnectorDescriptor"][];
+        };
+        /** ListImportsResponse */
+        ListImportsResponse: {
+            /** Imports */
+            imports: components["schemas"]["ImportSummary"][];
+            /**
+             * Archive Size
+             * @description Total experiments in the customer's ingested archive.
+             */
+            archive_size: number;
+        };
         /** ListModelsResponse */
         ListModelsResponse: {
             /** Models */
@@ -1841,6 +3926,33 @@ export interface components {
             loyalty_lifecycle?: components["schemas"]["ColumnAssignment"][];
             /** Unmapped */
             unmapped?: components["schemas"]["ColumnAssignment"][];
+        };
+        /**
+         * MetricRegistryEntry
+         * @description One outcome metric declared by the wizard's metric registry (#596/#597).
+         *
+         *     The registry is the wizard's *declaration surface*: instead of hand-writing
+         *     the pipeline's ``outcomes``/``neg_control_map`` keys, an onboarding names
+         *     each metric column once — with optional display/semantic metadata for UI and
+         *     audit — and :meth:`EstimabilityBuildConfig.compiled` folds it into the
+         *     pipeline declaration. ``pre_period_column`` links the metric to its
+         *     pre-treatment counterpart, which compiles into a negative-control entry
+         *     (unless an explicit ``neg_control_map`` key for the column already exists —
+         *     explicit always wins).
+         */
+        MetricRegistryEntry: {
+            /** Column */
+            column: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Semantic Type */
+            semantic_type?: ("rate" | "duration" | "cumulative" | "count") | null;
+            /** Description */
+            description?: string | null;
+            /** Synonyms */
+            synonyms?: string[] | null;
+            /** Pre Period Column */
+            pre_period_column?: string | null;
         };
         /** ModelInfo */
         ModelInfo: {
@@ -1916,6 +4028,32 @@ export interface components {
             content?: string | null;
             /** Error */
             error?: string | null;
+        };
+        /**
+         * PersistedTurn
+         * @description One persisted (question, answer) exchange in a thread's history (#41).
+         *
+         *     Carries the per-answer fused citations verbatim so a reloaded thread
+         *     re-renders byte-identical evidence (MEASURED/PREDICTED firewall intact) and
+         *     the follow-up-context replay matches the live path. ``follow_ups`` are NOT
+         *     persisted (they are derived suggestions, recomputed on the live turn only).
+         */
+        PersistedTurn: {
+            /** Id */
+            id: string;
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations?: components["schemas"]["FusedCitation"][];
+            /** Used Llm */
+            used_llm: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * Persona
@@ -2174,6 +4312,27 @@ export interface components {
             weight: number;
         };
         /**
+         * PersonasSummary
+         * @description Latest *completed* persona pack version + last build attempt. The
+         *     pack version is provenance the console surfaces (council §reproducibility);
+         *     ``last_build_status`` is the most recent attempt regardless of outcome.
+         */
+        PersonasSummary: {
+            /** Pack Version */
+            pack_version?: string | null;
+            /** Persona Count */
+            persona_count?: number | null;
+            /** Last Build Status */
+            last_build_status?: string | null;
+            /** Last Build At */
+            last_build_at?: string | null;
+            /**
+             * Total Builds
+             * @default 0
+             */
+            total_builds: number;
+        };
+        /**
          * PreflightRequest
          * @description Lightweight authoring-time pre-flight check (epic #309, T4 / #313).
          *
@@ -2250,7 +4409,7 @@ export interface components {
             /** Row Count */
             row_count: number;
             /** Columns */
-            columns: components["schemas"]["ColumnProfile"][];
+            columns: components["schemas"]["sidira_simulator__adapters__feature_stores__ColumnProfile"][];
         };
         /**
          * ProfileBlockView
@@ -2289,12 +4448,33 @@ export interface components {
              */
             note: string;
         };
+        /**
+         * RenameConversationRequest
+         * @description Rename a thread (PATCH title). Trimmed, non-empty, capped at 256.
+         */
+        RenameConversationRequest: {
+            /** Title */
+            title: string;
+        };
         /** ReverseFigma */
         ReverseFigma: {
             /** Screens */
             screens?: components["schemas"]["Screen"][];
             /** Transitions */
             transitions?: components["schemas"]["Transition"][];
+        };
+        /**
+         * RowError
+         * @description An honest, per-row parse/validation failure (never silently dropped).
+         */
+        RowError: {
+            /**
+             * Row
+             * @description 1-based source row index (excludes the header).
+             */
+            row: number;
+            /** Message */
+            message: string;
         };
         /** RunEvent */
         RunEvent: {
@@ -2361,7 +4541,16 @@ export interface components {
             persona_pack_version: string;
             /** Feature Pack Version */
             feature_pack_version: string;
+            /**
+             * Setup Id
+             * @default default
+             */
+            setup_id: string;
             hypothesis: components["schemas"]["Hypothesis"];
+            /** Parent Simulation Id */
+            parent_simulation_id?: string | null;
+            /** Lineage */
+            lineage?: components["schemas"]["LineageEntry"][];
             /** Population Size */
             population_size?: number | null;
             /** Sampled Agent Count */
@@ -2376,6 +4565,47 @@ export interface components {
             /** Agent Instance Ids */
             agent_instance_ids?: string[];
             result?: components["schemas"]["SimulationResult"] | null;
+        };
+        /**
+         * SimulationComparison
+         * @description Structured old→new diff for the refinement loop (Phase 8 #42).
+         *
+         *     Returned by GET /simulations/compare?old=<id>&new=<id>. Both sims must be
+         *     owned by the requesting customer AND completed — otherwise 404. The diff is
+         *     purely DESCRIPTIVE (built from the two persisted results); it computes no new
+         *     score and re-runs nothing.
+         */
+        SimulationComparison: {
+            old: components["schemas"]["SimulationRef"];
+            new: components["schemas"]["SimulationRef"];
+            /** Old Confidence Score */
+            old_confidence_score?: number | null;
+            /** New Confidence Score */
+            new_confidence_score?: number | null;
+            /** Confidence Score Delta */
+            confidence_score_delta?: number | null;
+            /** Weakness Category Diffs */
+            weakness_category_diffs?: components["schemas"]["WeaknessCategoryDiff"][];
+            /** Weakness Categories Appeared */
+            weakness_categories_appeared?: string[];
+            /** Weakness Categories Disappeared */
+            weakness_categories_disappeared?: string[];
+            /** Weakness Categories Changed */
+            weakness_categories_changed?: string[];
+            /** Old Refinement Suggestions */
+            old_refinement_suggestions?: string[];
+            /** New Refinement Suggestions */
+            new_refinement_suggestions?: string[];
+            /** Refinement Suggestions Added */
+            refinement_suggestions_added?: string[];
+            /** Refinement Suggestions Resolved */
+            refinement_suggestions_resolved?: string[];
+            /** Old Sentiment Positive Share */
+            old_sentiment_positive_share?: number | null;
+            /** New Sentiment Positive Share */
+            new_sentiment_positive_share?: number | null;
+            /** Sentiment Positive Share Delta */
+            sentiment_positive_share_delta?: number | null;
         };
         /**
          * SimulationLimitsResponse
@@ -2407,6 +4637,19 @@ export interface components {
             confidence_score?: number | null;
         };
         /**
+         * SimulationRef
+         * @description One side of a comparison — the id + headline of a compared sim.
+         */
+        SimulationRef: {
+            /** Id */
+            id: string;
+            status: components["schemas"]["SimulationStatus"];
+            /** Confidence Score */
+            confidence_score?: number | null;
+            /** Hypothesis Label */
+            hypothesis_label?: string | null;
+        };
+        /**
          * SimulationRequest
          * @description PM-submitted simulation request (Phase 2.5).
          *
@@ -2418,6 +4661,11 @@ export interface components {
          */
         SimulationRequest: {
             hypothesis: components["schemas"]["Hypothesis"];
+            /**
+             * Parent Simulation Id
+             * @description Phase 8 #43: id of the simulation this run refines. Links the new sim into a refinement-loop lineage chain (run → refine → re-run). None = a fresh run with no parent (today's behavior). Not validated for existence at submit time — a dangling parent simply yields a single-element lineage at GET time.
+             */
+            parent_simulation_id?: string | null;
             /**
              * Population Size
              * @default 1000
@@ -2460,6 +4708,12 @@ export interface components {
              * @default false
              */
             run_as_generic_reception: boolean;
+            /**
+             * Setup Id
+             * @description #215/#245 PR 3a: which crawl setup's Feature Pack this sim resolves its capability from. A sim built from a NAMED setup's capabilities must resolve THAT setup's pack, not the default — the orchestrator threads this id into FeaturePackLoader.resolve_latest_version / load_capability so the resolved pack matches the setup the PM authored against. Omitted (the default) → 'default' → the EXACT legacy pack prefix (customers/<id>/featurepacks), byte-identical to pre-#215 prod. Validated here against is_safe_setup_id so a path-traversal value (e.g. '../other_customer') is rejected at request validation, before it can ever become an R2 key segment (mirrors schemas.crawl._SETUP_ID_RE / the loader's R2-boundary guard).
+             * @default default
+             */
+            setup_id: string;
         };
         /** SimulationResult */
         SimulationResult: {
@@ -2638,60 +4892,7 @@ export interface components {
             metric_sentiment_disagreement: boolean;
             /** Metric Sentiment Disagreement Caveat */
             metric_sentiment_disagreement_caveat?: string | null;
-            /**
-             * Decision Verdict
-             * @description Direction-only watchdog verdict (Epic #538, #545). Additive; null on flag-off (SIDIRA_DECISION_FLOW_ENABLED) or runs that predate the rewire. Carries a sign + confidence/abstain, NEVER a magnitude.
-             */
             decision_verdict?: components["schemas"]["DirectionVerdict"] | null;
-        };
-        /**
-         * GuardrailMetric
-         * @description One guardrail metric surfaced beside the headline (NAME + role, no number).
-         */
-        GuardrailMetric: {
-            /** Name */
-            name: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "sibling" | "negative_control";
-            /** Note */
-            note?: string | null;
-        };
-        /**
-         * DirectionVerdict
-         * @description The customer-facing verdict: sign + confidence/abstain, NEVER a magnitude (Epic #538, #545).
-         */
-        DirectionVerdict: {
-            /** Direction */
-            direction: "positive" | "negative" | null;
-            /**
-             * Caution
-             * @enum {string}
-             */
-            caution: "none" | "moderate" | "hard";
-            /**
-             * Confidence
-             * @enum {string}
-             */
-            confidence: "high" | "low";
-            /** Label */
-            label: string;
-            /**
-             * Source
-             * @enum {string}
-             */
-            source: "grounded" | "llm_fallback";
-            /** Watchdog Verdict */
-            watchdog_verdict?: string | null;
-            /**
-             * Unverified
-             * @default false
-             */
-            unverified: boolean;
-            /** Guardrails */
-            guardrails?: components["schemas"]["GuardrailMetric"][];
         };
         /**
          * SimulationRunState
@@ -2772,10 +4973,87 @@ export interface components {
             /** Schema */
             schema?: string | null;
         };
+        /**
+         * SourceSummary
+         * @description Sanitized view of a saved source. NEVER includes any credential.
+         *
+         *     ``display_config`` carries only the non-secret fields (host/database/project/
+         *     query/delimiter). ``credentials_set`` is the write-only-secret flag (#488):
+         *     True means a credential is stored, without ever echoing it.
+         */
+        SourceSummary: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["ConnectorKind"];
+            /** Status */
+            status: string;
+            /** Display Config */
+            display_config: {
+                [key: string]: unknown;
+            };
+            /** Credentials Set */
+            credentials_set: boolean;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Import At */
+            last_import_at?: string | null;
+        };
+        /**
+         * SubmitGateRequest
+         * @description A submit-time gate check for a new hypothesis (#38).
+         *
+         *     Identical request shape to ``SearchSimilarRequest`` but routed at the wizard's
+         *     submit step against the TENANT's OWN prior simulations.
+         */
+        SubmitGateRequest: {
+            /**
+             * Hypothesis
+             * @description The NEW change being submitted. Carries no outcome.
+             */
+            hypothesis: string;
+            /**
+             * Top K
+             * @default 5
+             */
+            top_k: number;
+        };
+        /**
+         * SubmitGateResponse
+         * @description Advisory (NON-BLOCKING) submit-gate result over PRIOR PREDICTIONS (#38).
+         *
+         *     The verdict is trust-ordered exactly like the measured dedup, but every match
+         *     is a PREDICTED prior (``GateMatch``), labeled uncalibrated. The frontend uses
+         *     ``verdict`` to decide UI weight (novel → silent, similar → inline note,
+         *     already_tested → prominent panel) and NEVER blocks the run on it.
+         */
+        SubmitGateResponse: {
+            /** Hypothesis */
+            hypothesis: string;
+            verdict: components["schemas"]["Verdict"];
+            /**
+             * Headline
+             * @description One honest sentence framing what Sidira already predicted (or didn't).
+             */
+            headline: string;
+            /**
+             * Caveat
+             * @description The 'similar != same test, and a prediction is not a measurement' label.
+             */
+            caveat?: string | null;
+            /** Matches */
+            matches: components["schemas"]["GateMatch"][];
+        };
         /** SuggestMappingRequest */
         SuggestMappingRequest: {
             /** Columns */
-            columns: components["schemas"]["ColumnProfile"][];
+            columns: components["schemas"]["ColumnProfile-Input"][];
         };
         /** Transition */
         Transition: {
@@ -2808,6 +5086,39 @@ export interface components {
             /** Error */
             error: string;
         };
+        /**
+         * ValidateConnectorRequest
+         * @description Validate/configure a connector before importing.
+         *
+         *     Credentials are supplied by the customer at request time and are NOT
+         *     persisted by this endpoint — keeping the connector honest (no stored faked
+         *     state) and migration-free. ``config`` carries connector-specific fields
+         *     (e.g. the SQL connection string + query, or a Statsig API key).
+         */
+        ValidateConnectorRequest: {
+            /**
+             * Config
+             * @description Connector-specific credentials / configuration.
+             */
+            config?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * ValidateConnectorResponse
+         * @description The honest result of validating a connector's credentials/config.
+         */
+        ValidateConnectorResponse: {
+            kind: components["schemas"]["ConnectorKind"];
+            /** Ok */
+            ok: boolean;
+            state: components["schemas"]["ConnectorState"];
+            /**
+             * Message
+             * @description Human-readable validation outcome (success or what's missing).
+             */
+            message: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2821,6 +5132,23 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * Verdict
+         * @description Trust-ordered classification of a NEW hypothesis against the archive.
+         *
+         *     Ordered by how much the past evidence can be trusted to speak to the new
+         *     hypothesis:
+         *
+         *     - ``ALREADY_TESTED``: a past experiment is close enough that it is, for
+         *       practical purposes, the SAME test — show its real result.
+         *     - ``SIMILAR``: a past experiment rhymes with the new one — shown HONESTLY as
+         *       an analogical prior, never as a guarantee ("similar != guaranteed same
+         *       effect").
+         *     - ``NOVEL``: nothing in the archive is close — a genuine candidate for
+         *       testing, no prior to lean on.
+         * @enum {string}
+         */
+        Verdict: "already_tested" | "similar" | "novel";
         /**
          * Weakness
          * @description One diagnosed weakness in the hypothesis.
@@ -2838,12 +5166,58 @@ export interface components {
             summary: string;
             /** Supporting Agent Ids */
             supporting_agent_ids?: string[];
+            /** Support Count */
+            support_count?: number | null;
             /** Frequency */
             frequency?: number | null;
             /** Ci Low */
             ci_low?: number | null;
             /** Ci High */
             ci_high?: number | null;
+        };
+        /**
+         * WeaknessCategoryDiff
+         * @description How one weakness CATEGORY moved between two runs (Phase 8 #42).
+         *
+         *     The unit of the diff is `Weakness.category` (the closed Literal enum), not a
+         *     free-text summary — so "the wrong_cohort weakness got fixed" is a stable,
+         *     machine-comparable signal. `agent_count` is the number of supporting agents
+         *     for that category in each run (summed across all weakness rows of the
+         *     category), letting the frontend show "12 agents flagged this, now 3".
+         *     `change` classifies the movement:
+         *
+         *     - "appeared":    present in new, absent in old
+         *     - "disappeared": present in old, absent in new (the refinement-loop win)
+         *     - "changed":     present in both, supporting-agent count differs
+         *     - "unchanged":   present in both, same supporting-agent count
+         */
+        WeaknessCategoryDiff: {
+            /** Category */
+            category: string;
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "appeared" | "disappeared" | "changed" | "unchanged";
+            /**
+             * Old Agent Count
+             * @default 0
+             */
+            old_agent_count: number;
+            /**
+             * New Agent Count
+             * @default 0
+             */
+            new_agent_count: number;
+            /**
+             * Agent Count Delta
+             * @default 0
+             */
+            agent_count_delta: number;
+            /** Old Frequency */
+            old_frequency?: number | null;
+            /** New Frequency */
+            new_frequency?: number | null;
         };
         /**
          * WeightSchemeView
@@ -2879,6 +5253,81 @@ export interface components {
             revenue_weighted?: {
                 [key: string]: number;
             } | null;
+        };
+        /**
+         * ColumnProfile
+         * @description Lightweight column-level summary returned by `profile()`.
+         */
+        sidira_simulator__adapters__feature_stores__ColumnProfile: {
+            /** Name */
+            name: string;
+            /** Dtype */
+            dtype: string;
+            /** Non Null Count */
+            non_null_count: number;
+            /** Null Fraction */
+            null_fraction: number;
+            /** Distinct Count */
+            distinct_count?: number | null;
+            /** Sample Values */
+            sample_values?: unknown[] | null;
+        };
+        /**
+         * CrawlSummary
+         * @description Crawl setup presence + last run. ``configured`` is whether ANY crawl
+         *     setup exists; ``last_run_status`` / ``last_run_at`` come from the most
+         *     recent run row (None when never run).
+         */
+        sidira_simulator__api__admin__CrawlSummary: {
+            /**
+             * Configured
+             * @default false
+             */
+            configured: boolean;
+            /**
+             * Setup Count
+             * @default 0
+             */
+            setup_count: number;
+            /** Last Run Status */
+            last_run_status?: string | null;
+            /** Last Run At */
+            last_run_at?: string | null;
+        };
+        /** CrawlSummary */
+        sidira_simulator__api__crawls__CrawlSummary: {
+            /** Id */
+            id: string;
+            /** Customer Id */
+            customer_id: string;
+            status: components["schemas"]["CrawlStatus"];
+            /** Phase */
+            phase?: string | null;
+            /** Snapshot Version */
+            snapshot_version?: string | null;
+            /** Capabilities Walked */
+            capabilities_walked?: string[] | null;
+            /** Run Url */
+            run_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * ColumnProfile
+         * @description A detected source column plus a few example values (for the mapping UI).
+         */
+        sidira_simulator__schemas__connector__ColumnProfile: {
+            /** Name */
+            name: string;
+            /** Sample Values */
+            sample_values?: string[];
         };
     };
     responses: never;
@@ -2995,6 +5444,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreflightResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_simulations_simulations_compare_get: {
+        parameters: {
+            query: {
+                old: string;
+                new: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationComparison"];
                 };
             };
             /** @description Validation Error */
@@ -3359,7 +5840,10 @@ export interface operations {
     };
     list_capabilities_capabilities_get: {
         parameters: {
-            query?: never;
+            query?: {
+                include_archived?: boolean;
+                setup_id?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3375,11 +5859,22 @@ export interface operations {
                     "application/json": components["schemas"]["FeaturePackManifest"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_capability_capabilities__capability_name__get: {
         parameters: {
-            query?: never;
+            query?: {
+                setup_id?: string;
+            };
             header?: never;
             path: {
                 capability_name: string;
@@ -3410,7 +5905,10 @@ export interface operations {
     };
     list_capabilities_summary_feature_pack_summary_get: {
         parameters: {
-            query?: never;
+            query?: {
+                include_archived?: boolean;
+                setup_id?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3424,6 +5922,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeaturePackSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_feature_pack_featurepacks__version__archive_post: {
+        parameters: {
+            query?: {
+                setup_id?: string;
+            };
+            header?: never;
+            path: {
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unarchive_feature_pack_featurepacks__version__unarchive_post: {
+        parameters: {
+            query?: {
+                setup_id?: string;
+            };
+            header?: never;
+            path: {
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArchiveState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3481,6 +6054,156 @@ export interface operations {
             };
         };
     };
+    list_crawl_setups_crawl_setups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupListItem"][];
+                };
+            };
+        };
+    };
+    create_crawl_setup_crawl_setups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrawlSetupCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_crawl_setup_by_id_crawl_setups__setup_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                setup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_crawl_setup_by_id_crawl_setups__setup_id__put: {
+        parameters: {
+            query?: {
+                name?: string | null;
+            };
+            header?: never;
+            path: {
+                setup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrawlSetupInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrawlSetupSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_crawl_setup_by_id_crawl_setups__setup_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                setup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_crawls_crawls_get: {
         parameters: {
             query?: never;
@@ -3496,7 +6219,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrawlSummary"][];
+                    "application/json": components["schemas"]["sidira_simulator__api__crawls__CrawlSummary"][];
                 };
             };
         };
@@ -3508,7 +6231,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CrawlTriggerInput"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             202: {
@@ -3516,7 +6243,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrawlSummary"];
+                    "application/json": components["schemas"]["sidira_simulator__api__crawls__CrawlSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3538,7 +6274,711 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CrawlSummary"];
+                    "application/json": components["schemas"]["sidira_simulator__api__crawls__CrawlSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_search_similar_experiments_search_similar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitGateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitGateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_chat_experiments_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_conversation_experiments_conversation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversations_conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationListResponse"];
+                };
+            };
+        };
+    };
+    create_conversation_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conversation_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_conversation_conversations__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_conversation_conversations__conversation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    append_turn_conversations__conversation_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppendTurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppendTurnResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connectors_connectors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListConnectorsResponse"];
+                };
+            };
+        };
+    };
+    csv_template_connectors_csv_template_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    csv_sample_connectors_csv_sample_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    csv_preview_connectors_csv_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_csv_preview_connectors_csv_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_connectors__kind__validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["ConnectorKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidateConnectorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidateConnectorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_connector_import_connectors__kind__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["ConnectorKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_connector_import_connectors__kind__import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["ConnectorKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_connectors_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListImportsResponse"];
+                };
+            };
+        };
+    };
+    list_sources_experiment_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSummary"][];
+                };
+            };
+        };
+    };
+    create_source_experiment_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_source_experiment_sources__connection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_experiment_sources__connection_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_experiment_sources__connection_id__imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_source_experiment_sources__connection_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reimport_source_experiment_sources__connection_id__reimport_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunSummary"];
                 };
             };
             /** @description Validation Error */
@@ -3554,7 +6994,9 @@ export interface operations {
     };
     get_crawl_credentials_internal_crawl_credentials__customer__get: {
         parameters: {
-            query?: never;
+            query?: {
+                setup_id?: string;
+            };
             header?: never;
             path: {
                 customer: string;
@@ -3751,6 +7193,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MappingSuggestion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_mapping_for_columns_feature_stores_suggest_mapping_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestMappingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingSuggestion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    extract_documents_feature_stores_extract_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtractDocumentsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractDocumentsResponse"];
                 };
             };
             /** @description Validation Error */
@@ -3972,6 +7480,72 @@ export interface operations {
             };
         };
     };
+    get_pack_estimability_persona_packs__pack_id__estimability_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeverCardManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_lever_persona_packs__pack_id__lever_review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeverReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeverReviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     promote_pack_persona_packs__pack_id__promote_post: {
         parameters: {
             query?: never;
@@ -4059,6 +7633,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_console_summary_admin_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsoleSummary"];
+                };
+            };
+        };
+    };
+    list_audit_admin_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

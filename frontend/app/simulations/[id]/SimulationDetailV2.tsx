@@ -195,8 +195,8 @@ function verdictFor(
 // confidence/abstain, structurally NEVER a magnitude (backend DirectionVerdict is
 // extra="forbid" with no float field). This surface is ADDITIVE and DORMANT: it
 // renders only when `result.decision_verdict` is present (backend deploy +
-// SIDIRA_DECISION_FLOW_ENABLED, both founder-gated). Null/absent → renders
-// nothing, so the page is byte-identical to today for every existing run.
+// SIDIRA_SCREEN_V2, both founder-gated). Null/absent → renders nothing, so the
+// page is byte-identical to today for every existing run.
 //
 // Honesty law (DESIGN.md §8.1 / §8.2): the verdict carries its policy (the
 // "why this verdict" line names the source + watchdog stamp + caution); the word
@@ -220,9 +220,14 @@ function DecisionVerdictPanel({ verdict }: { verdict: DirectionVerdict }) {
         ? "UNVERIFIED"
         : "INCONCLUSIVE";
   // "Why this verdict" (§8.1) — ties the verdict to its basis: the source
-  // (grounded/empirical vs LLM fallback), the watchdog stamp, and the caution.
+  // (the calibrated screen's sign, legacy grounded/empirical, or LLM fallback),
+  // the watchdog stamp, and the caution.
   const sourceWord =
-    verdict.source === "grounded" ? "GROUNDED (EMPIRICAL)" : "LLM FALLBACK";
+    verdict.source === "calibrated"
+      ? "CALIBRATED SCREEN"
+      : verdict.source === "grounded"
+        ? "GROUNDED (EMPIRICAL)"
+        : "LLM FALLBACK";
   const watchdogStamp = verdict.watchdog_verdict
     ? ` · WATCHDOG ${verdict.watchdog_verdict}`
     : "";
@@ -240,6 +245,10 @@ function DecisionVerdictPanel({ verdict }: { verdict: DirectionVerdict }) {
   return (
     <div className="decision-verdict">
       <div className="verdicttag-row">
+        {/* The screen's decision (KILL / PASS / ABSTAIN) leads — the one
+            actionable word: should the PM spend a test slot? A mono designator
+            (§8.2 idiom: the word carries state, no semantic fill). */}
+        <span className="desig">{verdict.screen_action}</span>
         <span className="vchip">
           <span className="vg">{sign}</span>
           {verdict.label}
