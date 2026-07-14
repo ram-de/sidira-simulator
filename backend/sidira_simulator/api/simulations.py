@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import Literal
 
@@ -31,12 +30,7 @@ from sidira_simulator.schemas.simulation import (
     SimulationStatus,
     WeaknessCategoryDiff,
 )
-from sidira_simulator.schemas.verdict import DirectionVerdict
 from sidira_simulator.services.answerability import assess_answerability
-from sidira_simulator.services.decision_flow import (
-    decision_flow_enabled,
-    read_decision_verdict,
-)
 from sidira_simulator.services.input_lint import _detect_leading_framing, assess_input_lint
 from sidira_simulator.services.runtime_config import resolve_max_agents_per_simulation
 from sidira_simulator.services.run_state import RunStateStore, SimulationRunState
@@ -47,7 +41,6 @@ router = APIRouter(prefix="/simulations", tags=["simulations"])
 # #545: hard cap on the optional decision-verdict sidecar read on GET /simulations/{id}.
 # Short — the verdict is best-effort and the run result is already available, so a
 # slow R2 read is dropped rather than allowed to hang the detail response.
-_DECISION_VERDICT_READ_TIMEOUT_S = 2.0
 
 
 class CreateSimulationResponse(BaseModel):
@@ -248,9 +241,7 @@ async def create_simulation(
     # trigger earlier. It ROUTES and never touches confidence_score (panel hard
     # constraint). On any judge failure the lint degrades to the deterministic
     # framing lint alone — a paying user is never blocked on a semantic judgment.
-    input_lint = await assess_input_lint(
-        payload.hypothesis, chat_client=input_lint_chat_client
-    )
+    input_lint = await assess_input_lint(payload.hypothesis, chat_client=input_lint_chat_client)
 
     # Phase 2.5: population_size is the modeled userbase; the materialized
     # sample is capped by the backend's effective max-agent setting. Phase 4.6
@@ -366,7 +357,9 @@ def _weakness_counts_by_category(result_json: dict | None) -> dict[str, dict]:
         entry["agent_count"] += support_count
         freq = w.get("frequency")
         if freq is not None:
-            entry["frequency"] = freq if entry["frequency"] is None else max(entry["frequency"], freq)
+            entry["frequency"] = (
+                freq if entry["frequency"] is None else max(entry["frequency"], freq)
+            )
     return counts
 
 
@@ -388,9 +381,7 @@ def _comparison_ref(row: dict) -> SimulationRef:
     """Build the compact SimulationRef header for one side of a comparison."""
     return SimulationRef(
         id=row["id"],
-        status=(
-            SimulationStatus(row["status"]) if row.get("status") else SimulationStatus.PENDING
-        ),
+        status=(SimulationStatus(row["status"]) if row.get("status") else SimulationStatus.PENDING),
         confidence_score=_row_confidence_score(row),
         hypothesis_label=_hypothesis_label(row.get("hypothesis_json")),
     )
@@ -432,9 +423,7 @@ async def compare_simulations(
     # ── Headline score movement ──
     old_score = _row_confidence_score(old_row)
     new_score = _row_confidence_score(new_row)
-    score_delta = (
-        new_score - old_score if old_score is not None and new_score is not None else None
-    )
+    score_delta = new_score - old_score if old_score is not None and new_score is not None else None
 
     # ── Weakness diff BY CATEGORY ──
     old_counts = _weakness_counts_by_category(old_result)
@@ -482,9 +471,7 @@ async def compare_simulations(
     # ── Optional overall sentiment shift ──
     old_pos = _positive_sentiment_share(old_result)
     new_pos = _positive_sentiment_share(new_result)
-    sentiment_delta = (
-        new_pos - old_pos if old_pos is not None and new_pos is not None else None
-    )
+    sentiment_delta = new_pos - old_pos if old_pos is not None and new_pos is not None else None
 
     return SimulationComparison(
         old=_comparison_ref(old_row),
@@ -602,37 +589,6 @@ async def get_simulation(
     result = SimulationResult(**row["result_json"]) if row.get("result_json") else None
 
     # #545: surface the direction-only decision verdict when its sidecar exists.
-    # ADDITIVE + off-by-default: only read the sidecar when the decision flow is
-    # enabled (the same flag that writes it), so a flag-off run does ZERO extra
-    # work here and the response is byte-identical to today — no R2 GET, field
-    # stays None. Best-effort: a missing/malformed sidecar → None (never a 500).
-    # The read (and R2 store construction) is a blocking network call, so it is
-    # offloaded to a worker thread to keep it off the event loop (codex P2, mirrors
-    # the orchestrator hook's asyncio.to_thread). read_decision_verdict never raises,
-    # but get_store() itself can (missing R2 config / boto3), so the whole thing is
-    # wrapped best-effort — a store-construction failure must not 500 the detail GET
-    # for an OPTIONAL sidecar (codex P2, mirrors the write path's guard).
-    if result is not None and decision_flow_enabled():
-
-        def _read_sidecar() -> DirectionVerdict | None:
-            try:
-                return read_decision_verdict(get_store(), customer_id, simulation_id)
-            except Exception:  # noqa: BLE001 — an optional sidecar read must never 500.
-                return None
-
-        # Bound the read: a slow/stalled R2 read must never hang the detail GET when
-        # the result is otherwise ready. On timeout the (optional) verdict is just
-        # omitted (codex P2, mirrors the write hook's asyncio.wait_for). The worker
-        # thread keeps running to completion in the pool; we stop waiting on it.
-        try:
-            verdict = await asyncio.wait_for(
-                asyncio.to_thread(_read_sidecar),
-                timeout=_DECISION_VERDICT_READ_TIMEOUT_S,
-            )
-        except TimeoutError:
-            verdict = None
-        if verdict is not None:
-            result.decision_verdict = verdict
 
     # Phase 4.6 #88: surface arm_split on GET so the frontend can branch
     # on "was this an A/B run" without inspecting result_json.
