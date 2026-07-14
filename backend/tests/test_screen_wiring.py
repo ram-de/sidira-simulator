@@ -17,13 +17,13 @@ def _result(**kw) -> SimulationResult:
     return SimulationResult(confidence_score=50.0, **kw)
 
 
-def test_flag_off_by_default(monkeypatch):
+def test_flag_on_by_default(monkeypatch):
     monkeypatch.delenv("SIDIRA_SCREEN_V2", raising=False)
-    assert screen_v2_enabled() is False
+    assert screen_v2_enabled() is True  # opt-out: the screen is on by default now
 
 
-def test_flag_off_is_byte_identical(monkeypatch):
-    monkeypatch.delenv("SIDIRA_SCREEN_V2", raising=False)
+def test_flag_off_kill_switch_is_byte_identical(monkeypatch):
+    monkeypatch.setenv("SIDIRA_SCREEN_V2", "0")  # explicit off-token kill-switch
     r = _result(lift=-0.05)
     out = _stamp_screen_verdict(r)
     assert out is r  # unchanged object
