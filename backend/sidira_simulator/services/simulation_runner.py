@@ -1286,8 +1286,20 @@ def _stamp_screen_verdict(result: SimulationResult) -> SimulationResult:
         return result
     from sidira_simulator.services.screen import screen_verdict
 
+    # Direction signal: prefer the explicit two-arm A/B `lift`; fall back to
+    # `current_state_delta` (treatment vs the current product state — the natural
+    # "ship this change vs the status quo" comparison). Whichever is present
+    # carries the sign the screen reads. (Surfaced by the first live end-to-end
+    # run: an include_current_state_control sim populates current_state_delta, not
+    # lift, so the screen was abstaining on a run that had a clear directional
+    # signal.) NOTE: the two live on different scales — `lift` is a fraction,
+    # `current_state_delta` is in [-100, +100] — and only the SIGN is used here
+    # (direction-only, pre-partner). A fitted calibrator (#609) must be trained on
+    # whichever signal a client's runs actually produce.
+    signal = result.lift if result.lift is not None else result.current_state_delta
+
     verdict = screen_verdict(
-        lift=result.lift,
+        lift=signal,
         out_of_scope=result.instrument_scope == "out_of_scope",
         input_abstain=(
             result.input_flags is not None and result.input_flags.state == "abstain"
