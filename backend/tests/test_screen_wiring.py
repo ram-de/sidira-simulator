@@ -62,3 +62,21 @@ def test_flag_on_input_abstain_abstains(monkeypatch):
     )
     out = _stamp_screen_verdict(_result(lift=-0.05, input_flags=flags))
     assert out.decision_verdict.screen_action == "ABSTAIN"
+
+
+def test_flag_on_uses_current_state_delta_when_no_ab_lift(monkeypatch):
+    """The natural 'ship this change vs status quo' run puts the direction in
+    current_state_delta, not lift. The screen must read it, not abstain.
+    (Regression: surfaced by the first live end-to-end run — a checkout sim
+    produced current_state_delta=+12.5, lift=None, and the screen abstained.)"""
+    monkeypatch.setenv("SIDIRA_SCREEN_V2", "1")
+    out = _stamp_screen_verdict(_result(lift=None, current_state_delta=12.5))
+    assert out.decision_verdict.screen_action == "PASS"  # a directional call, NOT ABSTAIN
+    assert out.decision_verdict.direction == "positive"
+
+
+def test_flag_on_ab_lift_takes_precedence_over_delta(monkeypatch):
+    monkeypatch.setenv("SIDIRA_SCREEN_V2", "1")
+    # when both are present, the explicit two-arm A/B lift wins
+    out = _stamp_screen_verdict(_result(lift=-0.05, current_state_delta=12.5))
+    assert out.decision_verdict.direction == "negative"  # from lift, not the +delta
