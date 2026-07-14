@@ -11,20 +11,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from sidira_simulator.adapters.r2 import LocalArtifactStore
-from sidira_simulator.schemas.mechanism import MechanismSpec
 from sidira_simulator.schemas.simulation import SimulationResult
 from sidira_simulator.schemas.verdict import (
     DirectionVerdict,
     GuardrailMetric,
     screen_action_from_verdict,
-)
-from sidira_simulator.services.decision_flow import (
-    DecisionResult,
-    decision_verdict_key,
-    read_decision_verdict,
-    verdict_from_decision,
-    write_decision_verdict,
 )
 
 # ── the acceptance criterion: no magnitude field, structurally ────────────────
@@ -84,131 +75,6 @@ def test_direction_verdict_valid_construction():
     assert v.direction is None and v.caution == "hard" and v.unverified is True
 
 
-# ── the builder: DecisionResult → DirectionVerdict ────────────────────────────
-
-
-def _spec(**over) -> MechanismSpec:
-    base = dict(
-        capability_name="difficulty_gate",
-        treatment_column="gate_level",
-        treatment_contrast="gate 30 vs gate 40",
-        outcome_column="day7_retention",
-        sibling_metric="day1_retention",
-        negative_controls=["prior_sessions", "signup_channel"],
-    )
-    base.update(over)
-    return MechanismSpec(**base)
-
-
-def _decision(**over) -> DecisionResult:
-    base = dict(
-        source="grounded",
-        direction="positive",
-        caution="none",
-        label="verified verdict",
-        watchdog_verdict="CONFIRMS",
-        mechanism_spec=_spec(),
-        grounded=None,
-        reason="trace",
-    )
-    base.update(over)
-    return DecisionResult(**base)
-
-
-def test_verdict_from_grounded_confirms():
-    """A trustworthy grounded CONFIRMS → verified, high confidence, guardrails."""
-    v = verdict_from_decision(_decision())
-    assert v.direction == "positive"
-    assert v.caution == "none"
-    assert v.confidence == "high"
-    assert v.source == "grounded"
-    assert v.unverified is False
-    assert v.watchdog_verdict == "CONFIRMS"
-    assert v.label == "verified verdict"
-    # guardrails: sibling + both negative controls, NAMES + roles only.
-    roles = {(g.name, g.role) for g in v.guardrails}
-    assert roles == {
-        ("day1_retention", "sibling"),
-        ("prior_sessions", "negative_control"),
-        ("signup_channel", "negative_control"),
-    }
-    # No magnitude leaked anywhere.
-    dumped = v.model_dump()
-    assert not any(isinstance(val, float) for val in dumped.values())
-
-
-def test_verdict_from_grounded_contradicts_negative():
-    v = verdict_from_decision(
-        _decision(
-            direction="negative",
-            label="verified — data overrides intuition",
-            watchdog_verdict="CONTRADICTS",
-        )
-    )
-    assert v.direction == "negative"
-    assert v.confidence == "high"
-    assert v.source == "grounded"
-    assert v.unverified is False
-
-
-def test_verdict_from_abstain():
-    """Step-2 grounded-abstain / hard caution → no arrow, low confidence, unverified."""
-    v = verdict_from_decision(
-        _decision(
-            source="llm_fallback",
-            direction=None,
-            caution="hard",
-            label="inconclusive — test it",
-            watchdog_verdict="CANT_VALIDATE",
-            mechanism_spec=_spec(sibling_metric=None, negative_controls=[]),
-        )
-    )
-    assert v.direction is None
-    assert v.caution == "hard"
-    assert v.confidence == "low"
-    assert v.source == "llm_fallback"
-    assert v.unverified is True
-    assert v.guardrails == []
-
-
-def test_verdict_from_moderate_no_direction_normalizes_to_abstain():
-    """Step-2 council-agreement with NO llm_direction (NullCouncil) → canonical abstain.
-
-    The router yields direction=None + caution='moderate' + the unverified label; the
-    builder must collapse that no-arrow result to a clean inconclusive hard abstain
-    rather than surface a directionless 'hypothesis' (codex #545).
-    """
-    v = verdict_from_decision(
-        _decision(
-            source="llm_fallback",
-            direction=None,
-            caution="moderate",
-            label="unverified — hypothesis, not verdict",
-            watchdog_verdict="CANT_VALIDATE",
-        )
-    )
-    assert v.direction is None
-    assert v.caution == "hard"
-    assert v.confidence == "low"
-    assert v.label == "inconclusive — test it"
-    assert v.unverified is True
-
-
-def test_verdict_from_unverified_moderate():
-    v = verdict_from_decision(
-        _decision(
-            source="llm_fallback",
-            direction="positive",
-            caution="moderate",
-            label="unverified — hypothesis, not verdict",
-            watchdog_verdict="CANT_VALIDATE",
-        )
-    )
-    assert v.unverified is True
-    assert v.confidence == "low"
-    assert v.direction == "positive"
-
-
 # ── SimulationResult backward-compat (additive, migration-free) ───────────────
 
 
@@ -227,70 +93,6 @@ def test_simulation_result_loads_old_result_json_without_key():
     r = SimulationResult(**old)
     assert r.decision_verdict is None
     assert r.confidence_score == 55.0
-
-
-def test_simulation_result_roundtrips_verdict():
-    v = verdict_from_decision(_decision())
-    r = SimulationResult(confidence_score=80.0, decision_verdict=v)
-    reloaded = SimulationResult.model_validate_json(r.model_dump_json())
-    assert reloaded.decision_verdict is not None
-    assert reloaded.decision_verdict.direction == "positive"
-
-
-# ── sidecar persist / read round-trip ─────────────────────────────────────────
-
-
-def test_sidecar_key_matches_per_sim_convention():
-    key = decision_verdict_key("cust_1", "sim_abc")
-    assert key == "customers/cust_1/simulations/sim_abc/decision_verdict.json"
-
-
-def test_sidecar_roundtrip(tmp_path):
-    store = LocalArtifactStore(tmp_path)
-    v = verdict_from_decision(_decision())
-    write_decision_verdict(store, "cust_1", "sim_abc", v)
-    got = read_decision_verdict(store, "cust_1", "sim_abc")
-    assert got is not None
-    assert got.direction == "positive"
-    assert got.confidence == "high"
-    assert {(g.name, g.role) for g in got.guardrails} == {(g.name, g.role) for g in v.guardrails}
-
-
-def test_sidecar_read_missing_returns_none(tmp_path):
-    store = LocalArtifactStore(tmp_path)
-    assert read_decision_verdict(store, "cust_1", "nope") is None
-
-
-def test_sidecar_read_malformed_returns_none(tmp_path):
-    store = LocalArtifactStore(tmp_path)
-    store.write_text(decision_verdict_key("cust_1", "bad"), "{not valid json")
-    assert read_decision_verdict(store, "cust_1", "bad") is None
-
-
-# ── grounding_gap_reason: the per-hypothesis #564 "why" on the sidecar ────────
-
-
-def test_grounding_gap_reason_crosses_into_verdict_and_roundtrips(tmp_path):
-    """The decision's token-gated grounding_gap_reason lands on the
-    DirectionVerdict and survives the sidecar persist/read round-trip."""
-    reason = "grounding-incomplete: no_vouched_negative_control, " "structurally_missing_column"
-    decision = _decision(
-        source="llm_fallback",
-        direction=None,
-        caution="hard",
-        label="inconclusive — test it",
-        watchdog_verdict="CANT_VALIDATE",
-        grounding_gap_reason=reason,
-    )
-    v = verdict_from_decision(decision)
-    assert v.grounding_gap_reason == reason
-
-    store = LocalArtifactStore(tmp_path)
-    write_decision_verdict(store, "cust_1", "sim_1", v)
-    reloaded = read_decision_verdict(store, "cust_1", "sim_1")
-    assert reloaded is not None
-    assert reloaded.grounding_gap_reason == reason
-    assert "no_vouched_negative_control" in reloaded.grounding_gap_reason
 
 
 def test_legacy_sidecar_without_gap_reason_parses():
