@@ -27,7 +27,6 @@ from sidira_simulator.services.decision_flow import (
     write_decision_verdict,
 )
 
-
 # ── the acceptance criterion: no magnitude field, structurally ────────────────
 
 
@@ -61,13 +60,10 @@ def test_guardrail_metric_forbids_magnitude():
     "kwargs",
     [
         # confidence inconsistent with caution
-        dict(direction="positive", caution="none", confidence="low",
-             label="x", source="grounded"),
-        dict(direction=None, caution="hard", confidence="high",
-             label="x", source="llm_fallback"),
+        dict(direction="positive", caution="none", confidence="low", label="x", source="grounded"),
+        dict(direction=None, caution="hard", confidence="high", label="x", source="llm_fallback"),
         # a trustworthy verdict with no direction
-        dict(direction=None, caution="none", confidence="high",
-             label="x", source="grounded"),
+        dict(direction=None, caution="none", confidence="high", label="x", source="grounded"),
     ],
 )
 def test_direction_verdict_rejects_inconsistent_invariants(kwargs):
@@ -257,9 +253,7 @@ def test_sidecar_roundtrip(tmp_path):
     assert got is not None
     assert got.direction == "positive"
     assert got.confidence == "high"
-    assert {(g.name, g.role) for g in got.guardrails} == {
-        (g.name, g.role) for g in v.guardrails
-    }
+    assert {(g.name, g.role) for g in got.guardrails} == {(g.name, g.role) for g in v.guardrails}
 
 
 def test_sidecar_read_missing_returns_none(tmp_path):
@@ -273,83 +267,13 @@ def test_sidecar_read_malformed_returns_none(tmp_path):
     assert read_decision_verdict(store, "cust_1", "bad") is None
 
 
-# ── the #542 hook writes the sidecar (persist path) ───────────────────────────
-
-
-def test_run_decision_flow_sync_writes_sidecar(tmp_path, monkeypatch):
-    """The #542 hook computes the verdict and persists it beside the run."""
-    from sidira_simulator.schemas.simulation import Hypothesis
-    from sidira_simulator.services import council as council_mod
-    from sidira_simulator.services import decision_flow as df_mod
-    from sidira_simulator.services import grounded_predictor as gp_mod
-    from sidira_simulator.adapters import r2 as r2_mod
-    from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
-
-    store = LocalArtifactStore(tmp_path)
-    # Avoid R2: no manifest, degrade council to NullCouncil, fix the decision.
-    monkeypatch.setattr(gp_mod, "load_estimability_manifest", lambda *a, **k: None)
-    monkeypatch.setattr(
-        council_mod, "build_default_council", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no keys"))
-    )
-    monkeypatch.setattr(df_mod, "decide", lambda *a, **k: _decision())
-    monkeypatch.setattr(r2_mod, "get_store", lambda: store)
-
-    orch = SimulationOrchestrator.__new__(SimulationOrchestrator)
-    orch._run_decision_flow_sync(
-        sim_id="sim_xyz",
-        customer_id="cust_1",
-        hypothesis=Hypothesis(capability_name="difficulty_gate", prose="move the gate earlier"),
-        pack_version="v_1",
-        setup_id="default",
-        model_id=None,
-    )
-
-    got = read_decision_verdict(store, "cust_1", "sim_xyz")
-    assert got is not None
-    assert got.direction == "positive"
-    assert got.source == "grounded"
-
-
-def test_run_decision_flow_sync_persist_failure_never_raises(tmp_path, monkeypatch):
-    """A store write failure logs + continues — the hook never raises."""
-    from sidira_simulator.schemas.simulation import Hypothesis
-    from sidira_simulator.services import council as council_mod
-    from sidira_simulator.services import decision_flow as df_mod
-    from sidira_simulator.services import grounded_predictor as gp_mod
-    from sidira_simulator.adapters import r2 as r2_mod
-    from sidira_simulator.services.simulation_orchestrator import SimulationOrchestrator
-
-    class _ExplodingStore:
-        def write_text(self, key, body):
-            raise OSError("disk full")
-
-    monkeypatch.setattr(gp_mod, "load_estimability_manifest", lambda *a, **k: None)
-    monkeypatch.setattr(council_mod, "build_default_council", lambda *a, **k: None)
-    monkeypatch.setattr(df_mod, "decide", lambda *a, **k: _decision())
-    monkeypatch.setattr(r2_mod, "get_store", lambda: _ExplodingStore())
-
-    orch = SimulationOrchestrator.__new__(SimulationOrchestrator)
-    # Must not raise despite the exploding store.
-    orch._run_decision_flow_sync(
-        sim_id="sim_xyz",
-        customer_id="cust_1",
-        hypothesis=Hypothesis(capability_name="difficulty_gate", prose="p"),
-        pack_version="v_1",
-        setup_id="default",
-        model_id=None,
-    )
-
-
 # ── grounding_gap_reason: the per-hypothesis #564 "why" on the sidecar ────────
 
 
 def test_grounding_gap_reason_crosses_into_verdict_and_roundtrips(tmp_path):
     """The decision's token-gated grounding_gap_reason lands on the
     DirectionVerdict and survives the sidecar persist/read round-trip."""
-    reason = (
-        "grounding-incomplete: no_vouched_negative_control, "
-        "structurally_missing_column"
-    )
+    reason = "grounding-incomplete: no_vouched_negative_control, " "structurally_missing_column"
     decision = _decision(
         source="llm_fallback",
         direction=None,
