@@ -2318,14 +2318,11 @@ export default function SimulationDetailV2() {
                 <DecisionVerdictPanel verdict={completeResult.decision_verdict} />
               )}
 
-              {/* Grounding-sources / observable-levers register (#566) —
-                  which levers the engine can ground in the warehouse vs. what
-                  it can only guess at. Pack-level (reads the pinned
-                  persona_pack_version's estimability manifest), so it renders
-                  independently of the decision verdict / flag state. ADDITIVE
-                  + DORMANT: packs without a manifest (404) render nothing —
-                  the page stays byte-identical for every legacy run. */}
-              <GroundingSourcesPanel packVersion={sim.persona_pack_version} />
+              {/* (Removed in the pivot) The grounding-sources / observable-levers
+                  register was a surface of the abandoned grounded thesis — the
+                  screen now decides from sign(lift) + calibration, not per-lever
+                  warehouse grounding, so it no longer belongs on the result page.
+                  The lever cards live on in the persona-build wizard. */}
 
 
               {/* #311 / T2 — instrument-scope abstention note. Inspectable named

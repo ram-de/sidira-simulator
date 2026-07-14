@@ -1253,17 +1253,19 @@ def _stamp_instrument_scope(result: SimulationResult, hypothesis: Hypothesis) ->
 def screen_v2_enabled() -> bool:
     """Opt-in flag for the pivot's live KILL/PASS/ABSTAIN screen (rewire-C).
 
-    Default OFF (unlike the removed decision-flow, which defaulted ON): the screen
-    verdict stays dormant until the frontend renders ``source="calibrated"``
-    correctly (PR1b). Any on-token (``1``/``true``/``yes``/``on``) enables it.
+    Default ON (opt-out kill-switch): now that the frontend renders
+    ``source="calibrated"`` correctly (PR1b), the screen is the product — every
+    run gets a KILL/PASS/ABSTAIN verdict. Pre-partner (no calibrator) it can only
+    PASS/ABSTAIN, so default-on is safe. Any off-token
+    (``0``/``false``/``no``/``off``) disables it as an emergency kill-switch.
     """
     import os
 
-    return os.getenv("SIDIRA_SCREEN_V2", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
+    return os.getenv("SIDIRA_SCREEN_V2", "on").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
     )
 
 
