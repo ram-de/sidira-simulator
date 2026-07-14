@@ -873,21 +873,23 @@ class SimulationRunner:
             # Degenerate fast-path: still stamp the pre-flight input lint (T3)
             # and the instrument-fit abstention (T2) — both are pre-run / OEC
             # signals independent of whether any agent reacted.
-            return _stamp_instrument_scope(
-                _stamp_input_flags(
-                    SimulationResult(
-                        confidence_score=0.0,
-                        weaknesses=[
-                            Weakness(
-                                category="underpowered_design",
-                                summary="No agent reactions completed successfully.",
-                            )
-                        ],
-                        refinement_suggestions=[],
+            return _stamp_screen_verdict(
+                _stamp_instrument_scope(
+                    _stamp_input_flags(
+                        SimulationResult(
+                            confidence_score=0.0,
+                            weaknesses=[
+                                Weakness(
+                                    category="underpowered_design",
+                                    summary="No agent reactions completed successfully.",
+                                )
+                            ],
+                            refinement_suggestions=[],
+                        ),
+                        input_lint,
                     ),
-                    input_lint,
-                ),
-                hypothesis,
+                    hypothesis,
+                )
             )
 
         # Lazy import to avoid pulling LLM modules at module load.
@@ -1183,7 +1185,7 @@ class SimulationRunner:
         # every additive baseline has populated, so it composes with (never
         # overwrites) the lift/delta fields. No-op (byte-identical) for in-scope
         # OECs; never touches confidence_score.
-        return _stamp_instrument_scope(result, hypothesis)
+        return _stamp_screen_verdict(_stamp_instrument_scope(result, hypothesis))
 
 
 def _stamp_input_flags(
@@ -1246,6 +1248,54 @@ def _stamp_instrument_scope(result: SimulationResult, hypothesis: Hypothesis) ->
             "out_of_scope_reason_codes": codes,
         }
     )
+
+
+def screen_v2_enabled() -> bool:
+    """Opt-in flag for the pivot's live KILL/PASS/ABSTAIN screen (rewire-C).
+
+    Default OFF (unlike the removed decision-flow, which defaulted ON): the screen
+    verdict stays dormant until the frontend renders ``source="calibrated"``
+    correctly (PR1b). Any on-token (``1``/``true``/``yes``/``on``) enables it.
+    """
+    import os
+
+    return os.getenv("SIDIRA_SCREEN_V2", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _stamp_screen_verdict(result: SimulationResult) -> SimulationResult:
+    """Stamp the KILL/PASS/ABSTAIN screen verdict onto the result (rewire-C).
+
+    OPT-IN via ``SIDIRA_SCREEN_V2`` (default OFF): off ⇒ a single env read then the
+    result unchanged, so ``decision_verdict`` stays None and every run is
+    byte-identical to today. On ⇒ derive the verdict from the panel's signed
+    ``lift`` plus the structural abstain carriers already stamped above, via the
+    pure ``screen_verdict`` producer. Runs LAST so ``instrument_scope`` /
+    ``input_flags`` are populated when it reads them. NEVER touches
+    ``confidence_score`` (panel hard constraint) — additive, on the result JSON blob.
+
+    Pre-partner there is no fitted calibrator and no operating-point threshold, so
+    ``screen_verdict`` can only PASS/ABSTAIN — it CANNOT KILL. Loading a per-client
+    calibrator + threshold (#609) is the future hook that turns KILL on.
+    """
+    if not screen_v2_enabled():
+        return result
+    from sidira_simulator.services.screen import screen_verdict
+
+    verdict = screen_verdict(
+        lift=result.lift,
+        out_of_scope=result.instrument_scope == "out_of_scope",
+        input_abstain=(
+            result.input_flags is not None and result.input_flags.state == "abstain"
+        ),
+        calibrator=None,  # TODO(#609): load the per-client fitted calibrator
+        kill_threshold=None,  # TODO(#609): the operating point; None ⇒ KILL disabled
+    )
+    return result.model_copy(update={"decision_verdict": verdict})
 
 
 # Max length of a single-line quote shown in the result table. Tuned for the
