@@ -14,7 +14,11 @@ from pydantic import ValidationError
 from sidira_simulator.adapters.r2 import LocalArtifactStore
 from sidira_simulator.schemas.mechanism import MechanismSpec
 from sidira_simulator.schemas.simulation import SimulationResult
-from sidira_simulator.schemas.verdict import DirectionVerdict, GuardrailMetric
+from sidira_simulator.schemas.verdict import (
+    DirectionVerdict,
+    GuardrailMetric,
+    screen_action_from_verdict,
+)
 from sidira_simulator.services.decision_flow import (
     DecisionResult,
     decision_verdict_key,
@@ -379,3 +383,52 @@ def test_legacy_sidecar_without_gap_reason_parses():
     }
     v = DirectionVerdict.model_validate(legacy)
     assert v.grounding_gap_reason is None
+
+
+# ── screen action: KILL / PASS / ABSTAIN mapping (pivot contract) ─────────────
+
+
+def _mk(direction, caution, source="grounded", label="x"):
+    """Build a validator-consistent DirectionVerdict (confidence derives from caution)."""
+    confidence = "high" if caution == "none" else "low"
+    return DirectionVerdict(
+        direction=direction,
+        caution=caution,
+        confidence=confidence,
+        label=label,
+        source=source,
+    )
+
+
+@pytest.mark.parametrize(
+    "direction, caution, source, expected",
+    [
+        # KILL: ONLY a grounded, high-confidence negative (confident loser)
+        ("negative", "none", "grounded", "KILL"),
+        # codex P2: an UNGROUNDED negative+none (malformed sidecar) must NOT kill
+        ("negative", "none", "llm_fallback", "PASS"),
+        # PASS: predicted winner
+        ("positive", "none", "grounded", "PASS"),
+        # PASS: a negative that is NOT grounded-confident never kills (safety-first)
+        ("negative", "moderate", "llm_fallback", "PASS"),
+        # PASS: unverified positive lean
+        ("positive", "moderate", "llm_fallback", "PASS"),
+        # ABSTAIN: no confident sign (canonical inconclusive)
+        (None, "hard", "llm_fallback", "ABSTAIN"),
+    ],
+)
+def test_screen_action_mapping(direction, caution, source, expected):
+    v = _mk(direction, caution, source=source)
+    assert v.screen_action == expected
+    assert screen_action_from_verdict(v) == expected
+
+
+def test_screen_action_serializes_on_the_contract():
+    v = _mk("negative", "none")
+    assert v.model_dump()["screen_action"] == "KILL"
+    assert '"screen_action":"KILL"' in v.model_dump_json().replace(" ", "")
+
+
+def test_low_confidence_negative_never_kills():
+    """FN ceiling before coverage: raw/low-confidence signal must not KILL."""
+    assert _mk("negative", "moderate", source="llm_fallback").screen_action != "KILL"
