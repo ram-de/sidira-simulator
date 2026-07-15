@@ -30,6 +30,10 @@ def load(path):
     real = np.array([float(r["real_lift"]) for r in rows])
     return sig, truth, real
 
+# NOTE: the signal deadzone is applied by the CALLER via an |signal|>deadzone mask at
+# KILL time — NOT passed into PlattCalibrator.fit. fit's deadzone acts on observed_lifts
+# (~[-0.06,0.04]); a signal-scale deadzone (5,10,...) there would flatten every training
+# label and produce a degenerate calibrator (codex P1). So fit always uses deadzone=0.
 def crossfit_pneg(sig, real, deadzone=0.0, k=5, seed=13):
     n = len(sig); idx = np.arange(n)
     np.random.default_rng(seed).shuffle(idx)
@@ -38,7 +42,7 @@ def crossfit_pneg(sig, real, deadzone=0.0, k=5, seed=13):
     for f in range(k):
         test = folds[f]
         train = np.concatenate([folds[j] for j in range(k) if j != f])
-        cal = PlattCalibrator.fit(sig[train].tolist(), real[train].tolist(), deadzone=deadzone)
+        cal = PlattCalibrator.fit(sig[train].tolist(), real[train].tolist())  # deadzone=0; see note above
         for i in test:
             p_neg[i] = cal.predict(float(sig[i])).p_neg
     return p_neg
@@ -69,7 +73,7 @@ def main(path):
     best = None  # (label, killed-winner, coverage, killed, param)
     for d in [0, 2, 4, 6, 8, 10, 14, 18, 22, 28]:
         if d > amax: break
-        kill = sig <= -d
+        kill = (sig <= -d) & (sig < 0)   # exact-zero signal is an abstention, never a KILL (codex P3)
         k, kw, cov = kw_cov(truth, kill)
         if kw is None:
             print(f"  {d:>6} {0:>7} {'--':>14} {0.0:>9.3f}"); continue

@@ -37,7 +37,7 @@ def kill_sweep(sig, truth):
     print(f"  {'delta':>6} {'killed':>7} {'killed-winner':>14} {'coverage(bad killed)':>22}")
     nbad = int(np.sum(truth == -1))
     for d in [0, 5, 10, 15, 20]:
-        kill = sig <= -d
+        kill = (sig <= -d) & (sig < 0)   # zero signal = abstention, not KILL
         k = int(kill.sum())
         kw = float(np.mean(truth[kill] == 1)) if k else float("nan")
         cov = float(np.sum((truth == -1) & kill) / max(1, nbad))

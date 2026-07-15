@@ -35,7 +35,7 @@ def report(name, sig, truth, real):
     # best clean KILL region (raw margin + calibrated), min support
     best=None; nbad=np.sum(truth==-1)
     for d in [0,5,10,15,20,25]:
-        kill=sig<=-d; k=int(kill.sum())
+        kill=(sig<=-d)&(sig<0); k=int(kill.sum())   # zero signal = abstention, not KILL
         if k<MIN_KILLS: continue
         kw=np.mean(truth[kill]==1); cov=np.sum((truth==-1)&kill)/max(1,nbad)
         if kw<=CEIL and (best is None or cov>best[1]): best=(f"margin{d}",cov,kw,k)

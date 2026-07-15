@@ -16,7 +16,10 @@ def load(path):
     rows = [r for r in csv.DictReader(open(path)) if (r["signal"] or "").strip()]
     sig = np.array([float(r["signal"]) for r in rows])
     truth = np.array([int(float(r["true_direction"])) for r in rows])
-    eff = np.array([float(r["effect"]) for r in rows])
+    # The calibrator only reduces observed lifts to a SIGN, and true_direction is exactly
+    # that sign — so we fit on true_direction. This also lets the analysis run from the
+    # committed ToS-safe results_goodui_min.csv (no raw GoodUI effect sizes). (codex P2)
+    eff = truth.astype(float)
     return sig, truth, eff
 
 def crossfit_pneg(sig, eff, k=5, seed=13):
@@ -45,7 +48,7 @@ def main(path):
     print(f"  {'delta':>6} {'killed':>7} {'killed-winner':>14} {'coverage(losers killed)':>24}")
     nlose = int((truth==-1).sum()); best=None
     for d in [0,5,10,15,20]:
-        kill = sig <= -d; k=int(kill.sum())
+        kill = (sig <= -d) & (sig < 0); k=int(kill.sum())   # zero signal = abstention, not KILL (codex P3)
         if k==0: print(f"  {d:>6} {0:>7} {'--':>14} {0.0:>24.3f}"); continue
         kw=float(np.mean(truth[kill]==1)); cov=float(np.sum((truth==-1)&kill)/max(1,nlose))
         flag = "  clean" if (kw<=CEIL and k>=MIN_KILLS) else ""
