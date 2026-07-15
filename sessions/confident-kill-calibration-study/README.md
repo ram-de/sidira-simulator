@@ -8,7 +8,7 @@ on public data with real outcomes, no client partner required?
 A/B mode, `signal = result.lift`), scored with the real `PlattCalibrator` under honest
 5-fold cross-fit. Full writeup: [`CONFIDENT-KILL-UPWORTHY-RESULTS.md`](./CONFIDENT-KILL-UPWORTHY-RESULTS.md).
 
-## Four experiments
+## Five experiments
 
 | # | Experiment | N | Corpus | Headline result |
 |---|---|---|---|---|
@@ -16,6 +16,7 @@ A/B mode, `signal = result.lift`), scored with the real `PlattCalibrator` under 
 | 2 | Obvious junk | 240 | real winner vs synthetic broken arm | 100% dir-acc, **0% killed-winner**, 100% coverage — confident KILL works |
 | 3 | Graded ladder | 150 | real winner vs LLM-degraded arm (L1→L3) | monotonic ramp: chance→0.66→0.76→0.96→junk — killable = *clearly-flawed*, not *slightly-worse* |
 | 4 | Persona-richness ablation | 100 | subtle pairs, generic-10 vs rich-24 personas | +2% noise, **no callable region either way** — persona lever closed |
+| 5 | **GoodUI reverse-PRD** | 131 | real product/UI A/B tests, real outcomes | **0.594 dir-acc, p=0.034 — first significant beat of chance**; tail enriched for losers but thin. See [`GOODUI-REVERSE-PRD-RESULTS.md`](./GOODUI-REVERSE-PRD-RESULTS.md) |
 
 **Net:** a real, safe confident-KILL regime exists and spans obvious-junk → plausibly-but-
 clearly-flawed variants; the engine correctly abstains (PASSes) on subtle/optimized ones;
