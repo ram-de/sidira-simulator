@@ -1,6 +1,9 @@
-# Sidira for agents — the gate every agent calls before a change reaches users
+# Stroma — the gate every agent calls before a change reaches users
 
 ### 2026-09-25 · consolidated from the accuracy readout, the agentic-pivot discussion, and the competitive scan
+
+> **Naming:** Stroma is the product. The memory layer and the gate are two parts of one
+> product; the earlier working names for them are retired in this document.
 
 > **Status:** draft for founder review. The Slack thread on this topic
 > (voyager-per3655, channel C0C4D3G7ZFE, 2026-09-25) could not be read from the
@@ -12,9 +15,10 @@
 
 Agents now propose and build most product changes, at a volume no team can test. The company
 still has to decide which changes deserve real traffic and which should die before they waste
-a slot. Sidira is that decision: a calibrated gate that kills what the company's own history
+a slot. Stroma is that decision: a calibrated gate that kills what the company's own history
 already disproves, passes what its own data supports, and says "we don't know" on the rest
-and routes it to a real test. Voyager is the memory that makes the gate possible, and every
+and routes it to a real test. Stroma's memory layer, which reads the company's own
+interactions and data, is what makes the gate possible, and every
 real test makes the gate sharper for that customer, which nobody else can copy.
 
 ---
@@ -46,7 +50,7 @@ Three consequences, each of which shaped the product below:
    above chance on it. Raising money to "crack the simulation" would be raising against the
    evidence.
 2. **What works is getting the customer's own quantities into the system.** Past tests,
-   warehouse tables, real behaviour. That is a data-acquisition problem, and Voyager is a
+   warehouse tables, real behaviour. That is a data-acquisition problem, and Stroma's memory layer is a
    data-acquisition layer over exactly the places that data already lives.
 3. **The one thing the engine has always done well is say when it does not know.** The
    confident-KILL study killed zero winners on clearly flawed variants; the abstention path is
@@ -63,18 +67,18 @@ honestly, and lets the real test answer the rest.
 
 Meridian is a mid-size online furniture store.
 
-**Month zero: the install.** Voyager connects to Slack, Notion, the support desk and the
-warehouse and starts reading. Sidira drops a small observer into the storefront and connects
-to Meridian's experimentation platform. By the end of the week Voyager has found eleven past
+**Month zero: the install.** Stroma connects to Slack, Notion, the support desk and the
+warehouse and starts reading. It drops a small observer into the storefront and connects
+to Meridian's experimentation platform. By the end of the week Stroma has found eleven past
 A/B tests scattered across old decks and threads, with results, and written them into
 Meridian's experiment archive. Nobody remembered more than four. The observer starts learning
 the shape of Meridian's traffic: segment shares, drop points, device mix. It does not vote on
 anything yet, and it is not allowed to until it earns it.
 
 **Month one: two hundred ideas a week.** The PM, Dana, works with a planning agent that reads
-Voyager and a coding agent that builds. Ideas arrive by the dozen, many as ready branches.
-Each one enters Sidira as a structured hypothesis: what changes, for whom, which metric, why.
-Sidira makes one of three calls.
+Stroma's memory and a coding agent that builds. Ideas arrive by the dozen, many as ready branches.
+Each one enters Stroma as a structured hypothesis: what changes, for whom, which metric, why.
+Stroma makes one of three calls.
 
 - **KILL** when Meridian's own history already answers it. An agent proposes hiding the
   estimated delivery date to clean up the product page. Two years ago Meridian tested hiding
@@ -84,8 +88,8 @@ Sidira makes one of three calls.
   banner: first-time visitors are forty percent of traffic with low conversion, and three past
   discount tests all lifted conversion and hurt margin. Passed, with margin added as a
   guardrail metric.
-- **ABSTAIN** when Sidira honestly does not know. Moving the mobile add-to-cart button above
-  the fold. Nothing in the archive; layout changes are small and hard to predict. Sidira says
+- **ABSTAIN** when Stroma honestly does not know. Moving the mobile add-to-cart button above
+  the fold. Nothing in the archive; layout changes are small and hard to predict. Stroma says
   so, sizes the test, sets the stopping rule, and hands it to the platform. The branch already
   exists, so the test starts the next morning instead of waiting for a sprint.
 
@@ -100,7 +104,7 @@ the archive automatically. Nobody files a report.
 
 **Month six: the observer earns its vote.** After nine arm-tagged tests, the observer has
 watched real Meridian users react to real changes, not just to the product as it stands.
-Sidira runs a sealed backtest: the observer predicts those nine tests blind and beats
+Stroma runs a sealed backtest: the observer predicts those nine tests blind and beats
 predict-flat. Only now does it take part in screening, walking new variants on the staged
 build with Meridian's real propensities. Its confidence is scored against every later test. If
 it drifts, it loses the vote until it recalibrates.
@@ -214,7 +218,7 @@ user behaviour.
    companies that have none. Traffic budget enforced here.
 3. **Get the result.** Webhook when the stopping rule fires, with guardrail status and the
    arm-tagged debrief, so the agent can plan the follow-up without a human reading a report.
-4. **Search the archive.** Voyager's memory as a tool, so planning agents stop repeating known
+4. **Search the archive.** Stroma's memory as a tool, so planning agents stop repeating known
    losers.
 5. **Read your own score.** Every agent has an identity and a calibration record. A poor record
    loses traffic budget; a good one earns it.
@@ -224,11 +228,11 @@ user behaviour.
 - **Onboarding is programmatic.** Observer tag, scoped credentials, a key. The human sets
   policy once: traffic budget, guardrail metrics, which verdicts need a signature.
 - **Discovery is where agents look.** MCP registries, coding-agent tool catalogs, an llms.txt.
-  When a customer tells their coding agent "A/B test this", it should find Sidira the way it
+  When a customer tells their coding agent "A/B test this", it should find Stroma the way it
   finds a linter.
 - **Pricing is per call and per test**, on agent-friendly rails. The human console is free.
 - **Many agents, one gate.** Coding, growth and CRO agents from different vendors all want
-  traffic. Sidira brokers the shared resource.
+  traffic. Stroma brokers the shared resource.
 - **Humans keep the veto**, and the veto is scored.
 
 ### 4.3 What does not change
@@ -264,7 +268,7 @@ environment, stays small.
 ## 6. Ninety days
 
 1. MCP server with the five primitives on the existing verdict path, behind a flag.
-2. Voyager → experiment-archive extractor with an extraction-confidence field.
+2. Memory layer → experiment-archive extractor with an extraction-confidence field.
 3. Hypothesis contract schema (the thing agents submit).
 4. Assignment SDK and the first two platform integrations, so a test can start from a call.
 5. Sealed per-customer backtest as the onboarding artifact.
@@ -279,7 +283,7 @@ environment, stays small.
 - **Fold in the Slack discussion** (voyager-per3655 / C0C4D3G7ZFE / p1790294173280639). Not
   readable from the cloud session that drafted this; paste or summarise and this section
   becomes the reconciliation.
-- Naming: "gate" is the working word. Decide whether it is the product name or a feature name.
+- Naming: Stroma is the product; "gate" and "memory" are the two parts. Decide whether either is a customer-facing name.
 - Pricing unit: per hypothesis screened, per test run, or a traffic-budget subscription.
 
 ---
