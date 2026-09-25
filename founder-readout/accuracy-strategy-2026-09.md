@@ -248,6 +248,198 @@ abstain rate, traffic saved) is the product number, not directional accuracy.
   the per-customer calibration track record and being an acquirable module over MCP, not a
   competing platform.
 
+## 9. Addendum (2026-09-25): the agentic pivot
+
+Written after the founder's follow-up questions on "X for agents" products, on raising to
+hire researchers, and on whether the accuracy problem can be sidestepped. Short answers, then
+the reframing that came out of it.
+
+### 9.1 Four questions, four answers
+
+- **Pivot into agent infrastructure (mail, browser, payments, chat for agents)?** No. Those
+  are picks-and-shovels categories with thin moats, dozens of funded entrants each, and
+  incumbents already shipping the same thing. We would enter with no distribution, no data and
+  no head start. Worse than the position we hold.
+- **Does the agentic wave change our problem?** Yes, and this is the pivot worth making. Agents
+  will soon propose most product changes, at a volume no team can test. That flips the
+  economics: the sim no longer has to *predict the sign* of every idea, it has to *triage*.
+  Kill what the company's own history already disproves, abstain honestly on the rest, and
+  route the rest to a real test that an agent can build and run cheaply. Both halves of that
+  are things the engine has already demonstrated under seal. The hard part, guessing a
+  genuinely new idea's outcome, moves to the real experiment.
+- **Would funding plus research scientists solve accuracy?** Partly, and which part matters.
+  Cold-start sign prediction from a description is not a talent gap: Amazon, Spotify and
+  Microsoft have larger teams than any round buys and none of them is above chance on it.
+  Research money *can* move the grounded route (cross-customer transfer by mechanism class,
+  surrogate metrics, pre-period calibration for acting agents, negative-control methods on
+  messy exhaust), buy data rights from design partners, and run the acting-agent line at
+  proper n. Realistic ceiling: right on roughly three of four directional calls where
+  grounding exists, honest about the rest. Hire research engineers who live in customer
+  data, not scientists chasing the ungrounded problem. Raise on the corpus and the loop, not
+  on "we will crack the simulation".
+- **Can agents stand in for the users we can never interview?** Only when their answers are
+  pinned to records. An agent that took part in a *simulation* can only tell you about the
+  simulation. An agent that took part in, or watched, the *real* test can be debriefed and it
+  means something: the customer's own support and analytics agents reading arm-tagged records,
+  and the growing share of agent-driven shoppers who are genuine visitors and can be asked why
+  they abandoned. Rule: every interview answer cites a record or is marked as a guess. That
+  single rule separates this from the persona chat.
+
+### 9.2 The installed observer (persona replacement)
+
+An agent installed in the customer's product that learns how users interact over time and
+then takes part in screening is the right replacement for personas, and it is close to the
+strongest thing anyone has shown working (clickstream-seeded agents with pre-period
+calibration). Three conditions:
+
+1. **"Learn" means a fitted behaviour model, not a narrative profile.** Per segment: action
+   propensities by page state, drop points, response to past changes. The language model does
+   perception of a new variant (what is on the page, what actions exist); the learned model
+   does propensity. Blend the two and it drifts back into fiction.
+2. **Observation teaches the status quo; experiments teach change.** The observer's real
+   training signal is the arm-tagged tests the gate routes to traffic. The tests teach the
+   observer, the observer sharpens the next screen.
+3. **It earns its vote.** No vote until it passes a sealed backtest on that customer's own
+   tests against predict-flat; loses the vote if it drifts.
+
+Cold start is a ladder: day one, no vote, value is the mined archive plus test shaping; weeks
+one to four, observation gives segment shares and funnel rates, enough for the arithmetic tier
+and to catch broken variants; after the first handful of arm-tagged tests, the backtest, then
+the vote. A per-vertical base model warm-starts it, treated as a prior because transport is
+still our largest exposure. Runs inside the customer's environment (zero-egress), and stays
+small: a nightly-updated behaviour model plus a language model for perception.
+
+### 9.3 The story: Meridian Home, one year
+
+*Month zero.* Voyager connects to Slack, Notion, the support desk and the warehouse; it finds
+eleven past A/B tests in old decks and threads and writes them into the archive. Nobody
+remembered more than four. Sidira drops an observer into the storefront and connects to the
+experimentation platform. The observer starts learning traffic shape. It does not vote.
+
+*Month one.* The PM, Dana, works with a planning agent that reads Voyager and a coding agent
+that builds. Two hundred ideas a week arrive as structured hypotheses. Sidira makes one of
+three calls. KILL when the company's own history answers it (hiding the delivery estimate lost
+conversion two years ago; sixty of two hundred die this way, at no cost). PASS when the
+warehouse and archive line up (first-visitor discount: three past discount tests lifted
+conversion and hurt margin; passed, margin added as guardrail). ABSTAIN when it honestly does
+not know (mobile add-to-cart placement; sized, stopping rule set, handed to the platform, and
+the branch already exists so the test starts the next morning).
+
+*Month two.* The button test ends. Dana opens a chat with Meridian's working agents, each
+reading arm-tagged records. Support: thirty-one treatment chats complained about hidden fabric
+swatches, links attached. Analytics: product-to-cart up, cart-to-checkout down, small screens.
+Three agent-driven shoppers who abandoned in treatment are asked why: the delivery estimate
+was hidden. Every answer cites a record. The result and the debrief land in the archive.
+Nobody files a report.
+
+*Month six.* After nine arm-tagged tests the observer predicts them blind, beats predict-flat,
+and earns its vote. It now walks new variants on the staged build with Meridian's real
+propensities; its confidence is scored against every subsequent test.
+
+*Month twelve.* Test slots did not increase. What went into them changed:
+
+| Before | After |
+|---|---|
+| Twenty ideas a quarter, five tested, chosen by gut | Two hundred a week, sixty percent killed or passed on evidence, the rest tested |
+| Two weeks from idea to test start | One day; the branch exists before the decision |
+| One in three tests underpowered or mis-metriced | Tests shaped before launch, guardrails attached |
+| Results in decks, forgotten in a quarter | Every result and debrief in the archive, feeding the next call |
+| Losers found only after burning traffic | Known losers never reach traffic |
+
+Why it works: the company's own history is the model; confidence is honest and re-scored
+monthly; real tests close the loop, and the loop compounds per customer. Why it serves both
+worlds: Dana keeps the veto and her overrules are scored; her agents submit over the same
+interface, get the same three calls, and learn which of their ideas keep dying. The ratio of
+human to agent submissions will flip; the gate will not change.
+
+### 9.4 Making it a product for agents
+
+The engine is AI-native; the surface is not. An agent-native product is one where the agent
+is the first-class user and the console is a view over what agents did. Pitch line: **the
+gate every agent calls before a change reaches users.** Coding agents have CI for
+correctness; nothing gives them CI for user behaviour.
+
+Five primitives, exposed as an MCP server and a REST API, dashboard built on top:
+
+1. **Submit a hypothesis** (structured contract: change, segment, metric, branch) and get a
+   verdict, a confidence, the evidence records, and a test spec on ABSTAIN or PASS.
+2. **Run the test** on the customer's platform, or on a lightweight assignment SDK we ship;
+   traffic budget enforced here.
+3. **Get the result** by webhook when the stopping rule fires, with guardrail status and the
+   arm-tagged debrief.
+4. **Search the archive** (Voyager's memory as a tool) so planning agents stop repeating known
+   losers.
+5. **Read your own score.** Every agent has an identity and a calibration record; a poor
+   record loses traffic budget, a good one earns it.
+
+What changes: programmatic onboarding (observer tag, scoped credentials, a key; the human sets
+policy once: budget, guardrails, which verdicts need a signature); discovery in MCP registries,
+coding-agent tool catalogs and an llms.txt; per-call and per-test pricing on agent-friendly
+rails; many agents from many vendors brokered by one gate; humans keep the veto and the veto
+is scored. What does not change: accuracy still comes from the customer's history and real
+tests, cold start is not fixed by the surface, and abstentions must not be hidden from a
+machine caller that will act on the verdict without reading caveats.
+
+Build order: MCP server with the five primitives on the existing verdict path; assignment SDK
+and platform integrations; agent identity and calibration scores; self-serve keys, usage
+billing, registry listings; dashboard last, as a read view of the ledger; persona chat and
+wizard retired along the way.
+
+### 9.5 Is this already happening?
+
+Yes, in three layers, the youngest of which is the least trusted:
+
+- **Agents writing and merging code is mainstream.** Razorpay's internal agent system merges
+  thousands of PRs a month, over a third with no human in the loop; Stripe auto-merges
+  low-risk changes. One estimate puts Claude Code at roughly four percent of public GitHub
+  commits, double the prior year.
+- **Agents deciding what to build from product data has started, with a human approving.**
+  PostHog ships background agents that watch product data for errors, frustration and feedback,
+  research the problem, write the fix and open a PR; nothing ships on autopilot. PostHog found
+  PMs and marketers using its AI more than the engineers it targeted.
+- **Agents generating hypotheses and variants is where the experimentation vendors are
+  racing.** Optimizely Opal has a variation-development agent; VWO ships an MCP server; Pagent
+  defines hypotheses, builds real-code variants and runs tests; one vendor claims fully
+  autonomous hypothesis, synthetic simulation and deploy with no human; Statsig is inside
+  OpenAI; a CHI 2026 paper automates A/B tests on live sites with interactive agents.
+
+Consequences: the firehose exists now; the human-approval step is the wedge (companies want to
+let agents ship more and cannot because review does not scale); the competitive risk is the one
+already named in §8, every platform will bundle "AI hypothesis generation" for free. No public
+evidence shows agents choosing what to build *well*; the evidence shows they choose
+prolifically and that humans are the bottleneck. That is the condition under which a
+calibrated gate is worth paying for.
+
+### 9.6 The difference from the competition, stated precisely
+
+Every competitor claims accuracy (85–97%, unverified). The claim we can own is stronger and
+none of them can make it without our loop: **every verdict ships with its own scored track
+record, per customer, sealed, and "we don't know" is a first-class answer.**
+
+Concretely, four things a competitor cannot copy by shipping a feature:
+
+1. **Calibration, not accuracy.** A stated ninety percent that is right nine times in ten on
+   *this* customer's tests, re-scored every month, with the ledger inspectable. A headline
+   percentage from a vendor's private benchmark is not that.
+2. **Abstention as a product feature.** The gate is allowed to say "I don't know", and the
+   abstention is routed to a real test rather than dressed up as a prediction. Nobody selling
+   85–97% can afford this; it is the only honest answer on the majority of genuinely new ideas.
+3. **Evidence attached to every call.** KILL comes with the past test; PASS comes with the
+   warehouse rows; the debrief cites the chat, session or agent log. A verdict without a
+   citation is marked as a guess.
+4. **Neutrality across generators.** Optimizely, VWO, PostHog and the coding agents all
+   *generate*. Being the gate that arbitrates all of them on the customer's own evidence is a
+   position none of the generators can hold, because each is selling its own ideas.
+
+The paired corpus (hypothesis, what the gate said, what the real test showed) is what makes
+claims 1 to 3 checkable, and it accrues only to whoever runs the loop. That remains the moat.
+
+Sources for §9.5: Masters Union on agents in production (Razorpay, Stripe); SerpSculpt Claude
+Code usage statistics; PostHog product page, AI-products handbook and "building AI features"
+newsletter; Humblytics "AI A/B testing tools ranked by agent-readiness"; Varify "AI-powered
+A/B testing platforms 2026"; ACM CHI 2026 "Agent A/B: Automated and Scalable A/B Testing on
+Live Websites with Interactive LLM Agents".
+
 ---
 
 *Ties to: `simulation-engine-where-we-landed.md` (July landing), `sessions/fable-research/
