@@ -5,21 +5,27 @@
 > **Naming:** Stroma is the product. The memory layer and the gate are two parts of one
 > product; the earlier working names for them are retired in this document.
 
-> **Status:** draft for founder review. The Slack thread on this topic
-> (voyager-per3655, channel C0C4D3G7ZFE, 2026-09-25) could not be read from the
-> session that produced this draft; its points are not yet folded in. See §7.
+> **Status:** draft for founder review. Reconciled with the founders' Slack thread of
+> 2026-09-25 (and the 2026-09-22 "what should the company learn next" thread); §7 records
+> what that discussion changed.
 
 ---
 
 ## 0. The thesis in four sentences
 
-Agents now propose and build most product changes, at a volume no team can test. The company
-still has to decide which changes deserve real traffic and which should die before they waste
-a slot. Stroma is that decision: a calibrated gate that kills what the company's own history
-already disproves, passes what its own data supports, and says "we don't know" on the rest
-and routes it to a real test. Stroma's memory layer, which reads the company's own
-interactions and data, is what makes the gate possible, and every
-real test makes the gate sharper for that customer, which nobody else can copy.
+Agents now propose and build most product changes, at a volume no team can test, and the real
+problem underneath is that learning is slow and expensive. Stroma is the agent at your company
+that knows what the company has learned, knows what it has not, and is constantly trying to
+learn it: it kills ideas the company's own history already disproves, passes what its own data
+supports, says "we don't know" on the rest and routes them to a real test, and proposes what
+the company should learn next when a driver in its metrics tree is still unmeasured. Stroma's
+memory layer, which reads the company's own interactions and data, is what makes this
+possible, and every real test makes it sharper for that customer, which nobody else can copy.
+
+The pitch is the experimentation case, because it is the most compelling story and the one
+with cold, hard results behind every "what next". The vision is wider: the same loop works in
+any function where data and knowledge are used, and the functions least served by
+experimentation today will be the most impressed by it.
 
 ---
 
@@ -102,6 +108,14 @@ answer that the delivery estimate was hidden under the new button. Every answer 
 record; an answer without one is marked as a guess. The result and the debrief are written to
 the archive automatically. Nobody files a report.
 
+**Month three: what Meridian should learn next.** Not every call is a verdict on someone
+else's idea. Stroma's memory holds Meridian's metrics tree, and it knows which drivers have
+been measured and which have not. Delivery-fee sensitivity by channel sits under the biggest
+unexplained node in revenue, and no test has ever touched it. Stroma does not wait for an agent
+to guess. It proposes the experiment itself: the lever, the segments, the metric, the traffic
+it needs, and what decision it will unlock. That is the fourth call, **LEARN**, and it is the
+one that turns "what should we do next" from an opinion into a plan backed by a result.
+
 **Month six: the observer earns its vote.** After nine arm-tagged tests, the observer has
 watched real Meridian users react to real changes, not just to the product as it stands.
 Stroma runs a sealed backtest: the observer predicts those nine tests blind and beats
@@ -122,7 +136,14 @@ them changed.
 
 The saving is not a smarter oracle. It is traffic no longer spent on ideas the company had
 already disproven, engineering time no longer spent building tests that could not answer their
-question, and PM time no longer spent rediscovering what the company knew.
+question, and PM time no longer spent rediscovering what the company knew. But saving money
+is not the pitch. The pitch is learning velocity: Meridian now learns more true things about
+its customers per quarter than a competitor with the same traffic, and every quarter the gap
+widens. Without Stroma, you lose to the company that runs it.
+
+Stroma also runs the other direction. Decisions Meridian already made, with no test behind
+them, are scored against the archive and the warehouse the same way. Some hold up. Some turn
+out to rest on nothing, and become LEARN proposals.
 
 **Why it works.** The company's own history is the model. Confidence is honest and re-scored
 against real outcomes every month. Real tests close the loop, and the loop compounds per
@@ -222,6 +243,10 @@ user behaviour.
    losers.
 5. **Read your own score.** Every agent has an identity and a calibration record. A poor record
    loses traffic budget; a good one earns it.
+6. **Ask what to learn next.** Returns the unmeasured drivers in the customer's metrics tree,
+   ranked by the value of knowing, each with a proposed experiment. This is the primitive that
+   makes Stroma a decision engine rather than a filter, and it is what the planning agents
+   should call before they generate anything.
 
 ### 4.2 What changes in how it is built and sold
 
@@ -234,6 +259,11 @@ user behaviour.
 - **Many agents, one gate.** Coding, growth and CRO agents from different vendors all want
   traffic. Stroma brokers the shared resource.
 - **Humans keep the veto**, and the veto is scored.
+- **We do not build an experimentation platform, and we do not build the product.** Stroma
+  sits one step before the platform (Optimizely, Statsig, PostHog, VWO) and hands validated
+  tests to it through connectors. Agents connect to Stroma to learn what to build; they build
+  it elsewhere. This is the line between Stroma and the "product decision engine" companies
+  that have already died: they generated ideas, we ground and gate them on evidence.
 
 ### 4.3 What does not change
 
@@ -275,16 +305,58 @@ environment, stays small.
 6. The acting-agent experiment (E8), sealed.
 7. Agent identity and calibration scores; self-serve keys; usage billing; registry listings.
 8. One design partner with an experiment archive. Nothing here certifies without it.
+9. Hire or advise-in someone with an experimentation-platform background, for credibility with
+   buyers and for navigating the platform partnerships.
 
 ---
 
-## 7. Open items
+## 7. What the founders' Slack discussion changed (2026-09-25)
 
-- **Fold in the Slack discussion** (voyager-per3655 / C0C4D3G7ZFE / p1790294173280639). Not
-  readable from the cloud session that drafted this; paste or summarise and this section
-  becomes the reconciliation.
-- Naming: Stroma is the product; "gate" and "memory" are the two parts. Decide whether either is a customer-facing name.
-- Pricing unit: per hypothesis screened, per test run, or a traffic-budget subscription.
+Reconciled against the thread between Ram and James, plus James's 2026-09-22 note.
+
+**Confirmed as already in the memo.** No experimentation platform of our own; we are one step
+before it and hand validated tests to Optimizely or Statsig through connectors. Evidence-backed
+ideas without burning the coffers, and bad ideas vetted before they cost time and money. Agents
+as the primary caller: agents build the product, Stroma tells them what to build. Interacting
+with agents to understand why something worked or did not.
+
+**Added or changed.**
+
+1. **The fourth call, LEARN.** James's framing: base experiments on the metrics tree, find the
+   drivers not fully understood given what Stroma knows (price elasticity of demand by channel
+   was the example), propose the experiment, launch and manage it, and make "what next" rest on
+   cold, hard results. The 2026-09-22 note is the root: knowing what the company has learned
+   implies knowing what it has not, so Stroma should suggest what to learn next, including which
+   mechanisms are unexplored. This is now in the thesis (§0), the story (month three), and the
+   primitives (§4.1, item 6). In engine terms it is the estimability manifest, the lever map and
+   EVOI ranking already built, pointed at gaps instead of at submitted ideas.
+2. **Validate existing decisions, not only new ones.** Ram's last line. Added to the story.
+3. **The value proposition is learning velocity, not savings.** James: saving money alone is
+   not powerful; the company that does not run Stroma should lose to the one that does. The
+   story's closing now says so.
+4. **Pitch versus vision.** Agreed: the pitch is the experimentation case, and we build toward
+   it; the vision is any function where data and knowledge are used. Stated in §0. Cut the data
+   story short in the pitch and cut the fluff from the product: we are not here to answer
+   questions, we are here to give evidence-backed ideas, test the ideas you bring, and let you
+   interrogate why.
+5. **The Milana warning.** "Product decision engine for the agentic world" is almost exactly a
+   company that went out of business. The difference is recorded in §4.2: we do not build the
+   product and we do not generate for generation's sake; every call is grounded in the
+   company's own data, knowledge and evidence, and scored against outcomes. That grounding and
+   that score are the whole company.
+6. **Hire an experimentation-platform person.** Added to the ninety days.
+7. **Fundraising.** Ram's read is that this story can raise on the idea and a strong team before
+   the product is ready. Consistent with §1: raise on the loop and the corpus, never on "we
+   will crack the simulation".
+
+James's one-line version, kept as the sentence to build the deck around:
+
+> It doesn't just preserve what the company has learned. It identifies what the company should
+> learn next, helps design the experiments to learn it, and makes the result available
+> everywhere it matters.
+
+**Still open.** Whether "gate" or "memory" become customer-facing names, and the pricing unit
+(per hypothesis, per test, or a traffic-budget subscription).
 
 ---
 
