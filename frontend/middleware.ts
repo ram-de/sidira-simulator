@@ -146,12 +146,12 @@ export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
-  // The public site's home page is the static Sidira landing page
-  // (public/sidira-home.html, from ram-de/mneme site/index.html).
-  // Only "/" on the apex public host is rewritten; www still redirects first.
+  // The public site's home page is the Sidira landing page served by
+  // app/sidira-home/route.ts. Only "/" on the apex public host is rewritten;
+  // www still redirects first.
   const host = request.headers.get("host");
   if (isPublicSiteHost(host) && !isWwwHost(host) && request.nextUrl.pathname === "/") {
-    return NextResponse.rewrite(new URL("/sidira-home.html", request.url));
+    return NextResponse.rewrite(new URL("/sidira-home", request.url));
   }
 
   return (await (
