@@ -146,6 +146,14 @@ export default async function middleware(
   request: NextRequest,
   event: NextFetchEvent,
 ): Promise<Response> {
+  // The public site's home page is the static Sidira landing page
+  // (public/sidira-home.html, from ram-de/mneme site/index.html).
+  // Only "/" on the apex public host is rewritten; www still redirects first.
+  const host = request.headers.get("host");
+  if (isPublicSiteHost(host) && !isWwwHost(host) && request.nextUrl.pathname === "/") {
+    return NextResponse.rewrite(new URL("/sidira-home.html", request.url));
+  }
+
   return (await (
     authMiddleware as (req: NextRequest, ev: NextFetchEvent) => Promise<Response> | Response
   )(request, event)) as Response;
